@@ -281,7 +281,8 @@ def test_setup_anndata_view_error(adata):
 
 
 def test_setup_anndata_view_error_df_protein_none(adata):
-    # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from column of df
+    # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from
+    # column of df
     new_protein_names = np.array(random.sample(range(100), 100)).astype("str")
     df = pd.DataFrame(
         adata.obsm["protein_expression"],
@@ -503,7 +504,7 @@ def test_saving(adata, save_path):
         continuous_covariate_keys=["cont1", "cont2"],
     )
     adata.write(save_path)
-    anndata.read(save_path)
+    anndata.read_h5ad(save_path)
 
 
 def test_backed_anndata(adata, save_path):

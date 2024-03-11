@@ -31,8 +31,9 @@ class JVAE(BaseModuleClass):
         Total number of different genes
     indices_mappings
         list of mapping the model inputs to the model output
-        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed at location ``[0,2]``
-        the second dataset has 4 genes that will be reconstructed at ``[0,1,3,2]``
+        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed
+        at location ``[0,2]`` the second dataset has 4 genes that will be reconstructed at
+        ``[0,1,3,2]``
     gene_likelihoods
         list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
     model_library_bools bool list

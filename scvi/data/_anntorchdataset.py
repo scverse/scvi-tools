@@ -9,18 +9,17 @@ import pandas as pd
 import torch
 
 try:
-    from anndata._core.sparse_dataset import SparseDataset
-except ImportError:
-    # anndata >= 0.10.0
+    # anndata >= 0.10
     from anndata.experimental import CSCDataset, CSRDataset
 
     SparseDataset = (CSRDataset, CSCDataset)
+except ImportError:
+    from anndata._core.sparse_dataset import SparseDataset
 
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
-from scvi.utils._exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
     from ._manager import AnnDataManager
@@ -48,8 +47,8 @@ class AnnTorchDataset(Dataset):
         :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
-        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
-        depending on the sparsity of the data.
+        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
+        GPUs, depending on the sparsity of the data.
     """
 
     def __init__(
@@ -91,11 +90,7 @@ class AnnTorchDataset(Dataset):
                 key: registry_key_to_default_dtype(key) for key in self.registered_keys
             }
         else:
-            raise InvalidParameterError(
-                param="getitem_tensors",
-                value=getitem_tensors.__class__,
-                valid=[list, dict, None],
-            )
+            raise ValueError("`getitem_tensors` must be a `list`, `dict`, or `None`")
 
         for key in keys_to_dtypes:
             if key not in self.registered_keys:

@@ -7,7 +7,47 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-### 1.1.1 (unreleased)
+### 1.2.0 (unreleased)
+
+#### Added
+
+-   Add new experimental functional API for hyperparameter tuning with
+    {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` to replace
+    {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
+    {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
+-   Add experimental class {class}`scvi.nn.Embedding` implementing methods for extending embeddings
+    {pr}`2574`.
+-   Add experimental support for representing batches with continuously-valued embeddings by passing
+    in `batch_representation="embedding"` to {class}`scvi.model.SCVI` {pr}`2576`.
+-   Add experimental mixin classes {class}`scvi.model.base.EmbeddingMixin` and
+    {class}`scvi.module.base.EmbeddingModuleMixin` {pr}`2576`.
+-   Add option to generate synthetic spatial coordinates in {func}`scvi.data.synthetic_iid` with
+    argument `generate_coordinates` {pr}`2603`.
+-   Add experimental support for using custom {class}`lightning.pytorch.core.LightningDataModule`s
+    in {func}`scvi.autotune.run_autotune` {pr}`2605`.
+
+#### Changed
+
+-   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
+    [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
+
+#### Removed
+
+-   Remove {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
+    {class}`scvi.autotune.TuneAnalysis` in favor of new experimental functional API with
+    {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
+
+### 1.1.2 (2024-03-01)
+
+#### Changed
+
+-   Address AnnData >= 0.10 deprecation warning for {func}`anndata.read` by replacing instances with
+    {func}`anndata.read_h5ad` {pr}`2531`.
+-   Address AnnData >= 0.10 deprecation warning for {class}`anndata._core.sparse_dataset.SparseDataset`
+    by replacing instances with {class}`anndata.experimental.CSCDataset` and
+    {class}`anndata.experimental.CSRDataset` {pr}`2531`.
+
+### 1.1.1 (2024-02-19)
 
 #### Fixed
 

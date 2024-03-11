@@ -2,7 +2,7 @@ name: Test (Linux, prereleases)
 
 on:
   pull_request:
-    branches: [main, 1.1.x]
+    branches: [main, 1.1.x, 1.2.x]
     types: [labeled, synchronize, opened]
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
@@ -48,13 +48,10 @@ jobs:
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
 
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
-
       - name: Install dependencies
         run: |
-          pip install --pre ".[tests]"
+          python -m pip install --upgrade pip wheel uv
+          python -m uv pip install --system "scvi-tools[tests] @ ."
 
       - name: Test
         env:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from lightning import LightningDataModule
 
-from scvi._types import Tunable
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
@@ -26,7 +25,7 @@ class UnsupervisedTrainingMixin:
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
-        batch_size: Tunable[int] = 128,
+        batch_size: int = 128,
         early_stopping: bool = False,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
@@ -68,9 +67,9 @@ class UnsupervisedTrainingMixin:
             Perform early stopping. Additional arguments can be passed in through ``**kwargs``.
             See :class:`~scvi.train.Trainer` for further options.
         datasplitter_kwargs
-            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`. Values
-            in this argument can be overwritten by arguments directly passed into this method, when
-            appropriate. Not used if ``data_module`` is passed in.
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
+            Values in this argument can be overwritten by arguments directly passed into this
+            method, when appropriate. Not used if ``data_module`` is passed in.
         plan_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`. Values in
             this argument can be overwritten by arguments directly passed into this method, when
@@ -98,8 +97,8 @@ class UnsupervisedTrainingMixin:
                 max_epochs = get_max_epochs_heuristic(data_module.n_obs)
             else:
                 raise ValueError(
-                    "If `data_module` does not have `n_obs` attribute, `max_epochs` must be passed "
-                    "in."
+                    "If `data_module` does not have `n_obs` attribute, `max_epochs` must be "
+                    "passed in."
                 )
 
         if data_module is None:

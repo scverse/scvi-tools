@@ -378,6 +378,8 @@ def test_scvi(n_latent: int = 5):
 
 
 def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
+    from scvi.module._constants import MODULE_KEYS
+
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -391,8 +393,8 @@ def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
 
     def old_inference(*args, **kwargs):
         inf_outs = vae.inference(*args, **kwargs)
-        qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
+        qz = inf_outs.pop(MODULE_KEYS.QZ_KEY)
+        inf_outs[MODULE_KEYS.QZM_KEY], inf_outs[MODULE_KEYS.QZV_KEY] = qz.loc, qz.scale**2
         return inf_outs
 
     vae_mock.inference.side_effect = old_inference
@@ -402,6 +404,8 @@ def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
 
 
 def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
+    from scvi.module._constants import MODULE_KEYS
+
     adata = synthetic_iid()
     SCVI.setup_anndata(
         adata,
@@ -415,9 +419,9 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
 
     def old_forward(*args, **kwargs):
         inf_outs, gen_outs = vae.forward(*args, **kwargs)
-        qz = inf_outs.pop("qz")
-        inf_outs["qz_m"], inf_outs["qz_v"] = qz.loc, qz.scale**2
-        px = gen_outs.pop("px")
+        qz = inf_outs.pop(MODULE_KEYS.QZ_KEY)
+        inf_outs[MODULE_KEYS.QZM_KEY], inf_outs[MODULE_KEYS.QZV_KEY] = qz.loc, qz.scale**2
+        px = gen_outs.pop(MODULE_KEYS.PX_KEY)
         gen_outs["px_scale"], gen_outs["px_r"] = px.scale, px.theta
         return inf_outs, gen_outs
 
@@ -930,3 +934,51 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     # initialized with adata, cannot pass in data_module
     with pytest.raises(ValueError):
         model.train(data_module=data_module)
+
+
+@pytest.mark.parametrize("embedding_dim", [5, 10])
+@pytest.mark.parametrize("encode_covariates", [True, False])
+@pytest.mark.parametrize("use_observed_lib_size", [True, False])
+def test_scvi_batch_embeddings(
+    embedding_dim: int,
+    encode_covariates: bool,
+    use_observed_lib_size: bool,
+    save_path: str,
+    n_batches: int = 3,
+):
+    from scvi import REGISTRY_KEYS
+
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(
+        adata,
+        batch_representation="embedding",
+        encode_covariates=encode_covariates,
+        use_observed_lib_size=use_observed_lib_size,
+        batch_embedding_kwargs={
+            "embedding_dim": embedding_dim,
+        },
+    )
+    model.train(max_epochs=1)
+
+    batch_rep = model.get_batch_representation()
+    assert batch_rep is not None
+    assert isinstance(batch_rep, np.ndarray)
+    assert batch_rep.shape == (adata.n_obs, embedding_dim)
+
+    model_path = os.path.join(save_path, "scvi_model")
+    model.save(model_path, overwrite=True)
+    model = SCVI.load(model_path, adata)
+
+    batch_rep_loaded = model.get_batch_representation()
+    assert np.allclose(batch_rep, batch_rep_loaded)
+
+    with pytest.raises(KeyError):
+        model.module.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batches)
+    with pytest.raises(KeyError):
+        model.module.remove_embedding(REGISTRY_KEYS.LABELS_KEY)
+    model.module.remove_embedding(REGISTRY_KEYS.BATCH_KEY)
+
+    with pytest.raises(KeyError):
+        _ = model.get_batch_representation()

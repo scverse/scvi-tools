@@ -13,12 +13,12 @@ import torch
 from anndata import AnnData
 
 try:
-    from anndata._core.sparse_dataset import SparseDataset
-except ImportError:
-    # anndata >= 0.10.0
+    # anndata >= 0.10
     from anndata.experimental import CSCDataset, CSRDataset
 
     SparseDataset = (CSRDataset, CSCDataset)
+except ImportError:
+    from anndata._core.sparse_dataset import SparseDataset
 
 # TODO use the experimental api once we lower bound to anndata 0.8
 try:
@@ -160,7 +160,10 @@ def _set_data_in_registry(
 
 
 def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: Optional[str]):
-    """Will make sure that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse respectively.
+    """Check data format and correct if necessary.
+
+    Checks that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse
+    respectively.
 
     Parameters
     ----------
@@ -177,7 +180,8 @@ def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: Op
     )
     if sp_sparse.isspmatrix(data) and (data.getformat() != "csr"):
         warnings.warn(
-            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast before model initialization.",
+            "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast "
+            "before model initialization.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -226,9 +230,8 @@ def _make_column_categorical(
     if np.min(counts) < 3:
         category = unique[np.argmin(counts)]
         warnings.warn(
-            "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train properly.".format(
-                category, alternate_column_key
-            ),
+            "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train "
+            "properly.".format(category, alternate_column_key),
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -303,7 +306,8 @@ def _check_mudata_fully_paired(mdata: MuData):
             raise ValueError(
                 f"Detected unpaired observations in modality {mod_key}. "
                 "Please make sure that data is fully paired in all MuData inputs. "
-                "Either pad the unpaired modalities or take the intersection with muon.pp.intersect_obs()."
+                "Either pad the unpaired modalities or take the intersection with "
+                "muon.pp.intersect_obs()."
             )
 
 
@@ -337,7 +341,8 @@ def _check_fragment_counts(
     # check that n_obs is greater than n_to_check
     if data.shape[0] < n_to_check:
         raise ValueError(
-            f"adata.obs must have at least {n_to_check} observations. Consider reducing n_to_check. "
+            f"adata.obs must have at least {n_to_check} observations. Consider reducing "
+            "n_to_check."
         )
 
     inds = np.random.choice(data.shape[0], size=(n_to_check,))

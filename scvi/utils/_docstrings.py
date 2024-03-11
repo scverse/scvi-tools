@@ -35,8 +35,8 @@ mode
 de_delta = """\
 delta
     specific case of region inducing differential expression.
-    In this case, we suppose that :math:`R \\setminus [-\\delta, \\delta]` does not induce differential expression
-    (change model default case)."""
+    In this case, we suppose that :math:`R \\setminus [-\\delta, \\delta]` does not induce
+    differential expression (change model default case)."""
 de_batch_size = """\
 batch_size
     Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`."""
@@ -49,8 +49,8 @@ batch_correction
 de_batchid1 = """\
 batchid1
     Subset of categories from `batch_key` registered in ``setup_anndata``,
-    e.g. [`'batch1'`, `'batch2'`, `'batch3'`], for `group1`. Only used if `batch_correction` is `True`, and
-    by default all categories are used."""
+    e.g. [`'batch1'`, `'batch2'`, `'batch3'`], for `group1`. Only used if `batch_correction` is
+    `True`, and by default all categories are used."""
 de_batchid2 = """\
 batchid2
     Same as `batchid1` for group2. `batchid2` must either have null intersection with `batchid1`,
@@ -95,14 +95,14 @@ de_dsp = DocstringProcessor(
 summary = """\
 Sets up the :class:`~anndata.AnnData` object for this model.
 
-A mapping will be created between data fields used by this model to their respective locations in adata.
-None of the data in adata are modified. Only adds fields to adata"""
+A mapping will be created between data fields used by this model to their respective locations in
+adata. None of the data in adata are modified. Only adds fields to adata"""
 
 summary_mdata = """\
 Sets up the :class:`~mudata.MuData` object for this model.
 
-A mapping will be created between data fields used by this model to their respective locations in adata.
-None of the data in adata are modified. Only adds fields to adata"""
+A mapping will be created between data fields used by this model to their respective locations in
+adata. None of the data in adata are modified. Only adds fields to adata"""
 
 param_mdata = """\
 mdata
@@ -114,18 +114,21 @@ adata
 
 param_batch_key = """\
 batch_key
-    key in `adata.obs` for batch information. Categories will automatically be converted into integer
-    categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch to all the data."""
+    key in `adata.obs` for batch information. Categories will automatically be converted into
+    integer categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch
+    to all the data."""
 
 param_labels_key = """\
 labels_key
-    key in `adata.obs` for label information. Categories will automatically be converted into integer
-    categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label to all the data."""
+    key in `adata.obs` for label information. Categories will automatically be converted into
+    integer categories and saved to `adata.obs['_scvi_labels']`. If `None`, assigns the same label
+    to all the data."""
 
 param_size_factor_key = """\
 size_factor_key
-    key in `adata.obs` for size factor information. Instead of using library size as a size factor, the provided
-    size factor column will be used as offset in the mean of the likelihood. Assumed to be on linear scale."""
+    key in `adata.obs` for size factor information. Instead of using library size as a size factor,
+    the provided size factor column will be used as offset in the mean of the likelihood. Assumed
+    to be on linear scale."""
 
 param_layer = """\
 layer
@@ -134,16 +137,18 @@ layer
 param_cat_cov_keys = """\
 categorical_covariate_keys
     keys in `adata.obs` that correspond to categorical data.
-    These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
-    (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
-    biologically-relevant factors that you do _not_ want to correct for."""
+    These covariates can be added in addition to the batch covariate and are also treated as
+    nuisance factors (i.e., the model tries to minimize their effects on the latent space). Thus,
+    these should not be used for biologically-relevant factors that you do _not_ want to correct
+    for."""
 
 param_cont_cov_keys = """\
 continuous_covariate_keys
     keys in `adata.obs` that correspond to continuous data.
-    These covariates can be added in addition to the batch covariate and are also treated as nuisance factors
-    (i.e., the model tries to minimize their effects on the latent space). Thus, these should not be used for
-    biologically-relevant factors that you do _not_ want to correct for."""
+    These covariates can be added in addition to the batch covariate and are also treated as
+    nuisance factors (i.e., the model tries to minimize their effects on the latent space). Thus,
+    these should not be used for biologically-relevant factors that you do _not_ want to correct
+    for."""
 
 param_unlabeled_category = """\
 unlabeled_category

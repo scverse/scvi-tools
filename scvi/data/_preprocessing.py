@@ -85,7 +85,8 @@ def poisson_gene_selection(
     prob_zero_enrichment : float
         Probability of zero enrichment, median across batches in the case of multiple batches
     prob_zero_enrichment_rank : float
-        Rank of the gene according to probability of zero enrichment, median rank in the case of multiple batches
+        Rank of the gene according to probability of zero enrichment, median rank in the case of
+        multiple batches
     prob_zero_enriched_nbatches : int
         If batch_key is given, this denotes in how many batches genes are detected as zero enriched
 
@@ -295,13 +296,13 @@ def organize_multiome_anndatas(
     atac_anndata
         AnnData object with chromatin accessibility data
     modality_key
-        The key to add to the resulting AnnData `.obs`, indicating the modality each cell originated
-        from. Default is "modality".
+        The key to add to the resulting AnnData `.obs`, indicating the modality each cell
+        originated from. Default is "modality".
 
     Notes
     -----
-    Features that exist in either rna_anndata or atac_anndata but do not exist in multi_anndata will
-    be discarded.
+    Features that exist in either rna_anndata or atac_anndata but do not exist in multi_anndata
+    will be discarded.
 
     Returns
     -------

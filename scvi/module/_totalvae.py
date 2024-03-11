@@ -9,7 +9,6 @@ from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -74,24 +73,27 @@ class TOTALVAE(BaseModuleClass):
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
     protein_batch_mask
-        Dictionary where each key is a batch code, and value is for each protein, whether it was observed or not.
+        Dictionary where each key is a batch code, and value is for each protein, whether it was
+        observed or not.
     encode_covariates
         Whether to concatenate covariates to expression in encoder
     protein_background_prior_mean
-        Array of proteins by batches, the prior initialization for the protein background mean (log scale)
+        Array of proteins by batches, the prior initialization for the protein background mean
+        (log scale)
     protein_background_prior_scale
-        Array of proteins by batches, the prior initialization for the protein background scale (log scale)
+        Array of proteins by batches, the prior initialization for the protein background scale
+        (log scale)
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
-        Takes priority over `use_observed_lib_size`.
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     library_log_vars
-        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
-        not using observed library size.
+        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library
+        size if not using observed library size.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
@@ -108,21 +110,19 @@ class TOTALVAE(BaseModuleClass):
         n_input_proteins: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 256,
-        n_latent: Tunable[int] = 20,
-        n_layers_encoder: Tunable[int] = 2,
-        n_layers_decoder: Tunable[int] = 1,
+        n_hidden: int = 256,
+        n_latent: int = 20,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate_decoder: Tunable[float] = 0.2,
-        dropout_rate_encoder: Tunable[float] = 0.2,
-        gene_dispersion: Tunable[Literal["gene", "gene-batch", "gene-label"]] = "gene",
-        protein_dispersion: Tunable[
-            Literal["protein", "protein-batch", "protein-label"]
-        ] = "protein",
+        dropout_rate_decoder: float = 0.2,
+        dropout_rate_encoder: float = 0.2,
+        gene_dispersion: Literal["gene", "gene-batch", "gene-label"] = "gene",
+        protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
         log_variational: bool = True,
-        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "nb",
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        gene_likelihood: Literal["zinb", "nb"] = "nb",
+        latent_distribution: Literal["normal", "ln"] = "normal",
         protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
@@ -131,8 +131,8 @@ class TOTALVAE(BaseModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -445,13 +445,15 @@ class TOTALVAE(BaseModuleClass):
         `scale` refers to the quanity upon which differential expression is performed. For genes,
         this can be viewed as the mean of the underlying gamma distribution.
 
-        We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for proteins.
-        `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. ``scale`` refers to
-        foreground mean adjusted for background probability and scaled to reside in simplex.
-        ``back_alpha`` and ``back_beta`` are the posterior parameters for ``rate_back``.  ``fore_scale`` is the scaling
-        factor that enforces `rate_fore` > `rate_back`.
+        We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for
+        proteins. `rate_fore` refers to foreground mean, while `rate_back` refers to background
+        mean. ``scale`` refers to foreground mean adjusted for background probability and scaled to
+        reside in simplex. ``back_alpha`` and ``back_beta`` are the posterior parameters for
+        ``rate_back``.  ``fore_scale`` is the scaling factor that enforces
+        `rate_fore` > `rate_back`.
 
-        ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
+        ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein,
+        respectively.
 
         Parameters
         ----------
