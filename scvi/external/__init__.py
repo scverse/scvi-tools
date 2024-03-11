@@ -7,6 +7,7 @@ from .scbasset import SCBASSET
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .tangram import Tangram
+from .velovi import VELOVI
 
 __all__ = [
     "SCAR",
@@ -19,4 +20,5 @@ __all__ = [
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
+    "VELOVI",
 ]

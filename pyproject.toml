@@ -101,7 +101,7 @@ loompy = ["loompy>=3.0.6"]  # read loom
 scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
 velovi = ["scvelo>=0.2.5"]  # scvi.external.velovi
 optional = [
-    "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy,velovi]"
 ]  # all optional user functionality
 
 tutorials = [

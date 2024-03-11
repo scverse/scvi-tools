@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.request import urlretrieve
 
-import numpy as np
 import pandas as pd
-import scvelo as scv
 from anndata import AnnData
-from sklearn.preprocessing import MinMaxScaler
+
+from scvi.utils import dependencies
 
 
 def get_permutation_scores(save_path: str | Path = Path("data/")) -> pd.DataFrame:
@@ -17,8 +15,9 @@ def get_permutation_scores(save_path: str | Path = Path("data/")) -> pd.DataFram
     ----------
     save_path
         path to save the csv file
-
     """
+    from urllib.request import urlretrieve
+
     if isinstance(save_path, str):
         save_path = Path(save_path)
     save_path.mkdir(parents=True, exist_ok=True)
@@ -30,6 +29,7 @@ def get_permutation_scores(save_path: str | Path = Path("data/")) -> pd.DataFram
     return pd.read_csv(save_path / "permutation_scores.csv")
 
 
+@dependencies("scvelo")
 def preprocess_data(
     adata: AnnData,
     spliced_layer: str | None = "Ms",
@@ -58,6 +58,10 @@ def preprocess_data(
     -------
     Preprocessed adata.
     """
+    import numpy as np
+    import scvelo as scv
+    from sklearn.preprocessing import MinMaxScaler
+
     if min_max_scale:
         scaler = MinMaxScaler()
         adata.layers[spliced_layer] = scaler.fit_transform(adata.layers[spliced_layer])
