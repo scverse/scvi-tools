@@ -103,6 +103,8 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_multiome_anndatas
    data.add_dna_sequence
    data.reads_to_fragments
+   external.velovi.get_permutation_scores
+   external.velovi.preprocess_data
 ```
 
 ```{eval-rst}
