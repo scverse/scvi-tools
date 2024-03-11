@@ -30,11 +30,11 @@ def test_experiment_init(save_path: str):
     with raises(AttributeError):
         experiment.id = "new_id"
 
-    assert hasattr(experiment, "adata")
-    assert experiment.adata is not None
-    assert experiment.adata is adata
+    assert hasattr(experiment, "data")
+    assert experiment.data is not None
+    assert experiment.data is adata
     with raises(AttributeError):
-        experiment.adata = "new_adata"
+        experiment.data = "new_adata"
 
     assert hasattr(experiment, "setup_method_name")
     assert experiment.setup_method_name is not None
