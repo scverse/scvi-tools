@@ -16,7 +16,7 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
-from scvi.nn import one_hot
+from scvi.nn._utils import _one_hot
 
 logger = logging.getLogger(__name__)
 
@@ -328,8 +328,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         from torch.nn.functional import linear
 
         n_batch = self.library_log_means.shape[1]
-        local_library_log_means = linear(one_hot(batch_index, n_batch), self.library_log_means)
-        local_library_log_vars = linear(one_hot(batch_index, n_batch), self.library_log_vars)
+        local_library_log_means = linear(_one_hot(batch_index, n_batch), self.library_log_means)
+        local_library_log_vars = linear(_one_hot(batch_index, n_batch), self.library_log_vars)
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
@@ -485,10 +485,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.dispersion == "gene-label":
             px_r = linear(
-                one_hot(y, self.n_labels), self.px_r
+                _one_hot(y, self.n_labels), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = linear(_one_hot(batch_index, self.n_batch), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 

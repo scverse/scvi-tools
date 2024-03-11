@@ -1,6 +1,6 @@
 import torch
 
-from scvi.nn import one_hot
+from scvi.nn._utils import _one_hot
 
 
 def iterate(obj, func):
@@ -28,7 +28,7 @@ def broadcast_labels(y, *o, n_broadcast=-1):
             lambda x: x.repeat(n_broadcast, 1) if len(x.size()) == 2 else x.repeat(n_broadcast),
         )
     else:
-        ys = one_hot(y, n_broadcast)
+        ys = _one_hot(y, n_broadcast)
         new_o = o
     return (ys,) + new_o
 
@@ -38,7 +38,7 @@ def enumerate_discrete(x, y_dim):
 
     def batch(batch_size, label):
         labels = torch.ones(batch_size, 1, device=x.device, dtype=torch.long) * label
-        return one_hot(labels, y_dim)
+        return _one_hot(labels, y_dim)
 
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])

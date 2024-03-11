@@ -10,7 +10,7 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossOutput, auto_move_data
-from scvi.nn import one_hot
+from scvi.nn._utils import _one_hot
 
 from ._vae import VAE
 
@@ -187,7 +187,7 @@ class AutoZIVAE(VAE):
     ) -> torch.Tensor:
         """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
-            one_hot_label = one_hot(y, self.n_labels)
+            one_hot_label = _one_hot(y, self.n_labels)
             # If we sampled several random Bernoulli parameters
             if len(bernoulli_params.shape) == 2:
                 bernoulli_params = F.linear(one_hot_label, bernoulli_params)
@@ -197,7 +197,7 @@ class AutoZIVAE(VAE):
                     bernoulli_params_res.append(F.linear(one_hot_label, bernoulli_params[sample]))
                 bernoulli_params = torch.stack(bernoulli_params_res)
         elif self.zero_inflation == "gene-batch":
-            one_hot_batch = one_hot(batch_index, self.n_batch)
+            one_hot_batch = _one_hot(batch_index, self.n_batch)
             if len(bernoulli_params.shape) == 2:
                 bernoulli_params = F.linear(one_hot_batch, bernoulli_params)
             # If we sampled several random Bernoulli parameters
