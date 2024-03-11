@@ -59,6 +59,7 @@ import scvi
    external.SCBASSET
    external.ContrastiveVI
    external.POISSONVI
+   external.VELOVI
 
 ```
 

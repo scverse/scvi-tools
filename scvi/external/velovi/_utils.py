@@ -9,7 +9,7 @@ from scvi.utils import dependencies
 
 
 def get_permutation_scores(save_path: str | Path = Path("data/")) -> pd.DataFrame:
-    """Get the reference permutation scores on positive and negative controls.
+    """``BETA`` Get the reference permutation scores on positive and negative controls.
 
     Parameters
     ----------
@@ -37,7 +37,7 @@ def preprocess_data(
     min_max_scale: bool = True,
     filter_on_r2: bool = True,
 ) -> AnnData:
-    """Preprocess data.
+    """``BETA`` Preprocess data.
 
     This function removes poorly detected genes and minmax scales the data.
 
