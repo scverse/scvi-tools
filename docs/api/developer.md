@@ -178,6 +178,7 @@ Module classes in the external API with respective generative and inference proc
    external.tangram.TangramMapper
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
+   external.velovi.VELOVAE
 
 ```
 
