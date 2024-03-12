@@ -8,7 +8,6 @@ from torch.distributions import Dirichlet, Normal
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn._utils import _one_hot
 
 LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
@@ -114,7 +113,7 @@ class CellAssignModule(BaseModuleClass):
 
         to_cat = []
         if self.n_batch > 0:
-            to_cat.append(_one_hot(tensors[REGISTRY_KEYS.BATCH_KEY], self.n_batch))
+            to_cat.append(F.one_hot(tensors[REGISTRY_KEYS.BATCH_KEY], self.n_batch).squeeze(-2))
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         if cont_key in tensors.keys():
@@ -125,7 +124,7 @@ class CellAssignModule(BaseModuleClass):
             for cat_input, n_cat in zip(
                 torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
             ):
-                to_cat.append(_one_hot(cat_input, n_cat))
+                to_cat.append(F.one_hot(cat_input, n_cat).squeeze(-2))
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
@@ -157,7 +156,7 @@ class CellAssignModule(BaseModuleClass):
         # compute beta (covariate coefficent)
         # design_matrix has shape (n,p)
         if design_matrix is not None:
-            covariates = torch.einsum("np,gp->gn", design_matrix, self.beta)  # (g, n)
+            covariates = torch.einsum("np,gp->gn", design_matrix.float(), self.beta)  # (g, n)
             covariates = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
             covariates = covariates.expand(n_cells, self.n_genes, self.n_labels)
             base_mean = base_mean + covariates

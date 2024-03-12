@@ -12,7 +12,6 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder
-from scvi.nn._utils import _one_hot
 
 torch.backends.cudnn.benchmark = True
 
@@ -155,8 +154,12 @@ class ContrastiveVAE(BaseModuleClass):
         log library sizes in the batch the cell corresponds to.
         """
         n_batch = self.library_log_means.shape[1]
-        local_library_log_means = F.linear(_one_hot(batch_index, n_batch), self.library_log_means)
-        local_library_log_vars = F.linear(_one_hot(batch_index, n_batch), self.library_log_vars)
+        local_library_log_means = F.linear(
+            F.one_hot(batch_index, n_batch).squeeze(-2).float(), self.library_log_means
+        )
+        local_library_log_vars = F.linear(
+            F.one_hot(batch_index, n_batch).squeeze(-2).float(), self.library_log_vars
+        )
         return local_library_log_means, local_library_log_vars
 
     @staticmethod

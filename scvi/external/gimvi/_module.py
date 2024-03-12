@@ -12,7 +12,6 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, MultiDecoder, MultiEncoder
-from scvi.nn._utils import _one_hot
 
 torch.backends.cudnn.benchmark = True
 
@@ -408,9 +407,9 @@ class JVAE(BaseModuleClass):
             z, mode, library, self.dispersion, batch_index, y
         )
         if self.dispersion == "gene-label":
-            px_r = F.linear(_one_hot(y.type, self.n_labels), self.px_r)
+            px_r = F.linear(F.one_hot(y.type, self.n_labels).squeeze(-2).float(), self.px_r)
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(_one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(F.one_hot(batch_index, self.n_batch).squeeze(-2).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r.view(1, self.px_r.size(0))
         px_r = torch.exp(px_r)
@@ -488,10 +487,10 @@ class JVAE(BaseModuleClass):
             library_log_vars = getattr(self, f"library_log_vars_{mode}")
 
             local_library_log_means = F.linear(
-                _one_hot(batch_index, self.n_batch), library_log_means
+                F.one_hot(batch_index, self.n_batch).squeeze(-2).float(), library_log_means
             )
             local_library_log_vars = F.linear(
-                _one_hot(batch_index, self.n_batch), library_log_vars
+                F.one_hot(batch_index, self.n_batch).squeeze(-2).float(), library_log_vars
             )
             kl_divergence_l = kl(
                 ql,
