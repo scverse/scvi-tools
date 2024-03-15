@@ -108,7 +108,7 @@ class EncoderDecoder(Module):
         self.mean_encoder = Linear(n_hidden, n_output)
         self.var_encoder = VarEncoder(n_hidden, n_output, mode=var_mode, eps=var_eps)
 
-    def forward(self, x, cov: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, cov: torch.Tensor | None = None):
         y = self.decoder_y(x=x, cov=cov)
         # TODO better handling of inappropriate edge-case values than nan_to_num or at least warn
         y_m = torch.nan_to_num(self.mean_encoder(y))
