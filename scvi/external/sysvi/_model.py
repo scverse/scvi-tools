@@ -146,7 +146,6 @@ class SysVI(TrainingCustom, BaseModelClass):
         adata = self._validate_anndata(adata)
         if indices is None:
             indices = np.arange(adata.n_obs)
-        # Prediction
         # Do not shuffle to retain order
         tensors_fwd = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, shuffle=False
