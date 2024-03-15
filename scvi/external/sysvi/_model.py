@@ -52,7 +52,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         By default VampPrior pseudoinputs are randomly selected from data.
         Alternatively, one can specify pseudoinput indices using this parameter.
     **model_kwargs
-        Keyword args for :class:`~scvi.external.sysvi.module.Module`
+        Keyword args for :class:`~scvi.external.sysvi.SysVAE`
     """
 
     def __init__(
