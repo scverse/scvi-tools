@@ -30,7 +30,7 @@ class Embedding(Module):
         Apply layer normalization
     """
 
-    def __init__(self, size, cov_embed_dims: int = 10, normalize: bool = True):
+    def __init__(self, size: int, cov_embed_dims: int = 10, normalize: bool = True):
         super().__init__()
 
         self.normalize = normalize
