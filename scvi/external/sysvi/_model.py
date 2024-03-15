@@ -59,7 +59,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         self,
         adata: AnnData,
         prior: Literal["standard_normal", "vamp"] = "vamp",
-        n_prior_components=5,
+        n_prior_components: int = 5,
         pseudoinputs_data_indices: np.array | None = None,
         **model_kwargs,
     ):
