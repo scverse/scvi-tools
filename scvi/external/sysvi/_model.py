@@ -43,7 +43,7 @@ class SysVI(TrainingCustom, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi-tools.SysVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.SysVI.setup_anndata`.
     prior
         The prior distribution to be used. You can choose between "standard_normal" and "vamp".
     n_prior_components
