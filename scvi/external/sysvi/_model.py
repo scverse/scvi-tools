@@ -110,7 +110,7 @@ class SysVI(TrainingCustom, BaseModelClass):
 
         logger.info("The model has been initialized")
 
-    @torch.no_grad()
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: AnnData,
