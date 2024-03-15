@@ -90,7 +90,6 @@ class SysVI(TrainingCustom, BaseModelClass):
             else []
         )
 
-        # self.summary_stats provides information about anndata dimensions and other tensor info
         self.module = SysVAE(
             n_input=adata.shape[1],
             n_cov_const=n_cov_const,
