@@ -116,7 +116,6 @@ class EncoderDecoder(Module):
 
         outputs = {"y_m": y_m, "y_v": y_v}
 
-        # Sample from latent distribution
         if self.sample:
             y = Normal(y_m, y_v.sqrt()).rsample()
             outputs["y"] = y
