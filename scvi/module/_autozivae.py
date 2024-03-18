@@ -186,7 +186,7 @@ class AutoZIVAE(VAE):
     ) -> torch.Tensor:
         """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
-            one_hot_label = F.one_hot(y, self.n_labels).squeeze(-2)
+            one_hot_label = F.one_hot(y.squeeze(-1), self.n_labels)
             # If we sampled several random Bernoulli parameters
             if len(bernoulli_params.shape) == 2:
                 bernoulli_params = F.linear(one_hot_label.float(), bernoulli_params)
@@ -198,7 +198,7 @@ class AutoZIVAE(VAE):
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
         elif self.zero_inflation == "gene-batch":
-            one_hot_batch = F.one_hot(batch_index, self.n_batch).squeeze(-2)
+            one_hot_batch = F.one_hot(batch_index.squeeze(-1), self.n_batch)
             if len(bernoulli_params.shape) == 2:
                 bernoulli_params = F.linear(one_hot_batch.float(), bernoulli_params)
             # If we sampled several random Bernoulli parameters

@@ -32,6 +32,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 -   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
+-   Deprecate {func}`scvi.nn.one_hot`, to be removed in v1.3. Please directly use the
+    `one_hot` function in PyTorch instead {pr}`2608`
 
 #### Removed
 

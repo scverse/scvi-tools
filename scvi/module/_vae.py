@@ -329,11 +329,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         n_batch = self.library_log_means.shape[1]
         local_library_log_means = linear(
-            one_hot(batch_index, n_batch).squeeze(-2).float(), self.library_log_means
+            one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
         )
 
         local_library_log_vars = linear(
-            one_hot(batch_index, n_batch).squeeze(-2).float(), self.library_log_vars
+            one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
         )
 
         return local_library_log_means, local_library_log_vars
@@ -491,10 +491,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.dispersion == "gene-label":
             px_r = linear(
-                one_hot(y, self.n_labels).squeeze(-2).float(), self.px_r
+                one_hot(y.squeeze(-1), self.n_labels).float(), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = linear(one_hot(batch_index, self.n_batch).squeeze(-2).float(), self.px_r)
+            px_r = linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 

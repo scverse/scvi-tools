@@ -750,10 +750,10 @@ class MULTIVAE(BaseModuleClass):
         # Expression Dispersion
         if self.gene_dispersion == "gene-label":
             px_r = F.linear(
-                F.one_hot(label, self.n_labels).squeeze(-2).float(), self.px_r
+                F.one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(F.one_hot(batch_index, self.n_batch).squeeze(-2).float(), self.px_r)
+            px_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
@@ -763,9 +763,9 @@ class MULTIVAE(BaseModuleClass):
         # Protein Dispersion
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(F.one_hot(label, self.n_labels).squeeze(-2).float(), self.py_r)
+            py_r = F.linear(F.one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(F.one_hot(batch_index, self.n_batch).squeeze(-2).float(), self.py_r)
+            py_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)

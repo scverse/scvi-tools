@@ -26,7 +26,7 @@ def broadcast_labels(y, *o, n_broadcast=-1):
             lambda x: x.repeat(n_broadcast, 1) if len(x.size()) == 2 else x.repeat(n_broadcast),
         )
     else:
-        ys = torch.nn.functional.one_hot(y, n_broadcast).squeeze(-2)
+        ys = torch.nn.functional.one_hot(y.squeeze(-1), n_broadcast)
         new_o = o
     return (ys,) + new_o
 
@@ -36,7 +36,7 @@ def enumerate_discrete(x, y_dim):
 
     def batch(batch_size, label):
         labels = torch.ones(batch_size, 1, device=x.device, dtype=torch.long) * label
-        return torch.nn.functional.one_hot(labels, y_dim).squeeze(-2)
+        return torch.nn.functional.one_hot(labels.squeeze(-1), y_dim)
 
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])

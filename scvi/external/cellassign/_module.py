@@ -113,7 +113,7 @@ class CellAssignModule(BaseModuleClass):
 
         to_cat = []
         if self.n_batch > 0:
-            to_cat.append(F.one_hot(tensors[REGISTRY_KEYS.BATCH_KEY], self.n_batch).squeeze(-2))
+            to_cat.append(F.one_hot(tensors[REGISTRY_KEYS.BATCH_KEY].squeeze(-1), self.n_batch))
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         if cont_key in tensors.keys():
@@ -124,7 +124,7 @@ class CellAssignModule(BaseModuleClass):
             for cat_input, n_cat in zip(
                 torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
             ):
-                to_cat.append(F.one_hot(cat_input, n_cat).squeeze(-2))
+                to_cat.append(F.one_hot(cat_input.squeeze(-1), n_cat))
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 

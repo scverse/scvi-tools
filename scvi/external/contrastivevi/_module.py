@@ -155,10 +155,10 @@ class ContrastiveVAE(BaseModuleClass):
         """
         n_batch = self.library_log_means.shape[1]
         local_library_log_means = F.linear(
-            F.one_hot(batch_index, n_batch).squeeze(-2).float(), self.library_log_means
+            F.one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
         )
         local_library_log_vars = F.linear(
-            F.one_hot(batch_index, n_batch).squeeze(-2).float(), self.library_log_vars
+            F.one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
         )
         return local_library_log_means, local_library_log_vars
 

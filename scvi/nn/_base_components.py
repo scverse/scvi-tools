@@ -155,7 +155,7 @@ class FCLayers(nn.Module):
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if cat.size(1) != n_cat:
-                    one_hot_cat = nn.functional.one_hot(cat, n_cat).squeeze(-2)
+                    one_hot_cat = nn.functional.one_hot(cat.squeeze(-1), n_cat)
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
