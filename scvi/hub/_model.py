@@ -294,6 +294,7 @@ class HubModel:
         s3_path: str,
         pull_anndata: bool = True,
         cache_dir: str | None = None,
+        unsigned: bool = False,
         **kwargs,
     ) -> HubModel:
         """Download a :class:`~scvi.hub.HubModel` from an S3 bucket.
@@ -312,6 +313,9 @@ class HubModel:
         cache_dir
             The directory where the downloaded model files will be cached. Defaults to a temporary
             directory created with :func:`tempfile.mkdtemp`.
+        unsigned
+            Whether to use unsigned requests. If ``True`` and ``config`` is passed in ``kwargs``,
+            ``config`` will be overwritten.
         **kwargs
             Keyword arguments passed into :func:`~boto3.client`.
 
@@ -320,7 +324,10 @@ class HubModel:
         The pretrained model specified by the given S3 bucket and path.
         """
         from boto3 import client
+        from botocore import UNSIGNED, config
 
+        if unsigned:
+            kwargs["config"] = config.Config(signature_version=UNSIGNED)
         cache_dir = cache_dir or tempfile.mkdtemp()
         s3 = client("s3", **kwargs)
 
