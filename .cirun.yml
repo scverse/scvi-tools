@@ -1,9 +1,9 @@
 runners:
-  - name: aws-gpu-runner
-    cloud: aws
-    instance_type: g5.xlarge
-    region: us-west-2
-    image: ami-081fd1f021bc275c4 # ubuntu 20.04 nvidia drivers
+  - name: "aws-gpu-runner"
+    cloud: "aws"
+    instance_type: "g5.xlarge"
+    region: "us-west-2"
+    machine_image: "ami-081fd1f021bc275c4" # ubuntu 20.04 nvidia drivers
     preemptible: true
     labels:
       - "cirun-aws-gpu"
