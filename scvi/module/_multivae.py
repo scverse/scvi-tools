@@ -225,7 +225,7 @@ class MULTIVAE(BaseModuleClass):
     n_latent
         Dimensionality of the latent space. If `None`, defaults to square root
         of `n_hidden`.
-    n_layers_en
+    n_layers_encoder
         Number of hidden layers used for encoder NN.
     n_layers_decoder
         Number of hidden layers used for decoder NN.
