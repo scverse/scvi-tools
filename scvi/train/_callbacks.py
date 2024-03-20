@@ -137,7 +137,7 @@ class SaveCheckpoint(ModelCheckpoint):
 
 
 class MetricsCallback(Callback):
-    """Computes metrics on validation end and logs them to the logger.
+    """``DEPRECATED`` Computes metrics on validation end and logs them to the logger.
 
     Parameters
     ----------
@@ -153,6 +153,10 @@ class MetricsCallback(Callback):
 
         * `Dict[str, :class:`~scvi.train._callbacks.MetricCallable`]`: Same as above,
             but the keys are used as the logging names instead.
+
+    Notes
+    -----
+    Lifecycle: deprecated in v1.2, to be removed in v1.3.
     """
 
     def __init__(
@@ -160,6 +164,12 @@ class MetricsCallback(Callback):
         metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
     ):
         super().__init__()
+
+        warnings.warn(
+            "`MetricsCallback` is deprecated in v1.2 and will be removed in v1.3.",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
         if callable(metric_fns):
             metric_fns = [metric_fns]
