@@ -78,15 +78,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
     ):
         super().__init__(adata)
 
+        n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
         n_vars = self.summary_stats.n_vars
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
         if weight_obs:
             ct_counts = np.unique(
                 self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
@@ -112,6 +106,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             df_ct = pd.DataFrame({
                 'fine_labels_key': fine_labels.ravel(),
                 'coarse_labels_key': coarse_labels.ravel()}).drop_duplicates()
+            print('YYYY', df_ct)
             fine_labels_mapping = self.adata_manager.get_state_registry(
                 'fine_labels'
             ).categorical_mapping
@@ -134,12 +129,12 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
 
         self.module = self._module_cls(
             n_input=n_vars,
+            n_batch=n_batch,
             n_labels=n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
-            n_cats_per_cov=n_cats_per_cov,
             df_ct_id_dict=self.df_ct_id_dict,
             **module_kwargs,
         )
@@ -339,9 +334,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
     def setup_anndata(
         cls,
         adata: AnnData,
+        batch_key: str | None = None,
         labels_key: str | None = None,
         fine_labels_key: str | None = None,
-        categorical_covariate_keys: list[str] | None = None,
         layer: str | None = None,
         **kwargs,
     ):
@@ -350,21 +345,23 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
         Parameters
         ----------
         %(param_adata)s
+        %(param_batch_key)s
         %(param_labels_key)s
         fine_labels_key
             Key in `adata.obs` where fine-grained labels are stored.
-        %(param_cat_cov_keys)s
         %(param_layer)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            CategoricalObsField('fine_labels', fine_labels_key, required=False),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
         ]
+        if fine_labels_key is not None:
+            anndata_fields.append(
+                CategoricalObsField('fine_labels', fine_labels_key
+                )
+            )
 
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)

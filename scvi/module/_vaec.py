@@ -26,6 +26,8 @@ class VAEC(BaseMinifiedModeModuleClass):
     ----------
     n_input
         Number of input genes
+    n_batch
+        Number of batches
     n_labels
         Number of labels
     n_hidden
@@ -49,8 +51,8 @@ class VAEC(BaseMinifiedModeModuleClass):
     def __init__(
         self,
         n_input: int,
+        n_batch: int = 0,
         n_labels: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
         n_hidden: Tunable[int] = 128,
         n_latent: Tunable[int] = 5,
         n_layers: Tunable[int] = 2,
@@ -75,17 +77,16 @@ class VAEC(BaseMinifiedModeModuleClass):
         self.gene_likelihood = "nb"
         self.latent_distribution = "normal"
         # Automatically deactivate if useless
-        self.n_batch = 0
+        self.n_batch = n_batch
         self.n_labels = n_labels
         self.prior = prior
-        self.n_cats_per_cov = n_cats_per_cov
         if df_ct_id_dict is not None:
             self.num_classes_mog = max([v[2] for v in df_ct_id_dict.values()]) + 1
             mapping_mog = torch.tensor([v[2] for _, v in sorted(df_ct_id_dict.items())])
             self.register_buffer("mapping_mog", mapping_mog)
         else:
             self.num_classes_mog = num_classes_mog
-        cat_list = [n_labels] + list([] if self.n_cats_per_cov is None else self.n_cats_per_cov)
+        cat_list = [n_labels, n_batch]
         encoder_cat_list = cat_list if self.encode_covariates else [n_labels]
 
         # gene dispersion
@@ -136,18 +137,17 @@ class VAEC(BaseMinifiedModeModuleClass):
             self.prior_log_scales = torch.nn.Parameter(
                     torch.zeros([n_labels, self.num_classes_mog, n_latent]))
             self.prior_logits = torch.nn.Parameter(
-                    torch.ones([n_labels, self.num_classes_mog]))
+                    torch.zeros([n_labels, self.num_classes_mog]))
 
     def _get_inference_input(self, tensors):
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+        y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         if self.minified_data_type is None:
             x = tensors[REGISTRY_KEYS.X_KEY]
-            y = tensors[REGISTRY_KEYS.LABELS_KEY]
             input_dict = {
                 "x": x,
                 "y": y,
-                "cat_covs": cat_covs,
+                "batch_index": batch_index,
             }
         else:
             if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
@@ -158,7 +158,8 @@ class VAEC(BaseMinifiedModeModuleClass):
                     "qzm": qzm,
                     "qzv": qzv,
                     "observed_lib_size": observed_lib_size,
-                    "cat_covs": cat_covs,
+                    "y": y,
+                    "batch_index": batch_index,
                 }
             else:
                 raise NotImplementedError(
@@ -171,19 +172,18 @@ class VAEC(BaseMinifiedModeModuleClass):
         z = inference_outputs["z"]
         library = inference_outputs["library"]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         input_dict = {
             "z": z,
             "library": library,
             "y": y,
-            "cat_covs": cat_covs,
+            "batch_index": batch_index,
         }
         return input_dict
 
     @auto_move_data
-    def _regular_inference(self, x, y, cat_covs=None, n_samples=1):
+    def _regular_inference(self, x, y, batch_index, n_samples=1):
         """High level inference method.
 
         Runs the inference (encoder) model.
@@ -192,11 +192,11 @@ class VAEC(BaseMinifiedModeModuleClass):
         library = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
-        if cat_covs is not None and self.encode_covariates:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
+        if self.encode_covariates:
+            categorical_input = [y, batch_index]
         else:
-            categorical_input = ()
-        qz, z = self.z_encoder(x_, y, *categorical_input)
+            categorical_input = [y]
+        qz, z = self.z_encoder(x_, *categorical_input)
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
@@ -228,13 +228,9 @@ class VAEC(BaseMinifiedModeModuleClass):
         return outputs
 
     @auto_move_data
-    def generative(self, z, library, y, cat_covs=None):
+    def generative(self, z, library, y, batch_index):
         """Runs the generative model."""
-        if cat_covs is not None:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = ()
-        h = self.decoder(z, y, *categorical_input)
+        h = self.decoder(z, y, batch_index)
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
         px = NegativeBinomial(px_rate, logits=self.px_r)

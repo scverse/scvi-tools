@@ -6,12 +6,18 @@ from collections.abc import Sequence
 
 import numpy as np
 import pandas as pd
+from scipy.sparse import csr_matrix
 import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import CategoricalJointObsField, LayerField, NumericalObsField
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    LayerField,
+    NumericalObsField,
+    CategoricalObsField,
+)
 from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
@@ -77,32 +83,24 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         n_hidden: int,
         n_latent: int,
         n_layers: int,
-        n_cats_per_cov: Sequence[int],
+        n_batch_sc: int,
         dropout_decoder: float,
         l1_reg: float,
-        sc_covariate_registry: dict[str, list[str]],
+        sc_batch_mapping: list[str],
         **module_kwargs,
     ):
         super().__init__(st_adata)
-        if sc_covariate_registry is not None:
-            st_covariate_registry = dict(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings)
-            sc_covariate_mappings = dict(sc_covariate_registry.mappings)
-            assert set(sc_covariate_mappings.keys()) == set(st_covariate_registry.keys()), (
-                f'Spatial model has other covariates than single cell model, {set(sc_covariate_mappings.keys()).symmetric_difference(st_covariate_registry.keys())}'
-            )
-            for key, value in st_covariate_registry.items():
-                assert set(value).issubset(set(sc_covariate_mappings[key])), (
-                    f'Spatial model has other covariates than single cell model, {set(value) - set(sc_covariate_mappings[key])}')
-            n_cats_per_cov = (
-                sc_covariate_registry.n_cats_per_key
-                if sc_covariate_registry
-                else None
+        if sc_batch_mapping is not None:
+            st_sc_batch_mapping = self.adata_manager.get_state_registry('batch_index_sc')['categorical_mapping']
+            assert set(st_sc_batch_mapping).issubset(set(sc_batch_mapping)), (               
+                f'Spatial model has other covariates than single cell model, {set(st_sc_batch_mapping) - set(sc_batch_mapping)}'
             )
 
         self.module = self._module_cls(
             n_spots=st_adata.n_obs,
             n_labels=cell_type_mapping.shape[0],
-            n_cats_per_cov=n_cats_per_cov,
+            n_batch=self.summary_stats.n_batch,
+            n_batch_sc=n_batch_sc,
             decoder_state_dict=decoder_state_dict,
             px_decoder_state_dict=px_decoder_state_dict,
             px_r=px_r,
@@ -159,13 +157,11 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 sc_model.adata, p=vamp_prior_p
             ).values()
 
-        sc_covariate_registry = (
+        sc_batch_mapping = (
             sc_model.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
+                REGISTRY_KEYS.BATCH_KEY
             )
-            if REGISTRY_KEYS.CAT_COVS_KEY in sc_model.adata_manager.data_registry
-            else None
-        )
+        )['categorical_mapping']
 
         return cls(
             st_adata,
@@ -176,19 +172,21 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             sc_model.module.n_hidden,
             sc_model.module.n_latent,
             sc_model.module.n_layers,
-            sc_model.module.n_cats_per_cov,
+            sc_model.module.n_batch,
             mean_vprior=mean_vprior,
             var_vprior=var_vprior,
             mp_vprior=mp_vprior,
             dropout_decoder=dropout_decoder,
             l1_reg=l1_reg,
-            sc_covariate_registry=sc_covariate_registry,
+            sc_batch_mapping=sc_batch_mapping,
             **module_kwargs,
         )
 
+    @torch.inference_mode()
     def get_proportions(
         self,
         keep_noise: bool = False,
+        normalize: bool = True,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
     ) -> pd.DataFrame:
@@ -200,6 +198,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         keep_noise
             whether to account for the noise term as a standalone cell type in the proportion estimate.
+        normalize
+            whether to normalize the proportions to sum to 1.
         indices
             Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
         batch_size
@@ -218,10 +218,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             )
             prop_ = []
             for tensors in stdl:
-                generative_inputs = self.module._get_generative_input(tensors, None)
-                prop_local = self.module.get_proportions(
-                    x=generative_inputs["x"], keep_noise=keep_noise
-                )
+                inference_inputs = self.module._get_inference_input(tensors)
+                outputs = self.module.inference(**inference_inputs)
+                generative_inputs = self.module._get_generative_input(tensors, outputs)
+                prop_local = self.module.generative(**generative_inputs)["v"]
                 prop_ += [prop_local.cpu()]
             data = torch.cat(prop_).numpy()
             if indices:
@@ -231,7 +231,11 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 logger.info(
                     "No amortization for proportions, ignoring indices and returning results for the full data"
                 )
-            data = self.module.get_proportions(keep_noise=keep_noise)
+            data = torch.nn.functional.softplus(self.module.V).transpose(1, 0).detach().cpu().numpy()
+        if normalize:
+            data = data / data.sum(axis=1, keepdims=True)
+        if not keep_noise:
+            data = data[:, :-1]
 
         return pd.DataFrame(
             data=data,
@@ -239,6 +243,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             index=index_names,
         )
 
+    @torch.inference_mode()
     def get_gamma(
         self,
         indices: Sequence[int] | None = None,
@@ -258,7 +263,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         """
         self._check_if_trained()
 
-        column_names = np.arange(self.module.n_latent)
+        column_names = [str(i) for i in np.arange(self.module.n_latent)]
         index_names = self.adata.obs.index
 
         if self.module.amortization in ["both", "latent"]:
@@ -267,8 +272,16 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             )
             gamma_ = []
             for tensors in stdl:
-                generative_inputs = self.module._get_generative_input(tensors, None)
-                gamma_local = self.module.get_gamma(x=generative_inputs["x"])
+                inference_inputs = self.module._get_inference_input(tensors)
+                outputs = self.module.inference(**inference_inputs)
+                generative_inputs = self.module._get_generative_input(tensors, outputs)
+                generative_outputs = self.module.generative(**generative_inputs)
+                gamma_local = generative_outputs["gamma"]
+                if self.module.prior_mode == 'mog':
+                    proportions_model_local = generative_outputs['proportion_modes']
+                    gamma_local = torch.einsum('pncm,pmc->ncm', gamma_local, proportions_model_local)
+                else:
+                    gamma_local = gamma_local.squeeze(0)
                 gamma_ += [gamma_local.cpu()]
             data = torch.cat(gamma_, dim=-1).numpy()
             if indices is not None:
@@ -278,7 +291,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 logger.info(
                     "No amortization for latent values, ignoring adata and returning results for the full data"
                 )
-            data = self.module.get_gamma()
+            data = self.module.gamma.detach().cpu().numpy()
 
         data = np.transpose(data, (2, 0, 1))
         if return_numpy:
@@ -291,49 +304,72 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 )
             return res
 
-    def get_latent_amortization(
+    @torch.inference_mode()
+    def get_latent_representation(
         self,
+        adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
+        give_mean: bool = True,
+        mc_samples: int = 5000,
         batch_size: int | None = None,
-        return_numpy: bool = False,
-    ) -> np.ndarray | dict[str, pd.DataFrame]:
-        """Returns the amortized latent space for the spatial data.
+        return_dist: bool = False,
+    ) -> np.ndarray (np.ndarray, np.ndarray):
+        """Return the latent representation for each cell.
+
+        This is typically denoted as :math:`z_n`.
 
         Parameters
         ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
         indices
-            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Give mean of distribution or sample from it.
+        mc_samples
+            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
+            samples to take for computing mean.
         batch_size
-            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
-        return_numpy
-            if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_dist
+            Return (mean, variance) of distributions instead of just the mean.
+            If `True`, ignores `give_mean` and `mc_samples`. In the case of the latter,
+            `mc_samples` is used to compute the mean of a transformed distribution.
+            If `return_dist` is true the untransformed mean and variance are returned.
+
+        Returns
+        -------
+        Low-dimensional representation for each cell or a tuple containing its mean and variance.
         """
-        self._check_if_trained()
+        assert self.module.n_latent_amortization is not None, (
+            "Model has no latent representation for amortized values."
+        )
+        self._check_if_trained(warn=False)
 
-        if self.module.n_latent_amortization is None or self.module.amortization in ["none"]:
-            ValueError('Get latent amortization is not defined if n_latent_amortization is None or no amortization is used')
-
-        column_names = np.arange(self.module.n_latent_amortization)
-        index_names = self.adata.obs.index
-
-        stdl = self._make_data_loader(
-            self.adata, indices=indices, batch_size=batch_size
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+        latent = []
+        latent_qzm = []
+        latent_qzv = []
+        for tensors in scdl:
+            inference_inputs = self.module._get_inference_input(tensors)
+            z, qz, _ = self.module.inference(**inference_inputs, n_samples=mc_samples).values()
+            if give_mean:
+                latent += [qz.loc.cpu()]
+            else:
+                latent += [z.cpu()]
+            latent_qzm += [qz.loc.cpu()]
+            latent_qzv += [qz.scale.square().cpu()]
+        return (
+            (torch.cat(latent_qzm).numpy(), torch.cat(latent_qzv).numpy())
+            if return_dist
+            else torch.cat(latent).numpy()
         )
 
-        amortization = []
-        for tensors in stdl:
-            generative_inputs = self.module._get_generative_input(tensors, None)
-            x = generative_inputs["x"]
-            z_amortization = self.module.get_latent_amortization(x)
-            amortization += [z_amortization.cpu()]
-
-        data = torch.cat(amortization).numpy()
-        column_names = np.arange(self.module.n_latent_amortization)
-        index_names = self.adata.obs.index
-        if indices is not None:
-            index_names = index_names[indices]
-        return pd.DataFrame(data=data, columns=column_names, index=index_names)
-
+    @torch.inference_mode()
     def get_scale_for_ct(
         self,
         label: str,
@@ -356,21 +392,22 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Pandas dataframe of gene_expression
         """
         self._check_if_trained()
+        self._validate_anndata()
+        
+        cell_type_mapping_extended = list(self.cell_type_mapping) + ['noise']
 
-        if label not in self.cell_type_mapping:
+        if label not in cell_type_mapping_extended:
             raise ValueError("Unknown cell type")
-        y = np.where(label == self.cell_type_mapping)[0][0]
+        y = cell_type_mapping_extended.index(label)
 
         stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
         scale = []
         for tensors in stdl:
-            generative_inputs = self.module._get_generative_input(tensors, None)
-            x, ind_x, cat_covs = (
-                generative_inputs["x"],
-                generative_inputs["ind_x"],
-                generative_inputs["cat_covs"],
-            )
-            px_scale = self.module.get_ct_specific_expression(x, ind_x, y, cat_covs)
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
+            generative_inputs = self.module._get_generative_input(tensors, outputs)
+            px_scale = self.module.generative(**generative_inputs)["px_mu"][:, y, :]
+
             scale += [px_scale.cpu()]
 
         data = torch.cat(scale).numpy()
@@ -379,6 +416,62 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         if indices is not None:
             index_names = index_names[indices]
         return pd.DataFrame(data=data, columns=column_names, index=index_names)
+    
+    @torch.inference_mode()
+    def get_expression_for_ct(
+        self,
+        label: str,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        return_sparse_array: bool = False,
+    ) -> pd.DataFrame:
+        r"""Return the scaled parameter of the NB for every spot in queried cell types.
+
+        Parameters
+        ----------
+        label
+            cell type of interest
+        indices
+            Indices of cells in self.adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_sparse_array
+            If `True`, returns a sparse array instead of a dataframe.
+
+        Returns
+        -------
+        Pandas dataframe of gene_expression
+        """
+        self._check_if_trained()
+        cell_type_mapping_extended = list(self.cell_type_mapping) + ['noise']
+
+        if label not in cell_type_mapping_extended:
+            raise ValueError("Unknown cell type")
+        y = cell_type_mapping_extended.index(label)
+
+        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
+        expression_ct = []
+        for tensors in stdl:
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
+            generative_inputs = self.module._get_generative_input(tensors, outputs)
+            generative_outputs = self.module.generative(**generative_inputs)
+            px_scale, proportions = generative_outputs['px_mu'], generative_outputs['v']
+            px_scale = torch.einsum('mkl,mk->mkl', px_scale, proportions)
+            px_scale_proportions = px_scale[:, y, :]/px_scale.sum(dim=1)
+            x_ct = inference_inputs['x'].to(px_scale_proportions.device) * px_scale_proportions
+            expression_ct += [x_ct.cpu()]
+
+        data = torch.cat(expression_ct).numpy()
+        if return_sparse_array:
+            data = csr_matrix(data.T)
+            return data
+        else:
+            column_names = self.adata.var.index
+            index_names = self.adata.obs.index
+            if indices is not None:
+                index_names = index_names[indices]
+            return pd.DataFrame(data=data, columns=column_names, index=index_names)
 
     @devices_dsp.dedent
     def train(
@@ -453,6 +546,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: str | None = None,
+        batch_key: str | None = None,
+        sc_batch_key: str | None = None,
         categorical_covariate_keys: Sequence[str] | None = None,
         **kwargs,
     ):
@@ -462,7 +557,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_adata)s
         %(param_layer)s
-        %(param_categorical_covariate_keys)s
+        %(param_batch_key)s
+        sc_batch_key:
         Categorical covariate keys need to line up with single cell model.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
@@ -471,9 +567,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField("batch_index_sc", sc_batch_key),
         ]
         adata_manager = AnnDataManager(
             fields=anndata_fields, setup_method_args=setup_method_args
