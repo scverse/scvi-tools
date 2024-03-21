@@ -7,8 +7,6 @@ from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
-from ._utils import one_hot
-
 
 def _identity(x):
     return x
@@ -157,7 +155,7 @@ class FCLayers(nn.Module):
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if cat.size(1) != n_cat:
-                    one_hot_cat = one_hot(cat, n_cat)
+                    one_hot_cat = nn.functional.one_hot(cat.squeeze(-1), n_cat)
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
