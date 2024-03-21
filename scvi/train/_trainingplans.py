@@ -25,7 +25,6 @@ from scvi.module.base import (
     PyroBaseModuleClass,
     TrainStateWithState,
 )
-from scvi.nn import one_hot
 from scvi.train._constants import METRIC_KEYS
 
 from ._metrics import ElboMetric
@@ -534,9 +533,9 @@ class AdversarialTrainingPlan(TrainingPlan):
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
         if predict_true_class:
-            cls_target = one_hot(batch_index, n_classes)
+            cls_target = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
         else:
-            one_hot_batch = one_hot(batch_index, n_classes)
+            one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
             # place zeroes where true label is
             cls_target = (~one_hot_batch.bool()).float()
             cls_target = cls_target / (n_classes - 1)
