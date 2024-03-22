@@ -7,6 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
+from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import (
@@ -15,7 +16,7 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import DecoderTOTALVI, EncoderTOTALVI, one_hot
+from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
 
 torch.backends.cudnn.benchmark = True
 
@@ -403,18 +404,18 @@ class TOTALVAE(BaseModuleClass):
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
-            px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
+            px_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
+            py_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
+            py_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
@@ -513,27 +514,27 @@ class TOTALVAE(BaseModuleClass):
         # Background regularization
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
-            px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
+            px_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
+            py_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
+            py_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
         if self.n_batch > 0:
             py_back_alpha_prior = F.linear(
-                one_hot(batch_index, self.n_batch), self.background_pro_alpha
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
             )
             py_back_beta_prior = F.linear(
-                one_hot(batch_index, self.n_batch),
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
                 torch.exp(self.background_pro_log_beta),
             )
         else:
@@ -605,9 +606,11 @@ class TOTALVAE(BaseModuleClass):
         if not self.use_observed_lib_size:
             n_batch = self.library_log_means.shape[1]
             local_library_log_means = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_means
+                one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
             )
-            local_library_log_vars = F.linear(one_hot(batch_index, n_batch), self.library_log_vars)
+            local_library_log_vars = F.linear(
+                one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
+            )
             kl_div_l_gene = kl(
                 ql,
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
@@ -703,10 +706,10 @@ class TOTALVAE(BaseModuleClass):
             if not self.use_observed_lib_size:
                 n_batch = self.library_log_means.shape[1]
                 local_library_log_means = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_means
+                    one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
                 )
                 local_library_log_vars = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_vars
+                    one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
                 )
                 p_l_gene = (
                     Normal(local_library_log_means, local_library_log_vars.sqrt())
