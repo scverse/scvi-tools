@@ -22,7 +22,9 @@ jobs:
         contains(github.event_name, 'schedule') ||
         contains(github.event_name, 'workflow_dispatch')
       )
-    runs-on: [self-hosted, Linux, X64, CUDA]
+    runs-on: "cirun-aws-gpu--${{ github.run_id }}"
+    timeout-minutes: 30
+
     defaults:
       run:
         shell: bash -e {0} # -e to fail on error
