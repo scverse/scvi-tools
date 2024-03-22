@@ -23,6 +23,8 @@ class VAEC(BaseModuleClass):
     ----------
     n_input
         Number of input genes
+    n_batch
+        Number of batches. If ``0``, no batch correction is performed.
     n_labels
         Number of labels
     n_hidden
@@ -46,6 +48,7 @@ class VAEC(BaseModuleClass):
     def __init__(
         self,
         n_input: int,
+        n_batch: int = 0,
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 5,
@@ -66,7 +69,7 @@ class VAEC(BaseModuleClass):
         self.gene_likelihood = "nb"
         self.latent_distribution = "normal"
         # Automatically deactivate if useless
-        self.n_batch = 0
+        self.n_batch = n_batch
         self.n_labels = n_labels
 
         # gene dispersion

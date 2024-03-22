@@ -76,8 +76,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     ):
         super().__init__(adata)
 
-        n_labels = self.summary_stats.n_labels
-        n_vars = self.summary_stats.n_vars
         if weight_obs:
             ct_counts = np.unique(
                 self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
@@ -90,8 +88,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             module_kwargs.update({"ct_weight": ct_weight})
 
         self.module = self._module_cls(
-            n_input=n_vars,
-            n_labels=n_labels,
+            n_input=self.summary_stats.n_vars,
+            n_batch=self.summary_stats.n_batch,
+            n_labels=self.summary_stats.n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -275,8 +274,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     def setup_anndata(
         cls,
         adata: AnnData,
-        labels_key: str | None = None,
         layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -284,12 +284,14 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Parameters
         ----------
         %(param_adata)s
-        %(param_labels_key)s
         %(param_layer)s
+        %(param_batch_key)s
+        %(param_labels_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
