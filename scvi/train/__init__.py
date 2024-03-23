@@ -7,6 +7,7 @@ from ._trainingplans import (
     JaxTrainingPlan,
     LowLevelPyroTrainingPlan,
     PyroTrainingPlan,
+    SemiSupervisedAdversarialTrainingPlan,
     SemiSupervisedTrainingPlan,
     TrainingPlan,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "PyroTrainingPlan",
     "LowLevelPyroTrainingPlan",
     "SemiSupervisedTrainingPlan",
+    "SemiSupervisedAdversarialTrainingPlan",
     "AdversarialTrainingPlan",
     "ClassifierTrainingPlan",
     "TrainRunner",
