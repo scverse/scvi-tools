@@ -722,7 +722,7 @@ class TOTALANVAE(BaseModuleClass):
         kl_weight=1.0,
         labelled_tensors=None,
         classification_ratio=None,
-        feed_labels=False,
+        feed_labels=False, # consistency with scANVI without use there
     ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """Returns the reconstruction loss and the Kullback divergences.
 
@@ -752,14 +752,8 @@ class TOTALANVAE(BaseModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
-        if feed_labels:
-            labels = tensors[REGISTRY_KEYS.LABELS_KEY]
-        else:
-            labels = None
-        is_labelled = False if labels is None else True
-
         # Enumerate choices of label
-        labels_, z1s = broadcast_labels(labels, z1, n_broadcast=self.n_labels)
+        labels_, z1s = broadcast_labels(None, z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, labels_)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, labels_)
 
@@ -819,30 +813,6 @@ class TOTALANVAE(BaseModuleClass):
             "kl_div_l_gene": kl_div_l_gene,
             "kl_div_back_pro": kl_div_back_pro,
         }
-        print('is_labelled', is_labelled)
-
-        if is_labelled:
-            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
-            kl_locals['kl_divergence_z2'] = kl_divergence_z2
-            if labelled_tensors is not None:
-                ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
-                loss += ce_loss * classification_ratio
-                return LossOutput(
-                    loss=loss,
-                    reconstruction_loss=reconst_losses,
-                    kl_local=kl_locals,
-                    classification_loss=ce_loss,
-                    true_labels=true_labels,
-                    logits=logits,
-                    extra_metrics={
-                        "n_labelled_tensors": labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
-                    },
-                )
-            return LossOutput(
-                loss=loss,
-                reconstruction_loss=reconst_losses,
-                kl_local=kl_locals,
-            )
 
         probs = self.classifier(z1)
         if self.classifier.logits:
