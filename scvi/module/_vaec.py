@@ -2,19 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 import torch
-from torch.distributions import Distribution, Normal
-from torch.distributions import kl_divergence as kl
+from torch.distributions import Distribution
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import NegativeBinomial
 from scvi.module._constants import MODULE_KEYS
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import Encoder, FCLayers
-
-torch.backends.cudnn.benchmark = True
+from scvi.module.base import BaseModuleClass, auto_move_data
 
 
-# Conditional VAE model
 class VAEC(BaseModuleClass):
     """Conditional Variational auto-encoder model.
 
@@ -58,12 +52,14 @@ class VAEC(BaseModuleClass):
         n_latent: int = 5,
         n_layers: int = 2,
         log_variational: bool = True,
-        ct_weight: np.ndarray = None,
+        ct_weight: np.ndarray | None = None,
         dropout_rate: float = 0.05,
         encode_covariates: bool = False,
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
     ):
+        from scvi.nn import Encoder, FCLayers
+
         super().__init__()
         self.dispersion = "gene"
         self.n_latent = n_latent
@@ -184,6 +180,8 @@ class VAEC(BaseModuleClass):
         batch_index: torch.Tensor | None = None,
     ) -> dict[str, Distribution]:
         """Runs the generative model."""
+        from scvi.distributions import NegativeBinomial
+
         decoder_input = [z, y]
         if batch_index is not None:
             decoder_input.append(batch_index)
@@ -201,6 +199,11 @@ class VAEC(BaseModuleClass):
         kl_weight: float = 1.0,
     ):
         """Loss computation."""
+        from torch.distributions import Normal
+        from torch.distributions import kl_divergence as kl
+
+        from scvi.module.base import LossOutput
+
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
         qz = inference_outputs[MODULE_KEYS.QZ_KEY]
@@ -239,6 +242,8 @@ class VAEC(BaseModuleClass):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
+        from scvi.distributions import NegativeBinomial
+
         inference_kwargs = {"n_samples": n_samples}
         generative_outputs = self.forward(
             tensors,

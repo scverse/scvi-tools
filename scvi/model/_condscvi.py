@@ -6,11 +6,8 @@ import warnings
 import numpy as np
 import torch
 from anndata import AnnData
-from sklearn.cluster import KMeans
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
-from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -125,6 +122,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         var_vprior
             (n_labels, p, D) array
         """
+        from sklearn.cluster import KMeans
+
         if self.is_trained_ is False:
             warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train "
@@ -288,13 +287,15 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         %(param_layer)s
         %(param_batch_key)s
         """
+        from scvi.data import AnnDataManager, fields
+
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         if batch_key is not None:
-            anndata_fields.append(CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
+            anndata_fields.append(fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
