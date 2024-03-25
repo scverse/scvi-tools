@@ -14,6 +14,8 @@ def test_condscvi_batch_key(save_path: str, n_batches: int, n_labels: int = 5):
 
     model.train(max_epochs=1)
     assert model.summary_stats.n_batch == n_batches
+    _ = model.get_elbo()
+    _ = model.get_reconstruction_error()
     _ = model.get_latent_representation()
     _ = model.get_vamp_prior(adata)
 
@@ -46,6 +48,8 @@ def test_condscvi_no_batch_key(save_path: str, weight_obs: bool):
     model = CondSCVI(adata, weight_obs=weight_obs)
     model.train(max_epochs=1)
     assert not hasattr(model.summary_stats, "n_batch")
+    _ = model.get_elbo()
+    _ = model.get_reconstruction_error()
     _ = model.get_latent_representation()
     _ = model.get_vamp_prior(adata)
 
