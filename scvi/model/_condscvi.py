@@ -89,7 +89,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
-            n_batch=self.summary_stats.n_batch,
+            n_batch=getattr(self.summary_stats, "n_batch", 0),
             n_labels=self.summary_stats.n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -274,9 +274,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     def setup_anndata(
         cls,
         adata: AnnData,
+        labels_key: str | None = None,
         layer: str | None = None,
         batch_key: str | None = None,
-        labels_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -284,16 +284,17 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         Parameters
         ----------
         %(param_adata)s
+        %(param_labels_key)s
         %(param_layer)s
         %(param_batch_key)s
-        %(param_labels_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
+        if batch_key is not None:
+            anndata_fields.append(CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
