@@ -179,15 +179,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "TotalVI Model with the following params: \nn_latent: {}, "
-            "gene_dispersion: {}, protein_dispersion: {}, gene_likelihood: {}, "
-            "latent_distribution: {}"
-        ).format(
-            n_latent,
-            gene_dispersion,
-            protein_dispersion,
-            gene_likelihood,
-            latent_distribution,
+            f"TotalVI Model with the following params: \nn_latent: {n_latent}, "
+            f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, gene_likelihood: {gene_likelihood}, "
+            f"latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -1003,9 +997,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             )
             flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
             for i in range(n_samples):
-                flattened[
-                    denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                ] = denoised_data[:, :, i]
+                flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = (
+                    denoised_data[:, :, i]
+                )
             if log_transform is True:
                 flattened[:, : self.n_genes] = np.log(flattened[:, : self.n_genes] + 1e-8)
                 flattened[:, self.n_genes :] = np.log1p(flattened[:, self.n_genes :])

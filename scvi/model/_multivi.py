@@ -204,27 +204,11 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "MultiVI Model with INPUTS: n_genes: {}, n_regions: {}, n_proteins: {}\n"
-            "n_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {}, dropout_rate: {}, latent_distribution: {}, "
-            "deep injection: {}, gene_likelihood: {}, gene_dispersion:{}, Mod.Weights: {}, "
-            "Mod.Penalty: {}, protein_dispersion: {}"
-        ).format(
-            n_genes,
-            n_regions,
-            n_proteins,
-            self.module.n_hidden,
-            self.module.n_latent,
-            n_layers_encoder,
-            n_layers_decoder,
-            dropout_rate,
-            latent_distribution,
-            deeply_inject_covariates,
-            gene_likelihood,
-            dispersion,
-            modality_weights,
-            modality_penalty,
-            protein_dispersion,
+            f"MultiVI Model with INPUTS: n_genes: {n_genes}, n_regions: {n_regions}, n_proteins: {n_proteins}\n"
+            f"n_hidden: {self.module.n_hidden}, n_latent: {self.module.n_latent}, n_layers_encoder: {n_layers_encoder}, "
+            f"n_layers_decoder: {n_layers_decoder}, dropout_rate: {dropout_rate}, latent_distribution: {latent_distribution}, "
+            f"deep injection: {deeply_inject_covariates}, gene_likelihood: {gene_likelihood}, gene_dispersion:{dispersion}, Mod.Weights: {modality_weights}, "
+            f"Mod.Penalty: {modality_penalty}, protein_dispersion: {protein_dispersion}"
         )
         self.fully_paired = fully_paired
         self.n_latent = n_latent

@@ -112,13 +112,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "VELOVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, "
-            "dropout_rate: {}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
+            f"VELOVI Model with the following params: \nn_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
+            f"dropout_rate: {dropout_rate}"
         )
         self.init_params_ = self._get_init_params(locals())
 

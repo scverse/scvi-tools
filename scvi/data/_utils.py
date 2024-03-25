@@ -230,8 +230,8 @@ def _make_column_categorical(
     if np.min(counts) < 3:
         category = unique[np.argmin(counts)]
         warnings.warn(
-            "Category {} in adata.obs['{}'] has fewer than 3 cells. Models may not train "
-            "properly.".format(category, alternate_column_key),
+            f"Category {category} in adata.obs['{alternate_column_key}'] has fewer than 3 cells. Models may not train "
+            "properly.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )

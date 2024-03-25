@@ -89,13 +89,7 @@ class SCBASSET(BaseModelClass):
             l2_reg_cell_embedding=l2_reg_cell_embedding,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            "ScBasset Model with params: \nn_regions: {}, n_batch: {}, n_cells: {}"
-        ).format(
-            self.n_regions,
-            self.n_batch,
-            self.n_cells,
-        )
+        self._model_summary_string = f"ScBasset Model with params: \nn_regions: {self.n_regions}, n_batch: {self.n_batch}, n_cells: {self.n_cells}"
         self.init_params_ = self._get_init_params(locals())
 
     @devices_dsp.dedent

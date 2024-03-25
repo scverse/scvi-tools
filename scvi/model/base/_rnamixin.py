@@ -612,13 +612,13 @@ class RNASeqMixin:
             flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
             for i in range(n_samples):
                 if n_samples == 1:
-                    flattened[
-                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                    ] = denoised_data[:, :]
+                    flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = (
+                        denoised_data[:, :]
+                    )
                 else:
-                    flattened[
-                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                    ] = denoised_data[:, :, i]
+                    flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = (
+                        denoised_data[:, :, i]
+                    )
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             elif correlation_type == "spearman":
