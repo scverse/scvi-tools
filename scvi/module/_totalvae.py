@@ -1,4 +1,5 @@
 """Main module."""
+
 from collections.abc import Iterable
 from typing import Literal, Optional, Union
 

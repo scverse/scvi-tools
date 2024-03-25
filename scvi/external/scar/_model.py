@@ -135,15 +135,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "SCVI-AR Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, "
-            "dropout_rate: {}, gene_likelihood: {}, latent_distribution: {}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            gene_likelihood,
-            latent_distribution,
+            f"SCVI-AR Model with the following params: \nn_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
+            f"dropout_rate: {dropout_rate}, gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
 

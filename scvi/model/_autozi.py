@@ -138,20 +138,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self.model_summary_string = (
-            "AutoZI Model with the following params: \nn_hidden: {}, n_latent: {}, "
-            "n_layers: {}, dropout_rate: {}, dispersion: {}, latent_distribution: "
-            "{}, alpha_prior: {}, beta_prior: {}, minimal_dropout: {}, zero_inflation:{}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            dispersion,
-            latent_distribution,
-            alpha_prior,
-            beta_prior,
-            minimal_dropout,
-            zero_inflation,
+            f"AutoZI Model with the following params: \nn_hidden: {n_hidden}, n_latent: {n_latent}, "
+            f"n_layers: {n_layers}, dropout_rate: {dropout_rate}, dispersion: {dispersion}, latent_distribution: "
+            f"{latent_distribution}, alpha_prior: {alpha_prior}, beta_prior: {beta_prior}, minimal_dropout: {minimal_dropout}, zero_inflation:{zero_inflation}"
         )
         self.init_params_ = self._get_init_params(locals())
 

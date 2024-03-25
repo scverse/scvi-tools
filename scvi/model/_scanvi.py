@@ -162,16 +162,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         self.semisupervised_history_ = None
 
         self._model_summary_string = (
-            "ScanVI Model with the following params: \nunlabeled_category: {}, n_hidden: {}, "
-            "n_latent: {}, n_layers: {}, dropout_rate: {}, dispersion: {}, gene_likelihood: {}"
-        ).format(
-            self.unlabeled_category_,
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            dispersion,
-            gene_likelihood,
+            f"ScanVI Model with the following params: \nunlabeled_category: {self.unlabeled_category_}, n_hidden: {n_hidden}, "
+            f"n_latent: {n_latent}, n_layers: {n_layers}, dropout_rate: {dropout_rate}, dispersion: {dispersion}, gene_likelihood: {gene_likelihood}"
         )
         self.init_params_ = self._get_init_params(locals())
         self.was_pretrained = False
