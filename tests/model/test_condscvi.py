@@ -22,6 +22,19 @@ def test_condscvi_batch_key(save_path: str, n_batches: int, n_labels: int = 5):
     model = CondSCVI.load(model_path, adata=adata)
 
 
+def test_condscvi_batch_key_compat_load(save_path: str):
+    adata = synthetic_iid()
+    model = CondSCVI.load("tests/test_data/condscvi_pre_batch", adata=adata)
+
+    assert not hasattr(model.summary_stats, "n_batch")
+    _ = model.get_latent_representation()
+    _ = model.get_vamp_prior(adata)
+
+    model_path = os.path.join(save_path, __name__)
+    model.save(model_path, overwrite=True, save_anndata=False)
+    model = CondSCVI.load(model_path, adata=adata)
+
+
 @pytest.mark.parametrize("weight_obs", [True, False])
 def test_condscvi_no_batch_key(save_path: str, weight_obs: bool):
     adata = synthetic_iid()
