@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from scvi.data import synthetic_iid
@@ -5,7 +7,7 @@ from scvi.model import CondSCVI
 
 
 @pytest.mark.parametrize("n_batches", [1, 2, 3])
-def test_condscvi_batch_key(n_batches: int, n_labels: int = 5):
+def test_condscvi_batch_key(save_path: str, n_batches: int, n_labels: int = 5):
     adata = synthetic_iid(n_batches=n_batches, n_labels=n_labels)
     CondSCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
     model = CondSCVI(adata)
@@ -15,9 +17,13 @@ def test_condscvi_batch_key(n_batches: int, n_labels: int = 5):
     _ = model.get_latent_representation()
     _ = model.get_vamp_prior(adata)
 
+    model_path = os.path.join(save_path, __name__)
+    model.save(model_path, overwrite=True, save_anndata=False)
+    model = CondSCVI.load(model_path, adata=adata)
+
 
 @pytest.mark.parametrize("weight_obs", [True, False])
-def test_condscvi_no_batch_key(weight_obs: bool):
+def test_condscvi_no_batch_key(save_path: str, weight_obs: bool):
     adata = synthetic_iid()
     CondSCVI.setup_anndata(adata, labels_key="labels")
 
@@ -29,3 +35,7 @@ def test_condscvi_no_batch_key(weight_obs: bool):
     assert not hasattr(model.summary_stats, "n_batch")
     _ = model.get_latent_representation()
     _ = model.get_vamp_prior(adata)
+
+    model_path = os.path.join(save_path, __name__)
+    model.save(model_path, overwrite=True, save_anndata=False)
+    model = CondSCVI.load(model_path, adata=adata)
