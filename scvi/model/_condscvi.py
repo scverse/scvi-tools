@@ -8,6 +8,7 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.data import AnnDataManager, fields
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -287,8 +288,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         %(param_layer)s
         %(param_batch_key)s
         """
-        from scvi.data import AnnDataManager, fields
-
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
