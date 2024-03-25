@@ -154,7 +154,7 @@ class VAEC(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log1p(x_)
 
-        encoder_input = [x_, y]
+        encoder_input = [x, y]
         if batch_index is not None and self.encode_covariates:
             encoder_input.append(batch_index)
 

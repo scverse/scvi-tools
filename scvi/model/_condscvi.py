@@ -151,7 +151,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             y = tensors[REGISTRY_KEYS.LABELS_KEY]
-            out = self.module.inference(x, y)
+            batch_index = tensors.get(REGISTRY_KEYS.BATCH_KEY, None)
+            out = self.module.inference(x, y, batch_index=batch_index)
             mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
             mean += [mean_.cpu()]
             var += [var_.cpu()]

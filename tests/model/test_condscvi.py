@@ -7,10 +7,13 @@ from scvi.model import CondSCVI
 
 
 @pytest.mark.parametrize("n_batches", [1, 2, 3])
-def test_condscvi_batch_key(save_path: str, n_batches: int, n_labels: int = 5):
+@pytest.mark.parametrize("encode_covariates", [True, False])
+def test_condscvi_batch_key(
+    save_path: str, n_batches: int, encode_covariates: bool, n_labels: int = 5
+):
     adata = synthetic_iid(n_batches=n_batches, n_labels=n_labels)
     CondSCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    model = CondSCVI(adata)
+    model = CondSCVI(adata, encode_covariates=encode_covariates)
 
     model.train(max_epochs=1)
     assert model.summary_stats.n_batch == n_batches
