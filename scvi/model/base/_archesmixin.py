@@ -8,11 +8,13 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from muon import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._types import AnnOrMuData
 from scvi.data import _constants
-from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
@@ -32,7 +34,7 @@ class ArchesMixin:
     @devices_dsp.dedent
     def load_query_data(
         cls,
-        adata: AnnData,
+        adata: AnnOrMuData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
@@ -85,10 +87,18 @@ class ArchesMixin:
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
 
-        if inplace_subset_query_vars:
-            logger.debug("Subsetting query vars to reference vars.")
-            adata._inplace_subset_var(var_names)
-        _validate_var_names(adata, var_names)
+        if isinstance(adata, MuData):
+            for modality in adata.mod:
+                if inplace_subset_query_vars:
+                    logger.debug("Subsetting query vars to reference vars.")
+                    adata[modality]._inplace_subset_var(var_names[modality])
+                _validate_var_names(adata[modality], var_names[modality])
+
+        else:
+            if inplace_subset_query_vars:
+                logger.debug("Subsetting query vars to reference vars.")
+                adata._inplace_subset_var(var_names)
+            _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
@@ -100,7 +110,8 @@ class ArchesMixin:
                 "Cannot load the original setup."
             )
 
-        cls.setup_anndata(
+        setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+        setup_method(
             adata,
             source_registry=registry,
             extend_categories=True,
@@ -160,6 +171,7 @@ class ArchesMixin:
     def prepare_query_anndata(
         adata: AnnData,
         reference_model: Union[str, BaseModelClass],
+        reference_var_names: Optional[pd.Index] = None,
         return_reference_var_names: bool = False,
         inplace: bool = True,
     ) -> Optional[Union[AnnData, pd.Index]]:
@@ -177,6 +189,9 @@ class ArchesMixin:
         reference_model
             Either an already instantiated model of the same class, or a path to
             saved outputs for reference model.
+        reference_var_names
+            Variable names used to train reference model. If not provided, will attempt
+            to infer them automatically.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -187,8 +202,11 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
-        var_names = pd.Index(var_names)
+        if reference_var_names is None:
+            _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+            var_names = pd.Index(var_names)
+        else:
+            var_names = reference_var_names
 
         if return_reference_var_names:
             return var_names
@@ -241,6 +259,72 @@ class ArchesMixin:
                 adata._init_as_actual(adata_out)
         else:
             return adata_out
+
+    @staticmethod
+    def prepare_query_mudata(
+        mdata: MuData,
+        reference_model: Union[str, BaseModelClass],
+        return_reference_var_names: bool = False,
+        inplace: bool = True,
+    ) -> Optional[Union[MuData, dict[str, pd.Index]]]:
+        """Prepare multimodal dataset for query integration.
+
+        This function will return a new MuData object such that the
+        AnnData objects for individual modalities are given padded zeros
+        for missing features, as well as correctly sorted features.
+
+        Parameters
+        ----------
+        mdata
+            MuData organized in the same way as data used to train model.
+            It is not necessary to run setup_mudata,
+            as MuData is validated against the ``registry``.
+        reference_model
+            Either an already instantiated model of the same class, or a path to
+            saved outputs for reference model.
+        return_reference_var_names
+            Only load and return reference var names if True.
+        inplace
+            Whether to subset and rearrange query vars inplace or return new MuData.
+
+        Returns
+        -------
+        Query mudata ready to use in `load_query_data` unless `return_reference_var_names`
+        in which case a dictionary of pd.Index of reference var names is returned.
+        """
+        attr_dict, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+
+        for modality in var_names.keys():
+            var_names[modality] = pd.Index(var_names[modality])
+
+        if return_reference_var_names:
+            return var_names
+
+        reference_modalities_dict = attr_dict["registry_"][_SETUP_ARGS_KEY]["modalities"]
+
+        reference_modalities = reference_modalities_dict.values()
+        query_modalities = mdata.mod
+
+        for mod in reference_modalities:
+            if mod not in query_modalities:
+                raise ValueError(
+                    "Query MuData does not contain same modalities as reference. "
+                    "Cannot load the original setup."
+                )
+
+        adata_dict = {}
+        for modality in reference_modalities:
+            adata_out = ArchesMixin.prepare_query_anndata(
+                adata=mdata[modality],
+                reference_model=reference_model,
+                reference_var_names=var_names[modality],
+                return_reference_var_names=return_reference_var_names,
+                inplace=inplace,
+            )
+            adata_dict[modality] = adata_out
+
+        if not inplace:
+            return MuData(adata_dict)
 
 
 def _set_params_online_update(
@@ -326,7 +410,13 @@ def _get_loaded_data(reference_model, device=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        var_names = reference_model.adata.var_names
+        if isinstance(reference_model.adata, MuData):
+            var_names = {
+                mod: reference_model.adata[mod].var_names
+                for mod in reference_model.adata.mod.keys()
+            }
+        else:
+            var_names = reference_model.adata.var_names
         load_state_dict = deepcopy(reference_model.module.state_dict())
 
     return attr_dict, var_names, load_state_dict
