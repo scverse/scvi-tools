@@ -1,4 +1,3 @@
-import logging
 import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
