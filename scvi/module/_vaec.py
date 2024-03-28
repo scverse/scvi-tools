@@ -1,19 +1,14 @@
-from typing import Optional
+from __future__ import annotations
 
 import numpy as np
 import torch
-from torch.distributions import Normal
-from torch.distributions import kl_divergence as kl
+from torch.distributions import Distribution
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import Encoder, FCLayers
-
-torch.backends.cudnn.benchmark = True
+from scvi.module._constants import MODULE_KEYS
+from scvi.module.base import BaseModuleClass, auto_move_data
 
 
-# Conditional VAE model
 class VAEC(BaseModuleClass):
     """Conditional Variational auto-encoder model.
 
@@ -23,6 +18,8 @@ class VAEC(BaseModuleClass):
     ----------
     n_input
         Number of input genes
+    n_batch
+        Number of batches. If ``0``, no batch correction is performed.
     n_labels
         Number of labels
     n_hidden
@@ -37,6 +34,9 @@ class VAEC(BaseModuleClass):
         Multiplicative weight for cell type specific latent space.
     dropout_rate
         Dropout rate for the encoder and decoder neural network.
+    encode_covariates
+        If ``True``, covariates are concatenated to gene expression prior to passing through
+        the encoder(s). Else, only gene expression is used.
     extra_encoder_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Encoder`.
     extra_decoder_kwargs
@@ -46,16 +46,20 @@ class VAEC(BaseModuleClass):
     def __init__(
         self,
         n_input: int,
+        n_batch: int = 0,
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
         log_variational: bool = True,
-        ct_weight: np.ndarray = None,
+        ct_weight: np.ndarray | None = None,
         dropout_rate: float = 0.05,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        encode_covariates: bool = False,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
+        from scvi.nn import Encoder, FCLayers
+
         super().__init__()
         self.dispersion = "gene"
         self.n_latent = n_latent
@@ -65,19 +69,18 @@ class VAEC(BaseModuleClass):
         self.log_variational = log_variational
         self.gene_likelihood = "nb"
         self.latent_distribution = "normal"
-        # Automatically deactivate if useless
-        self.n_batch = 0
+        self.encode_covariates = encode_covariates
+        self.n_batch = n_batch
         self.n_labels = n_labels
 
-        # gene dispersion
-        self.px_r = torch.nn.Parameter(torch.randn(n_input))
+        if self.encode_covariates and self.n_batch < 1:
+            raise ValueError("`n_batch` must be greater than 0 if `encode_covariates` is `True`.")
 
-        # z encoder goes from the n_input-dimensional data to an n_latent-d
-        _extra_encoder_kwargs = {}
+        self.px_r = torch.nn.Parameter(torch.randn(n_input))
         self.z_encoder = Encoder(
             n_input,
             n_latent,
-            n_cat_list=[n_labels],
+            n_cat_list=[n_labels] + ([n_batch] if n_batch > 0 and encode_covariates else []),
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -85,57 +88,63 @@ class VAEC(BaseModuleClass):
             use_batch_norm=False,
             use_layer_norm=True,
             return_dist=True,
-            **_extra_encoder_kwargs,
+            **(extra_encoder_kwargs or {}),
         )
 
-        # decoder goes from n_latent-dimensional space to n_input-d data
-        _extra_decoder_kwargs = {}
         self.decoder = FCLayers(
             n_in=n_latent,
             n_out=n_hidden,
-            n_cat_list=[n_labels],
+            n_cat_list=[n_labels] + ([n_batch] if n_batch > 0 else []),
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
-            **_extra_decoder_kwargs,
+            **(extra_decoder_kwargs or {}),
         )
         self.px_decoder = torch.nn.Sequential(
             torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()
         )
 
-        if ct_weight is not None:
-            ct_weight = torch.tensor(ct_weight, dtype=torch.float32)
-        else:
-            ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
-        self.register_buffer("ct_weight", ct_weight)
+        self.register_buffer(
+            "ct_weight",
+            (
+                torch.ones((self.n_labels,), dtype=torch.float32)
+                if ct_weight is None
+                else torch.tensor(ct_weight, dtype=torch.float32)
+            ),
+        )
 
-    def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
-
-        input_dict = {
-            "x": x,
-            "y": y,
+    def _get_inference_input(
+        self, tensors: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor | None]:
+        return {
+            MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
+            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            MODULE_KEYS.BATCH_INDEX_KEY: tensors.get(REGISTRY_KEYS.BATCH_KEY, None),
         }
-        return input_dict
 
-    def _get_generative_input(self, tensors, inference_outputs):
-        z = inference_outputs["z"]
-        library = inference_outputs["library"]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
-
-        input_dict = {
-            "z": z,
-            "library": library,
-            "y": y,
+    def _get_generative_input(
+        self,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution],
+    ) -> dict[str, torch.Tensor]:
+        return {
+            MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
+            MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
+            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            MODULE_KEYS.BATCH_INDEX_KEY: tensors.get(REGISTRY_KEYS.BATCH_KEY, None),
         }
-        return input_dict
 
     @auto_move_data
-    def inference(self, x, y, n_samples=1):
+    def inference(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | Distribution]:
         """High level inference method.
 
         Runs the inference (encoder) model.
@@ -143,39 +152,62 @@ class VAEC(BaseModuleClass):
         x_ = x
         library = x.sum(1).unsqueeze(1)
         if self.log_variational:
-            x_ = torch.log(1 + x_)
+            x_ = torch.log1p(x_)
 
-        qz, z = self.z_encoder(x_, y)
+        encoder_input = [x, y]
+        if batch_index is not None and self.encode_covariates:
+            encoder_input.append(batch_index)
+
+        qz, z = self.z_encoder(*encoder_input)
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
             library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
 
-        outputs = {"z": z, "qz": qz, "library": library}
-        return outputs
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.LIBRARY_KEY: library,
+        }
 
     @auto_move_data
-    def generative(self, z, library, y):
+    def generative(
+        self,
+        z: torch.Tensor,
+        library: torch.Tensor,
+        y: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+    ) -> dict[str, Distribution]:
         """Runs the generative model."""
-        h = self.decoder(z, y)
+        from scvi.distributions import NegativeBinomial
+
+        decoder_input = [z, y]
+        if batch_index is not None:
+            decoder_input.append(batch_index)
+
+        h = self.decoder(*decoder_input)
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
-        px = NegativeBinomial(px_rate, logits=self.px_r)
-        return {"px": px}
+        return {MODULE_KEYS.PX_KEY: NegativeBinomial(px_rate, logits=self.px_r)}
 
     def loss(
         self,
-        tensors,
-        inference_outputs,
-        generative_outputs,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution],
+        generative_outputs: dict[str, Distribution],
         kl_weight: float = 1.0,
     ):
         """Loss computation."""
+        from torch.distributions import Normal
+        from torch.distributions import kl_divergence as kl
+
+        from scvi.module.base import LossOutput
+
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        qz = inference_outputs["qz"]
-        px = generative_outputs["px"]
+        qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+        px = generative_outputs[MODULE_KEYS.PX_KEY]
 
         mean = torch.zeros_like(qz.loc)
         scale = torch.ones_like(qz.scale)
@@ -191,9 +223,9 @@ class VAEC(BaseModuleClass):
     @torch.inference_mode()
     def sample(
         self,
-        tensors,
-        n_samples=1,
-    ) -> np.ndarray:
+        tensors: dict[str, torch.Tensor],
+        n_samples: int = 1,
+    ) -> torch.Tensor:
         r"""Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
@@ -210,6 +242,8 @@ class VAEC(BaseModuleClass):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
+        from scvi.distributions import NegativeBinomial
+
         inference_kwargs = {"n_samples": n_samples}
         generative_outputs = self.forward(
             tensors,

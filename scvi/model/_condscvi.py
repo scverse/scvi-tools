@@ -6,11 +6,9 @@ import warnings
 import numpy as np
 import torch
 from anndata import AnnData
-from sklearn.cluster import KMeans
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
-from scvi.data.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager, fields
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -76,8 +74,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     ):
         super().__init__(adata)
 
-        n_labels = self.summary_stats.n_labels
-        n_vars = self.summary_stats.n_vars
         if weight_obs:
             ct_counts = np.unique(
                 self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
@@ -90,8 +86,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             module_kwargs.update({"ct_weight": ct_weight})
 
         self.module = self._module_cls(
-            n_input=n_vars,
-            n_labels=n_labels,
+            n_input=self.summary_stats.n_vars,
+            n_batch=getattr(self.summary_stats, "n_batch", 0),
+            n_labels=self.summary_stats.n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -126,6 +123,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         var_vprior
             (n_labels, p, D) array
         """
+        from sklearn.cluster import KMeans
+
         if self.is_trained_ is False:
             warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train "
@@ -152,7 +151,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             y = tensors[REGISTRY_KEYS.LABELS_KEY]
-            out = self.module.inference(x, y)
+            batch_index = tensors.get(REGISTRY_KEYS.BATCH_KEY, None)
+            out = self.module.inference(x, y, batch_index=batch_index)
             mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
             mean += [mean_.cpu()]
             var += [var_.cpu()]
@@ -277,6 +277,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         adata: AnnData,
         labels_key: str | None = None,
         layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -286,12 +287,15 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
+        %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
+        if batch_key is not None:
+            anndata_fields.append(fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

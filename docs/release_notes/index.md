@@ -29,6 +29,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {pr}`2611`.
 -   Add `unsigned` argument to {meth}`scvi.hub.HubModel.pull_from_s3` to allow for unsigned
     downloads of models from AWS S3 {pr}`2615`.
+-   Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
 
 #### Changed
 
