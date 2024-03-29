@@ -90,18 +90,12 @@ The easiest way to install scvi-tools for R is via conda.
 
 2. Install R and reticulate in the conda environment:
 
-    ```
+    ```bash
     conda install -c conda-forge r-base r-essentials r-reticulate
     ```
 
 3. Then in your R code:
 
-    ```
+    ```R
     library(reticulate)
     ```
-
-[mambaforge]: https://github.com/conda-forge/miniforge
-[python]: https://www.python.org/downloads/
-[pytorch]: http://pytorch.org
-[jax]: https://jax.readthedocs.io/en/latest/
-[reticulate]: https://rstudio.github.io/reticulate/
