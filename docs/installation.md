@@ -1,91 +1,88 @@
 # Installation
 
-## Prerequisites
+## Quick install
 
-scvi-tools can be installed via conda or pip. If you don't know which to choose, we recommend conda.
+scvi-tools can be installed via `conda` or `pip`. We recommend installing into a virtual environment
+to avoid conflicts with other packages. Don't know how to get started? Check out the
+[prerequisites](#prerequisites) section.
 
-### conda
-
-1. Install conda. We typically use the [mambaforge] distribution. Use python>=3.9, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
-
-2. Create a new conda environment:
-
-    ```
-    conda create -n scvi-env python=3.9
-    ```
-
-3. Activate your environment:
-
-    ```
-    conda activate scvi-env
-    ```
-
-### pip
-
-1. If using conda/mamba, then just run `conda install -c anaconda pip` and skip this section.
-2. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
-3. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
-
-### Apple silicon
-
-Installing scvi-tools on a Mac with Apple Silicon is only possible using a native version of python. A native version of python can be installed with an Apple Silicon version of mambaforge (which can be installed from a native version of homebrew via `brew install --cask mambaforge`). This is due to an scvi-tools dependency on jax, which cannot be run via Rosetta.
-
-### Windows
-
-After setting up a virtual environment with conda/mamba/pyenv, please install the [community-built version of jax](https://github.com/cloudhan/jax-windows-builder) before installing scvi-tools.
-
-```
-pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html --use-deprecated legacy-resolver
-```
-
-### GPU
-
-All scvi-tools models will be faster when accelerated with a GPU. Before installing scvi-tools, you can install GPU versions of PyTorch and jax using conda as follows:
-
-```
-conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
-conda install jax jaxlib -c conda-forge
-```
-
-Please go to the respective package website for more information on how to install with pip.
-
-## Conda
-
-```
+```bash
 conda install scvi-tools -c conda-forge
 ```
 
-## Pip
+or
 
-```
-pip install scvi-tools
-```
-
-Through pip with packages to run notebooks. This installs scanpy, etc.:
-
-```
-pip install "scvi-tools[tutorials]"
+```bash
+pip install -U scvi-tools
 ```
 
-Nightly version - clone this repo and run:
+## Prerequisites
 
+### Virtual environment
+
+A virtual environment can be created with either `conda` or `venv`. We recommend using `conda`. We
+currently support Python 3.9 to 3.11.
+
+a. For `conda`, we recommend using the Miniforge distribution, which is generally faster than the
+official distribution and comes with conda-forge as the default channel (where scvi-tools is
+hosted). Please follow the instructions on the
+[Miniforge repository](https://github.com/conda-forge/miniforge) to install on your platform.
+
+```bash
+conda create -n scvi-env python=3.11
+conda activate scvi-env
 ```
-pip install .
+
+b. For `venv`, we recommend using [uv](https://github.com/astral-sh/uv).
+
+```bash
+pip install -U uv
+uv venv .scvi-env
+source .scvi-env/bin/activate  # on macOS and Linux
+.scvi-env\Scripts\activate  # on Windows
 ```
 
-## Development
+### PyTorch and JAX
 
-For development - clone this repo and run:
+scvi-tools depends on PyTorch and JAX for accelerated computing. If you don't plan on using
+an accelerated device (e.g. Nvidia GPU or Apple Silicon), we recommend installing scvi-tools
+directly and letting these dependencies be installed automatically by your package manager of
+choice.
 
+If you plan on taking advantage of an accelerated device, we recommend installing PyTorch and JAX
+_before_ installing scvi-tools. Please follow the respective installation instructions for
+[PyTorch](https://pytorch.org/get-started/locally/) and
+[JAX](https://jax.readthedocs.io/en/latest/installation.html) for your platform.
+
+## Optional dependencies
+
+scvi-tools has optional dependencies. The easiest way to install these is with `pip`.
+
+To install all tutorial dependencies:
+
+```bash
+pip install -U scvi-tools[tutorials]
 ```
-pip install -e ".[dev,docs]"
+
+To install all optional dependencies (_e.g._ autotune, criticism, model hub):
+
+```bash
+pip install -U scvi-tools[optional]
+```
+
+To install development dependencies:
+
+```bash
+pip install -U scvi-tools[dev]
 ```
 
 ## R
 
 scvi-tools can be called from R via Reticulate.
 
-This is only recommended for basic functionality (getting the latent space, normalized expression, differential expression). For more involved analyses with scvi-tools, we highly recommend using it from Python.
+This is only recommended for basic functionality (getting the latent space, normalized expression,
+differential expression). For more involved analyses with scvi-tools, we highly recommend using it
+from Python.
 
 The easiest way to install scvi-tools for R is via conda.
 
