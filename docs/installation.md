@@ -3,8 +3,7 @@
 ## Quick install
 
 scvi-tools can be installed via `conda` or `pip`. We recommend installing into a virtual environment
-to avoid conflicts with other packages. Don't know how to get started? Check out the
-[prerequisites](#prerequisites) section.
+to avoid conflicts with other packages.
 
 ```bash
 conda install scvi-tools -c conda-forge
@@ -16,6 +15,9 @@ or
 pip install -U scvi-tools
 ```
 
+Don't know how to get started with virtual environments or `conda`/`pip`? Check out the
+[prerequisites](#prerequisites) section.
+
 ## Prerequisites
 
 ### Virtual environment
@@ -23,35 +25,36 @@ pip install -U scvi-tools
 A virtual environment can be created with either `conda` or `venv`. We recommend using `conda`. We
 currently support Python 3.9 to 3.11.
 
-a. For `conda`, we recommend using the Miniforge distribution, which is generally faster than the
+For `conda`, we recommend using the Miniforge distribution, which is generally faster than the
 official distribution and comes with conda-forge as the default channel (where scvi-tools is
-hosted). Please follow the instructions on the
-[Miniforge repository](https://github.com/conda-forge/miniforge) to install on your platform.
+hosted).
 
 ```bash
-conda create -n scvi-env python=3.11
-conda activate scvi-env
+conda create -n scvi-env python=3.11  # creates a virtual environment with python 3.11
+conda activate scvi-env  # activates virtual environment
 ```
 
-b. For `venv`, we recommend using [uv](https://github.com/astral-sh/uv).
+Please follow the instructions on the
+[Miniforge repository](https://github.com/conda-forge/miniforge) to install on your platform.
+
+For `venv`, we recommend using [uv](https://github.com/astral-sh/uv).
 
 ```bash
 pip install -U uv
-uv venv .scvi-env
-source .scvi-env/bin/activate  # on macOS and Linux
-.scvi-env\Scripts\activate  # on Windows
+uv venv .scvi-env  # creates a virtual environment in .scvi-env
+source .scvi-env/bin/activate  # activates virtual environment on macOS and Linux
+.scvi-env\Scripts\activate  # activates virtual environment on Windows
 ```
 
 ### PyTorch and JAX
 
 scvi-tools depends on PyTorch and JAX for accelerated computing. If you don't plan on using
-an accelerated device (e.g. Nvidia GPU or Apple Silicon), we recommend installing scvi-tools
-directly and letting these dependencies be installed automatically by your package manager of
-choice.
+an accelerated device, we recommend installing scvi-tools directly and letting these dependencies
+be installed automatically by your package manager of choice.
 
-If you plan on taking advantage of an accelerated device, we recommend installing PyTorch and JAX
-_before_ installing scvi-tools. Please follow the respective installation instructions for
-[PyTorch](https://pytorch.org/get-started/locally/) and
+If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon), we
+recommend installing PyTorch and JAX _before_ installing scvi-tools. Please follow the respective
+installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
 [JAX](https://jax.readthedocs.io/en/latest/installation.html) for your platform.
 
 ## Optional dependencies
@@ -75,6 +78,11 @@ To install development dependencies:
 ```bash
 pip install -U scvi-tools[dev]
 ```
+
+## Docker
+
+If you plan on running scvi-tools in a containerized environment, we provide various Docker
+[images](https://hub.docker.com/repository/docker/scverse/scvi-tools/general) hosted on Docker Hub.
 
 ## R
 
