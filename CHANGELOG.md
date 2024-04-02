@@ -940,7 +940,7 @@ changes in detail.
 This refactor is centered around the new {class}`~scvi.data.AnnDataManager` class which orchestrates any data processing necessary
 for scvi-tools and stores necessary information, rather than adding additional fields to the AnnData input.
 
-:::{figure} figures/anndata_manager_schematic.svg
+:::{figure} docs/\_static/img/anndata_manager_schematic.svg
 :align: center
 :alt: Schematic of data handling strategy with AnnDataManager
 :class: img-fluid
@@ -1167,7 +1167,7 @@ Another noteworthy addition in this release is the implementation of the (amorti
 
 Lastly, in this release we have made a change to reduce user and developer confusion by making the previously global `setup_anndata` method a static class-specific method instead. This provides more clarity on which parameters are applicable for this call, for each model class. Below is a before/after for the DESTVI and TOTALVI model classes:
 
-:::{figure} figures/setup_anndata_before_after.svg
+:::{figure} docs/\_static/img/setup_anndata_before_after.svg
 :align: center
 :alt: setup_anndata before and after
 :class: img-fluid
