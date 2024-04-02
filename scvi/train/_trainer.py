@@ -11,8 +11,6 @@ from scvi import settings
 
 from ._callbacks import (
     LoudEarlyStopping,
-    MetricCallable,
-    MetricsCallback,
     SaveCheckpoint,
 )
 from ._logger import SimpleLogger
@@ -72,9 +70,6 @@ class Trainer(pl.Trainer):
     early_stopping_mode
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
-    additional_val_metrics
-        Additional validation metrics to compute and log. See
-        :class:`~scvi.train._callbacks.MetricsCallback` for more details.
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
@@ -111,9 +106,6 @@ class Trainer(pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
-        additional_val_metrics: Union[
-            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
-        ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
@@ -154,16 +146,6 @@ class Trainer(pl.Trainer):
 
         if simple_progress_bar and enable_progress_bar:
             callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
-
-        if additional_val_metrics is not None:
-            if check_val_every_n_epoch == sys.maxsize:
-                warnings.warn(
-                    "`additional_val_metrics` was passed in but will not be computed "
-                    "because `check_val_every_n_epoch` was not passed in.",
-                    UserWarning,
-                    stacklevel=settings.warnings_stacklevel,
-                )
-            callbacks.append(MetricsCallback(additional_val_metrics))
 
         if logger is None:
             logger = SimpleLogger()
