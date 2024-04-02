@@ -42,13 +42,11 @@ jobs:
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
 
-      - name: install dependencies
-        run: |
+      - run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
 
-      - name: pytest
-        env:
+      - env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
