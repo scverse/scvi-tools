@@ -35,13 +35,14 @@ class HubModel:
     local_dir
         Local directory where the data and pre-trained model reside.
     metadata
-        Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata for
-        this model, or a path to a file on disk where this metadata can be read from.
+        Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata
+        for this model, or a path to a file on disk where this metadata can be read from.
     model_card
         The model card for this pre-trained model. Model card is a markdown file that describes the
         pre-trained model/data and is displayed on HuggingFace. This can be either an instance of
         :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper`
-        that wraps the model card or a path to a file on disk where the model card can be read from.
+        that wraps the model card or a path to a file on disk where the model card can be read
+        from.
 
     Notes
     -----
@@ -208,11 +209,11 @@ class HubModel:
         cache_dir
             The directory where the downloaded model artifacts will be cached
         revision
-            The revision to pull from the repo. This can be a branch name, a tag, or a full-length commit hash.
-            If None, the default (latest) revision is pulled.
+            The revision to pull from the repo. This can be a branch name, a tag, or a full-length
+            commit hash. If None, the default (latest) revision is pulled.
         pull_anndata
-            Whether to pull the :class:`~anndata.AnnData` object associated with the model. If ``True`` but the
-            file does not exist, will fail silently.
+            Whether to pull the :class:`~anndata.AnnData` object associated with the model. If
+            ``True`` but the file does not exist, will fail silently.
         kwargs
             Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
         """
@@ -246,8 +247,8 @@ class HubModel:
     ):
         """Upload the :class:`~scvi.hub.HubModel` to an S3 bucket.
 
-        Requires `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
-        installed.
+        Requires `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to
+        be installed.
 
         Parameters
         ----------
@@ -293,12 +294,13 @@ class HubModel:
         s3_path: str,
         pull_anndata: bool = True,
         cache_dir: str | None = None,
+        unsigned: bool = False,
         **kwargs,
     ) -> HubModel:
         """Download a :class:`~scvi.hub.HubModel` from an S3 bucket.
 
-        Requires `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to be
-        installed.
+        Requires `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/index.html>`_ to
+        be installed.
 
         Parameters
         ----------
@@ -311,6 +313,9 @@ class HubModel:
         cache_dir
             The directory where the downloaded model files will be cached. Defaults to a temporary
             directory created with :func:`tempfile.mkdtemp`.
+        unsigned
+            Whether to use unsigned requests. If ``True`` and ``config`` is passed in ``kwargs``,
+            ``config`` will be overwritten.
         **kwargs
             Keyword arguments passed into :func:`~boto3.client`.
 
@@ -319,7 +324,10 @@ class HubModel:
         The pretrained model specified by the given S3 bucket and path.
         """
         from boto3 import client
+        from botocore import UNSIGNED, config
 
+        if unsigned:
+            kwargs["config"] = config.Config(signature_version=UNSIGNED)
         cache_dir = cache_dir or tempfile.mkdtemp()
         s3 = client("s3", **kwargs)
 
@@ -399,10 +407,11 @@ class HubModel:
 
     @property
     def large_training_adata(self) -> AnnData | None:
-        """Returns the training data for this model, which might be too large to reside within the hub model.
+        """Returns the training data for this model.
 
-        If the data has not been loaded yet, this will call :meth:`~scvi.hub.HubModel.read_large_training_adata`,
-        which will attempt to download from the source url. Otherwise, it will simply return the loaded data.
+        If the data has not been loaded yet, this will call
+        :meth:`~scvi.hub.HubModel.read_large_training_adata`, which will attempt to download from
+        the source url. Otherwise, it will simply return the loaded data.
         """
         if self._large_training_adata is None:
             self.read_large_training_adata()
@@ -419,9 +428,10 @@ class HubModel:
         Parameters
         ----------
         adata
-            The data to load the model with, if not None. If None, we'll try to load the model using the data
-            at ``self._adata_path``. If that file does not exist, we'll try to load the model using
-            :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist either, we'll error out.
+            The data to load the model with, if not None. If None, we'll try to load the model
+            using the data at ``self._adata_path``. If that file does not exist, we'll try to load
+            the model using :meth:`~scvi.hub.HubModel.large_training_adata`. If that does not exist
+            either, we'll error out.
         %(param_accelerator)s
         %(param_device)s
         """
@@ -438,8 +448,9 @@ class HubModel:
                 device=device,
             )
         else:
-            # in this case, we must download the large training adata if it exists in the model card; otherwise,
-            # we error out. Note that the call below faults in self.large_training_adata if it is None
+            # in this case, we must download the large training adata if it exists in the model
+            # card; otherwise, we error out. Note that the call below faults in
+            # self.large_training_adata if it is None
             if self.large_training_adata is None:
                 raise ValueError(
                     "Could not find any dataset to load the model with. Either provide "
@@ -456,7 +467,10 @@ class HubModel:
                 )
 
     def read_adata(self) -> None:
-        """Reads the data from disk (``self._adata_path``) if it exists. Otherwise, this is a no-op."""
+        """Reads the data from disk (``self._adata_path``).
+
+        Reads if it exists. Otherwise, this is a no-op.
+        """
         if os.path.isfile(self._adata_path):
             logger.info("Reading adata...")
             self._adata = anndata.read_h5ad(self._adata_path)
@@ -464,12 +478,15 @@ class HubModel:
             logger.info("No data found on disk. Skipping...")
 
     def read_large_training_adata(self) -> None:
-        """Downloads the large training adata, if it exists, then load it into memory. Otherwise, this is a no-op.
+        """Downloads the large training adata.
+
+        If it exists, then load it into memory. Otherwise, this is a no-op.
 
         Notes
         -----
-        The large training data url can be a cellxgene explorer session url. However it cannot be a self-hosted
-        session. In other words, it must be from the cellxgene portal (https://cellxgene.cziscience.com/).
+        The large training data url can be a cellxgene explorer session url. However it cannot be a
+        self-hosted session. In other words, it must be from the cellxgene portal
+        (https://cellxgene.cziscience.com/).
         """
         training_data_url = self.metadata.training_data_url
         if training_data_url is not None:

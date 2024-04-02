@@ -14,7 +14,6 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Tunable
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -63,8 +62,7 @@ class ContrastiveVI(BaseModelClass):
     dropout_rate
         Dropout rate for neural networks.
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional
-        distribution.
+        Use observed library size for RNA as scaling factor in mean of conditional distribution.
     wasserstein_penalty
         Weight of the Wasserstein distance loss that further discourages background
         shared variations from leaking into the salient latent space.
@@ -145,7 +143,7 @@ class ContrastiveVI(BaseModelClass):
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
-        batch_size: Tunable[int] = 128,
+        batch_size: int = 128,
         early_stopping: bool = False,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
@@ -166,8 +164,9 @@ class ContrastiveVI(BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         load_sparse_tensor
             ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
@@ -178,7 +177,8 @@ class ContrastiveVI(BaseModelClass):
             Perform early stopping. Additional arguments can be passed in `**kwargs`.
             See :class:`~scvi.train.Trainer` for further options.
         datasplitter_kwargs
-            Additional keyword arguments passed into :class:`~scvi.dataloaders.ContrastiveDataSplitter`.
+            Additional keyword arguments passed into
+            :class:`~scvi.dataloaders.ContrastiveDataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -699,7 +699,8 @@ class ContrastiveVI(BaseModelClass):
         idx2
             Custom identifier for `group2` that has the same properties as `idx1`.
             By default, includes all cells not specified in `idx1`.
-        mode: Method for differential expression. See
+        mode:
+            Method for differential expression. See
             https://docs.scvi-tools.org/en/0.14.1/user_guide/background/differential_expression.html
             for more details.
         delta

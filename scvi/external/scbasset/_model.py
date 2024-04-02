@@ -24,16 +24,18 @@ logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """``EXPERIMENTAL`` Reimplementation of scBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """``EXPERIMENTAL`` Reimplementation of scBasset :cite:p:`Yuan2022`.
 
-    Original implementation: https://github.com/calico/scBasset.
+    Performs representation learning of scATAC-seq data. Original implementation:
+    https://github.com/calico/scBasset.
 
     We are working to measure the performance of this model compared to the original.
 
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.SCBASSET.setup_anndata`.
+        single-cell AnnData object that has been registered via
+        :meth:`~scvi.external.SCBASSET.setup_anndata`.
     n_bottleneck_layer
         Size of the bottleneck layer
     l2_reg_cell_embedding
@@ -131,8 +133,9 @@ class SCBASSET(BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         early_stopping
@@ -420,8 +423,9 @@ class SCBASSET(BaseModelClass):
             Key in `adata.obsm` with dna sequences encoded as integer code.
         %(param_layer)s
         batch_key
-            key in `adata.var` for batch information. Categories will automatically be converted into integer
-            categories and saved to `adata.var['_scvi_batch']`. If `None`, assigns the same batch to all the data.
+            key in `adata.var` for batch information. Categories will automatically be converted
+            into integer categories and saved to `adata.var['_scvi_batch']`. If `None`, assigns the
+            same batch to all the data.
 
         Notes
         -----

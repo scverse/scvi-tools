@@ -8,7 +8,6 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
-from scvi._types import Tunable, TunableMixin
 
 from ._callbacks import (
     LoudEarlyStopping,
@@ -21,7 +20,7 @@ from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
 
 
-class Trainer(TunableMixin, pl.Trainer):
+class Trainer(pl.Trainer):
     """Lightweight wrapper of Pytorch Lightning Trainer.
 
     Appropriate defaults are set for scvi-tools models, as well as callbacks like
@@ -30,16 +29,17 @@ class Trainer(TunableMixin, pl.Trainer):
     Parameters
     ----------
     accelerator
-        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
-        as well as custom accelerator instances.
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps,
+        "auto") as well as custom accelerator instances.
     devices
-        The devices to use. Can be set to a positive number (int or str), a sequence of device indices
-        (list or str), the value ``-1`` to indicate all available devices should be used, or ``"auto"`` for
-        automatic selection based on the chosen accelerator. Default: ``"auto"``.
+        The devices to use. Can be set to a positive number (int or str), a sequence of device
+        indices (list or str), the value ``-1`` to indicate all available devices should be used,
+        or ``"auto"`` for automatic selection based on the chosen accelerator. Default: ``"auto"``.
     benchmark
         If true enables cudnn.benchmark, which improves speed when inputs are fixed size
     check_val_every_n_epoch
-        Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
+        Check val every n train epochs. By default, val is not checked, unless `early_stopping` is
+        `True`.
     max_epochs
         Stop training once this number of epochs is reached.
     default_root_dir
@@ -98,7 +98,7 @@ class Trainer(TunableMixin, pl.Trainer):
         devices: Optional[Union[list[int], str, int]] = None,
         benchmark: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
-        max_epochs: Tunable[int] = 400,
+        max_epochs: int = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
         checkpointing_monitor: str = "validation_loss",

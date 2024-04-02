@@ -11,7 +11,6 @@ from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -35,10 +34,10 @@ class CategoricalBoW(dist.Multinomial):
 def logistic_normal_approximation(
     alpha: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Returns the mean and standard deviation of the Logistic Normal approximation to the Dirichlet.
+    """Return the mean and std deviation of the Logistic Normal approximation to the Dirichlet.
 
-    Uses the Laplace approximation of the Logistic Normal distribution to the Dirichlet distribution
-    as described in Srivastava et al. https://arxiv.org/pdf/1703.01488.pdf.
+    Uses the Laplace approximation of the Logistic Normal distribution to the Dirichlet
+    distribution as described in Srivastava et al. https://arxiv.org/pdf/1703.01488.pdf.
     """
     K = alpha.shape[0]
     mu = torch.log(alpha) - torch.log(alpha).sum() / K
@@ -64,7 +63,7 @@ class AmortizedLDAPyroModel(PyroModule):
     def __init__(
         self,
         n_input: int,
-        n_topics: Tunable[int],
+        n_topics: int,
         cell_topic_prior: torch.Tensor,
         topic_feature_prior: torch.Tensor,
     ):
@@ -213,14 +212,14 @@ class AmortizedLDAPyroGuide(PyroModule):
 
 
 class AmortizedLDAPyroModule(PyroBaseModuleClass):
-    """An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
+    """An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03`.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
-    In particular, a fully-connected neural network is used as an encoder, which takes in feature counts
-    as input and outputs the parameters of cell topic distribution. To employ the reparametrization trick
-    stably, the Dirichlet priors are approximated by a Logistic-Normal distribution.
-    The input feature counts tensor is a cell by features Bag-of-Words(BoW) representation
-    of the counts. I.e. the model treats each cell's feature vector as ordered, not
+    In particular, a fully-connected neural network is used as an encoder, which takes in feature
+    counts as input and outputs the parameters of cell topic distribution. To employ the
+    reparametrization trick stably, the Dirichlet priors are approximated by a Logistic-Normal
+    distribution. The input feature counts tensor is a cell by features Bag-of-Words(BoW)
+    representation of the counts. I.e. the model treats each cell's feature vector as ordered, not
     as unordered as in a Multinomial distribution.
 
     Parameters

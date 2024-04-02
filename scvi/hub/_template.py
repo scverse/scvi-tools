@@ -37,8 +37,8 @@ This is an optional link to where the training data is stored if it is too large
 to host on the huggingface Model hub.
 
 <!-- If your model is not uploaded with any data (e.g., minified data) on the Model Hub, then make
-sure to provide this field if you want users to be able to access your training data. See the scvi-tools
-documentation for details. -->
+sure to provide this field if you want users to be able to access your training data. See the
+scvi-tools documentation for details. -->
 
 Training data url: {training_data_url}
 
