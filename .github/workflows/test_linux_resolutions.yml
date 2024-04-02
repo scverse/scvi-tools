@@ -1,4 +1,4 @@
-name: test (resolutions)
+name: test (resolution)
 
 on:
   pull_request:
