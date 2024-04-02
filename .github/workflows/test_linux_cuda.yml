@@ -1,11 +1,9 @@
-name: test (linux, cuda)
+name: test (cuda)
 
 on:
   pull_request:
     branches: [main, "[0-9]+.[0-9]+.x"]
     types: [labeled, synchronize, opened]
-  push:
-    branches: [main, "[0-9]+.[0-9]+.x"]
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
@@ -41,7 +39,7 @@ jobs:
       image: scverse/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
       options: --user root --gpus all
 
-    name: integration (cuda)
+    name: integration
 
     env:
       OS: ${{ matrix.os }}
