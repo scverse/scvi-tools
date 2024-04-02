@@ -26,8 +26,10 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - run: pip install build
+      - name: Install dependencies
+        run: pip install build
 
-      - run: python -m build
+      - name: Build package
+        run: python -m build
 
       - uses: pypa/gh-action-pypi-publish@release/v1

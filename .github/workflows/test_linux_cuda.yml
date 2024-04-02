@@ -54,7 +54,8 @@ jobs:
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
 
-      - env:
+      - name: Run pytest
+        env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
