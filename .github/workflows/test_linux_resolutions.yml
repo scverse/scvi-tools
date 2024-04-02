@@ -1,4 +1,4 @@
-name: test (prereleases)
+name: test (resolutions)
 
 on:
   pull_request:
@@ -34,8 +34,14 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11", "3.12"]
+        install-flags:
+          [
+            "--prerelease if-necessary-or-explicit",
+            "--resolution lowest-direct",
+            "--resolution lowest",
+          ]
 
-    name: integration (prereleases)
+    name: integration
 
     env:
       OS: ${{ matrix.os }}
@@ -53,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install --prerelease if-necessary-or-explicit --system "scvi-tools[tests] @ ."
+          python -m uv pip install ${{ matrix.install-flags }} --system "scvi-tools[tests] @ ."
 
       - name: Run pytest
         env:
