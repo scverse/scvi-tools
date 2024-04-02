@@ -36,25 +36,22 @@ class SaveCheckpoint(ModelCheckpoint):
 
     Known issues:
 
-    * Does not set ``train_indices``, ``validation_indices``, and
-      ``test_indices`` for checkpoints.
-    * Does not set ``history`` for checkpoints. This can be accessed in the
-      final model however.
-    * Unsupported arguments: ``save_weights_only`` and ``save_last``
+    * Does not set ``train_indices``, ``validation_indices``, and ``test_indices`` for checkpoints.
+    * Does not set ``history`` for checkpoints. This can be accessed in the final model however.
+    * Unsupported arguments: ``save_weights_only`` and ``save_last``.
 
     Parameters
     ----------
     dirpath
-        Base directory to save the model checkpoints. If ``None``, defaults to
-        a directory formatted with the current date, time, and monitor within
-        ``settings.logging_dir``.
+        Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
+        :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
     filename
-        Name of the checkpoint directories. Can contain formatting options to be
-        auto-filled. If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
+        Name for the checkpoint directories, which can contain formatting options for auto-filling.
+        If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
     **kwargs
-        Additional keyword arguments passed into
+        Additional keyword arguments passed into the constructor for
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
     """
 
@@ -68,23 +65,22 @@ class SaveCheckpoint(ModelCheckpoint):
         if dirpath is None:
             dirpath = os.path.join(
                 settings.logging_dir,
-                datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{monitor}",
             )
-            dirpath += f"_{monitor}"
 
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
 
         if "save_weights_only" in kwargs:
             warnings.warn(
-                "`save_weights_only` is not supported and will be ignored.",
+                "`save_weights_only` is not supported in `SaveCheckpoint` and will be ignored.",
                 RuntimeWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             kwargs.pop("save_weights_only")
         if "save_last" in kwargs:
             warnings.warn(
-                "`save_last` is not supported and will be ignored.",
+                "`save_last` is not supported in `SaveCheckpoint` and will be ignored.",
                 RuntimeWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -115,7 +111,11 @@ class SaveCheckpoint(ModelCheckpoint):
         model.is_trained_ = False
 
     def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
-        """Removes model saves that are no longer needed."""
+        """Removes model saves that are no longer needed.
+
+        Calls the superclass method and then removes the :class:`~scvi.model.base.BaseModelClass`
+        save directory.
+        """
         super()._remove_checkpoint(trainer, filepath)
 
         model_path = filepath.split(".ckpt")[0]
@@ -128,7 +128,11 @@ class SaveCheckpoint(ModelCheckpoint):
         trainer: pl.Trainer,
         monitor_candidates: dict[str, torch.Tensor],
     ) -> None:
-        """Replaces Lightning checkpoints with our model saves."""
+        """Replaces Lightning checkpoints with :class:`~scvi.model.base.BaseModelClass` saves.
+
+        Calls the superclass method and then replaces the Lightning checkpoint file with
+        the :class:`~scvi.model.base.BaseModelClass` save directory.
+        """
         super()._update_best_and_save(current, trainer, monitor_candidates)
 
         if os.path.exists(self.best_model_path):
