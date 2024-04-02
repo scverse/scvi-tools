@@ -25,6 +25,11 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     argument `generate_coordinates` {pr}`2603`.
 -   Add experimental support for using custom {class}`lightning.pytorch.core.LightningDataModule`s
     in {func}`scvi.autotune.run_autotune` {pr}`2605`.
+-   Add {class}`scvi.external.VELOVI` for RNA velocity estimation using variational inference
+    {pr}`2611`.
+-   Add `unsigned` argument to {meth}`scvi.hub.HubModel.pull_from_s3` to allow for unsigned
+    downloads of models from AWS S3 {pr}`2615`.
+-   Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
 
 #### Changed
 
@@ -33,6 +38,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Deprecate `additional_val_metrics` argument in {class}`scvi.train.Trainer`, to be removed in
     v1.3 {pr}`2599`.
 -   Deprecate {class}`scvi.train._callbacks.MetricsCallback`, to be removed in v1.3 {pr}`2599`.
+-   Deprecate {func}`scvi.nn.one_hot`, to be removed in v1.3. Please directly use the
+    `one_hot` function in PyTorch instead {pr}`2608`
 
 #### Removed
 

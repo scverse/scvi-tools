@@ -7,6 +7,7 @@ from typing import Callable, Literal
 import numpy as np
 import torch
 from torch.distributions import Distribution
+from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.module._constants import MODULE_KEYS
@@ -16,7 +17,6 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
-from scvi.nn import one_hot
 
 logger = logging.getLogger(__name__)
 
@@ -328,8 +328,14 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         from torch.nn.functional import linear
 
         n_batch = self.library_log_means.shape[1]
-        local_library_log_means = linear(one_hot(batch_index, n_batch), self.library_log_means)
-        local_library_log_vars = linear(one_hot(batch_index, n_batch), self.library_log_vars)
+        local_library_log_means = linear(
+            one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
+        )
+
+        local_library_log_vars = linear(
+            one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
+        )
+
         return local_library_log_means, local_library_log_vars
 
     @auto_move_data
@@ -485,10 +491,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.dispersion == "gene-label":
             px_r = linear(
-                one_hot(y, self.n_labels), self.px_r
+                one_hot(y.squeeze(-1), self.n_labels).float(), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 
