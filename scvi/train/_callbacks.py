@@ -36,25 +36,22 @@ class SaveCheckpoint(ModelCheckpoint):
 
     Known issues:
 
-    * Does not set ``train_indices``, ``validation_indices``, and
-      ``test_indices`` for checkpoints.
-    * Does not set ``history`` for checkpoints. This can be accessed in the
-      final model however.
-    * Unsupported arguments: ``save_weights_only`` and ``save_last``
+    * Does not set ``train_indices``, ``validation_indices``, and ``test_indices`` for checkpoints.
+    * Does not set ``history`` for checkpoints. This can be accessed in the final model however.
+    * Unsupported arguments: ``save_weights_only`` and ``save_last``.
 
     Parameters
     ----------
     dirpath
-        Base directory to save the model checkpoints. If ``None``, defaults to
-        a directory formatted with the current date, time, and monitor within
-        ``settings.logging_dir``.
+        Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
+        :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
     filename
-        Name of the checkpoint directories. Can contain formatting options to be
-        auto-filled. If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
+        Name for the checkpoint directories, which can contain formatting options for auto-filling.
+        If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
     **kwargs
-        Additional keyword arguments passed into
+        Additional keyword arguments passed into the constructor for
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
     """
 
@@ -68,23 +65,22 @@ class SaveCheckpoint(ModelCheckpoint):
         if dirpath is None:
             dirpath = os.path.join(
                 settings.logging_dir,
-                datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+                datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{monitor}",
             )
-            dirpath += f"_{monitor}"
 
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
 
         if "save_weights_only" in kwargs:
             warnings.warn(
-                "`save_weights_only` is not supported and will be ignored.",
+                "`save_weights_only` is not supported in `SaveCheckpoint` and will be ignored.",
                 RuntimeWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             kwargs.pop("save_weights_only")
         if "save_last" in kwargs:
             warnings.warn(
-                "`save_last` is not supported and will be ignored.",
+                "`save_last` is not supported in `SaveCheckpoint` and will be ignored.",
                 RuntimeWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -115,7 +111,11 @@ class SaveCheckpoint(ModelCheckpoint):
         model.is_trained_ = False
 
     def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
-        """Removes model saves that are no longer needed."""
+        """Removes model saves that are no longer needed.
+
+        Calls the superclass method and then removes the :class:`~scvi.model.base.BaseModelClass`
+        save directory.
+        """
         super()._remove_checkpoint(trainer, filepath)
 
         model_path = filepath.split(".ckpt")[0]
@@ -128,74 +128,16 @@ class SaveCheckpoint(ModelCheckpoint):
         trainer: pl.Trainer,
         monitor_candidates: dict[str, torch.Tensor],
     ) -> None:
-        """Replaces Lightning checkpoints with our model saves."""
+        """Replaces Lightning checkpoints with :class:`~scvi.model.base.BaseModelClass` saves.
+
+        Calls the superclass method and then replaces the Lightning checkpoint file with
+        the :class:`~scvi.model.base.BaseModelClass` save directory.
+        """
         super()._update_best_and_save(current, trainer, monitor_candidates)
 
         if os.path.exists(self.best_model_path):
             os.remove(self.best_model_path)
         self.best_model_path = self.best_model_path.split(".ckpt")[0]
-
-
-class MetricsCallback(Callback):
-    """Computes metrics on validation end and logs them to the logger.
-
-    Parameters
-    ----------
-    metric_fns
-        Validation metrics to compute and log. One of the following:
-
-        * `:class:`~scvi.train._callbacks.MetricCallable`: A function that takes in a
-            :class:`~scvi.model.base.BaseModelClass` and returns a `float`.
-            The function's `__name__`is used as the logging name.
-
-        * `List[:class:`~scvi.train._callbacks.MetricCallable`]`: Same as above but in
-            a list.
-
-        * `Dict[str, :class:`~scvi.train._callbacks.MetricCallable`]`: Same as above,
-            but the keys are used as the logging names instead.
-    """
-
-    def __init__(
-        self,
-        metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
-    ):
-        super().__init__()
-
-        if callable(metric_fns):
-            metric_fns = [metric_fns]
-
-        if not isinstance(metric_fns, (list, dict)):
-            raise TypeError("`metric_fns` must be a `list` or `dict`.")
-
-        values = metric_fns if isinstance(metric_fns, list) else metric_fns.values()
-        for val in values:
-            if not callable(val):
-                raise TypeError("`metric_fns` must contain functions only.")
-
-        if not isinstance(metric_fns, dict):
-            metric_fns = {f.__name__: f for f in metric_fns}
-
-        self.metric_fns = metric_fns
-
-    def on_validation_end(self, trainer, pl_module):
-        """Compute metrics at the end of validation.
-
-        Sets the model to trained mode before computing metrics and restores training
-        mode thereafter. Metrics are not logged with a `"validation"` prefix as the
-        metrics are only computed on the validation set.
-        """
-        model = trainer._model  # TODO: Remove with a better way to access model
-        model.is_trained = True
-
-        metrics = {}
-        for metric_name, metric_fn in self.metric_fns.items():
-            metric_value = metric_fn(model)
-            metrics[metric_name] = metric_value
-
-        metrics["epoch"] = trainer.current_epoch
-
-        pl_module.logger.log_metrics(metrics, trainer.global_step)
-        model.is_trained = False
 
 
 class SubSampleLabels(Callback):

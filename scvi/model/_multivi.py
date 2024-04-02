@@ -597,6 +597,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             AnnData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
+        n_samples_overall
+            Number of observations to sample from ``indices`` if ``indices`` is provided.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -607,10 +609,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
             of interest.
-        library_size
-            Scale the expression frequencies to a common library size.
-            This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent library size.
         use_z_mean
             If True, use the mean of the latent distribution, otherwise sample from it
         n_samples
@@ -619,6 +617,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
+        return_numpy
+            Return a numpy array instead of a pandas DataFrame.
 
         Returns
         -------
