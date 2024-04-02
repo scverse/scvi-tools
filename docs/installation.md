@@ -8,23 +8,23 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 
 1. Install conda. We typically use the [mambaforge] distribution. Use python>=3.9, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
 
-2. Create a new conda environment:
+1. Create a new conda environment:
 
-    ```
+    ```bash
     conda create -n scvi-env python=3.9
     ```
 
-3. Activate your environment:
+1. Activate your environment:
 
-    ```
+    ```bash
     conda activate scvi-env
     ```
 
 ### pip
 
 1. If using conda/mamba, then just run `conda install -c anaconda pip` and skip this section.
-2. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
-3. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
+1. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
+1. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
 
 ### Apple silicon
 
@@ -34,7 +34,7 @@ Installing scvi-tools on a Mac with Apple Silicon is only possible using a nativ
 
 After setting up a virtual environment with conda/mamba/pyenv, please install the [community-built version of jax](https://github.com/cloudhan/jax-windows-builder) before installing scvi-tools.
 
-```
+```bash
 pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html --use-deprecated legacy-resolver
 ```
 
@@ -42,7 +42,7 @@ pip install "jax[cpu]" -f https://whls.blob.core.windows.net/unstable/index.html
 
 All scvi-tools models will be faster when accelerated with a GPU. Before installing scvi-tools, you can install GPU versions of PyTorch and jax using conda as follows:
 
-```
+```bash
 conda install pytorch torchvision torchaudio pytorch-cuda=11.7 -c pytorch -c nvidia
 conda install jax jaxlib -c conda-forge
 ```
@@ -51,25 +51,25 @@ Please go to the respective package website for more information on how to insta
 
 ## Conda
 
-```
+```basha
 conda install scvi-tools -c conda-forge
 ```
 
 ## Pip
 
-```
+```bash
 pip install scvi-tools
 ```
 
 Through pip with packages to run notebooks. This installs scanpy, etc.:
 
-```
+```bash
 pip install "scvi-tools[tutorials]"
 ```
 
 Nightly version - clone this repo and run:
 
-```
+```bash
 pip install .
 ```
 
@@ -77,7 +77,7 @@ pip install .
 
 For development - clone this repo and run:
 
-```
+```bash
 pip install -e ".[dev,docs]"
 ```
 
@@ -91,20 +91,19 @@ The easiest way to install scvi-tools for R is via conda.
 
 1. Install conda prerequisites.
 
-2. Install R and reticulate in the conda environment:
+1. Install R and reticulate in the conda environment:
 
-    ```
+    ```bash
     conda install -c conda-forge r-base r-essentials r-reticulate
     ```
 
-3. Then in your R code:
+1. Then in your R code:
 
-    ```
+    ```R
     library(reticulate)
     ```
 
+[jax]: https://jax.readthedocs.io/en/latest/
 [mambaforge]: https://github.com/conda-forge/miniforge
 [python]: https://www.python.org/downloads/
 [pytorch]: http://pytorch.org
-[jax]: https://jax.readthedocs.io/en/latest/
-[reticulate]: https://rstudio.github.io/reticulate/

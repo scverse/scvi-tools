@@ -25,7 +25,7 @@ is intractable because the denominator, which is defined via integral cannot be 
 
 ## Approximating the posterior
 
-With variational inference [^ref1], we cast the problem of finding the posterior distribution into an optimization problem by minimizing the KL divergence
+With variational inference \[^ref1\], we cast the problem of finding the posterior distribution into an optimization problem by minimizing the KL divergence
 between an approximate posterior distribution $q$ that belongs to some _family_ of approximate densities
 $Q$ and the true posterior. As an example, if $Q$ is the family of multivariate Gaussians, then we would like to find the a
 mean and covariance matrix that best approximate the true posterior.
@@ -67,11 +67,11 @@ the approximate posterior should provide samples that results in high probabilit
 ## End to end learning
 
 So far we have an optimization problem that enables us to learn an approximation of the true posterior.
-It is often also the case that we have model parameters $\theta$, which may be unknown, such that we can write the
-probability of the data as $p_\theta(x)$.
-In the case of scVI, $\theta$ would include the parameters of the decoder neural networks.
+It is often also the case that we have model parameters $\\theta$, which may be unknown, such that we can write the
+probability of the data as $p\_\\theta(x)$.
+In the case of scVI, $\\theta$ would include the parameters of the decoder neural networks.
 
-In addition to the model parameters $\theta$, let $\phi$ be the parameters of the approximate posterior (e.g., mean and covariance matrix if $Q$ is
+In addition to the model parameters $\\theta$, let $\\phi$ be the parameters of the approximate posterior (e.g., mean and covariance matrix if $Q$ is
 the family of multivariate Gaussians). Using the derivation above, we can express the log probability of the data as
 
 ```{math}
@@ -104,9 +104,9 @@ This quantity is aptly named as it lower bounds the log probability of the data,
  \end{align}
 ```
 
-It turns out that we can maximize the ELBO with respect to both the model parameters $\theta$ and the variational parameters $\phi$, which gives us both
-estimates of $\theta$ and an approximate posterior on the latent variables. This can also be stated as minimizing our original KL divergence $\mathrm{KL}(\,q_\phi(z)\, \| \,p_\theta(z \mid x)\,)$,
-but with a true posterior that is a moving target (as it is a function of $\theta$).
+It turns out that we can maximize the ELBO with respect to both the model parameters $\\theta$ and the variational parameters $\\phi$, which gives us both
+estimates of $\\theta$ and an approximate posterior on the latent variables. This can also be stated as minimizing our original KL divergence $\\mathrm{KL}(,q\_\\phi(z), | ,p\_\\theta(z \\mid x),)$,
+but with a true posterior that is a moving target (as it is a function of $\\theta$).
 
 ## Amortizing inference
 
@@ -114,21 +114,21 @@ Let's think about our high-dimensional single-cell data. If we have a model wher
 mean and variance parameter associated with each single cell. This scales linearly with the number of cells in our dataset.
 
 To amortize the cost of inference, we can tie together all cells using a neural network. Now suppose that we feed each cell's gene expression $x$ through a neural network that outputs the mean and variance
-of $q(z)$ for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the _amortization gap_ [^ref2] for this sharing.
+of $q(z)$ for that cell. Inference will tend to be more scalable as the variational parameters are global (shared by all cells). On the other hand, we may pay a cost called the _amortization gap_ \[^ref2\] for this sharing.
 
-Overall, this technique is typically called _amortized variational inference_ and in some cases _auto-encoding variational bayes_ [^ref3].
+Overall, this technique is typically called _amortized variational inference_ and in some cases _auto-encoding variational bayes_ \[^ref3\].
 
-[^ref1]:
-    Blei, David M., Alp Kucukelbir, and Jon D. McAuliffe (2017),
-    _Variational inference: A review for statisticians._,
-    Journal of the American statistical Association.
+\[^ref1\]:
+Blei, David M., Alp Kucukelbir, and Jon D. McAuliffe (2017),
+_Variational inference: A review for statisticians._,
+Journal of the American statistical Association.
 
-[^ref2]:
-    Cremer, Chris, Xuechen Li, and David Duvenaud.
-    _Inference suboptimality in variational autoencoders._
-    International Conference on Machine Learning. PMLR, 2018.
+\[^ref2\]:
+Cremer, Chris, Xuechen Li, and David Duvenaud.
+_Inference suboptimality in variational autoencoders._
+International Conference on Machine Learning. PMLR, 2018.
 
-[^ref3]:
-    Kingma, Diederik P., and Max Welling (2019),
-    _An introduction to variational autoencoders._,
-    arXiv preprint arXiv:1906.02691.
+\[^ref3\]:
+Kingma, Diederik P., and Max Welling (2019),
+_An introduction to variational autoencoders._,
+arXiv preprint arXiv:1906.02691.

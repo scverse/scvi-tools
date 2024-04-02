@@ -2,7 +2,7 @@
 
 Import scvi-tools as:
 
-```
+```python
 import scvi
 ```
 
@@ -87,7 +87,7 @@ For general single-cell preprocessing, we defer to our friends at [Scanpy], and 
 
 All `scvi-tools` models require raw UMI count data. The count data can be safely stored in an AnnData layer as one of the first steps of a Scanpy single-cell workflow:
 
-```
+```python
 adata.layers["counts"] = adata.X.copy()
 ```
 
@@ -176,6 +176,6 @@ An instance of the {class}`~scvi._settings.ScviConfig` is available as `scvi.set
 ```
 
 [anndata]: https://anndata.readthedocs.io/en/stable/
+[ray tune]: https://docs.ray.io/en/latest/tune/index.html
 [scanpy]: https://scanpy.readthedocs.io/en/stable/index.html
 [utilities]: https://scanpy.readthedocs.io/en/stable/api/index.html#reading
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html

@@ -3,15 +3,15 @@
 Contributions are welcome, and they are greatly appreciated! Every little bit
 helps, and credit will always be given.
 
-## Get Started!
+## Get Started
 
 Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
-1.  Fork the `scvi-tools` repo on GitHub.
+1. Fork the `scvi-tools` repo on GitHub.
 
-1.  Clone your fork locally:
+1. Clone your fork locally:
 
-    ```
+    ```bash
     # Clone your fork of the repository (substitute in your username)
     git clone https://github.com/{your-username}/scvi-tools.git
     # Enter the cloned repository
@@ -21,9 +21,9 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     # git branch --set-upstream-to "upstream/main"
     ```
 
-1.  Setup a virtual environment:
+1. Setup a virtual environment:
 
-    ```
+    ```bash
     # If you have pyenv-virtualenv
     pyenv virtualenv scvi-tools-dev
     pyenv activate scvi-tools-dev
@@ -32,20 +32,20 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
     mamba activate scvi-tools-dev
     ```
 
-1.  (Optional) Install GPU versions of PyTorch and jax:
+1. (Optional) Install GPU versions of PyTorch and jax:
 
     Using mamba (recommended):
 
-    ```
+    ```bash
     mamba install pytorch torchvision torchaudio cudatoolkit=11.7 -c pytorch -c conda-forge
     mamba install jax jaxlib -c conda-forge
     ```
 
     More information can be found on the installation page {doc}`/installation`.
 
-1.  Install your local copy in the environment:
+1. Install your local copy in the environment:
 
-    ```
+    ```bash
     # Enter the cloned repository and install the package in editable mode
     cd scvi-tools
     pip install -e ".[dev,docs,tutorials]"
@@ -53,59 +53,59 @@ Ready to contribute? Here's how to set up `scvi-tools` for local development.
 
     To confirm that scvi-tools was successfully installed:
 
-    ```
+    ```bash
     pip show scvi-tools
     ```
 
-1.  Create an ipykernel so you can use your environment with a Jupyter notebook. IDEs like Visual Studio Code can perform this step automatically. To do so manually, inside your virtualenv:
+1. Create an ipykernel so you can use your environment with a Jupyter notebook. IDEs like Visual Studio Code can perform this step automatically. To do so manually, inside your virtualenv:
 
-    ```
+    ```bash
     python -m ipykernel install --user --name=scvi-tools-dev
     ```
 
-1.  Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits:
+1. Install pre-commit, which will enforce the scvi-tools code style (black, flake8) on each of your commits:
 
-    ```
-    $ pre-commit install
+    ```bash
+    pre-commit install
     ```
 
-1.  Create a branch for local development:
+1. Create a branch for local development:
 
-    ```
-    $ git checkout -b {your-branch-name}
+    ```bash
+    git checkout -b {your-branch-name}
     ```
 
     Now you can make your changes locally.
 
-1.  Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
+1. Add tests to the `/tests` directory. These files start with `test_` and contain functions that start similarly with `test_`.
 
-1.  When you're done making changes, run the tests using pytest:
+1. When you're done making changes, run the tests using pytest:
 
-    ```
-    $ pytest tests/models/test_my_new_feature.py
-    $ pytest tests/models/test_my_new_feature.py::test_particular_function_in_file
-    ```
-
-1.  Commit your changes and push your branch to GitHub:
-
-    ```
-    $ git add <file> ...
-    $ git commit -m "Your detailed description of your changes."
-    $ git push origin name-of-your-bugfix-or-feature
+    ```bash
+    pytest tests/models/test_my_new_feature.py
+    pytest tests/models/test_my_new_feature.py::test_particular_function_in_file
     ```
 
-1.  Submit a pull request through the GitHub website.
+1. Commit your changes and push your branch to GitHub:
+
+    ```bash
+    git add <file> ...
+    git commit -m "Your detailed description of your changes."
+    git push origin name-of-your-bugfix-or-feature
+    ```
+
+1. Submit a pull request through the GitHub website.
 
 ## Coding Standards
 
 1. Don't duplicate code. Certainly no blocks longer than a couple of lines. It's almost always better to refactor than to duplicate blocks of code.
-2. Almost all code should at least be run by a unit test. No pull request should decrease unit test coverage by much.
-3. Document each new method and each new class with a docstring.
-4. Don't commit commented-out code. Just delete it or store it somewhere outside of the repo. You probably aren't going to need it. At worse, it's stored in previous commits, from before it was commented out.
-5. A pull request (PR) will typically close at least one Github issue. For these pull requests, write the issue it closes in the description, e.g. `closes #210`. The issue will be automatically closed when the PR is merged.
-6. Don't commit data to the repository, except perhaps a few small (\< 50 KB) files of test data.
-7. Respect the scvi-tools code style, the easiest way is to install pre-commit as described above.
-8. Your PR will be evaluated by automated software for following coding standards, so it's easier to start with good practices.
+1. Almost all code should at least be run by a unit test. No pull request should decrease unit test coverage by much.
+1. Document each new method and each new class with a docstring.
+1. Don't commit commented-out code. Just delete it or store it somewhere outside of the repo. You probably aren't going to need it. At worse, it's stored in previous commits, from before it was commented out.
+1. A pull request (PR) will typically close at least one Github issue. For these pull requests, write the issue it closes in the description, e.g. `closes #210`. The issue will be automatically closed when the PR is merged.
+1. Don't commit data to the repository, except perhaps a few small (\< 50 KB) files of test data.
+1. Respect the scvi-tools code style, the easiest way is to install pre-commit as described above.
+1. Your PR will be evaluated by automated software for following coding standards, so it's easier to start with good practices.
 
 ## Documenting Code
 
@@ -116,15 +116,15 @@ For the actual documentation pages (e.g., the user guide), we use markdown files
 ## Tips
 
 1. [GitKraken](https://www.gitkraken.com/) can be a useful GUI for using git locally.
-2. `git commit -m "my message" --no-verify` allows overriding `pre-commit`.
-3. Reach out on [gitter](https://gitter.im/scvi-tools/development) if you need help.
+1. `git commit -m "my message" --no-verify` allows overriding `pre-commit`.
+1. Reach out on [gitter](https://gitter.im/scvi-tools/development) if you need help.
 
 ## Pull Request Guidelines
 
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated.
+1. If the pull request adds functionality, the docs should be updated.
 
 Your PR will be tested with our continuous integration checks.
 
@@ -143,7 +143,7 @@ Note: Auto backporting can also be triggered if you associate the PR with a Mile
 
 ```
 
-```
+```plaintext
 feature foo <- head of branch main, main development branch
 |
 bug fix
@@ -171,8 +171,6 @@ my other hotfix
 
 If MeeseeksDev cannot automatically cherry-pick the PR (e.g. due to conflicts requiring manual resolution), it will let us know. In that case we need to cherry-pick the commit ourselves. [Here](https://github.com/search?q=label%3A%22Still+Needs+Manual+Backport%22+is%3Aopen&state=closed&type=Issues) are examples of such cases, and [here](https://github.com/pandas-dev/pandas/wiki/Backporting) is one resource explaining how to do it, but there are probably a lot more on the web.
 
-[repo]: https://github.com/conda-forge/scvi-tools-feedstock
-
 ## Deploying
 
 There are a few steps to deploying a new version of `scvi-tools`.
@@ -181,7 +179,7 @@ There are a few steps to deploying a new version of `scvi-tools`.
 
 Tutorials are currently integrated via a git submodule. To update the tutorials, locally run:
 
-```
+```bash
 git submodule update --remote
 ```
 
@@ -195,8 +193,8 @@ Make sure all your changes are committed (and release notes are up to date). Add
 
 Then, make sure you've tested your code using pytest by running:
 
-```
-$ pytest
+```bash
+pytest
 ```
 
 ### Writing a GitHub release
@@ -209,9 +207,9 @@ Any tag of the form `*.*.*` will trigger the [`release.yml` workflow](https://gi
 
 If you want to manually release, you can install `hatch` and run:
 
-```
-$ hatch build
-$ hatch publish
+```bash
+hatch build
+hatch publish
 ```
 
 This will upload `scvi-tools` to PyPI. It's advised to use the automated release workflow, but in the future if this fails we can revert to manual releases (but still after making a GitHub release, as the tag is important for the stable version of the docs).
@@ -220,3 +218,5 @@ This will upload `scvi-tools` to PyPI. It's advised to use the automated release
 
 `scvi-tools` is available on conda-forge channel. Typically, a PR will be automatically created once a new PyPI release is made ([example](https://github.com/conda-forge/scvi-tools-feedstock/pull/32)).
 This automated PR might need changes if dependencies have changed. In that case, create a fork of the scvi-tools feedstock [repo] on GitHub and follow instructions in the README there.
+
+[repo]: https://github.com/conda-forge/scvi-tools-feedstock

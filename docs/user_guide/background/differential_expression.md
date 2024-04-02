@@ -20,7 +20,7 @@ is the log fold-change
 ```
 
 where
-$\log h_{g}^A, \log h_{g}^B$
+$\\log h\_{g}^A, \\log h\_{g}^B$
 respectively denote the mean expression levels in subpopulations $A$
 and
 $B$.
@@ -28,7 +28,7 @@ $B$.
 ## Motivation
 
 In the particular case of single-cell RNA-seq data, existing differential expression models often model that the mean expression level
-$\log h_{g}^C$.
+$\\log h\_{g}^C$.
 as a linear function of the cell-state and batch assignments.
 These models face two notable limitations to detect differences in expression between cell-states in large-scale scRNA-seq datasets.
 First, such linear assumptions may not capture complex batch effects existing in such datasets accurately.
@@ -46,9 +46,9 @@ This guide has two objectives.
 First, it aims to provide insight as to how scVI-tools' differential expression module works for transcript expression (`scVI`), surface protein expression (`TOTALVI`), or chromatin accessibility (`PeakVI`).
 More precisely, we explain how it can:
 
--   approximate population-specific normalized expression levels
--   detect biologically relevant features
--   provide easy-to-interpret predictions
+- approximate population-specific normalized expression levels
+- detect biologically relevant features
+- provide easy-to-interpret predictions
 
 More importantly, this guide explains the function of the hyperparameters of the `differential_expression` method.
 
@@ -93,8 +93,8 @@ More importantly, this guide explains the function of the hyperparameters of the
 
 While considering different modalities, scVI, TOTALVI, and PeakVI share similar properties, allowing us to perform differential expression of transcripts, surface proteins, or chromatin accessibility, similarly.
 We first introduce some notations that will be useful in the remainder of this guide.
-In particular, we consider a deep generative model where a latent variable with prior $z_n \sim \mathcal{N}_d(0, I_d)$ represents cell $n$'s identity.
-In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized, expression levels.
+In particular, we consider a deep generative model where a latent variable with prior $z_n \\sim \\mathcal{N}_d(0, I_d)$ represents cell $n$'s identity.
+In turn, a neural network $f^h_\\theta$ maps this low-dimensional representation to normalized, expression levels.
 
 ## Approximating population-specific normalized expression levels
 
@@ -127,7 +127,7 @@ In particular, we will represent state $C$ latent representation with the mixtur
 
 where `idx1` and `idx2` specify which observations to use to approximate these quantities.
 
-Once established latent distributions for each state, expression vectors $h_{n} \in \mathbb{R}^F$ ($F$ being the total number of features) are obtained as neural network outputs $h_n = f^h_\theta(z_n)$.
+Once established latent distributions for each state, expression vectors $h\_{n} \\in \\mathbb{R}^F$ ($F$ being the total number of features) are obtained as neural network outputs $h_n = f^h\_\\theta(z_n)$.
 We note $h^A_f, h^B_f$ the respective expression levels in states $A, B$ obtained using this sampling procedure.
 
 ## Detecting biologically relevant features
@@ -146,10 +146,10 @@ When considering gene or surface protein expression, log-normalized counts are a
 \end{align}
 ```
 
-As chromatin accessibility cannot be interpreted in the same way, we take $\beta_f = h_{f}^B- h_{f}^A$ instead.
+As chromatin accessibility cannot be interpreted in the same way, we take $\\beta_f = h\_{f}^B- h\_{f}^A$ instead.
 
 scVI-tools provides several ways to formulate the competing hypotheses from the effect sizes to detect DE features.
-When `mode = "vanilla"`, we consider point null hypotheses of the form $\mathcal{H}_{0f}: \beta_f = 0$.
+When `mode = "vanilla"`, we consider point null hypotheses of the form $\\mathcal{H}\_{0f}: \\beta_f = 0$.
 To avoid detecting features of little practical interest, e.g., when expression differences between conditions are significant but very subtle, we recommend users to use `mode = "change"` instead.
 In this formulation, we consider null hypotheses instead, such that
 
@@ -163,14 +163,14 @@ In this formulation, we consider null hypotheses instead, such that
 \end{align}
 ```
 
-Here, $\delta$ is an hyperparameter specified by `delta`.
+Here, $\\delta$ is an hyperparameter specified by `delta`.
 Note that when `delta=None`, we estimate this parameter in a data-driven fashion.
-A straightforward decision consists in detecting genes for which the posterior distribution of the event $\lvert \beta_f \rvert \leq \delta$, that we denote $p_f$, is above a threshold $1 - \epsilon$.
+A straightforward decision consists in detecting genes for which the posterior distribution of the event $\\lvert \\beta_f \\rvert \\leq \\delta$, that we denote $p_f$, is above a threshold $1 - \\epsilon$.
 
 ## Providing easy-to-interpret predictions
 
 The obtained gene sets may be difficult to interpret for some users.
-For this reason, we provide a data-supported way to select $\epsilon$, such that the posterior expected False Discovery Proportion (FDP) is below a significance level $\alpha$.
+For this reason, we provide a data-supported way to select $\\epsilon$, such that the posterior expected False Discovery Proportion (FDP) is below a significance level $\\alpha$.
 To clarify how to compute the posterior expectation, we introduce two notations.
 We denote
 
@@ -191,7 +191,7 @@ the decision rule tagging $k$ features of highest $p_f$ as DE.
 We also note $d^f$ the binary random variable taking value 1 if feature $f$ is differentially expressed.
 
 The False Discovery Proportion is a random variable corresponding to the ratio of the number of false positives over the total number of predicted positives.
-For the specific family of decision rules $\mu^k, k$ that we consider here, the FDP can be written as
+For the specific family of decision rules $\\mu^k, k$ that we consider here, the FDP can be written as
 
 ```{math}
 :nowrap: true
@@ -206,14 +206,14 @@ For the specific family of decision rules $\mu^k, k$ that we consider here, the 
 \end{align}
 ```
 
-However, note that the posterior expectation of $d^f$, denoted as $\mathbb{E}_{post}[.]$, verifies $\mathbb{E}_{post}[FDP_{d^f}] = p^f$.
+However, note that the posterior expectation of $d^f$, denoted as $\\mathbb{E}_{post}\[.\]$, verifies $\\mathbb{E}_{post}\[FDP\_{d^f}\] = p^f$.
 Hence, by linearity of the expectation, we can estimate the false discovery rate corresponding to $k$ detected features as
 
 $$
-\mathbb{E}_{post}[FDP_{\mu^k}] = \frac{\sum_f (1 - p^f) \mu_f^k}{\sum_f \mu_f^k}.
+\\mathbb{E}_{post}\[FDP_{\\mu^k}\] = \\frac{\\sum_f (1 - p^f) \\mu_f^k}{\\sum_f \\mu_f^k}.
 $$
 
-Hence, for a given significance level $\alpha$, we select the maximum detections $k^*$, such that $\mathbb{E}_{post}[FDP_{\mu^k}] \leq \alpha$, as illustrated below.
+Hence, for a given significance level $\\alpha$, we select the maximum detections $k^\*$, such that $\\mathbb{E}_{post}\[FDP_{\\mu^k}\] \\leq \\alpha$, as illustrated below.
 
 :::{figure} figures/fdr_control.png
 :align: center

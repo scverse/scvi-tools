@@ -1,14 +1,10 @@
----
-name: Bug report
-about: Create a report to help us improve
-title: ""
-labels: bug
-assignees: ""
----
+______________________________________________________________________
+
+## name: Bug report about: Create a report to help us improve title: "" labels: bug assignees: ""
 
 <!-- Describe the bug -->
 
-[TEXT HERE]
+\[TEXT HERE\]
 
 <!-- To reproduce -->
 
@@ -22,7 +18,7 @@ assignees: ""
 [Paste the error output produced by the above code here]
 ```
 
-#### Versions:
+## Versions
 
 <!-- Output of scvi.__version__ -->
 

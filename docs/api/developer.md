@@ -2,7 +2,7 @@
 
 Import scvi-tools as:
 
-```
+```python
 import scvi
 ```
 
@@ -276,5 +276,3 @@ Utility functions used by scvi-tools.
    utils.attrdict
    model.get_max_epochs_heuristic
 ```
-
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html

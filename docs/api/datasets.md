@@ -2,7 +2,7 @@
 
 Import scvi-tools as:
 
-```
+```python
 import scvi
 ```
 

@@ -22,5 +22,5 @@ index_tuning
 index_dev
 ```
 
-[forum]: https://discourse.scverse.org/
 [ecosystem]: https://scvi-tools.org/ecosystem
+[forum]: https://discourse.scverse.org/

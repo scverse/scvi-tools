@@ -1,17 +1,17 @@
 # totalVI
 
-**totalVI** [^ref1] (total Variational Inference; Python class {class}`~scvi.model.TOTALVI`) posits a flexible generative model of CITE-seq RNA and protein data that can subsequently
+**totalVI** \[^ref1\] (total Variational Inference; Python class {class}`~scvi.model.TOTALVI`) posits a flexible generative model of CITE-seq RNA and protein data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of totalVI are:
 
--   Comprehensive in capabilities.
--   Scalable to very large datasets (>1 million cells).
+- Comprehensive in capabilities.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of totalVI include:
 
--   Effectively requires a GPU for fast inference.
--   Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
+- Effectively requires a GPU for fast inference.
+- Difficult to understand the balance between RNA and protein data in the low-dimensional representation of cells.
 
 ```{topic} Tutorials:
 
@@ -47,7 +47,7 @@ First, for each cell $n$,
 \end{align}
 ```
 
-The prior parameters $l_\mu$ and $l_{\sigma^2}$ are computed per batch as the mean and variance of the log library size over cells.
+The prior parameters $l\_\\mu$ and $l\_{\\sigma^2}$ are computed per batch as the mean and variance of the log library size over cells.
 The generative process of totalVI uses neural networks:
 
 ```{math}
@@ -61,7 +61,7 @@ The generative process of totalVI uses neural networks:
 ```
 
 where $d$ is the dimension of the latent space (associated with latent variable $z$).
-We also have global parameters $\theta_g$ and $\phi_t$, which represent
+We also have global parameters $\\theta_g$ and $\\phi_t$, which represent
 gene- and protein-specific (respectively) overdispersion.
 
 Then for each gene $g$ in cell $n$,
@@ -87,8 +87,8 @@ And finally for each protein $t$ in cell $n$,
 \end{align}
 ```
 
-Integrating out $v_{nt}$ yields a negative binomial mixture conditional distribution for $y_{nt}$.
-Furthermore, $\beta_{nt}$ represents background protein signal due to ambient antibodies or non-specific antibody binding.
+Integrating out $v\_{nt}$ yields a negative binomial mixture conditional distribution for $y\_{nt}$.
+Furthermore, $\\beta\_{nt}$ represents background protein signal due to ambient antibodies or non-specific antibody binding.
 The prior parameters $c_t$ and $d_t$ are unfortunately called `background_pro_alpha` and `background_pro_log_beta` in the code.
 They are learned parameters during infererence, but are initialized through a procedure that fits a two-component Gaussian mixture model for each cell
 and records the mean and variance of the component with smaller mean, aggregating across all cells. This can be disabled by setting `empirical_protein_background_prior=False`,
@@ -146,7 +146,7 @@ neural network params, dispersion params, etc.), and an approximate posterior di
 \end{align}
 ```
 
-Here $\eta$ is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
+Here $\\eta$ is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
 but are described in the totalVI paper. totalVI can also handle missing proteins (i.e., a dataset comprised of
 multiple batches, where each batch potentially has a different antibody panel, or no protein data at all).
 We refer the reader to the original publication for these details.
@@ -155,27 +155,27 @@ We refer the reader to the original publication for these details.
 
 ### Dimensionality reduction
 
-For dimensionality reduction, we by default return the mean of the approximate posterior $q_\eta(z_n \mid x_n, y_n,s_n)$.
+For dimensionality reduction, we by default return the mean of the approximate posterior $q\_\\eta(z_n \\mid x_n, y_n,s_n)$.
 This is achieved using the method:
 
-```
->>> latent = model.get_latent_representation()
->>> adata.obsm["X_totalvi"] = latent
+```python
+adata.obsm["X_totalvi"] = model.get_latent_representation()
 ```
 
 Users may also return samples from this distribution, as opposed to the mean by passing the argument `give_mean=False`.
 The latent representation can be used to create a nearest neighbor graph with scanpy with:
 
-```
->>> import scanpy as sc
->>> sc.pp.neighbors(adata, use_rep="X_totalvi")
->>> adata.obsp["distances"]
+```python
+import scanpy as sc
+
+sc.pp.neighbors(adata, use_rep="X_totalvi")
+adata.obsp["distances"]
 ```
 
 ### Normalization and denoising of RNA and protein expression
 
-In {func}`~scvi.model.TOTALVI.get_normalized_expression` totalVI returns, for RNA, the expected value of $l_n\rho_n$ under the approximate posterior,
-and for proteins, the expected value of $(1 − \pi_{nt})\beta_{nt}\alpha_n$.
+In {func}`~scvi.model.TOTALVI.get_normalized_expression` totalVI returns, for RNA, the expected value of $l_n\\rho_n$ under the approximate posterior,
+and for proteins, the expected value of $(1 − \\pi\_{nt})\\beta\_{nt}\\alpha_n$.
 For one cell $n$, in the case of RNA, this can be written as:
 
 ```{math}
@@ -188,23 +188,23 @@ For one cell $n$, in the case of RNA, this can be written as:
 
 where $l_n'$ is by default set to 1. See the `library_size` parameter for more details. The expectation is approximated using Monte Carlo, and the number of samples can be passed as an argument in the code:
 
-```
->>> rna, protein = model.get_normalized_expression(n_samples=10)
+```python
+rna, protein = model.get_normalized_expression(n_samples=10)
 ```
 
 By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
 In the case of proteins, there are a few important options that control what constitues denoised protein expression.
-For example, `include_protein_background=True` will result in estimating the expectation of $(1 − \pi_{nt})\beta_{nt}\alpha_{nt} + \pi_{nt}\beta_{nt}$.
-Setting `sampling_protein_mixing=True` will result in sampling $v_{nt} \sim \textrm{Bernoulli}(\pi_{nt})$ and
-replacing $\pi_{nt}$ with $v_{nt}$.
+For example, `include_protein_background=True` will result in estimating the expectation of $(1 − \\pi\_{nt})\\beta\_{nt}\\alpha\_{nt} + \\pi\_{nt}\\beta\_{nt}$.
+Setting `sampling_protein_mixing=True` will result in sampling $v\_{nt} \\sim \\textrm{Bernoulli}(\\pi\_{nt})$ and
+replacing $\\pi\_{nt}$ with $v\_{nt}$.
 
 Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 
 ### Differential expression
 
-Differential expression analysis is achieved with {func}`~scvi.model.TOTALVI.differential_expression`. totalVI tests differences in magnitude of $f_\rho\left( z_n, s_n \right)$ for RNA,
-and $(1 − \pi_{nt})\beta_{nt}\alpha_{nt}$ with similar options to change this quantity as in the normalized expression function.
+Differential expression analysis is achieved with {func}`~scvi.model.TOTALVI.differential_expression`. totalVI tests differences in magnitude of $f\_\\rho\\left( z_n, s_n \\right)$ for RNA,
+and $(1 − \\pi\_{nt})\\beta\_{nt}\\alpha\_{nt}$ with similar options to change this quantity as in the normalized expression function.
 More info on the mathematics behind differential expression is in {doc}`/user_guide/background/differential_expression`.
 
 ### Data simulation
@@ -213,7 +213,7 @@ Data can be generated from the model using the posterior predictive distribution
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
 
-[^ref1]:
-    Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
-    _Joint probabilistic modeling of single-cell multi-omic data with totalVI_,
-    [Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).
+\[^ref1\]:
+Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
+_Joint probabilistic modeling of single-cell multi-omic data with totalVI_,
+[Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).

@@ -46,13 +46,13 @@ Developer tutorials help you build new probabilistic models.
 :::
 
 :::{grid-item-card} Discussion {octicon}`megaphone;1em;`
-:link: https://discourse.scverse.org/
+:link: <https://discourse.scverse.org/>
 
 Need help? Reach out on our forum to get your questions answered!
 :::
 
 :::{grid-item-card} GitHub {octicon}`mark-github;1em;`
-:link: https://github.com/scverse/scvi-tools
+:link: <https://github.com/scverse/scvi-tools>
 
 Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the latest developments.
 :::
