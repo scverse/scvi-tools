@@ -85,8 +85,7 @@ class TrainRunner:
             devices=lightning_devices,
             **trainer_kwargs,
         )
-        # currently set for MetricsCallback
-        self.trainer._model = model  # TODO: Find a better way to do this
+        self.trainer._model = model  # needed for savecheckpoint callback
 
     def __call__(self):
         """Run training."""

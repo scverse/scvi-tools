@@ -45,6 +45,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
 -   Remove `feed_labels` argument and corresponding code paths in {meth}`scvi.module.SCANVAE.loss`
     {pr}`2644`.
+-   Remove {class}`scvi.train._callbacks.MetricsCallback` and argument `additional_val_metrics` in
+    {class}`scvi.train.Trainer` {pr}`2646`.
 
 ### 1.1.2 (2024-03-01)
 
