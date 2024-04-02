@@ -67,7 +67,7 @@ installation
 tutorials/index
 user_guide/index
 api/index
-release_notes/index
+changelog.md
 references
 contributing/index
 Discussion <https://discourse.scvi-tools.org>
