@@ -43,6 +43,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Remove {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
     {class}`scvi.autotune.TuneAnalysis` in favor of new experimental functional API with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
+-   Remove {class}`scvi.train._callbacks.MetricsCallback` and argument `additional_val_metrics` in
+    {class}`scvi.train.Trainer` {pr}`2646`.
 
 ### 1.1.2 (2024-03-01)
 
@@ -936,7 +938,7 @@ changes in detail.
 This refactor is centered around the new {class}`~scvi.data.AnnDataManager` class which orchestrates any data processing necessary
 for scvi-tools and stores necessary information, rather than adding additional fields to the AnnData input.
 
-:::{figure} figures/anndata_manager_schematic.svg
+:::{figure} docs/\_static/img/anndata_manager_schematic.svg
 :align: center
 :alt: Schematic of data handling strategy with AnnDataManager
 :class: img-fluid
@@ -1163,7 +1165,7 @@ Another noteworthy addition in this release is the implementation of the (amorti
 
 Lastly, in this release we have made a change to reduce user and developer confusion by making the previously global `setup_anndata` method a static class-specific method instead. This provides more clarity on which parameters are applicable for this call, for each model class. Below is a before/after for the DESTVI and TOTALVI model classes:
 
-:::{figure} figures/setup_anndata_before_after.svg
+:::{figure} docs/\_static/img/setup_anndata_before_after.svg
 :align: center
 :alt: setup_anndata before and after
 :class: img-fluid
