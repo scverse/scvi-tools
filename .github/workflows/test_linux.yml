@@ -1,10 +1,13 @@
-name: Test (Linux)
+name: test (linux)
 
 on:
   push:
-    branches: [main, 1.1.x, 1.2.x]
+    branches: [main, "[0-9]+.[0-9]+.x"]
   pull_request:
-    branches: [main, 1.1.x, 1.2.x]
+    branches: [main, "[0-9]+.[0-9]+.x"]
+  schedule:
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +16,7 @@ concurrency:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+
     defaults:
       run:
         shell: bash -e {0} # -e to fail on error
@@ -23,7 +27,7 @@ jobs:
         os: [ubuntu-latest]
         python: ["3.9", "3.10", "3.11"]
 
-    name: Integration
+    name: integration
 
     env:
       OS: ${{ matrix.os }}
@@ -31,8 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -46,17 +50,15 @@ jobs:
         run: |
           pip install ".[tests]"
 
-      - name: Test
+      - name: Run pytest
         env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
         run: |
           coverage run -m pytest -v --color=yes
-      - name: Report coverage
-        run: |
           coverage report
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+
+      - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
