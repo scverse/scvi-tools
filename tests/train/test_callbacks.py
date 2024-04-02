@@ -1,9 +1,7 @@
 import os
 
-import pytest
-
 import scvi
-from scvi.train._callbacks import MetricsCallback, SaveCheckpoint
+from scvi.train._callbacks import SaveCheckpoint
 
 
 def test_modelcheckpoint_callback(save_path: str):
@@ -60,25 +58,3 @@ def test_modelcheckpoint_callback(save_path: str):
     test_model_cls(scvi.model.SCANVI, adata)
 
     scvi.settings.logging_dir = old_logging_dir
-
-
-def test_metricscallback_init():
-    def dummy_metric(model) -> float:
-        return 0.0
-
-    callback = MetricsCallback(dummy_metric)
-    assert callback.metric_fns == {"dummy_metric": dummy_metric}
-
-    metrics = [dummy_metric]
-    callback = MetricsCallback(metrics)
-    assert callback.metric_fns == {"dummy_metric": dummy_metric}
-
-    metrics = {"dummy_metric": dummy_metric, "dummy_metric2": dummy_metric}
-    callback = MetricsCallback(metrics)
-    assert len(callback.metric_fns) == 2
-
-    with pytest.raises(TypeError):
-        MetricsCallback(0)
-
-    with pytest.raises(TypeError):
-        MetricsCallback([0])
