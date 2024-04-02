@@ -4,7 +4,7 @@ import scvi
 from scvi.train._callbacks import SaveCheckpoint
 
 
-def test_modelcheckpoint_callback(save_path: str):
+def test_savecheckpoint(save_path: str):
     def check_checkpoint_logging(model, adata):
         assert any(isinstance(c, SaveCheckpoint) for c in model.trainer.callbacks)
         callback = [c for c in model.trainer.callbacks if isinstance(c, SaveCheckpoint)]
