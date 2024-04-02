@@ -36,13 +36,15 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Deprecate {func}`scvi.data.cellxgene`, to be removed in v1.3. Please directly use the
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
 -   Deprecate {func}`scvi.nn.one_hot`, to be removed in v1.3. Please directly use the
-    `one_hot` function in PyTorch instead {pr}`2608`
+    `one_hot` function in PyTorch instead {pr}`2608`.
 
 #### Removed
 
 -   Remove {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
     {class}`scvi.autotune.TuneAnalysis` in favor of new experimental functional API with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
+-   Remove `feed_labels` argument and corresponding code paths in {meth}`scvi.module.SCANVAE.loss`
+    {pr}`2644`.
 
 ### 1.1.2 (2024-03-01)
 
