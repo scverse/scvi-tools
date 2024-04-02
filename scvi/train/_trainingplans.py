@@ -16,7 +16,7 @@ from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import METRIC_KEYS, REGISTRY_KEYS
+from scvi import REGISTRY_KEYS
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -25,7 +25,7 @@ from scvi.module.base import (
     PyroBaseModuleClass,
     TrainStateWithState,
 )
-from scvi.nn import one_hot
+from scvi.train._constants import METRIC_KEYS
 
 from ._metrics import ElboMetric
 
@@ -533,9 +533,9 @@ class AdversarialTrainingPlan(TrainingPlan):
         cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
 
         if predict_true_class:
-            cls_target = one_hot(batch_index, n_classes)
+            cls_target = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
         else:
-            one_hot_batch = one_hot(batch_index, n_classes)
+            one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
             # place zeroes where true label is
             cls_target = (~one_hot_batch.bool()).float()
             cls_target = cls_target / (n_classes - 1)
@@ -908,7 +908,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the
+        # true ELBO.
         if self.use_kl_weight:
             kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss
@@ -1038,7 +1039,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the true ELBO.
+        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the
+        # true ELBO.
         if self.use_kl_weight:
             kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss

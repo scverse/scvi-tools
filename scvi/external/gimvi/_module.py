@@ -11,7 +11,7 @@ from torch.nn import ModuleList
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import Encoder, MultiDecoder, MultiEncoder, one_hot
+from scvi.nn import Encoder, MultiDecoder, MultiEncoder
 
 torch.backends.cudnn.benchmark = True
 
@@ -31,8 +31,9 @@ class JVAE(BaseModuleClass):
         Total number of different genes
     indices_mappings
         list of mapping the model inputs to the model output
-        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed at location ``[0,2]``
-        the second dataset has 4 genes that will be reconstructed at ``[0,1,3,2]``
+        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed
+        at location ``[0,2]`` the second dataset has 4 genes that will be reconstructed at
+        ``[0,1,3,2]``
     gene_likelihoods
         list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
     model_library_bools bool list
@@ -406,9 +407,9 @@ class JVAE(BaseModuleClass):
             z, mode, library, self.dispersion, batch_index, y
         )
         if self.dispersion == "gene-label":
-            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)
+            px_r = F.linear(F.one_hot(y.type.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r.view(1, self.px_r.size(0))
         px_r = torch.exp(px_r)
@@ -486,9 +487,11 @@ class JVAE(BaseModuleClass):
             library_log_vars = getattr(self, f"library_log_vars_{mode}")
 
             local_library_log_means = F.linear(
-                one_hot(batch_index, self.n_batch), library_log_means
+                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), library_log_means
             )
-            local_library_log_vars = F.linear(one_hot(batch_index, self.n_batch), library_log_vars)
+            local_library_log_vars = F.linear(
+                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), library_log_vars
+            )
             kl_divergence_l = kl(
                 ql,
                 Normal(local_library_log_means, local_library_log_vars.sqrt()),

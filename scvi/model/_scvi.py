@@ -23,7 +23,7 @@ from scvi.data.fields import (
     StringUnsField,
 )
 from scvi.model._utils import _init_library_size
-from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.base import EmbeddingMixin, UnsupervisedTrainingMixin
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCVI(
+    EmbeddingMixin,
     RNASeqMixin,
     VAEMixin,
     ArchesMixin,
@@ -99,6 +100,10 @@ class SCVI(
     2. :doc:`/tutorials/notebooks/scrna/harmonization`
     3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
     4. :doc:`/tutorials/notebooks/scrna/scvi_in_R`
+
+    See Also
+    --------
+    :class:`~scvi.module.VAE`
     """
 
     _module_cls = VAE
@@ -223,7 +228,7 @@ class SCVI(
     def _get_fields_for_adata_minification(
         minified_data_type: MinifiedDataType,
     ) -> list[BaseAnnDataField]:
-        """Return the anndata fields required for adata minification of the given minified_data_type."""
+        """Return the fields required for adata minification of the given minified_data_type."""
         if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             fields = [
                 ObsmField(
@@ -259,7 +264,8 @@ class SCVI(
 
         Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
         containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the adata is minified.
+        This also sets the appropriate property on the module to indicate that the adata is
+        minified.
 
         Parameters
         ----------

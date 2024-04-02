@@ -93,6 +93,7 @@ Parameterizable probability distributions.
    :toctree: reference/
    :nosignatures:
 
+   distributions.Poisson
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
@@ -124,6 +125,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroJitGuideWarmup
     model.base.PyroModelGuideWarmup
     model.base.DifferentialComputation
+    model.base.EmbeddingMixin
 ```
 
 ## Module
@@ -176,6 +178,7 @@ Module classes in the external API with respective generative and inference proc
    external.tangram.TangramMapper
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
+   external.velovi.VELOVAE
 
 ```
 
@@ -197,6 +200,7 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseMinifiedModeModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
+   module.base.EmbeddingModuleMixin
    module.base.LossOutput
    module.base.auto_move_data
 
@@ -219,7 +223,9 @@ Basic neural network building blocks.
    nn.FCLayers
    nn.Encoder
    nn.Decoder
+   nn.DecoderSCVI
    nn.one_hot
+   nn.Embedding
 
 ```
 

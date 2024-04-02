@@ -35,12 +35,13 @@ def pbmc_dataset(
 ) -> anndata.AnnData:
     """Loads pbmc dataset.
 
-    We considered scRNA-seq data from two batches of peripheral blood mononuclear cells (PBMCs) from a healthy donor
-    (4K PBMCs and 8K PBMCs). We derived quality control metrics using the cellrangerRkit R package (v. 1.1.0).
-    Quality metrics were extracted from CellRanger throughout the molecule specific information file. After filtering,
-    we extract 12,039 cells with 10,310 sampled genes and get biologically meaningful clusters with the
-    software Seurat. We then filter genes that we could not match with the bulk data used for differential
-    expression to be left with g = 3346.
+    We considered scRNA-seq data from two batches of peripheral blood mononuclear cells (PBMCs)
+    from a healthy donor (4K PBMCs and 8K PBMCs). We derived quality control metrics using the
+    cellrangerRkit R package (v. 1.1.0). Quality metrics were extracted from CellRanger throughout
+    the molecule specific information file. After filtering, we extract 12,039 cells with 10,310
+    sampled genes and get biologically meaningful clusters with the software Seurat. We then filter
+    genes that we could not match with the bulk data used for differential expression to be left
+    with g = 3346.
 
     Parameters
     ----------
@@ -79,12 +80,13 @@ def dataset_10x(
     ----------
     dataset_name
         Name of the dataset file. Has to be one of:
-        "frozen_pbmc_donor_a", "frozen_pbmc_donor_b", "frozen_pbmc_donor_c", "fresh_68k_pbmc_donor_a",
-        "cd14_monocytes", "b_cells", "cd34", "cd56_nk", "cd4_t_helper", "regulatory_t", "naive_t",
-        "memory_t", "cytotoxic_t", "naive_cytotoxic", "pbmc8k", "pbmc4k", "t_3k", "t_4k", "neuron_9k",
-        "pbmc_1k_protein_v3", "pbmc_10k_protein_v3", "malt_10k_protein_v3", "pbmc_1k_v2", "pbmc_1k_v3",
-        "pbmc_10k_v3", "hgmm_1k_v2", "hgmm_1k_v3", "hgmm_5k_v3", "hgmm_10k_v3", "neuron_1k_v2",
-        "neuron_1k_v3", "neuron_10k_v3", "heart_1k_v2", "heart_1k_v3", "heart_10k_v3", 5k_pbmc_protein_v3",
+        "frozen_pbmc_donor_a", "frozen_pbmc_donor_b", "frozen_pbmc_donor_c",
+        "fresh_68k_pbmc_donor_a", "cd14_monocytes", "b_cells", "cd34", "cd56_nk", "cd4_t_helper",
+        "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic", "pbmc8k",
+        "pbmc4k", "t_3k", "t_4k", "neuron_9k", "pbmc_1k_protein_v3", "pbmc_10k_protein_v3",
+        "malt_10k_protein_v3", "pbmc_1k_v2", "pbmc_1k_v3", "pbmc_10k_v3", "hgmm_1k_v2",
+        "hgmm_1k_v3", "hgmm_5k_v3", "hgmm_10k_v3", "neuron_1k_v2", "neuron_1k_v3", "neuron_10k_v3",
+        "heart_1k_v2", "heart_1k_v3", "heart_10k_v3", 5k_pbmc_protein_v3",
         "5k_pbmc_protein_v3_nextgem", 1M_neurons".
     filename
         manual override of the filename to write to.
@@ -195,7 +197,9 @@ def purified_pbmc_dataset(
     save_path: str = "data/",
     subset_datasets: list[str] | None = None,
 ) -> anndata.AnnData:
-    """Purified PBMC dataset from: "Massively parallel digital transcriptional profiling of single cells".
+    """Purified PBMC dataset.
+
+    From: "Massively parallel digital transcriptional profiling of single cells".
 
     Parameters
     ----------
@@ -247,12 +251,12 @@ def prefrontalcortex_starmap(save_path: str = "data/") -> anndata.AnnData:
 
 
 def frontalcortex_dropseq(save_path: str = "data/") -> anndata.AnnData:
-    """Load the cells from the mouse frontal cortex sequenced by the Dropseq technology (Saunders et al., 2018).
+    """Load the cells from the mouse frontal cortex (Saunders et al., 2018).
 
-    Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000 cells
-    studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene expression matrix
-    Among the 7611 genes, we offer the user to provide a list of genes to subsample from. If not provided,
-    all genes are kept.
+    Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000
+    cells studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene
+    expression matrix Among the 7611 genes, we offer the user to provide a list of genes to
+    subsample from. If not provided, all genes are kept.
 
     Parameters
     ----------
@@ -297,9 +301,9 @@ def annotation_simulation(name: str, save_path: str = "data/") -> anndata.AnnDat
 def retina(save_path: str = "data/") -> anndata.AnnData:
     """Loads retina dataset.
 
-    The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells and
-    13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from the author.
-    We also extract their normalized data with Combat and use it for benchmarking.
+    The dataset of bipolar cells contains after their original pipeline for filtering 27,499 cells
+    and13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from
+    the author. We also extract their normalized data with Combat and use it for benchmarking.
 
     Parameters
     ----------
@@ -378,7 +382,8 @@ def pbmcs_10x_cite_seq(
     AnnData with batch info (``.obs['batch']``),
     and protein expression (``.obsm["protein_expression"]``)
 
-    Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.
+    Missing protein values are zero, when ``protein_join == "outer`` and are identified during
+    ``AnnData`` setup.
 
     Examples
     --------
@@ -414,7 +419,8 @@ def spleen_lymph_cite_seq(
     AnnData with batch info (``.obs['batch']``), label info (``.obs['cell_types']``),
     protein expression (``.obsm["protein_expression"]``), and tissue (``.obs['tissue']``).
 
-    Missing protein values are zero, when ``protein_join == "outer`` and are identified during ``AnnData`` setup.
+    Missing protein values are zero, when ``protein_join == "outer`` and are identified during
+    ``AnnData`` setup.
 
     Examples
     --------
@@ -439,9 +445,10 @@ def brainlarge_dataset(
 
     This dataset contains 1.3 million brain cells from
     `10x Genomics <https://support.10xgenomics.com/single-cell-gene-expression/datasets>`_.
-    We randomly shuffle the data to get a 1M subset of cells and order genes by variance to retain first 10,000 and then 720 sampled variable genes.
-    This dataset is then sampled multiple times in cells for the runtime and goodness-of-fit analysis.
-    We report imputation scores on the 10k cells and 720 genes samples only.
+    We randomly shuffle the data to get a 1M subset of cells and order genes by variance to retain
+    first 10,000 and then 720 sampled variable genes. This dataset is then sampled multiple times
+    in cells for the runtime and goodness-of-fit analysis. We report imputation scores on the 10k
+    cells and 720 genes samples only.
 
     Parameters
     ----------
@@ -479,8 +486,8 @@ def cortex(save_path: str = "data/") -> anndata.AnnData:
 
     The
     `Mouse Cortex Cells dataset <https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt>`_
-    contains 3005 mouse cortex cells and gold-standard labels for seven distinct cell types. Each cell type corresponds
-    to a cluster to recover.
+    contains 3005 mouse cortex cells and gold-standard labels for seven distinct cell types. Each
+    cell type corresponds to a cluster to recover.
 
     Parameters
     ----------
@@ -508,6 +515,7 @@ def synthetic_iid(
     n_labels: int = 3,
     dropout_ratio: float = 0.7,
     sparse_format: str | None = None,
+    generate_coordinates: bool = False,
     return_mudata: bool = False,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
@@ -544,6 +552,8 @@ def synthetic_iid(
         * `None`: Store as a dense :class:`numpy.ndarray`.
         * `"csr_matrix"`: Store as a :class:`scipy.sparse.csr_matrix`.
         * `"csc_matrix"`: Store as a :class:`scipy.sparse.csc_matrix`.
+    generate_coordinates
+        Whether to generate spatial coordinates for the cells.
     return_mudata
         Returns a :class:`~mudata.MuData` if `True`, else :class:`~anndata.AnnData`.
 
@@ -556,6 +566,8 @@ def synthetic_iid(
     * `.obsm["protein_expression"]`: Protein expression matrix.
     * `.uns["protein_names"]`: Array of protein names.
     * `.obsm["accessibility"]`: Accessibility expression matrix.
+    * `.obsm["coordinates"]`: Spatial coordinates for the cells if ``generate_coordinates`` is
+      ``True``.
 
     :class:`~mudata.MuData` (if `return_mudata=True`) with the following fields:
 
@@ -564,6 +576,8 @@ def synthetic_iid(
     * `.mod["rna"]`: RNA expression data.
     * `.mod["protein_expression"]`: Protein expression data.
     * `.mod["accessibility"]`: Accessibility expression data.
+    * `.obsm["coordinates"]`: Spatial coordinates for the cells if ``generate_coordinates`` is
+      ``True``.
 
     Examples
     --------
@@ -584,6 +598,7 @@ def synthetic_iid(
         n_labels=n_labels,
         dropout_ratio=dropout_ratio,
         sparse_format=sparse_format,
+        generate_coordinates=generate_coordinates,
         return_mudata=return_mudata,
     )
 
@@ -594,8 +609,8 @@ def heart_cell_atlas_subsampled(
 ) -> anndata.AnnData:
     """Combined single cell and single nuclei RNA-Seq data of 485K cardiac cells with annotations.
 
-    Dataset was filtered down randomly to 20k cells using :meth:`~scanpy.pp.subsample`. The original
-    data can be downloaded from https://www.heartcellatlas.org/#DataSources.
+    Dataset was filtered down randomly to 20k cells using :meth:`~scanpy.pp.subsample`. The
+    original data can be downloaded from https://www.heartcellatlas.org/#DataSources.
 
     Parameters
     ----------

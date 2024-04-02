@@ -11,9 +11,25 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Added
 
--   Add new functional API for hyperparameter tuning with {func}`scvi.autotune.run_autotune` and
-    {class}`scvi.autotune.AutotuneExperiment` to replace {class}`scvi.autotune.ModelTuner`,
-    {class}`scvi.autotune.TunerManager`, and {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
+-   Add new experimental functional API for hyperparameter tuning with
+    {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` to replace
+    {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
+    {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
+-   Add experimental class {class}`scvi.nn.Embedding` implementing methods for extending embeddings
+    {pr}`2574`.
+-   Add experimental support for representing batches with continuously-valued embeddings by passing
+    in `batch_representation="embedding"` to {class}`scvi.model.SCVI` {pr}`2576`.
+-   Add experimental mixin classes {class}`scvi.model.base.EmbeddingMixin` and
+    {class}`scvi.module.base.EmbeddingModuleMixin` {pr}`2576`.
+-   Add option to generate synthetic spatial coordinates in {func}`scvi.data.synthetic_iid` with
+    argument `generate_coordinates` {pr}`2603`.
+-   Add experimental support for using custom {class}`lightning.pytorch.core.LightningDataModule`s
+    in {func}`scvi.autotune.run_autotune` {pr}`2605`.
+-   Add {class}`scvi.external.VELOVI` for RNA velocity estimation using variational inference
+    {pr}`2611`.
+-   Add `unsigned` argument to {meth}`scvi.hub.HubModel.pull_from_s3` to allow for unsigned
+    downloads of models from AWS S3 {pr}`2615`.
+-   Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
 
 #### Changed
 
@@ -21,14 +37,16 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
 -   Deprecate {class}`scvi.train.SaveBestState`, to be removed in v1.3. Please use
     {class}`scvi.train.ModelCheckpoint` instead {pr}`2567`.
+-   Deprecate {func}`scvi.nn.one_hot`, to be removed in v1.3. Please directly use the
+    `one_hot` function in PyTorch instead {pr}`2608`
 
 #### Removed
 
 -   Remove {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
-    {class}`scvi.autotune.TuneAnalysis` in favor of new functional API with
+    {class}`scvi.autotune.TuneAnalysis` in favor of new experimental functional API with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
 
-### 1.1.2 (unreleased)
+### 1.1.2 (2024-03-01)
 
 #### Changed
 

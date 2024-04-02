@@ -16,7 +16,7 @@ from scvi.distributions import (
 )
 from scvi.module._peakvae import Decoder as DecoderPeakVI
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import DecoderSCVI, Encoder, FCLayers, one_hot
+from scvi.nn import DecoderSCVI, Encoder, FCLayers
 
 from ._utils import masked_softmax
 
@@ -255,10 +255,12 @@ class MULTIVAE(BaseModuleClass):
     encode_covariates
         If True, include covariates in the input to the encoder.
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional RNA distribution.
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        RNA distribution.
     """
 
-    # TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate which comes first or that they're even contiguous)
+    # TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate
+    # which comes first or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,
@@ -747,10 +749,10 @@ class MULTIVAE(BaseModuleClass):
         # Expression Dispersion
         if self.gene_dispersion == "gene-label":
             px_r = F.linear(
-                one_hot(label, self.n_labels), self.px_r
+                F.one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
@@ -760,9 +762,9 @@ class MULTIVAE(BaseModuleClass):
         # Protein Dispersion
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
+            py_r = F.linear(F.one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
+            py_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
