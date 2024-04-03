@@ -70,7 +70,7 @@ docs = [
 docsbuild = ["scvi-tools[docs,optional]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0,<2.10.0"]
+autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0,<2.11.0"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
