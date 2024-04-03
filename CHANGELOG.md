@@ -39,6 +39,12 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     [cellxgene-census](https://chanzuckerberg.github.io/cellxgene-census/) instead {pr}`2542`.
 -   Deprecate {func}`scvi.nn.one_hot`, to be removed in v1.3. Please directly use the
     `one_hot` function in PyTorch instead {pr}`2608`.
+-   Deprecate {class}`scvi.train.SaveBestState`, to be removed in v1.3. Please use
+    {class}`scvi.train.SaveCheckpoint` instead {pr}`2673`.
+-   Deprecate `save_best` argument in {meth}`scvi.model.PEAKVI.train` and
+    {meth}`scvi.model.MULTIVI.train`, to be removed in v1.3. Please pass in `enable_checkpointing`
+    or specify a custom checkpointing procedure with {class}`scvi.train.SaveCheckpoint` instead
+    {pr}`2673`.
 
 #### Removed
 
