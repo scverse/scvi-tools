@@ -800,7 +800,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
         input_kwargs = {
-            "feed_labels": False,
             "labelled_tensors": labelled_dataset,
         }
         input_kwargs.update(self.loss_kwargs)
@@ -827,7 +826,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             labelled_dataset = None
 
         input_kwargs = {
-            "feed_labels": False,
             "labelled_tensors": labelled_dataset,
         }
         input_kwargs.update(self.loss_kwargs)
