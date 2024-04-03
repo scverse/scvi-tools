@@ -31,7 +31,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     downloads of models from AWS S3 {pr}`2615`.
 -   Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
 -   Add `load_best_on_end` argument to {class}`scvi.train.SaveCheckpoint` to load the best model
-    state at the end of training {pr}`xxxx`.
+    state at the end of training {pr}`2672`.
 
 #### Changed
 

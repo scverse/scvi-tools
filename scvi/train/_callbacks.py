@@ -24,7 +24,7 @@ MetricCallable = Callable[[BaseModelClass], float]
 
 
 class SaveCheckpoint(ModelCheckpoint):
-    """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
+    """``BETA`` Saves model checkpoints based on a monitored metric.
 
     Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and modifies the default
     behavior to save the full model state instead of just the state dict. This is necessary for
