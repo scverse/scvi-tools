@@ -153,7 +153,7 @@ class SubSampleLabels(Callback):
 
 
 class SaveBestState(Callback):
-    r"""Save the best module state and restore into model.
+    r"""``DEPRECATED`` Save the best module state and restore into model.
 
     Parameters
     ----------
@@ -170,6 +170,11 @@ class SaveBestState(Callback):
     --------
     from scvi.train import Trainer
     from scvi.train import SaveBestState
+
+    Notes
+    -----
+    Lifecycle: deprecated in v1.2 and to be removed in v1.3. Please use
+        :class:`~scvi.train.callbacks.SaveCheckpoint` instead.
     """
 
     def __init__(
@@ -180,6 +185,14 @@ class SaveBestState(Callback):
         period=1,
     ):
         super().__init__()
+
+        warnings.warn(
+            "`SaveBestState` is deprecated in v1.2 and will be removed in v1.3. Please use "
+            "`SaveCheckpoint` instead. See https://github.com/scverse/scvi-tools/issues/2568 "
+            "for more details.",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
         self.monitor = monitor
         self.verbose = verbose
