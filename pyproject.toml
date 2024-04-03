@@ -34,7 +34,7 @@ classifiers = [
 dependencies = [
     "docrep>=0.3.2",
     "flax",
-    "lightning>=2.0,<2.2",
+    "lightning>=2.0,<2.3",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "numpyro>=0.12.1",
