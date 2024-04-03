@@ -38,10 +38,10 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Deprecate {func}`scvi.nn.one_hot`, to be removed in v1.3. Please directly use the
     `one_hot` function in PyTorch instead {pr}`2608`.
 -   Deprecate {class}`scvi.train.SaveBestState`, to be removed in v1.3. Please use
-    {class}`scvi.train.SaveCheckpoint` instead {pr}`xxxx`.
+    {class}`scvi.train.SaveCheckpoint` instead {pr}`2673`.
 -   Deprecate `save_best` argument in {meth}`scvi.model.PEAKVI` and {meth}`scvi.model.MULTIVI`, to
     be removed in v1.3. Please pass in `enable_checkpointing` or specify a custom checkpointing
-    procedure with {class}`scvi.train.SaveCheckpoint` instead {pr}`xxxx`.
+    procedure with {class}`scvi.train.SaveCheckpoint` instead {pr}`2673`.
 
 #### Removed
 
