@@ -18,21 +18,20 @@ from lightning.pytorch.utilities import rank_zero_info
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
+from scvi.model.base._utils import _load_saved_files
 
 MetricCallable = Callable[[BaseModelClass], float]
 
 
 class SaveCheckpoint(ModelCheckpoint):
-    """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
+    """``BETA`` Saves model checkpoints based on a monitored metric.
 
-    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and
-    modifies the default behavior to save the full model state instead of just
-    the state dict. This is necessary for compatibility with
-    :class:`~scvi.model.base.BaseModelClass`.
+    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and modifies the default
+    behavior to save the full model state instead of just the state dict. This is necessary for
+    compatibility with :class:`~scvi.model.base.BaseModelClass`.
 
-    The best model save and best model score based on ``monitor`` can be
-    accessed post-training with the ``best_model_path`` and ``best_model_score``
-    attributes, respectively.
+    The best model save and best model score based on ``monitor`` can be accessed post-training
+    with the ``best_model_path`` and ``best_model_score`` attributes, respectively.
 
     Known issues:
 
@@ -50,6 +49,8 @@ class SaveCheckpoint(ModelCheckpoint):
         If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
+    load_best_on_end
+        If ``True``, loads the best model state into the model at the end of training.
     **kwargs
         Additional keyword arguments passed into the constructor for
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
@@ -60,6 +61,7 @@ class SaveCheckpoint(ModelCheckpoint):
         dirpath: str | None = None,
         filename: str | None = None,
         monitor: str = "validation_loss",
+        load_best_on_end: bool = False,
         **kwargs,
     ):
         if dirpath is None:
@@ -67,10 +69,8 @@ class SaveCheckpoint(ModelCheckpoint):
                 settings.logging_dir,
                 datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{monitor}",
             )
-
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
-
         if "save_weights_only" in kwargs:
             warnings.warn(
                 "`save_weights_only` is not supported in `SaveCheckpoint` and will be ignored.",
@@ -85,6 +85,7 @@ class SaveCheckpoint(ModelCheckpoint):
                 stacklevel=settings.warnings_stacklevel,
             )
             kwargs.pop("save_last")
+        self.load_best_on_end = load_best_on_end
 
         super().__init__(
             dirpath=dirpath,
@@ -138,6 +139,18 @@ class SaveCheckpoint(ModelCheckpoint):
         if os.path.exists(self.best_model_path):
             os.remove(self.best_model_path)
         self.best_model_path = self.best_model_path.split(".ckpt")[0]
+
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        """Loads the best model state into the model at the end of training."""
+        if not self.load_best_on_end:
+            return
+
+        _, _, best_state_dict, _ = _load_saved_files(
+            self.best_model_path,
+            load_adata=False,
+            map_location=pl_module.module.device,
+        )
+        pl_module.module.load_state_dict(best_state_dict)
 
 
 class SubSampleLabels(Callback):
