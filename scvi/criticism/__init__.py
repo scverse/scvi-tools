@@ -1,8 +1,3 @@
-from scvi.utils import error_on_missing_dependencies
-
-error_on_missing_dependencies("sparse", "xarray")
-
-
-from ._ppc import PosteriorPredictiveCheck  # noqa
+from ._ppc import PosteriorPredictiveCheck
 
 __all__ = ["PosteriorPredictiveCheck"]
