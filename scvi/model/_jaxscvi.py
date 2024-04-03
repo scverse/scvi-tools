@@ -147,7 +147,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         latent = []
         for array_dict in scdl:
             out = jit_inference_fn(self.module.rngs, array_dict)
-            z = out["z"].mean if give_mean else out["z"]
+            z = out["qz"].mean if give_mean else out["z"]
             latent.append(z)
         concat_axis = 0 if ((n_samples == 1) or give_mean) else 1
         latent = jnp.concatenate(latent, axis=concat_axis)
