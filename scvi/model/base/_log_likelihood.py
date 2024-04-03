@@ -2,7 +2,7 @@
 import torch
 
 
-def compute_elbo(vae, data_loader, feed_labels=True, **kwargs):
+def compute_elbo(vae, data_loader, **kwargs):
     """Computes the ELBO.
 
     The ELBO is the reconstruction error + the KL divergences
