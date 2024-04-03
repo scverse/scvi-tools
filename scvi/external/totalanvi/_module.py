@@ -132,6 +132,11 @@ class TOTALANVAE(BaseModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
+        normalize_loss: bool = False,
+        median_gene_library_size: Optional[float] = None,
+        median_protein_library_size: Optional[float] = None,
+        n_panel: Optional[int] = None,
+        panel_key: str = REGISTRY_KEYS.BATCH_KEY,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         extra_encoder_kwargs: Optional[dict] = None,
@@ -149,6 +154,11 @@ class TOTALANVAE(BaseModuleClass):
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
         self.n_labels = n_labels
+        if n_panel is not None:
+            self.n_panel = n_panel
+        else:
+            self.n_panel = n_batch
+        self.panel_key = panel_key
         self.n_input_genes = n_input_genes
         self.n_input_proteins = n_input_proteins
         self.protein_dispersion = protein_dispersion
@@ -169,20 +179,20 @@ class TOTALANVAE(BaseModuleClass):
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
-            if n_batch > 0:
+            if n_panel > 0:
                 self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins, n_batch)
+                    3. * torch.ones(n_input_proteins, n_panel)
                 )
                 self.background_pro_log_beta = torch.nn.Parameter(
-                    torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
+                    torch.zeros(n_input_proteins, n_panel)
                 )
             else:
-                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins))
+                self.background_pro_alpha = torch.nn.Parameter(torch.ones(n_input_proteins))
                 self.background_pro_log_beta = torch.nn.Parameter(
-                    torch.clamp(torch.randn(n_input_proteins), -10, 1)
+                    torch.zeros(n_input_proteins)
                 )
         else:
-            if protein_background_prior_mean.shape[1] == 1 and n_batch != 1:
+            if protein_background_prior_mean.shape[1] == 1 and n_panel != 1:
                 init_mean = protein_background_prior_mean.ravel()
                 init_scale = protein_background_prior_scale.ravel()
             else:
@@ -194,6 +204,9 @@ class TOTALANVAE(BaseModuleClass):
             self.background_pro_log_beta = torch.nn.Parameter(
                 torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
+        self.log_per_batch_efficiency = torch.nn.Parameter(
+            torch.zeros([n_input_proteins, n_batch])
+        )
 
         if self.gene_dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
@@ -212,6 +225,12 @@ class TOTALANVAE(BaseModuleClass):
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_labels))
         else:  # protein-cell
             pass
+        
+        self.normalize_loss = normalize_loss
+        if self.normalize_loss:
+            self.register_buffer("median_gene_library_size", torch.tensor(median_gene_library_size))
+            self.register_buffer("median_protein_library_size", torch.tensor(median_protein_library_size))
+
 
         classifier_parameters = classifier_parameters or {}
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
@@ -426,6 +445,7 @@ class TOTALANVAE(BaseModuleClass):
         px_dict: dict[str, torch.Tensor],
         py_dict: dict[str, torch.Tensor],
         pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
+        per_batch_efficiency: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss."""
         px_ = px_dict
@@ -443,6 +463,13 @@ class TOTALANVAE(BaseModuleClass):
             reconst_loss_gene = (
                 -NegativeBinomial(mu=px_["rate"], theta=px_["r"]).log_prob(x).sum(dim=-1)
             )
+            
+        if per_batch_efficiency is not None:
+            mu1 = per_batch_efficiency * py_["rate_back"]
+            mu2 = per_batch_efficiency * py_["rate_fore"]
+        else:
+            mu1 = py_["rate_back"]
+            mu2 = py_["rate_fore"]
 
         py_conditional = NegativeBinomialMixture(
             mu1=py_["rate_back"],
@@ -463,6 +490,7 @@ class TOTALANVAE(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        panel_index = tensors[self.panel_key].long()
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
@@ -474,6 +502,7 @@ class TOTALANVAE(BaseModuleClass):
             "x": x,
             "y": y,
             "batch_index": batch_index,
+            "panel_index": panel_index,
             "cat_covs": cat_covs,
             "cont_covs": cont_covs,
         }
@@ -525,6 +554,12 @@ class TOTALANVAE(BaseModuleClass):
             )
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
+            
+        per_batch_efficiency = torch.exp(
+            F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.log_per_batch_efficiency
+            )
+        )
 
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
@@ -564,6 +599,7 @@ class TOTALANVAE(BaseModuleClass):
         return {
             "px_": px_,
             "py_": py_,
+            "per_batch_efficiency": per_batch_efficiency,
             "log_pro_back_mean": log_pro_back_mean,
         }
 
@@ -573,6 +609,7 @@ class TOTALANVAE(BaseModuleClass):
         x: torch.Tensor,
         y: torch.Tensor,
         batch_index: Optional[torch.Tensor] = None,
+        panel_index: Optional[torch.Tensor] = None,
         label: Optional[torch.Tensor] = None,
         n_samples=1,
         cont_covs=None,
@@ -603,6 +640,8 @@ class TOTALANVAE(BaseModuleClass):
             tensor of values with shape ``(batch_size, n_input_proteins)``
         batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
+        panel_index
+            array that indicates which panel the cells belong to with shape ``batch_size``
         label
             tensor of cell-types labels with shape (batch_size, n_labels)
         n_samples
@@ -612,8 +651,8 @@ class TOTALANVAE(BaseModuleClass):
         cat_covs
             Categorical covariates to condition on
         """
-        x_ = x
-        y_ = y
+        x_ = x / (1 + x.mean(1, keepdim=True))
+        y_ = y / (1 + y.mean(1, keepdim=True))
         if self.use_observed_lib_size:
             library_gene = x.sum(1).unsqueeze(1)
         if self.log_variational:
@@ -679,7 +718,7 @@ class TOTALANVAE(BaseModuleClass):
         else:
             py_back_alpha_prior = self.background_pro_alpha
             py_back_beta_prior = torch.exp(self.background_pro_log_beta)
-        self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
+        back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
         return {
             "qz": qz,
@@ -688,6 +727,7 @@ class TOTALANVAE(BaseModuleClass):
             "ql": ql,
             "library_gene": library_gene,
             "untran_l": untran_l,
+            "back_mean_prior": back_mean_prior,
         }
 
     @auto_move_data
@@ -722,7 +762,6 @@ class TOTALANVAE(BaseModuleClass):
         kl_weight=1.0,
         labelled_tensors=None,
         classification_ratio=None,
-        feed_labels=False, # consistency with scANVI without use there
     ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """Returns the reconstruction loss and the Kullback divergences.
 
@@ -747,9 +786,11 @@ class TOTALANVAE(BaseModuleClass):
         ql = inference_outputs["ql"]
         px_ = generative_outputs["px_"]
         py_ = generative_outputs["py_"]
+        per_batch_efficiency = generative_outputs['per_batch_efficiency']
 
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        panel_index = tensors[self.panel_key]
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
         # Enumerate choices of label
@@ -777,7 +818,7 @@ class TOTALANVAE(BaseModuleClass):
             pro_batch_mask_minibatch = None
 
         reconst_loss_gene, reconst_loss_protein = self.get_reconstruction_loss(
-            x, y, px_, py_, pro_batch_mask_minibatch
+            x, y, px_, py_, pro_batch_mask_minibatch, per_batch_efficiency
         )
 
         if not self.use_observed_lib_size:
@@ -796,14 +837,25 @@ class TOTALANVAE(BaseModuleClass):
             kl_div_l_gene = 0.0
 
         kl_div_back_pro_full = kl(
-            Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
+            Normal(py_["back_alpha"], py_["back_beta"]), inference_outputs['back_mean_prior']
         )
+        lkl_back_pro_full = - torch.distributions.LogNormal(
+            torch.tensor([0.]).to(x.device), torch.tensor([1.]).to(x.device)).log_prob(per_batch_efficiency)
+        lkl_protein_expressed = - 1e-3 * torch.distributions.Bernoulli(logits=py_["mixing"]).log_prob(torch.ones_like(py_["mixing"]))
         if pro_batch_mask_minibatch is not None:
             kl_div_back_pro = pro_batch_mask_minibatch.bool() * kl_div_back_pro_full
-            kl_div_back_pro = kl_div_back_pro.sum(dim=1)
+            kl_div_back_pro = kl_div_back_pro.sum(dim=1) + lkl_back_pro_full.sum(dim=1) + lkl_protein_expressed.sum(dim=1)
         else:
-            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
-        reconst_loss = reconst_loss_gene + pro_recons_weight * reconst_loss_protein
+            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1) + lkl_back_pro_full.sum(dim=1) + lkl_protein_expressed.sum(dim=1)
+        
+        if self.normalize_loss:
+            weight_protein = self.median_protein_library_size / (0.1 * self.median_protein_library_size + y.sum(1))
+            weight_gene = self.median_gene_library_size / (0.1 * self.median_protein_library_size + x.sum(1))
+        else:
+            weight_protein = torch.ones_like(batch_index)
+            weight_gene = torch.ones_like(batch_index)
+
+        reconst_loss = reconst_loss_gene + kl_weight * pro_recons_weight * reconst_loss_protein
 
         reconst_losses = {
             "reconst_loss_gene": reconst_loss_gene,

@@ -592,14 +592,17 @@ class NegativeBinomialMixture(Distribution):
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
         pi = self.mixture_probs
-        mixing_sample = torch.distributions.Bernoulli(pi).sample()
+        mixing_sample = torch.distributions.Bernoulli(pi).sample(sample_shape)
         mu = self.mu1 * mixing_sample + self.mu2 * (1 - mixing_sample)
         if self.theta2 is None:
             theta = self.theta1
         else:
-            theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
+            theta = (
+                torch.einsum('ij, ijk -> ijk', self.theta1, mixing_sample) + 
+                torch.einsum('ij, ijk -> ijk', self.theta2, (1 - mixing_sample))
+            )
         gamma_d = _gamma(theta, mu)
-        p_means = gamma_d.sample(sample_shape)
+        p_means = gamma_d.sample([])
 
         # Clamping as distributions objects can have buggy behaviors when
         # their parameters are too high

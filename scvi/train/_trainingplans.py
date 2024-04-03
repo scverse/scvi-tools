@@ -1,3 +1,5 @@
+import logging
+import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
 from functools import partial
@@ -16,7 +18,7 @@ from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -514,14 +516,25 @@ class AdversarialTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         if adversarial_classifier is True:
-            self.n_output_classifier = self.module.n_batch
-            self.adversarial_classifier = Classifier(
-                n_input=self.module.n_latent,
-                n_hidden=32,
-                n_labels=self.n_output_classifier,
-                n_layers=2,
-                logits=True,
-            )
+            n_batch = getattr(self.module, 'n_batch')
+            n_classes = getattr(self, 'n_panel', n_batch)
+            if n_classes==1:
+                self.adversarial_classifier = False
+                warnings.warn(
+                    "Adversarial classifier cannot be used with single batch dataset. "
+                    "Disabling adversarial classifier.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            else:
+                self.n_output_classifier = n_classes
+                self.adversarial_classifier = Classifier(
+                    n_input=self.module.n_latent,
+                    n_hidden=32,
+                    n_labels=self.n_output_classifier,
+                    n_layers=2,
+                    logits=True,
+                )
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss
@@ -554,7 +567,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             if self.scale_adversarial_loss == "auto"
             else self.scale_adversarial_loss
         )
-        batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
+        batch_tensor = batch[getattr(self.module, "panel_key", REGISTRY_KEYS.BATCH_KEY)].long()
 
         opts = self.optimizers()
         if not isinstance(opts, list):
@@ -575,6 +588,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         opt1.zero_grad()
         self.manual_backward(loss)
+        # Optimized to not yield any None values.
+        torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, self.module.parameters()), 50)
         opt1.step()
 
         # train adversarial classifier
@@ -741,7 +756,10 @@ class SemiSupervisedAdversarialTrainingPlan(TrainingPlan):
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
         self.n_classes = n_classes
         if adversarial_classifier is True:
-            self.n_output_classifier = self.module.n_batch
+            self.n_output_classifier = self.module.getattr(
+                "n_panel",
+                self.module.getattr("n_batch")
+            )
             self.adversarial_classifier = Classifier(
                 n_input=self.module.n_latent,
                 n_hidden=32,
@@ -861,7 +879,7 @@ class SemiSupervisedAdversarialTrainingPlan(TrainingPlan):
             else self.scale_adversarial_loss
         )
 
-        batch_tensor = full_dataset[REGISTRY_KEYS.BATCH_KEY]
+        batch_tensor = full_dataset[self.module.getattr("panel_key", REGISTRY_KEYS.BATCH_KEY)].long()
         input_kwargs = {
             "feed_labels": False,
             "labelled_tensors": labelled_dataset,

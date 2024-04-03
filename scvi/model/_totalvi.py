@@ -109,8 +109,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        empirical_protein_background_prior: bool | None = None,
+        empirical_protein_background_prior: str | bool | None = None,
         override_missing_proteins: bool = False,
+        normalize_loss: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -140,8 +141,18 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
+        if normalize_loss:
+            median_protein_library_size = np.median(self.adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).sum(1))
+            median_gene_library_size = np.median(np.array(self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY).sum(1)))
+        else:
+            median_protein_library_size = None
+            median_gene_library_size = None
+        
         if emp_prior:
-            prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
+            if empirical_protein_background_prior=='change':
+                prior_mean, prior_scale = self._get_totalvi_protein_priors_change(adata)
+            else:
+                prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
 
@@ -154,6 +165,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
         n_batch = self.summary_stats.n_batch
+        if 'n_panel' in self.summary_stats:
+            n_panel = self.summary_stats.n_panel
+            panel_key = 'panel'
+        else:
+            n_panel = self.summary_stats.n_batch
+            panel_key = REGISTRY_KEYS.BATCH_KEY
+    
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
@@ -176,6 +194,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
+            normalize_loss=normalize_loss,
+            median_protein_library_size = median_protein_library_size,
+            median_gene_library_size = median_gene_library_size,
+            n_panel=n_panel,
+            panel_key=panel_key,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -263,7 +286,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if adversarial_classifier is None:
             adversarial_classifier = self._use_adversarial_classifier
         n_steps_kl_warmup = (
-            n_steps_kl_warmup if n_steps_kl_warmup is not None else int(0.75 * self.adata.n_obs)
+            n_steps_kl_warmup if n_steps_kl_warmup is not None else int(0.75 * self.adata.n_obs * 256./batch_size)
         )
         if reduce_lr_on_plateau:
             check_val_every_n_epoch = 1
@@ -1074,8 +1097,77 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
+    
+    
+    def _get_totalvi_protein_priors_change(self, adata, n_cells=30000):
+        """Compute an empirical prior for protein background."""
+        from pomegranate.distributions import Poisson
+        from pomegranate.gmm import GeneralMixtureModel
 
-    def _get_totalvi_protein_priors(self, adata, n_cells=100):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("error")
+            logger.info("Computing empirical prior initialization for protein background.")
+
+            adata = self._validate_anndata(adata)
+            adata_manager = self.get_anndata_manager(adata)
+            pro_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+            pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
+            batch_mask = adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).get(
+                fields.ProteinObsmField.PROTEIN_BATCH_MASK
+            )
+            if 'n_panel' in self.summary_stats:
+                batch = adata_manager.get_from_registry('panel').ravel()
+                cats = adata_manager.get_state_registry('panel')[
+                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                ]
+            else:
+                batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
+                cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
+                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                ]
+            codes = np.arange(len(cats))
+            batch_avg_mus = np.tile(0., (pro_exp.shape[1], len(cats)))
+            batch_avg_scales =  np.tile(0.3, (pro_exp.shape[1], len(cats)))
+            
+            for batch_index, b in enumerate(np.unique(codes)):
+                # can happen during online updates
+                # the values of these batches will not be used
+                num_in_batch = np.sum(batch == b)
+                if num_in_batch == 0:
+                    continue
+                batch_pro_exp = pro_exp[batch == b]
+                # a batch is missing because it's in the reference but not query data
+                # for scarches case, these values will be replaced by original state dict
+                if batch_pro_exp.shape[0] == 0:
+                    continue
+                
+                if batch_mask is not None:
+                    batch_mask_batch = batch_mask[str(b)]
+                else:
+                    batch_mask_batch = pro_exp.shape[1] * [True]
+
+                cells = np.random.choice(np.arange(batch_pro_exp.shape[0]), size=n_cells)
+                batch_pro_exp = batch_pro_exp[cells]
+                # fit per cell GeneralMixtureModel
+                for ind, protein in enumerate(batch_mask_batch):
+                    if protein:
+                        gmm = GeneralMixtureModel(
+                            [Poisson(torch.tensor([3.]), inertia=0.5), Poisson(torch.tensor([30.]), inertia=0.5)]).cuda()
+                        gmm_fit = gmm.fit(
+                            torch.tensor(batch_pro_exp[:, ind][..., np.newaxis]).cuda())
+                        params = list(gmm_fit.distributions.parameters())
+                        means = np.array([params[1].data.cpu(), params[3].data.cpu()]).squeeze()
+                        
+                        sorted_fg_bg = np.argsort(means)
+                        means = np.log(means[sorted_fg_bg].squeeze())
+                        batch_avg_mus[ind, batch_index] = means[0]
+                        # Empiric here. It both means are close together likely background should be similar.
+                        batch_avg_scales[ind, batch_index] = 0.1 * (means[1] - means[0]).squeeze()
+
+        return batch_avg_mus, batch_avg_scales
+    
+
+    def _get_totalvi_protein_priors(self, adata, n_cells=100, change_mode=False):
         """Compute an empirical prior for protein background."""
         from sklearn.exceptions import ConvergenceWarning
         from sklearn.mixture import GaussianMixture
@@ -1091,10 +1183,16 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).get(
                 fields.ProteinObsmField.PROTEIN_BATCH_MASK
             )
-            batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
-            cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-                fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
-            ]
+            if 'n_panel' in self.summary_stats:
+                batch = adata_manager.get_from_registry('panel').ravel()
+                cats = adata_manager.get_state_registry('panel')[
+                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                ]
+            else:
+                batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
+                cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
+                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                ]
             codes = np.arange(len(cats))
 
             batch_avg_mus, batch_avg_scales = [], []
@@ -1183,6 +1281,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         protein_expression_obsm_key: str,
         protein_names_uns_key: str | None = None,
         batch_key: str | None = None,
+        panel_key: str | None = None,
         layer: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
@@ -1201,6 +1300,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
             sequential names to proteins.
         %(param_batch_key)s
+        panel_key
+            key in 'adata.obs' for the various panels used to measure proteins.
         %(param_layer)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
@@ -1211,13 +1312,16 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(returns)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+        if panel_key is not None:
+            batch_field = fields.CategoricalObsField('panel', panel_key)
+        else:
+            batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             fields.CategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
-            batch_field,
+            fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             fields.NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
@@ -1234,6 +1338,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 is_count_data=True,
             ),
         ]
+        if panel_key is not None:
+            anndata_fields.insert(0, fields.CategoricalObsField('panel', panel_key))
+        
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
@@ -1246,6 +1353,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         rna_layer: str | None = None,
         protein_layer: str | None = None,
         batch_key: str | None = None,
+        panel_key: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
@@ -1262,6 +1370,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         protein_layer
             Protein layer key. If `None`, will use `.X` of specified modality key.
         %(param_batch_key)s
+        panel_key
+            key in 'adata.obs' for the various panels used to measure proteins.
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
@@ -1280,12 +1390,20 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+        
+        if panel_key is not None:
+            batch_field = fields.MuDataCategoricalObsField(
+                "panel",
+                panel_key,
+                mod_key=modalities.batch_key,
+            )
+        else:
+            batch_field = fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.BATCH_KEY,
+                batch_key,
+                mod_key=modalities.batch_key,
+            )
 
-        batch_field = fields.MuDataCategoricalObsField(
-            REGISTRY_KEYS.BATCH_KEY,
-            batch_key,
-            mod_key=modalities.batch_key,
-        )
         mudata_fields = [
             fields.MuDataLayerField(
                 REGISTRY_KEYS.X_KEY,
@@ -1299,7 +1417,11 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 None,
                 mod_key=None,
             ),  # Default labels field for compatibility with TOTALVAE
-            batch_field,
+            fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.BATCH_KEY,
+                batch_key,
+                mod_key=modalities.batch_key,
+            ),
             fields.MuDataNumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY,
                 size_factor_key,
@@ -1326,6 +1448,17 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 mod_required=True,
             ),
         ]
+        
+        if panel_key:
+            mudata_fields.insert(
+                0,
+                fields.MuDataCategoricalObsField(
+                    "panel",
+                    panel_key,
+                    mod_key=modalities.batch_key,
+                )
+            )
+        
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
