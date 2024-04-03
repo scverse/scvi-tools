@@ -240,7 +240,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if save_best:
             warnings.warn(
                 "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpointing` instead.",
+                "`enable_checkpointing` instead. See "
+                "https://github.com/scverse/scvi-tools/issues/2568 for more details.",
                 DeprecationWarning,
                 stacklevel=settings.warnings_stacklevel,
             )

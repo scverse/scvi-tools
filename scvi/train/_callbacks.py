@@ -188,7 +188,8 @@ class SaveBestState(Callback):
 
         warnings.warn(
             "`SaveBestState` is deprecated in v1.2 and will be removed in v1.3. Please use "
-            "`SaveCheckpoint` instead.",
+            "`SaveCheckpoint` instead. See https://github.com/scverse/scvi-tools/issues/2568 "
+            "for more details.",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
