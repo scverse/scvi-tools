@@ -32,43 +32,26 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata>=0.7.5",
     "docrep>=0.3.2",
     "flax",
-    "jax>=0.4.4",
-    "jaxlib>=0.4.3",
-    "optax",
-    "numpy>=1.21.0",
-    "pandas>=1.0",
-    "scipy",
-    "scikit-learn>=0.21.2",
-    "rich>=12.0.0",
-    "h5py>=2.9.0",
-    "torch>=1.8.0",
     "lightning>=2.0,<2.2",
-    "torchmetrics>=0.11.0",
-    "pyro-ppl>=1.6.0",
-    "tqdm>=4.56.0",
-    "scikit-learn>=0.21.2",
-    "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
+    "numpyro>=0.12.1",
+    "pyro-ppl>=1.6.0",
+    "rich>=12.0.0",
+    "scikit-learn>=0.21.2",
+    "sparse>=0.14.0",
+    "tensorboard>=2.0",
+    "torchmetrics>=0.11.0",
+    "xarray>=2023.2.0",
 ]
 
 
 [project.optional-dependencies]
-tests = [
-    "pytest",
-    "coverage",
-    "scvi-tools[optional]"
-]  # dependencies for running the test suite
-editing = [
-    "jupyter",
-    "nbformat",
-    "pre-commit",
-    "ruff",
-]  # dependencies for editing and committing code
-dev = ["scvi-tools[editing,tests]"]  # dependencies for dev work
+tests = ["pytest", "coverage", "scvi-tools[optional]"]
+editing = ["jupyter", "pre-commit"]
+dev = ["scvi-tools[editing,tests]"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -83,26 +66,29 @@ docs = [
     "myst-parser",
     "myst-nb",
     "sphinx-autodoc-typehints",
-]  # basic docs dependencies
-docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
+]
+docsbuild = ["scvi-tools[docs,optional]"]
 
-autotune = [
-    "hyperopt>=0.2",
-    "ray[tune]>=2.5.0,<2.10.0",
-    "tensorboard",
-]  # scvi.autotune
-aws = ["boto3"] # scvi.hub.HubModel.pull_from_s3
-census = ["cellxgene-census"]  # scvi.data.cellxgene
-criticism = ["sparse>=0.14.0", "xarray>=2023.2.0"]  # scvi.criticism
-hub = ["huggingface_hub"]  # scvi.hub dependencies
-pymde = ["pymde"]  # scvi.model.utils.mde dependencies
-regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
-loompy = ["loompy>=3.0.6"]  # read loom
-scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
+# scvi.autotune
+autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0,<2.10.0"]
+# scvi.hub.HubModel.pull_from_s3
+aws = ["boto3"]
+# scvi.data.cellxgene
+census = ["cellxgene-census"]
+# scvi.hub dependencies
+hub = ["huggingface_hub"]
+# scvi.model.utils.mde dependencies
+pymde = ["pymde"]
+# scvi.data.add_dna_sequence
+regseq = ["biopython>=1.81", "genomepy"]
+# read loom
+loompy = ["loompy>=3.0.6"]
+# scvi.criticism and read 10x
+scanpy = ["scanpy>=1.6"]
+
 optional = [
     "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy]"
-]  # all optional user functionality
-
+]
 tutorials = [
     "cell2location",
     "gdown",
@@ -117,9 +103,9 @@ tutorials = [
     "scrublet",
     "scvi-tools[optional]",
     "squidpy",
-]  # dependencies for all tutorials
+]
 
-all = ["scvi-tools[dev,docs,tutorials]"]  # all dependencies
+all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['scvi']
