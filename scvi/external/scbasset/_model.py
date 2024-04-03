@@ -189,7 +189,7 @@ class SCBASSET(BaseModelClass):
             "early_stopping_min_delta": early_stopping_min_delta,
         }
         for k, v in es.items():
-            trainer_kwargs[k] = v if k not in trainer_kwargs.keys() else trainer_kwargs[k]
+            trainer_kwargs[k] = trainer_kwargs.get(k, v)
         runner = TrainRunner(
             self,
             training_plan=training_plan,

@@ -206,9 +206,7 @@ class ContrastiveVI(BaseModelClass):
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
+        trainer_kwargs[es] = trainer_kwargs.get(es, early_stopping)
         runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
@@ -398,7 +396,7 @@ class ContrastiveVI(BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:

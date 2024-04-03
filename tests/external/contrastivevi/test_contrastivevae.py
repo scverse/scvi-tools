@@ -153,7 +153,7 @@ class TestContrastiveVAEInference:
             mock_contrastive_batch, "background"
         )
         for key in REQUIRED_INFERENCE_INPUT_KEYS:
-            assert key in inference_input.keys()
+            assert key in inference_input
         x = inference_input["x"]
         batch_index = inference_input["batch_index"]
         batch_size = x.shape[0]
@@ -169,7 +169,7 @@ class TestContrastiveVAEInference:
     ):
         inference_input = mock_contrastive_vae._get_inference_input(mock_contrastive_batch)
         for data_source in REQUIRED_DATA_SOURCES:
-            assert data_source in inference_input.keys()
+            assert data_source in inference_input
 
         background_input = inference_input["background"]
         background_input_keys = background_input.keys()
@@ -202,7 +202,7 @@ class TestContrastiveVAEInference:
             **inference_input, n_samples=n_samples
         )
         for key in REQUIRED_INFERENCE_OUTPUT_KEYS:
-            assert key in inference_outputs.keys()
+            assert key in inference_outputs
 
         if n_samples > 1:
             expected_background_latent_shape = (
@@ -241,7 +241,7 @@ class TestContrastiveVAEInference:
         inference_input = mock_contrastive_vae._get_inference_input(mock_contrastive_batch)
         inference_outputs = mock_contrastive_vae.inference(**inference_input)
         for data_source in REQUIRED_DATA_SOURCES:
-            assert data_source in inference_outputs.keys()
+            assert data_source in inference_outputs
         background_s = inference_outputs["background"]["s"]
 
         # Background salient variables should be all zeros.
@@ -259,7 +259,7 @@ class TestContrastiveVAEGenerative:
             mock_contrastive_batch, "background"
         )
         for key in REQUIRED_GENERATIVE_INPUT_KEYS_FROM_CONCAT_TENSORS:
-            assert key in generative_input.keys()
+            assert key in generative_input
         batch_index = generative_input["batch_index"]
         assert batch_index.shape[1] == 1
 
@@ -300,7 +300,7 @@ class TestContrastiveVAEGenerative:
             mock_contrastive_batch, inference_outputs
         )
         for data_source in REQUIRED_DATA_SOURCES:
-            assert data_source in generative_input.keys()
+            assert data_source in generative_input
         background_generative_input = generative_input["background"]
         background_generative_input_keys = background_generative_input.keys()
         target_generative_input = generative_input["target"]
@@ -332,7 +332,7 @@ class TestContrastiveVAEGenerative:
         )["background"]
         generative_outputs = mock_contrastive_vae._generic_generative(**generative_input)
         for key in REQUIRED_GENERATIVE_OUTPUT_KEYS:
-            assert key in generative_outputs.keys()
+            assert key in generative_outputs
         px_scale = generative_outputs["px_scale"]
         px_r = generative_outputs["px_r"]
         px_rate = generative_outputs["px_rate"]
@@ -363,7 +363,7 @@ class TestContrastiveVAEGenerative:
         )
         generative_outputs = mock_contrastive_vae.generative(**generative_input)
         for data_source in REQUIRED_DATA_SOURCES:
-            assert data_source in generative_outputs.keys()
+            assert data_source in generative_outputs
 
 
 class TestContrastiveVAELoss:
@@ -375,10 +375,7 @@ class TestContrastiveVAELoss:
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
         recon_loss = mock_contrastive_vae.reconstruction_loss(x, px_rate, px_r, px_dropout)
-        if len(px_rate.shape) == 3:
-            expected_shape = px_rate.shape[:2]
-        else:
-            expected_shape = px_rate.shape[:1]
+        expected_shape = px_rate.shape[:2] if len(px_rate.shape) == 3 else px_rate.shape[:1]
         assert recon_loss.shape == expected_shape
 
     def test_latent_kl_divergence(self, mock_contrastive_vae, mock_contrastive_vi_data):
@@ -450,9 +447,9 @@ class TestContrastiveVAELoss:
                 concat_tensors, compute_loss=compute_loss
             )
         for data_source in REQUIRED_DATA_SOURCES:
-            assert data_source in inference_outputs.keys()
-            assert data_source in generative_outputs.keys()
+            assert data_source in inference_outputs
+            assert data_source in generative_outputs
             for key in REQUIRED_INFERENCE_OUTPUT_KEYS:
-                assert key in inference_outputs[data_source].keys()
+                assert key in inference_outputs[data_source]
             for key in REQUIRED_GENERATIVE_OUTPUT_KEYS:
-                assert key in generative_outputs[data_source].keys()
+                assert key in generative_outputs[data_source]

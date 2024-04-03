@@ -37,10 +37,7 @@ def test_tangram(density_prior_key, constrained):
         density_prior_key=density_prior_key,
         modalities=modalities,
     )
-    if constrained:
-        target_count = 2
-    else:
-        target_count = None
+    target_count = 2 if constrained else None
     model = Tangram(mdata, constrained=constrained, target_count=target_count)
     model.train(max_epochs=1)
     mdata.mod["sc"].obsm["mapper"] = model.get_mapper_matrix()

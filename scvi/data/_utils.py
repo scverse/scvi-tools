@@ -116,7 +116,7 @@ def get_anndata_attribute(
                 raise ValueError(f"{attr_key} is not a valid column in adata.{attr_name}.")
             field = adata_attr.loc[:, attr_key]
         else:
-            if attr_key not in adata_attr.keys():
+            if attr_key not in adata_attr:
                 raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
             field = adata_attr[attr_key]
     if isinstance(field, pd.Series):
@@ -254,7 +254,7 @@ def _check_nonnegative_integers(
 ):
     """Approximately checks values of data to ensure it is count data."""
     # for backed anndata
-    if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
+    if isinstance(data, (h5py.Dataset, SparseDataset)):
         data = data[:100]
 
     if isinstance(data, np.ndarray):
@@ -293,7 +293,7 @@ def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
         else:
             raise ValueError("Please run `adata = adata.copy()`")
     elif isinstance(adata, MuData):
-        for mod_key in adata.mod.keys():
+        for mod_key in adata.mod:
             mod_adata = adata.mod[mod_key]
             _check_if_view(mod_adata, copy_if_view)
 
@@ -321,7 +321,7 @@ def _is_minified(adata: Union[AnnData, str]) -> bool:
         return adata.uns.get(uns_key, None) is not None
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:
-            return uns_key in read_elem(fp["uns"]).keys()
+            return uns_key in read_elem(fp["uns"])
     else:
         raise TypeError(f"Unsupported type: {type(adata)}")
 
@@ -332,11 +332,8 @@ def _check_fragment_counts(
 ):
     """Approximately checks values of data to ensure it is fragment count data."""
     # for backed anndata
-    if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
-        if len(data) >= 400:
-            data = data[:400]
-        else:
-            data = data[:]
+    if isinstance(data, (h5py.Dataset, SparseDataset)):
+        data = data[:400] if len(data) >= 400 else data[:]
 
     # check that n_obs is greater than n_to_check
     if data.shape[0] < n_to_check:

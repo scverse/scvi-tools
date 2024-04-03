@@ -246,7 +246,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 stacklevel=settings.warnings_stacklevel,
             )
 
-            if "callbacks" not in kwargs.keys():
+            if "callbacks" not in kwargs:
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
@@ -409,10 +409,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 p = p[:, region_mask]
             imputed.append(p)
 
-        if threshold:  # imputed is a list of csr_matrix objects
-            imputed = vstack(imputed, format="csr")
-        else:  # imputed is a list of tensors
-            imputed = torch.cat(imputed).numpy()
+        imputed = vstack(imputed, format="csr") if threshold else torch.cat(imputed).numpy()
 
         if return_numpy:
             return imputed

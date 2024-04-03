@@ -15,13 +15,13 @@ def test_solo():
 
     solo = SOLO.from_scvi_model(model)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
-    assert "validation_loss" in solo.history.keys()
+    assert "validation_loss" in solo.history
     solo.predict()
 
     bdata = synthetic_iid()
     solo = SOLO.from_scvi_model(model, bdata)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
-    assert "validation_loss" in solo.history.keys()
+    assert "validation_loss" in solo.history
     solo.predict()
 
 
@@ -35,7 +35,7 @@ def test_solo_multiple_batch():
 
     solo = SOLO.from_scvi_model(model, restrict_to_batch="batch_0")
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
-    assert "validation_loss" in solo.history.keys()
+    assert "validation_loss" in solo.history
     solo.predict()
 
 
@@ -48,7 +48,7 @@ def test_solo_scvi_labels():
 
     solo = SOLO.from_scvi_model(model)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
-    assert "validation_loss" in solo.history.keys()
+    assert "validation_loss" in solo.history
     solo.predict()
 
 

@@ -255,9 +255,6 @@ class VAEC(BaseModuleClass):
         px_rate = generative_outputs["px_rate"]
 
         dist = NegativeBinomial(px_rate, logits=px_r)
-        if n_samples > 1:
-            exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
-        else:
-            exprs = dist.sample()
+        exprs = dist.sample().permute([1, 2, 0]) if n_samples > 1 else dist.sample()
 
         return exprs.cpu()

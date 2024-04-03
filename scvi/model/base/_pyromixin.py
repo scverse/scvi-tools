@@ -36,10 +36,7 @@ class PyroJitGuideWarmup(Callback):
         """
         # warmup guide for JIT
         pyro_guide = pl_module.module.guide
-        if self.dataloader is None:
-            dl = trainer.datamodule.train_dataloader()
-        else:
-            dl = self.dataloader
+        dl = trainer.datamodule.train_dataloader() if self.dataloader is None else self.dataloader
         for tensors in dl:
             tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
             args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
@@ -141,7 +138,7 @@ class PyroSviTrainMixin:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
-        if lr is not None and "optim" not in plan_kwargs.keys():
+        if lr is not None and "optim" not in plan_kwargs:
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
         datasplitter_kwargs = datasplitter_kwargs or {}
@@ -171,11 +168,9 @@ class PyroSviTrainMixin:
             training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
+        trainer_kwargs[es] = trainer_kwargs.get(es, early_stopping)
 
-        if "callbacks" not in trainer_kwargs.keys():
+        if "callbacks" not in trainer_kwargs:
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(PyroJitGuideWarmup())
 
@@ -245,7 +240,7 @@ class PyroSampleMixin:
                         or (site.get("infer", False).get("_deterministic", False))
                     )  # unless it is deterministic
                     and not isinstance(
-                        site.get("fn", None), poutine.subsample_messenger._Subsample
+                        site.get("fn"), poutine.subsample_messenger._Subsample
                     )  # don't save plates
                 )
             }
@@ -300,7 +295,7 @@ class PyroSampleMixin:
             )
 
             # add new sample
-            samples = {k: samples[k] + [samples_[k]] for k in samples.keys()}
+            samples = {k: samples[k] + [samples_[k]] for k in samples}
 
         return {k: np.array(v) for k, v in samples.items()}
 
@@ -357,7 +352,7 @@ class PyroSampleMixin:
                     or (site.get("infer", False).get("_deterministic", False))
                 )  # unless it is deterministic
                 and not isinstance(
-                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                    site.get("fn"), poutine.subsample_messenger._Subsample
                 )  # don't save plates
             )
             if any(f.name == plate_name for f in site["cond_indep_stack"])
@@ -403,11 +398,12 @@ class PyroSampleMixin:
 
         train_dl = AnnDataLoader(self.adata_manager, shuffle=False, batch_size=batch_size)
         # sample local parameters
-        i = 0
-        for tensor_dict in track(
-            train_dl,
-            style="tqdm",
-            description="Sampling local variables, batch: ",
+        for i, tensor_dict in enumerate(
+            track(
+                train_dl,
+                style="tqdm",
+                description="Sampling local variables, batch: ",
+            )
         ):
             args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
             args = [a.to(device) for a in args]
@@ -444,9 +440,8 @@ class PyroSampleMixin:
                             for j in range(len(samples[k]))  # for each sample (in 0 dimension
                         ]
                     )
-                    for k in samples.keys()  # for each variable
+                    for k in samples
                 }
-            i += 1
 
         # sample global parameters
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
@@ -454,7 +449,7 @@ class PyroSampleMixin:
             k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
         }
 
-        for k in global_samples.keys():
+        for k in global_samples:
             samples[k] = global_samples[k]
 
         self.module.to(device)

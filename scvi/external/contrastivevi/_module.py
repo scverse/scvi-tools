@@ -303,12 +303,12 @@ class ContrastiveVAE(BaseModuleClass):
         background_batch_size = background["x"].shape[0]
         target_batch_size = target["x"].shape[0]
         inference_input = {}
-        for key in background.keys():
+        for key in background:
             inference_input[key] = torch.cat([background[key], target[key]], dim=0)
         outputs = self._generic_inference(**inference_input, n_samples=n_samples)
         batch_size_dim = 0 if n_samples == 1 else 1
         background_outputs, target_outputs = {}, {}
-        for key in outputs.keys():
+        for key in outputs:
             if outputs[key] is not None:
                 background_tensor, target_tensor = torch.split(
                     outputs[key],

@@ -94,7 +94,7 @@ class JaxTrainingMixin:
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         self.training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-        if "callbacks" not in trainer_kwargs.keys():
+        if "callbacks" not in trainer_kwargs:
             trainer_kwargs["callbacks"] = []
         trainer_kwargs["callbacks"].append(JaxModuleInit())
 

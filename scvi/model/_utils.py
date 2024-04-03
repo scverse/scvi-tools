@@ -188,7 +188,7 @@ def scrna_raw_counts_properties(
     nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 
     key = "_scvi_raw_norm_scaling"
-    if key not in adata.obs.keys():
+    if key not in adata.obs:
         scaling_factor = 1 / np.asarray(data.sum(axis=1)).ravel().reshape(-1, 1)
         scaling_factor *= 1e4
         adata.obs[key] = scaling_factor.ravel()

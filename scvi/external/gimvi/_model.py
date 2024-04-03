@@ -556,7 +556,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         init_params = attr_dict.pop("init_params_")
 
         # new saving and loading, enable backwards compatibility
-        if "non_kwargs" in init_params.keys():
+        if "non_kwargs" in init_params:
             # grab all the parameters except for kwargs (is a dict)
             non_kwargs = init_params["non_kwargs"]
             kwargs = init_params["kwargs"]

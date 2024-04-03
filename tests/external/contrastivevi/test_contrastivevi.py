@@ -67,7 +67,7 @@ class TestContrastiveVI:
             batch_size=20,  # Unequal final batches to test edge cases.
         )
         trained_state_dict = copy_module_state_dict(mock_contrastive_vi_model.module)
-        for param_key in mock_contrastive_vi_model.module.state_dict().keys():
+        for param_key in mock_contrastive_vi_model.module.state_dict():
             is_library_param = param_key == "library_log_means" or param_key == "library_log_vars"
             is_px_r_decoder_param = "px_r_decoder" in param_key
             is_l_encoder_param = "l_encoder" in param_key

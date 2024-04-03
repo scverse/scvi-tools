@@ -164,6 +164,7 @@ select = [
     "BLE",  # flake8-blind-except
     "UP",  # pyupgrade
     "RUF100",  # Report unused noqa directives
+    "SIM",  # flake8-simplify
 ]
 ignore = [
     # allow I, O, l as variable names -> I is the identity matrix

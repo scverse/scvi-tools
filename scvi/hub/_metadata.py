@@ -265,7 +265,7 @@ class HubModelCardHelper:
         # for example {'kwargs': {'model_kwargs': {'foo': 'bar'}}, 'non_kwargs': {'n_hidden': 128,
         # 'n_latent': 10}}
         # becomes {'n_hidden': 128, 'n_latent': 10, 'foo': 'bar'}
-        if "non_kwargs" in self.model_init_params.keys():
+        if "non_kwargs" in self.model_init_params:
             non_kwargs = self.model_init_params["non_kwargs"]
             kwargs = self.model_init_params["kwargs"]
         else:

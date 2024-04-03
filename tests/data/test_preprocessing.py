@@ -16,7 +16,7 @@ def test_poisson_gene_selection():
         "prob_zero_enrichment_rank",
     ]
     for key in keys:
-        assert key in adata.var.keys()
+        assert key in adata.var
     assert np.sum(adata.var["highly_variable"]) == n_top_genes
     adata = synthetic_iid(sparse_format="csr_matrix")
     poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
@@ -47,8 +47,8 @@ def test_add_dna_sequence(save_path: str):
         genome_dir=save_path,
         install_genome=False,
     )
-    assert "dna_sequence" in adata.varm.keys()
-    assert "dna_code" in adata.varm.keys()
+    assert "dna_sequence" in adata.varm
+    assert "dna_code" in adata.varm
     assert adata.varm["dna_code"].values.shape[1] == seq_len
 
 
@@ -58,15 +58,15 @@ def test_reads_to_fragments():
     adata = synthetic_iid()
     reads_to_fragments(adata)
 
-    assert "fragments" in adata.layers.keys()
+    assert "fragments" in adata.layers
 
     adata = synthetic_iid(sparse_format="csr_matrix")
     reads_to_fragments(adata)
 
-    assert "fragments" in adata.layers.keys()
+    assert "fragments" in adata.layers
 
     adata = synthetic_iid()
     adata.layers["reads"] = adata.X
     reads_to_fragments(adata, read_layer="reads")
 
-    assert "fragments" in adata.layers.keys()
+    assert "fragments" in adata.layers

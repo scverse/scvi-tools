@@ -198,7 +198,7 @@ def test_register_new_fields_with_transferred_manager(adata):
 def test_update_setup_args(adata):
     adata_manager = generic_setup_adata_manager(adata)
     adata_manager.update_setup_method_args({"test_arg": "test_val"})
-    assert "test_arg" in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY].keys()
+    assert "test_arg" in adata_manager._get_setup_method_args()[_constants._SETUP_ARGS_KEY]
 
 
 def test_data_format(adata):

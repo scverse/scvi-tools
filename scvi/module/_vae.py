@@ -458,10 +458,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
 
-        if cat_covs is not None:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = ()
+        categorical_input = () if cat_covs is None else torch.split(cat_covs, 1, dim=1)
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -694,10 +691,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             to_sum.append(log_prob_sum)
         to_sum = torch.cat(to_sum, dim=0)
         batch_log_lkl = logsumexp(to_sum, dim=0) - np.log(n_mc_samples)
-        if return_mean:
-            batch_log_lkl = torch.mean(batch_log_lkl).item()
-        else:
-            batch_log_lkl = batch_log_lkl.cpu()
+        batch_log_lkl = torch.mean(batch_log_lkl).item() if return_mean else batch_log_lkl.cpu()
+
         return batch_log_lkl
 
 

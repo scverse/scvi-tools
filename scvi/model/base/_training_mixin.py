@@ -127,9 +127,7 @@ class UnsupervisedTrainingMixin:
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
+        trainer_kwargs[es] = trainer_kwargs.get(es, early_stopping)
         runner = self._train_runner_cls(
             self,
             training_plan=training_plan,

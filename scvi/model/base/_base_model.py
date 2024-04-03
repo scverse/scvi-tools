@@ -195,9 +195,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Output of  ``_get_setup_method_args()``.
         """
         setup_args = setup_method_args[_SETUP_ARGS_KEY]
-        filtered_modalities = {
-            arg_name: modalities.get(arg_name, None) for arg_name in setup_args.keys()
-        }
+        filtered_modalities = {arg_name: modalities.get(arg_name) for arg_name in setup_args}
         extra_modalities = set(modalities) - set(filtered_modalities)
         if len(extra_modalities) > 0:
             raise ValueError(f"Extraneous modality mapping(s) detected: {extra_modalities}")

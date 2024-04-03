@@ -116,11 +116,11 @@ class CellAssignModule(BaseModuleClass):
             to_cat.append(F.one_hot(tensors[REGISTRY_KEYS.BATCH_KEY].squeeze(-1), self.n_batch))
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        if cont_key in tensors.keys():
+        if cont_key in tensors:
             to_cat.append(tensors[cont_key])
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        if cat_key in tensors.keys():
+        if cat_key in tensors:
             for cat_input, n_cat in zip(
                 torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
             ):

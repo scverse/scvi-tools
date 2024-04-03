@@ -169,11 +169,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
 
-        if "n_proteins" in self.summary_stats:
-            n_proteins = self.summary_stats.n_proteins
-        else:
-            n_proteins = 0
-
+        n_proteins = getattr(self.summary_stats, "n_proteins", 0)
         self.module = self._module_cls(
             n_input_genes=n_genes,
             n_input_regions=n_regions,
@@ -337,7 +333,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 DeprecationWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-            if "callbacks" not in kwargs.keys():
+            if "callbacks" not in kwargs:
                 kwargs["callbacks"] = []
             kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
@@ -580,10 +576,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 p = p[:, region_mask]
             imputed.append(p)
 
-        if threshold:  # imputed is a list of csr_matrix objects
-            imputed = vstack(imputed, format="csr")
-        else:  # imputed is a list of tensors
-            imputed = torch.cat(imputed).numpy()
+        imputed = vstack(imputed, format="csr") if threshold else torch.cat(imputed).numpy()
 
         if return_numpy:
             return imputed
@@ -693,11 +686,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             )  # shape is (len(transform_batch) x batch_size x n_var)
             exprs += [per_batch_exprs.mean(0)]
 
-        if n_samples > 1:
-            # The -2 axis correspond to cells.
-            exprs = np.concatenate(exprs, axis=-2)
-        else:
-            exprs = np.concatenate(exprs, axis=0)
+        exprs = np.concatenate(exprs, axis=-2) if n_samples > 1 else np.concatenate(exprs, axis=0)
         if n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
 
@@ -995,7 +984,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             protein_mask = slice(None)
         else:
             all_proteins = self.scvi_setup_dict_["protein_names"]
-            protein_mask = [True if p in protein_list else False for p in all_proteins]
+            protein_mask = [p in protein_list for p in all_proteins]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:

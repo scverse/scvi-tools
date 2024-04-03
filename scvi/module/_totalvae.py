@@ -325,11 +325,8 @@ class TOTALVAE(BaseModuleClass):
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
 
         input_dict = {
             "x": x,
@@ -346,14 +343,9 @@ class TOTALVAE(BaseModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         label = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = tensors[size_factor_key] if size_factor_key in tensors.keys() else None
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+        size_factor = tensors.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
 
         return {
             "z": z,
@@ -387,10 +379,7 @@ class TOTALVAE(BaseModuleClass):
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
 
-        if cat_covs is not None:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = ()
+        categorical_input = () if cat_covs is None else torch.split(cat_covs, 1, dim=1)
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch

@@ -12,10 +12,7 @@ def test_scipy_to_torch_sparse(sparse_format: str):
     scipy_sparse = adata.X
 
     if sparse_format is not None:
-        if "csr" in sparse_format:
-            expected_torch_layout = torch.sparse_csr
-        else:
-            expected_torch_layout = torch.sparse_csc
+        expected_torch_layout = torch.sparse_csr if "csr" in sparse_format else torch.sparse_csc
     else:
         # raises error for dense data
         with pytest.raises(TypeError):

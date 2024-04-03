@@ -374,7 +374,7 @@ def test_scvi(n_latent: int = 5):
         log_every_n_steps=1,
         plan_kwargs={"reduce_lr_on_plateau": True},
     )
-    assert "lr-Adam" in m.history.keys()
+    assert "lr-Adam" in m.history
 
 
 def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):

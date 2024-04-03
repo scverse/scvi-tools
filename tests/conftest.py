@@ -75,10 +75,12 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         # All tests marked with `pytest.mark.private` get skipped unless
         # `--private` passed
-        if not run_private and ("private" in item.keywords):
-            item.add_marker(skip_private)
-        # Skip all tests not marked with `pytest.mark.private` if `--private` passed
-        elif run_private and ("private" not in item.keywords):
+        if (
+            not run_private
+            and ("private" in item.keywords)
+            or run_private
+            and ("private" not in item.keywords)
+        ):
             item.add_marker(skip_private)
 
 

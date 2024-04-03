@@ -312,10 +312,7 @@ class JaxModuleInit(Callback):
 
     def on_train_start(self, trainer, pl_module):
         module = pl_module.module
-        if self.dataloader is None:
-            dl = trainer.datamodule.train_dataloader()
-        else:
-            dl = self.dataloader
+        dl = trainer.datamodule.train_dataloader() if self.dataloader is None else self.dataloader
         module_init = module.init(module.rngs, next(iter(dl)))
         state, params = flax.core.pop(module_init, "params")
         pl_module.set_train_state(params, state)

@@ -234,7 +234,7 @@ class AutotuneExperiment:
             raise TypeError("`search_space` must be a dictionary")
         elif len(value) == 0:
             raise ValueError("`search_space` must not be empty")
-        elif any(key not in ["model_args", "train_args"] for key in value.keys()):
+        elif any(key not in ["model_args", "train_args"] for key in value):
             raise KeyError("`search_space` must only contain 'model_args' and 'train_args' keys")
 
         self._search_space = value

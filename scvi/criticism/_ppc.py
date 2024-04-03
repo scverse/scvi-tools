@@ -360,7 +360,7 @@ class PosteriorPredictiveCheck:
         for g in groups:
             raw_group_data = sc.get.rank_genes_groups_df(adata_de, group=g, key=UNS_NAME_RGG_RAW)
             raw_group_data.set_index("names", inplace=True)
-            for model in de_keys.keys():
+            for model in de_keys:
                 gene_overlap_f1s = []
                 rgds = []
                 sgds = []
@@ -418,7 +418,7 @@ class PosteriorPredictiveCheck:
                     pd.DataFrame(rgds).mean(axis=0),
                     pd.DataFrame(sgds).mean(axis=0),
                 )
-                if model not in self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].keys():
+                if model not in self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"]:
                     self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model] = {}
                 self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][g] = pd.DataFrame(
                     [rgd, sgd], index=["raw", "approx"]

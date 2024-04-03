@@ -80,10 +80,7 @@ def _load_saved_files(
         file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
         adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
         if os.path.exists(adata_path):
-            if is_mudata:
-                adata = mudata.read(adata_path)
-            else:
-                adata = anndata.read_h5ad(adata_path)
+            adata = mudata.read(adata_path) if is_mudata else anndata.read_h5ad(adata_path)
         else:
             raise ValueError("Save path contains no saved anndata and no adata was passed.")
     else:
@@ -94,7 +91,7 @@ def _load_saved_files(
 
 def _initialize_model(cls, adata, attr_dict):
     """Helper to initialize a model."""
-    if "init_params_" not in attr_dict.keys():
+    if "init_params_" not in attr_dict:
         raise ValueError(
             "No init_params_ were saved by the model. Check out the "
             "developers guide if creating custom models."
@@ -103,7 +100,7 @@ def _initialize_model(cls, adata, attr_dict):
     init_params = attr_dict.pop("init_params_")
 
     # new saving and loading, enable backwards compatibility
-    if "non_kwargs" in init_params.keys():
+    if "non_kwargs" in init_params:
         # grab all the parameters except for kwargs (is a dict)
         non_kwargs = init_params["non_kwargs"]
         kwargs = init_params["kwargs"]
@@ -118,9 +115,9 @@ def _initialize_model(cls, adata, attr_dict):
         non_kwargs.pop("use_cuda")
 
     # backwards compat for scANVI
-    if "unlabeled_category" in non_kwargs.keys():
+    if "unlabeled_category" in non_kwargs:
         non_kwargs.pop("unlabeled_category")
-    if "pretrained_model" in non_kwargs.keys():
+    if "pretrained_model" in non_kwargs:
         non_kwargs.pop("pretrained_model")
 
     model = cls(adata, **non_kwargs, **kwargs)

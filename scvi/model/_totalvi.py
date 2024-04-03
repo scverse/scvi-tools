@@ -438,12 +438,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = _get_var_names_from_manager(adata_manager)
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
         else:
             all_proteins = self.protein_state_registry.column_names
-            protein_mask = [True if p in protein_list else False for p in all_proteins]
+            protein_mask = [p in protein_list for p in all_proteins]
         if indices is None:
             indices = np.arange(adata.n_obs)
 
@@ -599,7 +599,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             protein_mask = slice(None)
         else:
             all_proteins = self.protein_state_registry.column_names
-            protein_mask = [True if p in protein_list else False for p in all_proteins]
+            protein_mask = [p in protein_list for p in all_proteins]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -835,12 +835,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = _get_var_names_from_manager(adata_manager)
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
         if protein_list is None:
             protein_mask = slice(None)
         else:
             all_proteins = self.protein_state_registry.column_names
-            protein_mask = [True if p in protein_list else False for p in all_proteins]
+            protein_mask = [p in protein_list for p in all_proteins]
 
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
@@ -1058,7 +1058,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             "Number of {} in anndata different from when setup_anndata was run. Please rerun "
             "setup_anndata."
         )
-        if REGISTRY_KEYS.PROTEIN_EXP_KEY in self.adata_manager.data_registry.keys():
+        if REGISTRY_KEYS.PROTEIN_EXP_KEY in self.adata_manager.data_registry:
             pro_exp = self.get_from_registry(adata, REGISTRY_KEYS.PROTEIN_EXP_KEY)
             if self.summary_stats.n_proteins != pro_exp.shape[1]:
                 raise ValueError(error_msg.format("proteins"))

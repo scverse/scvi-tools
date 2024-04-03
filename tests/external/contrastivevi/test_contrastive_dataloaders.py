@@ -42,8 +42,8 @@ def test_contrastive_dataloader(
 
     assert isinstance(batch, dict)
     assert len(batch.keys()) == 2
-    assert "background" in batch.keys()
-    assert "target" in batch.keys()
+    assert "background" in batch
+    assert "target" in batch
 
     assert torch.equal(batch["background"][REGISTRY_KEYS.X_KEY], expected_background_input)
     assert torch.equal(batch["background"][REGISTRY_KEYS.LABELS_KEY], expected_background_labels)

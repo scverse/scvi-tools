@@ -289,21 +289,17 @@ def _set_params_online_update(
             and "decoder" in key
             and (not freeze_batchnorm_decoder)
         )
-        if one or two or three or four or five:
-            return True
-        else:
-            return False
+        return one or two or three or four or five
 
     for key, mod in module.named_modules():
         # skip over protected modules
         if key.split(".")[0] in mod_no_hooks_yes_grad:
             continue
         if isinstance(mod, FCLayers):
-            hook_first_layer = False if no_hook_cond(key) else True
+            hook_first_layer = not no_hook_cond(key)
             mod.set_online_update_hooks(hook_first_layer)
-        if isinstance(mod, torch.nn.Dropout):
-            if freeze_dropout:
-                mod.p = 0
+        if isinstance(mod, torch.nn.Dropout) and freeze_dropout:
+            mod.p = 0
         # momentum freezes the running stats of batchnorm
         freeze_batchnorm = ("decoder" in key and freeze_batchnorm_decoder) or (
             "encoder" in key and freeze_batchnorm_encoder

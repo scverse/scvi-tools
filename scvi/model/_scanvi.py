@@ -211,7 +211,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         kwargs = init_params["kwargs"]
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         for k, v in {**non_kwargs, **kwargs}.items():
-            if k in scanvi_kwargs.keys():
+            if k in scanvi_kwargs:
                 warnings.warn(
                     f"Ignoring param '{k}' as it was already passed in to pretrained "
                     f"SCVI model with value {v}.",
@@ -312,11 +312,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             x = tensors[REGISTRY_KEYS.X_KEY]
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-            cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-            cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+            cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+            cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
 
             pred = self.module.classify(
                 x,
@@ -422,7 +419,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
-        if "callbacks" in trainer_kwargs.keys():
+        if "callbacks" in trainer_kwargs:
             trainer_kwargs["callbacks"] + [sampler_callback]
         else:
             trainer_kwargs["callbacks"] = sampler_callback

@@ -261,11 +261,10 @@ class SCANVAE(VAE):
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]  # (n_obs, n_vars)
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
 
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
+        cont_covs = labelled_dataset.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = labelled_dataset.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+
         # NOTE: prior to v1.1, this method returned probabilities per label by
         # default, see #2301 for more details
         logits = self.classify(

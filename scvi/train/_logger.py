@@ -23,10 +23,10 @@ class SimpleExperiment:
                 return value.item()
             return value
 
-        if "epoch" in metrics.keys():
+        if "epoch" in metrics:
             time_point = metrics.pop("epoch")
             time_point_name = "epoch"
-        elif "step" in metrics.keys():
+        elif "step" in metrics:
             time_point = metrics.pop("step")
             time_point_name = "step"
         else:

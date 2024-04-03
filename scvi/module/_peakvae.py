@@ -305,10 +305,7 @@ class PEAKVAE(BaseModuleClass):
         use_z_mean=False,
     ):
         """Runs the generative model."""
-        if cat_covs is not None:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = ()
+        categorical_input = () if cat_covs is None else torch.split(cat_covs, 1, dim=1)
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:

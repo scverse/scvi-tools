@@ -347,10 +347,7 @@ class MULTIVAE(BaseModuleClass):
             )
 
         # expression encoder
-        if self.n_input_genes == 0:
-            input_exp = 1
-        else:
-            input_exp = self.n_input_genes
+        input_exp = 1 if self.n_input_genes == 0 else self.n_input_genes
         n_input_encoder_exp = input_exp + n_continuous_cov * encode_covariates
         self.z_encoder_expression = Encoder(
             n_input=n_input_encoder_exp,
@@ -395,10 +392,7 @@ class MULTIVAE(BaseModuleClass):
 
         # accessibility
         # accessibility encoder
-        if self.n_input_regions == 0:
-            input_acc = 1
-        else:
-            input_acc = self.n_input_regions
+        input_acc = 1 if self.n_input_regions == 0 else self.n_input_regions
         n_input_encoder_acc = input_acc + n_continuous_cov * encode_covariates
         self.z_encoder_accessibility = Encoder(
             n_input=n_input_encoder_acc,
@@ -475,10 +469,7 @@ class MULTIVAE(BaseModuleClass):
             )
 
         # protein encoder
-        if self.n_input_proteins == 0:
-            input_pro = 1
-        else:
-            input_pro = self.n_input_proteins
+        input_pro = 1 if self.n_input_proteins == 0 else self.n_input_proteins
         n_input_encoder_pro = input_pro + n_continuous_cov * encode_covariates
         self.z_encoder_protein = Encoder(
             n_input=n_input_encoder_pro,
@@ -674,17 +665,12 @@ class MULTIVAE(BaseModuleClass):
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
 
-        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            torch.log(tensors[size_factor_key]) if size_factor_key in tensors.keys() else None
-        )
+        size_factor = tensors.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
+        size_factor = torch.log(size_factor) if size_factor is not None else None
 
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
@@ -717,10 +703,7 @@ class MULTIVAE(BaseModuleClass):
         label: torch.Tensor = None,
     ):
         """Runs the generative model."""
-        if cat_covs is not None:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = ()
+        categorical_input = () if cat_covs is None else torch.split(cat_covs, 1, dim=1)
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:

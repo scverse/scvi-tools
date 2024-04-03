@@ -186,9 +186,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         training_plan = TrainingPlan(self.module, **plan_kwargs)
 
         es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
+        trainer_kwargs[es] = trainer_kwargs.get(es, early_stopping)
         runner = TrainRunner(
             self,
             training_plan=training_plan,
@@ -252,7 +250,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -363,7 +361,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -425,11 +423,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if return_mean:
                 times[-1] = np.mean(times[-1], axis=0)
 
-        if n_samples > 1:
-            # The -2 axis correspond to cells.
-            times = np.concatenate(times, axis=-2)
-        else:
-            times = np.concatenate(times, axis=0)
+        times = np.concatenate(times, axis=-2) if n_samples > 1 else np.concatenate(times, axis=0)
 
         if return_numpy is None or return_numpy is False:
             return pd.DataFrame(
@@ -506,7 +500,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -604,12 +598,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 # mean over samples axis
                 velos[-1] = np.mean(velos[-1], axis=0)
 
-        if n_samples > 1:
-            # The -2 axis correspond to cells.
-            velos = np.concatenate(velos, axis=-2)
-        else:
-            velos = np.concatenate(velos, axis=0)
-
+        velos = np.concatenate(velos, axis=-2) if n_samples > 1 else np.concatenate(velos, axis=0)
         spliced = self.adata_manager.get_from_registry(VELOVI_REGISTRY_KEYS.X_KEY)
 
         if clip:
@@ -674,7 +663,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -829,7 +818,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             gene_mask = slice(None)
         else:
             all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in all_genes]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:

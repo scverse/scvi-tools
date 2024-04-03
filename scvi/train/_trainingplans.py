@@ -68,12 +68,10 @@ def _compute_kl_weight(
         )
 
     slope = max_kl_weight - min_kl_weight
-    if n_epochs_kl_warmup:
-        if epoch < n_epochs_kl_warmup:
-            return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
-    elif n_steps_kl_warmup:
-        if step < n_steps_kl_warmup:
-            return slope * (step / n_steps_kl_warmup) + min_kl_weight
+    if n_epochs_kl_warmup and epoch < n_epochs_kl_warmup:
+        return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+    elif n_steps_kl_warmup and step < n_steps_kl_warmup:
+        return slope * (step / n_steps_kl_warmup) + min_kl_weight
     return max_kl_weight
 
 
@@ -882,7 +880,7 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         self._n_obs_training = None
 
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
-        if "lr" not in optim_kwargs.keys():
+        if "lr" not in optim_kwargs:
             optim_kwargs.update({"lr": 1e-3})
         self.optim_kwargs = optim_kwargs
 
@@ -1018,7 +1016,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
             scale_elbo=scale_elbo,
         )
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
-        if "lr" not in optim_kwargs.keys():
+        if "lr" not in optim_kwargs:
             optim_kwargs.update({"lr": 1e-3})
         self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization

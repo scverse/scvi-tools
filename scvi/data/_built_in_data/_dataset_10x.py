@@ -123,13 +123,12 @@ def _load_dataset_10x(
     download_is_targz = url[-7:] == ".tar.gz"
     was_extracted = False
     if download_is_targz is True:
-        if not os.path.exists(file_path[:-7]):  # nothing extracted yet
-            if tarfile.is_tarfile(file_path):
-                logger.info("Extracting tar file")
-                tar = tarfile.open(file_path, "r:gz")
-                tar.extractall(path=save_path)
-                was_extracted = True
-                tar.close()
+        if not os.path.exists(file_path[:-7] and tarfile.is_tarfile(file_path)):
+            logger.info("Extracting tar file")
+            tar = tarfile.open(file_path, "r:gz")
+            tar.extractall(path=save_path)
+            was_extracted = True
+            tar.close()
         path_to_data_folder, suffix = _find_path_to_mtx(save_path)
         adata = scanpy.read_10x_mtx(path_to_data_folder, **scanpy_read_10x_kwargs)
         if was_extracted and remove_extracted_data:
@@ -160,7 +159,7 @@ def _find_path_to_mtx(save_path: str) -> tuple[str, str]:
     """
     for root, _, files in os.walk(save_path):
         # do not consider hidden files
-        files = [f for f in files if not f[0] == "."]
+        files = [f for f in files if f[0] != "."]
         contains_mat = [
             filename == "matrix.mtx" or filename == "matrix.mtx.gz" for filename in files
         ]

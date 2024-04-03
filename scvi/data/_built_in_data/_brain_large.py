@@ -85,7 +85,7 @@ def _load_brainlarge_file(
                 shape=(n_cells_batch, nb_genes),
             )[:, subset_genes]
             # stack on the fly to limit RAM usage
-            if i == 0:
+            if i == 0:  # noqa
                 matrix = matrix_batch
             else:
                 matrix = sp_sparse.vstack([matrix, matrix_batch])
