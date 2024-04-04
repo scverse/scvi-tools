@@ -199,9 +199,10 @@ class AmortizedLDAPyroGuide(PyroModule):
             )
 
         # Cell topic distributions guide.
-        with pyro.plate(
-            "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
-        ), poutine.scale(None, kl_weight):
+        with (
+            pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]),
+            poutine.scale(None, kl_weight),
+        ):
             cell_topic_posterior, _ = self.encoder(x)
             cell_topic_posterior_mu = cell_topic_posterior.loc
             cell_topic_posterior_sigma = cell_topic_posterior.scale**2

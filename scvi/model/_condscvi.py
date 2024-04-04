@@ -96,9 +96,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             **module_kwargs,
         )
         self._model_summary_string = (
-            "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, "
-            "n_layers: {}, dropout_rate: {}, weight_obs: {}"
-        ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
+            f"Conditional SCVI Model with the following params: \nn_hidden: {n_hidden}, "
+            f"n_latent: {n_latent}, n_layers: {n_layers}, dropout_rate: {dropout_rate}, "
+            f"weight_obs: {weight_obs}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
