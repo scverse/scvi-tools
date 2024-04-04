@@ -118,17 +118,11 @@ class ContrastiveVI(BaseModelClass):
             wasserstein_penalty=wasserstein_penalty,
         )
         self._model_summary_string = (
-            "ContrastiveVI Model with the following params: \nn_hidden: {}, "
-            "n_background_latent: {}, n_salient_latent: {}, n_layers: {}, "
-            "dropout_rate: {}, use_observed_lib_size: {}, wasserstein_penalty: {}"
-        ).format(
-            n_hidden,
-            n_background_latent,
-            n_salient_latent,
-            n_layers,
-            dropout_rate,
-            use_observed_lib_size,
-            wasserstein_penalty,
+            f"ContrastiveVI Model with the following params: \nn_hidden: {n_hidden}, "
+            f"n_background_latent: {n_background_latent}, n_salient_latent: {n_salient_latent}, "
+            f"n_layers: {n_layers}, dropout_rate: {dropout_rate}, "
+            f"use_observed_lib_size: {use_observed_lib_size}, "
+            f"wasserstein_penalty: {wasserstein_penalty}"
         )
         self.init_params_ = self._get_init_params(locals())
 

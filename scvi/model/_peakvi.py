@@ -129,18 +129,11 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "PeakVI Model with params: \nn_hidden: {}, n_latent: {}, n_layers_encoder: {}, "
-            "n_layers_decoder: {} , dropout_rate: {}, latent_distribution: {}, "
-            "deep injection: {}, encode_covariates: {}"
-        ).format(
-            self.module.n_hidden,
-            self.module.n_latent,
-            n_layers_encoder,
-            n_layers_decoder,
-            dropout_rate,
-            latent_distribution,
-            deeply_inject_covariates,
-            encode_covariates,
+            f"PeakVI Model with params: \nn_hidden: {self.module.n_hidden}, "
+            f"n_latent: {self.module.n_latent}, n_layers_encoder: {n_layers_encoder}, "
+            f"n_layers_decoder: {n_layers_decoder} , dropout_rate: {dropout_rate}, "
+            f"latent_distribution: {latent_distribution}, "
+            f"deep injection: {deeply_inject_covariates}, encode_covariates: {encode_covariates}"
         )
         self.n_latent = n_latent
         self.init_params_ = self._get_init_params(locals())

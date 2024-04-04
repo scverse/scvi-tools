@@ -90,11 +90,8 @@ class SCBASSET(BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "ScBasset Model with params: \nn_regions: {}, n_batch: {}, n_cells: {}"
-        ).format(
-            self.n_regions,
-            self.n_batch,
-            self.n_cells,
+            f"ScBasset Model with params: \nn_regions: {self.n_regions}, n_batch: {self.n_batch}, "
+            f"n_cells: {self.n_cells}"
         )
         self.init_params_ = self._get_init_params(locals())
 
