@@ -1,4 +1,5 @@
 """Main module."""
+
 import logging
 from collections.abc import Iterable
 from typing import Callable, Literal, Optional
