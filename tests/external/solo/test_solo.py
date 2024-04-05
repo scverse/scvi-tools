@@ -6,7 +6,8 @@ from scvi.external import SOLO
 from scvi.model import SCVI
 
 
-def test_solo():
+@pytest.mark.parametrize("soft", [True, False])
+def test_solo(soft: bool):
     n_latent = 5
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -16,13 +17,21 @@ def test_solo():
     solo = SOLO.from_scvi_model(model)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
     assert "validation_loss" in solo.history.keys()
-    solo.predict()
+    predictions = solo.predict(soft=soft)
+    if soft:
+        preds = predictions.to_numpy()
+        assert preds.shape == (adata.n_obs, 2)
+        assert np.allclose(preds.sum(axis=-1), 1)
 
     bdata = synthetic_iid()
     solo = SOLO.from_scvi_model(model, bdata)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
     assert "validation_loss" in solo.history.keys()
-    solo.predict()
+    predictions = solo.predict(soft=soft)
+    if soft:
+        preds = predictions.to_numpy()
+        assert preds.shape == (adata.n_obs, 2)
+        assert np.allclose(preds.sum(axis=-1), 1)
 
 
 def test_solo_multiple_batch():

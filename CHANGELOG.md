@@ -56,6 +56,13 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 -   Remove {class}`scvi.train._callbacks.MetricsCallback` and argument `additional_val_metrics` in
     {class}`scvi.train.Trainer` {pr}`2646`.
 
+### 1.1.3 (2024-MM-DD)
+
+#### Fixed
+
+-   Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities instead of logits
+    when passing in `soft=True` {pr}`2689`.
+
 ### 1.1.2 (2024-03-01)
 
 #### Changed
