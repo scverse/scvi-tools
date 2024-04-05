@@ -392,7 +392,7 @@ class SOLO(BaseModelClass):
         Parameters
         ----------
         soft
-            Return probabilities instead of class label
+            Return probabilities instead of class label.
         include_simulated_doublets
             Return probabilities for simulated doublets as well.
 
@@ -401,10 +401,7 @@ class SOLO(BaseModelClass):
         DataFrame with prediction, index corresponding to cell barcode.
         """
         adata = self._validate_anndata(None)
-
-        scdl = self._make_data_loader(
-            adata=adata,
-        )
+        scdl = self._make_data_loader(adata=adata)
 
         @auto_move_data
         def auto_forward(module, x):
@@ -413,7 +410,7 @@ class SOLO(BaseModelClass):
         y_pred = []
         for _, tensors in enumerate(scdl):
             x = tensors[REGISTRY_KEYS.X_KEY]
-            pred = auto_forward(self.module, x)
+            pred = torch.nn.functional.softmax(auto_forward(self.module, x), dim=-1)
             y_pred.append(pred.cpu())
 
         y_pred = torch.cat(y_pred).numpy()
