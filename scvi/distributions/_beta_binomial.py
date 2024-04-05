@@ -21,7 +21,7 @@ class BetaBinomial(BetaBinomialDistribution):
     In the (`mu`, `gamma`) parameterization, samples from the beta-binomial are generated
     as follows:
 
-    1. :math:`p_i \sim \textrm{Beta}(\mu_i, \gamma_i)`
+    1. :math:`p_i \sim \textrm{Beta}(\mu, \gamma)`
     2. :math:`y_i \sim \textrm{Ber}(p_i)`
     3. :math:`y = \sum_{i}y_i`
 
