@@ -44,6 +44,7 @@ class BetaBinomial(BetaBinomialDistribution):
     """
 
     arg_constraints = {
+        "total_count": constraints.nonnegative_integer,
         "alpha": optional_constraint(constraints.greater_than(0)),
         "beta": optional_constraint(constraints.greater_than(0)),
         "mu": optional_constraint(open_interval(0, 1)),
@@ -54,7 +55,7 @@ class BetaBinomial(BetaBinomialDistribution):
 
     def __init__(
         self,
-        total_count: Optional[torch.Tensor] = None,
+        total_count: torch.Tensor,
         alpha: Optional[torch.Tensor] = None,
         beta: Optional[torch.Tensor] = None,
         mu: Optional[torch.Tensor] = None,
