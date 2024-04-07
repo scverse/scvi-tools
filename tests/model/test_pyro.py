@@ -18,8 +18,6 @@ from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import (
     BaseModelClass,
-    PyroJitGuideWarmup,
-    PyroModelGuideWarmup,
     PyroSampleMixin,
     PyroSviTrainMixin,
 )
@@ -198,7 +196,6 @@ def test_pyro_bayesian_regression_low_level(
         accelerator=accelerator,
         devices=devices,
         max_epochs=2,
-        callbacks=[PyroModelGuideWarmup(train_dl)],
     )
     trainer.fit(plan, train_dl)
     # 100 features
@@ -289,7 +286,6 @@ def test_pyro_bayesian_regression_jit(
         accelerator=accelerator,
         devices=devices,
         max_epochs=2,
-        callbacks=[PyroJitGuideWarmup(train_dl)],
     )
     trainer.fit(plan, train_dl)
 
@@ -415,6 +411,8 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
         adata.n_obs,
         1,
     )
+    # test that observed variables are excluded
+    assert "obs" not in samples["posterior_samples"].keys()
 
 
 def test_pyro_bayesian_train_sample_mixin_with_local_full_data():
