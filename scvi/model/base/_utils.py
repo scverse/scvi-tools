@@ -49,6 +49,31 @@ def _load_legacy_saved_files(
     return model_state_dict, var_names, attr_dict, adata
 
 
+def _load_legacy_mudata_saved_files(
+    dir_path: str,
+    prefix: Optional[str] = None,
+    map_location: Optional[Literal["cpu", "cuda"]] = None,
+) -> tuple[dict, np.ndarray, dict, AnnData]:
+    """Helper to load saved files for MuData-based multimodal models."""
+    file_name_prefix = prefix or ""
+
+    model_file_name = f"{file_name_prefix}model.pt"
+    model_path = os.path.join(dir_path, model_file_name)
+    model = torch.load(model_path, map_location=map_location)
+
+    model_state_dict = model["model_state_dict"]
+    var_names = model["var_names"]
+    attr_dict = model["attr_dict"]
+
+    # Ensure model used MuData
+    assert attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
+    file_suffix = "mdata.h5mu"
+    mdata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
+    mdata = mudata.read(mdata_path)
+
+    return attr_dict, var_names, model_state_dict, mdata
+
+
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,

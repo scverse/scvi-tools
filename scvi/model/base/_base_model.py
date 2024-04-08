@@ -27,7 +27,7 @@ from scvi.data._constants import (
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_device_args
-from scvi.model.base._utils import _load_legacy_saved_files
+from scvi.model.base._utils import _load_legacy_mudata_saved_files, _load_legacy_saved_files
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -609,8 +609,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
+        if isinstance(self.adata, MuData):
+            var_names = {
+                mod: self.adata[mod].var_names.astype(str).to_numpy()
+                for mod in self.adata.mod.keys()
+            }
+        else:
+            var_names = self.adata.var_names.astype(str)
+            var_names = var_names.to_numpy()
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -761,6 +767,62 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 scvi_setup_dict,
                 unlabeled_category=unlabeled_category,
             )
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            {
+                "model_state_dict": model_state_dict,
+                "var_names": var_names,
+                "attr_dict": attr_dict,
+            },
+            model_save_path,
+            **save_kwargs,
+        )
+
+    @classmethod
+    def convert_legacy_mudata_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        overwrite: bool = False,
+        prefix: str | None = None,
+        **save_kwargs,
+    ) -> None:
+        """Converts a legacy MuData-based model (<1.XX) to the updated save format.
+
+        Specifically, in previous versions `var_names` for MuData models across all
+        modalities were saved as a single list. This function converts older models
+        to the updated format, where var_names is a dictionary with modality keys and
+        per-modality feature lists as values.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        **save_kwargs
+            Keyword arguments passed into :func:`~torch.save`.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                f"{output_dir_path} already exists. Please provide an unexisting directory for "
+                "saving."
+            )
+
+        file_name_prefix = prefix or ""
+        attr_dict, _, model_state_dict, mdata = _load_legacy_mudata_saved_files(
+            dir_path, file_name_prefix
+        )
+
+        var_names = {mod: mdata[mod].var_names for mod in mdata.mod.keys()}
 
         model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
         torch.save(
