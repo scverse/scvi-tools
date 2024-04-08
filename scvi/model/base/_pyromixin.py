@@ -186,6 +186,11 @@ class PyroSampleMixin:
         -------
         Dictionary with a sample for each variable
         """
+        if return_sites is None:
+            return_sites = []
+        if exclude_vars is None:
+            exclude_vars = []
+
         if isinstance(self.module.guide, poutine.messenger.Messenger):
             # This already includes trace-replay behavior.
             sample = self.module.guide(*args, **kwargs)
@@ -220,7 +225,7 @@ class PyroSampleMixin:
                 )
             }
 
-            sample = {name: site.cpu().numpy() for name, site in sample.items()}
+        sample = {name: site.cpu().numpy() for name, site in sample.items()}
 
         return sample
 
@@ -344,6 +349,50 @@ class PyroSampleMixin:
 
         return obs_plate
 
+    def _get_valid_sites(
+        self,
+        args: list,
+        kwargs: dict,
+        return_observed: bool = False,
+    ):
+        """Automatically guess which model sites belong to observation/minibatch plate.
+
+        This function requires minibatch plate name specified in
+        `self.module.list_obs_plate_vars["name"]`.
+
+        Parameters
+        ----------
+        args
+            Arguments to the model.
+        kwargs
+            Keyword arguments to the model.
+        return_observed
+            Record samples of observed variables.
+
+        Returns
+        -------
+        Dictionary with keys corresponding to site names and values to plate dimension.
+        """
+        # find plate dimension
+        trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+        valid_sites = [
+            name
+            for name, site in trace.nodes.items()
+            if (
+                (site["type"] == "sample")  # sample statement
+                and (
+                    (
+                        (not site.get("is_observed", True)) or return_observed
+                    )  # don't save observed unless requested
+                    or (site.get("infer", False).get("_deterministic", False))
+                )  # unless it is deterministic
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )  # don't save plates
+            )
+        ]
+        return valid_sites
+
     @devices_dsp.dedent
     def _posterior_samples_minibatch(
         self,
@@ -428,10 +477,10 @@ class PyroSampleMixin:
             i += 1
 
         # sample global parameters
+        valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
+        valid_sites = [v for v in valid_sites if v not in list(obs_plate_sites.keys())]
+        sample_kwargs["return_sites"] = valid_sites
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
-        global_samples = {
-            k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
-        }
 
         for k in global_samples.keys():
             samples[k] = global_samples[k]
