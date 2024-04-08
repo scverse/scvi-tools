@@ -45,8 +45,17 @@ class BetaBinomial(BetaBinomialDistribution):
     validate_args
         Raise ValueError if arguments do not match constraints
     eps
-        Numerical stability constant used for minimum clamping
-        when the (`mu`, `gamma`) parameterization is specified.
+        Numerical stability constant. (See Notes)
+
+    Notes
+    -----
+    Under the hood we use Pyro's `BetaBinomialDistribution` class to implement
+    the Beta-Binomial distribution. Thus, when the user specifies a (`mu`, `gamma`)
+    parameterization, we must convert to the (`alpha`, `beta`) parameterization
+    used by the underlying Pyro distribution class. During this process, numerical
+    stability issues sometimes cause `alpha` or `beta` to be equal to (exactly) zero.
+    This is not allowed (`alpha` and `beta` must be strictly >0), so we clamp these
+    values to be greater than a small constant `eps`.
     """
 
     arg_constraints = {
