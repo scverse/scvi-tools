@@ -54,7 +54,6 @@ def _load_legacy_mudata_saved_files(
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
 ) -> tuple[dict, np.ndarray, dict, AnnData]:
-    """Helper to load saved files for MuData-based multimodal models."""
     file_name_prefix = prefix or ""
 
     model_file_name = f"{file_name_prefix}model.pt"
