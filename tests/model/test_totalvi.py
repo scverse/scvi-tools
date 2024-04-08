@@ -727,7 +727,7 @@ def test_totalvi_convert_mudata_legacy_save(save_path):
         assert np.all(mdata[mod].var_names == loaded_model["var_names"][mod])
 
 
-def test_totalvi_mudata_load_var_validation(save_path):
+def test_totalvi_mudata_load_var_names_validation(save_path):
     model_save_path = os.path.join(save_path, "mudata")
 
     n_latent = 5
