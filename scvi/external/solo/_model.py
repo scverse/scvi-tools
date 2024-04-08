@@ -400,6 +400,14 @@ class SOLO(BaseModelClass):
         -------
         DataFrame with prediction, index corresponding to cell barcode.
         """
+        warnings.warn(
+            "Prior to scvi-tools 1.1.3, `SOLO.predict` with `soft=True` (the default option) "
+            "returned logits instead of probabilities. This behavior has since been corrected to "
+            "return probabiltiies.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
         adata = self._validate_anndata(None)
         scdl = self._make_data_loader(adata=adata)
 
