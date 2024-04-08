@@ -186,17 +186,14 @@ class PyroSampleMixin:
         -------
         Dictionary with a sample for each variable
         """
-        if return_sites is None:
-            return_sites = []
-        if exclude_vars is None:
-            exclude_vars = []
-
         if isinstance(self.module.guide, poutine.messenger.Messenger):
             # This already includes trace-replay behavior.
             sample = self.module.guide(*args, **kwargs)
             # include and exclude requested sites
-            sample = {k: v for k, v in sample.items() if k in return_sites}
-            sample = {k: v for k, v in sample.items() if k not in exclude_vars}
+            if return_sites is not None:
+                sample = {k: v for k, v in sample.items() if k in return_sites}
+            if exclude_vars is not None:
+                sample = {k: v for k, v in sample.items() if k not in exclude_vars}
         else:
             guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
             model_trace = poutine.trace(poutine.replay(self.module.model, guide_trace)).get_trace(
@@ -355,10 +352,7 @@ class PyroSampleMixin:
         kwargs: dict,
         return_observed: bool = False,
     ):
-        """Automatically guess which model sites belong to observation/minibatch plate.
-
-        This function requires minibatch plate name specified in
-        `self.module.list_obs_plate_vars["name"]`.
+        """Automatically guess which model sites should be sampled.
 
         Parameters
         ----------
@@ -371,7 +365,7 @@ class PyroSampleMixin:
 
         Returns
         -------
-        Dictionary with keys corresponding to site names and values to plate dimension.
+        List with keys corresponding to site names.
         """
         # find plate dimension
         trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
