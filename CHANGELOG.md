@@ -1,10 +1,10 @@
 # Release notes
 
-Starting from version 0.20.1, this format is based on [Keep a Changelog],
-and this project adheres to [Semantic Versioning]. Full commit history
-is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
+Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
+to [Semantic Versioning]. Full commit history is available in the
+[commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2
+## Version 1.2 (unreleased)
 
 ### 1.2.0 (unreleased)
 
@@ -57,7 +57,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 ## Version 1.1
 
-### 1.1.3 (2024-MM-DD)
+### 1.1.3 (unreleased)
 
 #### Fixed
 
