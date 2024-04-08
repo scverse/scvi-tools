@@ -176,6 +176,6 @@ An instance of the {class}`~scvi._settings.ScviConfig` is available as `scvi.set
 ```
 
 [anndata]: https://anndata.readthedocs.io/en/stable/
+[ray tune]: https://docs.ray.io/en/latest/tune/index.html
 [scanpy]: https://scanpy.readthedocs.io/en/stable/index.html
 [utilities]: https://scanpy.readthedocs.io/en/stable/api/index.html#reading
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html

@@ -1,6 +1,6 @@
 # Amortized LDA
 
-**LDA** [^ref1] (Latent Dirichlet Allocation) posits a generative model where
+**LDA** \[^ref1\] (Latent Dirichlet Allocation) posits a generative model where
 a set of latent topics generates collections of elements. In the case of single-cell RNA sequencing, we can think
 of these topics as gene modules and each cell as a collection of UMI counts. Other features that can be ascribed to these
 topics include surface proteins and accessible chromatin regions, all of which have discrete count values.
@@ -10,13 +10,13 @@ of the model described in the original LDA paper.
 
 The advantages of amortized LDA are:
 
--   Can learn underlying topics without a reference.
--   Scalable to very large datasets (>1 million cells).
+- Can learn underlying topics without a reference.
+- Scalable to very large datasets (>1 million cells).
 
 The limitations of amortized LDA include:
 
--   Optimal selection of the number of topics is unclear.
--   Amortization gap in optimizing variational parameters.
+- Optimal selection of the number of topics is unclear.
+- Amortization gap in optimizing variational parameters.
 
 ```{topic} Tutorials:
 
@@ -32,8 +32,8 @@ Additionally, the number of topics to model must be manually set by the user pri
 
 ## Generative process
 
-Amortized LDA posits that the $N$ observed feature counts for cell $c$ are treated as ordered. For all $n \in [N]$ feature counts
-for cell $c \in [C]$, the observed feature counts $x_{cn}$ are produced according to the following generative process:
+Amortized LDA posits that the $N$ observed feature counts for cell $c$ are treated as ordered. For all $n \\in \[N\]$ feature counts
+for cell $c \\in \[C\]$, the observed feature counts $x\_{cn}$ are produced according to the following generative process:
 
 ```{math}
 :nowrap: true
@@ -45,11 +45,11 @@ for cell $c \in [C]$, the observed feature counts $x_{cn}$ are produced accordin
 \end{align}
 ```
 
-where $\eta$ denotes the prior on the Dirichlet distribution for the topic feature distribution $\beta$,
-and $\alpha$ denotes the prior on the Dirichlet distribution for the cell topic distribution $\theta_c$.
+where $\\eta$ denotes the prior on the Dirichlet distribution for the topic feature distribution $\\beta$,
+and $\\alpha$ denotes the prior on the Dirichlet distribution for the cell topic distribution $\\theta_c$.
 In order to compute reparametrization gradients stably, we approximate the Dirichlet distribution with a logistic-Normal
 distribution, followed by a softmax operation. Specifically, we use the Laplace approximation
-which has a diagonal covariance matrix [^ref2]:
+which has a diagonal covariance matrix \[^ref2\]:
 
 ```{math}
 :nowrap: true
@@ -60,7 +60,7 @@ which has a diagonal covariance matrix [^ref2]:
 \end{align}
 ```
 
-for Dirichlet parameter $\alpha \in \mathbb{R}^K$ where $K$ denotes the number of topics.
+for Dirichlet parameter $\\alpha \\in \\mathbb{R}^K$ where $K$ denotes the number of topics.
 
 The latent variables, along with their description are summarized in the following table:
 
@@ -128,12 +128,12 @@ Once the model has been fitted, one can retrieve the estimated feature-by-topic 
 Like the `get_latent_representation()` method, this returns a Monte Carlo estimate of the logistic-Normal expectation.
 Similarly, we can configure the number of samples with `n_samples`.
 
-[^ref1]:
-    David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
-    _Latent Dirichlet Allocation_,
-    [Journal of Machine Learning Research](https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf).
+\[^ref1\]:
+David M. Blei, Andrew Y. Ng, Michael I. Jordan (2003),
+_Latent Dirichlet Allocation_,
+[Journal of Machine Learning Research](https://www.jmlr.org/papers/volume3/blei03a/blei03a.pdf).
 
-[^ref2]:
-    Akash Srivastava, Charles Sutton (2017),
-    _Autoencoding Variational Inference for Topic Models_,
-    [International Conference on Learning Representations](https://arxiv.org/pdf/1703.01488.pdf).
+\[^ref2\]:
+Akash Srivastava, Charles Sutton (2017),
+_Autoencoding Variational Inference for Topic Models_,
+[International Conference on Learning Representations](https://arxiv.org/pdf/1703.01488.pdf).

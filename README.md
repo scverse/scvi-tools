@@ -16,8 +16,6 @@ tools) is a package for probabilistic modeling and analysis of single-cell omics
 data, built on top of [PyTorch](https://pytorch.org) and
 [AnnData](https://anndata.readthedocs.io/en/latest/).
 
-[//]: # "numfocus-fiscal-sponsor-attribution"
-
 scvi-tools is part of the scverse project ([website](https://scverse.org), [governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS](https://numfocus.org/).
 Please consider making a tax-deductible [donation](https://numfocus.org/donate-to-scverse) to help the project pay for developer time, professional services, travel, workshops, and a variety of other needs.
 
@@ -28,20 +26,17 @@ Please consider making a tax-deductible [donation](https://numfocus.org/donate-t
   >
 </a>
 
-[badge-numfocus]: https://img.shields.io/badge/powered%20by-NumFOCUS-orange.svg?style=flat&colorA=E1523D&colorB=007D8A
-[link-numfocus]: http://numfocus.org
-
 # Analysis of single-cell omics data
 
 scvi-tools is composed of models that perform many analysis tasks across single- or multi-omics:
 
--   Dimensionality reduction
--   Data integration
--   Automated annotation
--   Factor analysis
--   Doublet detection
--   Spatial deconvolution
--   and more!
+- Dimensionality reduction
+- Data integration
+- Automated annotation
+- Factor analysis
+- Doublet detection
+- Spatial deconvolution
+- and more!
 
 In the [user guide](https://docs.scvi-tools.org/en/stable/user_guide/index.html), we provide an overview of each model.
 All model implementations have a high-level API that interacts with
@@ -78,14 +73,14 @@ Please be sure to install a version of [PyTorch](https://pytorch.org/) that is c
 
 # Resources
 
--   Tutorials, API reference, and installation guides are available in
+- Tutorials, API reference, and installation guides are available in
     the [documentation](https://docs.scvi-tools.org/).
--   For discussion of usage, check out our
+- For discussion of usage, check out our
     [forum](https://discourse.scvi-tools.org).
--   Please use the [issues](https://github.com/scverse/scvi-tools/issues) to submit bug reports.
--   If you\'d like to contribute, check out our [contributing
+- Please use the [issues](https://github.com/scverse/scvi-tools/issues) to submit bug reports.
+- If you'd like to contribute, check out our [contributing
     guide](https://docs.scvi-tools.org/en/stable/contributing/index.html).
--   If you find a model useful for your research, please consider citing
+- If you find a model useful for your research, please consider citing
     the corresponding publication (linked above).
 
 # Reference
@@ -107,3 +102,6 @@ You can cite the scverse publication as follows:
 > Isaac Virshup, Danila Bredikhin, Lukas Heumos, Giovanni Palla, Gregor Sturm, Adam Gayoso, Ilia Kats, Mikaela Koutrouli, Scverse Community, Bonnie Berger, Dana Pe’er, Aviv Regev, Sarah A. Teichmann, Francesca Finotello, F. Alexander Wolf, Nir Yosef, Oliver Stegle & Fabian J. Theis
 >
 > _Nature Biotechnology_ 2023 Apr 10. doi: [10.1038/s41587-023-01733-8](https://doi.org/10.1038/s41587-023-01733-8).
+
+[badge-numfocus]: https://img.shields.io/badge/powered%20by-NumFOCUS-orange.svg?style=flat&colorA=E1523D&colorB=007D8A
+[link-numfocus]: http://numfocus.org

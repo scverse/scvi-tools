@@ -8,13 +8,13 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 
 1. Install conda. We typically use the [mambaforge] distribution. Use python>=3.9, and consider using mamba instead of conda. Mamba is a drop-in replacement for conda that is significantly more efficient.
 
-2. Create a new conda environment:
+1. Create a new conda environment:
 
     ```
     conda create -n scvi-env python=3.9
     ```
 
-3. Activate your environment:
+1. Activate your environment:
 
     ```
     conda activate scvi-env
@@ -23,8 +23,8 @@ scvi-tools can be installed via conda or pip. If you don't know which to choose,
 ### pip
 
 1. If using conda/mamba, then just run `conda install -c anaconda pip` and skip this section.
-2. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
-3. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
+1. Install [Python], we prefer the [pyenv](https://github.com/pyenv/pyenv/) version management system, along with [pyenv-virtualenv](https://github.com/pyenv/pyenv-virtualenv/).
+1. Install [PyTorch] and [jax]. If you have an Nvidia GPU, be sure to install versions of PyTorch and jax that support it -- scvi-tools runs much faster with a discrete GPU.
 
 ### Apple silicon
 
@@ -91,20 +91,19 @@ The easiest way to install scvi-tools for R is via conda.
 
 1. Install conda prerequisites.
 
-2. Install R and reticulate in the conda environment:
+1. Install R and reticulate in the conda environment:
 
     ```
     conda install -c conda-forge r-base r-essentials r-reticulate
     ```
 
-3. Then in your R code:
+1. Then in your R code:
 
     ```
     library(reticulate)
     ```
 
+[jax]: https://jax.readthedocs.io/en/latest/
 [mambaforge]: https://github.com/conda-forge/miniforge
 [python]: https://www.python.org/downloads/
 [pytorch]: http://pytorch.org
-[jax]: https://jax.readthedocs.io/en/latest/
-[reticulate]: https://rstudio.github.io/reticulate/

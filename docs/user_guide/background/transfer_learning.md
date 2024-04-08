@@ -4,7 +4,7 @@ In scvi-tools, transfer learning is currently supported for the subset of models
 in a lower-dimensional space (e.g., scVI, totalVI). For these particular models, which belong to a class of
 models called conditional variational autoencoders (cVAEs), transfer learning
 is tantamount to ingesting new data in order to analyze it in the context of some reference dataset.
-For this, we use the scArches approach [^ref1].
+For this, we use the scArches approach \[^ref1\].
 
 ## Reference mapping with scArches
 
@@ -18,7 +18,7 @@ The core logic for scArches is implemented in {class}`~scvi.model.base.ArchesMix
 ### Preliminaries
 
 scArches is an approach that works with cVAEs. Suppose we have $G$-dimensional gene expression data represented by $x$ and one categorical covariate with $K$
-categories that is represented via one-hot (i.e., the second category would be represented as $[0, 1, 0, ..., 0]$).
+categories that is represented via one-hot (i.e., the second category would be represented as $\[0, 1, 0, ..., 0\]$).
 The first layer of the encoder with $H$ hidden neurons of a cVAE with ReLU activation can be written as
 
 ```{math}
@@ -29,7 +29,7 @@ f_1(x,s) = {\textrm{max}}(0,W_x^{(1)} x + W_s^{(1)} s),
 \end{align}
 ```
 
-where $W_x^{(1)} \in \mathbb{R}^{H \times G}$ and $W_s^{(1)} \in \mathbb{R}^{H \times K}$.
+where $W_x^{(1)} \\in \\mathbb{R}^{H \\times G}$ and $W_s^{(1)} \\in \\mathbb{R}^{H \\times K}$.
 
 ### Architectural surgery
 
@@ -46,7 +46,7 @@ f_1(x,s,s') = {\textrm{max}}(0,W_x^{(1)} x + W_s^{(1)} s + W_{s'}^{(1)} s'),
 \end{align}
 ```
 
-where $W_{s'} \in \mathbb{R}^{H \times L}$ is a new randomly initialized matrix.
+where $W\_{s'} \\in \\mathbb{R}^{H \\times L}$ is a new randomly initialized matrix.
 We note that in practice, there is only one matrix and not three separate matrices.
 Also, with scArches, the same architectural surgery is applied to the decoder, which is not shown here for brevity.
 
@@ -71,7 +71,7 @@ Thus, all the previous parameters from the reference building stage are frozen.
 This results in a model in which the latent representation $z$ (encoder output) does not change for reference data after the
 query step.
 
-[^ref1]:
-    Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
-    _Mapping single-cell data to reference atlases by transfer learning._,
-    [Nature Biotechnology](https://www.nature.com/articles/s41587-021-01001-7).
+\[^ref1\]:
+Mohammad Lotfollahi, Mohsen Naghipourfar, Malte D. Luecken, Matin Khajavi, Maren Büttner, Marco Wagenstetter, Ziga Avsec, Adam Gayoso, Nir Yosef, Marta Interlandi, Sergei Rybakov, Alexander V. Misharin, and Fabian J. Theis (2021),
+_Mapping single-cell data to reference atlases by transfer learning._,
+[Nature Biotechnology](https://www.nature.com/articles/s41587-021-01001-7).

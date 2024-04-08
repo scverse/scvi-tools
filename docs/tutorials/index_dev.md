@@ -14,6 +14,6 @@ notebooks/dev/module_user_guide
 notebooks/dev/model_user_guide
 ```
 
+[example]: https://github.com/scverse/simple-scvi
 [forum]: https://discourse.scvi-tools.org/
 [zulip]: https://scverse.zulipchat.com/
-[example]: https://github.com/scverse/simple-scvi

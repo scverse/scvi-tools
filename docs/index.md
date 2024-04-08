@@ -5,8 +5,8 @@ single-cell omics data primarily developed and maintained by the
 [Yosef Lab](https://yoseflab.github.io/) at UC Berkeley and the Weizmann Institute of Science.
 `scvi-tools` has two components:
 
--   Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
--   Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
+- Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
+- Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
 
 If you find a model useful for your research, please consider citing the [scvi-tools manuscript](http://dx.doi.org/10.1038/s41587-021-01206-w) as well as the publication describing the model, which can be found in the corresponding documentation.
 
@@ -46,13 +46,13 @@ Developer tutorials help you build new probabilistic models.
 :::
 
 :::{grid-item-card} Discussion {octicon}`megaphone;1em;`
-:link: https://discourse.scverse.org/
+:link: <https://discourse.scverse.org/>
 
 Need help? Reach out on our forum to get your questions answered!
 :::
 
 :::{grid-item-card} GitHub {octicon}`mark-github;1em;`
-:link: https://github.com/scverse/scvi-tools
+:link: <https://github.com/scverse/scvi-tools>
 
 Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the latest developments.
 :::

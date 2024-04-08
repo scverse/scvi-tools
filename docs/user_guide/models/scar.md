@@ -1,6 +1,6 @@
 # scAR
 
-**scAR** [^ref1] (single-cell Ambient Remover) is a deep learning model for removal of the ambient signals in droplet-based single cell omics.
+**scAR** \[^ref1\] (single-cell Ambient Remover) is a deep learning model for removal of the ambient signals in droplet-based single cell omics.
 
 This model was ported from another [Github](https://github.com/Novartis/scar).
 
@@ -21,13 +21,13 @@ This model was ported from another [Github](https://github.com/Novartis/scar).
 
 ### Option 1: Calculate the ambient profile using the `get_ambient_profile` method
 
-`get_ambient_profile` is inspired by **EmptyDrops** [^ref2], which assumes that cell-free droplets are sampled from a multinomial distribution.
+`get_ambient_profile` is inspired by **EmptyDrops** \[^ref2\], which assumes that cell-free droplets are sampled from a multinomial distribution.
 
 1. It first calculates an initial ambient profile by averaging all droplets in raw_adata
-2. It tests whether droplets fit the multinomial distribution (the ambient profile as the prob parameter). The relatively high probabilities suggest cell-free droplets
-3. It re-calculates the ambient profile using the identified cell-free droplets
-4. It repeats step 2 and step 3 for iterations
-5. The final ambient profile is saved in adata.varm
+1. It tests whether droplets fit the multinomial distribution (the ambient profile as the prob parameter). The relatively high probabilities suggest cell-free droplets
+1. It re-calculates the ambient profile using the identified cell-free droplets
+1. It repeats step 2 and step 3 for iterations
+1. The final ambient profile is saved in adata.varm
 
 ```
 >>> adata = anndata.read_h5ad(path_to_anndata)
@@ -40,8 +40,8 @@ This model was ported from another [Github](https://github.com/Novartis/scar).
 This option is based on total counts of droplets.
 
 1. It first plots a kneeplot
-2. It identifies subpopulations of droplets with arbitrary thresholds
-3. It calculates the ambient profile from the subpopulation of 'cell-free droplets'
+1. It identifies subpopulations of droplets with arbitrary thresholds
+1. It calculates the ambient profile from the subpopulation of 'cell-free droplets'
 
 ```
 >>> all_droplets = pd.DataFrame(raw_adata.X.sum(axis=1), index=raw_adata.obs_names, columns=['total_counts'])
@@ -80,12 +80,12 @@ This option is based on total counts of droplets.
 >>> ambient_profile = pd.DataFrame((cell_free.X.sum(axis=0)/cell_free.X.sum()).A1, index=adata.var_names, columns=['ambient profile'])
 ```
 
-[^ref1]:
-    Caibin Sheng, Rui Lopes, Gang Li, Sven Schuierer, Annick Waldt, Rachel Cuttat, Slavica Dimitrieva, Audrey Kauffmann, Eric Durand, Giorgio G. Galli, Guglielmo Roma, Antoine de Weck (2022),
-    _Probabilistic machine learning ensures accurate ambient denoising in droplet-based single-cell omics_,
-    [bioRxiv](https://www.biorxiv.org/content/10.1101/2022.01.14.476312v4).
+\[^ref1\]:
+Caibin Sheng, Rui Lopes, Gang Li, Sven Schuierer, Annick Waldt, Rachel Cuttat, Slavica Dimitrieva, Audrey Kauffmann, Eric Durand, Giorgio G. Galli, Guglielmo Roma, Antoine de Weck (2022),
+_Probabilistic machine learning ensures accurate ambient denoising in droplet-based single-cell omics_,
+[bioRxiv](https://www.biorxiv.org/content/10.1101/2022.01.14.476312v4).
 
-[^ref2]:
-    Aaron T. L. Lun, Samantha Riesenfeld, Tallulah Andrews, The Phuong Dao, Tomas Gomes, participants in the 1st Human Cell Atlas Jamboree & John C. Marioni (2019),
-    _EmptyDrops: distinguishing cells from empty droplets in droplet-based single-cell RNA sequencing data_,
-    [biomedcentral](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1662-y)
+\[^ref2\]:
+Aaron T. L. Lun, Samantha Riesenfeld, Tallulah Andrews, The Phuong Dao, Tomas Gomes, participants in the 1st Human Cell Atlas Jamboree & John C. Marioni (2019),
+_EmptyDrops: distinguishing cells from empty droplets in droplet-based single-cell RNA sequencing data_,
+[biomedcentral](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1662-y)
