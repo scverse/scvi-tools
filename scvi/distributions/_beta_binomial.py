@@ -31,11 +31,11 @@ class BetaBinomial(BetaBinomialDistribution):
     total_count
         Number of trials.
     alpha
-        When using Pyro's parameterization of the Beta-Binomial,
+        As in the Pyro `BetaBinomial` distribution class,
         serves as the first shape parameterization of the beta
         distribution.
     beta
-        When using Pyro's parameterization of the Beta-Binomial,
+        As in the Pyro `BetaBinomial` distribution class,
         serves as the second shape parameterization of the beta
         distribution.
     mu
