@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from copy import copy
 
 import numpy as np
 import pyro
@@ -20,6 +21,7 @@ from scvi.model.base import (
     BaseModelClass,
     PyroSampleMixin,
     PyroSviTrainMixin,
+    setup_pyro_model,
 )
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
@@ -192,6 +194,7 @@ def test_pyro_bayesian_regression_low_level(
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
+    setup_pyro_model(copy(train_dl), plan)
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,
@@ -217,6 +220,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
+    setup_pyro_model(copy(train_dl), plan)
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,
@@ -282,6 +286,7 @@ def test_pyro_bayesian_regression_jit(
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
+    setup_pyro_model(copy(train_dl), plan)
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,

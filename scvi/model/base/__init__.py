@@ -6,6 +6,7 @@ from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import (
     PyroSampleMixin,
     PyroSviTrainMixin,
+    setup_pyro_model,
 )
 from ._rnamixin import RNASeqMixin
 from ._training_mixin import UnsupervisedTrainingMixin
@@ -19,6 +20,7 @@ __all__ = [
     "UnsupervisedTrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
+    "setup_pyro_model",
     "DifferentialComputation",
     "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",
