@@ -31,9 +31,13 @@ class BetaBinomial(BetaBinomialDistribution):
     total_count
         Number of trials.
     alpha
-        First shape parameter of the beta distribution.
+        When using Pyro's parameterization of the Beta-Binomial,
+        serves as the first shape parameterization of the beta
+        distribution.
     beta
-        Second shape parameter of the beta distribution.
+        When using Pyro's parameterization of the Beta-Binomial,
+        serves as the second shape parameterization of the beta
+        distribution.
     mu
         Mean of the distribution.
     gamma
@@ -41,7 +45,8 @@ class BetaBinomial(BetaBinomialDistribution):
     validate_args
         Raise ValueError if arguments do not match constraints
     eps
-        Numerical stability constant
+        Numerical stability constant used for minimum clamping
+        when the (`mu`, `gamma`) parameterization is specified.
     """
 
     arg_constraints = {
@@ -69,7 +74,10 @@ class BetaBinomial(BetaBinomialDistribution):
         using_param_1 = alpha is not None and beta is not None
         using_param_2 = mu is not None and gamma is not None
 
-        if (not using_param_1) and (not using_param_2):
+        using_both_params = using_param_1 and using_param_2
+        using_neither_param = (not using_param_1) and (not using_param_2)
+
+        if using_both_params or using_neither_param:
             raise ValueError(
                 "Please use one of the two possible parameterizations."
                 " Refer to the documentation for more information."
@@ -99,3 +107,15 @@ class BetaBinomial(BetaBinomialDistribution):
             total_count=total_count,
             validate_args=validate_args,
         )
+
+    def __repr__(self) -> str:
+        param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
+        args_string = ", ".join(
+            [
+                f"{p}: "
+                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
+                for p in param_names
+                if self.__dict__[p] is not None
+            ]
+        )
+        return self.__class__.__name__ + "(" + args_string + ")"
