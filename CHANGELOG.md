@@ -61,7 +61,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 #### Fixed
 
 -   Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
-    instead of logits when passing in `soft=True` {pr}`2689`.
+    instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
 
 ### 1.1.2 (2024-03-01)
 
