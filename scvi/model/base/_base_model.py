@@ -786,6 +786,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         output_dir_path: str,
         overwrite: bool = False,
         prefix: str | None = None,
+        mdata: MuData | None = None,
         **save_kwargs,
     ) -> None:
         """Converts a legacy MuData-based model (<1.XX) to the updated save format.
@@ -806,6 +807,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             already exists at ``output_dir_path``, error will be raised.
         prefix
             Prefix of saved file names.
+        mdata
+            MuData object used to train the legacy model. If `None`, will attempt
+            to load from `dir_path`.
         **save_kwargs
             Keyword arguments passed into :func:`~torch.save`.
         """
@@ -818,9 +822,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
 
         file_name_prefix = prefix or ""
-        attr_dict, _, model_state_dict, mdata = _load_legacy_mudata_saved_files(
-            dir_path, file_name_prefix
-        )
+
+        if mdata is not None:
+            attr_dict, _, model_state_dict, _ = _load_legacy_mudata_saved_files(
+                dir_path, file_name_prefix, load_mdata=False
+            )
+        else:
+            attr_dict, _, model_state_dict, mdata = _load_legacy_mudata_saved_files(
+                dir_path, file_name_prefix, load_mdata=True
+            )
 
         var_names = {mod: mdata[mod].var_names for mod in mdata.mod.keys()}
 

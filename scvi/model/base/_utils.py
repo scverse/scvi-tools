@@ -53,11 +53,13 @@ def _load_legacy_mudata_saved_files(
     dir_path: str,
     prefix: Optional[str] = None,
     map_location: Optional[Literal["cpu", "cuda"]] = None,
+    load_mdata: bool = False,
 ) -> tuple[dict, np.ndarray, dict, AnnData]:
     file_name_prefix = prefix or ""
 
     model_file_name = f"{file_name_prefix}model.pt"
     model_path = os.path.join(dir_path, model_file_name)
+
     model = torch.load(model_path, map_location=map_location)
 
     model_state_dict = model["model_state_dict"]
@@ -65,10 +67,24 @@ def _load_legacy_mudata_saved_files(
     attr_dict = model["attr_dict"]
 
     # Ensure model used MuData
-    assert attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
-    file_suffix = "mdata.h5mu"
-    mdata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
-    mdata = mudata.read(mdata_path)
+    if attr_dict["registry_"].get(_SETUP_METHOD_NAME) != "setup_mudata":
+        raise AssertionError("Model not trained with MuData.")
+
+    # Ensure model saved using old format, where var_names was a numpy array rather than dict
+    if not isinstance(var_names, np.ndarray):
+        raise AssertionError(
+            "It appears that the provided model was not saved using the old MuData model format. "
+            "Are you sure you need to convert it?"
+        )
+
+    if load_mdata:
+        mdata_path = os.path.join(dir_path, f"{file_name_prefix}mdata.h5mu")
+        if os.path.exists(mdata_path):
+            mdata = mudata.read_h5mu(mdata_path)
+        elif not os.path.exists(mdata_path):
+            raise ValueError("Save path contains no saved mudata and no mudata was passed.")
+    else:
+        mdata = None
 
     return attr_dict, var_names, model_state_dict, mdata
 

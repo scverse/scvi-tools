@@ -666,3 +666,96 @@ def test_totalvi_online_update(save_path):
     model3 = TOTALVI.load_query_data(adata2, model)
     model3.train(max_epochs=1)
     model3.get_latent_representation()
+
+
+def test_totalvi_convert_mudata_legacy_save(save_path):
+    model_save_path = os.path.join(save_path, "mudata_old")
+
+    n_latent = 5
+    adata1 = synthetic_iid()
+
+    protein_adata = AnnData(
+        X=adata1.obsm["protein_expression"],
+    )
+
+    mdata = MuData({"rna": adata1, "protein": protein_adata})
+
+    mdata["rna"].var_names = [f"rna_{x}" for x in mdata["rna"].var_names]
+    mdata["protein"].var_names = [f"protein_{x}" for x in mdata["protein"].var_names]
+
+    mdata.update_var()
+
+    TOTALVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={
+            "rna_layer": "rna",
+            "protein_layer": "protein",
+            "batch_key": "rna",
+        },
+    )
+    model = TOTALVI(mdata, n_latent=n_latent, use_batch_norm="decoder")
+    model.train(1, check_val_every_n_epoch=1)
+
+    if not os.path.exists(model_save_path):
+        os.makedirs(model_save_path, exist_ok=True)
+
+    # Mimic old mdata save routine where var_names was a single list
+    user_attributes = model._get_user_attributes()
+    user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+    model_state_dict = model.module.state_dict()
+
+    var_names = model.adata.var_names.astype(str)
+    var_names = var_names.to_numpy()
+
+    torch.save(
+        {
+            "model_state_dict": model_state_dict,
+            "var_names": var_names,
+            "attr_dict": user_attributes,
+        },
+        os.path.join(model_save_path, "model.pt"),
+    )
+
+    new_model_save_path = os.path.join(save_path, "mudata_new")
+    TOTALVI.convert_legacy_mudata_save(
+        model_save_path, new_model_save_path, overwrite=True, mdata=mdata
+    )
+    loaded_model = torch.load(os.path.join(new_model_save_path, "model.pt"))
+    for mod in mdata.mod:
+        assert np.all(mdata[mod].var_names == loaded_model["var_names"][mod])
+
+
+def test_totalvi_mudata_load_var_validation(save_path):
+    model_save_path = os.path.join(save_path, "mudata")
+
+    n_latent = 5
+    adata1 = synthetic_iid()
+
+    protein_adata = AnnData(
+        X=adata1.obsm["protein_expression"],
+    )
+
+    mdata = MuData({"rna": adata1, "protein": protein_adata})
+
+    TOTALVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={
+            "rna_layer": "rna",
+            "protein_layer": "protein",
+            "batch_key": "rna",
+        },
+    )
+    model = TOTALVI(mdata, n_latent=n_latent, use_batch_norm="decoder")
+    model.train(1, check_val_every_n_epoch=1)
+    model.save(model_save_path)
+
+    mdata["rna"].var_names = [f"rna_{x}" for x in mdata["rna"].var_names]
+    mdata["protein"].var_names = [f"protein_{x}" for x in mdata["protein"].var_names]
+
+    mdata.update_var()
+
+    with pytest.warns(UserWarning):
+        TOTALVI.load(model_save_path, adata=mdata)
