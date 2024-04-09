@@ -49,7 +49,7 @@ class BetaBinomial(BetaBinomialDistribution):
 
     Notes
     -----
-    Under the hood we use Pyro's `BetaBinomialDistribution` class to implement
+    Under the hood we use :class:`~pyro.distributions.BetaBinomial` to implement
     the Beta-Binomial distribution. Thus, when the user specifies a (`mu`, `gamma`)
     parameterization, we must convert to the (`alpha`, `beta`) parameterization
     used by the underlying Pyro distribution class. During this process, numerical
