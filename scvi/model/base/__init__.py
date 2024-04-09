@@ -4,10 +4,9 @@ from ._differential import DifferentialComputation
 from ._embedding_mixin import EmbeddingMixin
 from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import (
-    PyroJitGuideWarmup,
-    PyroModelGuideWarmup,
     PyroSampleMixin,
     PyroSviTrainMixin,
+    setup_pyro_model,
 )
 from ._rnamixin import RNASeqMixin
 from ._training_mixin import UnsupervisedTrainingMixin
@@ -21,8 +20,7 @@ __all__ = [
     "UnsupervisedTrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
-    "PyroJitGuideWarmup",
-    "PyroModelGuideWarmup",
+    "setup_pyro_model",
     "DifferentialComputation",
     "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",

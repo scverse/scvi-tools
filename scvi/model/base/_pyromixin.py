@@ -5,7 +5,6 @@ from typing import Callable
 
 import numpy as np
 import torch
-from lightning.pytorch.callbacks import Callback
 from pyro import poutine
 
 from scvi import settings
@@ -18,59 +17,16 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-class PyroJitGuideWarmup(Callback):
-    """A callback to warmup a Pyro guide.
+def setup_pyro_model(dataloader, pl_module):
+    """Way to warmup Pyro Model and Guide in an automated way.
 
-    This helps initialize all the relevant parameters by running
-    one minibatch through the Pyro model.
+    Setup occurs before any device movement, so params are iniitalized on CPU.
     """
-
-    def __init__(self, dataloader: AnnDataLoader = None) -> None:
-        super().__init__()
-        self.dataloader = dataloader
-
-    def on_train_start(self, trainer, pl_module):
-        """Way to warmup Pyro Guide in an automated way.
-
-        Also device agnostic.
-        """
-        # warmup guide for JIT
-        pyro_guide = pl_module.module.guide
-        if self.dataloader is None:
-            dl = trainer.datamodule.train_dataloader()
-        else:
-            dl = self.dataloader
-        for tensors in dl:
-            tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
-            args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
-            pyro_guide(*args, **kwargs)
-            break
-
-
-class PyroModelGuideWarmup(Callback):
-    """A callback to warmup a Pyro guide and model.
-
-    This helps initialize all the relevant parameters by running
-    one minibatch through the Pyro model. This warmup occurs on the CPU.
-    """
-
-    def __init__(self, dataloader: AnnDataLoader) -> None:
-        super().__init__()
-        self.dataloader = dataloader
-
-    def setup(self, trainer, pl_module, stage=None):
-        """Way to warmup Pyro Model and Guide in an automated way.
-
-        Setup occurs before any device movement, so params are iniitalized on CPU.
-        """
-        if stage == "fit":
-            pyro_guide = pl_module.module.guide
-            dl = self.dataloader
-            for tensors in dl:
-                tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
-                args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
-                pyro_guide(*args, **kwargs)
-                break
+    for tensors in dataloader:
+        tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
+        args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
+        pl_module.module.guide(*args, **kwargs)
+        break
 
 
 class PyroSviTrainMixin:
@@ -177,7 +133,14 @@ class PyroSviTrainMixin:
 
         if "callbacks" not in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] = []
-        trainer_kwargs["callbacks"].append(PyroJitGuideWarmup())
+
+        # Initialise pyro model with data
+        from copy import copy
+
+        dl = copy(data_splitter)
+        dl.setup()
+        dl = dl.train_dataloader()
+        setup_pyro_model(dl, training_plan)
 
         runner = self._train_runner_cls(
             self,
@@ -202,8 +165,9 @@ class PyroSampleMixin:
         self,
         args,
         kwargs,
-        return_sites: list | None = None,
+        return_sites: list = None,
         return_observed: bool = False,
+        exclude_vars: list = None,
     ):
         """Get one sample from posterior distribution.
 
@@ -225,6 +189,11 @@ class PyroSampleMixin:
         if isinstance(self.module.guide, poutine.messenger.Messenger):
             # This already includes trace-replay behavior.
             sample = self.module.guide(*args, **kwargs)
+            # include and exclude requested sites
+            if return_sites is not None:
+                sample = {k: v for k, v in sample.items() if k in return_sites}
+            if exclude_vars is not None:
+                sample = {k: v for k, v in sample.items() if k not in exclude_vars}
         else:
             guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
             model_trace = poutine.trace(poutine.replay(self.module.model, guide_trace)).get_trace(
@@ -235,6 +204,9 @@ class PyroSampleMixin:
                 for name, site in model_trace.nodes.items()
                 if (
                     (site["type"] == "sample")  # sample statement
+                    and not (
+                        name in exclude_vars if exclude_vars is not None else False
+                    )  # exclude variables
                     and (
                         (return_sites is None) or (name in return_sites)
                     )  # selected in return_sites list
@@ -261,6 +233,7 @@ class PyroSampleMixin:
         num_samples: int = 1000,
         return_sites: list | None = None,
         return_observed: bool = False,
+        exclude_vars: list | None = None,
         show_progress: bool = True,
     ):
         """Get many (num_samples=N) samples from posterior distribution.
@@ -284,7 +257,11 @@ class PyroSampleMixin:
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
         samples = self._get_one_posterior_sample(
-            args, kwargs, return_sites=return_sites, return_observed=return_observed
+            args,
+            kwargs,
+            return_sites=return_sites,
+            return_observed=return_observed,
+            exclude_vars=exclude_vars,
         )
         samples = {k: [v] for k, v in samples.items()}
 
@@ -296,7 +273,11 @@ class PyroSampleMixin:
         ):
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, return_sites=return_sites, return_observed=return_observed
+                args,
+                kwargs,
+                return_sites=return_sites,
+                return_observed=return_observed,
+                exclude_vars=exclude_vars,
             )
 
             # add new sample
@@ -364,6 +345,47 @@ class PyroSampleMixin:
         }
 
         return obs_plate
+
+    def _get_valid_sites(
+        self,
+        args: list,
+        kwargs: dict,
+        return_observed: bool = False,
+    ):
+        """Automatically guess which model sites should be sampled.
+
+        Parameters
+        ----------
+        args
+            Arguments to the model.
+        kwargs
+            Keyword arguments to the model.
+        return_observed
+            Record samples of observed variables.
+
+        Returns
+        -------
+        List with keys corresponding to site names.
+        """
+        # find plate dimension
+        trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+        valid_sites = [
+            name
+            for name, site in trace.nodes.items()
+            if (
+                (site["type"] == "sample")  # sample statement
+                and (
+                    (
+                        (not site.get("is_observed", True)) or return_observed
+                    )  # don't save observed unless requested
+                    or (site.get("infer", False).get("_deterministic", False))
+                )  # unless it is deterministic
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )  # don't save plates
+            )
+        ]
+        return valid_sites
 
     @devices_dsp.dedent
     def _posterior_samples_minibatch(
@@ -449,10 +471,10 @@ class PyroSampleMixin:
             i += 1
 
         # sample global parameters
+        valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
+        valid_sites = [v for v in valid_sites if v not in list(obs_plate_sites.keys())]
+        sample_kwargs["return_sites"] = valid_sites
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
-        global_samples = {
-            k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
-        }
 
         for k in global_samples.keys():
             samples[k] = global_samples[k]
@@ -471,6 +493,7 @@ class PyroSampleMixin:
         batch_size: int | None = None,
         return_observed: bool = False,
         return_samples: bool = False,
+        exclude_vars: list | None = None,
         summary_fun: dict[str, Callable] | None = None,
     ):
         """Summarise posterior distribution.
@@ -531,6 +554,7 @@ class PyroSampleMixin:
             num_samples=num_samples,
             return_sites=return_sites,
             return_observed=return_observed,
+            exclude_vars=exclude_vars,
         )
 
         param_names = list(samples.keys())

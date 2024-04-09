@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from copy import copy
 
 import numpy as np
 import pyro
@@ -18,10 +19,9 @@ from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import (
     BaseModelClass,
-    PyroJitGuideWarmup,
-    PyroModelGuideWarmup,
     PyroSampleMixin,
     PyroSviTrainMixin,
+    setup_pyro_model,
 )
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
@@ -194,11 +194,11 @@ def test_pyro_bayesian_regression_low_level(
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
+    setup_pyro_model(copy(train_dl), plan)
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,
         max_epochs=2,
-        callbacks=[PyroModelGuideWarmup(train_dl)],
     )
     trainer.fit(plan, train_dl)
     # 100 features
@@ -220,6 +220,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
+    setup_pyro_model(copy(train_dl), plan)
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,
@@ -285,11 +286,11 @@ def test_pyro_bayesian_regression_jit(
     model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
     plan.n_obs_training = len(train_dl.indices)
+    setup_pyro_model(copy(train_dl), plan)
     trainer = Trainer(
         accelerator=accelerator,
         devices=devices,
         max_epochs=2,
-        callbacks=[PyroJitGuideWarmup(train_dl)],
     )
     trainer.fit(plan, train_dl)
 
@@ -415,6 +416,8 @@ def test_pyro_bayesian_train_sample_mixin_with_local():
         adata.n_obs,
         1,
     )
+    # test that observed variables are excluded
+    assert "obs" not in samples["posterior_samples"].keys()
 
 
 def test_pyro_bayesian_train_sample_mixin_with_local_full_data():

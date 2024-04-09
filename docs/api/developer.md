@@ -122,8 +122,6 @@ These classes should be used to construct user-facing model classes.
     model.base.UnsupervisedTrainingMixin
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
-    model.base.PyroJitGuideWarmup
-    model.base.PyroModelGuideWarmup
     model.base.DifferentialComputation
     model.base.EmbeddingMixin
 ```
