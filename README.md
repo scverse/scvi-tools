@@ -128,7 +128,7 @@ You can cite the scverse publication as follows:
 [documentation]: https://docs.scvi-tools.org/
 [donation]: https://numfocus.org/donate-to-scverse
 [forum]: https://discourse.scvi-tools.org
-[gh-stars-badge]: https://img.shields.io/github/stars/scverse/scvi-tools?logo=GitHub&color=yellow
+[gh-stars-badge]: https://img.shields.io/github/stars/scverse/scvi-tools?style=flat&logo=GitHub&color=blue
 [gh-stars-link]: https://github.com/scverse/scvi-tools/stargazers
 [issues]: https://github.com/scverse/scvi-tools/issues
 [numfocus]: https://numfocus.org/
