@@ -13,7 +13,7 @@ class BetaBinomial(BetaBinomialDistribution):
 
     One of the following parameterizations must be provided:
 
-    1. (`alpha`, `beta`, `total_counts`) where alpha and beta are the shape parameters of
+    1. (``alpha``, ``beta``, ``total_counts``) where alpha and beta are the shape parameters of
     the beta distribution and total_counts is the number of trials.
 
     2. (`mu`, `gamma`, `total_counts`), which is the one used by methylVI. These
