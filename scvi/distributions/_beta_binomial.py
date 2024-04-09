@@ -43,7 +43,7 @@ class BetaBinomial(BetaBinomialDistribution):
     gamma
         Dispersion. Must be within the interval ``(0, 1)``.
     validate_args
-        Raise ValueError if arguments do not match constraints
+        Raise ``ValueError`` if arguments do not match the constraints.
     eps
         Numerical stability constant. (See Notes)
 
