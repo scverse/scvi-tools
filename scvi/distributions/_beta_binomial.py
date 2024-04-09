@@ -31,7 +31,7 @@ class BetaBinomial(BetaBinomialDistribution):
     total_count
         Number of trials.
     alpha
-        As in the Pyro `BetaBinomial` distribution class,
+        As in :class:`~pyro.distributions.BetaBinomial`,
         serves as the first shape parameterization of the beta
         distribution.
     beta
