@@ -54,7 +54,7 @@ class BetaBinomial(BetaBinomialDistribution):
     parameterization, we must convert to the (``alpha``, ``beta``) parameterization
     used by the underlying Pyro distribution class. During this process, numerical
     stability issues sometimes cause ``alpha`` or ``beta`` to be equal to (exactly) zero.
-    This is not allowed (`alpha` and `beta` must be strictly >0), so we clamp these
+    This is not allowed (``alpha`` and ``beta`` must be strictly greater than 0), so we clamp these
     values to be greater than a small constant `eps`.
     """
 
