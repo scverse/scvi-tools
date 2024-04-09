@@ -21,7 +21,7 @@ def optional_constraint(constraint: Constraint) -> Constraint:
 
 
 class _OpenInterval(Constraint):
-    """Constrain to a real interval `(lower_bound, upper_bound)`"""
+    """Constrain to a real interval ``(lower_bound, upper_bound)``"""
 
     def __init__(self, lower_bound: float, upper_bound: float):
         self.lower_bound = lower_bound
