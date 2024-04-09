@@ -41,7 +41,7 @@ class BetaBinomial(BetaBinomialDistribution):
     mu
         Mean of the distribution. Must be within the interval ``(0, 1)``.
     gamma
-        Dispersion.
+        Dispersion. Must be within the interval ``(0, 1)``.
     validate_args
         Raise ValueError if arguments do not match constraints
     eps
