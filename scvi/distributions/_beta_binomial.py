@@ -37,7 +37,7 @@ class BetaBinomial(BetaBinomialDistribution):
     beta
         As in :class:`~pyro.distributions.BetaBinomial`,
         serves as the second shape parameterization of the beta
-        distribution.
+        distribution. Must be greater than ``0``.
     mu
         Mean of the distribution.
     gamma
