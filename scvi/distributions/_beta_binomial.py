@@ -51,7 +51,7 @@ class BetaBinomial(BetaBinomialDistribution):
     -----
     Under the hood we use :class:`~pyro.distributions.BetaBinomial` to implement
     the Beta-Binomial distribution. Thus, when the user specifies a (``mu``, ``gamma``)
-    parameterization, we must convert to the (`alpha`, `beta`) parameterization
+    parameterization, we must convert to the (``alpha``, ``beta``) parameterization
     used by the underlying Pyro distribution class. During this process, numerical
     stability issues sometimes cause `alpha` or `beta` to be equal to (exactly) zero.
     This is not allowed (`alpha` and `beta` must be strictly >0), so we clamp these
