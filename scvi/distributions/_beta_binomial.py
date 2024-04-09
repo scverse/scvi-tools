@@ -29,7 +29,7 @@ class BetaBinomial(BetaBinomialDistribution):
     Parameters
     ----------
     total_count
-        Number of trials.
+        Number of trials. Must be a non-negative integer.
     alpha
         As in :class:`~pyro.distributions.BetaBinomial`,
         serves as the first shape parameterization of the beta
