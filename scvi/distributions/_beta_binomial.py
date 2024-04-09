@@ -35,7 +35,7 @@ class BetaBinomial(BetaBinomialDistribution):
         serves as the first shape parameterization of the beta
         distribution.
     beta
-        As in the Pyro `BetaBinomial` distribution class,
+        As in :class:`~pyro.distributions.BetaBinomial`,
         serves as the second shape parameterization of the beta
         distribution.
     mu
