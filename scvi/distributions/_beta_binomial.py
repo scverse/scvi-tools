@@ -33,7 +33,7 @@ class BetaBinomial(BetaBinomialDistribution):
     alpha
         As in :class:`~pyro.distributions.BetaBinomial`,
         serves as the first shape parameterization of the beta
-        distribution.
+        distribution. Must be greater than ``0``.
     beta
         As in :class:`~pyro.distributions.BetaBinomial`,
         serves as the second shape parameterization of the beta
