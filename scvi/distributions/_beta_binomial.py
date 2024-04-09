@@ -39,7 +39,7 @@ class BetaBinomial(BetaBinomialDistribution):
         serves as the second shape parameterization of the beta
         distribution. Must be greater than ``0``.
     mu
-        Mean of the distribution.
+        Mean of the distribution. Must be within the interval ``(0, 1)``.
     gamma
         Dispersion.
     validate_args
