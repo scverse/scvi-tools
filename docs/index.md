@@ -69,7 +69,7 @@ user_guide/index
 api/index
 changelog.md
 references
-contributing/index
+developer/index
 Discussion <https://discourse.scvi-tools.org>
 GitHub <https://github.com/scverse/scvi-tools>
 Model hub <https://huggingface.co/scvi-tools>
