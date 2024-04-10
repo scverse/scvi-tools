@@ -17,13 +17,6 @@
 [scvi-tools] (single-cell variational inference tools) is a package for probabilistic modeling and
 analysis of single-cell omics data, built on top of [PyTorch] and [AnnData].
 
-<a href="https://numfocus.org/project/scverse">
-  <img
-    src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
-    width="200"
-  >
-</a>
-
 # Analysis of single-cell omics data
 
 scvi-tools is composed of models that perform many analysis tasks across single-cell, multi, and
@@ -108,6 +101,13 @@ scvi-tools is part of the scverse project ([website](https://scverse.org),
 [governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS]. Please
 consider making a tax-deductible [donation] to help the project pay for developer time,
 professional services, travel, workshops, and a variety of other needs.
+
+<a href="https://numfocus.org/project/scverse">
+  <img
+    src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
+    width="200"
+  >
+</a>
 
 [anndata]: https://anndata.readthedocs.io/en/latest/
 [build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg
