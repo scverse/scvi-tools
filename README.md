@@ -13,17 +13,9 @@
 [![Docs][docs-badge]][docs-link]
 [![Build][build-badge]][build-link]
 [![Coverage][coverage-badge]][coverage-link]
-[![Discourse][discourse-badge]][discourse-link]
-[![Chat][zulip-badge]][zulip-link]
-[![Powered by NumFOCUS][numfocus-badge]][numfocus-link]
 
 [scvi-tools] (single-cell variational inference tools) is a package for probabilistic modeling and
 analysis of single-cell omics data, built on top of [PyTorch] and [AnnData].
-
-scvi-tools is part of the scverse project ([website](https://scverse.org),
-[governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS]. Please
-consider making a tax-deductible [donation] to help the project pay for developer time,
-professional services, travel, workshops, and a variety of other needs.
 
 <a href="https://numfocus.org/project/scverse">
   <img
@@ -112,6 +104,11 @@ You can cite the scverse publication as follows:
 >
 > _Nature Biotechnology_ 2023 Apr 10. doi: [10.1038/s41587-023-01733-8](https://doi.org/10.1038/s41587-023-01733-8).
 
+scvi-tools is part of the scverse project ([website](https://scverse.org),
+[governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS]. Please
+consider making a tax-deductible [donation] to help the project pay for developer time,
+professional services, travel, workshops, and a variety of other needs.
+
 [anndata]: https://anndata.readthedocs.io/en/latest/
 [build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg
 [build-link]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/
@@ -121,8 +118,6 @@ You can cite the scverse publication as follows:
 [contributing guide]: https://docs.scvi-tools.org/en/stable/contributing/index.html
 [coverage-badge]: https://codecov.io/gh/scverse/scvi-tools/branch/main/graph/badge.svg
 [coverage-link]: https://codecov.io/gh/scverse/scvi-tools
-[discourse-badge]: https://img.shields.io/discourse/posts?color=yellow&logo=discourse&server=https%3A%2F%2Fdiscourse.scverse.org
-[discourse-link]: https://discourse.scverse.org/
 [docs-badge]: https://readthedocs.org/projects/scvi/badge/?version=latest
 [docs-link]: https://scvi.readthedocs.io/en/stable/?badge=stable
 [documentation]: https://docs.scvi-tools.org/
@@ -132,8 +127,6 @@ You can cite the scverse publication as follows:
 [gh-stars-link]: https://github.com/scverse/scvi-tools/stargazers
 [issues]: https://github.com/scverse/scvi-tools/issues
 [numfocus]: https://numfocus.org/
-[numfocus-badge]: https://img.shields.io/badge/powered%20by-NumFOCUS-orange.svg?style=flat&colorA=E1523D&colorB=007D8A
-[numfocus-link]: http://numfocus.org
 [pepy-badge]: https://static.pepy.tech/badge/scvi-tools
 [pepy-link]: https://pepy.tech/project/scvi-tools
 [pypi-badge]: https://img.shields.io/pypi/v/scvi-tools.svg
@@ -145,5 +138,3 @@ You can cite the scverse publication as follows:
 [scvi-tools]: https://scvi-tools.org/
 [skeleton repository]: https://github.com/scverse/simple-scvi
 [user guide]: https://docs.scvi-tools.org/en/stable/user_guide/index.html
-[zulip-badge]: https://img.shields.io/badge/zulip-join_chat-brightgreen.svg
-[zulip-link]: https://scverse.zulipchat.com/
