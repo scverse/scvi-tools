@@ -118,15 +118,16 @@ We only accept code changes that are made through pull requests. To contribute, 
 - We use [Mdformat] and [markdownlint] for formatting and linting Markdown files.
 - We use the [numpydoc] style for docstrings. All public functions and classes must have a
     docstring that describes their purpose, usage, and parameters.
-- Although not parts of our codebase are type-annotated yet, we recommend that all new code be
+- Although not all parts of our codebase are type-annotated yet, we recommend that all new code be
     annotated with type hints according to the [PEP 484] and [PEP 526] guidelines.
-- We generally don't commit data files, except if they are small and necessary for testing.
+- We generally don't commit data files, except if they are small and necessary for testing. This
+    will be assessed on a case-by-case basis.
 - Starting from version 1.2, we use [conventional commits] for commits into the main branch. Don't
-    worry if you're not familiar with this convention as a maintainer will format any contributions
-    before merging.
+    worry if you're not familiar with this convention as a maintainer will format any commits
+    before merging into the main branch.
 - Starting with version 0.20, we follow the [Keep a Changelog] convention for the `CHANGELOG.md`
     file.
-- We version our releases according to [Semantic Versioning]
+- We version our releases according to [Semantic Versioning].
 
 [repository]: https://github.com/scverse/scvi-tools
 [issue]: https://github.com/scverse/scvi-tools/issues

@@ -9,17 +9,17 @@ tagged with a version number in the format `MAJOR.MINOR.PATCH`.
 
 ### Release branches
 
-We create release branches for each increment in the major or minor version (according to semantic
-versioning), formatted as `MAJOR.MINOR.x`, _e.g._, `1.0.x`. This means that all patch releases
-(_e.g._ `1.0.1`, `1.0.2`, etc.) will be made from the `1.0.x` branch.
+We create release branches for each increment in the major or minor version, formatted as
+`MAJOR.MINOR.x`, _e.g._, `1.0.x`. This means that all patch releases (_e.g._ `1.0.1`, `1.0.2`,
+etc.) will be made from the `1.0.x` branch.
 
-This allows us to merge new features and breaking changes into the `main` branch without affecting
-the release branches. We can then backport bug fixes and other changes to the release branches as
-needed.
+This allows us to merge new features and/or breaking changes into the `main` branch without
+affecting the release branches. We can then backport bug fixes and other changes to the release
+branches as needed.
 
 ### Backporting
 
-The development branch is the `main` branch, and we create release branches from it. Since pull
+The development branch is the `main` branch, and we create release branches off it. Since pull
 requests only come into the `main` branch, backporting is used to bring new changes into release
 branches.
 
@@ -34,7 +34,7 @@ feature bar <- head of branch 0.14.x, release branch for the 0.14.x release seri
 \
   my hotfix <- backported from main
   |
-  my other hotfix <- backported from main, also tagged as v0.14.1 (release)
+  my other hotfix <- backported from main, tagged as v0.14.1 (release)
 |
 feature baz
 |
@@ -47,8 +47,8 @@ my other hotfix
 
 #### Automatic backporting with MeeseeksDev
 
-MeeseeksDev is the GitHub bot that allows for automatic backporting. It is configured to backport a
-pull request if one of the following conditions is met:
+MeeseeksDev is a GitHub bot that handles automatic backporting. It is configured to backport a pull
+request if one of the following conditions is met:
 
 1. The pull request contains a label with the title and body set to
     `on-merge: backport to MAJOR.MINOR.x`, where `MAJOR.MINOR.x` is an existing release branch.
@@ -60,10 +60,10 @@ pull request if one of the following conditions is met:
     @meeseeksdev backport to MAJOR.MINOR.x
     ```
 
-    where `MAJOR.MINOR.x` is an existing release branch. This comment can be added _after_ the PR
+    where `MAJOR.MINOR.x` is an existing release branch. This comment must be added _after_ the PR
     is merged.
 
-Once the bot is triggered, it will create a new pull request in the specified release branch with
+Once the bot is triggered, it will create a new pull request into the specified release branch with
 the changes from the original pull request. This will be done from a fork of the repository, so it
 must be approved and merged by a maintainer.
 
@@ -90,14 +90,13 @@ release (see [#2327] for an example). This section provides an overview of the s
 
 As mentioned above, if the release increments the major or minor version, a new release branch
 should be created from `main`. This branch should be named according to the new version, _e.g._,
-`1.0.x`. Our GitHub rulesets will automatically protect this branch from direct pushes and require
-pull requests for changes.
+`1.0.x`. Our GitHub rulesets will automatically protect this branch from direct pushes and will
+require pull requests for changes.
 
 #### Bumping the version
 
-The next step is to bump the version in the `pyproject.toml` file. This should be done according
-to [Semantic Versioning]. This should be done via a PR into `main` and then an appropriate backport
-into the release branch.
+The next step is to bump the version in the `pyproject.toml` file. This should be done via a PR
+into `main` and then an appropriate backport into the release branch.
 
 #### (Optional) Re-run the tutorials
 
@@ -112,19 +111,21 @@ Then, [run the tutorials] using the new image. This will create individual PRs f
 that has changed, which must be reviewed and merged. For convenience, there is a
 [tutorial checklist] for tracking the progress of the tutorials (see [#210] for an example).
 
-It is possible that there are new bugs or issues in the tutorials due to the changes. These should
-be addressed, and the tutorials re-run until they pass successfully.
+It is possible that there are new bugs or issues in the tutorials revealed when running these
+automated updates. Any new bugs should be addressed, and the tutorials re-run until they pass
+successfully.
 
 #### Publish a release off the tutorials repository
 
 Once all relevant tutorials have been updated and merged, create a new release on the tutorials
-repository off `main`. This release should be named according to the new version, _e.g._, `1.0.0`.
+repository targeting `main`. This release should be named according to the new version, _e.g._,
+`1.0.0`.
 
 #### Updating the main repository
 
 Create a new branch off `main` in the main repository and run `git submodule update --remote`. This
-is necessary as the tutorials repository is included as a submodule and thus ensures that the
-latest changes are included in the documentation. This PR should also be backported as needed.
+is necessary as the tutorials repository is included as a git submodule, so this step ensures that
+the latest changes are included in the documentation. This PR should also be backported.
 
 #### Creating a GitHub release
 
@@ -136,6 +137,16 @@ the `*.*.*` pattern (this pattern is protected by our GitHub rulesets).
 At this point, check that the version updates correctly on [PyPI]. If necessary, follow the
 instructions in the next section. Additionally, check that [Read the Docs] builds correctly and
 tags with the `stable` version.
+
+:::{important}
+Once a particular version tag is published to PyPI, it **cannot** be republished, even if the
+release is yanked or deleted. This is a constraint of PyPI, so it is important to ensure that the
+version is correct before publishing.
+
+If a mistake is made, the version should be incremented and a new release created and published.
+Yanking should only be used in exceptional circumstances, but note that this will not remove the
+version from the PyPI index.
+:::
 
 #### (Optional) Manual release
 
@@ -168,7 +179,7 @@ Finally, build new Docker images with the `stable` and semantic versioning tags 
 
 Work in progress!
 
-## Documentation (Read the Docs)
+## Documentation
 
 Documentation is built and hosted on [Read the Docs], and the configuration can be found in
 `.readthedocs.yaml`.
