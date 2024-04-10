@@ -135,7 +135,7 @@ We only accept code changes that are made through pull requests. To contribute, 
 [numpydoc]: https://numpydoc.readthedocs.io/en/latest/format.html
 [PEP 484]: https://peps.python.org/pep-0484/
 [PEP 526]: https://peps.python.org/pep-0526/
-[conventional commits]: https://www.conventionalcommits.org/en/v1.0.0/
+[conventional commits]: https://www.conventionalcommits.org/
 [Prettier]: https://prettier.io/
 [Mdformat]: https://github.com/executablebooks/mdformat
 [markdownlint]: https://github.com/igorshubovych/markdownlint-cli

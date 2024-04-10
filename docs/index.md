@@ -67,9 +67,9 @@ installation
 tutorials/index
 user_guide/index
 api/index
+developer/index
 changelog.md
 references
-developer/index
 Discussion <https://discourse.scvi-tools.org>
 GitHub <https://github.com/scverse/scvi-tools>
 Model hub <https://huggingface.co/scvi-tools>

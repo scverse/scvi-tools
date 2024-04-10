@@ -130,7 +130,8 @@ latest changes are included in the documentation. This PR should also be backpor
 
 Create a new GitHub release targeting the release branch with the same body as the previous
 release. Once the release is published, this will trigger the [release workflow] that will build
-the package and upload it to PyPI.
+the package and upload it to PyPI. Note that this workflow will only run if the version tag matches
+the `*.*.*` pattern (this pattern is protected by our GitHub rulesets).
 
 At this point, check that the version updates correctly on [PyPI]. If necessary, follow the
 instructions in the next section. Additionally, check that [Read the Docs] builds correctly and
@@ -148,25 +149,64 @@ hatch publish
 
 #### Updating the conda-forge feedstock
 
+Our package is also available on the conda-forge channel. The [feedstock repository] contains
+the recipe for building the package.
+
 Typically a PR into the [feedstock] will be automatically created a couple of days after the
 PyPI release (see [#32] for an example) and will be automatically merged.
 
-If there are any issues with the PR (_e.g._ due to dependency changes), it may need to be updated
-manually. This can be done by following the instructions in the PR (see [#38] for an example).
+If there are any issues with the recipe (_e.g._ due to dependency changes), it may need to be
+updated manually. This can be done by following the instructions in the PR (see [#38] for an
+example).
 
 #### Update Docker images
 
 Finally, build new Docker images with the `stable` and semantic versioning tags using the
 [release image workflow].
 
-
 ## Continuous integration
 
-WIP!
+Work in progress!
 
 ## Documentation (Read the Docs)
 
-WIP!
+Documentation is built and hosted on [Read the Docs], and the configuration can be found in
+`.readthedocs.yaml`.
+
+## Conventional commits
+
+Starting with version 1.2, we use [conventional commits] for commits into the main branch. We
+support the following types (loosely based on the [Angular convention]):
+
+- `build`: Changes that primarily affect depdenencies
+- `ci`: Changes to our CI configuration files and scripts, typically in the `.github/` directory
+- `docs`: Documentation changes, typically in the `docs/` directory
+- `feat`: A new feature
+- `fix`: A bug fix
+- `misc`: Changes that don't fit into any other category
+- `perf`: A code change that improves performance
+- `refactor`: A code change that neither fixes a bug nor adds a feature
+- `release`: Changes necessary for a release
+- `style`: Changes that do not affect the meaning of the code (_e.g._ whitespace, formatting
+  changes in pre-commit configurations)
+- `test`: Changes that primarily add or modify tests
+
+We support the following scopes, based on our top-level package structure:
+
+- `autotune`: Changes primarly affecting `scvi.autotune`
+- `criticism`: Changes primarily affecting `scvi.criticism`
+- `data`: Changes primarily affecting `scvi.data`
+- `dataloaders`: Changes primarily affecting `scvi.dataloaders`
+- `distributions`: Changes primarily affecting `scvi.distributions`
+- `external`: Changes primarily affecting `scvi.external`
+- `hub`: Changes primarily affecting `scvi.hub`
+- `model`: Changes primarily affecting `scvi.model`
+- `module`: Changes primarily affecting `scvi.module`
+- `nn`: Changes primarily affecting `scvi.nn`
+- `train`: Changes primarily affecting `scvi.train`
+- `utils`: Changes primarily affecting `scvi.utils`
+
+We use the `BREAKING CHANGE` footer to indicate that a commit introduces a breaking change.
 
 [#32]: https://github.com/conda-forge/scvi-tools-feedstock/pull/32
 [#38]: https://github.com/conda-forge/scvi-tools-feedstock/pull/38
@@ -182,5 +222,7 @@ WIP!
 [release image workflow]: https://github.com/YosefLab/scvi-tools-docker/actions/workflows/linux_cuda_release.yaml
 [release workflow]: https://github.com/scverse/scvi-tools/actions/workflows/release.yml
 [PyPI]: https://pypi.org/project/scvi-tools/
-[feedstock]: https://github.com/conda-forge/scvi-tools-feedstock
+[feedstock repository]: https://github.com/conda-forge/scvi-tools-feedstock
 [Read the Docs]: https://readthedocs.org/projects/scvi/
+[conventional commits]: https://www.conventionalcommits.org/
+[Angular convention]: https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines
