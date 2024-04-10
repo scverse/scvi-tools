@@ -5,9 +5,9 @@ from math import ceil, floor
 import numpy as np
 import pytest
 from sparse_utils import TestSparseModel
+from tests.data.utils import generic_setup_adata_manager
 
 import scvi
-from tests.data.utils import generic_setup_adata_manager
 
 
 def test_datasplitter_shuffle():
