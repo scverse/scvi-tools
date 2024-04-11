@@ -7,7 +7,7 @@ up a local development environment:
 
 1. Fork our [repository] on GitHub
 
-2. Clone your forked repository (replace `your-username` with your GitHub username):
+2. Locally clone your forked repository (replace `your-username` with your GitHub username):
 
     ```bash
     git clone https://github.com/{your-username}/scvi-tools.git
@@ -32,7 +32,7 @@ up a local development environment:
     uv pip install "scvi-tools[dev] @ ."
     ```
 
-    Don't know how to set up a virtual environment? Check out our installation guide!
+    Don't know how to set up a virtual environment? Check out our [installation] guide!
 
 5. (Optional) confirm that the installation was successful:
 
@@ -122,11 +122,11 @@ We only accept code changes that are made through pull requests. To contribute, 
     annotated with type hints according to the [PEP 484] and [PEP 526] guidelines.
 - We generally don't commit data files, except if they are small and necessary for testing. This
     will be assessed on a case-by-case basis.
-- Starting from version 1.2, we use [conventional commits] for commits into the main branch. Don't
-    worry if you're not familiar with this convention as a maintainer will format any commits
-    before merging into the main branch.
-- Starting with version 0.20, we follow the [Keep a Changelog] convention for the `CHANGELOG.md`
-    file.
+- Starting from version 1.2, we format commits into the main branch according to
+    [Conventional Commits]. Don't worry if you're not familiar with this convention as a maintainer
+    will format any commits before merging into the main branch. For more details, see our
+    [maintenance guide].
+- Starting with version 0.20, we follow the [Keep a Changelog] convention for `CHANGELOG.md`
 - We version our releases according to [Semantic Versioning].
 
 [repository]: https://github.com/scverse/scvi-tools
@@ -136,9 +136,11 @@ We only accept code changes that are made through pull requests. To contribute, 
 [numpydoc]: https://numpydoc.readthedocs.io/en/latest/format.html
 [PEP 484]: https://peps.python.org/pep-0484/
 [PEP 526]: https://peps.python.org/pep-0526/
-[conventional commits]: https://www.conventionalcommits.org/
+[Conventional Commits]: https://www.conventionalcommits.org/
 [Prettier]: https://prettier.io/
 [Mdformat]: https://github.com/executablebooks/mdformat
 [markdownlint]: https://github.com/igorshubovych/markdownlint-cli
 [Keep a Changelog]: https://keepachangelog.com/
 [Semantic Versioning]: https://semver.org/
+[installation]: ../installation.md
+[maintenance guide]: ./maintenance.md
