@@ -31,6 +31,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
 - Add `load_best_on_end` argument to {class}`scvi.train.SaveCheckpoint` to load the best model
     state at the end of training {pr}`2672`.
+- Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
+    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data {pr}`2692`.
 
 #### Changed
 
