@@ -2,8 +2,8 @@
 
 ## Quick install
 
-scvi-tools can be installed via `conda` or `pip`. We recommend installing into a virtual environment
-to avoid conflicts with other packages.
+scvi-tools can be installed via `conda` or `pip`. We recommend installing into a virtual
+environment to avoid conflicts with other packages.
 
 ```bash
 conda install scvi-tools -c conda-forge
@@ -23,24 +23,24 @@ Don't know how to get started with virtual environments or `conda`/`pip`? Check 
 ### Virtual environment
 
 A virtual environment can be created with either `conda` or `venv`. We recommend using `conda`. We
-currently support Python 3.9 to 3.11.
+currently support Python 3.9 - 3.11.
 
 For `conda`, we recommend using the [Miniforge](https://github.com/conda-forge/miniforge)
 distribution, which is generally faster than the official distribution and comes with conda-forge
 as the default channel (where scvi-tools is hosted).
 
 ```bash
-conda create -n scvi-env python=3.11  # creates a virtual environment with python 3.11
-conda activate scvi-env  # activates virtual environment
+conda create -n scvi-env python=3.11  # any python 3.9 to 3.11
+conda activate scvi-env
 ```
 
 For `venv`, we recommend using [uv](https://github.com/astral-sh/uv).
 
 ```bash
 pip install -U uv
-uv venv .scvi-env  # creates a virtual environment in .scvi-env
-source .scvi-env/bin/activate  # activates virtual environment on macOS and Linux
-.scvi-env\Scripts\activate  # activates virtual environment on Windows
+uv venv .scvi-env
+source .scvi-env/bin/activate  # for macOS and Linux
+.scvi-env\Scripts\activate  # for Windows
 ```
 
 ### PyTorch and JAX
@@ -52,7 +52,8 @@ be installed automatically by your package manager of choice.
 If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon), we
 recommend installing PyTorch and JAX _before_ installing scvi-tools. Please follow the respective
 installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
-[JAX](https://jax.readthedocs.io/en/latest/installation.html) for your platform.
+[JAX](https://jax.readthedocs.io/en/latest/installation.html) compatible with your system and
+device type.
 
 ## Optional dependencies
 
@@ -70,7 +71,7 @@ To install all optional dependencies (_e.g._ autotune, criticism, model hub):
 pip install -U scvi-tools[optional]
 ```
 
-To install development dependencies:
+To install development dependencies, including `pre-commit` and testing dependencies:
 
 ```bash
 pip install -U scvi-tools[dev]
