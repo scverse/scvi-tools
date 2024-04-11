@@ -109,7 +109,7 @@ class SaveCheckpoint(ModelCheckpoint):
         save_path = self.format_checkpoint_name(monitor_candidates)
         # by default, the function above gives a .ckpt extension
         save_path = save_path.split(".ckpt")[0]
-        model.save(save_path, save_andnata=False, overwrite=True)
+        model.save(save_path, save_anndata=False, overwrite=True)
 
         model.module.train()
         model.is_trained_ = False
