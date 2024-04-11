@@ -1,3 +1,4 @@
+from ._beta_binomial import BetaBinomial
 from ._negative_binomial import (
     JaxNegativeBinomialMeanDisp,
     NegativeBinomial,
@@ -12,4 +13,5 @@ __all__ = [
     "ZeroInflatedNegativeBinomial",
     "JaxNegativeBinomialMeanDisp",
     "Poisson",
+    "BetaBinomial",
 ]
