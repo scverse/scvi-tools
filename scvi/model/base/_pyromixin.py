@@ -437,13 +437,17 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                return_observed = getattr(sample_kwargs, "return_observed", False)
+                # get observation plate sites
+                return_observed = sample_kwargs.get("return_observed", False)
                 obs_plate_sites = self._get_obs_plate_sites(
                     args, kwargs, return_observed=return_observed
                 )
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
+                # get valid sites & filter local sites
+                valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
+                obs_plate_sites = {k: v for k, v in obs_plate_sites.items() if k in valid_sites}
                 obs_plate_dim = list(obs_plate_sites.values())[0]
 
                 sample_kwargs_obs_plate = sample_kwargs.copy()
@@ -472,7 +476,7 @@ class PyroSampleMixin:
 
         # sample global parameters
         valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
-        valid_sites = [v for v in valid_sites if v not in list(obs_plate_sites.keys())]
+        valid_sites = [v for v in valid_sites if v not in obs_plate_sites.keys()]
         sample_kwargs["return_sites"] = valid_sites
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
 
