@@ -26,6 +26,7 @@ def setup_pyro_model(dataloader, pl_module):
         tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
         args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
         pl_module.module.guide(*args, **kwargs)
+        pl_module.module.model(*args, **kwargs)
         break
 
 
