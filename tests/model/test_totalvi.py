@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 import torch
 from anndata import AnnData
+from anndata._warnings import ImplicitModificationWarning
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS
@@ -668,7 +669,7 @@ def test_totalvi_online_update(save_path):
     model3.get_latent_representation()
 
 
-def test_totalvi_convert_mudata_legacy_save(save_path):
+def test_totalvi_load_old_mudata_var_names(save_path):
     model_save_path = os.path.join(save_path, "mudata_old")
 
     n_latent = 5
@@ -709,22 +710,18 @@ def test_totalvi_convert_mudata_legacy_save(save_path):
     var_names = model.adata.var_names.astype(str)
     var_names = var_names.to_numpy()
 
+    pt_save_path = os.path.join(model_save_path, "model.pt")
     torch.save(
         {
             "model_state_dict": model_state_dict,
             "var_names": var_names,
             "attr_dict": user_attributes,
         },
-        os.path.join(model_save_path, "model.pt"),
+        pt_save_path,
     )
 
-    new_model_save_path = os.path.join(save_path, "mudata_new")
-    TOTALVI.convert_legacy_mudata_save(
-        model_save_path, new_model_save_path, overwrite=True, mdata=mdata
-    )
-    loaded_model = torch.load(os.path.join(new_model_save_path, "model.pt"))
-    for mod in mdata.mod:
-        assert np.all(mdata[mod].var_names == loaded_model["var_names"][mod])
+    with pytest.warns(ImplicitModificationWarning):
+        TOTALVI.load(model_save_path, adata=mdata)
 
 
 def test_totalvi_mudata_load_var_names_validation(save_path):
@@ -752,10 +749,14 @@ def test_totalvi_mudata_load_var_names_validation(save_path):
     model.train(1, check_val_every_n_epoch=1)
     model.save(model_save_path)
 
+    # Ensure that per-modality var_names were saved correctly
+    loaded_model = torch.load(os.path.join(model_save_path, "model.pt"))
+    for mod in mdata.mod:
+        assert np.all(mdata[mod].var_names == loaded_model["var_names"][mod])
+
+    # Changing per-modality var_names should raise a warning
     mdata["rna"].var_names = [f"rna_{x}" for x in mdata["rna"].var_names]
     mdata["protein"].var_names = [f"protein_{x}" for x in mdata["protein"].var_names]
-
     mdata.update_var()
-
     with pytest.warns(UserWarning):
         TOTALVI.load(model_save_path, adata=mdata)

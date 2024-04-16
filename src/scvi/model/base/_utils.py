@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData, read_h5ad
+from anndata._warnings import ImplicitModificationWarning
 
 from scvi import settings
 from scvi.data._constants import _SETUP_METHOD_NAME
@@ -47,46 +48,6 @@ def _load_legacy_saved_files(
         adata = None
 
     return model_state_dict, var_names, attr_dict, adata
-
-
-def _load_legacy_mudata_saved_files(
-    dir_path: str,
-    prefix: Optional[str] = None,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-    load_mdata: bool = False,
-) -> tuple[dict, np.ndarray, dict, AnnData]:
-    file_name_prefix = prefix or ""
-
-    model_file_name = f"{file_name_prefix}model.pt"
-    model_path = os.path.join(dir_path, model_file_name)
-
-    model = torch.load(model_path, map_location=map_location)
-
-    model_state_dict = model["model_state_dict"]
-    var_names = model["var_names"]
-    attr_dict = model["attr_dict"]
-
-    # Ensure model used MuData
-    if attr_dict["registry_"].get(_SETUP_METHOD_NAME) != "setup_mudata":
-        raise AssertionError("Model not trained with MuData.")
-
-    # Ensure model saved using old format, where var_names was a numpy array rather than dict
-    if not isinstance(var_names, np.ndarray):
-        raise AssertionError(
-            "It appears that the provided model was not saved using the old MuData model format. "
-            "Are you sure you need to convert it?"
-        )
-
-    if load_mdata:
-        mdata_path = os.path.join(dir_path, f"{file_name_prefix}mdata.h5mu")
-        if os.path.exists(mdata_path):
-            mdata = mudata.read_h5mu(mdata_path)
-        elif not os.path.exists(mdata_path):
-            raise ValueError("Save path contains no saved mudata and no mudata was passed.")
-    else:
-        mdata = None
-
-    return attr_dict, var_names, model_state_dict, mdata
 
 
 def _load_saved_files(
@@ -171,7 +132,7 @@ def _initialize_model(cls, adata, attr_dict):
 
 
 def _validate_var_names(adata, source_var_names):
-    if isinstance(adata, mudata.MuData):
+    if isinstance(adata, mudata.MuData) and isinstance(source_var_names, dict):
         for modality in source_var_names.keys():
             user_var_names = adata[modality].var_names.astype(str)
             if not np.array_equal(source_var_names[modality], user_var_names):
@@ -183,6 +144,15 @@ def _validate_var_names(adata, source_var_names):
                     stacklevel=settings.warnings_stacklevel,
                 )
     else:
+        if isinstance(adata, mudata.MuData):
+            warnings.warn(
+                "var_names for mudata saved using old format. var_names validation will "
+                "only confirm that the union of per-modality feature names in provided mudata "
+                "is equal to saved var_names.",
+                ImplicitModificationWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+
         user_var_names = adata.var_names.astype(str)
         if not np.array_equal(source_var_names, user_var_names):
             warnings.warn(
