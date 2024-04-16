@@ -87,7 +87,7 @@ loompy = ["loompy>=3.0.6"]
 scanpy = ["scanpy>=1.6"]
 
 optional = [
-    "scvi-tools[autotune,aws,criticism,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
@@ -108,7 +108,7 @@ tutorials = [
 all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
-packages = ['scvi']
+packages = ['src/scvi']
 
 [tool.coverage.run]
 source = ["scvi"]
@@ -121,7 +121,7 @@ testpaths = ["tests"]
 xfail_strict = true
 
 [tool.ruff]
-src = ["."]
+src = ["src"]
 line-length = 99
 indent-width = 4
 target-version = "py39"
@@ -196,7 +196,7 @@ convention = "numpy"
 "docs/*" = ["I", "BLE001"]
 "tests/*" = ["D"]
 "*/__init__.py" = ["F401"]
-"scvi/__init__.py" = ["I"]
+"src/scvi/__init__.py" = ["I"]
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.
