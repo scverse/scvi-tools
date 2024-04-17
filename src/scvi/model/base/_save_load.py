@@ -1,16 +1,20 @@
+from __future__ import annotations
+
 import logging
 import os
 import warnings
-from typing import Literal, Optional
+from typing import Literal
 
 import anndata
 import mudata
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 from anndata import AnnData, read_h5ad
 
 from scvi import settings
+from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.model.base._constants import SAVE_KEYS
@@ -22,7 +26,7 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, dict, AnnData | None]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_MODEL_FNAME}")
     var_names_path = os.path.join(
         dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_VAR_NAMES_FNAME}"
@@ -53,10 +57,10 @@ def _load_legacy_saved_files(
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
-    prefix: Optional[str] = None,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-    backup_url: Optional[str] = None,
-) -> tuple[dict, np.ndarray, dict, AnnData]:
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
+) -> tuple[dict, np.ndarray, dict, AnnData | None]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
 
@@ -129,6 +133,30 @@ def _initialize_model(cls, adata, attr_dict):
         setattr(model, attr, val)
 
     return model
+
+
+def _get_var_names(adata: AnnOrMuData) -> npt.NDArray | dict[str, npt.NDArray]:
+    """Get variable names from an :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+
+    Parameters
+    ----------
+    adata
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+
+    Returns
+    -------
+    An array of variable names if ``adata`` is an :class:`~anndata.AnnData` object, or a
+    dictionary of variable names if ``adata`` is a :class:`~mudata.MuData` object, where keys
+    correspond to modalities and values are arrays of variable names.
+    """
+    if isinstance(adata, AnnData):
+        return adata.var_names.astype(str).to_numpy()
+    elif isinstance(adata, mudata.MuData):
+        return {
+            mod_key: adata.mod[mod_key].var_names.astype(str).to_numpy() for mod_key in adata.mod
+        }
+    else:
+        raise TypeError("`adata` must be an AnnData or MuData object.")
 
 
 def _validate_var_names(adata, source_var_names):
