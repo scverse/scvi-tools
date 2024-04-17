@@ -27,6 +27,7 @@ from scvi.data._constants import (
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_device_args
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.model.base._save_load import (
     _initialize_model,
     _load_legacy_saved_files,
@@ -599,15 +600,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if save_anndata:
             file_suffix = ""
             if isinstance(self.adata, AnnData):
-                file_suffix = "adata.h5ad"
+                file_suffix = SAVE_KEYS.ADATA_FNAME
             elif isinstance(self.adata, MuData):
-                file_suffix = "mdata.h5mu"
+                file_suffix = SAVE_KEYS.MDATA_FNAME
             self.adata.write(
                 os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
 
-        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.MODEL_FNAME}")
 
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
@@ -622,9 +623,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         torch.save(
             {
-                "model_state_dict": model_state_dict,
-                "var_names": var_names,
-                "attr_dict": user_attributes,
+                SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
+                SAVE_KEYS.VAR_NAMES_KEY: var_names,
+                SAVE_KEYS.ATTR_DICT_KEY: user_attributes,
             },
             model_save_path,
             **save_kwargs,
@@ -768,9 +769,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
         torch.save(
             {
-                "model_state_dict": model_state_dict,
-                "var_names": var_names,
-                "attr_dict": attr_dict,
+                SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
+                SAVE_KEYS.VAR_NAMES_KEY: var_names,
+                SAVE_KEYS.ATTR_DICT_KEY: attr_dict,
             },
             model_save_path,
             **save_kwargs,
