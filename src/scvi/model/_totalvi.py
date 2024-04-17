@@ -25,7 +25,7 @@ from scvi.model._utils import (
     cite_seq_raw_counts_properties,
     get_max_epochs_heuristic,
 )
-from scvi.model.base._utils import _de_core
+from scvi.model.base._de_core import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
