@@ -26,12 +26,12 @@ from scvi.model._utils import (
     scatac_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
+from scvi.model.base._de_core import _de_core
 from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
-from .base._utils import _de_core
 
 logger = logging.getLogger(__name__)
 

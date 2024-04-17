@@ -46,6 +46,20 @@ to [Semantic Versioning]. Full commit history is available in the
     {meth}`scvi.model.MULTIVI.train`, to be removed in v1.3. Please pass in `enable_checkpointing`
     or specify a custom checkpointing procedure with {class}`scvi.train.SaveCheckpoint` instead
     {pr}`2673`.
+- Move {func}`scvi.model.base._utils._load_legacy_saved_files` to
+    {func}`scvi.model.base._save_load._load_legacy_saved_files` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._load_saved_files` to
+    {func}`scvi.model.base._save_load._load_saved_files` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._initialize_model` to
+    {func}`scvi.model.base._save_load._initialize_model` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._validate_var_names` to
+    {func}`scvi.model.base._save_load._validate_var_names` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._prepare_obs` to
+    {func}`scvi.model.base._de_core._prepare_obs` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._de_core` to
+    {func}`scvi.model.base._de_core._de_core` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._fdr_de_prediction` to
+    {func}`scvi.model.base._de_core_._fdr_de_prediction` {pr}`2731`.
 
 #### Removed
 
