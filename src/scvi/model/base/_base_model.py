@@ -14,7 +14,7 @@ import torch
 from anndata import AnnData
 from mudata import MuData
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import REGISTRY_KEYS, SAVE_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
@@ -27,11 +27,15 @@ from scvi.data._constants import (
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_device_args
-from scvi.model.base._utils import _load_legacy_saved_files
+from scvi.model.base._save_load import (
+    _get_var_names,
+    _initialize_model,
+    _load_legacy_saved_files,
+    _load_saved_files,
+    _validate_var_names,
+)
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
-
-from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +132,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """Manager instance associated with self.adata."""
         return self._adata_manager
 
-    def to_device(self, device: str | int):
+    def to_device(self, device: str | int) -> None:
         """Move model to device.
 
         Parameters
@@ -560,28 +564,43 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         save_anndata: bool = False,
         save_kwargs: dict | None = None,
         **anndata_write_kwargs,
-    ):
+    ) -> None:
         """Save the state of the model.
 
-        Neither the trainer optimizer state nor the trainer history are saved.
-        Model files are not expected to be reproducibly saved and loaded across versions
-        until we reach version 1.0.
+        Neither the trainer optimizer state nor the trainer history are saved. The following
+        files are saved:
+
+        * ``{dir_path}/{prefix}model.pt``: Model state dict, ``var_names``, and user attributes.
+        * ``{dir_path}/{prefix}adata.h5ad``: :class:`~anndata.AnnData` object if ``save_anndata``
+            is ``True`` and the model was initialized with an :class:`~anndata.AnnData` object.
+        * ``{dir_path}/{prefix}mdata.h5mu``: :class:`~mudata.MuData` object if ``save_anndata``
+            is ``True`` and the model was initialized with a :class:`~mudata.MuData` object.
 
         Parameters
         ----------
         dir_path
             Path to a directory.
         prefix
-            Prefix to prepend to saved file names.
+            Prefix to prepend to saved file names. Corresponds to the argument of the same name in
+            :meth:`~scvi.model.base.BaseModelClass.load`.
         overwrite
-            Overwrite existing data or not. If `False` and directory
-            already exists at `dir_path`, error will be raised.
+            Whether to overwrite existing files in ``dir_path`` or not. If ``False`` and
+            ``dir_path`` already exists, an error will be raised.
         save_anndata
-            If True, also saves the anndata
+            Whether to save the :class:`~anndata.AnnData` or :class:`~mudata.MuData` object
+            associated with the model.
         save_kwargs
-            Keyword arguments passed into :func:`~torch.save`.
+            Additional keyword arguments passed into :func:`~torch.save`.
         anndata_write_kwargs
-            Kwargs for :meth:`~anndata.AnnData.write`
+            Additional keyword arguments passed into :meth:`~anndata.AnnData.write` or
+            :meth:`~mudata.MuData.write`.
+
+        Notes
+        -----
+        * Starting from v1.2, ``var_names`` for models initialized with :class:`~mudata.MuData`
+            are saved as a dictionary with keys corresponding to the modality names (as
+            opposed to the previous default behavior of a single array of ``var_names``
+            corresponding to the concatenation of all modality ``var_names``).
         """
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
@@ -590,42 +609,29 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 f"{dir_path} already exists. Please provide another directory for saving."
             )
 
-        file_name_prefix = prefix or ""
-        save_kwargs = save_kwargs or {}
+        prefix = prefix or ""
+        user_attributes = {
+            attr_name: val
+            for (attr_name, val) in self._get_user_attributes()
+            if attr_name.endswith("_")
+        }
+        torch.save(
+            obj={
+                SAVE_KEYS.MODEL_STATE_DICT_KEY: self.module.state_dict(),
+                SAVE_KEYS.VAR_NAMES_KEY: _get_var_names(self.adata),
+                SAVE_KEYS.ATTR_DICT_KEY: user_attributes,
+            },
+            f=os.path.join(dir_path, f"{prefix}{SAVE_KEYS.MODEL_FNAME}"),
+            **(save_kwargs or {}),
+        )
 
         if save_anndata:
-            file_suffix = ""
-            if isinstance(self.adata, AnnData):
-                file_suffix = "adata.h5ad"
-            elif isinstance(self.adata, MuData):
-                file_suffix = "mdata.h5mu"
+            is_anndata = isinstance(self.adata, AnnData)
+            file_suffix = SAVE_KEYS.ADATA_FNAME if is_anndata else SAVE_KEYS.MDATA_FNAME
             self.adata.write(
-                os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
+                os.path.join(dir_path, f"{prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
-
-        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
-
-        # save the model state dict and the trainer state dict only
-        model_state_dict = self.module.state_dict()
-
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
-
-        # get all the user attributes
-        user_attributes = self._get_user_attributes()
-        # only save the public attributes with _ at the very end
-        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
-
-        torch.save(
-            {
-                "model_state_dict": model_state_dict,
-                "var_names": var_names,
-                "attr_dict": user_attributes,
-            },
-            model_save_path,
-            **save_kwargs,
-        )
 
     @classmethod
     @devices_dsp.dedent
@@ -637,22 +643,23 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         device: int | str = "auto",
         prefix: str | None = None,
         backup_url: str | None = None,
-    ):
-        """Instantiate a model from the saved output.
+    ) -> BaseModelClass:
+        """Load a model from a save directory.
 
         Parameters
         ----------
         dir_path
             Path to saved outputs.
         adata
-            AnnData organized in the same way as data used to train model.
-            It is not necessary to run setup_anndata,
-            as AnnData is validated against the saved `scvi` setup dictionary.
-            If None, will check for and load anndata saved with the model.
-        %(param_accelerator)s
-        %(param_device)s
+            :class:`~anndata.AnnData` or :class:`~mudata.MuData` object organized the same way as
+            the data used to train the saved model. It is not necessary to run ``setup_anndata`` or
+            ``setup_mudata`` as the data is validated against the saved setup dictionary. If
+            ``None``, checks for and loads the dataset saved with the model.
+        %(param_accelerator)s. Specifies the accelerator type on which to load the model.
+        %(param_device)s. Specifies the device on which to load the model.
         prefix
-            Prefix of saved file names.
+            Prefix of saved file names. Corresponds to the argument of the same name in
+            :meth:`~scvi.model.base.BaseModelClass.save`.
         backup_url
             URL to retrieve saved outputs from if not present on disk.
 
@@ -662,10 +669,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         Examples
         --------
-        >>> model = ModelClass.load(save_path, adata)
-        >>> model.get_....
+        >>> model = scvi.model.SCVI.load(save_path, adata)
         """
-        load_adata = adata is None
         _, _, device = parse_device_args(
             accelerator=accelerator,
             devices=device,
@@ -677,16 +682,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             attr_dict,
             var_names,
             model_state_dict,
-            new_adata,
-        ) = _load_saved_files(
-            dir_path,
             load_adata,
-            map_location=device,
+        ) = _load_saved_files(
+            dir_path=dir_path,
+            load_adata=adata is None,
             prefix=prefix,
+            map_location=device,
             backup_url=backup_url,
         )
-        adata = new_adata if new_adata is not None else adata
-
+        adata = adata or load_adata
         _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")

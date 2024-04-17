@@ -18,7 +18,7 @@ from lightning.pytorch.utilities import rank_zero_info
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
-from scvi.model.base._utils import _load_saved_files
+from scvi.model.base._save_load import _load_saved_files
 
 MetricCallable = Callable[[BaseModelClass], float]
 

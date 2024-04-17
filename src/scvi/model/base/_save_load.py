@@ -3,46 +3,42 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from collections.abc import Iterable as IterableClass
-from typing import Literal
+from typing import Any, Literal
 
-import anndata
-import mudata
 import numpy as np
 import numpy.typing as npt
-import pandas as pd
-import torch
-from anndata import AnnData, read_h5ad
+from anndata import AnnData
+from mudata import MuData
+from torch import Tensor
 
 from scvi import SAVE_KEYS, settings
 from scvi._types import AnnOrMuData
-from scvi.data._constants import _SETUP_METHOD_NAME
-from scvi.data._download import _download
-from scvi.utils import track
-
-from ._differential import DifferentialComputation
 
 logger = logging.getLogger(__name__)
+VarNames = npt.NDArray[np.str] | dict[str, npt.NDArray[np.str]]
 
 
 def _load_legacy_saved_files(
     dir_path: str,
     prefix: str,
     load_adata: bool,
-) -> tuple[dict, np.ndarray, dict, AnnData | None]:
+) -> tuple[dict, npt.NDArray, dict, AnnData | None]:
+    from anndata import read_h5ad
+    from pandas import read_pickle
+    from torch import load
+
     model_path = os.path.join(dir_path, f"{prefix}{SAVE_KEYS.LEGACY_MODEL_FNAME}")
     var_names_path = os.path.join(dir_path, f"{prefix}{SAVE_KEYS.LEGACY_VAR_NAMES_FNAME}")
     setup_dict_path = os.path.join(dir_path, f"{prefix}{SAVE_KEYS.LEGACY_SETUP_DICT_FNAME}")
 
-    model_state_dict = torch.load(model_path, map_location="cpu")
-
+    model_state_dict = load(model_path, map_location="cpu")
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
     with open(setup_dict_path, "rb") as handle:
-        attr_dict = pd.read_pickle(handle)
+        attr_dict = read_pickle(handle)
 
     if load_adata:
-        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        adata_path = os.path.join(dir_path, f"{prefix}{SAVE_KEYS.ADATA_FNAME}")
         if os.path.exists(adata_path):
             adata = read_h5ad(adata_path)
         elif not os.path.exists(adata_path):
@@ -59,50 +55,82 @@ def _load_saved_files(
     prefix: str | None = None,
     map_location: Literal["cpu", "cuda"] | None = None,
     backup_url: str | None = None,
-) -> tuple[dict, npt.NDArray[np.str] | dict[str, npt.NDArray[np.str]], dict, AnnData | None]:
-    """Helper to load saved files."""
+) -> tuple[dict[str, Any], VarNames, dict[str, Tensor], AnnOrMuData | None]:
+    """Load saved model files and data from a directory.
+
+    Parameters
+    ----------
+    dir_path
+        Directory path containing the saved model files.
+    load_adata
+        Whether to attempt to load a saved ``h5ad`` or ``h5mu`` file. If ``True`` and no such file
+        exists, a ``FileNotFoundError`` is raised.
+
+    Returns
+    -------
+    A tuple containing the following elements:
+
+    * Dictionary of model attributes.
+    * ``var_names`` from the :class:`~anndata.AnnData` or :class:`~mudata.MuData` object used to
+        train the model.
+    * Model state dictionary mapping parameter names to :class:`~torch.Tensor`s.
+    * Loaded :class:`~anndata.AnnData` or :class:`~mudata.MuData` object if ``load_adata`` is
+        ``True``, else ``None``.
+
+    Raises
+    ------
+    ``ValueError``
+        If the model file cannot be loaded.
+    ``FileNotFoundError``
+        If ``load_adata`` is ``True`` and no saved ``h5ad`` or ``h5mu`` file exists in
+        ``dir_path``.
+    """
+    from anndata import read_h5ad
+    from mudata import read_h5mu
+    from torch import load
+
+    from scvi.data._constants import _SETUP_METHOD_NAME
+    from scvi.data._download import _download
+
     prefix = prefix or ""
 
     model_file_name = f"{prefix}{SAVE_KEYS.MODEL_FNAME}"
     model_path = os.path.join(dir_path, model_file_name)
     try:
         _download(backup_url, dir_path, model_file_name)
-        model = torch.load(model_path, map_location=map_location)
+        model = load(model_path, map_location=map_location)
     except FileNotFoundError as exc:
         raise ValueError(
             f"Failed to load model file at {model_path}. If attempting to load a saved model from "
             " <v0.15.0, please use `convert_legacy_save` to convert to the updated format."
         ) from exc
 
-    model_state_dict = model["model_state_dict"]
-    var_names: npt.NDArray[np.str] | dict[str, npt.NDArray[np.str]] = model["var_names"]
-    attr_dict = model["attr_dict"]
+    attr_dict = model.get(SAVE_KEYS.ATTR_DICT_KEY)
+    var_names = model.get(SAVE_KEYS.VAR_NAMES_KEY)
+    model_state_dict = model.get(SAVE_KEYS.MODEL_STATE_DICT_KEY)
 
     is_anndata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_anndata"
-    if is_anndata:
-        data_path = os.path.join(dir_path, f"{prefix}{SAVE_KEYS.ADATA_FNAME}")
-        read_method = anndata.read_h5ad
-    else:
-        data_path = os.path.join(dir_path, f"{prefix}{SAVE_KEYS.MDATA_FNAME}")
-        read_method = mudata.read_h5mu
+    file_suffx = SAVE_KEYS.ADATA_FNAME if is_anndata else SAVE_KEYS.MDATA_FNAME
+    read_method = read_h5ad if is_anndata else read_h5mu
+    data_path = os.path.join(dir_path, f"{prefix}{file_suffx}")
 
-    if not load_adata:
-        adata = None
-    elif load_adata and os.path.exists(data_path):
-        adata = read_method(data_path)
-    else:
+    if load_adata and not os.path.exists(data_path):
         raise FileNotFoundError(
             "Save path contains no saved h5ad or h5mu file and no adata was passed."
         )
+    elif load_adata:
+        adata = read_method(data_path)
+    else:
+        adata = None
 
     return attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict):
+def _initialize_model(cls, adata: AnnOrMuData, attr_dict: dict[str, Any]) -> object:
     """Helper to initialize a model."""
-    if "init_params_" not in attr_dict.keys():
+    if "init_params_" not in attr_dict:
         raise ValueError(
-            "No init_params_ were saved by the model. Check out the "
+            "No `init_params_` were saved by the model. Check out the "
             "developers guide if creating custom models."
         )
     # get the parameters for the class init signature
@@ -136,176 +164,72 @@ def _initialize_model(cls, adata, attr_dict):
     return model
 
 
-def _validate_var_names(
-    adata: AnnOrMuData,
-    source_var_names: npt.NDArray[np.str] | dict[str, npt.NDArray[np.str]]
-) -> None:
-    has_per_mod_var_names = isinstance(adata, mudata.MuData) and isinstance(source_var_names, dict)
-
-    if not has_per_mod_var_names:
-        valid = np.array_equal(source_var_names, adata.var_names.astype(str).to_numpy())
-    else:
-        valid = all(
-            np.array_equal(
-                source_var_names[mod_key],
-                adata.mod[mod_key].var_names.astype(str).to_numpy()
-            )
-            for mod_key in source_var_names
-        )
-    
-    if not valid:
-        warnings.warn(
-            "`var_names` for the passed in `adata` does not match the `var_names` of the `adata` "
-            "used to train the model. For valid results, the loaded `var_names` need to be the "
-            "same and in the same order as for the `adata` used to train the model.",
-            UserWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-
-def _prepare_obs(
-    idx1: list[bool] | np.ndarray | str,
-    idx2: list[bool] | np.ndarray | str,
-    adata: anndata.AnnData,
-):
-    """Construct an array used for masking.
-
-    Given population identifiers `idx1` and potentially `idx2`,
-    this function creates an array `obs_col` that identifies both populations
-    for observations contained in `adata`.
-    In particular, `obs_col` will take values `group1` (resp. `group2`)
-    for `idx1` (resp `idx2`).
+def _get_var_names(adata: AnnOrMuData) -> VarNames:
+    """Get ``var_names`` from an :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
 
     Parameters
     ----------
-    idx1
-        Can be of three types. First, it can corresponds to a boolean mask that
-        has the same shape as adata. It can also corresponds to a list of indices.
-        Last, it can correspond to string query of adata.obs columns.
-    idx2
-        Same as above
     adata
-        Anndata
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+
+    Returns
+    -------
+    A :class:`~numpy.ndarray` of `str` if ``adata`` is an :class:`~anndata.AnnData` object, or a
+    dictionary with keys corresponding to the modalities and values being :class:`~numpy.ndarray`
+    of `str` if ``adata`` is a :class:`~mudata.MuData` object.
+
+    Raises
+    ------
+    TypeError
+        If ``adata`` is not an :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
     """
+    if isinstance(adata, AnnData):
+        var_names = adata.var_names.astype(str).to_numpy()
+    elif isinstance(adata, MuData):
+        var_names = {
+            mod_key: adata.mod[mod_key].var_names.astype(str).to_numpy() for mod_key in adata.mod
+        }
+    else:
+        raise TypeError("`adata` must be an AnnData or MuData object.")
 
-    def ravel_idx(my_idx, obs_df):
-        return (
-            obs_df.index.isin(obs_df.query(my_idx).index)
-            if isinstance(my_idx, str)
-            else np.asarray(my_idx).ravel()
+    return var_names
+
+
+def _validate_var_names(adata: AnnOrMuData, source_var_names: VarNames) -> None:
+    """Validate that source and loaded ``var_names`` are the same.
+
+    Parameters
+    ----------
+    adata
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+    source_var_names
+        ``var_names`` from a saved model file corresponding to the variable names used during
+        model training.
+
+    Raises
+    ------
+    UserWarning
+        If ``var_names`` for the loaded ``adata`` do not match those of the ``adata`` used to train
+        the model.
+    """
+    from numpy import array_equal
+
+    load_var_names: VarNames = _get_var_names(adata)
+    has_per_mod_var_names = isinstance(adata, MuData) and isinstance(source_var_names, dict)
+
+    if not has_per_mod_var_names:
+        valid_load_var_names = array_equal(source_var_names, load_var_names)
+    else:
+        valid_load_var_names = all(
+            array_equal(source_var_names.get(mod_key), load_var_names.get(mod_key))
+            for mod_key in source_var_names
         )
 
-    obs_df = adata.obs
-    idx1 = ravel_idx(idx1, obs_df)
-    g1_key = "one"
-    obs_col = np.array(["None"] * adata.shape[0], dtype=str)
-    obs_col[idx1] = g1_key
-    group1 = [g1_key]
-    group2 = None if idx2 is None else "two"
-    if idx2 is not None:
-        idx2 = ravel_idx(idx2, obs_df)
-        obs_col[idx2] = group2
-    if (obs_col[idx1].shape[0] == 0) or (obs_col[idx2].shape[0] == 0):
-        raise ValueError("One of idx1 or idx2 has size zero.")
-    return obs_col, group1, group2
-
-
-def _de_core(
-    adata_manager,
-    model_fn,
-    representation_fn,
-    groupby,
-    group1,
-    group2,
-    idx1,
-    idx2,
-    all_stats,
-    all_stats_fn,
-    col_names,
-    mode,
-    batchid1,
-    batchid2,
-    delta,
-    batch_correction,
-    fdr,
-    silent,
-    **kwargs,
-):
-    """Internal function for DE interface."""
-    adata = adata_manager.adata
-    if group1 is None and idx1 is None:
-        group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
-        if len(group1) == 1:
-            raise ValueError("Only a single group in the data. Can't run DE on a single group.")
-
-    if not isinstance(group1, IterableClass) or isinstance(group1, str):
-        group1 = [group1]
-
-    # make a temp obs key using indices
-    temp_key = None
-    if idx1 is not None:
-        obs_col, group1, group2 = _prepare_obs(idx1, idx2, adata)
-        temp_key = "_scvi_temp_de"
-        adata.obs[temp_key] = obs_col
-        groupby = temp_key
-
-    df_results = []
-    dc = DifferentialComputation(model_fn, representation_fn, adata_manager)
-    for g1 in track(
-        group1,
-        description="DE...",
-        disable=silent,
-    ):
-        cell_idx1 = (adata.obs[groupby] == g1).to_numpy().ravel()
-        if group2 is None:
-            cell_idx2 = ~cell_idx1
-        else:
-            cell_idx2 = (adata.obs[groupby] == group2).to_numpy().ravel()
-
-        all_info = dc.get_bayes_factors(
-            cell_idx1,
-            cell_idx2,
-            mode=mode,
-            delta=delta,
-            batchid1=batchid1,
-            batchid2=batchid2,
-            use_observed_batches=not batch_correction,
-            **kwargs,
+    if not valid_load_var_names:
+        warnings.warn(
+            "`var_names` for the loaded `adata` does not match those of the `adata` used to train "
+            "the model. For valid results, the former need to be the same and in the same order "
+            "as the latter.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
-
-        if all_stats is True:
-            genes_properties_dict = all_stats_fn(adata_manager, cell_idx1, cell_idx2)
-            all_info = {**all_info, **genes_properties_dict}
-
-        res = pd.DataFrame(all_info, index=col_names)
-        sort_key = "proba_de" if mode == "change" else "bayes_factor"
-        res = res.sort_values(by=sort_key, ascending=False)
-        if mode == "change":
-            res[f"is_de_fdr_{fdr}"] = _fdr_de_prediction(res["proba_de"], fdr=fdr)
-        if idx1 is None:
-            g2 = "Rest" if group2 is None else group2
-            res["comparison"] = f"{g1} vs {g2}"
-            res["group1"] = g1
-            res["group2"] = g2
-        df_results.append(res)
-
-    if temp_key is not None:
-        del adata.obs[temp_key]
-
-    result = pd.concat(df_results, axis=0)
-
-    return result
-
-
-def _fdr_de_prediction(posterior_probas: pd.Series, fdr: float = 0.05) -> pd.Series:
-    """Compute posterior expected FDR and tag features as DE."""
-    if not posterior_probas.ndim == 1:
-        raise ValueError("posterior_probas should be 1-dimensional")
-    original_index = posterior_probas.index
-    sorted_pgs = posterior_probas.sort_values(ascending=False)
-    cumulative_fdr = (1.0 - sorted_pgs).cumsum() / (1.0 + np.arange(len(sorted_pgs)))
-    d = (cumulative_fdr <= fdr).sum()
-    is_pred_de = pd.Series(np.zeros_like(cumulative_fdr).astype(bool), index=sorted_pgs.index)
-    is_pred_de.iloc[:d] = True
-    is_pred_de = is_pred_de.loc[original_index]
-    return is_pred_de

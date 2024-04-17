@@ -4,7 +4,7 @@
 import logging
 import warnings
 
-from ._constants import REGISTRY_KEYS
+from ._constants import REGISTRY_KEYS, SAVE_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
@@ -25,6 +25,7 @@ scvi_logger.propagate = False
 __all__ = [
     "settings",
     "REGISTRY_KEYS",
+    "SAVE_KEYS",
     "data",
     "model",
     "external",
