@@ -9,7 +9,7 @@ from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
 from scvi.data._utils import _is_minified
-from scvi.model.base._utils import _load_saved_files
+from scvi.model.base._save_load import _load_saved_files
 
 from ._constants import _SCVI_HUB
 from ._template import template
