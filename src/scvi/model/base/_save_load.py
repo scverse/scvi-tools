@@ -13,6 +13,7 @@ from anndata import AnnData, read_h5ad
 from scvi import settings
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
+from scvi.model.base._constants import SAVE_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +23,13 @@ def _load_legacy_saved_files(
     file_name_prefix: str,
     load_adata: bool,
 ) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
-    model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
-    var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names.csv")
-    setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
+    model_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_MODEL_FNAME}")
+    var_names_path = os.path.join(
+        dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_VAR_NAMES_FNAME}"
+    )
+    setup_dict_path = os.path.join(
+        dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_SETUP_DICT_FNAME}"
+    )
 
     model_state_dict = torch.load(model_path, map_location="cpu")
 
@@ -34,7 +39,7 @@ def _load_legacy_saved_files(
         attr_dict = pd.read_pickle(handle)
 
     if load_adata:
-        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata.h5ad")
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.ADATA_FNAME}")
         if os.path.exists(adata_path):
             adata = read_h5ad(adata_path)
         elif not os.path.exists(adata_path):
@@ -55,7 +60,7 @@ def _load_saved_files(
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
 
-    model_file_name = f"{file_name_prefix}model.pt"
+    model_file_name = f"{file_name_prefix}{SAVE_KEYS.MODEL_FNAME}"
     model_path = os.path.join(dir_path, model_file_name)
     try:
         _download(backup_url, dir_path, model_file_name)
@@ -67,13 +72,13 @@ def _load_saved_files(
             "`convert_legacy_save` to convert to an updated format."
         ) from exc
 
-    model_state_dict = model["model_state_dict"]
-    var_names = model["var_names"]
-    attr_dict = model["attr_dict"]
+    model_state_dict = model.get(SAVE_KEYS.MODEL_STATE_DICT_KEY)
+    var_names = model.get(SAVE_KEYS.VAR_NAMES_KEY)
+    attr_dict = model.get(SAVE_KEYS.ATTR_DICT_KEY)
 
     if load_adata:
         is_mudata = attr_dict["registry_"].get(_SETUP_METHOD_NAME) == "setup_mudata"
-        file_suffix = "adata.h5ad" if is_mudata is False else "mdata.h5mu"
+        file_suffix = SAVE_KEYS.ADATA_FNAME if is_mudata is False else SAVE_KEYS.MDATA_FNAME
         adata_path = os.path.join(dir_path, f"{file_name_prefix}{file_suffix}")
         if os.path.exists(adata_path):
             if is_mudata:
