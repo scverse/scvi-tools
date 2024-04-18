@@ -839,7 +839,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         adata = self._validate_anndata(adata)
         col_names = adata.var_names[self.n_genes : (self.n_genes + self.n_regions)]
         model_fn = partial(
-            self.get_normalized_expression,
+            self.get_accessibility_estimates,
             batch_size=batch_size,
         )
         all_stats_fn = partial(
