@@ -47,9 +47,7 @@ class LibrarySizeEncoder(torch.nn.Module):
             inject_covariates=deep_inject_covariates,
             **kwargs,
         )
-        self.output = torch.nn.Sequential(
-            torch.nn.Linear(n_hidden, 1), torch.nn.LeakyReLU()
-        )
+        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, 1), torch.nn.LeakyReLU())
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         """Forward pass."""
@@ -158,17 +156,13 @@ class DecoderADT(torch.nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = torch.exp(
-            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
-        )
+        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
         py_fore = self.py_fore_decoder(z, *cat_list)
         py_fore_cat_z = torch.cat([py_fore, z], dim=-1)
-        py_["fore_scale"] = (
-            self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
-        )
+        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
         py_["rate_fore"] = py_["rate_back"] * py_["fore_scale"]
 
         p_mixing = self.sigmoid_decoder(z, *cat_list)
@@ -236,8 +230,6 @@ class POISSONMULTIVAE(BaseModuleClass):
         Number of hidden layers used for decoder NN.
     dropout_rate
         Dropout rate for neural networks
-    region_factors
-        Include region-specific factors in the model
     use_batch_norm
         One of the following
         * ``'encoder'`` - use batch normalization in the encoder only
@@ -277,9 +269,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         n_obs: int = 0,
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
-        gene_dispersion: Literal[
-            "gene", "gene-batch", "gene-label", "gene-cell"
-        ] = "gene",
+        gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         n_hidden: int = None,
         n_latent: int = None,
         n_layers_encoder: int = 2,
@@ -287,7 +277,6 @@ class POISSONMULTIVAE(BaseModuleClass):
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
         dropout_rate: float = 0.1,
-        region_factors: bool = True,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
@@ -333,9 +322,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         self.use_size_factor_key_expr = use_size_factor_key_expr
         self.use_size_factor_key_acc = use_size_factor_key_acc
 
-        cat_list = (
-            [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
-        )
+        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
         encoder_cat_list = cat_list if encode_covariates else None
 
         # expression
@@ -465,9 +452,7 @@ class POISSONMULTIVAE(BaseModuleClass):
                     torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
                 )
             else:
-                self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins)
-                )
+                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins))
                 self.background_pro_log_beta = torch.nn.Parameter(
                     torch.clamp(torch.randn(n_input_proteins), -10, 1)
                 )
@@ -522,13 +507,9 @@ class POISSONMULTIVAE(BaseModuleClass):
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_batch)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_batch))
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_labels)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_labels))
         else:  # protein-cell
             pass
 
@@ -590,9 +571,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         if self.n_input_regions == 0:
             x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
-            x_chr = x[
-                :, self.n_input_genes : (self.n_input_genes + self.n_input_regions)
-            ]
+            x_chr = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
 
         mask_expr = x_rna.sum(dim=1) > 0
         mask_acc = x_chr.sum(dim=1) > 0
@@ -794,27 +773,19 @@ class POISSONMULTIVAE(BaseModuleClass):
                 F.one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(
-                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r
-            )
+            px_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
         # Protein Decoder
-        py_, log_pro_back_mean = self.z_decoder_pro(
-            decoder_input, batch_index, *categorical_input
-        )
+        py_, log_pro_back_mean = self.z_decoder_pro(decoder_input, batch_index, *categorical_input)
         # Protein Dispersion
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(
-                F.one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r
-            )
+            py_r = F.linear(F.one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(
-                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r
-            )
+            py_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
@@ -833,9 +804,7 @@ class POISSONMULTIVAE(BaseModuleClass):
             "log_pro_back_mean": log_pro_back_mean,
         }
 
-    def loss(
-        self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
-    ):
+    def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
         """Computes the loss function for the model."""
         # Get the data
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -863,9 +832,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         px_rate = generative_outputs["px_rate"]
         px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
-        rl_expression = self.get_reconstruction_loss_expression(
-            x_rna, px_rate, px_r, px_dropout
-        )
+        rl_expression = self.get_reconstruction_loss_expression(x_rna, px_rate, px_r, px_dropout)
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         if mask_pro.sum().gt(0):
@@ -879,9 +846,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         recon_loss_expression = rl_expression * mask_expr
         recon_loss_accessibility = rl_accessibility * mask_acc
         recon_loss_protein = rl_protein * mask_pro
-        recon_loss = (
-            recon_loss_expression + recon_loss_accessibility + recon_loss_protein
-        )
+        recon_loss = recon_loss_expression + recon_loss_accessibility + recon_loss_protein
 
         # Compute KLD between Z and N(0,I)
         qz_m = inference_outputs["qz_m"]
@@ -917,18 +882,14 @@ class POISSONMULTIVAE(BaseModuleClass):
             "kl_divergence_z": kl_div_z,
             "kl_divergence_paired": kl_div_paired,
         }
-        return LossOutput(
-            loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local)
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
         rl = 0.0
         if self.gene_likelihood == "zinb":
             rl = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
+                -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout)
                 .log_prob(x)
                 .sum(dim=-1)
             )
@@ -943,9 +904,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         rl = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return rl
 
-    def _compute_mod_penalty(
-        self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3
-    ):
+    def _compute_mod_penalty(self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3):
         """Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD).
 
         Parameters
@@ -962,9 +921,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         if self.modality_penalty == "None":
             return 0
         elif self.modality_penalty == "Jeffreys":
-            pair_penalty = torch.zeros(
-                mask1.shape[0], device=mask1.device, requires_grad=True
-            )
+            pair_penalty = torch.zeros(mask1.shape[0], device=mask1.device, requires_grad=True)
             if mask12.sum().gt(0):
                 penalty12 = sym_kld(
                     mod_params1[0],
@@ -972,9 +929,9 @@ class POISSONMULTIVAE(BaseModuleClass):
                     mod_params2[0],
                     mod_params2[1].sqrt(),
                 )
-                penalty12 = torch.where(
-                    mask12, penalty12.T, torch.zeros_like(penalty12).T
-                ).sum(dim=0)
+                penalty12 = torch.where(mask12, penalty12.T, torch.zeros_like(penalty12).T).sum(
+                    dim=0
+                )
                 pair_penalty = pair_penalty + penalty12
             if mask13.sum().gt(0):
                 penalty13 = sym_kld(
@@ -983,9 +940,9 @@ class POISSONMULTIVAE(BaseModuleClass):
                     mod_params3[0],
                     mod_params3[1].sqrt(),
                 )
-                penalty13 = torch.where(
-                    mask13, penalty13.T, torch.zeros_like(penalty13).T
-                ).sum(dim=0)
+                penalty13 = torch.where(mask13, penalty13.T, torch.zeros_like(penalty13).T).sum(
+                    dim=0
+                )
                 pair_penalty = pair_penalty + penalty13
             if mask23.sum().gt(0):
                 penalty23 = sym_kld(
@@ -994,32 +951,30 @@ class POISSONMULTIVAE(BaseModuleClass):
                     mod_params3[0],
                     mod_params3[1].sqrt(),
                 )
-                penalty23 = torch.where(
-                    mask23, penalty23.T, torch.zeros_like(penalty23).T
-                ).sum(dim=0)
+                penalty23 = torch.where(mask23, penalty23.T, torch.zeros_like(penalty23).T).sum(
+                    dim=0
+                )
                 pair_penalty = pair_penalty + penalty23
 
         elif self.modality_penalty == "MMD":
-            pair_penalty = torch.zeros(
-                mask1.shape[0], device=mask1.device, requires_grad=True
-            )
+            pair_penalty = torch.zeros(mask1.shape[0], device=mask1.device, requires_grad=True)
             if mask12.sum().gt(0):
                 penalty12 = torch.linalg.norm(mod_params1[0] - mod_params2[0], dim=1)
-                penalty12 = torch.where(
-                    mask12, penalty12.T, torch.zeros_like(penalty12).T
-                ).sum(dim=0)
+                penalty12 = torch.where(mask12, penalty12.T, torch.zeros_like(penalty12).T).sum(
+                    dim=0
+                )
                 pair_penalty = pair_penalty + penalty12
             if mask13.sum().gt(0):
                 penalty13 = torch.linalg.norm(mod_params1[0] - mod_params3[0], dim=1)
-                penalty13 = torch.where(
-                    mask13, penalty13.T, torch.zeros_like(penalty13).T
-                ).sum(dim=0)
+                penalty13 = torch.where(mask13, penalty13.T, torch.zeros_like(penalty13).T).sum(
+                    dim=0
+                )
                 pair_penalty = pair_penalty + penalty13
             if mask23.sum().gt(0):
                 penalty23 = torch.linalg.norm(mod_params2[0] - mod_params3[0], dim=1)
-                penalty23 = torch.where(
-                    mask23, penalty23.T, torch.zeros_like(penalty23).T
-                ).sum(dim=0)
+                penalty23 = torch.where(mask23, penalty23.T, torch.zeros_like(penalty23).T).sum(
+                    dim=0
+                )
                 pair_penalty = pair_penalty + penalty23
         else:
             raise ValueError("modality penalty not supported")

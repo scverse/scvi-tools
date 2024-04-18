@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
@@ -49,11 +48,12 @@ logger = logging.getLogger(__name__)
 
 
 class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
-    # TODO: Add citation to docstring/ update docstring
     """Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
     or accessibility) datasets.
+
+    In this model, the accessibility data is modeled using a Poisson distribution :cite:p:`Martens2023`.
 
     Parameters
     ----------
@@ -85,10 +85,6 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         Number of hidden layers used for decoder NNs.
     dropout_rate
         Dropout rate for neural networks.
-    model_depth
-        Model sequencing depth / library size.
-    region_factors
-        Include region-specific factors in the model.
     gene_dispersion
         One of the following
         * ``'gene'`` - genes_dispersion parameter of NB is constant per gene across cells
@@ -109,7 +105,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
     fully_paired
         allows the simplification of the model if the data is fully paired. Currently ignored.
     **model_kwargs
-        Keyword args for :class:`~scvi.module.MULTIVAE`
+        Keyword args for :class:`~scvi.external.POMULTIVAE`
 
     Examples
     --------
@@ -117,8 +113,8 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
     >>> adata_atac = scvi.data.read_10x_atac(path_to_atac_anndata)
     >>> adata_multi = scvi.data.read_10x_multiome(path_to_multiomic_anndata)
     >>> adata_mvi = scvi.data.organize_multiome_anndatas(adata_multi, adata_rna, adata_atac)
-    >>> scvi.model.MULTIVI.setup_anndata(adata_mvi, batch_key="modality")
-    >>> vae = scvi.model.MULTIVI(adata_mvi)
+    >>> scvi.external.POISSONMULTIVI.setup_anndata(adata_mvi, batch_key="modality")
+    >>> vae = scvi.external.POISSONMULTIVI(adata_mvi)
     >>> vae.train()
 
     Notes
@@ -132,7 +128,10 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
        the modality each cell originated from. This allows the model to focus mixing efforts, using
        an adversarial component, on mixing the modalities. Other covariates can be specified using
        the `categorical_covariate_keys` argument.
-    """
+
+    * The accessibility counts should be fragment counts and not read counts or binarized data.
+        See :doc:`/tutorials/notebooks/atac/PoissonVI for more details.
+    """  # noqa: E501
 
     _module_cls = POISSONMULTIVAE
     _training_plan_cls = AdversarialTrainingPlan
@@ -149,7 +148,6 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         dropout_rate: float = 0.1,
-        region_factors: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
@@ -158,18 +156,14 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
-        protein_dispersion: Literal[
-            "protein", "protein-batch", "protein-label"
-        ] = "protein",
+        protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
         **model_kwargs,
     ):
         super().__init__(adata)
 
         prior_mean, prior_scale = None, None
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
@@ -201,7 +195,6 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             dropout_rate=dropout_rate,
-            region_factors=region_factors,
             gene_likelihood=gene_likelihood,
             gene_dispersion=dispersion,
             use_batch_norm=use_batch_norm,
@@ -217,7 +210,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             **model_kwargs,
         )
         self._model_summary_string = (
-            f"MultiVI Model with the following params: \nn_genes: {n_genes}, "
+            f"PoissonMultiVI Model with the following params: \nn_genes: {n_genes}, "
             f"n_regions: {n_regions}, n_proteins: {n_proteins}, n_hidden: {self.module.n_hidden}, "
             f"n_latent: {self.module.n_latent}, n_layers_encoder: {n_layers_encoder}, "
             f"n_layers_decoder: {n_layers_decoder}, dropout_rate: {dropout_rate}, "
@@ -339,9 +332,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             )
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
-            kwargs["callbacks"].append(
-                SaveBestState(monitor="reconstruction_loss_validation")
-            )
+            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -392,9 +383,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         lib_exp = []
         lib_acc = []
@@ -443,9 +432,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         self._check_adata_modality_weights(adata)
         keys = {"z": "z", "qz_m": "qz_m", "qz_v": "qz_v"}
         if self.fully_paired and modality != "joint":
-            raise RuntimeError(
-                "A fully paired model only has a joint latent representation."
-            )
+            raise RuntimeError("A fully paired model only has a joint latent representation.")
         if not self.fully_paired and modality != "joint":
             if modality == "expression":
                 keys = {"z": "z_expr", "qz_m": "qzm_expr", "qz_v": "qzv_expr"}
@@ -459,9 +446,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
                 )
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
@@ -490,15 +475,12 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         transform_batch: str | int | None = None,
         region_list: Sequence[str] | None = None,
         use_z_mean: bool = True,
-        library_size: float | Literal["latent"] = 1,
         normalize_regions: bool = False,
         n_samples: int = 1,
         n_samples_overall: int = None,
-        weights: Literal["uniform", "importance"] | None = None,
         batch_size: int = 128,
         return_mean: bool = True,
         return_numpy: bool = False,
-        **importance_weighting_kwargs,
     ) -> pd.DataFrame | np.ndarray:
         """Returns the normalized accessibility matrix.
 
@@ -519,10 +501,6 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             Return frequencies of accessibility for a subset of regions.
             This can save memory when working with large datasets and few regions are
             of interest.
-        library_size
-            Scale the accessibility frequencies to a common library size.
-            This allows accessibility counts to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent library size.
         normalize_regions
             Whether to reintroduce region factors to scale the normalized accessibility. This makes
             the estimates closer to the input, but removes the region-level bias correction. False
@@ -531,8 +509,6 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             Number of posterior samples to use for estimation.
         n_samples_overall
             Number of posterior samples to use for estimation. Overrides `n_samples`.
-        weights
-            Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
@@ -541,9 +517,6 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes region names as columns. If either `n_samples=1` or `return_mean=True`,
             defaults to `False`. Otherwise, it defaults to `True`.
-        importance_weighting_kwargs
-            Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
         Returns
         -------
@@ -558,12 +531,10 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         # this is similar to PeakVI's region normalization where we ignore the factor that is
         # learnt per region
         if not normalize_regions:
-            region_factors = self.module.z_decoder_accessibility.px_scale_decoder[
-                -2
-            ].bias
+            region_factors = self.module.z_decoder_accessibility.px_scale_decoder[-2].bias
             # set region_factors (bias) to 0
-            self.module.z_decoder_accessibility.px_scale_decoder[-2].bias = (
-                torch.nn.Parameter(torch.zeros_like(region_factors))
+            self.module.z_decoder_accessibility.px_scale_decoder[-2].bias = torch.nn.Parameter(
+                torch.zeros_like(region_factors)
             )
 
         self._check_adata_modality_weights(adata)
@@ -573,18 +544,14 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
             indices = np.random.choice(indices, n_samples_overall)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
         if region_list is None:
             region_mask = slice(None)
         else:
-            all_regions = adata.var_names[
-                self.n_genes : (self.n_genes + self.n_regions)
-            ]
+            all_regions = adata.var_names[self.n_genes : (self.n_genes + self.n_regions)]
             region_mask = [region in region_list for region in all_regions]
 
         accs = []
@@ -593,9 +560,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             for batch in transform_batch:
                 if batch is not None:
                     batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
-                    tensors[REGISTRY_KEYS.BATCH_KEY] = (
-                        torch.ones_like(batch_indices) * batch
-                    )
+                    tensors[REGISTRY_KEYS.BATCH_KEY] = torch.ones_like(batch_indices) * batch
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs={"n_samples": n_samples},
@@ -621,8 +586,8 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
 
         if not normalize_regions:
             # reset region_factors (bias)
-            self.module.z_decoder_accessibility.px_scale_decoder[-2].bias = (
-                torch.nn.Parameter(region_factors)
+            self.module.z_decoder_accessibility.px_scale_decoder[-2].bias = torch.nn.Parameter(
+                region_factors
             )
 
         if return_numpy:
@@ -697,9 +662,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             indices = np.arange(adata.n_obs)
         if n_samples_overall is not None:
             indices = np.random.choice(indices, n_samples_overall)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
 
@@ -715,9 +678,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             for batch in transform_batch:
                 if batch is not None:
                     batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
-                    tensors[REGISTRY_KEYS.BATCH_KEY] = (
-                        torch.ones_like(batch_indices) * batch
-                    )
+                    tensors[REGISTRY_KEYS.BATCH_KEY] = torch.ones_like(batch_indices) * batch
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
                     inference_kwargs={"n_samples": n_samples},
@@ -769,9 +730,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         fdr_target: float = 0.05,
         silent: bool = False,
         two_sided: bool = True,
-        weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
-        importance_weighting_kwargs: dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""\.
@@ -799,14 +758,9 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         %(de_silent)s
         two_sided
             Whether to perform a two-sided test, or a one-sided test.
-        weights
-            Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
             Whether to filter outlier cells with
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
-        importance_weighting_kwargs
-            Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -844,13 +798,9 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         )
         all_stats_fn = partial(
             scatac_raw_counts_properties,
-            var_idx=np.arange(adata.shape[1])[
-                self.n_genes : (self.n_genes + self.n_regions)
-            ],
+            var_idx=np.arange(adata.shape[1])[self.n_genes : (self.n_genes + self.n_regions)],
         )
-        representation_fn = (
-            self.get_latent_representation if filter_outlier_cells else None
-        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
         if two_sided:
 
@@ -1033,9 +983,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
-        post = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         if protein_list is None:
             protein_mask = slice(None)
@@ -1059,9 +1007,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         if not isinstance(transform_batch, IterableClass):
             transform_batch = [transform_batch]
 
-        transform_batch = _get_batch_code_from_category(
-            self.adata_manager, transform_batch
-        )
+        transform_batch = _get_batch_code_from_category(self.adata_manager, transform_batch)
         for tensors in post:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
             py_mixing = torch.zeros_like(y[..., protein_mask])
@@ -1128,7 +1074,8 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
-        %(param_size_factor_key)s
+        %(param_size_factor_key_expr)s
+        %(param_size_factor_key_acc)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         protein_expression_obsm_key
@@ -1158,12 +1105,8 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
             NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY_ACC, size_factor_key_acc, required=False
             ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
         if protein_expression_obsm_key is not None:
@@ -1178,9 +1121,7 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
                 )
             )
 
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -1191,6 +1132,4 @@ class POISSONMULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, Arches
         :return:
         """
         if (adata is not None) and (self.module.modality_weights == "cell"):
-            raise RuntimeError(
-                "Held out data not permitted when using per cell weights"
-            )
+            raise RuntimeError("Held out data not permitted when using per cell weights")
