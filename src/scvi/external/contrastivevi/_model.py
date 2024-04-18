@@ -31,7 +31,7 @@ from scvi.model._utils import (
     use_distributed_sampler,
 )
 from scvi.model.base import BaseModelClass
-from scvi.model.base._utils import _de_core
+from scvi.model.base._de_core import _de_core
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp

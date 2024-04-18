@@ -14,11 +14,11 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.model._utils import parse_device_args
+from scvi.model.base._save_load import _initialize_model, _load_saved_files, _validate_var_names
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
 from ._base_model import BaseModelClass
-from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 
 logger = logging.getLogger(__name__)
 
