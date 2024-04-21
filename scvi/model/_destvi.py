@@ -242,6 +242,65 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             columns=column_names,
             index=index_names,
         )
+        
+    @torch.inference_mode()
+    def get_fine_celltypes(
+        self,
+        sc_model: CondSCVI,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        return_numpy: bool = False,
+    ) -> np.ndarray | dict[str, pd.DataFrame]:
+        """Returns the estimated cell-type specific latent space for the spatial data.
+
+        Parameters
+        ----------
+        sc_model
+            trained CondSCVI model
+        indices
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+        return_numpy
+            if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
+        """
+        self._check_if_trained()
+
+        column_names = [str(i) for i in np.arange(self.module.n_latent)]
+        index_names = self.adata.obs.index
+
+        if self.module.amortization in ["both", "latent"]:
+            stdl = self._make_data_loader(
+                adata=self.adata, indices=indices, batch_size=batch_size
+            )
+            gamma_ = []
+            proportions_modes_ = []
+            for tensors in stdl:
+                inference_inputs = self.module._get_inference_input(tensors)
+                outputs = self.module.inference(**inference_inputs)
+                generative_inputs = self.module._get_generative_input(tensors, outputs)
+                generative_outputs = self.module.generative(**generative_inputs)
+                gamma_local = generative_outputs["gamma"]
+                if self.module.prior_mode == 'mog':
+                    proportions_modes_local = generative_outputs['proportion_modes'] # pmc
+                    gamma_local = gamma_local # pncm
+                else:
+                    proportions_modes_local = torch.ones(gamma_local.shape[0], 1, 1)
+                    gamma_local = gamma_local.squeeze(0) # pncm
+                gamma_ += [gamma_local.cpu()]
+                proportions_modes_ += [proportions_modes_local.cpu()]
+                
+            proportions_modes = torch.cat(proportions_modes_, dim=-1).numpy()
+            gamma = torch.cat(gamma_, dim=-1).numpy()
+        else:
+            if indices is not None:
+                logger.info(
+                    "No amortization for latent values, ignoring adata and returning results for the full data"
+                )
+            gamma = self.module.gamma.detach().cpu().numpy()
+        
+        sc_latent_distribution = sc_model.get_latent_representation(return_dist=True)
+
 
     @torch.inference_mode()
     def get_gamma(

@@ -389,18 +389,18 @@ class MRDeconv(BaseModuleClass):
                 proportion_modes = generative_outputs["proportion_modes"]
                 pre_lse = (
                     Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
-                ) + torch.log(proportion_modes).permute(1, 0, 2)  # minibatch, p, n_labels
+                ) + torch.log(1e-3 + proportion_modes).permute(1, 0, 2)  # minibatch, p, n_labels
                 log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
-                neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
+                neg_log_likelihood_prior = - log_likelihood_prior.sum(1)  # minibatch
 
                 neg_log_likelihood_prior += weighting_cross_entropy * torch.nn.functional.cross_entropy(
                     proportion_modes_logits.permute(1, 0, 2), mp_vprior.repeat(x.shape[0], 1, 1), reduction='none').sum(1)
             else:
                 pre_lse = (
                     Normal(mean_vprior, torch.sqrt(var_vprior) + 1e-4).log_prob(gamma).sum(3)
-                ) + torch.log(mp_vprior)  # minibatch, p, n_labels
+                ) + torch.log(1e-3 + mp_vprior)  # minibatch, p, n_labels
                 log_likelihood_prior = torch.logsumexp(pre_lse, 1)  # minibatch, n_labels
-                neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
+                neg_log_likelihood_prior = - log_likelihood_prior.sum(1)  # minibatch
 
         if self.n_latent_amortization is not None:
             neg_log_likelihood_prior += kl(
@@ -434,7 +434,6 @@ class MRDeconv(BaseModuleClass):
         raise NotImplementedError("No sampling method for DestVI")
 
  
-    @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(
         self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None,
