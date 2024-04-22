@@ -81,7 +81,7 @@ def test_setup_mudata_unpaired():
             index=unpaired_adata.obs_names,
         )
     )
-    mdata.mod["protein"] = anndata.concat([protein_adata, pad_adata])
+    mdata.mod["protein"] = anndata.concat([protein_adata, pad_adata], join="outer")
     mdata.update()
     generic_setup_mudata_manager(mdata, layer_mod="rna", protein_expression_mod="protein")
 
