@@ -204,7 +204,7 @@ def test_totalvi(save_path):
     assert latent_lib_size.shape == (3, 1)
 
     pro_foreground_prob = model.get_protein_foreground_probability(
-        adata2, indices=[1, 2, 3], protein_list=["1", "2"]
+        adata2, indices=[1, 2, 3], protein_list=["protein_1", "protein_2"]
     )
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(adata2)
@@ -429,7 +429,7 @@ def test_totalvi_mudata():
     assert latent_lib_size.shape == (3, 1)
 
     pro_foreground_prob = model.get_protein_foreground_probability(
-        mdata2, indices=[1, 2, 3], protein_list=["1", "2"]
+        mdata2, indices=[1, 2, 3], protein_list=["gene_1", "gene_2"]
     )
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(mdata2)

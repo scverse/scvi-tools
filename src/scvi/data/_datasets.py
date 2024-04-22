@@ -517,6 +517,7 @@ def synthetic_iid(
     sparse_format: str | None = None,
     generate_coordinates: bool = False,
     return_mudata: bool = False,
+    **kwargs,
 ) -> AnnOrMuData:
     """Synthetic multimodal dataset.
 
@@ -600,6 +601,7 @@ def synthetic_iid(
         sparse_format=sparse_format,
         generate_coordinates=generate_coordinates,
         return_mudata=return_mudata,
+        **kwargs,
     )
 
 
