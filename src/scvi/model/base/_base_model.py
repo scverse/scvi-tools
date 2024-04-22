@@ -617,6 +617,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             var_names = self.adata.var_names.astype(str)
             var_names = var_names.to_numpy()
         else:
+            var_names = None
             warnings.warn(
                 "Model was initialized without AnnData, no var_names will be saved.",
                 UserWarning,
