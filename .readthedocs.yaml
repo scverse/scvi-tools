@@ -5,6 +5,7 @@ build:
     python: "3.11"
 sphinx:
   configuration: docs/conf.py
+  fail_on_warning: true # fail on all warnings to avoid broken references
 python:
   install:
     - method: pip
