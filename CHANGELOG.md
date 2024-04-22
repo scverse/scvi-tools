@@ -37,7 +37,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add `load_best_on_end` argument to {class}`scvi.train.SaveCheckpoint` to load the best model
     state at the end of training {pr}`2672`.
 - Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
-    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data {pr}`2692`.
+    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data
+    {pr}`2692`.
 
 #### Changed
 
@@ -65,6 +66,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {func}`scvi.model.base._de_core._de_core` {pr}`2731`.
 - Move {func}`scvi.model.base._utils._fdr_de_prediction` to
     {func}`scvi.model.base._de_core_._fdr_de_prediction` {pr}`2731`.
+- {func}`scvi.data.synthetic_iid` now generates unique variable names for protein and
+    accessibility data {pr}`2739`.
 
 #### Removed
 

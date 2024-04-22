@@ -238,10 +238,12 @@ def test_scvi(n_latent: int = 5):
     assert denoised.shape == (3, adata2.n_vars)
     sample = model.posterior_predictive_sample(adata2)
     assert sample.shape == adata2.shape
-    sample = model.posterior_predictive_sample(adata2, indices=[1, 2, 3], gene_list=["1", "2"])
+    sample = model.posterior_predictive_sample(
+        adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
     assert sample.shape == (3, 2)
     sample = model.posterior_predictive_sample(
-        adata2, indices=[1, 2, 3], gene_list=["1", "2"], n_samples=3
+        adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], n_samples=3
     )
     assert sample.shape == (3, 2, 3)
 
