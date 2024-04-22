@@ -75,8 +75,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
-   dataloaders.ContrastiveDataLoader
-   dataloaders.ContrastiveDataSplitter
 
 ```
 
