@@ -897,7 +897,7 @@ def test_set_seed(n_latent: int = 5, seed: int = 1):
     )
 
 
-def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
+def test_scvi_no_anndata(save_path: str, n_batches: int = 3, n_latent: int = 5):
     from scvi.dataloaders import DataSplitter
 
     adata = synthetic_iid(n_batches=n_batches)
@@ -908,7 +908,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     data_module.n_vars = adata.n_vars
     data_module.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
+    model = SCVI(n_latent=n_latent)
     assert model._module_init_on_train
     assert model.module is None
 
@@ -921,6 +921,9 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
         model.train()
 
     model.train(max_epochs=1, data_module=data_module)
+
+    model_path = os.path.join(save_path, "scvi_no_anndata")
+    model.save(model_path, overwrite=True)
 
     # must set n_obs for defaulting max_epochs
     data_module.n_obs = 100_000_000  # large number for fewer default epochs

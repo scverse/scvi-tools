@@ -613,8 +613,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
+        if hasattr(self, "adata"):
+            var_names = self.adata.var_names.astype(str)
+            var_names = var_names.to_numpy()
+        else:
+            warnings.warn(
+                "Model was initialized without AnnData, no var_names will be saved.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()
