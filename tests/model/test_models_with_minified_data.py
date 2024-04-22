@@ -375,13 +375,17 @@ def test_scvi_with_minified_adata_posterior_predictive_sample():
     model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
-    sample_orig = model.posterior_predictive_sample(indices=[1, 2, 3], gene_list=["1", "2"])
+    sample_orig = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
 
     model.minify_adata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    sample_new = model.posterior_predictive_sample(indices=[1, 2, 3], gene_list=["1", "2"])
+    sample_new = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
     assert sample_new.shape == (3, 2)
 
     np.testing.assert_array_equal(sample_new.todense(), sample_orig.todense())

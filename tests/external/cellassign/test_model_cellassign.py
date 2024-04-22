@@ -12,7 +12,7 @@ def get_test_adata_marker_mat():
     adata.obs["size_factor"] = adata.X.sum(1)
 
     marker_df = pd.DataFrame(data=np.random.randint(2, size=(100, 5)))
-    marker_df.index = marker_df.index.map(str)
+    marker_df.index = pd.Index([f"gene_{i}" for i in range(100)])
 
     return adata, marker_df
 
