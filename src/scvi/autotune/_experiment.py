@@ -540,4 +540,4 @@ def _trainable(
         model.train(**train_args)
     else:
         model = experiment.model_cls(**model_args)
-        model.train(data_module=experiment.data, **train_args)
+        model.train(datamodule=experiment.data, **train_args)

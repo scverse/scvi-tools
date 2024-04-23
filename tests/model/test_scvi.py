@@ -906,36 +906,36 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     SCVI.setup_anndata(adata, batch_key="batch")
     manager = SCVI._get_most_recent_anndata_manager(adata)
 
-    data_module = DataSplitter(manager)
-    data_module.n_vars = adata.n_vars
-    data_module.n_batch = n_batches
+    datamodule = DataSplitter(manager)
+    datamodule.n_vars = adata.n_vars
+    datamodule.n_batch = n_batches
 
     model = SCVI(n_latent=5)
     assert model._module_init_on_train
     assert model.module is None
 
-    # cannot infer default max_epochs without n_obs set in data_module
+    # cannot infer default max_epochs without n_obs set in datamodule
     with pytest.raises(ValueError):
-        model.train(data_module=data_module)
+        model.train(datamodule=datamodule)
 
-    # must pass in data_module if not initialized with adata
+    # must pass in datamodule if not initialized with adata
     with pytest.raises(ValueError):
         model.train()
 
-    model.train(max_epochs=1, data_module=data_module)
+    model.train(max_epochs=1, datamodule=datamodule)
 
     # must set n_obs for defaulting max_epochs
-    data_module.n_obs = 100_000_000  # large number for fewer default epochs
-    model.train(data_module=data_module)
+    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
+    model.train(datamodule=datamodule)
 
     model = SCVI(adata, n_latent=5)
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
 
-    # initialized with adata, cannot pass in data_module
+    # initialized with adata, cannot pass in datamodule
     with pytest.raises(ValueError):
-        model.train(data_module=data_module)
+        model.train(datamodule=datamodule)
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
@@ -984,3 +984,17 @@ def test_scvi_batch_embeddings(
 
     with pytest.raises(KeyError):
         _ = model.get_batch_representation()
+
+
+def test_scvi_inference_custom_dataloader(n_latent: int = 5):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(max_epochs=1)
+
+    dataloader = model._make_data_loader(adata)
+    _ = model.get_elbo(dataloader=dataloader)
+    _ = model.get_marginal_ll(dataloader=dataloader)
+    _ = model.get_reconstruction_error(dataloader=dataloader)
+    _ = model.get_latent_representation(dataloader=dataloader)

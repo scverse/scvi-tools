@@ -43,13 +43,13 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
     SCVI.setup_anndata(adata, batch_key="batch")
     manager = SCVI._get_most_recent_anndata_manager(adata)
 
-    data_module = DataSplitter(manager)
-    data_module.n_vars = adata.n_vars
-    data_module.n_batch = n_batches
+    datamodule = DataSplitter(manager)
+    datamodule.n_vars = adata.n_vars
+    datamodule.n_batch = n_batches
 
     experiment = run_autotune(
         SCVI,
-        data_module,
+        datamodule,
         metrics=["elbo_validation"],
         mode="min",
         search_space={
