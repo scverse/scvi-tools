@@ -8,11 +8,6 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ### 1.2.0 (unreleased)
 
-#### Fixed
-
-- Fix {meth}`scvi.model.base.BaseModelClass` to save when model is initialized without `adata`
-    {pr}`2738`.
-
 #### Added
 
 - Add new experimental functional API for hyperparameter tuning with
@@ -41,6 +36,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2692`.
 - Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
     the `dataloader` argument {pr}`2748`.
+- Add initial support for {meth}`scvi.model.base.BaseModelClass.save` when model is initialized
+    without `adata` {pr}`2738`.
 
 #### Changed
 
