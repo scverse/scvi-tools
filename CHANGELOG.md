@@ -65,6 +65,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {func}`scvi.model.base._de_core_._fdr_de_prediction` {pr}`2731`.
 - {func}`scvi.data.synthetic_iid` now generates unique variable names for protein and
     accessibility data {pr}`2739`.
+- The `data_module` argument in {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` has been
+    renamed to `datamodule` for consistency {pr}`2749`.
 
 #### Removed
 
