@@ -28,8 +28,9 @@ def compute_elbo(
         :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
         element is an instance of :class:`~scvi.module.base.LossOutput`.
     dataloader
-        An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
-        minibatch formatted as expected by the ``forward`` method of ``vae``.
+        An iterator over minibatches of data on which to compute the metric. The minibatches
+        should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+        the ``forward`` method of ``module``.
     **kwargs
         Additional keyword arguments to pass into ``module``.
 
@@ -63,8 +64,9 @@ def compute_reconstruction_error(
         :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
         element is an instance of :class:`~scvi.module.base.LossOutput`.
     dataloader
-        An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
-        minibatch formatted as expected by the ``forward`` method of ``vae``.
+        An iterator over minibatches of data on which to compute the metric. The minibatches
+        should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+        the ``forward`` method of ``module``.
     **kwargs
         Additional keyword arguments to pass into ``module``.
 

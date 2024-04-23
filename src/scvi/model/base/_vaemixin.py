@@ -47,8 +47,8 @@ class VAEMixin:
             ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``.
         dataloader
             An iterator over minibatches of data on which to compute the metric. The minibatches
-            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
-            expected by the model. If ``None``, a dataloader is created from ``adata``.
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -108,8 +108,8 @@ class VAEMixin:
             likelihood for each observation.
         dataloader
             An iterator over minibatches of data on which to compute the metric. The minibatches
-            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
-            expected by the model. If ``None``, a dataloader is created from ``adata``.
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         **kwargs
             Additional keyword arguments to pass into the module's ``marginal_ll`` method.
 
@@ -181,8 +181,8 @@ class VAEMixin:
             ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``
         dataloader
             An iterator over minibatches of data on which to compute the metric. The minibatches
-            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
-            expected by the model. If ``None``, a dataloader is created from ``adata``.
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -246,8 +246,8 @@ class VAEMixin:
             returns the mean of the latent distribution.
         dataloader
             An iterator over minibatches of data on which to compute the metric. The minibatches
-            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
-            expected by the model. If ``None``, a dataloader is created from ``adata``.
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------
