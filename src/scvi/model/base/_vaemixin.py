@@ -27,10 +27,11 @@ class VAEMixin:
     ) -> float:
         """Compute the evidence lower bound (ELBO) on the data.
 
-        The ELBO is a lower bound on the log-likelihood of the data used for optimization of VAEs.
-
-        The ELBO is a lower bound on the log likelihood of the data used for optimization
-        of VAEs. Note, this is not the negative ELBO, higher is better.
+        The ELBO is the reconstruction error plus the Kullback-Leibler (KL) divergences between the
+        variational distributions and the priors. It is different from the marginal log-likelihood;
+        specifically, it is a lower bound on the marginal log-likelihood plus a term that is
+        constant with respect to the variational distribution. It still gives good insights on the
+        modeling of the data and is fast to compute.
 
         Parameters
         ----------
@@ -40,12 +41,14 @@ class VAEMixin:
             ``None``, it defaults to the object used to initialize the model.
         indices
             Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
+            Ignored if ``dataloader`` is not ``None``.
         batch_size
-            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
-            ``None``, defaults to ``scvi.settings.batch_size``.
+            Minibatch size for the forward pass. If ``None``, defaults to
+            ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``.
         dataloader
-            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
-            minibatch formatted as expected by the model.
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
+            expected by the model. If ``None``, a dataloader is created from ``adata``.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -94,24 +97,27 @@ class VAEMixin:
             ``None``, it defaults to the object used to initialize the model.
         indices
             Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
+            Ignored if ``dataloader`` is not ``None``.
         n_mc_samples
-            Number of Monte Carlo samples to use for the estimator.
+            Number of Monte Carlo samples to use for the estimator. Passed into the module's
+            ``marginal_ll`` method.
         batch_size
-            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
-            ``None``, defaults to ``scvi.settings.batch_size``.
+            Minibatch size for the forward pass. If ``None``, defaults to
+            ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``.
         return_mean
             Whether to return the mean of the marginal log-likelihood or the marginal-log
             likelihood for each observation.
         dataloader
-            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
-            minibatch formatted as expected by the model.
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
+            expected by the model. If ``None``, a dataloader is created from ``adata``.
         **kwargs
             Additional keyword arguments to pass into the module's ``marginal_ll`` method.
 
         Returns
         -------
-        A tensor of shape ``(n_obs,)`` with the marginal log-likelihood for each observation if
-        ``return_mean`` is ``False``. Otherwise, returns the mean marginal log-likelihood.
+        If ``True``, returns the mean marginal log-likelihood. Otherwise returns a tensor of shape
+        ``(n_obs,)`` with the marginal log-likelihood for each observation.
 
         Notes
         -----
@@ -155,11 +161,13 @@ class VAEMixin:
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] = None,
         **kwargs,
-    ) -> float:
+    ) -> dict[str, float]:
         r"""Compute the reconstruction error on the data.
 
-        This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior
-        sample. Note, this is not the negative likelihood, higher is better.
+        The reconstruction error is the negative log likelihood of the data given the latent
+        variables. It is different from the marginal log-likelihood, but still gives good insights
+        on the modeling of the data and is fast to compute. This is typically written as
+        :math:`p(x \mid z)`, the likelihood term given one posterior sample.
 
         Parameters
         ----------
@@ -169,12 +177,14 @@ class VAEMixin:
             ``None``, it defaults to the object used to initialize the model.
         indices
             Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
+            Ignored if ``dataloader`` is not ``None``
         batch_size
-            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
-            ``None``, defaults to ``scvi.settings.batch_size``.
+            Minibatch size for the forward pass. If ``None``, defaults to
+            ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``
         dataloader
-            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
-            minibatch formatted as expected by the model.
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
+            expected by the model. If ``None``, a dataloader is created from ``adata``.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -222,6 +232,7 @@ class VAEMixin:
             ``None``, it defaults to the object used to initialize the model.
         indices
             Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
+            Ignored if ``dataloader`` is not ``None``
         give_mean
             If ``True``, returns the mean of the latent distribution. If ``False``, returns an
             estimate of the mean using ``mc_samples`` Monte Carlo samples.
@@ -230,14 +241,15 @@ class VAEMixin:
             closed-form mean (e.g., the logistic normal distribution). Not used if ``give_mean`` is
             ``True`` or if ``return_dist`` is ``True``.
         batch_size
-            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
-            ``None``, defaults to ``scvi.settings.batch_size``.
+            Minibatch size for the forward pass. If ``None``, defaults to
+            ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``
         return_dist
             If ``True``, returns the mean and variance of the latent distribution. Otherwise,
             returns the mean of the latent distribution.
         dataloader
-            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
-            minibatch formatted as expected by the model.
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor`s with keys as
+            expected by the model. If ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------

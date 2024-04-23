@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any, Callable
 
-import torch
 from torch import Tensor
 
 from scvi.module.base import LossOutput
@@ -80,12 +79,12 @@ def compute_reconstruction_error(
     log_likelihoods = {}
     for tensors in dataloader:
         _, _, loss_output = module(tensors, loss_kwargs={"kl_weight": 1}, **kwargs)
-        rec_losses = loss_output.reconstruction_loss
+        rec_losses: dict[str, Tensor] | Tensor = loss_output.reconstruction_loss
         if not isinstance(rec_losses, dict):
             rec_losses = {"reconstruction_loss": rec_losses}
 
         for key, value in rec_losses.items():
-            log_likelihoods[key] = log_likelihoods.get(key, 0.0) + torch.sum(value).item()
+            log_likelihoods[key] = log_likelihoods.get(key, 0.0) + value.sum().item()
 
     n_samples = len(dataloader.indices)
 
