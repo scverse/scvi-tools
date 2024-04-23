@@ -35,7 +35,7 @@ to [Semantic Versioning]. Full commit history is available in the
     distribution with mean-dispersion parameterization for modeling scBS-seq methylation data
     {pr}`2692`.
 - Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
-    the `dataloader` argument {pr}`xxxx`.
+    the `dataloader` argument {pr}`2748`.
 
 #### Changed
 
