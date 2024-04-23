@@ -42,11 +42,7 @@ def compute_elbo(
         _, _, loss_output = module(tensors, **kwargs)
         elbo += (loss_output.reconstruction_loss_sum + loss_output.kl_local_sum).item()
 
-    kl_global = loss_output.kl_global_sum
-    n_samples = len(dataloader.indices)
-    elbo += kl_global
-
-    return elbo / n_samples
+    return (elbo + loss_output.kl_global_sum) / len(dataloader.dataset)
 
 
 def compute_reconstruction_error(
@@ -86,6 +82,4 @@ def compute_reconstruction_error(
         for key, value in rec_losses.items():
             log_likelihoods[key] = log_likelihoods.get(key, 0.0) + value.sum().item()
 
-    n_samples = len(dataloader.indices)
-
-    return {key: -(value / n_samples) for key, value in log_likelihoods.items()}
+    return {key: -(value / len(dataloader.dataset)) for key, value in log_likelihoods.items()}

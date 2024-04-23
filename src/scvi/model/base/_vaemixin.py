@@ -64,8 +64,7 @@ class VAEMixin:
 
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-
-        if dataloader is None:
+        elif dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
@@ -130,8 +129,7 @@ class VAEMixin:
                 "The model's module must implement `marginal_ll` to compute the marginal "
                 "log-likelihood."
             )
-
-        if adata is not None and dataloader is not None:
+        elif adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
 
         if dataloader is None:
