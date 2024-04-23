@@ -984,3 +984,17 @@ def test_scvi_batch_embeddings(
 
     with pytest.raises(KeyError):
         _ = model.get_batch_representation()
+
+
+def test_scvi_inference_custom_dataloader(n_latent: int = 5):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(max_epochs=1)
+
+    dataloader = model._make_data_loader(adata)
+    _ = model.get_elbo(dataloader=dataloader)
+    _ = model.get_marginal_ll(dataloader=dataloader)
+    _ = model.get_reconstruction_error(dataloader=dataloader)
+    _ = model.get_latent_representation(dataloader=dataloader)

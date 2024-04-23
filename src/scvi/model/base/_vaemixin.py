@@ -1,30 +1,33 @@
-import logging
-from collections.abc import Sequence
-from typing import Optional, Union
+from __future__ import annotations
 
-import numpy as np
+import logging
+from collections.abc import Iterator, Sequence
+
+import numpy.typing as npt
 import torch
 from anndata import AnnData
+from torch import Tensor
 
 from scvi.utils import unsupported_if_adata_minified
-
-from ._log_likelihood import compute_elbo, compute_reconstruction_error
 
 logger = logging.getLogger(__name__)
 
 
 class VAEMixin:
-    """Univseral VAE methods."""
+    """Universal variational auto-encoder (VAE) methods."""
 
     @torch.inference_mode()
     @unsupported_if_adata_minified
     def get_elbo(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] = None,
     ) -> float:
-        """Return the ELBO for the data.
+        """Compute the evidence lower bound (ELBO) on the data.
+
+        The ELBO is a lower bound on the log-likelihood of the data used for optimization of VAEs.
 
         The ELBO is a lower bound on the log likelihood of the data used for optimization
         of VAEs. Note, this is not the negative ELBO, higher is better.
@@ -32,88 +35,128 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            :class:`~anndata.AnnData` object with :attr:`~anndata.AnnData.var_names` in the same
+            order as the ones used to train the model. If ``None`` and ``dataloader`` is also
+            ``None``, it defaults to the object used to initialize the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
+            ``None``, defaults to ``scvi.settings.batch_size``.
+        dataloader
+            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
+            minibatch formatted as expected by the model.
+        **kwargs
+            Additional keyword arguments to pass into the forward method of the module.
+
+        Returns
+        -------
+        Evidence lower bound (ELBO) of the data.
+
+        Notes
+        -----
+        This is not the negative ELBO, so higher is better.
         """
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        elbo = compute_elbo(self.module, scdl)
-        return -elbo
+        from scvi.model.base._log_likelihood import compute_elbo
+
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+        return -compute_elbo(self.module, dataloader)
 
     @torch.inference_mode()
     @unsupported_if_adata_minified
     def get_marginal_ll(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        n_mc_samples: int = 1000,
-        batch_size: Optional[int] = None,
-        return_mean: Optional[bool] = True,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        n_mc_samples: int = 1_000,
+        batch_size: int | None = None,
+        return_mean: bool = True,
+        dataloader: Iterator[dict[str, Tensor | None]] = None,
         **kwargs,
-    ) -> Union[torch.Tensor, float]:
-        """Return the marginal LL for the data.
+    ) -> float | Tensor:
+        """Compute the marginal log-likehood of the data.
 
-        The computation here is a biased estimator of the marginal log likelihood of the data.
-        Note, this is not the negative log likelihood, higher is better.
+        The computation here is a biased estimator of the marginal log-likelihood of the data.
 
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            :class:`~anndata.AnnData` object with :attr:`~anndata.AnnData.var_names` in the same
+            order as the ones used to train the model. If ``None`` and ``dataloader`` is also
+            ``None``, it defaults to the object used to initialize the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
         n_mc_samples
-            Number of Monte Carlo samples to use for marginal LL estimation.
+            Number of Monte Carlo samples to use for the estimator.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
+            ``None``, defaults to ``scvi.settings.batch_size``.
         return_mean
-            If False, return the marginal log likelihood for each observation.
-            Otherwise, return the mmean arginal log likelihood.
+            Whether to return the mean of the marginal log-likelihood or the marginal-log
+            likelihood for each observation.
+        dataloader
+            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
+            minibatch formatted as expected by the model.
+        **kwargs
+            Additional keyword arguments to pass into the module's ``marginal_ll`` method.
+
+        Returns
+        -------
+        A tensor of shape ``(n_obs,)`` with the marginal log-likelihood for each observation if
+        ``return_mean`` is ``False``. Otherwise, returns the mean marginal log-likelihood.
+
+        Notes
+        -----
+        This is not the negative log-likelihood, so higher is better.
         """
-        adata = self._validate_anndata(adata)
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        scdl = self._make_data_loader(
-            adata=adata,
-            indices=indices,
-            batch_size=batch_size,
-            shuffle=False,
-        )
-        if hasattr(self.module, "marginal_ll"):
-            log_lkl = []
-            for tensors in scdl:
-                log_lkl.append(
-                    self.module.marginal_ll(
-                        tensors,
-                        n_mc_samples=n_mc_samples,
-                        return_mean=return_mean,
-                        **kwargs,
-                    )
-                )
-            if not return_mean:
-                return torch.cat(log_lkl, 0)
-            else:
-                return np.mean(log_lkl)
-        else:
+        from numpy import mean
+
+        if not hasattr(self.module, "marginal_ll"):
             raise NotImplementedError(
-                "marginal_ll is not implemented for current model. "
-                "Please raise an issue on github if you need it."
+                "The model's module must implement `marginal_ll` to compute the marginal "
+                "log-likelihood."
             )
+
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+        log_likelihoods: list[float | Tensor] = [
+            self.module.marginal_ll(
+                tensors, n_mc_samples=n_mc_samples, return_mean=return_mean, **kwargs
+            )
+            for tensors in dataloader
+        ]
+
+        if return_mean:
+            return mean(log_likelihoods)
+        else:
+            return torch.cat(log_likelihoods, dim=0)
 
     @torch.inference_mode()
     @unsupported_if_adata_minified
     def get_reconstruction_error(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        **kwargs,
     ) -> float:
-        r"""Return the reconstruction error for the data.
+        r"""Compute the reconstruction error on the data.
 
         This is typically written as :math:`p(x \mid z)`, the likelihood term given one posterior
         sample. Note, this is not the negative likelihood, higher is better.
@@ -121,89 +164,133 @@ class VAEMixin:
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            :class:`~anndata.AnnData` object with :attr:`~anndata.AnnData.var_names` in the same
+            order as the ones used to train the model. If ``None`` and ``dataloader`` is also
+            ``None``, it defaults to the object used to initialize the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
+            ``None``, defaults to ``scvi.settings.batch_size``.
+        dataloader
+            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
+            minibatch formatted as expected by the model.
+        **kwargs
+            Additional keyword arguments to pass into the forward method of the module.
+
+        Returns
+        -------
+        Reconstruction error for the data.
+
+        Notes
+        -----
+        This is not the negative reconstruction error, so higher is better.
         """
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        reconstruction_error = compute_reconstruction_error(self.module, scdl)
-        return reconstruction_error
+        from scvi.model.base._log_likelihood import compute_reconstruction_error
+
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+        return compute_reconstruction_error(self.module, dataloader, **kwargs)
 
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        mc_samples: int = 5000,
-        batch_size: Optional[int] = None,
+        mc_samples: int = 5_000,
+        batch_size: int | None = None,
         return_dist: bool = False,
-    ) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
-        """Return the latent representation for each cell.
+        dataloader: Iterator[dict[str, Tensor | None]] = None,
+    ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
+        """Compute the latent representation of the data.
 
         This is typically denoted as :math:`z_n`.
 
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            :class:`~anndata.AnnData` object with :attr:`~anndata.AnnData.var_names` in the same
+            order as the ones used to train the model. If ``None`` and ``dataloader`` is also
+            ``None``, it defaults to the object used to initialize the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
         give_mean
-            Give mean of distribution or sample from it.
+            If ``True``, returns the mean of the latent distribution. If ``False``, returns an
+            estimate of the mean using ``mc_samples`` Monte Carlo samples.
         mc_samples
-            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte
-            Carlo samples to take for computing mean.
+            Number of Monte Carlo samples to use for the estimator for distributions with no
+            closed-form mean (e.g., the logistic normal distribution). Not used if ``give_mean`` is
+            ``True`` or if ``return_dist`` is ``True``.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for the forward pass. Only used if ``dataloader`` is ``None``. If
+            ``None``, defaults to ``scvi.settings.batch_size``.
         return_dist
-            Return (mean, variance) of distributions instead of just the mean.
-            If `True`, ignores `give_mean` and `mc_samples`. In the case of the latter,
-            `mc_samples` is used to compute the mean of a transformed distribution.
-            If `return_dist` is true the untransformed mean and variance are returned.
+            If ``True``, returns the mean and variance of the latent distribution. Otherwise,
+            returns the mean of the latent distribution.
+        dataloader
+            An iterator that returns a dictionary of :class:`~torch.Tensor` instances for each
+            minibatch formatted as expected by the model.
 
         Returns
         -------
-        Low-dimensional representation for each cell or a tuple containing its mean and variance.
+        An array of shape ``(n_obs, n_latent)`` if ``return_dist`` is ``False``. Otherwise, returns
+        a tuple of arrays ``(n_obs, n_latent)`` with the mean and variance of the latent
+        distribution.
         """
+        from torch.distributions import Distribution, Normal
+        from torch.nn.functional import softmax
+
         from scvi.module._constants import MODULE_KEYS
 
         self._check_if_trained(warn=False)
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
 
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        latent = []
-        latent_qzm = []
-        latent_qzv = []
-        for tensors in scdl:
-            inference_inputs = self.module._get_inference_input(tensors)
-            outputs = self.module.inference(**inference_inputs)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+        zs: list[Tensor] = []
+        qz_means: list[Tensor] = []
+        qz_vars: list[Tensor] = []
+        for tensors in dataloader:
+            outputs: dict[str, Tensor | Distribution | None] = self.module.inference(
+                **self.module._get_inference_input(tensors)
+            )
+
             if MODULE_KEYS.QZ_KEY in outputs:
-                qz = outputs[MODULE_KEYS.QZ_KEY]
+                qz: Distribution = outputs.get(MODULE_KEYS.QZ_KEY)
+                qzm: Tensor = qz.loc
+                qzv: Tensor = qz.scale.square()
             else:
-                qz_m, qz_v = outputs[MODULE_KEYS.QZM_KEY], outputs[MODULE_KEYS.QZV_KEY]
-                qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
-            if give_mean:
-                # does each model need to have this latent distribution param?
-                if self.module.latent_distribution == "ln":
-                    samples = qz.sample([mc_samples])
-                    z = torch.nn.functional.softmax(samples, dim=-1)
-                    z = z.mean(dim=0)
-                else:
-                    z = qz.loc
-            else:
-                z = outputs[MODULE_KEYS.Z_KEY]
+                qzm: Tensor = outputs.get(MODULE_KEYS.QZM_KEY)
+                qzv: Tensor = outputs.get(MODULE_KEYS.QZV_KEY)
+                qz: Distribution = Normal(qzm, qzv.sqrt())
 
-            latent += [z.cpu()]
-            latent_qzm += [qz.loc.cpu()]
-            latent_qzv += [qz.scale.square().cpu()]
-        return (
-            (torch.cat(latent_qzm).numpy(), torch.cat(latent_qzv).numpy())
-            if return_dist
-            else torch.cat(latent).numpy()
-        )
+            if return_dist:
+                qz_means.append(qzm.cpu())
+                qz_vars.append(qzv.cpu())
+                continue
+
+            z: Tensor = qzm if give_mean else outputs.get(MODULE_KEYS.Z_KEY)
+
+            if give_mean and getattr(self.module, "latent_distribution", None) == "ln":
+                samples = qz.sample([mc_samples])
+                z = softmax(samples, dim=-1).mean(dim=0)
+
+            zs.append(z.cpu())
+
+        if return_dist:
+            return torch.cat(qz_means).numpy(), torch.cat(qz_vars).numpy()
+        else:
+            return torch.cat(zs).numpy()

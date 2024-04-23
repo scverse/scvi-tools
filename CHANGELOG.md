@@ -34,6 +34,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
     distribution with mean-dispersion parameterization for modeling scBS-seq methylation data
     {pr}`2692`.
+- Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
+    the `dataloader` argument {pr}`xxxx`.
 
 #### Changed
 
