@@ -9,10 +9,7 @@ from lightning.pytorch.loggers import Logger
 
 from scvi import settings
 
-from ._callbacks import (
-    LoudEarlyStopping,
-    SaveCheckpoint,
-)
+from ._callbacks import LoudEarlyStopping, SaveCheckpoint
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan

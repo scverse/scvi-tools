@@ -326,7 +326,8 @@ class DecoderSCVI(nn.Module):
     scale_activation
         Activation layer to use for px_scale_decoder
     library_activation
-        Activation layer to use for library / scale factor. Use "softplus" for computational stability.
+        Activation layer to use for library / scale factor.
+        Use "softplus" for computational stability.
     **kwargs
         Keyword args for :class:`~scvi.nn.FCLayers`.
     """
@@ -427,9 +428,7 @@ class DecoderSCVI(nn.Module):
                 px_scale + additive_background
             )  # torch.clamp( , max=12)
         else:
-            px_rate = (
-                self.library_activation(library) * px_scale
-            )  # torch.clamp( , max=12)
+            px_rate = self.library_activation(library) * px_scale  # torch.clamp( , max=12)
         px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 

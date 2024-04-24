@@ -220,7 +220,9 @@ class AutotuneExperiment:
         self._mode = value
 
     @property
-    def search_space(self) -> dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]]:
+    def search_space(
+        self,
+    ) -> dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]]:
         """Search space for hyperparameters."""
         if not hasattr(self, "_search_space"):
             raise AttributeError("`search_space` not yet available.")

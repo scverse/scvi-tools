@@ -488,10 +488,12 @@ class JVAE(BaseModuleClass):
             library_log_vars = getattr(self, f"library_log_vars_{mode}")
 
             local_library_log_means = F.linear(
-                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), library_log_means
+                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                library_log_means,
             )
             local_library_log_vars = F.linear(
-                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), library_log_vars
+                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                library_log_vars,
             )
             kl_divergence_l = kl(
                 ql,

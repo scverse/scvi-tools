@@ -11,6 +11,7 @@ def device_selecting_PRNGKey(use_cpu: bool = True) -> Callable:
 
         def key(i: int):
             return jax.device_put(random.PRNGKey(i), jax.devices("cpu")[0])
+
     else:
         # dummy function
         def key(i: int):

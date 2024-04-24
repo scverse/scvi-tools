@@ -21,12 +21,8 @@ from scvi.data.fields import (
 )
 from scvi.model import PEAKVI
 from scvi.model._utils import _init_library_size, scatac_raw_counts_properties
-from scvi.model.base import (
-    RNASeqMixin,
-)
-from scvi.model.base._utils import (
-    _de_core,
-)
+from scvi.model.base import RNASeqMixin
+from scvi.model.base._utils import _de_core
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import de_dsp

@@ -6,11 +6,9 @@ from typing import Callable, Literal
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-from torch.nn.functional import one_hot
 from torch import logsumexp
-from torch.distributions import Exponential, Normal, Distribution
-from torch.distributions import kl_divergence as kl
+from torch.distributions import Distribution, Exponential, Normal
+from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.module._constants import MODULE_KEYS
@@ -124,13 +122,15 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         that parameterize the prior on library size if ``use_size_factor_key`` is ``False`` and
         ``use_observed_lib_size`` is ``False``.
     library_log_vars_weight
-        Weight that allows adjusting the expected variance in library sizes that can be attributed to technical
-        rather than biological effect. Set library_log_vars_weight < 1.0 to regularise technical effect.
+        Weight that allows adjusting the expected variance in library sizes
+        that can be attributed to technical rather than biological effect.
+        Set library_log_vars_weight < 1.0 to regularise technical effect.
     library_n_hidden
-        Number of hidden layers to use for the encoder that learns library sizes. Default: use n_hidden.
+        Number of hidden layers to use for the encoder that learns library sizes.
+        Default: use n_hidden.
     var_activation
-        Callable used to ensure positivity of the variance of the variational distribution. Passed
-        into :class:`~scvi.nn.Encoder`. Defaults to :func:`~torch.exp`.
+        Callable used to ensure positivity of the variance of the variational distribution.
+        Passed into :class:`~scvi.nn.Encoder`. Defaults to :func:`~torch.exp`.
     scale_activation
         String naming the activation function to use for transforming decoder output
         before applying per cell normalisation.
@@ -206,9 +206,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                     "must provide library_log_means and library_log_vars."
                 )
 
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
             self.register_buffer(
                 "library_log_vars",
                 torch.from_numpy(library_log_vars * library_log_vars_weight).float(),
@@ -240,7 +238,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.use_batch_in_decoder = use_batch_in_decoder
         if self.use_additive_background:
             self.additive_background = torch.nn.Parameter(torch.randn(n_input, n_batch))
-
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -443,8 +440,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_samples: int = 1,
     ) -> dict[str, torch.Tensor | None]:
         """Run the cached inference process."""
-        from torch.distributions import Normal
-
         from scvi.data._constants import ADATA_MINIFY_TYPE
 
         if self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
@@ -479,10 +474,13 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
         """Run the generative process."""
-        from torch.distributions import Normal
         from torch.nn.functional import linear
 
-        from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+        from scvi.distributions import (
+            NegativeBinomial,
+            Poisson,
+            ZeroInflatedNegativeBinomial,
+        )
 
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
@@ -507,8 +505,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             size_factor = library
         if self.use_additive_background:
             additive_background = (
-                one_hot(batch_index, self.n_batch)
-                @ torch.exp(self.additive_background).T
+                one_hot(batch_index, self.n_batch) @ torch.exp(self.additive_background).T
             )
         else:
             additive_background = torch.zeros_like(library)
@@ -597,11 +594,13 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         x = tensors[REGISTRY_KEYS.X_KEY]
         kl_divergence_z = kl_divergence(
-            inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
+            inference_outputs[MODULE_KEYS.QZ_KEY],
+            generative_outputs[MODULE_KEYS.PZ_KEY],
         ).sum(dim=-1)
         if not self.use_observed_lib_size:
             kl_divergence_l = kl_divergence(
-                inference_outputs[MODULE_KEYS.QL_KEY], generative_outputs[MODULE_KEYS.PL_KEY]
+                inference_outputs[MODULE_KEYS.QL_KEY],
+                generative_outputs[MODULE_KEYS.PL_KEY],
             ).sum(dim=1)
         else:
             kl_divergence_l = torch.tensor(0.0, device=x.device)
@@ -709,7 +708,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use per pass. This is useful to avoid memory issues.
         """
-        from torch import logsumexp
         from torch.distributions import Normal
 
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]

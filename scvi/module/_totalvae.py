@@ -532,7 +532,8 @@ class TOTALVAE(BaseModuleClass):
         py_r = torch.exp(py_r)
         if self.n_batch > 0:
             py_back_alpha_prior = F.linear(
-                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                self.background_pro_alpha,
             )
             py_back_beta_prior = F.linear(
                 one_hot(batch_index.squeeze(-1), self.n_batch).float(),
@@ -607,7 +608,8 @@ class TOTALVAE(BaseModuleClass):
         if not self.use_observed_lib_size:
             n_batch = self.library_log_means.shape[1]
             local_library_log_means = F.linear(
-                one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
+                one_hot(batch_index.squeeze(-1), n_batch).float(),
+                self.library_log_means,
             )
             local_library_log_vars = F.linear(
                 one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
@@ -707,10 +709,12 @@ class TOTALVAE(BaseModuleClass):
             if not self.use_observed_lib_size:
                 n_batch = self.library_log_means.shape[1]
                 local_library_log_means = F.linear(
-                    one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
+                    one_hot(batch_index.squeeze(-1), n_batch).float(),
+                    self.library_log_means,
                 )
                 local_library_log_vars = F.linear(
-                    one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
+                    one_hot(batch_index.squeeze(-1), n_batch).float(),
+                    self.library_log_vars,
                 )
                 p_l_gene = (
                     Normal(local_library_log_means, local_library_log_vars.sqrt())
