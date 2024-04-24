@@ -6,11 +6,9 @@ import warnings
 import numpy as np
 import torch
 from anndata import AnnData
-from sklearn.cluster import KMeans
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
-from scvi.data.fields import CategoricalObsField, LayerField
+from scvi.data import AnnDataManager, fields
 from scvi.model.base import (
     BaseModelClass,
     RNASeqMixin,
@@ -25,7 +23,9 @@ logger = logging.getLogger(__name__)
 
 
 class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez21`.
+    """Conditional version of single-cell Variational Inference.
+
+    Used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
 
     Parameters
     ----------
@@ -38,7 +38,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
     weight_obs
-        Whether to reweight observations by their inverse proportion (useful for lowly abundant cell types)
+        Whether to reweight observations by their inverse proportion (useful for lowly abundant
+        cell types)
     dropout_rate
         Dropout rate for neural networks.
     **module_kwargs
@@ -51,6 +52,12 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     >>> vae = scvi.model.CondSCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_CondSCVI"] = vae.get_latent_representation()
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
     """
 
     _module_cls = VAEC
@@ -67,8 +74,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
     ):
         super().__init__(adata)
 
-        n_labels = self.summary_stats.n_labels
-        n_vars = self.summary_stats.n_vars
         if weight_obs:
             ct_counts = np.unique(
                 self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
@@ -81,8 +86,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             module_kwargs.update({"ct_weight": ct_weight})
 
         self.module = self._module_cls(
-            n_input=n_vars,
-            n_labels=n_labels,
+            n_input=self.summary_stats.n_vars,
+            n_batch=getattr(self.summary_stats, "n_batch", 0),
+            n_labels=self.summary_stats.n_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -90,13 +96,17 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             **module_kwargs,
         )
         self._model_summary_string = (
-            "Conditional SCVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: {}, weight_obs: {}"
-        ).format(n_hidden, n_latent, n_layers, dropout_rate, weight_obs)
+            f"Conditional SCVI Model with the following params: \nn_hidden: {n_hidden}, "
+            f"n_latent: {n_latent}, n_layers: {n_layers}, dropout_rate: {dropout_rate}, "
+            f"weight_obs: {weight_obs}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
     def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10) -> np.ndarray:
-        r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
+        r"""Return an empirical prior over the cell-type specific latent space (vamp prior).
+
+        May be used for deconvolution.
 
         Parameters
         ----------
@@ -104,7 +114,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
         p
-            number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
+            number of clusters in kmeans clustering for cell-type sub-clustering for empirical
+            prior
 
         Returns
         -------
@@ -113,6 +124,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         var_vprior
             (n_labels, p, D) array
         """
+        from sklearn.cluster import KMeans
+
         if self.is_trained_ is False:
             warnings.warn(
                 "Trying to query inferred values from an untrained model. Please train "
@@ -128,9 +141,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
         mp_vprior = np.zeros((self.summary_stats.n_labels, p))
 
-        labels_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         key = labels_state_registry.original_key
         mapping = labels_state_registry.categorical_mapping
 
@@ -141,7 +152,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             y = tensors[REGISTRY_KEYS.LABELS_KEY]
-            out = self.module.inference(x, y)
+            batch_index = tensors.get(REGISTRY_KEYS.BATCH_KEY, None)
+            out = self.module.inference(x, y, batch_index=batch_index)
             mean_, var_ = out["qz"].loc, (out["qz"].scale ** 2)
             mean += [mean_.cpu()]
             var += [var_.cpu()]
@@ -168,7 +180,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             if n_labels_overclustering > p:
                 error_mess = """
                     Given cell type specific clustering contains more clusters than vamp_prior_p.
-                    Increase value of vamp_prior_p to largest number of cell type specific clusters."""
+                    Increase value of vamp_prior_p to largest number of cell type specific
+                    clusters."""
 
                 raise ValueError(error_mess)
 
@@ -225,8 +238,9 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -264,6 +278,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         adata: AnnData,
         labels_key: str | None = None,
         layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -273,14 +288,15 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         %(param_adata)s
         %(param_labels_key)s
         %(param_layer)s
+        %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        if batch_key is not None:
+            anndata_fields.append(fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

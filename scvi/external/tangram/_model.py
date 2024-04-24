@@ -27,12 +27,12 @@ def _asarray(x: np.ndarray, device: Device) -> jnp.ndarray:
 
 
 class Tangram(BaseModelClass):
-    """Reimplementation of Tangram :cite:p:`Biancalani21` for mapping single-cell RNA-seq data to spatial data.
+    """Reimplementation of Tangram :cite:p:`Biancalani21`.
+
+    Maps single-cell RNA-seq data to spatial data. Original implementation:
+    https://github.com/broadinstitute/Tangram.
 
     Currently the "cells" and "constrained" modes are implemented.
-
-    Original code:
-    https://github.com/broadinstitute/Tangram.
 
     Parameters
     ----------
@@ -51,13 +51,24 @@ class Tangram(BaseModelClass):
     >>> ad_sc = anndata.read_h5ad(path_to_sc_anndata)
     >>> ad_sp = anndata.read_h5ad(path_to_sp_anndata)
     >>> markers = pd.read_csv(path_to_markers, index_col=0) # genes to use for mapping
-    >>> mdata = mudata.MuData({"sp_full": ad_sp, "sc_full": ad_sc, "sp": ad_sp[:, markers].copy(), "sc": ad_sc[:, markers].copy()})
+    >>> mdata = mudata.MuData(
+            {
+                "sp_full": ad_sp,
+                "sc_full": ad_sc,
+                "sp": ad_sp[:, markers].copy(),
+                "sc": ad_sc[:, markers].copy()
+            }
+        )
     >>> modalities = {"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"}
-    >>> Tangram.setup_mudata(mdata, density_prior_key="rna_count_based_density", modalities=modalities)
+    >>> Tangram.setup_mudata(
+            mdata, density_prior_key="rna_count_based_density", modalities=modalities
+        )
     >>> tangram = Tangram(sc_adata)
     >>> tangram.train()
     >>> ad_sc.obsm["tangram_mapper"] = tangram.get_mapper_matrix()
-    >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"])
+    >>> ad_sp.obsm["tangram_cts"] = tangram.project_cell_annotations(
+            ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"], ad_sc.obs["labels"]
+        )
     >>> projected_ad_sp = tangram.project_genes(ad_sc, ad_sp, ad_sc.obsm["tangram_mapper"])
 
     Notes
@@ -75,26 +86,16 @@ class Tangram(BaseModelClass):
         **model_kwargs,
     ):
         super().__init__(sc_adata)
-        self.n_obs_sc = self.adata_manager.get_from_registry(
-            TANGRAM_REGISTRY_KEYS.SC_KEY
-        ).shape[0]
-        self.n_obs_sp = self.adata_manager.get_from_registry(
-            TANGRAM_REGISTRY_KEYS.SP_KEY
-        ).shape[0]
+        self.n_obs_sc = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.SC_KEY).shape[0]
+        self.n_obs_sp = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.SP_KEY).shape[0]
 
         if constrained and target_count is None:
-            raise ValueError(
-                "Please specify `target_count` when using constrained Tangram."
-            )
+            raise ValueError("Please specify `target_count` when using constrained Tangram.")
         has_density_prior = not self.adata_manager.fields[-1].is_empty
         if has_density_prior:
-            prior = self.adata_manager.get_from_registry(
-                TANGRAM_REGISTRY_KEYS.DENSITY_KEY
-            )
+            prior = self.adata_manager.get_from_registry(TANGRAM_REGISTRY_KEYS.DENSITY_KEY)
             if np.abs(prior.ravel().sum() - 1) > 1e-3:
-                raise ValueError(
-                    "Density prior must sum to 1. Please normalize the prior."
-                )
+                raise ValueError("Density prior must sum to 1. Please normalize the prior.")
 
         self.module = TangramMapper(
             n_obs_sc=self.n_obs_sc,
@@ -104,7 +105,10 @@ class Tangram(BaseModelClass):
             target_count=target_count,
             **model_kwargs,
         )
-        self._model_summary_string = f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, n_obs_sp: {self.n_obs_sp}"
+        self._model_summary_string = (
+            f"TangramMapper Model with params: \nn_obs_sc: {self.n_obs_sc}, "
+            "n_obs_sp: {self.n_obs_sp}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     def get_mapper_matrix(self) -> np.ndarray:
@@ -114,9 +118,7 @@ class Tangram(BaseModelClass):
         -------
         Mapping matrix of shape (n_obs_sp, n_obs_sc)
         """
-        return jax.device_get(
-            jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1)
-        )
+        return jax.device_get(jax.nn.softmax(self.module.params["mapper_unconstrained"], axis=1))
 
     @devices_dsp.dedent
     def train(
@@ -248,9 +250,7 @@ class Tangram(BaseModelClass):
         adata_manager = AnnDataManager(
             fields=mudata_fields,
             setup_method_args=setup_method_args,
-            validation_checks=AnnDataManagerValidationCheck(
-                check_fully_paired_mudata=False
-            ),
+            validation_checks=AnnDataManagerValidationCheck(check_fully_paired_mudata=False),
         )
         adata_manager.register_fields(mdata, **kwargs)
         sc_state = adata_manager.get_state_registry(TANGRAM_REGISTRY_KEYS.SC_KEY)
@@ -269,9 +269,7 @@ class Tangram(BaseModelClass):
     @classmethod
     def setup_anndata(cls):
         """Not implemented, use `setup_mudata`."""
-        raise NotImplementedError(
-            "Use `setup_mudata` to setup a MuData object for training."
-        )
+        raise NotImplementedError("Use `setup_mudata` to setup a MuData object for training.")
 
     def _get_tensor_dict(
         self,
@@ -331,9 +329,7 @@ class Tangram(BaseModelClass):
         )
 
     @staticmethod
-    def project_genes(
-        adata_sc: AnnData, adata_sp: AnnData, mapper: np.ndarray
-    ) -> AnnData:
+    def project_genes(adata_sc: AnnData, adata_sp: AnnData, mapper: np.ndarray) -> AnnData:
         """Project gene expression to spatial data.
 
         Parameters

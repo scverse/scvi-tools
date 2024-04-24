@@ -9,18 +9,17 @@ import pandas as pd
 import torch
 
 try:
-    from anndata._core.sparse_dataset import SparseDataset
+    # anndata >= 0.10
+    from anndata.experimental import CSCDataset, CSRDataset
+
+    SparseDataset = (CSRDataset, CSCDataset)
 except ImportError:
-    # anndata >= 0.10.0
-    from anndata._core.sparse_dataset import (
-        BaseCompressedSparseDataset as SparseDataset,
-    )
+    from anndata._core.sparse_dataset import SparseDataset
 
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
-from scvi.utils._exceptions import InvalidParameterError
 
 if TYPE_CHECKING:
     from ._manager import AnnDataManager
@@ -48,8 +47,8 @@ class AnnTorchDataset(Dataset):
         :class:`~np.float32` and discrete data will be returned as :class:`~np.int64`.
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
-        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to GPUs,
-        depending on the sparsity of the data.
+        :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
+        GPUs, depending on the sparsity of the data.
     """
 
     def __init__(
@@ -61,9 +60,7 @@ class AnnTorchDataset(Dataset):
         super().__init__()
 
         if adata_manager.adata is None:
-            raise ValueError(
-                "Please run ``register_fields`` on ``adata_manager`` first."
-            )
+            raise ValueError("Please run ``register_fields`` on ``adata_manager`` first.")
         self.adata_manager = adata_manager
         self.keys_and_dtypes = getitem_tensors
         self.load_sparse_tensor = load_sparse_tensor
@@ -85,9 +82,7 @@ class AnnTorchDataset(Dataset):
         Raises an error if any of the keys are not in the data registry.
         """
         if isinstance(getitem_tensors, list):
-            keys_to_dtypes = {
-                key: registry_key_to_default_dtype(key) for key in getitem_tensors
-            }
+            keys_to_dtypes = {key: registry_key_to_default_dtype(key) for key in getitem_tensors}
         elif isinstance(getitem_tensors, dict):
             keys_to_dtypes = getitem_tensors
         elif getitem_tensors is None:
@@ -95,11 +90,7 @@ class AnnTorchDataset(Dataset):
                 key: registry_key_to_default_dtype(key) for key in self.registered_keys
             }
         else:
-            raise InvalidParameterError(
-                param="getitem_tensors",
-                value=getitem_tensors.__class__,
-                valid=[list, dict, None],
-            )
+            raise ValueError("`getitem_tensors` must be a `list`, `dict`, or `None`")
 
         for key in keys_to_dtypes:
             if key not in self.registered_keys:
@@ -117,8 +108,7 @@ class AnnTorchDataset(Dataset):
         """
         if not hasattr(self, "_data"):
             self._data = {
-                key: self.adata_manager.get_from_registry(key)
-                for key in self.keys_and_dtypes
+                key: self.adata_manager.get_from_registry(key) for key in self.keys_and_dtypes
             }
         return self._data
 

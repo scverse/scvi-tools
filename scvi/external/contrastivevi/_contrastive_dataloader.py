@@ -120,7 +120,5 @@ class ContrastiveDataLoader(ConcatDataLoader):
         Will iter over the dataloader with the most data while cycling through
         the data in the other dataloader.
         """
-        iter_list = [
-            cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders
-        ]
+        iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
         return _ContrastiveIterator(background=iter_list[0], target=iter_list[1])

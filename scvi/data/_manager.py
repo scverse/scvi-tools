@@ -102,23 +102,18 @@ class AnnDataManager:
     def _assert_anndata_registered(self):
         """Asserts that an AnnData object has been registered with this instance."""
         if self.adata is None:
-            raise AssertionError(
-                "AnnData object not registered. Please call register_fields."
-            )
+            raise AssertionError("AnnData object not registered. Please call register_fields.")
 
     def _validate_anndata_object(self, adata: AnnOrMuData):
         """For a given AnnData object, runs general scvi-tools compatibility checks."""
         if self.validation_checks.check_if_view:
             _check_if_view(adata, copy_if_view=False)
 
-        if (
-            isinstance(adata, MuData)
-            and self.validation_checks.check_fully_paired_mudata
-        ):
+        if isinstance(adata, MuData) and self.validation_checks.check_fully_paired_mudata:
             _check_mudata_fully_paired(adata)
 
     def _get_setup_method_args(self) -> dict:
-        """Returns the ``setup_anndata`` method arguments used to initialize this :class:`~scvi.data.AnnDataManager` instance.
+        """Returns the ``setup_anndata`` method arguments.
 
         Returns the ``setup_anndata`` method arguments, including the model name,
         that were used to initialize this :class:`~scvi.data.AnnDataManager` instance
@@ -131,7 +126,10 @@ class AnnDataManager:
         }
 
     def _assign_uuid(self):
-        """Assigns a UUID unique to the AnnData object. If already present, the UUID is left alone."""
+        """Assigns a UUID unique to the AnnData object.
+
+        If already present, the UUID is left alone.
+        """
         self._assert_anndata_registered()
 
         _assign_adata_uuid(self.adata)
@@ -161,18 +159,19 @@ class AnnDataManager:
         adata
             AnnData object to be registered.
         source_registry
-            Registry created after registering an AnnData using an :class:`~scvi.data.AnnDataManager` object.
+            Registry created after registering an AnnData using an
+            :class:`~scvi.data.AnnDataManager` object.
         transfer_kwargs
-            Additional keywords which modify transfer behavior. Only applicable if ``source_registry`` is set.
+            Additional keywords which modify transfer behavior. Only applicable if
+            ``source_registry`` is set.
         """
         if self.adata is not None:
-            raise AssertionError(
-                "Existing AnnData object registered with this Manager instance."
-            )
+            raise AssertionError("Existing AnnData object registered with this Manager instance.")
 
         if source_registry is None and transfer_kwargs:
             raise TypeError(
-                f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed without a source_registry."
+                f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed "
+                "without a source_registry."
             )
 
         self._validate_anndata_object(adata)
@@ -214,21 +213,17 @@ class AnnDataManager:
             # Transfer case: Source registry is used for validation and/or setup.
             if source_registry is not None:
                 field_registry[_constants._STATE_REGISTRY_KEY] = field.transfer_field(
-                    source_registry[_constants._FIELD_REGISTRIES_KEY][
-                        field.registry_key
-                    ][_constants._STATE_REGISTRY_KEY],
+                    source_registry[_constants._FIELD_REGISTRIES_KEY][field.registry_key][
+                        _constants._STATE_REGISTRY_KEY
+                    ],
                     adata,
                     **transfer_kwargs,
                 )
             else:
-                field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(
-                    adata
-                )
+                field_registry[_constants._STATE_REGISTRY_KEY] = field.register_field(adata)
         # Compute and set summary stats for the given field.
         state_registry = field_registry[_constants._STATE_REGISTRY_KEY]
-        field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(
-            state_registry
-        )
+        field_registry[_constants._SUMMARY_STATS_KEY] = field.get_summary_stats(state_registry)
 
     def register_new_fields(self, fields: list[AnnDataField]):
         """Register new fields to a manager instance.
@@ -260,7 +255,7 @@ class AnnDataManager:
         self.fields += fields
 
     def transfer_fields(self, adata_target: AnnOrMuData, **kwargs) -> AnnDataManager:
-        """Transfers an existing setup to each field associated with this instance with the target AnnData object.
+        """Transfers an existing setup to each field associated with this instance.
 
         Creates a new :class:`~scvi.data.AnnDataManager` instance with the same set of fields.
         Then, registers the fields with a target AnnData object, incorporating details of the
@@ -285,7 +280,10 @@ class AnnDataManager:
         return new_adata_manager
 
     def validate(self) -> None:
-        """Checks if AnnData was last setup with this AnnDataManager instance and reregisters it if not."""
+        """Checks if AnnData was last setup with this AnnDataManager instanc.
+
+        Reregisters it if not.
+        """
         self._assert_anndata_registered()
         most_recent_manager_id = self.adata.uns[_constants._MANAGER_UUID_KEY]
         # Re-register fields with same arguments if this AnnData object has been
@@ -315,7 +313,7 @@ class AnnDataManager:
 
     @property
     def registry(self) -> dict:
-        """Returns the top-level registry dictionary for the AnnData object registered with this instance as an attrdict."""
+        """Returns the top-level registry dictionary for the AnnData object."""
         return self._registry
 
     @property
@@ -338,10 +336,11 @@ class AnnDataManager:
         indices
             The indices of the observations in the adata to use
         data_and_attributes
-            Dictionary with keys representing keys in data registry (``adata_manager.data_registry``)
-            and value equal to desired numpy loading type (later made into torch tensor) or list of
-            such keys. A list can be used to subset to certain keys in the event that more tensors than
-            needed have been registered. If ``None``, defaults to all registered data.
+            Dictionary with keys representing keys in data registry
+            (``adata_manager.data_registry``) and value equal to desired numpy loading type (later
+            made into torch tensor) or list of such keys. A list can be used to subset to certain
+            keys in the event that more tensors than needed have been registered. If ``None``,
+            defaults to all registered data.
         load_sparse_tensor
             ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
@@ -364,9 +363,7 @@ class AnnDataManager:
     @staticmethod
     def _get_data_registry_from_registry(registry: dict) -> attrdict:
         data_registry = {}
-        for registry_key, field_registry in registry[
-            _constants._FIELD_REGISTRIES_KEY
-        ].items():
+        for registry_key, field_registry in registry[_constants._FIELD_REGISTRIES_KEY].items():
             field_data_registry = field_registry[_constants._DATA_REGISTRY_KEY]
             if field_data_registry:
                 data_registry[registry_key] = field_data_registry

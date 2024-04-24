@@ -51,9 +51,7 @@ class LayerField(BaseAnnDataField):
         super().__init__()
         self._registry_key = registry_key
         self._attr_name = (
-            _constants._ADATA_ATTRS.X
-            if layer is None
-            else _constants._ADATA_ATTRS.LAYERS
+            _constants._ADATA_ATTRS.X if layer is None else _constants._ADATA_ATTRS.LAYERS
         )
         self._attr_key = layer
         self.is_count_data = is_count_data
@@ -105,7 +103,8 @@ class LayerField(BaseAnnDataField):
                 f"{logger_data_loc} does not contain fragment count data. "
                 "Are you sure this is what you want?. "
                 "Check that your data is not binarized and does not contain read counts. "
-                "You can approximate read counts to fragment counts using scvi.data.reads_to_fragments",
+                "You can approximate read counts to fragment counts using "
+                "scvi.data.reads_to_fragments",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -121,17 +120,15 @@ class LayerField(BaseAnnDataField):
             self.COLUMN_NAMES_KEY: np.asarray(adata.var_names),
         }
 
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
         """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         n_vars = state_registry[self.N_VARS_KEY]
         target_n_vars = adata_target.n_vars
         if target_n_vars != n_vars:
             raise ValueError(
-                "Number of vars in adata_target not the same as source. "
-                + f"Expected: {target_n_vars} Received: {n_vars}"
+                "Number of vars in `adata_target` not the same as source. "
+                + f"Expected: {n_vars} Received: {target_n_vars}"
             )
 
         return self.register_field(adata_target)

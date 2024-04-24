@@ -1,7 +1,5 @@
 import torch
 
-from scvi.nn import one_hot
-
 
 def iterate(obj, func):
     """Iterates over an object and applies a function to each element."""
@@ -16,7 +14,8 @@ def broadcast_labels(y, *o, n_broadcast=-1):
     """Utility for the semi-supervised setting.
 
     If y is defined(labelled batch) then one-hot encode the labels (no broadcasting needed)
-    If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other arguments if not None)
+    If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other
+    arguments if not None)
     """
     if not len(o):
         raise ValueError("Broadcast must have at least one reference argument")
@@ -24,12 +23,10 @@ def broadcast_labels(y, *o, n_broadcast=-1):
         ys = enumerate_discrete(o[0], n_broadcast)
         new_o = iterate(
             o,
-            lambda x: x.repeat(n_broadcast, 1)
-            if len(x.size()) == 2
-            else x.repeat(n_broadcast),
+            lambda x: x.repeat(n_broadcast, 1) if len(x.size()) == 2 else x.repeat(n_broadcast),
         )
     else:
-        ys = one_hot(y, n_broadcast)
+        ys = torch.nn.functional.one_hot(y.squeeze(-1), n_broadcast)
         new_o = o
     return (ys,) + new_o
 
@@ -39,7 +36,7 @@ def enumerate_discrete(x, y_dim):
 
     def batch(batch_size, label):
         labels = torch.ones(batch_size, 1, device=x.device, dtype=torch.long) * label
-        return one_hot(labels, y_dim)
+        return torch.nn.functional.one_hot(labels.squeeze(-1), y_dim)
 
     batch_size = x.size(0)
     return torch.cat([batch(batch_size, i) for i in range(y_dim)])

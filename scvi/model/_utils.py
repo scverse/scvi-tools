@@ -17,7 +17,6 @@ from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.utils._docstrings import devices_dsp
-from scvi.utils._exceptions import InvalidParameterError
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +33,14 @@ def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
 
 
 def get_max_epochs_heuristic(
-    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20000
+    n_obs: int, epochs_cap: int = 400, decay_at_n_obs: int = 20_000
 ) -> int:
     """Compute a heuristic for the default number of maximum epochs.
 
-    If `n_obs <= decay_at_n_obs`, the number of maximum epochs is set to
-    `epochs_cap`. Otherwise, the number of maximum epochs decays according to
-    `(decay_at_n_obs / n_obs) * epochs_cap`, with a minimum of 1.
+    If ``n_obs <= decay_at_n_obs``, the number of maximum epochs is set to
+    ``epochs_cap``. Otherwise, the number of maximum epochs decays according to
+    ``(decay_at_n_obs / n_obs) * epochs_cap``, with a minimum of 1. Raises a
+    warning if the number of maximum epochs is set to 1.
 
     Parameters
     ----------
@@ -53,8 +53,7 @@ def get_max_epochs_heuristic(
 
     Returns
     -------
-    `int`
-        A heuristic for the default number of maximum epochs.
+    A heuristic for the number of maximum training epochs.
     """
     max_epochs = min(round((decay_at_n_obs / n_obs) * epochs_cap), epochs_cap)
     max_epochs = max(max_epochs, 1)
@@ -89,9 +88,7 @@ def parse_device_args(
     """
     valid = [None, "torch", "jax"]
     if return_device not in valid:
-        raise InvalidParameterError(
-            param="return_device", value=return_device, valid=valid
-        )
+        return ValueError(f"`return_device` must be one of {valid}")
 
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
@@ -174,7 +171,8 @@ def scrna_raw_counts_properties(
     -------
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
-        mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+        mean expression per gene, proportion of non-zero expression per gene, mean of normalized
+        expression.
     """
     adata = adata_manager.adata
     data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
@@ -238,7 +236,8 @@ def cite_seq_raw_counts_properties(
     -------
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population),
-        mean expression per gene, proportion of non-zero expression per gene, mean of normalized expression.
+        mean expression per gene, proportion of non-zero expression per gene, mean of normalized
+        expression.
     """
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
@@ -252,12 +251,8 @@ def cite_seq_raw_counts_properties(
     properties = {
         "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
         "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
-        "non_zeros_proportion1": np.concatenate(
-            [gp["non_zeros_proportion1"], nonz1_pro]
-        ),
-        "non_zeros_proportion2": np.concatenate(
-            [gp["non_zeros_proportion2"], nonz2_pro]
-        ),
+        "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+        "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
         "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
         "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
     }
@@ -307,9 +302,7 @@ def _get_batch_code_from_category(
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 
-    batch_mappings = adata_manager.get_state_registry(
-        REGISTRY_KEYS.BATCH_KEY
-    ).categorical_mapping
+    batch_mappings = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).categorical_mapping
     batch_code = []
     for cat in category:
         if cat is None:
@@ -352,9 +345,7 @@ def _init_library_size(
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        batch_data = data[
-            idx_batch.nonzero()[0]
-        ]  # h5ad requires integer indexing arrays.
+        batch_data = data[idx_batch.nonzero()[0]]  # h5ad requires integer indexing arrays.
         sum_counts = batch_data.sum(axis=1)
         masked_log_sum = np.ma.log(sum_counts)
         if np.ma.is_masked(masked_log_sum):

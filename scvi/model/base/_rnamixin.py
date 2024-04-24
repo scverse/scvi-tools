@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import inspect
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
-import sparse
 import torch
 import torch.distributions as db
 from anndata import AnnData
@@ -18,11 +18,14 @@ from scvi._types import Number
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.module.base._decorators import _move_data_to_device
-from scvi.utils import de_dsp, unsupported_if_adata_minified
+from scvi.utils import de_dsp, dependencies, unsupported_if_adata_minified
 
-from ._utils import (
-    _de_core,
-)
+from ._utils import _de_core
+
+try:
+    from sparse import GCXS
+except ImportError:
+    GCXS = type(None)
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +37,12 @@ class RNASeqMixin:
         if "transform_batch" in inspect.signature(self.module.generative).parameters:
             return {"transform_batch": batch}
         else:
-            raise NotImplementedError(
-                "Transforming batches is not implemented for this model."
-            )
+            raise NotImplementedError("Transforming batches is not implemented for this model.")
 
     def _get_importance_weights(
         self,
-        adata: Optional[AnnData],
-        indices: Optional[Sequence[int]],
+        adata: AnnData | None,
+        indices: list[int] | None,
         qz: db.Distribution,
         px: db.Distribution,
         zs: torch.Tensor,
@@ -74,10 +75,12 @@ class RNASeqMixin:
             Maximum number of cells used to estimated the importance weights
         truncation
             Whether importance weights should be truncated. If True, the importance weights are
-            truncated as described in :cite:p:`ionides2008`. In particular, the provided value
-            is used to threshold importance weights as a way to reduce the variance of the estimator.
+            truncated as described in :cite:p:`Ionides2008`. In particular, the provided value
+            is used to threshold importance weights as a way to reduce the variance of the
+            estimator.
         n_mc_samples
-            Number of Monte Carlo samples to use for estimating the importance weights, by default 500
+            Number of Monte Carlo samples to use for estimating the importance weights, by default
+            500
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use for each pass, by default 250
 
@@ -108,9 +111,7 @@ class RNASeqMixin:
         )
         mask = torch.tensor(anchor_cells)
         qz_anchor = subset_distribution(qz, mask, 0)  # n_anchors, n_latent
-        log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(
-            dim=-1
-        )  # n_samples, n_cells, n_anchors
+        log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(dim=-1)  # n_samples, n_cells, n_anchors
 
         log_px_z = []
         distributions_px = deep_to(px, device=device)
@@ -136,9 +137,7 @@ class RNASeqMixin:
             dim=1,
         )
         if truncation:
-            tau = torch.logsumexp(importance_weight, 0) - np.log(
-                importance_weight.shape[0]
-            )
+            tau = torch.logsumexp(importance_weight, 0) - np.log(importance_weight.shape[0])
             importance_weight = torch.clamp(importance_weight, min=tau)
 
         log_probs = importance_weight - torch.logsumexp(importance_weight, 0)
@@ -147,19 +146,19 @@ class RNASeqMixin:
     @torch.inference_mode()
     def get_normalized_expression(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
-        gene_list: Optional[Sequence[str]] = None,
-        library_size: Union[float, Literal["latent"]] = 1,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
+        transform_batch: list[Number | str] | None = None,
+        gene_list: list[str] | None = None,
+        library_size: float | Literal["latent"] = 1,
         n_samples: int = 1,
         n_samples_overall: int = None,
-        weights: Optional[Literal["uniform", "importance"]] = None,
-        batch_size: Optional[int] = None,
+        weights: Literal["uniform", "importance"] | None = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
+        return_numpy: bool | None = None,
         **importance_weighting_kwargs,
-    ) -> Union[np.ndarray, pd.DataFrame]:
+    ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
 
         This is denoted as :math:`\rho_n` in the scVI paper.
@@ -196,11 +195,12 @@ class RNASeqMixin:
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+            to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
-            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
         Returns
         -------
@@ -219,9 +219,7 @@ class RNASeqMixin:
         if n_samples_overall is not None:
             assert n_samples == 1  # default value
             n_samples = n_samples_overall // len(indices) + 1
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         transform_batch = _get_batch_code_from_category(
             self.get_anndata_manager(adata, required=True), transform_batch
@@ -248,7 +246,8 @@ class RNASeqMixin:
         store_distributions = weights == "importance"
         if store_distributions and len(transform_batch) > 1:
             raise NotImplementedError(
-                "Importance weights cannot be computed when expression levels are averaged across batches."
+                "Importance weights cannot be computed when expression levels are averaged across "
+                "batches."
             )
 
         exprs = []
@@ -317,24 +316,24 @@ class RNASeqMixin:
     @de_dsp.dedent
     def differential_expression(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[Iterable[str]] = None,
-        group2: Optional[str] = None,
-        idx1: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
-        idx2: Optional[Union[Sequence[int], Sequence[bool], str]] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: list[str] | None = None,
+        group2: str | None = None,
+        idx1: list[int] | list[bool] | str | None = None,
+        idx2: list[int] | list[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
-        batchid1: Optional[Iterable[str]] = None,
-        batchid2: Optional[Iterable[str]] = None,
+        batchid1: list[str] | None = None,
+        batchid2: list[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        weights: Optional[Literal["uniform", "importance"]] = "uniform",
+        weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
-        importance_weighting_kwargs: Optional[dict] = None,
+        importance_weighting_kwargs: dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -361,9 +360,11 @@ class RNASeqMixin:
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
-            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
-            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -382,9 +383,7 @@ class RNASeqMixin:
             weights=weights,
             **importance_weighting_kwargs,
         )
-        representation_fn = (
-            self.get_latent_representation if filter_outlier_cells else None
-        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
@@ -410,80 +409,81 @@ class RNASeqMixin:
 
         return result
 
-    @torch.inference_mode()
+    @dependencies("sparse")
     def posterior_predictive_sample(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
         n_samples: int = 1,
-        gene_list: Optional[Sequence[str]] = None,
-        batch_size: Optional[int] = None,
-    ) -> sparse.GCXS:
-        r"""
-        Generate observation samples from the posterior predictive distribution.
+        gene_list: list[str] | None = None,
+        batch_size: int | None = None,
+    ) -> GCXS:
+        r"""Generate predictive samples from the posterior predictive distribution.
 
-        The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
+        The posterior predictive distribution is denoted as :math:`p(\hat{x} \mid x)`, where
+        :math:`x` is the input data and :math:`\hat{x}` is the sampled data.
+
+        We sample from this distribution by first sampling ``n_samples`` times from the posterior
+        distribution :math:`q(z \mid x)` for a given observation, and then sampling from the
+        likelihood :math:`p(\hat{x} \mid z)` for each of these.
 
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            :class:`~anndata.AnnData` object with an equivalent structure to the model's dataset.
+            If ``None``, defaults to the :class:`~anndata.AnnData` object used to initialize the
+            model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of the observations in ``adata`` to use. If ``None``, defaults to all the
+            observations.
         n_samples
-            Number of samples for each cell.
+            Number of Monte Carlo samples to draw from the posterior predictive distribution for
+            each observation.
         gene_list
-            Names of genes of interest.
+            Names of the genes to which to subset. If ``None``, defaults to all genes.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size to use for data loading and model inference. Defaults to
+            ``scvi.settings.batch_size``. Passed into
+            :meth:`~scvi.model.base.BaseModelClass._make_data_loader`.
 
         Returns
         -------
-        x_new : :py:class:`torch.Tensor`
-            tensor with shape (n_cells, n_genes, n_samples)
+        Sparse multidimensional array of shape ``(n_obs, n_vars)`` if ``n_samples == 1``, else
+        ``(n_obs, n_vars, n_samples)``.
         """
-        if self.module.gene_likelihood not in ["zinb", "nb", "poisson"]:
-            raise ValueError("Invalid gene_likelihood.")
+        import sparse
 
         adata = self._validate_anndata(adata)
-
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
-
-        if indices is None:
-            indices = np.arange(adata.n_obs)
+        dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names
-            gene_mask = [True if gene in gene_list else False for gene in all_genes]
+            gene_mask = [gene in gene_list for gene in adata.var_names]
+            if not np.any(gene_mask):
+                raise ValueError(
+                    "None of the provided genes in ``gene_list`` were detected in the data."
+                )
 
-        x_new = []
-        for tensors in scdl:
-            samples = self.module.sample(
-                tensors,
-                n_samples=n_samples,
-            )
-            if gene_list is not None:
-                samples = samples[:, gene_mask, ...]
-            x_new.append(sparse.GCXS.from_numpy(samples.numpy()))
+        x_hat = []
+        for tensors in dataloader:
+            # (batch_size, n_vars) if n_samples == 1, else (batch_size, n_vars, n_samples)
+            samples = self.module.sample(tensors, n_samples=n_samples)[:, gene_mask]
+            x_hat.append(sparse.GCXS.from_numpy(samples.numpy()))
 
-        x_new = sparse.concatenate(x_new)  # Shape (n_cells, n_genes, n_samples)
-
-        return x_new
+        # (n_minibatches, batch_size, n_vars) -> (n_obs, n_vars) if n_samples == 1, else
+        # (n_minibatches, batch_size, n_vars, n_samples) -> (n_obs, n_vars, n_samples)
+        return sparse.concatenate(x_hat, axis=0)
 
     @torch.inference_mode()
     def _get_denoised_samples(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
         n_samples: int = 25,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Sequence[int]] = None,
+        transform_batch: list[int] | None = None,
     ) -> np.ndarray:
         """Return samples from an adjusted posterior predictive.
 
@@ -508,9 +508,7 @@ class RNASeqMixin:
         denoised_samples
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         data_loader_list = []
         for tensors in scdl:
@@ -556,12 +554,12 @@ class RNASeqMixin:
     @torch.inference_mode()
     def get_feature_correlation_matrix(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
         n_samples: int = 10,
         batch_size: int = 64,
         rna_size_factor: int = 1000,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = None,
+        transform_batch: list[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.
@@ -611,26 +609,22 @@ class RNASeqMixin:
                 rna_size_factor=rna_size_factor,
                 transform_batch=b,
             )
-            flattened = np.zeros(
-                (denoised_data.shape[0] * n_samples, denoised_data.shape[1])
-            )
+            flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
             for i in range(n_samples):
                 if n_samples == 1:
-                    flattened[
-                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                    ] = denoised_data[:, :]
+                    flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = (
+                        denoised_data[:, :]
+                    )
                 else:
-                    flattened[
-                        denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)
-                    ] = denoised_data[:, :, i]
+                    flattened[denoised_data.shape[0] * (i) : denoised_data.shape[0] * (i + 1)] = (
+                        denoised_data[:, :, i]
+                    )
             if correlation_type == "pearson":
                 corr_matrix = np.corrcoef(flattened, rowvar=False)
             elif correlation_type == "spearman":
                 corr_matrix, _ = spearmanr(flattened)
             else:
-                raise ValueError(
-                    "Unknown correlation type. Choose one of 'spearman', 'pearson'."
-                )
+                raise ValueError("Unknown correlation type. Choose one of 'spearman', 'pearson'.")
             corr_mats.append(corr_matrix)
         corr_matrix = np.mean(np.stack(corr_mats), axis=0)
         var_names = adata.var_names
@@ -639,11 +633,11 @@ class RNASeqMixin:
     @torch.inference_mode()
     def get_likelihood_parameters(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        n_samples: Optional[int] = 1,
-        give_mean: Optional[bool] = False,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
+        n_samples: int | None = 1,
+        give_mean: bool | None = False,
+        batch_size: int | None = None,
     ) -> dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
 
@@ -663,9 +657,7 @@ class RNASeqMixin:
         """
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         dropout_list = []
         mean_list = []
@@ -718,10 +710,10 @@ class RNASeqMixin:
     @unsupported_if_adata_minified
     def get_latent_library_size(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
         give_mean: bool = True,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Returns the latent library size for each cell.
 
@@ -742,9 +734,7 @@ class RNASeqMixin:
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         libraries = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
@@ -758,7 +748,8 @@ class RNASeqMixin:
                 if ql is None:
                     raise RuntimeError(
                         "The module for this model does not compute the posterior distribution "
-                        "for the library size. Set `give_mean` to False to use the observed library size instead."
+                        "for the library size. Set `give_mean` to False to use the observed "
+                        "library size instead."
                     )
                 library = torch.distributions.LogNormal(ql.loc, ql.scale).mean
             libraries += [library.cpu()]

@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import json
 import os
-from dataclasses import dataclass, field
-from typing import Optional, Union
+from dataclasses import asdict, dataclass, field
 
 import torch
 from huggingface_hub import ModelCard, ModelCardData
@@ -28,18 +29,19 @@ class HubMetadata:
     model_cls_name
         The name of the model class.
     training_data_url
-        Link to the training data used to train the model, if it is too large to be uploaded to the hub. This can be
-        a cellxgene explorer session url. However it cannot be a self-hosted session -- it must be from the cellxgene
-        portal (https://cellxgene.cziscience.com/).
+        Link to the training data used to train the model, if it is too large to be uploaded to the
+        hub. This can be a cellxgene explorer session url. However it cannot be a self-hosted
+        session -- it must be from the cellxgene portal (https://cellxgene.cziscience.com/).
     model_parent_module
-        The parent module of the model class. Defaults to `scvi.model`. Change this if you are using a model
-        class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
+        The parent module of the model class. Defaults to `scvi.model`. Change this if you are
+        using a model class that is not in the `scvi.model` module, for example, if you are using a
+        model class from a custom module.
     """
 
     scvi_version: str
     anndata_version: str
     model_cls_name: str
-    training_data_url: Optional[str] = None
+    training_data_url: str | None = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
 
     @classmethod
@@ -47,7 +49,7 @@ class HubMetadata:
         cls,
         local_dir: str,
         anndata_version: str,
-        map_location: Optional[Union[torch.device, str, dict]] = "cpu",
+        map_location: torch.device | str | dict | None = "cpu",
         **kwargs,
     ):
         """Create a `HubMetadata` object from a local directory.
@@ -76,9 +78,26 @@ class HubMetadata:
             **kwargs,
         )
 
+    def save(self, save_path: str, overwrite: bool = False) -> None:
+        """Save the metadata to a JSON file.
+
+        Parameters
+        ----------
+        save_path
+            The path to which to save the metadata as a JSON file.
+        overwrite
+            Whether to overwrite the file if it already exists.
+        """
+        if os.path.isfile(save_path) and not overwrite:
+            raise FileExistsError(
+                f"File already exists at {save_path}. To overwrite, pass `overwrite=True`."
+            )
+        with open(save_path, "w") as f:
+            json.dump(asdict(self), f, indent=4)
+
     def __post_init__(self):
         if self.training_data_url is not None:
-            validate_url(self.training_data_url, raise_error=True)
+            validate_url(self.training_data_url, error_format=True)
 
 
 @dataclass
@@ -112,14 +131,15 @@ class HubModelCardHelper:
     data_is_minified
         Whether the training data uploaded with the model has been minified.
     training_data_url
-        Link to the training data used to train the model, if it is too large to be uploaded to the hub. This can be
-        a cellxgene explorer session url. However it cannot be a self-hosted session -- it must be from the cellxgene
-        portal (https://cellxgene.cziscience.com/).
+        Link to the training data used to train the model, if it is too large to be uploaded to the
+        hub. This can be a cellxgene explorer session url. However it cannot be a self-hosted
+        session -- it must be from the cellxgene portal (https://cellxgene.cziscience.com/).
     training_code_url
         Link to the code used to train the model.
     model_parent_module
-        The parent module of the model class. Defaults to `scvi.model`. Change this if you are using a model
-        class that is not in the `scvi.model` module, for example, if you are using a model class from a custom module.
+        The parent module of the model class. Defaults to `scvi.model`. Change this if you are
+        using a model class that is not in the `scvi.model` module, for example, if you are using a
+        model class from a custom module.
     description
         A description of the model.
     references_
@@ -127,10 +147,11 @@ class HubModelCardHelper:
 
     Notes
     -----
-    It is not required to use this class to create a `ModelCard`. But this helps you do so in a way that is
-    consistent with most other `scvi-tools` hub models. You can think of this as a template. The actual template
-    string used can be found in ``scvi.template``. The resulting huggingface :class:`~huggingface_hub.ModelCard`
-    can be accessed via the :meth:`~scvi.hub.HubModelCardHelper.model_card` property.
+    It is not required to use this class to create a `ModelCard`. But this helps you do so in a way
+    that is consistent with most other `scvi-tools` hub models. You can think of this as a
+    template. The actual template string used can be found in ``scvi.template``. The resulting
+    huggingface :class:`~huggingface_hub.ModelCard` can be accessed via the
+    :meth:`~scvi.hub.HubModelCardHelper.model_card` property.
     """
 
     license_info: str
@@ -143,10 +164,10 @@ class HubModelCardHelper:
     anndata_version: str
     data_modalities: list[str] = field(default_factory=list)
     tissues: list[str] = field(default_factory=list)
-    data_is_annotated: Optional[bool] = None
-    data_is_minified: Optional[bool] = None
-    training_data_url: Optional[str] = None
-    training_code_url: Optional[str] = None
+    data_is_annotated: bool | None = None
+    data_is_minified: bool | None = None
+    training_data_url: str | None = None
+    training_code_url: str | None = None
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
     description: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
     references: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
@@ -155,9 +176,9 @@ class HubModelCardHelper:
         self.model_card = self._to_model_card()
 
         if self.training_data_url is not None:
-            validate_url(self.training_data_url, raise_error=True)
+            validate_url(self.training_data_url, error_format=True)
         if self.training_code_url is not None:
-            validate_url(self.training_code_url, raise_error=True)
+            validate_url(self.training_code_url, error_format=True)
 
     @classmethod
     def from_dir(
@@ -165,8 +186,8 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
-        data_is_minified: Optional[bool] = None,
-        map_location: Optional[Union[torch.device, str, dict]] = "cpu",
+        data_is_minified: bool | None = None,
+        map_location: torch.device | str | dict | None = "cpu",
         **kwargs,
     ):
         """Create a `HubModelCardHelper` object from a local directory.
@@ -194,14 +215,11 @@ class HubModelCardHelper:
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
-        model_summary_stats = dict(
-            AnnDataManager._get_summary_stats_from_registry(registry)
-        )
-        model_data_registry = dict(
-            AnnDataManager._get_data_registry_from_registry(registry)
-        )
+        model_summary_stats = dict(AnnDataManager._get_summary_stats_from_registry(registry))
+        model_data_registry = dict(AnnDataManager._get_data_registry_from_registry(registry))
 
-        # get `is_minified` from the param if it is given, else from adata if it on disk, else set it to None
+        # get `is_minified` from the param if it is given, else from adata if it on disk, else set
+        # it to None
         is_minified = data_is_minified
         if is_minified is None and os.path.isfile(f"{local_dir}/adata.h5ad"):
             is_minified = _is_minified(f"{local_dir}/adata.h5ad")
@@ -244,22 +262,20 @@ class HubModelCardHelper:
         )
 
         # flatten the model_init_params into a single dict
-        # for example {'kwargs': {'model_kwargs': {'foo': 'bar'}}, 'non_kwargs': {'n_hidden': 128, 'n_latent': 10}}
+        # for example {'kwargs': {'model_kwargs': {'foo': 'bar'}}, 'non_kwargs': {'n_hidden': 128,
+        # 'n_latent': 10}}
         # becomes {'n_hidden': 128, 'n_latent': 10, 'foo': 'bar'}
         if "non_kwargs" in self.model_init_params.keys():
             non_kwargs = self.model_init_params["non_kwargs"]
             kwargs = self.model_init_params["kwargs"]
         else:
             non_kwargs = {
-                k: v
-                for k, v in self.model_init_params.items()
-                if not isinstance(v, dict)
+                k: v for k, v in self.model_init_params.items() if not isinstance(v, dict)
             }
-            kwargs = {
-                k: v for k, v in self.model_init_params.items() if isinstance(v, dict)
-            }
+            kwargs = {k: v for k, v in self.model_init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
-        # kwargs and non_kwargs keys should be disjoint but if not, we'll just use the original model_init_params
+        # kwargs and non_kwargs keys should be disjoint but if not, we'll just use the original
+        # model_init_params
         if len(set(kwargs.keys()).intersection(set(non_kwargs.keys()))) == 0:
             flattened_model_init_params = {**non_kwargs, **kwargs}
         else:

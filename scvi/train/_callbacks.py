@@ -18,43 +18,41 @@ from lightning.pytorch.utilities import rank_zero_info
 from scvi import settings
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
+from scvi.model.base._utils import _load_saved_files
 
 MetricCallable = Callable[[BaseModelClass], float]
 
 
 class SaveCheckpoint(ModelCheckpoint):
-    """``EXPERIMENTAL`` Saves model checkpoints based on a monitored metric.
+    """``BETA`` Saves model checkpoints based on a monitored metric.
 
-    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and
-    modifies the default behavior to save the full model state instead of just
-    the state dict. This is necessary for compatibility with
-    :class:`~scvi.model.base.BaseModelClass`.
+    Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and modifies the default
+    behavior to save the full model state instead of just the state dict. This is necessary for
+    compatibility with :class:`~scvi.model.base.BaseModelClass`.
 
-    The best model save and best model score based on ``monitor`` can be
-    accessed post-training with the ``best_model_path`` and ``best_model_score``
-    attributes, respectively.
+    The best model save and best model score based on ``monitor`` can be accessed post-training
+    with the ``best_model_path`` and ``best_model_score`` attributes, respectively.
 
     Known issues:
 
-    * Does not set ``train_indices``, ``validation_indices``, and
-      ``test_indices`` for checkpoints.
-    * Does not set ``history`` for checkpoints. This can be accessed in the
-      final model however.
-    * Unsupported arguments: ``save_weights_only`` and ``save_last``
+    * Does not set ``train_indices``, ``validation_indices``, and ``test_indices`` for checkpoints.
+    * Does not set ``history`` for checkpoints. This can be accessed in the final model however.
+    * Unsupported arguments: ``save_weights_only`` and ``save_last``.
 
     Parameters
     ----------
     dirpath
-        Base directory to save the model checkpoints. If ``None``, defaults to
-        a directory formatted with the current date, time, and monitor within
-        ``settings.logging_dir``.
+        Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
+        :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
     filename
-        Name of the checkpoint directories. Can contain formatting options to be
-        auto-filled. If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
+        Name for the checkpoint directories, which can contain formatting options for auto-filling.
+        If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
+    load_best_on_end
+        If ``True``, loads the best model state into the model at the end of training.
     **kwargs
-        Additional keyword arguments passed into
+        Additional keyword arguments passed into the constructor for
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
     """
 
@@ -63,32 +61,31 @@ class SaveCheckpoint(ModelCheckpoint):
         dirpath: str | None = None,
         filename: str | None = None,
         monitor: str = "validation_loss",
+        load_best_on_end: bool = False,
         **kwargs,
     ):
         if dirpath is None:
             dirpath = os.path.join(
                 settings.logging_dir,
-                datetime.now().strftime("%Y-%m-%d-%H:%M:%S"),
+                datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{monitor}",
             )
-            dirpath += f"-{monitor}"
-
         if filename is None:
             filename = "{epoch}-{step}-{" + monitor + "}"
-
         if "save_weights_only" in kwargs:
             warnings.warn(
-                "`save_weights_only` is not supported and will be ignored.",
+                "`save_weights_only` is not supported in `SaveCheckpoint` and will be ignored.",
                 RuntimeWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             kwargs.pop("save_weights_only")
         if "save_last" in kwargs:
             warnings.warn(
-                "`save_last` is not supported and will be ignored.",
+                "`save_last` is not supported in `SaveCheckpoint` and will be ignored.",
                 RuntimeWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             kwargs.pop("save_last")
+        self.load_best_on_end = load_best_on_end
 
         super().__init__(
             dirpath=dirpath,
@@ -115,7 +112,11 @@ class SaveCheckpoint(ModelCheckpoint):
         model.is_trained_ = False
 
     def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
-        """Removes model saves that are no longer needed."""
+        """Removes model saves that are no longer needed.
+
+        Calls the superclass method and then removes the :class:`~scvi.model.base.BaseModelClass`
+        save directory.
+        """
         super()._remove_checkpoint(trainer, filepath)
 
         model_path = filepath.split(".ckpt")[0]
@@ -128,74 +129,28 @@ class SaveCheckpoint(ModelCheckpoint):
         trainer: pl.Trainer,
         monitor_candidates: dict[str, torch.Tensor],
     ) -> None:
-        """Replaces Lightning checkpoints with our model saves."""
+        """Replaces Lightning checkpoints with :class:`~scvi.model.base.BaseModelClass` saves.
+
+        Calls the superclass method and then replaces the Lightning checkpoint file with
+        the :class:`~scvi.model.base.BaseModelClass` save directory.
+        """
         super()._update_best_and_save(current, trainer, monitor_candidates)
 
         if os.path.exists(self.best_model_path):
             os.remove(self.best_model_path)
         self.best_model_path = self.best_model_path.split(".ckpt")[0]
 
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+        """Loads the best model state into the model at the end of training."""
+        if not self.load_best_on_end:
+            return
 
-class MetricsCallback(Callback):
-    """Computes metrics on validation end and logs them to the logger.
-
-    Parameters
-    ----------
-    metric_fns
-        Validation metrics to compute and log. One of the following:
-
-        * `:class:`~scvi.train._callbacks.MetricCallable`: A function that takes in a
-            :class:`~scvi.model.base.BaseModelClass` and returns a `float`.
-            The function's `__name__`is used as the logging name.
-
-        * `List[:class:`~scvi.train._callbacks.MetricCallable`]`: Same as above but in
-            a list.
-
-        * `Dict[str, :class:`~scvi.train._callbacks.MetricCallable`]`: Same as above,
-            but the keys are used as the logging names instead.
-    """
-
-    def __init__(
-        self,
-        metric_fns: MetricCallable | list[MetricCallable] | dict[str, MetricCallable],
-    ):
-        super().__init__()
-
-        if callable(metric_fns):
-            metric_fns = [metric_fns]
-
-        if not isinstance(metric_fns, (list, dict)):
-            raise TypeError("`metric_fns` must be a `list` or `dict`.")
-
-        values = metric_fns if isinstance(metric_fns, list) else metric_fns.values()
-        for val in values:
-            if not callable(val):
-                raise TypeError("`metric_fns` must contain functions only.")
-
-        if not isinstance(metric_fns, dict):
-            metric_fns = {f.__name__: f for f in metric_fns}
-
-        self.metric_fns = metric_fns
-
-    def on_validation_end(self, trainer, pl_module):
-        """Compute metrics at the end of validation.
-
-        Sets the model to trained mode before computing metrics and restores training
-        mode thereafter. Metrics are not logged with a `"validation"` prefix as the
-        metrics are only computed on the validation set.
-        """
-        model = trainer._model  # TODO: Remove with a better way to access model
-        model.is_trained = True
-
-        metrics = {}
-        for metric_name, metric_fn in self.metric_fns.items():
-            metric_value = metric_fn(model)
-            metrics[metric_name] = metric_value
-
-        metrics["epoch"] = trainer.current_epoch
-
-        pl_module.logger.log_metrics(metrics, trainer.global_step)
-        model.is_trained = False
+        _, _, best_state_dict, _ = _load_saved_files(
+            self.best_model_path,
+            load_adata=False,
+            map_location=pl_module.module.device,
+        )
+        pl_module.module.load_state_dict(best_state_dict)
 
 
 class SubSampleLabels(Callback):
@@ -211,7 +166,7 @@ class SubSampleLabels(Callback):
 
 
 class SaveBestState(Callback):
-    r"""Save the best module state and restore into model.
+    r"""``DEPRECATED`` Save the best module state and restore into model.
 
     Parameters
     ----------
@@ -228,6 +183,11 @@ class SaveBestState(Callback):
     --------
     from scvi.train import Trainer
     from scvi.train import SaveBestState
+
+    Notes
+    -----
+    Lifecycle: deprecated in v1.2 and to be removed in v1.3. Please use
+        :class:`~scvi.train.callbacks.SaveCheckpoint` instead.
     """
 
     def __init__(
@@ -238,6 +198,14 @@ class SaveBestState(Callback):
         period=1,
     ):
         super().__init__()
+
+        warnings.warn(
+            "`SaveBestState` is deprecated in v1.2 and will be removed in v1.3. Please use "
+            "`SaveCheckpoint` instead. See https://github.com/scverse/scvi-tools/issues/2568 "
+            "for more details.",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
         self.monitor = monitor
         self.verbose = verbose
@@ -281,8 +249,7 @@ class SaveBestState(Callback):
 
             if current is None:
                 warnings.warn(
-                    f"Can save best module state only with {self.monitor} available, "
-                    "skipping.",
+                    f"Can save best module state only with {self.monitor} available, " "skipping.",
                     RuntimeWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
@@ -307,11 +274,12 @@ class SaveBestState(Callback):
 
 
 class LoudEarlyStopping(EarlyStopping):
-    """Wrapper of Pytorch Lightning EarlyStopping callback that prints the reason for stopping on teardown.
+    """Loud early stopping callback.
 
-    When the early stopping condition is met, the reason is saved to the callback instance,
-    then printed on teardown. By printing on teardown, we do not interfere with the progress
-    bar callback.
+    Wrapper of :class:`~lightning.pytorch.callbacks.early_stopping.EarlyStopping callback that
+    prints the reason for stopping on teardown. When the early stopping condition is met, the
+    reason is saved to the callback instance, then printed on teardown. By printing on teardown, we
+    do not interfere with the progress bar callback.
     """
 
     def __init__(self, **kwargs) -> None:

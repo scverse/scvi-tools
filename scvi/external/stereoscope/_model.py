@@ -20,14 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20`.
 
-    https://github.com/almaan/stereoscope.
+    Deconvolution of spatial transcriptomics from single-cell transcriptomics. Original
+    implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
     sc_adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
+        single-cell AnnData object that has been registered via
+        :meth:`~scvi.external.RNAStereoscope.setup_anndata`.
     **model_kwargs
         Keyword args for :class:`~scvi.external.stereoscope.RNADeconv`
 
@@ -37,6 +39,12 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     >>> scvi.external.RNAStereoscope.setup_anndata(sc_adata, labels_key="labels")
     >>> stereo = scvi.external.stereoscope.RNAStereoscope(sc_adata)
     >>> stereo.train()
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
@@ -53,7 +61,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             n_labels=self.n_labels,
             **model_kwargs,
         )
-        self._model_summary_string = f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
+        self._model_summary_string = (
+            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     @devices_dsp.dedent
@@ -87,8 +97,9 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -141,22 +152,22 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
 
 class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
-    """Reimplementation of Stereoscope :cite:p:`Andersson20` for deconvolution of spatial transcriptomics from single-cell transcriptomics.
+    """Reimplementation of Stereoscope :cite:p:`Andersson20`.
 
-    https://github.com/almaan/stereoscope.
+    Deconvolution of spatial transcriptomics from single-cell transcriptomics. Original
+    implementation: https://github.com/almaan/stereoscope.
 
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.external.SpatialStereoscope.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via
+        :meth:`~scvi.external.SpatialStereoscope.setup_anndata`.
     sc_params
         parameters of the model learned from the single-cell RNA seq data for deconvolution.
     cell_type_mapping
@@ -183,7 +194,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/stereoscope_heart_LV_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/stereoscope_heart_LV_tutorial`
     """
 
     def __init__(
@@ -201,9 +212,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             prior_weight=prior_weight,
             **model_kwargs,
         )
-        self._model_summary_string = (
-            f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
-        )
+        self._model_summary_string = f"RNADeconv Model with params: \nn_spots: {st_adata.n_obs}"
         self.cell_type_mapping = cell_type_mapping
         self.init_params_ = self._get_init_params(locals())
 
@@ -247,7 +256,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         keep_noise
-            whether to account for the noise term as a standalone cell type in the proportion estimate.
+            whether to account for the noise term as a standalone cell type in the proportion
+            estimate.
         """
         self._check_if_trained()
 
@@ -279,7 +289,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ind_y = np.array([np.where(ct == self.cell_type_mapping)[0][0] for ct in y])
         if ind_y.shape != y.shape:
             raise ValueError(
-                "Incorrect shape after matching cell types to reference mapping. Please check cell type query."
+                "Incorrect shape after matching cell types to reference mapping. Please check "
+                "cell type query."
             )
         px_scale = self.module.get_ct_specific_expression(torch.tensor(ind_y)[:, None])
         return np.array(px_scale.cpu())
@@ -308,8 +319,9 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -361,8 +373,6 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

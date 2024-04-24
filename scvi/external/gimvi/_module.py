@@ -1,4 +1,5 @@
 """Main module."""
+
 from typing import Optional, Union
 
 import numpy as np
@@ -11,7 +12,7 @@ from torch.nn import ModuleList
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import Encoder, MultiDecoder, MultiEncoder, one_hot
+from scvi.nn import Encoder, MultiDecoder, MultiEncoder
 
 torch.backends.cudnn.benchmark = True
 
@@ -31,8 +32,9 @@ class JVAE(BaseModuleClass):
         Total number of different genes
     indices_mappings
         list of mapping the model inputs to the model output
-        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed at location ``[0,2]``
-        the second dataset has 4 genes that will be reconstructed at ``[0,1,3,2]``
+        Eg: ``[[0,2], [0,1,3,2]]`` means the first dataset has 2 genes that will be reconstructed
+        at location ``[0,2]`` the second dataset has 4 genes that will be reconstructed at
+        ``[0,1,3,2]``
     gene_likelihoods
         list of distributions to use in the generative process 'zinb', 'nb', 'poisson'
     model_library_bools bool list
@@ -354,16 +356,12 @@ class JVAE(BaseModuleClass):
         reconstruction_loss = None
         if self.gene_likelihoods[mode] == "zinb":
             reconstruction_loss = (
-                -ZeroInflatedNegativeBinomial(
-                    mu=px_rate, theta=px_r, zi_logits=px_dropout
-                )
+                -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout)
                 .log_prob(x)
                 .sum(dim=-1)
             )
         elif self.gene_likelihoods[mode] == "nb":
-            reconstruction_loss = (
-                -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
-            )
+            reconstruction_loss = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
         elif self.gene_likelihoods[mode] == "poisson":
             reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
@@ -410,16 +408,16 @@ class JVAE(BaseModuleClass):
             z, mode, library, self.dispersion, batch_index, y
         )
         if self.dispersion == "gene-label":
-            px_r = F.linear(one_hot(y, self.n_labels), self.px_r)
+            px_r = F.linear(F.one_hot(y.type.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r.view(1, self.px_r.size(0))
         px_r = torch.exp(px_r)
 
-        px_scale = px_scale / torch.sum(
-            px_scale[:, self.indices_mappings[mode]], dim=1
-        ).view(-1, 1)
+        px_scale = px_scale / torch.sum(px_scale[:, self.indices_mappings[mode]], dim=1).view(
+            -1, 1
+        )
         px_rate = px_scale * torch.exp(library)
 
         return {
@@ -490,10 +488,10 @@ class JVAE(BaseModuleClass):
             library_log_vars = getattr(self, f"library_log_vars_{mode}")
 
             local_library_log_means = F.linear(
-                one_hot(batch_index, self.n_batch), library_log_means
+                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), library_log_means
             )
             local_library_log_vars = F.linear(
-                one_hot(batch_index, self.n_batch), library_log_vars
+                F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), library_log_vars
             )
             kl_divergence_l = kl(
                 ql,
@@ -506,6 +504,4 @@ class JVAE(BaseModuleClass):
 
         loss = torch.mean(reconstruction_loss + kl_weight * kl_local) * x.size(0)
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconstruction_loss, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconstruction_loss, kl_local=kl_local)

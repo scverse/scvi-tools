@@ -159,6 +159,18 @@ html_theme_options = {
             "icon": "fa-brands fa-github",
             "type": "fontawesome",
         },
+        {
+            "name": "Discourse",
+            "url": "https://discourse.scverse.org/",
+            "icon": "fa-brands fa-discourse",
+            "type": "fontawesome",
+        },
+        {
+            "name": "Model hub",
+            "url": "https://huggingface.co/scvi-tools/",
+            "icon": "fa-solid fa-cloud",
+            "type": "fontawesome",
+        },
     ],
 }
 

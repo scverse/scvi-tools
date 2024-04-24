@@ -8,12 +8,9 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
-from scvi._types import Tunable, TunableMixin
 
 from ._callbacks import (
     LoudEarlyStopping,
-    MetricCallable,
-    MetricsCallback,
     SaveCheckpoint,
 )
 from ._logger import SimpleLogger
@@ -21,7 +18,7 @@ from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
 
 
-class Trainer(TunableMixin, pl.Trainer):
+class Trainer(pl.Trainer):
     """Lightweight wrapper of Pytorch Lightning Trainer.
 
     Appropriate defaults are set for scvi-tools models, as well as callbacks like
@@ -30,16 +27,17 @@ class Trainer(TunableMixin, pl.Trainer):
     Parameters
     ----------
     accelerator
-        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps, "auto")
-        as well as custom accelerator instances.
+        Supports passing different accelerator types ("cpu", "gpu", "tpu", "ipu", "hpu", "mps,
+        "auto") as well as custom accelerator instances.
     devices
-        The devices to use. Can be set to a positive number (int or str), a sequence of device indices
-        (list or str), the value ``-1`` to indicate all available devices should be used, or ``"auto"`` for
-        automatic selection based on the chosen accelerator. Default: ``"auto"``.
+        The devices to use. Can be set to a positive number (int or str), a sequence of device
+        indices (list or str), the value ``-1`` to indicate all available devices should be used,
+        or ``"auto"`` for automatic selection based on the chosen accelerator. Default: ``"auto"``.
     benchmark
         If true enables cudnn.benchmark, which improves speed when inputs are fixed size
     check_val_every_n_epoch
-        Check val every n train epochs. By default, val is not checked, unless `early_stopping` is `True`.
+        Check val every n train epochs. By default, val is not checked, unless `early_stopping` is
+        `True`.
     max_epochs
         Stop training once this number of epochs is reached.
     default_root_dir
@@ -72,9 +70,6 @@ class Trainer(TunableMixin, pl.Trainer):
     early_stopping_mode
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
-    additional_val_metrics
-        Additional validation metrics to compute and log. See
-        :class:`~scvi.train._callbacks.MetricsCallback` for more details.
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
@@ -98,7 +93,7 @@ class Trainer(TunableMixin, pl.Trainer):
         devices: Optional[Union[list[int], str, int]] = None,
         benchmark: bool = True,
         check_val_every_n_epoch: Optional[int] = None,
-        max_epochs: Tunable[int] = 400,
+        max_epochs: int = 400,
         default_root_dir: Optional[str] = None,
         enable_checkpointing: bool = False,
         checkpointing_monitor: str = "validation_loss",
@@ -111,9 +106,6 @@ class Trainer(TunableMixin, pl.Trainer):
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
-        additional_val_metrics: Union[
-            MetricCallable, list[MetricCallable], dict[str, MetricCallable]
-        ] = None,
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
@@ -138,9 +130,7 @@ class Trainer(TunableMixin, pl.Trainer):
             callbacks.append(early_stopping_callback)
             check_val_every_n_epoch = 1
 
-        if enable_checkpointing and not any(
-            isinstance(c, SaveCheckpoint) for c in callbacks
-        ):
+        if enable_checkpointing and not any(isinstance(c, SaveCheckpoint) for c in callbacks):
             callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
             check_val_every_n_epoch = 1
         elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
@@ -156,16 +146,6 @@ class Trainer(TunableMixin, pl.Trainer):
 
         if simple_progress_bar and enable_progress_bar:
             callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
-
-        if additional_val_metrics is not None:
-            if check_val_every_n_epoch == sys.maxsize:
-                warnings.warn(
-                    "`additional_val_metrics` was passed in but will not be computed "
-                    "because `check_val_every_n_epoch` was not passed in.",
-                    UserWarning,
-                    stacklevel=settings.warnings_stacklevel,
-                )
-            callbacks.append(MetricsCallback(additional_val_metrics))
 
         if logger is None:
             logger = SimpleLogger()

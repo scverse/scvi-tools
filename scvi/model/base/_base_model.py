@@ -15,7 +15,7 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType, TunableMixin
+from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -36,7 +36,9 @@ from ._utils import _initialize_model, _load_saved_files, _validate_var_names
 logger = logging.getLogger(__name__)
 
 
-_UNTRAINED_WARNING_MESSAGE = "Trying to query inferred values from an untrained model. Please train the model first."
+_UNTRAINED_WARNING_MESSAGE = (
+    "Trying to query inferred values from an untrained model. Please train the model first."
+)
 
 _SETUP_INPUTS_EXCLUDED_PARAMS = {"adata", "mdata", "kwargs"}
 
@@ -45,10 +47,14 @@ class BaseModelMetaClass(ABCMeta):
     """Metaclass for :class:`~scvi.model.base.BaseModelClass`.
 
     Constructs model class-specific mappings for :class:`~scvi.data.AnnDataManager` instances.
-    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to :class:`~scvi.data.AnnDataManager` instances.
+    ``cls._setup_adata_manager_store`` maps from AnnData object UUIDs to
+    :class:`~scvi.data.AnnDataManager` instances.
+
     This mapping is populated everytime ``cls.setup_anndata()`` is called.
-    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID::class:`~scvi.data.AnnDataManager` mappings.
-    These :class:`~scvi.data.AnnDataManager` instances are tied to a single model instance and populated either
+    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID:
+    :class:`~scvi.data.AnnDataManager` mappings.
+    These :class:`~scvi.data.AnnDataManager` instances are tied to a single model instance and
+    populated either
     during model initialization or after running ``self._validate_anndata()``.
     """
 
@@ -63,7 +69,7 @@ class BaseModelMetaClass(ABCMeta):
         super().__init__(name, bases, dct)
 
 
-class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
+class BaseModelClass(metaclass=BaseModelMetaClass):
     """Abstract class for scvi-tools models.
 
     Notes
@@ -80,9 +86,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
         # If not, raise an error to inform the user of the lack of minified-data functionality
         # for this model
-        data_is_minified = (
-            adata is not None and _get_adata_minify_type(adata) is not None
-        )
+        data_is_minified = adata is not None and _get_adata_minify_type(adata) is not None
         if data_is_minified and not issubclass(type(self), BaseMinifiedModeModelClass):
             raise NotImplementedError(
                 f"The {type(self).__name__} model currently does not support minified data."
@@ -90,14 +94,13 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
-            self._adata_manager = self._get_most_recent_anndata_manager(
-                adata, required=True
-            )
+            self._adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = self._adata_manager.registry
             self.summary_stats = self._adata_manager.summary_stats
 
+        self._module_init_on_train = adata is None
         self.is_trained_ = False
         self._model_summary_string = ""
         self.train_indices_ = None
@@ -179,7 +182,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _create_modalities_attr_dict(
         modalities: dict[str, str], setup_method_args: dict
     ) -> attrdict:
-        """Preprocesses a ``modalities`` dictionary used in ``setup_mudata()`` to map modality names.
+        """Preprocesses a ``modalities`` dictionary to map modality names.
 
         Ensures each field key has a respective modality key, defaulting to ``None``.
         Raises a ``UserWarning`` if extraneous modality mappings are detected.
@@ -197,9 +200,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         }
         extra_modalities = set(modalities) - set(filtered_modalities)
         if len(extra_modalities) > 0:
-            raise ValueError(
-                f"Extraneous modality mapping(s) detected: {extra_modalities}"
-            )
+            raise ValueError(f"Extraneous modality mapping(s) detected: {extra_modalities}")
         return attrdict(filtered_modalities)
 
     @classmethod
@@ -213,8 +214,9 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         Notes
         -----
-        Subsequent calls to this method with an :class:`~scvi.data.AnnDataManager` instance referring to the same
-        underlying AnnData object will overwrite the reference to previous :class:`~scvi.data.AnnDataManager`.
+        Subsequent calls to this method with an :class:`~scvi.data.AnnDataManager` instance
+        referring to the same underlying AnnData object will overwrite the reference to previous
+        :class:`~scvi.data.AnnDataManager`.
         """
         adata_id = adata_manager.adata_uuid
         cls._setup_adata_manager_store[adata_id] = adata_manager
@@ -252,18 +254,14 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         for adata_id in cls_managers_to_clear:
             # don't clear the current manager by default
-            is_current_adata = (
-                adata is None and adata_id == self.adata_manager.adata_uuid
-            )
+            is_current_adata = adata is None and adata_id == self.adata_manager.adata_uuid
             if is_current_adata or adata_id not in cls_manager_store:
                 continue
             del cls_manager_store[adata_id]
 
         for adata_id in instance_managers_to_clear:
             # don't clear the current manager by default
-            is_current_adata = (
-                adata is None and adata_id == self.adata_manager.adata_uuid
-            )
+            is_current_adata = adata is None and adata_id == self.adata_manager.adata_uuid
             if is_current_adata or adata_id not in instance_manager_store:
                 continue
             del instance_manager_store[adata_id]
@@ -272,11 +270,12 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _get_most_recent_anndata_manager(
         cls, adata: AnnOrMuData, required: bool = False
     ) -> AnnDataManager | None:
-        """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model class.
+        """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object.
 
-        Checks for the most recent :class:`~scvi.data.AnnDataManager` created for the given AnnData object via
-        ``setup_anndata()`` on model initialization. Unlike :meth:`scvi.model.base.BaseModelClass.get_anndata_manager`,
-        this method is not model instance specific and can be called before a model is fully initialized.
+        Checks for the most recent :class:`~scvi.data.AnnDataManager` created for the given AnnData
+        object via ``setup_anndata()`` on model initialization. Unlike
+        :meth:`scvi.model.base.BaseModelClass.get_anndata_manager`, this method is not model
+        instance specific and can be called before a model is fully initialized.
 
         Parameters
         ----------
@@ -314,7 +313,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def get_anndata_manager(
         self, adata: AnnOrMuData, required: bool = False
     ) -> AnnDataManager | None:
-        """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object specific to this model instance.
+        """Retrieves the :class:`~scvi.data.AnnDataManager` for a given AnnData object.
 
         Requires ``self.id`` has been set. Checks for an :class:`~scvi.data.AnnDataManager`
         specific to this model instance.
@@ -351,9 +350,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         adata_manager = cls._per_instance_manager_store[self.id][adata_id]
         if adata_manager.adata is not adata:
-            logger.info(
-                "AnnData object appears to be a copy. Attempting to transfer setup."
-            )
+            logger.info("AnnData object appears to be a copy. Attempting to transfer setup.")
             _assign_adata_uuid(adata, overwrite=True)
             adata_manager = self.adata_manager.transfer_fields(adata)
             self._register_manager_for_instance(adata_manager)
@@ -418,7 +415,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         adata_manager = self.get_anndata_manager(adata)
         if adata_manager is None:
             raise AssertionError(
-                "AnnDataManager not found. Call `self._validate_anndata` prior to calling this function."
+                "AnnDataManager not found. Call `self._validate_anndata` prior to calling this "
+                "function."
             )
 
         adata = adata_manager.adata
@@ -457,27 +455,21 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
                 "Input AnnData not setup with scvi-tools. "
                 + "attempting to transfer AnnData setup"
             )
-            self._register_manager_for_instance(
-                self.adata_manager.transfer_fields(adata)
-            )
+            self._register_manager_for_instance(self.adata_manager.transfer_fields(adata))
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
 
         return adata
 
-    def _check_if_trained(
-        self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE
-    ):
+    def _check_if_trained(self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE):
         """Check if the model is trained.
 
         If not trained and `warn` is True, raise a warning, else raise a RuntimeError.
         """
         if not self.is_trained_:
             if warn:
-                warnings.warn(
-                    message, UserWarning, stacklevel=settings.warnings_stacklevel
-                )
+                warnings.warn(message, UserWarning, stacklevel=settings.warnings_stacklevel)
             else:
                 raise RuntimeError(message)
 
@@ -525,9 +517,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
     def _get_user_attributes(self):
         """Returns all the self attributes defined in a model class, e.g., `self.is_trained_`."""
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
-        attributes = [
-            a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))
-        ]
+        attributes = [a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))]
         attributes = [a for a in attributes if not a[0].startswith("_abc_")]
         return attributes
 
@@ -672,7 +662,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         Examples
         --------
-        >>> model = ModelClass.load(save_path, adata) # use the name of the model class used to save
+        >>> model = ModelClass.load(save_path, adata)
         >>> model.get_....
         """
         load_adata = adata is None
@@ -701,9 +691,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-            raise ValueError(
-                "It appears you are loading a model from a different class."
-            )
+            raise ValueError("It appears you are loading a model from a different class.")
 
         if _SETUP_ARGS_KEY not in registry:
             raise ValueError(
@@ -715,9 +703,7 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        getattr(cls, method_name)(
-            adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
-        )
+        getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         model = _initialize_model(cls, adata, attr_dict)
         model.module.on_load(model)
@@ -757,7 +743,8 @@ class BaseModelClass(TunableMixin, metaclass=BaseModelMetaClass):
             os.makedirs(output_dir_path, exist_ok=overwrite)
         else:
             raise ValueError(
-                f"{output_dir_path} already exists. Please provide an unexisting directory for saving."
+                f"{output_dir_path} already exists. Please provide an unexisting directory for "
+                "saving."
             )
 
         file_name_prefix = prefix or ""
@@ -902,7 +889,8 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         """Minifies the model's adata.
 
         Minifies the adata, and registers new anndata fields as required (can be model-specific).
-        This also sets the appropriate property on the module to indicate that the adata is minified.
+        This also sets the appropriate property on the module to indicate that the adata is
+        minified.
 
         Notes
         -----

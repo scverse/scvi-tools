@@ -22,12 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
-    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez21`. Most users will use the alternate constructor (see example).
+    """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez22`.
+
+    Most users will use the alternate constructor (see example).
 
     Parameters
     ----------
     st_adata
-        spatial transcriptomics AnnData object that has been registered via :meth:`~scvi.model.DestVI.setup_anndata`.
+        spatial transcriptomics AnnData object that has been registered via
+        :meth:`~scvi.model.DestVI.setup_anndata`.
     cell_type_mapping
         mapping between numerals and cell type labels
     decoder_state_dict
@@ -62,6 +65,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
+    2. :doc:`/tutorials/notebooks/spatial/DestVI_in_R`
     """
 
     _module_cls = MRDeconv
@@ -169,11 +173,14 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         keep_noise
-            whether to account for the noise term as a standalone cell type in the proportion estimate.
+            whether to account for the noise term as a standalone cell type in the proportion
+            estimate.
         indices
-            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are
+            used.
         batch_size
-            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into model. Only used if amortization. Defaults to
+            `scvi.settings.batch_size`.
         """
         self._check_if_trained()
 
@@ -183,9 +190,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             column_names = np.append(column_names, "noise_term")
 
         if self.module.amortization in ["both", "proportion"]:
-            stdl = self._make_data_loader(
-                adata=self.adata, indices=indices, batch_size=batch_size
-            )
+            stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
             prop_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
@@ -199,7 +204,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             if indices is not None:
                 logger.info(
-                    "No amortization for proportions, ignoring indices and returning results for the full data"
+                    "No amortization for proportions, ignoring indices and returning results for "
+                    "the full data"
                 )
             data = self.module.get_proportions(keep_noise=keep_noise)
 
@@ -220,9 +226,11 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         indices
-            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are used.
+            Indices of cells in adata to use. Only used if amortization. If `None`, all cells are
+            used.
         batch_size
-            Minibatch size for data loading into model. Only used if amortization. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into model. Only used if amortization. Defaults to
+            `scvi.settings.batch_size`.
         return_numpy
             if activated, will return a numpy array of shape is n_spots x n_latent x n_labels.
         """
@@ -232,9 +240,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         index_names = self.adata.obs.index
 
         if self.module.amortization in ["both", "latent"]:
-            stdl = self._make_data_loader(
-                adata=self.adata, indices=indices, batch_size=batch_size
-            )
+            stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
             gamma_ = []
             for tensors in stdl:
                 generative_inputs = self.module._get_generative_input(tensors, None)
@@ -246,7 +252,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             if indices is not None:
                 logger.info(
-                    "No amortization for latent values, ignoring adata and returning results for the full data"
+                    "No amortization for latent values, ignoring adata and returning results for "
+                    "the full data"
                 )
             data = self.module.get_gamma()
 
@@ -256,9 +263,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         else:
             res = {}
             for i, ct in enumerate(self.cell_type_mapping):
-                res[ct] = pd.DataFrame(
-                    data=data[:, :, i], columns=column_names, index=index_names
-                )
+                res[ct] = pd.DataFrame(data=data[:, :, i], columns=column_names, index=index_names)
             return res
 
     def get_scale_for_ct(
@@ -338,8 +343,9 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         n_epochs_kl_warmup
@@ -395,8 +401,6 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

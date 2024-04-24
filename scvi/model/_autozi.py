@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """Automatic identification of ZI genes :cite:p:`Clivio19`.
+    """Automatic identification of zero-inflated genes :cite:p:`Clivio19`.
 
     Parameters
     ----------
@@ -67,10 +67,14 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     zero_inflation
         One of the following:
 
-        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
-        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
-        * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
-        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
+        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across
+          cells
+        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different
+          batches
+        * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different
+          labels
+        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every
+          cell
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     **model_kwargs
@@ -112,9 +116,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         self.use_observed_lib_size = use_observed_lib_size
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(
-            self.adata_manager, n_batch
-        )
+        library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -136,20 +138,11 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self.model_summary_string = (
-            "AutoZI Model with the following params: \nn_hidden: {}, n_latent: {}, "
-            "n_layers: {}, dropout_rate: {}, dispersion: {}, latent_distribution: "
-            "{}, alpha_prior: {}, beta_prior: {}, minimal_dropout: {}, zero_inflation:{}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            dispersion,
-            latent_distribution,
-            alpha_prior,
-            beta_prior,
-            minimal_dropout,
-            zero_inflation,
+            f"AutoZI Model with the following params: \nn_hidden: {n_hidden}, "
+            f"n_latent: {n_latent}, n_layers: {n_layers}, dropout_rate: {dropout_rate}, "
+            f"dispersion: {dispersion}, latent_distribution: {latent_distribution}, "
+            f"alpha_prior: {alpha_prior}, beta_prior: {beta_prior}, "
+            f"minimal_dropout: {minimal_dropout}, zero_inflation:{zero_inflation}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -188,9 +181,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         log_lkl = 0
         to_sum = torch.zeros((n_mc_samples,)).to(self.device)
@@ -290,8 +281,6 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

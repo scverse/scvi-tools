@@ -8,10 +8,8 @@ from torch.distributions import Beta, Gamma, Normal
 from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import LossOutput, auto_move_data
-from scvi.nn import one_hot
 
 from ._vae import VAE
 
@@ -41,30 +39,34 @@ class AutoZIVAE(VAE):
         the mixture problem ill-defined.
     zero_inflation: One of the following
 
-        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across cells
-        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different batches
+        * ``'gene'`` - zero-inflation Bernoulli parameter of AutoZI is constant per gene across
+          cells
+        * ``'gene-batch'`` - zero-inflation Bernoulli parameter can differ between different
+          batches
         * ``'gene-label'`` - zero-inflation Bernoulli parameter can differ between different labels
-        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every cell
+        * ``'gene-cell'`` - zero-inflation Bernoulli parameter can differ for every gene in every
+          cell
 
 
-    See VAE docstring (scvi/models/vae.py) for more parameters. ``reconstruction_loss`` should not be specified.
+    See VAE docstring (scvi/models/vae.py) for more parameters. ``reconstruction_loss`` should not
+    be specified.
 
     Examples
     --------
     >>> gene_dataset = CortexDataset()
-    >>> autozivae = AutoZIVAE(gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01)
+    >>> autozivae = AutoZIVAE(
+            gene_dataset.nb_genes, alpha_prior=0.5, beta_prior=0.5, minimal_dropout=0.01
+        )
 
     """
 
     def __init__(
         self,
         n_input: int,
-        alpha_prior: Tunable[float] = 0.5,
-        beta_prior: Tunable[float] = 0.5,
-        minimal_dropout: Tunable[float] = 0.01,
-        zero_inflation: Tunable[
-            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
-        ] = "gene",
+        alpha_prior: float = 0.5,
+        beta_prior: float = 0.5,
+        minimal_dropout: float = 0.01,
+        zero_inflation: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         **kwargs,
     ) -> None:
         if "reconstruction_loss" in kwargs:
@@ -77,14 +79,16 @@ class AutoZIVAE(VAE):
         self.reconstruction_loss = "autozinb"
         self.minimal_dropout = minimal_dropout
 
-        # Parameters of prior Bernoulli Beta distribution : alpha + beta = 1 if only one is specified
+        # Parameters of prior Bernoulli Beta distribution : alpha + beta = 1 if only one is
+        # specified
         if beta_prior is None and alpha_prior is not None:
             beta_prior = 1.0 - alpha_prior
         if alpha_prior is None and beta_prior is not None:
             alpha_prior = 1.0 - beta_prior
 
         # Create parameters for Bernoulli Beta prior and posterior distributions
-        # Each parameter, whose values are in (0,1), is encoded as its logit, in the set of real numbers
+        # Each parameter, whose values are in (0,1), is encoded as its logit, in the set of real
+        # numbers
 
         if self.zero_inflation == "gene":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input))
@@ -92,57 +96,35 @@ class AutoZIVAE(VAE):
             if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
-                self.register_buffer(
-                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
-                )
+                self.register_buffer("alpha_prior_logit", torch.tensor([logit(alpha_prior)]))
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
-                self.register_buffer(
-                    "beta_prior_logit", torch.tensor([logit(alpha_prior)])
-                )
+                self.register_buffer("beta_prior_logit", torch.tensor([logit(alpha_prior)]))
 
         elif self.zero_inflation == "gene-batch":
-            self.alpha_posterior_logit = torch.nn.Parameter(
-                torch.randn(n_input, self.n_batch)
-            )
-            self.beta_posterior_logit = torch.nn.Parameter(
-                torch.randn(n_input, self.n_batch)
-            )
+            self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_batch))
+            self.beta_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_batch))
             if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
-                self.register_buffer(
-                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
-                )
+                self.register_buffer("alpha_prior_logit", torch.tensor([logit(alpha_prior)]))
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
-                self.register_buffer(
-                    "beta_prior_logit", torch.tensor([logit(beta_prior)])
-                )
+                self.register_buffer("beta_prior_logit", torch.tensor([logit(beta_prior)]))
 
         elif self.zero_inflation == "gene-label":
-            self.alpha_posterior_logit = torch.nn.Parameter(
-                torch.randn(n_input, self.n_labels)
-            )
-            self.beta_posterior_logit = torch.nn.Parameter(
-                torch.randn(n_input, self.n_labels)
-            )
+            self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_labels))
+            self.beta_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_labels))
             if alpha_prior is None:
-                self.alpha_prior_logit = torch.nn.parameter(
-                    torch.randn(1, self.n_labels)
-                )
+                self.alpha_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
             else:
-                self.register_buffer(
-                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)])
-                )
+                self.register_buffer("alpha_prior_logit", torch.tensor([logit(alpha_prior)]))
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
             else:
-                self.register_buffer(
-                    "beta_prior_logit", torch.tensor([logit(beta_prior)])
-                )
+                self.register_buffer("beta_prior_logit", torch.tensor([logit(beta_prior)]))
 
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
@@ -161,9 +143,7 @@ class AutoZIVAE(VAE):
         if as_numpy:
             for key, value in outputs.items():
                 outputs[key] = (
-                    value.detach().cpu().numpy()
-                    if value.requires_grad
-                    else value.cpu().numpy()
+                    value.detach().cpu().numpy() if value.requires_grad else value.cpu().numpy()
                 )
 
         return outputs
@@ -178,7 +158,8 @@ class AutoZIVAE(VAE):
         """Sample from a beta distribution."""
         # Sample from a Beta distribution using the reparameterization trick.
         # Problem : it is not implemented in CUDA yet
-        # Workaround : sample X and Y from Gamma(alpha,1) and Gamma(beta,1), the Beta sample is X/(X+Y)
+        # Workaround : sample X and Y from Gamma(alpha,1) and Gamma(beta,1), the Beta sample is
+        # X/(X+Y)
         # Warning : use logs and perform logsumexp to avoid numerical issues
 
         # Sample from Gamma
@@ -205,27 +186,27 @@ class AutoZIVAE(VAE):
     ) -> torch.Tensor:
         """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
-            one_hot_label = one_hot(y, self.n_labels)
+            one_hot_label = F.one_hot(y.squeeze(-1), self.n_labels)
             # If we sampled several random Bernoulli parameters
             if len(bernoulli_params.shape) == 2:
-                bernoulli_params = F.linear(one_hot_label, bernoulli_params)
+                bernoulli_params = F.linear(one_hot_label.float(), bernoulli_params)
             else:
                 bernoulli_params_res = []
                 for sample in range(bernoulli_params.shape[0]):
                     bernoulli_params_res.append(
-                        F.linear(one_hot_label, bernoulli_params[sample])
+                        F.linear(one_hot_label.float(), bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
         elif self.zero_inflation == "gene-batch":
-            one_hot_batch = one_hot(batch_index, self.n_batch)
+            one_hot_batch = F.one_hot(batch_index.squeeze(-1), self.n_batch)
             if len(bernoulli_params.shape) == 2:
-                bernoulli_params = F.linear(one_hot_batch, bernoulli_params)
+                bernoulli_params = F.linear(one_hot_batch.float(), bernoulli_params)
             # If we sampled several random Bernoulli parameters
             else:
                 bernoulli_params_res = []
                 for sample in range(bernoulli_params.shape[0]):
                     bernoulli_params_res.append(
-                        F.linear(one_hot_batch, bernoulli_params[sample])
+                        F.linear(one_hot_batch.float(), bernoulli_params[sample])
                     )
                 bernoulli_params = torch.stack(bernoulli_params_res)
 
@@ -258,16 +239,12 @@ class AutoZIVAE(VAE):
                 )
             )
 
-        bernoulli_params = self.sample_from_beta_distribution(
-            alpha_posterior, beta_posterior
-        )
+        bernoulli_params = self.sample_from_beta_distribution(alpha_posterior, beta_posterior)
         bernoulli_params = self.reshape_bernoulli(bernoulli_params, batch_index, y)
 
         return bernoulli_params
 
-    def rescale_dropout(
-        self, px_dropout: torch.Tensor, eps_log: float = 1e-8
-    ) -> torch.Tensor:
+    def rescale_dropout(self, px_dropout: torch.Tensor, eps_log: float = 1e-8) -> torch.Tensor:
         """Rescale dropout rate."""
         if self.minimal_dropout > 0.0:
             dropout_prob_rescaled = self.minimal_dropout + (
@@ -325,9 +302,7 @@ class AutoZIVAE(VAE):
         alpha_prior = outputs["alpha_prior"]
         beta_prior = outputs["beta_prior"]
 
-        return kl(
-            Beta(alpha_posterior, beta_posterior), Beta(alpha_prior, beta_prior)
-        ).sum()
+        return kl(Beta(alpha_posterior, beta_posterior), Beta(alpha_prior, beta_prior)).sum()
 
     def get_reconstruction_loss(
         self,
@@ -341,9 +316,7 @@ class AutoZIVAE(VAE):
     ) -> torch.Tensor:
         """Compute the reconstruction loss."""
         # LLs for NB and ZINB
-        ll_zinb = torch.log(
-            1.0 - bernoulli_params + eps_log
-        ) + ZeroInflatedNegativeBinomial(
+        ll_zinb = torch.log(1.0 - bernoulli_params + eps_log) + ZeroInflatedNegativeBinomial(
             mu=px_rate, theta=px_r, zi_logits=px_dropout
         ).log_prob(x)
         ll_nb = torch.log(bernoulli_params + eps_log) + NegativeBinomial(
@@ -352,9 +325,7 @@ class AutoZIVAE(VAE):
 
         # Reconstruction loss using a logsumexp-type computation
         ll_max = torch.max(ll_zinb, ll_nb)
-        ll_tot = ll_max + torch.log(
-            torch.exp(ll_nb - ll_max) + torch.exp(ll_zinb - ll_max)
-        )
+        ll_tot = ll_max + torch.log(torch.exp(ll_nb - ll_max) + torch.exp(ll_zinb - ll_max))
         reconst_loss = -ll_tot.sum(dim=-1)
 
         return reconst_loss
@@ -402,9 +373,7 @@ class AutoZIVAE(VAE):
         kl_divergence_bernoulli = self.compute_global_kl_divergence()
 
         # Reconstruction loss
-        reconst_loss = self.get_reconstruction_loss(
-            x, px_rate, px_r, px_dropout, bernoulli_params
-        )
+        reconst_loss = self.get_reconstruction_loss(x, px_rate, px_r, px_dropout, bernoulli_params)
 
         kl_global = kl_divergence_bernoulli
         kl_local_for_warmup = kl_divergence_z

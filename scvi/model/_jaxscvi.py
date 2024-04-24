@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class JaxSCVI(JaxTrainingMixin, BaseModelClass):
-    """``EXPERIMENTAL`` single-cell Variational Inference :cite:p:`Lopez18`, but with a Jax backend.
+    """``EXPERIMENTAL`` single-cell Variational Inference :cite:p:`Lopez18`, but with JAX.
 
     This implementation is in a very experimental state. API is completely subject to change.
 
@@ -99,9 +99,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 

@@ -3,7 +3,7 @@
 `scvi-tools` (single-cell variational inference tools) is a package for end-to-end analysis of
 single-cell omics data primarily developed and maintained by the
 [Yosef Lab](https://yoseflab.github.io/) at UC Berkeley and the Weizmann Institute of Science.
-`scvi-tools` has two components
+`scvi-tools` has two components:
 
 -   Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
 -   Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
@@ -67,7 +67,7 @@ installation
 tutorials/index
 user_guide/index
 api/index
-release_notes/index
+changelog.md
 references
 contributing/index
 Discussion <https://discourse.scvi-tools.org>

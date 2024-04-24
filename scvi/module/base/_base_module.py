@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from dataclasses import field
 from typing import Any, Callable
 
-import chex
 import flax
 import jax
 import jax.numpy as jnp
@@ -20,7 +19,7 @@ from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor, TunableMixin
+from scvi._types import LossRecord, MinifiedDataType, Tensor
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
@@ -28,7 +27,7 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 
-@chex.dataclass
+@flax.struct.dataclass
 class LossOutput:
     """Loss signature for models.
 
@@ -49,8 +48,8 @@ class LossOutput:
         KL divergence associated with each observation in the minibatch. If a tensor, converted to
         a dictionary with key "kl_local" and value as tensor.
     kl_global
-        Global KL divergence term. Should be one dimensional with one value. If a tensor, converted to
-        a dictionary with key "kl_global" and value as tensor.
+        Global KL divergence term. Should be one dimensional with one value. If a tensor, converted
+        to a dictionary with key "kl_global" and value as tensor.
     classification_loss
         Classification loss.
     logits
@@ -84,42 +83,44 @@ class LossOutput:
     true_labels: Tensor | None = None
     extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
     n_obs_minibatch: int | None = None
-    reconstruction_loss_sum: Tensor = field(default=None, init=False)
-    kl_local_sum: Tensor = field(default=None, init=False)
-    kl_global_sum: Tensor = field(default=None, init=False)
+    reconstruction_loss_sum: Tensor = field(default=None)
+    kl_local_sum: Tensor = field(default=None)
+    kl_global_sum: Tensor = field(default=None)
 
     def __post_init__(self):
-        self.loss = self.dict_sum(self.loss)
+        object.__setattr__(self, "loss", self.dict_sum(self.loss))
 
         if self.n_obs_minibatch is None and self.reconstruction_loss is None:
-            raise ValueError(
-                "Must provide either n_obs_minibatch or reconstruction_loss"
-            )
+            raise ValueError("Must provide either n_obs_minibatch or reconstruction_loss")
 
         default = 0 * self.loss
         if self.reconstruction_loss is None:
-            self.reconstruction_loss = default
+            object.__setattr__(self, "reconstruction_loss", default)
         if self.kl_local is None:
-            self.kl_local = default
+            object.__setattr__(self, "kl_local", default)
         if self.kl_global is None:
-            self.kl_global = default
-        self.reconstruction_loss = self._as_dict("reconstruction_loss")
-        self.kl_local = self._as_dict("kl_local")
-        self.kl_global = self._as_dict("kl_global")
-        self.reconstruction_loss_sum = self.dict_sum(self.reconstruction_loss).sum()
-        self.kl_local_sum = self.dict_sum(self.kl_local).sum()
-        self.kl_global_sum = self.dict_sum(self.kl_global)
+            object.__setattr__(self, "kl_global", default)
+
+        object.__setattr__(self, "reconstruction_loss", self._as_dict("reconstruction_loss"))
+        object.__setattr__(self, "kl_local", self._as_dict("kl_local"))
+        object.__setattr__(self, "kl_global", self._as_dict("kl_global"))
+        object.__setattr__(
+            self,
+            "reconstruction_loss_sum",
+            self.dict_sum(self.reconstruction_loss).sum(),
+        )
+        object.__setattr__(self, "kl_local_sum", self.dict_sum(self.kl_local).sum())
+        object.__setattr__(self, "kl_global_sum", self.dict_sum(self.kl_global))
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
-            self.n_obs_minibatch = list(rec_loss.values())[0].shape[0]
+            object.__setattr__(self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0])
 
         if self.classification_loss is not None and (
             self.logits is None or self.true_labels is None
         ):
             raise ValueError(
-                "Must provide `logits` and `true_labels` if `classification_loss` is "
-                "provided."
+                "Must provide `logits` and `true_labels` if `classification_loss` is " "provided."
             )
 
     @staticmethod
@@ -143,7 +144,7 @@ class LossOutput:
             return {attr_name: attr}
 
 
-class BaseModuleClass(TunableMixin, nn.Module):
+class BaseModuleClass(nn.Module):
     """Abstract class for scvi-tools modules.
 
     Notes
@@ -166,7 +167,7 @@ class BaseModuleClass(TunableMixin, nn.Module):
         return device[0]
 
     def on_load(self, model):
-        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict."""
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""
 
     @auto_move_data
     def forward(
@@ -178,9 +179,7 @@ class BaseModuleClass(TunableMixin, nn.Module):
         generative_kwargs: dict | None = None,
         loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> (
-        tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]
-    ):
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]:
         """Forward pass through the network.
 
         Parameters
@@ -314,7 +313,7 @@ def _get_dict_if_none(param):
     return param
 
 
-class PyroBaseModuleClass(TunableMixin, nn.Module):
+class PyroBaseModuleClass(nn.Module):
     """Base module class for Pyro models.
 
     In Pyro, ``model`` and ``guide`` should have the same signature. Out of convenience,
@@ -322,15 +321,15 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
     There are two ways this class can be equipped with a model and a guide. First,
     ``model`` and ``guide`` can be class attributes that are :class:`~pyro.nn.PyroModule`
-    instances. The implemented ``model`` and ``guide`` class method can then return the (private) attributes.
-    Second, ``model`` and ``guide`` methods can be written directly (see Pyro scANVI example)
-    https://pyro.ai/examples/scanvi.html.
+    instances. The implemented ``model`` and ``guide`` class method can then return the (private)
+    attributes. Second, ``model`` and ``guide`` methods can be written directly (see Pyro scANVI
+    example) https://pyro.ai/examples/scanvi.html.
 
     The ``model`` and ``guide`` may also be equipped with ``n_obs`` attributes, which can be set
     to ``None`` (e.g., ``self.n_obs = None``). This attribute may be helpful in designating the
     size of observation-specific Pyro plates. The value will be updated automatically by
-    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training examples
-    upon initialization.
+    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training
+    examples upon initialization.
 
     Parameters
     ----------
@@ -348,8 +347,8 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
         """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
 
         In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
-        that gets the args and kwargs for these two methods. This helper method aids ``forward`` and
-        ``guide`` in having transparent signatures, as well as allows use of our generic
+        that gets the args and kwargs for these two methods. This helper method aids ``forward``
+        and ``guide`` in having transparent signatures, as well as allows use of our generic
         :class:`~scvi.dataloaders.AnnDataLoader`.
 
         Returns
@@ -373,7 +372,8 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
 
         A dictionary with:
         1. "name" - the name of observation/minibatch plate;
-        2. "in" - indexes of model args to provide to encoder network when using amortised inference;
+        2. "in" - indexes of model args to provide to encoder network when using amortised
+            inference;
         3. "sites" - dictionary with
             keys - names of variables that belong to the observation plate (used to recognise
              and merge posterior samples for minibatch variables)
@@ -383,7 +383,7 @@ class PyroBaseModuleClass(TunableMixin, nn.Module):
         return {"name": "", "in": [], "sites": {}}
 
     def on_load(self, model):
-        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
@@ -452,7 +452,7 @@ class TrainStateWithState(train_state.TrainState):
     state: dict[str, Any]
 
 
-class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
+class JaxBaseModuleClass(flax.linen.Module):
     """Abstract class for Jax-based scvi-tools modules.
 
     The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed
@@ -641,9 +641,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
             raise RuntimeError(
                 "Train state is not set. Train for one iteration prior to loading state dict."
             )
-        self.train_state = flax.serialization.from_state_dict(
-            self.train_state, state_dict
-        )
+        self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
 
     def to(self, device: Device):
         """Move module to device."""
@@ -671,9 +669,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
         self,
         get_inference_input_kwargs: dict[str, Any] | None = None,
         inference_kwargs: dict[str, Any] | None = None,
-    ) -> Callable[
-        [dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]
-    ]:
+    ) -> Callable[[dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]]:
         """Create a method to run inference using the bound module.
 
         Parameters
@@ -709,7 +705,7 @@ class JaxBaseModuleClass(TunableMixin, flax.linen.Module):
 
     @staticmethod
     def on_load(model):
-        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load` prior to loading module state dict.
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
 
         Run one training step prior to loading state dict in order to initialize params.
         """
@@ -747,9 +743,7 @@ def _generic_forward(
     )
     generative_outputs = module.generative(**generative_inputs, **generative_kwargs)
     if compute_loss:
-        losses = module.loss(
-            tensors, inference_outputs, generative_outputs, **loss_kwargs
-        )
+        losses = module.loss(tensors, inference_outputs, generative_outputs, **loss_kwargs)
         return inference_outputs, generative_outputs, losses
     else:
         return inference_outputs, generative_outputs

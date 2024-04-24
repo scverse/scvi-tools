@@ -14,8 +14,8 @@ def nearest_neighbor_overlap(x1, x2, k=100):
     """Compute the overlap between the k-nearest neighbor graph of x1 and x2.
 
     Using Spearman correlation of the adjacency matrices.
-    Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest neighbor
-        graph and the Spearman correlation of the adjacency matrices.
+    Compute the overlap fold enrichment between the protein and mRNA-based cell 100-nearest
+    neighbor graph and the Spearman correlation of the adjacency matrices.
     """
     if len(x1) != len(x2):
         raise ValueError("len(x1) != len(x2)")
@@ -28,9 +28,7 @@ def nearest_neighbor_overlap(x1, x2, k=100):
     kmatrix_2 = nne.kneighbors_graph(x2) - scipy.sparse.identity(n_samples)
 
     # 1 - spearman correlation from knn graphs
-    spearman_correlation = scipy.stats.spearmanr(
-        kmatrix_1.A.flatten(), kmatrix_2.A.flatten()
-    )[0]
+    spearman_correlation = scipy.stats.spearmanr(kmatrix_1.A.flatten(), kmatrix_2.A.flatten())[0]
     # 2 - fold enrichment
     set_1 = set(np.where(kmatrix_1.A.flatten() == 1)[0])
     set_2 = set(np.where(kmatrix_2.A.flatten() == 1)[0])

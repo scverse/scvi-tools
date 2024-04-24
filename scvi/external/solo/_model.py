@@ -33,6 +33,8 @@ LABELS_KEY = "_solo_doub_sim"
 class SOLO(BaseModelClass):
     """Doublet detection in scRNA-seq :cite:p:`Bernstein20`.
 
+    Original implementation: https://github.com/calico/solo.
+
     Most users will initialize the model using the class method
     :meth:`~scvi.external.SOLO.from_scvi_model`, which takes as
     input a pre-trained :class:`~scvi.model.SCVI` object.
@@ -133,12 +135,8 @@ class SOLO(BaseModelClass):
         """
         _validate_scvi_model(scvi_model, restrict_to_batch=restrict_to_batch)
         orig_adata_manager = scvi_model.adata_manager
-        orig_batch_key_registry = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.BATCH_KEY
-        )
-        orig_labels_key_registry = orig_adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        orig_batch_key_registry = orig_adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
+        orig_labels_key_registry = orig_adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         orig_batch_key = orig_batch_key_registry.original_key
         orig_labels_key = orig_labels_key_registry.original_key
 
@@ -219,9 +217,7 @@ class SOLO(BaseModelClass):
         latent_adata.obs[LABELS_KEY] = "singlet"
         orig_obs_names = adata.obs_names
         latent_adata.obs_names = (
-            orig_obs_names[batch_indices]
-            if batch_indices is not None
-            else orig_obs_names
+            orig_obs_names[batch_indices] if batch_indices is not None else orig_obs_names
         )
 
         logger.info("Creating doublets, preparing SOLO model.")
@@ -320,14 +316,15 @@ class SOLO(BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
-            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`. Keyword arguments passed to
+            Keyword args for :class:`~scvi.train.ClassifierTrainingPlan`.
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
@@ -389,15 +386,13 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.inference_mode()
-    def predict(
-        self, soft: bool = True, include_simulated_doublets: bool = False
-    ) -> pd.DataFrame:
+    def predict(self, soft: bool = True, include_simulated_doublets: bool = False) -> pd.DataFrame:
         """Return doublet predictions.
 
         Parameters
         ----------
         soft
-            Return probabilities instead of class label
+            Return probabilities instead of class label.
         include_simulated_doublets
             Return probabilities for simulated doublets as well.
 
@@ -406,10 +401,7 @@ class SOLO(BaseModelClass):
         DataFrame with prediction, index corresponding to cell barcode.
         """
         adata = self._validate_anndata(None)
-
-        scdl = self._make_data_loader(
-            adata=adata,
-        )
+        scdl = self._make_data_loader(adata=adata)
 
         @auto_move_data
         def auto_forward(module, x):
@@ -418,7 +410,7 @@ class SOLO(BaseModelClass):
         y_pred = []
         for _, tensors in enumerate(scdl):
             x = tensors[REGISTRY_KEYS.X_KEY]
-            pred = auto_forward(self.module, x)
+            pred = torch.nn.functional.softmax(auto_forward(self.module, x), dim=-1)
             y_pred.append(pred.cpu())
 
         y_pred = torch.cat(y_pred).numpy()
@@ -428,9 +420,7 @@ class SOLO(BaseModelClass):
 
         preds = y_pred[mask]
 
-        cols = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        ).categorical_mapping
+        cols = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY).categorical_mapping
         preds_df = pd.DataFrame(preds, columns=cols, index=self.adata.obs_names[mask])
 
         if not soft:
@@ -459,9 +449,7 @@ class SOLO(BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -469,7 +457,8 @@ class SOLO(BaseModelClass):
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
     if scvi_model.summary_stats.n_batch > 1 and restrict_to_batch is None:
         warnings.warn(
-            "Solo should only be trained on one lane of data using `restrict_to_batch`. Performance may suffer.",
+            "Solo should only be trained on one lane of data using `restrict_to_batch`. "
+            "Performance may suffer.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )

@@ -66,7 +66,7 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
         ]
         if kappa > 0 and self.adversarial_classifier is not False:
             fool_loss = self.loss_adversarial_classifier(
-                torch.cat(zs), torch.cat(batch_tensor), False
+                torch.cat(zs), torch.cat(batch_tensor).long(), False
             )
             loss += fool_loss * kappa
         opt1.zero_grad()
@@ -91,11 +91,10 @@ class GIMVITrainingPlan(AdversarialTrainingPlan):
                 zs.append(outputs["z"])
 
             batch_tensor = [
-                torch.zeros((z.shape[0], 1), device=z.device) + i
-                for i, z in enumerate(zs)
+                torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate(zs)
             ]
             loss = self.loss_adversarial_classifier(
-                torch.cat(zs).detach(), torch.cat(batch_tensor), True
+                torch.cat(zs).detach(), torch.cat(batch_tensor).long(), True
             )
             loss *= kappa
             opt2.zero_grad()

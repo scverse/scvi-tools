@@ -51,9 +51,9 @@ def validate_data_split(
 
     if n_train == 0:
         raise ValueError(
-            f"With n_samples={n_samples}, train_size={train_size} and validation_size={validation_size}, the "
-            "resulting train set will be empty. Adjust any of the "
-            "aforementioned parameters."
+            f"With n_samples={n_samples}, train_size={train_size} and "
+            f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
+            "any of the aforementioned parameters."
         )
 
     return n_train, n_val
@@ -73,8 +73,9 @@ class DataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     shuffle_set_split
-        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-        sequential order of the data according to `validation_size` and `train_size` percentages.
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set are
+        split in the sequential order of the data according to `validation_size` and `train_size`
+        percentages.
     load_sparse_tensor
         ``EXPERIMENTAL`` If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
         :class:`~torch.Tensor` with the same layout. Can lead to significant speedups in
@@ -205,8 +206,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     validation_size
         float, or None (default is None)
     shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+        Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+        are split in the sequential order of the data according to `validation_size` and
+        `train_size` percentages.
     n_samples_per_label
         Number of subsamples for each label class to sample per epoch
     pin_memory
@@ -246,9 +248,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
-        labels_state_registry = adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         labels = get_anndata_attribute(
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
@@ -304,9 +304,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             unlabeled_idx_train = unlabeled_permutation[
                 n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
             ]
-            unlabeled_idx_test = unlabeled_permutation[
-                (n_unlabeled_val + n_unlabeled_train) :
-            ]
+            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
         else:
             unlabeled_idx_train = []
             unlabeled_idx_val = []
@@ -440,16 +438,10 @@ class DeviceBackedDataSplitter(DataSplitter):
 
         if self.shuffle is False:
             self.train_idx = np.sort(self.train_idx)
-            self.val_idx = (
-                np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
-            )
-            self.test_idx = (
-                np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
-            )
+            self.val_idx = np.sort(self.val_idx) if len(self.val_idx) > 0 else self.val_idx
+            self.test_idx = np.sort(self.test_idx) if len(self.test_idx) > 0 else self.test_idx
 
-        self.train_tensor_dict = self._get_tensor_dict(
-            self.train_idx, device=self.device
-        )
+        self.train_tensor_dict = self._get_tensor_dict(self.train_idx, device=self.device)
         self.test_tensor_dict = self._get_tensor_dict(self.test_idx, device=self.device)
         self.val_tensor_dict = self._get_tensor_dict(self.val_idx, device=self.device)
 

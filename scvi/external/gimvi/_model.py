@@ -15,7 +15,7 @@ from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.dataloaders import DataSplitter
+from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
@@ -50,9 +50,11 @@ class GIMVI(VAEMixin, BaseModelClass):
     n_hidden
         Number of nodes per hidden layer.
     generative_distributions
-        List of generative distribution for adata_seq data and adata_spatial data. Defaults to ['zinb', 'nb'].
+        List of generative distribution for adata_seq data and adata_spatial data. Defaults to
+        ['zinb', 'nb'].
     model_library_size
-        List of bool of whether to model library size for adata_seq and adata_spatial. Defaults to [True, False].
+        List of bool of whether to model library size for adata_seq and adata_spatial. Defaults to
+        [True, False].
     n_latent
         Dimensionality of the latent space.
     **model_kwargs
@@ -71,7 +73,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/user_guide/notebooks/gimvi_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/gimvi_tutorial`
     """
 
     def __init__(
@@ -87,16 +89,15 @@ class GIMVI(VAEMixin, BaseModelClass):
         if adata_seq is adata_spatial:
             raise ValueError(
                 "`adata_seq` and `adata_spatial` cannot point to the same object. "
-                "If you would really like to do this, make a copy of the object and pass it in as `adata_spatial`."
+                "If you would really like to do this, make a copy of the object and pass it in as "
+                "`adata_spatial`."
             )
         model_library_size = model_library_size or [True, False]
         generative_distributions = generative_distributions or ["zinb", "nb"]
         self.adatas = [adata_seq, adata_spatial]
         self.adata_managers = {
             "seq": self._get_most_recent_anndata_manager(adata_seq, required=True),
-            "spatial": self._get_most_recent_anndata_manager(
-                adata_spatial, required=True
-            ),
+            "spatial": self._get_most_recent_anndata_manager(adata_spatial, required=True),
         }
         self.registries_ = []
         for adm in self.adata_managers.values():
@@ -109,9 +110,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         if not set(spatial_var_names) <= set(seq_var_names):
             raise ValueError("spatial genes needs to be subset of seq genes")
 
-        spatial_gene_loc = [
-            np.argwhere(seq_var_names == g)[0] for g in spatial_var_names
-        ]
+        spatial_gene_loc = [np.argwhere(seq_var_names == g)[0] for g in spatial_var_names]
         spatial_gene_loc = np.concatenate(spatial_gene_loc)
         gene_mappings = [slice(None), spatial_gene_loc]
         sum_stats = [adm.summary_stats for adm in self.adata_managers.values()]
@@ -119,14 +118,17 @@ class GIMVI(VAEMixin, BaseModelClass):
 
         total_genes = n_inputs[0]
 
-        # since we are combining datasets, we need to increment the batch_idx
-        # of one of the datasets
         adata_seq_n_batches = sum_stats[0]["n_batch"]
-        adata_spatial.obs[
-            self.adata_managers["spatial"]
-            .data_registry[REGISTRY_KEYS.BATCH_KEY]
-            .attr_key
-        ] += adata_seq_n_batches
+        adata_spatial_batch = adata_spatial.obs[
+            self.adata_managers["spatial"].data_registry[REGISTRY_KEYS.BATCH_KEY].attr_key
+        ]
+        if np.min(adata_spatial_batch) == 0:
+            # see #2446
+            # since we are combining datasets, we need to increment the batch_idx of one of the
+            # datasets. we only need to do this once so we check if the min is 0
+            adata_spatial.obs[
+                self.adata_managers["spatial"].data_registry[REGISTRY_KEYS.BATCH_KEY].attr_key
+            ] += adata_seq_n_batches
 
         n_batches = sum(s["n_batch"] for s in sum_stats)
 
@@ -190,8 +192,9 @@ class GIMVI(VAEMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -260,10 +263,12 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.to_device(device)
         self.is_trained_ = True
 
-    def _make_scvi_dls(self, adatas: list[AnnData] = None, batch_size=128):
+    def _make_scvi_dls(
+        self, adatas: list[AnnData] = None, batch_size: int = 128
+    ) -> list[AnnDataLoader]:
         if adatas is None:
             adatas = self.adatas
-        post_list = [self._make_data_loader(ad) for ad in adatas]
+        post_list = [self._make_data_loader(ad, batch_size=batch_size) for ad in adatas]
         for i, dl in enumerate(post_list):
             dl.mode = i
 
@@ -326,7 +331,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         adatas
             List of adata seq and adata spatial
         deterministic
-            If true, use the mean of the encoder instead of a Gaussian sample for the latent vector.
+            If true, use the mean of the encoder instead of a Gaussian sample for the latent
+            vector.
         normalized
             Return imputed normalized values or not.
         decode_mode
@@ -426,9 +432,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             seq_save_path = os.path.join(dir_path, f"{file_name_prefix}adata_seq.h5ad")
             seq_adata.write(seq_save_path)
 
-            spatial_save_path = os.path.join(
-                dir_path, f"{file_name_prefix}adata_spatial.h5ad"
-            )
+            spatial_save_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
             spatial_adata.write(spatial_save_path)
 
         # save the model state dict and the trainer state dict only
@@ -538,9 +542,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         registries = attr_dict.pop("registries_")
         for adata, registry in zip(adatas, registries):
             if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-                raise ValueError(
-                    "It appears you are loading a model from a different class."
-                )
+                raise ValueError("It appears you are loading a model from a different class.")
 
             if _SETUP_ARGS_KEY not in registry:
                 raise ValueError(
@@ -548,9 +550,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                     "Cannot load the original setup."
                 )
 
-            cls.setup_anndata(
-                adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
-            )
+            cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         # get the parameters for the class init signature
         init_params = attr_dict.pop("init_params_")
@@ -565,9 +565,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         else:
             # grab all the parameters except for kwargs (is a dict)
-            non_kwargs = {
-                k: v for k, v in init_params.items() if not isinstance(v, dict)
-            }
+            non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
             kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         model = cls(adata_seq, adata_spatial, **non_kwargs, **kwargs)
@@ -669,9 +667,7 @@ class GIMVI(VAEMixin, BaseModelClass):
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -681,9 +677,7 @@ class TrainDL(DataLoader):
 
     def __init__(self, data_loader_list, **kwargs):
         self.data_loader_list = data_loader_list
-        self.largest_train_dl_idx = np.argmax(
-            [len(dl.indices) for dl in data_loader_list]
-        )
+        self.largest_train_dl_idx = np.argmax([len(dl.indices) for dl in data_loader_list])
         self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
         super().__init__(self.largest_dl, **kwargs)
 

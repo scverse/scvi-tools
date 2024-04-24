@@ -65,10 +65,8 @@ class BaseAnnDataField(ABC):
         return {}
 
     @abstractmethod
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnOrMuData, **kwargs
-    ) -> dict:
-        """Takes an existing scvi-tools setup dictionary and transfers the same setup to the target AnnData.
+    def transfer_field(self, state_registry: dict, adata_target: AnnOrMuData, **kwargs) -> dict:
+        """Takes an existing setup dictionary and transfers the same setup to the target AnnData.
 
         Used when one is running a pretrained model on a new AnnData object, which
         requires the mapping from the original data to be applied to the new AnnData object.
@@ -76,7 +74,8 @@ class BaseAnnDataField(ABC):
         Parameters
         ----------
         state_registry
-            state_registry dictionary created after registering an AnnData using an :class:`~scvi.data.AnnDataManager` object.
+            state_registry dictionary created after registering an AnnData using an
+            :class:`~scvi.data.AnnDataManager` object.
         adata_target
             AnnData/MuData object that is being registered.
         **kwargs
@@ -125,18 +124,17 @@ class BaseAnnDataField(ABC):
         """
 
     def get_field_data(self, adata: AnnOrMuData) -> Union[np.ndarray, pd.DataFrame]:
-        """Returns the requested data as determined by the field for a given AnnData/MuData object."""
+        """Returns the requested data as determined by the field."""
         if self.is_empty:
             raise AssertionError(f"The {self.registry_key} field is empty.")
-        return get_anndata_attribute(
-            adata, self.attr_name, self.attr_key, mod_key=self.mod_key
-        )
+        return get_anndata_attribute(adata, self.attr_name, self.attr_key, mod_key=self.mod_key)
 
     def get_data_registry(self) -> dict:
         """Returns a nested dictionary which describes the mapping to the data field.
 
-        The dictionary is of the form {"mod_key": mod_key, "attr_name": attr_name, "attr_key": attr_key}.
-        This mapping is then combined with the mappings of other fields to make up the data registry.
+        The dictionary is of the form {"mod_key": mod_key, "attr_name": attr_name, "attr_key":
+        attr_key}. This mapping is then combined with the mappings of other fields to make up the
+        data registry.
         """
         if self.is_empty:
             return {}

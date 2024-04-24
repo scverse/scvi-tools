@@ -24,15 +24,18 @@ logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """Reimplementation of ScBasset :cite:p:`Yuan2022` for representation learning of scATAC-seq data.
+    """``EXPERIMENTAL`` Reimplementation of scBasset :cite:p:`Yuan2022`.
 
-    This implementation is EXPERIMENTAL. We are working to measure the performance of this model
-    compared to the original.
+    Performs representation learning of scATAC-seq data. Original implementation:
+    https://github.com/calico/scBasset.
+
+    We are working to measure the performance of this model compared to the original.
 
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.SCBASSET.setup_anndata`.
+        single-cell AnnData object that has been registered via
+        :meth:`~scvi.external.SCBASSET.setup_anndata`.
     n_bottleneck_layer
         Size of the bottleneck layer
     l2_reg_cell_embedding
@@ -87,11 +90,8 @@ class SCBASSET(BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "ScBasset Model with params: \nn_regions: {}, n_batch: {}, n_cells: {}"
-        ).format(
-            self.n_regions,
-            self.n_batch,
-            self.n_cells,
+            f"ScBasset Model with params: \nn_regions: {self.n_regions}, n_batch: {self.n_batch}, "
+            f"n_cells: {self.n_cells}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -130,8 +130,9 @@ class SCBASSET(BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         early_stopping
@@ -156,9 +157,7 @@ class SCBASSET(BaseModelClass):
         """
         custom_plan_kwargs = {
             "optimizer": "Custom",
-            "optimizer_creator": lambda p: torch.optim.Adam(
-                p, lr=lr, betas=(0.95, 0.9995)
-            ),
+            "optimizer_creator": lambda p: torch.optim.Adam(p, lr=lr, betas=(0.95, 0.9995)),
         }
         if plan_kwargs is not None:
             custom_plan_kwargs.update(plan_kwargs)
@@ -187,9 +186,7 @@ class SCBASSET(BaseModelClass):
             "early_stopping_min_delta": early_stopping_min_delta,
         }
         for k, v in es.items():
-            trainer_kwargs[k] = (
-                v if k not in trainer_kwargs.keys() else trainer_kwargs[k]
-            )
+            trainer_kwargs[k] = v if k not in trainer_kwargs.keys() else trainer_kwargs[k]
         runner = TrainRunner(
             self,
             training_plan=training_plan,
@@ -347,9 +344,7 @@ class SCBASSET(BaseModelClass):
         # download if none is found
         # `motif_seqs` is a List of str sequences where each char is in "ACTGN".
         # `bg_seqs` is the same, but background sequences rather than motif injected
-        motif_seqs, bg_seqs = self._get_motif_library(
-            tf=tf, genome=genome, motif_dir=motif_dir
-        )
+        motif_seqs, bg_seqs = self._get_motif_library(tf=tf, genome=genome, motif_dir=motif_dir)
 
         # SCBASSET.module.inference(...) takes `dna_code: torch.Tensor` as input
         # where `dna_code` is [batch_size, seq_length] and each value is [0,1,2,3]
@@ -363,9 +358,9 @@ class SCBASSET(BaseModelClass):
         # NOTE: SCBASSET uses a fixed size of 1344 bp. If motifs from a different source
         # than the above are used, we may need to truncate to match the model size.
         # We should be cautious about doing this, so we throw a warning to the user.
-        model_input_size = self.adata_manager.get_from_registry(
-            REGISTRY_KEYS.DNA_CODE_KEY
-        ).shape[1]
+        model_input_size = self.adata_manager.get_from_registry(REGISTRY_KEYS.DNA_CODE_KEY).shape[
+            1
+        ]
         n_diff = motif_codes.shape[1] - model_input_size
         if n_diff > 0:
             n_cut = n_diff // 2
@@ -425,8 +420,9 @@ class SCBASSET(BaseModelClass):
             Key in `adata.obsm` with dna sequences encoded as integer code.
         %(param_layer)s
         batch_key
-            key in `adata.var` for batch information. Categories will automatically be converted into integer
-            categories and saved to `adata.var['_scvi_batch']`. If `None`, assigns the same batch to all the data.
+            key in `adata.var` for batch information. Categories will automatically be converted
+            into integer categories and saved to `adata.var['_scvi_batch']`. If `None`, assigns the
+            same batch to all the data.
 
         Notes
         -----
@@ -440,8 +436,6 @@ class SCBASSET(BaseModelClass):
             ObsmField(REGISTRY_KEYS.DNA_CODE_KEY, dna_code_key, is_count_data=True),
             CategoricalVarField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

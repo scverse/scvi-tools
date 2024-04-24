@@ -1,4 +1,5 @@
 """Main module."""
+
 from collections.abc import Iterable
 from typing import Literal, Optional, Union
 
@@ -7,16 +8,16 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch.distributions import kl_divergence as kl
+from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import DecoderTOTALVI, EncoderTOTALVI, one_hot
+from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
 
 torch.backends.cudnn.benchmark = True
 
@@ -74,24 +75,27 @@ class TOTALVAE(BaseModuleClass):
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
     protein_batch_mask
-        Dictionary where each key is a batch code, and value is for each protein, whether it was observed or not.
+        Dictionary where each key is a batch code, and value is for each protein, whether it was
+        observed or not.
     encode_covariates
         Whether to concatenate covariates to expression in encoder
     protein_background_prior_mean
-        Array of proteins by batches, the prior initialization for the protein background mean (log scale)
+        Array of proteins by batches, the prior initialization for the protein background mean
+        (log scale)
     protein_background_prior_scale
-        Array of proteins by batches, the prior initialization for the protein background scale (log scale)
+        Array of proteins by batches, the prior initialization for the protein background scale
+        (log scale)
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional distribution.
-        Takes priority over `use_observed_lib_size`.
+        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
     library_log_vars
-        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library size if
-        not using observed library size.
+        1 x n_batch array of variances of the log library sizes. Parameterizes prior on library
+        size if not using observed library size.
     use_batch_norm
         Whether to use batch norm in layers.
     use_layer_norm
@@ -108,21 +112,19 @@ class TOTALVAE(BaseModuleClass):
         n_input_proteins: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 256,
-        n_latent: Tunable[int] = 20,
-        n_layers_encoder: Tunable[int] = 2,
-        n_layers_decoder: Tunable[int] = 1,
+        n_hidden: int = 256,
+        n_latent: int = 20,
+        n_layers_encoder: int = 2,
+        n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
         n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate_decoder: Tunable[float] = 0.2,
-        dropout_rate_encoder: Tunable[float] = 0.2,
-        gene_dispersion: Tunable[Literal["gene", "gene-batch", "gene-label"]] = "gene",
-        protein_dispersion: Tunable[
-            Literal["protein", "protein-batch", "protein-label"]
-        ] = "protein",
+        dropout_rate_decoder: float = 0.2,
+        dropout_rate_encoder: float = 0.2,
+        gene_dispersion: Literal["gene", "gene-batch", "gene-label"] = "gene",
+        protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
         log_variational: bool = True,
-        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "nb",
-        latent_distribution: Tunable[Literal["normal", "ln"]] = "normal",
+        gene_likelihood: Literal["zinb", "nb"] = "nb",
+        latent_distribution: Literal["normal", "ln"] = "normal",
         protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: Optional[np.ndarray] = None,
@@ -131,8 +133,8 @@ class TOTALVAE(BaseModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -158,12 +160,8 @@ class TOTALVAE(BaseModuleClass):
                     "must provide library_log_means and library_log_vars."
                 )
 
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
-            self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
+            self.register_buffer("library_log_vars", torch.from_numpy(library_log_vars).float())
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
@@ -175,9 +173,7 @@ class TOTALVAE(BaseModuleClass):
                     torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
                 )
             else:
-                self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins)
-                )
+                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins))
                 self.background_pro_log_beta = torch.nn.Parameter(
                     torch.clamp(torch.randn(n_input_proteins), -10, 1)
                 )
@@ -207,13 +203,9 @@ class TOTALVAE(BaseModuleClass):
         if self.protein_dispersion == "protein":
             self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins))
         elif self.protein_dispersion == "protein-batch":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_batch)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_batch))
         elif self.protein_dispersion == "protein-label":
-            self.py_r = torch.nn.Parameter(
-                2 * torch.rand(self.n_input_proteins, n_labels)
-            )
+            self.py_r = torch.nn.Parameter(2 * torch.rand(self.n_input_proteins, n_labels))
         else:  # protein-cell
             pass
 
@@ -284,9 +276,7 @@ class TOTALVAE(BaseModuleClass):
         type
             tensors of dispersions of the negative binomial distribution
         """
-        outputs = self.inference(
-            x, y, batch_index=batch_index, label=label, n_samples=n_samples
-        )
+        outputs = self.inference(x, y, batch_index=batch_index, label=label, n_samples=n_samples)
         px_r = outputs["px_"]["r"]
         py_r = outputs["py_"]["r"]
         return px_r, py_r
@@ -324,9 +314,7 @@ class TOTALVAE(BaseModuleClass):
         )
         reconst_loss_protein_full = -py_conditional.log_prob(y)
         if pro_batch_mask_minibatch is not None:
-            temp_pro_loss_full = (
-                pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
-            )
+            temp_pro_loss_full = pro_batch_mask_minibatch.bool() * reconst_loss_protein_full
             reconst_loss_protein = temp_pro_loss_full.sum(dim=-1)
         else:
             reconst_loss_protein = reconst_loss_protein_full.sum(dim=-1)
@@ -366,9 +354,7 @@ class TOTALVAE(BaseModuleClass):
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            tensors[size_factor_key] if size_factor_key in tensors.keys() else None
-        )
+        size_factor = tensors[size_factor_key] if size_factor_key in tensors.keys() else None
 
         return {
             "z": z,
@@ -419,18 +405,18 @@ class TOTALVAE(BaseModuleClass):
 
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
-            px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
+            px_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
+            py_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
+            py_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
@@ -461,13 +447,15 @@ class TOTALVAE(BaseModuleClass):
         `scale` refers to the quanity upon which differential expression is performed. For genes,
         this can be viewed as the mean of the underlying gamma distribution.
 
-        We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for proteins.
-        `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. ``scale`` refers to
-        foreground mean adjusted for background probability and scaled to reside in simplex.
-        ``back_alpha`` and ``back_beta`` are the posterior parameters for ``rate_back``.  ``fore_scale`` is the scaling
-        factor that enforces `rate_fore` > `rate_back`.
+        We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for
+        proteins. `rate_fore` refers to foreground mean, while `rate_back` refers to background
+        mean. ``scale`` refers to foreground mean adjusted for background probability and scaled to
+        reside in simplex. ``back_alpha`` and ``back_beta`` are the posterior parameters for
+        ``rate_back``.  ``fore_scale`` is the scaling factor that enforces
+        `rate_fore` > `rate_back`.
 
-        ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein, respectively.
+        ``px_["r"]`` and ``py_["r"]`` are the inverse dispersion parameters for genes and protein,
+        respectively.
 
         Parameters
         ----------
@@ -527,27 +515,27 @@ class TOTALVAE(BaseModuleClass):
         # Background regularization
         if self.gene_dispersion == "gene-label":
             # px_r gets transposed - last dimension is nb genes
-            px_r = F.linear(one_hot(label, self.n_labels), self.px_r)
+            px_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r)
         elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
         elif self.gene_dispersion == "gene":
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(one_hot(label, self.n_labels), self.py_r)
+            py_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
         elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(one_hot(batch_index, self.n_batch), self.py_r)
+            py_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
         if self.n_batch > 0:
             py_back_alpha_prior = F.linear(
-                one_hot(batch_index, self.n_batch), self.background_pro_alpha
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
             )
             py_back_beta_prior = F.linear(
-                one_hot(batch_index, self.n_batch),
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
                 torch.exp(self.background_pro_log_beta),
             )
         else:
@@ -571,9 +559,7 @@ class TOTALVAE(BaseModuleClass):
         generative_outputs,
         pro_recons_weight=1.0,  # double check these defaults
         kl_weight=1.0,
-    ) -> tuple[
-        torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor
-    ]:
+    ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
         """Returns the reconstruction loss and the Kullback divergences.
 
         Parameters
@@ -621,10 +607,10 @@ class TOTALVAE(BaseModuleClass):
         if not self.use_observed_lib_size:
             n_batch = self.library_log_means.shape[1]
             local_library_log_means = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_means
+                one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
             )
             local_library_log_vars = F.linear(
-                one_hot(batch_index, n_batch), self.library_log_vars
+                one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
             )
             kl_div_l_gene = kl(
                 ql,
@@ -659,9 +645,7 @@ class TOTALVAE(BaseModuleClass):
             "kl_div_back_pro": kl_div_back_pro,
         }
 
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
@@ -723,10 +707,10 @@ class TOTALVAE(BaseModuleClass):
             if not self.use_observed_lib_size:
                 n_batch = self.library_log_means.shape[1]
                 local_library_log_means = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_means
+                    one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
                 )
                 local_library_log_vars = F.linear(
-                    one_hot(batch_index, n_batch), self.library_log_vars
+                    one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
                 )
                 p_l_gene = (
                     Normal(local_library_log_means, local_library_log_vars.sqrt())
@@ -742,9 +726,7 @@ class TOTALVAE(BaseModuleClass):
             p_xy_zl = -(reconst_loss_gene + reconst_loss_protein)
             q_z_x = qz.log_prob(z).sum(dim=-1)
             q_mu_back = (
-                Normal(py_["back_alpha"], py_["back_beta"])
-                .log_prob(log_pro_back_mean)
-                .sum(dim=-1)
+                Normal(py_["back_alpha"], py_["back_beta"]).log_prob(log_pro_back_mean).sum(dim=-1)
             )
             log_prob_sum += p_z + p_mu_back + p_xy_zl - q_z_x - q_mu_back
 

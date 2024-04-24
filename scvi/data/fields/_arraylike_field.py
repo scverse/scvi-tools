@@ -118,7 +118,7 @@ class ArrayLikeField(BaseArrayLikeField):
             )
 
     def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
-        """Returns a list or NumPy array of column names that will be used for the relevant .obsm data.
+        """Returns a list or ndarray of column names that will be used for the relevant .obsm data.
 
         If the ``colnames_uns_key`` was specified, then the columns stored in that
         field will be returned. Otherwise, if the stored data is a pandas dataframe, then
@@ -149,9 +149,7 @@ class ArrayLikeField(BaseArrayLikeField):
 
         return {self.COLUMN_NAMES_KEY: column_names}
 
-    def transfer_field(
-        self, state_registry: dict, adata_target: AnnData, **kwargs
-    ) -> dict:
+    def transfer_field(self, state_registry: dict, adata_target: AnnData, **kwargs) -> dict:
         """Transfer the field."""
         super().transfer_field(state_registry, adata_target, **kwargs)
         self.validate_field(adata_target)
@@ -159,13 +157,12 @@ class ArrayLikeField(BaseArrayLikeField):
         target_data = self.get_field_data(adata_target)
         if len(source_cols) != target_data.shape[1]:
             raise ValueError(
-                f"Target adata.{self.attr_name}['{self.attr_key}'] has {target_data.shape[1]} which does not match "
-                f"the source adata.{self.attr_name}['{self.attr_key}'] column count of {len(source_cols)}."
+                f"Target adata.{self.attr_name}['{self.attr_key}'] has {target_data.shape[1]} "
+                f"which does not match the source adata.{self.attr_name}['{self.attr_key}'] "
+                f"column count of {len(source_cols)}."
             )
 
-        if isinstance(target_data, pd.DataFrame) and source_cols != list(
-            target_data.columns
-        ):
+        if isinstance(target_data, pd.DataFrame) and source_cols != list(target_data.columns):
             raise ValueError(
                 f"Target adata.{self.attr_name}['{self.attr_key}'] column names do not match "
                 f"the source adata.{self.attr_name}['{self.attr_key}'] column names."
@@ -202,9 +199,10 @@ MuDataVarmField = MuDataWrapper(VarmField)
 
 
 class BaseJointField(BaseArrayLikeField):
-    """An abstract AnnDataField for a collection of .obs or .var fields in the AnnData data structure.
+    """An abstract AnnDataField for a collection of .obs or .var fields in AnnData.
 
-    Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole a model.
+    Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole
+    a model.
 
     Parameters
     ----------
@@ -271,9 +269,10 @@ class BaseJointField(BaseArrayLikeField):
 
 
 class NumericalJointField(BaseJointField):
-    """An AnnDataField for a collection of numerical .obs or .var fields in the AnnData data structure.
+    """An AnnDataField for a collection of numerical .obs or .var fields in AnnData.
 
-    Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole a model.
+    Creates an .obsm or .varm field containing each .obs or .var field to be referenced as a whole
+    a model.
 
     Parameters
     ----------
@@ -301,11 +300,7 @@ class NumericalJointField(BaseJointField):
         """Register the field."""
         super().register_field(adata)
         self._combine_fields(adata)
-        return {
-            self.COLUMNS_KEY: getattr(adata, self.attr_name)[
-                self.attr_key
-            ].columns.to_numpy()
-        }
+        return {self.COLUMNS_KEY: getattr(adata, self.attr_name)[self.attr_key].columns.to_numpy()}
 
     def transfer_field(
         self,
@@ -359,7 +354,7 @@ MuDataNumericalJointVarField = MuDataWrapper(NumericalJointVarField)
 
 
 class CategoricalJointField(BaseJointField):
-    """An AnnDataField for a collection of categorical .obs or .var fields in the AnnData data structure.
+    """An AnnDataField for a collection of categorical .obs or .var fields in AnnData.
 
     Creates an .obsm or .varm field compiling the given .obs or .var fields. The model
     will reference the compiled data as a whole.
@@ -398,10 +393,7 @@ class CategoricalJointField(BaseJointField):
         self, adata: AnnData, category_dict: Optional[dict[str, list[str]]] = None
     ) -> dict:
         """Make the .obsm categorical."""
-        if (
-            self.attr_keys
-            != getattr(adata, self.attr_name)[self.attr_key].columns.tolist()
-        ):
+        if self.attr_keys != getattr(adata, self.attr_name)[self.attr_key].columns.tolist():
             raise ValueError(
                 f"Original .{self.source_attr_name} keys do not match the columns in the ",
                 f"generated .{self.attr_name} field.",
@@ -415,9 +407,7 @@ class CategoricalJointField(BaseJointField):
                 if category_dict is not None
                 else None
             )
-            mapping = _make_column_categorical(
-                df, key, key, categorical_dtype=categorical_dtype
-            )
+            mapping = _make_column_categorical(df, key, key, categorical_dtype=categorical_dtype)
             categories[key] = mapping
 
         store_cats = categories if category_dict is None else category_dict
@@ -481,9 +471,7 @@ class CategoricalJointField(BaseJointField):
             no_wrap=True,
             overflow="fold",
         )
-        t.add_column(
-            "Categories", justify="center", style="green", no_wrap=True, overflow="fold"
-        )
+        t.add_column("Categories", justify="center", style="green", no_wrap=True, overflow="fold")
         t.add_column(
             "scvi-tools Encoding",
             justify="center",
@@ -494,9 +482,7 @@ class CategoricalJointField(BaseJointField):
         for key, mappings in state_registry[self.MAPPINGS_KEY].items():
             for i, mapping in enumerate(mappings):
                 if i == 0:
-                    t.add_row(
-                        f"adata.{self.source_attr_name}['{key}']", str(mapping), str(i)
-                    )
+                    t.add_row(f"adata.{self.source_attr_name}['{key}']", str(mapping), str(i))
                 else:
                     t.add_row("", str(mapping), str(i))
             t.add_row("", "")
@@ -504,14 +490,14 @@ class CategoricalJointField(BaseJointField):
 
 
 class CategoricalJointObsField(CategoricalJointField):
-    """An AnnDataField for a collection of categorical .obs fields in the AnnData data structure."""
+    """An AnnDataField for a collection of categorical .obs fields in AnnData."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, field_type="obsm", **kwargs)
 
 
 class CategoricalJointVarField(CategoricalJointField):
-    """An AnnDataField for a collection of categorical .var fields in the AnnData data structure."""
+    """An AnnDataField for a collection of categorical .var fields in AnnData."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, field_type="varm", **kwargs)

@@ -7,7 +7,6 @@ from torch.distributions import Dirichlet, Normal
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module._utils import one_hot
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 LOWER_BOUND = 1e-10
@@ -114,7 +113,7 @@ class CellAssignModule(BaseModuleClass):
 
         to_cat = []
         if self.n_batch > 0:
-            to_cat.append(one_hot(tensors[REGISTRY_KEYS.BATCH_KEY], self.n_batch))
+            to_cat.append(F.one_hot(tensors[REGISTRY_KEYS.BATCH_KEY].squeeze(-1), self.n_batch))
 
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         if cont_key in tensors.keys():
@@ -125,7 +124,7 @@ class CellAssignModule(BaseModuleClass):
             for cat_input, n_cat in zip(
                 torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
             ):
-                to_cat.append(one_hot(cat_input, n_cat))
+                to_cat.append(F.one_hot(cat_input.squeeze(-1), n_cat))
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
@@ -157,7 +156,7 @@ class CellAssignModule(BaseModuleClass):
         # compute beta (covariate coefficent)
         # design_matrix has shape (n,p)
         if design_matrix is not None:
-            covariates = torch.einsum("np,gp->gn", design_matrix, self.beta)  # (g, n)
+            covariates = torch.einsum("np,gp->gn", design_matrix.float(), self.beta)  # (g, n)
             covariates = torch.transpose(covariates, 0, 1).unsqueeze(-1)  # (n, g, 1)
             covariates = covariates.expand(n_cells, self.n_genes, self.n_labels)
             base_mean = base_mean + covariates
@@ -182,8 +181,7 @@ class CellAssignModule(BaseModuleClass):
             n_cells, self.n_genes, self.n_labels, B
         )  # (n, g, c, B)
         phi = (  # (n, g, c)
-            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3)
-            + LOWER_BOUND
+            torch.sum(a * torch.exp(-b * torch.square(mu_ngcb - basis_means)), 3) + LOWER_BOUND
         )
 
         # compute gamma
@@ -193,9 +191,7 @@ class CellAssignModule(BaseModuleClass):
         theta_log = theta_log.expand(n_cells, self.n_labels)
         p_x_c = torch.sum(x_log_prob_raw, 1) + theta_log  # (n, c)
         normalizer_over_c = torch.logsumexp(p_x_c, 1)
-        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(
-            n_cells, self.n_labels
-        )
+        normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(n_cells, self.n_labels)
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
         return {
@@ -226,13 +222,9 @@ class CellAssignModule(BaseModuleClass):
         # third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit, dim=-1)
         theta_log_prior = Dirichlet(self.dirichlet_concentration)
-        theta_log_prob = -theta_log_prior.log_prob(
-            torch.exp(theta_log) + THETA_LOWER_BOUND
-        )
+        theta_log_prob = -theta_log_prior.log_prob(torch.exp(theta_log) + THETA_LOWER_BOUND)
         prior_log_prob = theta_log_prob
-        delta_log_prior = Normal(
-            self.delta_log_mean, self.delta_log_log_scale.exp().sqrt()
-        )
+        delta_log_prior = Normal(self.delta_log_mean, self.delta_log_log_scale.exp().sqrt())
         delta_log_prob = torch.masked_select(
             delta_log_prior.log_prob(self.delta_log), (self.rho > 0)
         )

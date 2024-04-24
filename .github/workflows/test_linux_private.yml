@@ -1,0 +1,81 @@
+name: test (private)
+
+on:
+  pull_request:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+    types: [labeled, synchronize, opened]
+  schedule:
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # if PR has label "private tests" or "all tests" or if scheduled or manually triggered or on push
+    if: >-
+      (
+        contains(github.event.pull_request.labels.*.name, 'private tests') ||
+        contains(github.event.pull_request.labels.*.name, 'all tests') ||
+        contains(github.event_name, 'schedule') ||
+        contains(github.event_name, 'workflow_dispatch') ||
+        contains(github.event_name, 'push')
+      )
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.11"]
+
+    permissions:
+      id-token: write
+
+    name: unit
+
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_IAM }}:role/scvi-tools_private_test
+          aws-region: us-west-1
+          role-duration-seconds: 3600 # generous upper limit for the duration of the test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel uv
+          python -m uv pip install --system "scvi-tools[tests] @ ."
+
+      - name: Run pytest
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ${{ matrix.os }}
+          DISPLAY: :42
+          HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
+        run: |
+          coverage run -m pytest -v --color=yes --private
+          coverage report
+
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

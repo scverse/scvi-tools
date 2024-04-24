@@ -7,8 +7,6 @@ from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
-from ._utils import one_hot
-
 
 def _identity(x):
     return x
@@ -89,7 +87,8 @@ class FCLayers(nn.Module):
                                 n_out,
                                 bias=bias,
                             ),
-                            # non-default params come from defaults in original Tensorflow implementation
+                            # non-default params come from defaults in original Tensorflow
+                            # implementation
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
                             else None,
@@ -102,9 +101,7 @@ class FCLayers(nn.Module):
                             else None,
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:])
-                    )
+                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))
                 ]
             )
         )
@@ -165,7 +162,7 @@ class FCLayers(nn.Module):
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
                 if cat.size(1) != n_cat:
-                    one_hot_cat = one_hot(cat, n_cat)
+                    one_hot_cat = nn.functional.one_hot(cat.squeeze(-1), n_cat)
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
@@ -174,18 +171,14 @@ class FCLayers(nn.Module):
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
-                            x = torch.cat(
-                                [(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0
-                            )
+                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
                         else:
                             x = layer(x)
                     else:
                         if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
                                 one_hot_cat_list_layer = [
-                                    o.unsqueeze(0).expand(
-                                        (x.size(0), o.size(0), o.size(1))
-                                    )
+                                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
                                     for o in one_hot_cat_list
                                 ]
                             else:
@@ -275,7 +268,8 @@ class Encoder(nn.Module):
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
-         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
+         #. Samples a new value from an i.i.d. multivariate normal
+            \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
         Parameters
         ----------
@@ -483,9 +477,7 @@ class LinearDecoderSCVI(nn.Module):
             **kwargs,
         )
 
-    def forward(
-        self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int
-    ):
+    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int):
         """Forward pass."""
         # The decoder returns values for the parameters of the ZINB distribution
         raw_px_scale = self.factor_regressor(z, *cat_list)
@@ -685,9 +677,7 @@ class MultiDecoder(nn.Module):
         else:
             self.px_decoder_final = None
 
-        self.px_scale_decoder = nn.Sequential(
-            nn.Linear(n_in, n_output), nn.Softmax(dim=-1)
-        )
+        self.px_scale_decoder = nn.Sequential(nn.Linear(n_in, n_output), nn.Softmax(dim=-1))
         self.px_r_decoder = nn.Linear(n_in, n_output)
         self.px_dropout_decoder = nn.Linear(n_in, n_output)
 
@@ -873,11 +863,11 @@ class DecoderTOTALVI(nn.Module):
          `scale` refers to the quanity upon which differential expression is performed. For genes,
          this can be viewed as the mean of the underlying gamma distribution.
 
-         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for proteins.
-         `rate_fore` refers to foreground mean, while `rate_back` refers to background mean. `scale` refers to
-         foreground mean adjusted for background probability and scaled to reside in simplex.
-         `back_alpha` and `back_beta` are the posterior parameters for `rate_back`.  `fore_scale` is the scaling
-         factor that enforces `rate_fore` > `rate_back`.
+         We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for
+         proteins. `rate_fore` refers to foreground mean, while `rate_back` refers to background
+         mean. `scale` refers to foreground mean adjusted for background probability and scaled to
+         reside in simplex. `back_alpha` and `back_beta` are the posterior parameters for
+         `rate_back`. `fore_scale` is the scaling factor that enforces `rate_fore` > `rate_back`.
 
         Parameters
         ----------
@@ -907,17 +897,13 @@ class DecoderTOTALVI(nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = torch.exp(
-            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
-        )
+        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
         py_fore = self.py_fore_decoder(z, *cat_list)
         py_fore_cat_z = torch.cat([py_fore, z], dim=-1)
-        py_["fore_scale"] = (
-            self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
-        )
+        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
         py_["rate_fore"] = py_["rate_back"] * py_["fore_scale"]
 
         p_mixing = self.sigmoid_decoder(z, *cat_list)
@@ -1028,10 +1014,11 @@ class EncoderTOTALVI(nn.Module):
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
          #. Samples a new value from an i.i.d. latent distribution
 
-        The dictionary ``latent`` contains the samples of the latent variables, while ``untran_latent``
-        contains the untransformed versions of these latent variables. For example, the library size is log normally distributed,
-        so ``untran_latent["l"]`` gives the normal sample that was later exponentiated to become ``latent["l"]``.
-        The logistic normal distribution is equivalent to applying softmax to a normal sample.
+        The dictionary ``latent`` contains the samples of the latent variables, while
+        ``untran_latent`` contains the untransformed versions of these latent variables. For
+        example, the library size is log normally distributed, so ``untran_latent["l"]`` gives the
+        normal sample that was later exponentiated to become ``latent["l"]``. The logistic normal
+        distribution is equivalent to applying softmax to a normal sample.
 
         Parameters
         ----------

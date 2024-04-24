@@ -11,7 +11,6 @@ from pyro.infer import Trace_ELBO
 from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
 
@@ -35,10 +34,10 @@ class CategoricalBoW(dist.Multinomial):
 def logistic_normal_approximation(
     alpha: torch.Tensor,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Returns the mean and standard deviation of the Logistic Normal approximation to the Dirichlet.
+    """Return the mean and std deviation of the Logistic Normal approximation to the Dirichlet.
 
-    Uses the Laplace approximation of the Logistic Normal distribution to the Dirichlet distribution
-    as described in Srivastava et al. https://arxiv.org/pdf/1703.01488.pdf.
+    Uses the Laplace approximation of the Logistic Normal distribution to the Dirichlet
+    distribution as described in Srivastava et al. https://arxiv.org/pdf/1703.01488.pdf.
     """
     K = alpha.shape[0]
     mu = torch.log(alpha) - torch.log(alpha).sum() / K
@@ -64,7 +63,7 @@ class AmortizedLDAPyroModel(PyroModule):
     def __init__(
         self,
         n_input: int,
-        n_topics: Tunable[int],
+        n_topics: int,
         cell_topic_prior: torch.Tensor,
         topic_feature_prior: torch.Tensor,
     ):
@@ -98,7 +97,7 @@ class AmortizedLDAPyroModel(PyroModule):
 
     @staticmethod
     def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor]
+        tensor_dict: dict[str, torch.Tensor],
     ) -> Union[Iterable, dict]:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         library = torch.sum(x, dim=1)
@@ -117,9 +116,9 @@ class AmortizedLDAPyroModel(PyroModule):
         with pyro.plate("topics", self.n_topics), poutine.scale(None, kl_weight):
             log_topic_feature_dist = pyro.sample(
                 "log_topic_feature_dist",
-                dist.Normal(
-                    self.topic_feature_prior_mu, self.topic_feature_prior_sigma
-                ).to_event(1),
+                dist.Normal(self.topic_feature_prior_mu, self.topic_feature_prior_sigma).to_event(
+                    1
+                ),
             )
             topic_feature_dist = F.softmax(log_topic_feature_dist, dim=1)
 
@@ -129,9 +128,7 @@ class AmortizedLDAPyroModel(PyroModule):
             with poutine.scale(None, kl_weight):
                 log_cell_topic_dist = pyro.sample(
                     "log_cell_topic_dist",
-                    dist.Normal(
-                        self.cell_topic_prior_mu, self.cell_topic_prior_sigma
-                    ).to_event(1),
+                    dist.Normal(self.cell_topic_prior_mu, self.cell_topic_prior_sigma).to_event(1),
                 )
             cell_topic_dist = F.softmax(log_cell_topic_dist, dim=1)
 
@@ -202,29 +199,28 @@ class AmortizedLDAPyroGuide(PyroModule):
             )
 
         # Cell topic distributions guide.
-        with pyro.plate(
-            "cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]
-        ), poutine.scale(None, kl_weight):
+        with (
+            pyro.plate("cells", size=n_obs or self.n_obs, subsample_size=x.shape[0]),
+            poutine.scale(None, kl_weight),
+        ):
             cell_topic_posterior, _ = self.encoder(x)
             cell_topic_posterior_mu = cell_topic_posterior.loc
             cell_topic_posterior_sigma = cell_topic_posterior.scale**2
             pyro.sample(
                 "log_cell_topic_dist",
-                dist.Normal(
-                    cell_topic_posterior_mu, cell_topic_posterior_sigma
-                ).to_event(1),
+                dist.Normal(cell_topic_posterior_mu, cell_topic_posterior_sigma).to_event(1),
             )
 
 
 class AmortizedLDAPyroModule(PyroBaseModuleClass):
-    """An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03` implemented in Pyro.
+    """An amortized implementation of Latent Dirichlet Allocation :cite:p:`Blei03`.
 
     This module uses auto encoding variational Bayes to optimize the latent variables in the model.
-    In particular, a fully-connected neural network is used as an encoder, which takes in feature counts
-    as input and outputs the parameters of cell topic distribution. To employ the reparametrization trick
-    stably, the Dirichlet priors are approximated by a Logistic-Normal distribution.
-    The input feature counts tensor is a cell by features Bag-of-Words(BoW) representation
-    of the counts. I.e. the model treats each cell's feature vector as ordered, not
+    In particular, a fully-connected neural network is used as an encoder, which takes in feature
+    counts as input and outputs the parameters of cell topic distribution. To employ the
+    reparametrization trick stably, the Dirichlet priors are approximated by a Logistic-Normal
+    distribution. The input feature counts tensor is a cell by features Bag-of-Words(BoW)
+    representation of the counts. I.e. the model treats each cell's feature vector as ordered, not
     as unordered as in a Multinomial distribution.
 
     Parameters

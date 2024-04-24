@@ -79,24 +79,19 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         adata: AnnData,
         n_hidden: int | None = None,
         n_latent: int | None = None,
-        n_layers: int | None = None,
-        dropout_rate: float | None = None,
+        n_layers: int = 2,
+        dropout_rate: float = 0.1,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super().__init__(
-            adata,
-        )
+        # need to pass these in to get the correct defaults for peakvi
+        super().__init__(adata, n_hidden=n_hidden, n_latent=n_latent)
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
+        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if use_size_factor_key is not None:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self._module_cls = VAE
 
@@ -108,11 +103,11 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             n_cats_per_cov=self.module.n_cats_per_cov,
             n_hidden=self.module.n_hidden,
             n_latent=self.module.n_latent,
-            n_layers=self.module.n_layers_encoder,
-            dropout_rate=self.module.dropout_rate,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
             dispersion="gene",  # not needed here
-            gene_likelihood="poisson",  # fixed value for now, but we could think of also allowing nb
-            latent_distribution=self.module.latent_distribution,
+            gene_likelihood="poisson",  # fixed value for now, but we could think of allowing nb
+            latent_distribution=latent_distribution,
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
@@ -125,8 +120,8 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         )
 
         self._model_summary_string = (
-            "PoissonVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, peak_likelihood: {}, latent_distribution: {}"
+            "PoissonVI Model with the following params: \nn_hidden: {}, n_latent: {}, "
+            "n_layers: {}, dropout_rate: {}, peak_likelihood: {}, latent_distribution: {}"
         ).format(
             n_hidden,
             n_latent,
@@ -179,8 +174,8 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             magnitude. If set to `"latent"`, use the latent library size.
         normalize_regions
             Whether to reintroduce region factors to scale the normalized accessibility. This makes
-            the estimates closer to the input, but removes the region-level bias correction. False by
-            default.
+            the estimates closer to the input, but removes the region-level bias correction. False
+            by default.
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
@@ -192,11 +187,12 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            region names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes region names as columns. If either `n_samples=1` or `return_mean=True`,
+            defaults to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
-            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
         Returns
         -------
@@ -208,7 +204,8 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_regions).
         """
-        # this is similar to PeakVI's region normalization where we ignore the factor that is learnt per region
+        # this is similar to PeakVI's region normalization where we ignore the factor that is
+        # learnt per region
         if not normalize_regions:
             region_factors = self.module.decoder.px_scale_decoder[-2].bias
             # set region_factors (bias) to 0
@@ -231,16 +228,17 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         )
         if not normalize_regions:
             # reset region_factors (bias)
-            self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(
-                region_factors
-            )
+            self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(region_factors)
         return accs
 
     def get_normalized_expression(
         self,
     ):
         # Refer to function get_accessibility_estimates
-        msg = f"differential_expression is not implemented for {self.__class__.__name__}, please use {self.__class__.__name__}.get_accessibility_estimates"
+        msg = (
+            f"differential_expression is not implemented for {self.__class__.__name__}, please "
+            f"use {self.__class__.__name__}.get_accessibility_estimates"
+        )
         raise NotImplementedError(msg)
 
     @de_dsp.dedent
@@ -295,9 +293,11 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
-            Whether to filter outlier cells with :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
-            Keyword arguments passed into :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -307,15 +307,16 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         prob_da
             the probability of the region being differentially accessible
         is_da_fdr
-            whether the region passes a multiple hypothesis correction procedure with the target_fdr
-            threshold
+            whether the region passes a multiple hypothesis correction procedure with the
+            target_fdr threshold
         bayes_factor
             Bayes Factor indicating the level of significance of the analysis
         effect_size
-            the effect size, computed as (accessibility in population 2) - (accessibility in population 1)
+            the effect size, computed as (accessibility in population 2) - (accessibility in
+            population 1)
         emp_effect
-            the empirical effect, based on observed detection rates instead of the estimated accessibility
-            scores from the PeakVI model
+            the empirical effect, based on observed detection rates instead of the estimated
+            accessibility scores from the PeakVI model
         est_prob1
             the estimated probability of accessibility in population 1
         est_prob2
@@ -337,9 +338,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             weights=weights,
             **importance_weighting_kwargs,
         )
-        representation_fn = (
-            self.get_latent_representation if filter_outlier_cells else None
-        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
         if two_sided:
 
@@ -387,7 +386,10 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         self,
     ):
         # Refer to function differential_accessibility
-        msg = f"differential_expression is not implemented for {self.__class__.__name__}, please use {self.__class__.__name__}.differential_accessibility"
+        msg = (
+            f"differential_expression is not implemented for {self.__class__.__name__}, please "
+            f"use {self.__class__.__name__}.differential_accessibility"
+        )
         raise NotImplementedError(msg)
 
         return None
@@ -422,18 +424,10 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             LayerField(REGISTRY_KEYS.X_KEY, layer, check_fragment_counts=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

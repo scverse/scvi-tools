@@ -11,7 +11,7 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi.distributions import ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import DecoderSCVI, Encoder, one_hot
+from scvi.nn import DecoderSCVI, Encoder
 
 torch.backends.cudnn.benchmark = True
 
@@ -85,12 +85,8 @@ class ContrastiveVAE(BaseModuleClass):
                     "If not using observed_lib_size, "
                     "must provide library_log_means and library_log_vars."
                 )
-            self.register_buffer(
-                "library_log_means", torch.from_numpy(library_log_means).float()
-            )
-            self.register_buffer(
-                "library_log_vars", torch.from_numpy(library_log_vars).float()
-            )
+            self.register_buffer("library_log_means", torch.from_numpy(library_log_means).float())
+            self.register_buffer("library_log_vars", torch.from_numpy(library_log_vars).float())
 
         cat_list = [n_batch]
         # Background encoder.
@@ -159,10 +155,10 @@ class ContrastiveVAE(BaseModuleClass):
         """
         n_batch = self.library_log_means.shape[1]
         local_library_log_means = F.linear(
-            one_hot(batch_index, n_batch), self.library_log_means
+            F.one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
         )
         local_library_log_vars = F.linear(
-            one_hot(batch_index, n_batch), self.library_log_vars
+            F.one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_vars
         )
         return local_library_log_means, local_library_log_vars
 
@@ -193,9 +189,7 @@ class ContrastiveVAE(BaseModuleClass):
     def _get_inference_input(
         self, concat_tensors: dict[str, dict[str, torch.Tensor]]
     ) -> dict[str, dict[str, torch.Tensor]]:
-        background = self._get_inference_input_from_concat_tensors(
-            concat_tensors, "background"
-        )
+        background = self._get_inference_input_from_concat_tensors(concat_tensors, "background")
         target = self._get_inference_input_from_concat_tensors(concat_tensors, "target")
         # Ensure batch sizes are the same.
         min_batch_size = self._get_min_batch_size(concat_tensors)
@@ -363,9 +357,7 @@ class ContrastiveVAE(BaseModuleClass):
         target_batch_size = target["z"].shape[batch_size_dim]
         generative_input = {}
         for key in ["z", "s", "library"]:
-            generative_input[key] = torch.cat(
-                [background[key], target[key]], dim=batch_size_dim
-            )
+            generative_input[key] = torch.cat([background[key], target[key]], dim=batch_size_dim)
         generative_input["batch_index"] = torch.cat(
             [background["batch_index"], target["batch_index"]], dim=0
         )
@@ -594,8 +586,7 @@ class ContrastiveVAE(BaseModuleClass):
         kl_local_no_warmup = kl_divergence_l
 
         weighted_kl_local = (
-            kl_weight
-            * (self.wasserstein_penalty * wasserstein_loss + kl_local_for_warmup)
+            kl_weight * (self.wasserstein_penalty * wasserstein_loss + kl_local_for_warmup)
             + kl_local_no_warmup
         )
 

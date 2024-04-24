@@ -58,6 +58,8 @@ import scvi
    external.Tangram
    external.SCBASSET
    external.ContrastiveVI
+   external.POISSONVI
+   external.VELOVI
 
 ```
 
@@ -101,6 +103,8 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_multiome_anndatas
    data.add_dna_sequence
    data.reads_to_fragments
+   external.velovi.get_permutation_scores
+   external.velovi.preprocess_data
 ```
 
 ```{eval-rst}
@@ -116,8 +120,8 @@ Here we maintain a few package specific utilities for feature selection, etc.
    :toctree: reference/
    :nosignatures:
 
-   autotune.ModelTuner
-   autotune.TuneAnalysis
+   autotune.run_autotune
+   autotune.AutotuneExperiment
 ```
 
 ## Model hub

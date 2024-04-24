@@ -6,7 +6,6 @@ import torch
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
@@ -74,9 +73,9 @@ class MRDeconv(BaseModuleClass):
         self,
         n_spots: int,
         n_labels: int,
-        n_hidden: Tunable[int],
-        n_layers: Tunable[int],
-        n_latent: Tunable[int],
+        n_hidden: int,
+        n_layers: int,
+        n_latent: int,
         n_genes: int,
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,
@@ -87,9 +86,9 @@ class MRDeconv(BaseModuleClass):
         var_vprior: np.ndarray = None,
         mp_vprior: np.ndarray = None,
         amortization: Literal["none", "latent", "proportion", "both"] = "both",
-        l1_reg: Tunable[float] = 0.0,
-        beta_reg: Tunable[float] = 5.0,
-        eta_reg: Tunable[float] = 1e-4,
+        l1_reg: float = 0.0,
+        beta_reg: float = 5.0,
+        eta_reg: float = 1e-4,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
     ):
@@ -134,9 +133,7 @@ class MRDeconv(BaseModuleClass):
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
 
         # within cell_type factor loadings
-        self.gamma = torch.nn.Parameter(
-            torch.randn(n_latent, self.n_labels, self.n_spots)
-        )
+        self.gamma = torch.nn.Parameter(torch.randn(n_latent, self.n_labels, self.n_spots))
         if mean_vprior is not None:
             self.p = mean_vprior.shape[1]
             self.register_buffer("mean_vprior", torch.tensor(mean_vprior))
@@ -223,9 +220,7 @@ class MRDeconv(BaseModuleClass):
         v_ind = torch.nn.functional.softplus(v_ind)
 
         # reshape and get gene expression value for all minibatch
-        gamma_ind = torch.transpose(
-            gamma_ind, 2, 0
-        )  # minibatch_size, n_labels, n_latent
+        gamma_ind = torch.transpose(gamma_ind, 2, 0)  # minibatch_size, n_labels, n_latent
         gamma_reshape = gamma_ind.reshape(
             (-1, self.n_latent)
         )  # minibatch_size * n_labels, n_latent
@@ -238,9 +233,7 @@ class MRDeconv(BaseModuleClass):
         )  # (minibatch, n_labels, n_genes)
 
         # add the dummy cell type
-        eps = eps.repeat((m, 1)).view(
-            m, 1, -1
-        )  # (M, 1, n_genes) <- this is the dummy cell type
+        eps = eps.repeat((m, 1)).view(m, 1, -1)  # (M, 1, n_genes) <- this is the dummy cell type
 
         # account for gene specific bias and add noise
         r_hat = torch.cat(
@@ -278,9 +271,7 @@ class MRDeconv(BaseModuleClass):
         # eta prior likelihood
         mean = torch.zeros_like(self.eta)
         scale = torch.ones_like(self.eta)
-        glo_neg_log_likelihood_prior = (
-            -self.eta_reg * Normal(mean, scale).log_prob(self.eta).sum()
-        )
+        glo_neg_log_likelihood_prior = -self.eta_reg * Normal(mean, scale).log_prob(self.eta).sum()
         glo_neg_log_likelihood_prior += self.beta_reg * torch.var(self.beta)
 
         v_sparsity_loss = self.l1_reg * torch.abs(v).mean(1)
@@ -310,11 +301,10 @@ class MRDeconv(BaseModuleClass):
             neg_log_likelihood_prior = -log_likelihood_prior.sum(1)  # minibatch
             # mean_vprior is of shape n_labels, p, n_latent
 
-        # High v_sparsity_loss is detrimental early in training, scaling by kl_weight to increase over training epochs.
+        # High v_sparsity_loss is detrimental early in training, scaling by kl_weight to increase
+        # over training epochs.
         loss = n_obs * (
-            torch.mean(
-                reconst_loss + kl_weight * (neg_log_likelihood_prior + v_sparsity_loss)
-            )
+            torch.mean(reconst_loss + kl_weight * (neg_log_likelihood_prior + v_sparsity_loss))
             + glo_neg_log_likelihood_prior
         )
 
@@ -344,9 +334,7 @@ class MRDeconv(BaseModuleClass):
             x_ = torch.log(1 + x)
             res = torch.nn.functional.softplus(self.V_encoder(x_))
         else:
-            res = (
-                torch.nn.functional.softplus(self.V).cpu().numpy().T
-            )  # n_spots, n_labels + 1
+            res = torch.nn.functional.softplus(self.V).cpu().numpy().T  # n_spots, n_labels + 1
         # remove dummy cell type proportion values
         if not keep_noise:
             res = res[:, :-1]

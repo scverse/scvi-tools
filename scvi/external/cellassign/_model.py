@@ -33,14 +33,17 @@ B = 10
 class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
     """Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
+    Original implementation: https://github.com/irrationone/cellassign.
+
     Parameters
     ----------
     adata
-        single-cell AnnData object that has been registered via :meth:`~scvi.external.CellAssign.setup_anndata`.
-        The object should be subset to contain the same genes as the cell type marker dataframe.
+        single-cell AnnData object that has been registered via
+        :meth:`~scvi.external.CellAssign.setup_anndata`. The object should be subset to contain the
+        same genes as the cell type marker dataframe.
     cell_type_markers
-        Binary marker gene DataFrame of genes by cell types. Gene names corresponding to `adata.var_names`
-        should be in DataFrame index, and cell type labels should be the columns.
+        Binary marker gene DataFrame of genes by cell types. Gene names corresponding to
+        `adata.var_names` should be in DataFrame index, and cell type labels should be the columns.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
@@ -58,8 +61,13 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
 
     Notes
     -----
-    Size factors in the R implementation of CellAssign are computed using scran. An approximate approach
-    computes the sum of UMI counts (library size) over all genes and divides by the mean library size.
+    Size factors in the R implementation of CellAssign are computed using scran. An approximate
+    approach computes the sum of UMI counts (library size) over all genes and divides by the mean
+    library size.
+
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/scrna/cellassign_tutorial`
     """
 
     def __init__(
@@ -71,18 +79,14 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         try:
             cell_type_markers = cell_type_markers.loc[adata.var_names]
         except KeyError as err:
-            raise KeyError(
-                "Anndata and cell type markers do not contain the same genes."
-            ) from err
+            raise KeyError("Anndata and cell type markers do not contain the same genes.") from err
         super().__init__(adata)
 
         self.n_genes = self.summary_stats.n_vars
         self.cell_type_markers = cell_type_markers
         rho = torch.Tensor(cell_type_markers.to_numpy())
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
@@ -106,7 +110,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             **model_kwargs,
         )
-        self._model_summary_string = f"CellAssign Model with params: \nn_genes: {self.n_genes}, n_labels: {rho.shape[1]}"
+        self._model_summary_string = (
+            f"CellAssign Model with params: \nn_genes: {self.n_genes}, n_labels: {rho.shape[1]}"
+        )
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
@@ -120,9 +126,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             outputs = self.module.generative(**generative_inputs)
             gamma = outputs["gamma"]
             predictions += [gamma.cpu()]
-        return pd.DataFrame(
-            torch.cat(predictions).numpy(), columns=self.cell_type_markers.columns
-        )
+        return pd.DataFrame(torch.cat(predictions).numpy(), columns=self.cell_type_markers.columns)
 
     @devices_dsp.dedent
     def train(
@@ -158,8 +162,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
         shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set are split in the
-            sequential order of the data according to `validation_size` and `train_size` percentages.
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
         batch_size
             Minibatch size to use during training.
         datasplitter_kwargs
@@ -258,16 +263,10 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 

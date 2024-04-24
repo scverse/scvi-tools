@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Ambient RNA removal in scRNA-seq data :cite:p:`Sheng22`.
 
-    Original Github: https://github.com/Novartis/scar.
-    The models are parameter matched in architecture, activations, dropout, sparsity, and batch normalization.
+    Original implementation: https://github.com/Novartis/scar.
+    The models are parameter matched in architecture, activations, dropout, sparsity, and batch
+    normalization.
 
     Parameters
     ----------
@@ -94,14 +95,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = (
-            REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-        )
+        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         # self.summary_stats provides information about anndata dimensions and other tensor info
         if not torch.is_tensor(ambient_profile):
@@ -116,11 +113,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 ambient_profile = np.nan_to_num(ambient_profile)
             else:
                 raise TypeError(
-                    f"Expecting str / np.array / None / pd.DataFrame, but get a {type(ambient_profile)}"
+                    "Expecting str / np.array / None / pd.DataFrame, but got a "
+                    f"{type(ambient_profile)}"
                 )
-            ambient_profile = (
-                torch.from_numpy(np.asarray(ambient_profile)).float().reshape(1, -1)
-            )
+            ambient_profile = torch.from_numpy(np.asarray(ambient_profile)).float().reshape(1, -1)
 
         self.module = SCAR_VAE(
             ambient_profile=ambient_profile,
@@ -139,15 +135,9 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "SCVI-AR Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, gene_likelihood: {}, latent_distribution: {}"
-        ).format(
-            n_hidden,
-            n_latent,
-            n_layers,
-            dropout_rate,
-            gene_likelihood,
-            latent_distribution,
+            f"SCVI-AR Model with the following params: \nn_hidden: {n_hidden}, "
+            f"n_latent: {n_latent}, n_layers: {n_layers}, dropout_rate: {dropout_rate}, "
+            f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -173,13 +163,9 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -195,26 +181,30 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     ):
         """Calculate ambient profile for relevant features.
 
-        Identify the cell-free droplets through a multinomial distribution. See EmptyDrops :cite:p:`Lun2019` for details.
+        Identify the cell-free droplets through a multinomial distribution. See EmptyDrops
+        :cite:p:`Lun2019` for details.
 
         Parameters
         ----------
         adata
-            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`, gene filtering is
-            recommended to save memory.
+            A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`,
+            gene filtering is recommended to save memory.
         raw_adata
             A raw adata object, loaded from raw_feature_bc_matrix using :meth:`~scanpy.read`.
         prob
             The probability of each gene, considered as containing ambient RNA if greater than prob
             (joint prob euqals to the product of all genes for a droplet), by default 0.995.
         min_raw_counts
-            Total counts filter for raw_adata, filtering out low counts to save memory, by default 2.
+            Total counts filter for raw_adata, filtering out low counts to save memory, by default
+            2.
         iterations
             Total iterations, by default 3.
         n_batch
-            Total number of batches, set it to a bigger number when out of memory issue occurs, by default 1.
+            Total number of batches, set it to a bigger number when out of memory issue occurs, by
+            default 1.
         sample
-            Randomly sample droplets to test, if greater than total droplets, use all droplets, by default 50000.
+            Randomly sample droplets to test, if greater than total droplets, use all droplets, by
+            default 50000.
 
         Returns
         -------
@@ -243,9 +233,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 try:
                     count_batch = raw_adata[batch_idx == b].X.astype(int).A
                 except MemoryError as err:
-                    raise MemoryError(
-                        "use more batches by setting a higher n_batch"
-                    ) from err
+                    raise MemoryError("use more batches by setting a higher n_batch") from err
                 log_prob_batch = Multinomial(
                     probs=torch.tensor(ambient_prof), validate_args=False
                 ).log_prob(torch.Tensor(count_batch))
@@ -254,9 +242,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             raw_adata.obs["log_prob"] = log_prob
             raw_adata.obs["droplets"] = "other droplets"
             # cell-containing droplets
-            raw_adata.obs.loc[
-                raw_adata.obs_names.isin(adata.obs_names), "droplets"
-            ] = "cells"
+            raw_adata.obs.loc[raw_adata.obs_names.isin(adata.obs_names), "droplets"] = "cells"
             # identify cell-free droplets
             raw_adata.obs["droplets"] = raw_adata.obs["droplets"].mask(
                 raw_adata.obs["log_prob"] >= np.log(prob) * raw_adata.shape[1],
@@ -318,9 +304,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 px_scale = generative_outputs["px"].scale
             expected_counts = total_count_per_cell * px_scale.cpu()
 
-            b = torch.distributions.Binomial(
-                probs=expected_counts - expected_counts.floor()
-            )
+            b = torch.distributions.Binomial(probs=expected_counts - expected_counts.floor())
             expected_counts = expected_counts.floor() + b.sample()
 
             if n_samples > 1:

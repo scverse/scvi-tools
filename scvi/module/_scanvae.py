@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 from collections.abc import Iterable, Sequence
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
-from torch.distributions import Categorical, Normal
+from torch.distributions import Categorical, Distribution, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi._types import Tunable
 from scvi.data import _constants
 from scvi.model.base import BaseModelClass
 from scvi.module.base import LossOutput, auto_move_data
@@ -86,24 +87,22 @@ class SCANVAE(VAE):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
-        n_hidden: Tunable[int] = 128,
-        n_latent: Tunable[int] = 10,
-        n_layers: Tunable[int] = 1,
+        n_hidden: int = 128,
+        n_latent: int = 10,
+        n_layers: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
-        dropout_rate: Tunable[float] = 0.1,
-        dispersion: Tunable[
-            Literal["gene", "gene-batch", "gene-label", "gene-cell"]
-        ] = "gene",
-        log_variational: Tunable[bool] = True,
-        gene_likelihood: Tunable[Literal["zinb", "nb"]] = "zinb",
-        y_prior=None,
+        n_cats_per_cov: Iterable[int] | None = None,
+        dropout_rate: float = 0.1,
+        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
+        log_variational: bool = True,
+        gene_likelihood: Literal["zinb", "nb"] = "zinb",
+        y_prior: torch.Tensor | None = None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         linear_classifier: bool = False,
-        classifier_parameters: Optional[dict] = None,
-        use_batch_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "both",
-        use_layer_norm: Tunable[Literal["encoder", "decoder", "none", "both"]] = "none",
+        classifier_parameters: dict | None = None,
+        use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
+        use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         **vae_kwargs,
     ):
         super().__init__(
@@ -173,9 +172,7 @@ class SCANVAE(VAE):
             requires_grad=False,
         )
         self.use_labels_groups = use_labels_groups
-        self.labels_groups = (
-            np.array(labels_groups) if labels_groups is not None else None
-        )
+        self.labels_groups = np.array(labels_groups) if labels_groups is not None else None
         if self.use_labels_groups:
             if labels_groups is None:
                 raise ValueError("Specify label groups")
@@ -203,9 +200,9 @@ class SCANVAE(VAE):
     def classify(
         self,
         x: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        cont_covs: Optional[torch.Tensor] = None,
-        cat_covs: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
         """Forward pass through the encoder and classifier.
@@ -251,28 +248,24 @@ class SCANVAE(VAE):
             w_y = torch.zeros_like(unw_y)
             for i, group_index in enumerate(self.groups_index):
                 unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (
-                    unw_y_g.sum(dim=-1, keepdim=True) + 1e-8
-                )
+                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
                 w_y[:, group_index] *= w_g[:, [i]]
         else:
             w_y = self.classifier(z)
         return w_y
 
     @auto_move_data
-    def classification_loss(self, labelled_dataset):
+    def classification_loss(
+        self, labelled_dataset: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         x = labelled_dataset[REGISTRY_KEYS.X_KEY]  # (n_obs, n_vars)
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = (
-            labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
-        )
+        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = (
-            labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
-        )
+        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         # NOTE: prior to v1.1, this method returned probabilities per label by
         # default, see #2301 for more details
         logits = self.classify(
@@ -286,13 +279,12 @@ class SCANVAE(VAE):
 
     def loss(
         self,
-        tensors,
-        inference_outputs,
-        generative_ouputs,
-        feed_labels=False,
-        kl_weight=1,
-        labelled_tensors=None,
-        classification_ratio=None,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution | None],
+        generative_ouputs: dict[str, Distribution | None],
+        kl_weight: float = 1.0,
+        labelled_tensors: dict[str, torch.Tensor] | None = None,
+        classification_ratio: float | None = None,
     ):
         """Compute the loss."""
         px = generative_ouputs["px"]
@@ -300,14 +292,8 @@ class SCANVAE(VAE):
         z1 = inference_outputs["z"]
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        y = None
 
-        if feed_labels:
-            y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        else:
-            y = None
-        is_labelled = False if y is None else True
-
-        # Enumerate choices of label
         ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
@@ -333,34 +319,6 @@ class SCANVAE(VAE):
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
-
-        if is_labelled:
-            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
-            kl_locals = {
-                "kl_divergence_z2": kl_divergence_z2,
-                "kl_divergence_l": kl_divergence_l,
-            }
-            if labelled_tensors is not None:
-                ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
-                loss += ce_loss * classification_ratio
-                return LossOutput(
-                    loss=loss,
-                    reconstruction_loss=reconst_loss,
-                    kl_local=kl_locals,
-                    classification_loss=ce_loss,
-                    true_labels=true_labels,
-                    logits=logits,
-                    extra_metrics={
-                        "n_labelled_tensors": labelled_tensors[
-                            REGISTRY_KEYS.X_KEY
-                        ].shape[0],
-                    },
-                )
-            return LossOutput(
-                loss=loss,
-                reconstruction_loss=reconst_loss,
-                kl_local=kl_locals,
-            )
 
         probs = self.classifier(z1)
         if self.classifier.logits:
@@ -391,9 +349,7 @@ class SCANVAE(VAE):
                 true_labels=true_labels,
                 logits=logits,
             )
-        return LossOutput(
-            loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence
-        )
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)
 
     def on_load(self, model: BaseModelClass):
         manager = model.get_anndata_manager(model.adata, required=True)
