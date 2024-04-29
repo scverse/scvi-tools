@@ -25,7 +25,6 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.external.mrvi._constants import MRVI_REGISTRY_KEYS
 from scvi.external.mrvi._module import MrVAE
 from scvi.external.mrvi._types import MrVIReduction
 from scvi.external.mrvi._utils import _parse_local_statistics_requirements
@@ -106,10 +105,10 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
         self.sample_key = self.adata_manager.get_state_registry(
-            MRVI_REGISTRY_KEYS.SAMPLE_KEY
+            REGISTRY_KEYS.SAMPLE_KEY
         ).original_key
         self.sample_order = self.adata_manager.get_state_registry(
-            MRVI_REGISTRY_KEYS.SAMPLE_KEY
+            REGISTRY_KEYS.SAMPLE_KEY
         ).categorical_mapping
 
         self.n_obs_per_sample = jnp.array(
@@ -170,7 +169,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(MRVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
+            CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
