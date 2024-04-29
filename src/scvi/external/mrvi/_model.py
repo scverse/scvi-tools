@@ -1408,15 +1408,15 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        sample_cov_keys:
+        sample_cov_keys
             List of sample metadata to use as covariates.
-        sample_mask:
+        sample_mask
             Mask of admissible samples. Must have the same length as the number of samples in the
             dataset.
-        normalize_design_matrix:
+        normalize_design_matrix
             Whether the design matrix should be 0-1 normalized. This is useful to ensure that the
             beta coefficients are comparable across covariates.
-        add_batch_specific_offsets:
+        add_batch_specific_offsets
             Whether the design matrix should be offset. If True, the matrix includes batch-specific
             offsets. This ensures that we can learn perturbation effects that do not depend on
             batch effects.
