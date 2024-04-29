@@ -163,7 +163,7 @@ class EncoderUZ(nn.Module):
     stop_gradients_mlp
         Whether to stop gradients to the MLP in the attention block.
     use_map
-        TODO: What is this?
+        TODO
     n_hidden
         Number of hidden units in the MLP.
     n_layers

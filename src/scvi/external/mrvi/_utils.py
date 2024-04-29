@@ -13,6 +13,7 @@ def _parse_local_statistics_requirements(
     needs_sampled_dists: bool = False,
     needs_normalized_dists: bool = False,
 ) -> _ComputeLocalStatisticsRequirements:
+    """Get requirements for computing local statistics for a set of reductions."""
     ungrouped_reductions = []
     grouped_reductions = []
 
@@ -51,7 +52,7 @@ def _parse_local_statistics_requirements(
 
 @jit
 def rowwise_max_excluding_diagonal(matrix: ArrayLike) -> Array:
-    """Returns the rowwise maximum of a matrix excluding the diagonal."""
+    """Get the rowwise maximum of a matrix excluding the diagonal."""
     import jax.numpy as jnp
 
     assert matrix.ndim == 2

@@ -6,9 +6,8 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
-from flax.linen.initializers import variance_scaling
 
-_normal_initializer = jax.nn.initializers.normal(stddev=0.1)
+PYTORCH_DEFAULT_SCALE = 1 / 3
 
 
 class Dense(nn.DenseGeneral):
@@ -18,12 +17,12 @@ class Dense(nn.DenseGeneral):
     """
 
     def __init__(self, *args, **kwargs):
-        # scale set to reimplement pytorch init
-        scale = 1 / 3
-        kernel_init = variance_scaling(scale, "fan_in", "uniform")
-        # bias init can't see input shape so don't include here
-        kwargs.update({"kernel_init": kernel_init})
-        super().__init__(*args, **kwargs)
+        from flax.linen.initializers import variance_scaling
+
+        _kwargs = {"kernel_init": variance_scaling(PYTORCH_DEFAULT_SCALE, "fan_in", "uniform")}
+        _kwargs.update(kwargs)
+
+        super().__init__(*args, **_kwargs)
 
 
 class ResnetBlock(nn.Module):
@@ -35,7 +34,7 @@ class ResnetBlock(nn.Module):
     2. :class:`~flax.linen.LayerNorm`
     3. Activation function specified by ``internal_activation``
     4. Skip connection if ``n_in`` is equal to ``n_hidden``, otherwise a :class:`~flax.linen.Dense`
-         layer is applied to the input before the skip connection.
+        layer is applied to the input before the skip connection to match features.
     5. :class:`~flax.linen.Dense`
     6. :class:`~flax.linen.LayerNorm`
     7. Activation function specified by ``output_activation``
@@ -66,8 +65,7 @@ class ResnetBlock(nn.Module):
         h = Dense(self.n_hidden)(inputs)
         h = nn.LayerNorm()(h)
         h = self.internal_activation(h)
-        n_in = inputs.shape[-1]
-        if n_in != self.n_hidden:
+        if inputs.shape[-1] != self.n_hidden:
             h = h + Dense(self.n_hidden)(inputs)
         else:
             h = h + inputs
@@ -80,7 +78,7 @@ class MLP(nn.Module):
     """Multi-layer perceptron with resnet blocks.
 
     Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
-    :class:`~flax.linen.Dense` layer.
+    :class:`~flax.linen.Dense` layer to project to the output dimension.
 
     Parameters
     ----------
@@ -154,6 +152,9 @@ class NormalDistOutputNN(nn.Module):
 class ConditionalNormalization(nn.Module):
     """Condition-specific normalization.
 
+    Applies either batch normalization or layer normalization to the input, followed by
+    condition-specific scaling (``gamma``) and shifting (``beta``).
+
     Parameters
     ----------
     n_features
@@ -202,7 +203,7 @@ class ConditionalNormalization(nn.Module):
         elif self.normalization_type == "layer":
             x = nn.LayerNorm(use_bias=False, use_scale=False)(x)
         else:
-            raise ValueError("normalization_type must be one of ['batch', 'layer'].")
+            raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
         cond_int = condition.squeeze(-1).astype(int)
         gamma = nn.Embed(
@@ -285,8 +286,6 @@ class AttentionBlock(nn.Module):
             use_bias=True,
         )(inputs_q=query_for_att, inputs_kv=kv_for_att, deterministic=not training)
 
-        # now remove that extra dimension
-        # (batch, n_latent_sample * n_channels)
         if not has_mc_samples:
             eps = jnp.reshape(eps, (eps.shape[0], eps.shape[1] * eps.shape[2]))
         else:

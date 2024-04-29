@@ -118,6 +118,12 @@ batch_key
     integer categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch
     to all the data."""
 
+param_sample_ley = """\
+batch_key
+    key in `adata.obs` for sample information. Categories will automatically be converted into
+    integer categories and saved to `adata.obs['_scvi_sample']`. If `None`, assigns the same batch
+    to all the data."""
+
 param_labels_key = """\
 labels_key
     key in `adata.obs` for label information. Categories will automatically be converted into
