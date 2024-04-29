@@ -172,7 +172,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            fields.CategoricalObsField(MRVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
+            fields.CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
             fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             fields.NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
