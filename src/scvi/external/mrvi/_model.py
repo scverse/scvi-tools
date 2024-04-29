@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from copy import deepcopy
 from functools import partial
 
 import jax
 import jax.numpy as jnp
 import numpy as np
+import numpy.typing as npt
 import numpyro.distributions as dist
 import pandas as pd
 import xarray as xr
@@ -51,48 +51,49 @@ DEFAULT_TRAIN_KWARGS = {
 
 
 class MrVI(JaxTrainingMixin, BaseModelClass):
-    """
-    Multi-resolution Variational Inference (MrVI).
+    """Multi-resolution Variational Inference (MrVI).
+
+    TODO(martinkim0): add citation once available.
 
     Parameters
     ----------
-    adata : AnnData
-        AnnData object that has been registered via ``setup_anndata``.
-    n_latent : int
-        Dimensionality of the latent space for `z`.
-    n_latent_u : int
-        Dimensionality of the latent space for `u`.
-    encoder_n_hidden : int
+    adata
+        AnnData object that has been registered via :meth`~scvi.external.MrVI.setup_anndata`.
+    n_latent
+        Dimensionality of the latent space for ``z``.
+    n_latent_u
+        Dimensionality of the latent space for ``u``.
+    encoder_n_hidden
         Number of nodes per hidden layer in the encoder.
-    encoder_n_layers : int
+    encoder_n_layers
         Number of hidden layers in the encoder.
-    z_u_prior : bool
-        Whether to use a prior for `z_u`.
-    z_u_prior_scale : float
-        Scale of the prior for the difference between `z` and `u`.
-    u_prior_scale : float
-        Scale of the prior for `u`.
-    u_prior_mixture : bool
-        Whether to use a mixture model for the `u` prior.
-    u_prior_mixture_k : int
-        Number of components in the mixture model for the `u` prior.
-    learn_z_u_prior_scale : bool
-        Whether to learn the scale of the `z` and `u` difference prior during training.
-    laplace_scale : float, optional
+    z_u_prior
+        Whether to use a prior for ``z_u``.
+    z_u_prior_scale
+        Scale of the prior for the difference between ``z`` and ``u``.
+    u_prior_scale
+        Scale of the prior for ``u``.
+    u_prior_mixture
+        Whether to use a mixture model for the ``u`` prior.
+    u_prior_mixture_k
+        Number of components in the mixture model for the ``u`` prior.
+    learn_z_u_prior_scale
+        Whether to learn the scale of the ``z`` and ``u`` difference prior during training.
+    laplace_scale
         Scale parameter for the Laplace distribution in the decoder.
-    scale_observations : bool
+    scale_observations
         Whether to scale loss by the number of observations per sample.
-    px_kwargs : dict, optional
-        Keyword args for :class:`~mrvi.DecoderZX`.
-    qz_kwargs : dict, optional
-        Keyword args for :class:`~mrvi.EncoderUZ`.
-    qu_kwargs : dict, optional
-        Keyword args for :class:`~mrvi.EncoderXU`.
+    px_kwargs
+        Keyword args for :class:`~scvi.external.mrvi._module._DecoderZXAttention`.
+    qz_kwargs
+        Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
+    qu_kwargs
+        Keyword args for :class:`~scvi.external.mrvi._module._EncoderXU`.
     """
 
     def __init__(
         self,
-        adata,
+        adata: AnnData,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -131,7 +132,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         # TODO(jhong): remove this once we have a better way to handle device.
         pass
 
-    def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.PRNGKey]:
+    def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
         return_1d = isinstance(n_sets, int)
         if return_1d:
             n_sets_1d = n_sets
@@ -213,13 +214,12 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
     def get_latent_representation(
         self,
         adata: AnnData | None = None,
-        indices=None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
         use_mean: bool = True,
         give_z: bool = False,
-    ) -> np.ndarray:
-        """
-        Computes the latent representation of the data.
+    ) -> npt.NDArray:
+        """Computes the latent representation of the data.
 
         Parameters
         ----------
@@ -266,14 +266,13 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         self,
         reductions: list[MrVIReduction],
         adata: AnnData | None = None,
-        indices: Sequence[int] | None = None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
         use_vmap: bool = True,
         norm: str = "l2",
         mc_samples: int = 10,
     ) -> xr.Dataset:
-        """
-        Compute local statistics from counterfactual sample representations.
+        """Compute local statistics from counterfactual sample representations.
 
         Local statistics are reductions over either the local counterfactual latent representations
         or the resulting local sample distance matrices. For a large number of cells and/or
@@ -489,7 +488,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
     def _compute_local_baseline_dists(
         self, batch: dict, mc_samples: int = 250
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         Approximate the distributions used as baselines for normalizing the local sample distances.
 
@@ -566,7 +565,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
     def get_local_sample_representation(
         self,
         adata: AnnData | None = None,
-        indices: list[int] | None = None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
         use_mean: bool = True,
         use_vmap: bool = True,
@@ -617,8 +616,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         norm: str = "l2",
         mc_samples: int = 10,
     ) -> xr.Dataset:
-        """
-        Computes local sample distances as `xr.Dataset`.
+        """Computes local sample distances as `xr.Dataset`.
 
         Computes cell-specific distances between samples, of size (n_sample, n_sample),
         stored as a Dataset, with variable name `cell`, of size (n_cell, n_sample, n_sample).
@@ -697,7 +695,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         sample: str | int | None = None,
-        indices: list[int] | None = None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
     ) -> dist.Distribution:
         """
@@ -905,7 +903,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
     def get_outlier_cell_sample_pairs(
         self,
-        adata=None,
+        adata: AnnData | None = None,
         subsample_size: int = 5_000,
         quantile_threshold: float = 0.05,
         admissibility_threshold: float = 0.0,
@@ -1391,7 +1389,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
     def _construct_design_matrix(
         self,
         sample_cov_keys: list[str],
-        sample_mask: np.ndarray,
+        sample_mask: npt.ArrayLike,
         normalize_design_matrix: bool,
         add_batch_specific_offsets: bool,
         store_lfc: bool,

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import numpy as np
 import numpyro.distributions as dist
 from flax.linen.initializers import variance_scaling
 
@@ -13,7 +12,10 @@ _normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
 class Dense(nn.DenseGeneral):
-    """Jax dense layer."""
+    """Dense layer.
+
+    Uses a custom initializer for the kernel to replicate the default PyTorch behavior.
+    """
 
     def __init__(self, *args, **kwargs):
         # scale set to reimplement pytorch init
@@ -25,18 +27,41 @@ class Dense(nn.DenseGeneral):
 
 
 class ResnetBlock(nn.Module):
-    """Resnet block."""
+    """Resnet block.
+
+    Consists of the following operations:
+
+    1. :class:`~flax.linen.Dense`
+    2. :class:`~flax.linen.LayerNorm`
+    3. Activation function specified by ``internal_activation``
+    4. Skip connection if ``n_in`` is equal to ``n_hidden``, otherwise a :class:`~flax.linen.Dense`
+         layer is applied to the input before the skip connection.
+    5. :class:`~flax.linen.Dense`
+    6. :class:`~flax.linen.LayerNorm`
+    7. Activation function specified by ``output_activation``
+
+    Parameters
+    ----------
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    internal_activation
+        Activation function to use after the first :class:`~flax.linen.Dense` layer.
+    output_activation
+        Activation function to use after the last :class:`~flax.linen.Dense` layer.
+    training
+        Whether the model is in training mode.
+    """
 
     n_out: int
     n_hidden: int = 128
-    internal_activation: callable = nn.relu
-    output_activation: callable = nn.relu
+    internal_activation: Callable[[jax.ArrayLike], jax.Array] = nn.relu
+    output_activation: Callable[[jax.ArrayLike], jax.Array] = nn.relu
     training: bool | None = None
 
     @nn.compact
-    def __call__(
-        self, inputs: np.ndarray | jnp.ndarray, training: bool | None = None
-    ) -> np.ndarray | jnp.ndarray:
+    def __call__(self, inputs: jax.ArrayLike, training: bool | None = None) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
         h = Dense(self.n_hidden)(inputs)
         h = nn.LayerNorm()(h)
@@ -52,18 +77,33 @@ class ResnetBlock(nn.Module):
 
 
 class MLP(nn.Module):
-    """Multi-layer perceptron with resnet blocks."""
+    """Multi-layer perceptron with resnet blocks.
+
+    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
+    :class:`~flax.linen.Dense` layer.
+
+    Parameters
+    ----------
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of resnet blocks.
+    activation
+        Activation function to use.
+    training
+        Whether the model is in training mode.
+    """
 
     n_out: int
     n_hidden: int = 128
     n_layers: int = 1
-    activation: callable = nn.relu
+    activation: Callable[[jax.ArrayLike], jax.Array] = nn.relu
     training: bool | None = None
 
     @nn.compact
-    def __call__(
-        self, inputs: np.ndarray | jnp.ndarray, training: bool | None = None
-    ) -> dist.Normal:
+    def __call__(self, inputs: jax.ArrayLike, training: bool | None = None) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
         h = inputs
         for _ in range(self.n_layers):
@@ -76,7 +116,23 @@ class MLP(nn.Module):
 
 
 class NormalDistOutputNN(nn.Module):
-    """Fully-connected neural net parameterizing a normal distribution."""
+    """Fully-connected neural net parameterizing a normal distribution.
+
+    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
+    :class:`~flax.linen.Dense` layer for the mean and a :class:`~flax.linen.Dense` and
+    :func:`~flax.linen.softplus` layer for the scale.
+
+    Parameters
+    ----------
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of resnet blocks.
+    scale_eps
+        Numerical stability constant added to the scale of the normal distribution.
+    """
 
     n_out: int
     n_hidden: int = 128
@@ -85,9 +141,7 @@ class NormalDistOutputNN(nn.Module):
     training: bool | None = None
 
     @nn.compact
-    def __call__(
-        self, inputs: np.ndarray | jnp.ndarray, training: bool | None = None
-    ) -> dist.Normal:
+    def __call__(self, inputs: jax.ArrayLike, training: bool | None = None) -> dist.Normal:
         training = nn.merge_param("training", self.training, training)
         h = inputs
         for _ in range(self.n_layers):
@@ -98,7 +152,19 @@ class NormalDistOutputNN(nn.Module):
 
 
 class ConditionalNormalization(nn.Module):
-    """Condition-specific normalization."""
+    """Condition-specific normalization.
+
+    Parameters
+    ----------
+    n_features
+        Number of features.
+    n_conditions
+        Number of conditions.
+    training
+        Whether the model is in training mode.
+    normalization_type
+        Type of normalization to apply. Must be one of ``"batch", "layer"``.
+    """
 
     n_features: int
     n_conditions: int
@@ -125,10 +191,10 @@ class ConditionalNormalization(nn.Module):
     @nn.compact
     def __call__(
         self,
-        x: np.ndarray | jnp.ndarray,
-        condition: np.ndarray | jnp.ndarray,
+        x: jax.ArrayLike,
+        condition: jax.ArrayLike,
         training: bool | None = None,
-    ) -> jnp.ndarray:
+    ) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
         if self.normalization_type == "batch":
             x = nn.BatchNorm(use_bias=False, use_scale=False)(x, use_running_average=not training)
@@ -155,7 +221,33 @@ class ConditionalNormalization(nn.Module):
 
 
 class AttentionBlock(nn.Module):
-    """Attention block consisting of multi-head self-attention and MLP."""
+    """Attention block consisting of multi-head self-attention and MLP.
+
+    Parameters
+    ----------
+    query_dim
+        Dimension of the query input.
+    out_dim
+        Dimension of the output.
+    outerprod_dim
+        Dimension of the outer product.
+    n_channels
+        Number of channels.
+    n_heads
+        Number of heads.
+    dropout_rate
+        Dropout rate.
+    n_hidden_mlp
+        Number of hidden units in the MLP.
+    n_layers_mlp
+        Number of layers in the MLP.
+    training
+        Whether the model is in training mode.
+    stop_gradients_mlp
+        Whether to stop gradients through the MLP.
+    activation
+        Activation function to use.
+    """
 
     query_dim: int
     out_dim: int
@@ -167,15 +259,15 @@ class AttentionBlock(nn.Module):
     n_layers_mlp: int = 1
     training: bool | None = None
     stop_gradients_mlp: bool = False
-    activation: callable = nn.gelu
+    activation: Callable[[jax.Array], jax.Array] = nn.gelu
 
     @nn.compact
     def __call__(
         self,
-        query_embed: np.ndarray | jnp.ndarray,
-        kv_embed: np.ndarray | jnp.ndarray,
+        query_embed: jax.ArrayLike,
+        kv_embed: jax.ArrayLike,
         training: bool | None = None,
-    ):
+    ) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
         has_mc_samples = query_embed.ndim == 3
 
