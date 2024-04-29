@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import jax
-import jax.numpy as jnp
+from jax import Array, ArrayLike, jit
 
 from scvi.external.mrvi._types import MrVIReduction, _ComputeLocalStatisticsRequirements
 
@@ -50,15 +49,17 @@ def _parse_local_statistics_requirements(
     )
 
 
-@jax.jit
-def rowwise_max_excluding_diagonal(matrix: jax.ArrayLike) -> jax.Array:
+@jit
+def rowwise_max_excluding_diagonal(matrix: ArrayLike) -> Array:
     """Returns the rowwise maximum of a matrix excluding the diagonal."""
+    import jax.numpy as jnp
+
     assert matrix.ndim == 2
     num_cols = matrix.shape[1]
     mask = (1 - jnp.eye(num_cols)).astype(bool)
     return (jnp.where(mask, matrix, -jnp.inf)).max(axis=1)
 
 
-def simple_reciprocal(w: jax.ArrayLike, eps=1e-6) -> jax.Array:
+def simple_reciprocal(w: ArrayLike, eps: float = 1e-6) -> Array:
     """Convert distances to similarities via a reciprocal."""
     return 1.0 / (w + eps)

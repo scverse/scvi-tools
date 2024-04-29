@@ -173,7 +173,7 @@ class ConditionalNormalization(nn.Module):
 
     @staticmethod
     def _gamma_initializer() -> jax.nn.initializers.Initializer:
-        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jnp.ndarray:
+        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jax.Array:
             weights = jax.random.normal(key, shape, dtype) * 0.02 + 1
             return weights
 
@@ -181,7 +181,7 @@ class ConditionalNormalization(nn.Module):
 
     @staticmethod
     def _beta_initializer() -> jax.nn.initializers.Initializer:
-        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jnp.ndarray:
+        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jax.Array:
             del key
             weights = jnp.zeros(shape, dtype=dtype)
             return weights
@@ -196,12 +196,14 @@ class ConditionalNormalization(nn.Module):
         training: bool | None = None,
     ) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
+
         if self.normalization_type == "batch":
             x = nn.BatchNorm(use_bias=False, use_scale=False)(x, use_running_average=not training)
         elif self.normalization_type == "layer":
             x = nn.LayerNorm(use_bias=False, use_scale=False)(x)
         else:
             raise ValueError("normalization_type must be one of ['batch', 'layer'].")
+
         cond_int = condition.squeeze(-1).astype(int)
         gamma = nn.Embed(
             self.n_conditions,
@@ -215,9 +217,8 @@ class ConditionalNormalization(nn.Module):
             embedding_init=self._beta_initializer(),
             name="beta_conditional",
         )(cond_int)
-        out = gamma * x + beta
 
-        return out
+        return gamma * x + beta
 
 
 class AttentionBlock(nn.Module):
