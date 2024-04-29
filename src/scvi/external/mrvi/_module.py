@@ -10,7 +10,6 @@ import numpyro.distributions as dist
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
-from scvi.external.mrvi._constants import MRVI_REGISTRY_KEYS
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 DEFAULT_PX_KWARGS = {
