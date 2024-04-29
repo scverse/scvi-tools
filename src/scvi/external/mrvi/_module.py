@@ -428,7 +428,7 @@ class MrVAE(JaxBaseModuleClass):
 
     def _get_inference_input(self, tensors: dict[str, jax.ArrayLike]) -> dict[str, Any]:
         x = tensors[REGISTRY_KEYS.X_KEY]
-        sample_index = tensors[MRVI_REGISTRY_KEYS.SAMPLE_KEY]
+        sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
         return {"x": x, "sample_index": sample_index}
 
     def inference(
@@ -563,7 +563,7 @@ class MrVAE(JaxBaseModuleClass):
             loss = loss + (kl_weight * As_pen)
 
         if self.scale_observations:
-            sample_index = tensors[MRVI_REGISTRY_KEYS.SAMPLE_KEY].flatten().astype(int)
+            sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().astype(int)
             prefactors = self.n_obs_per_sample[sample_index]
             loss = loss / prefactors
 

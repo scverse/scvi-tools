@@ -14,7 +14,6 @@ from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
-from scvi.external.mrvi._constants import MRVI_REGISTRY_KEYS
 from scvi.external.mrvi._types import MrVIReduction
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
@@ -92,10 +91,10 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
         self.sample_key = self.adata_manager.get_state_registry(
-            MRVI_REGISTRY_KEYS.SAMPLE_KEY
+            REGISTRY_KEYS.SAMPLE_KEY
         ).original_key
         self.sample_order = self.adata_manager.get_state_registry(
-            MRVI_REGISTRY_KEYS.SAMPLE_KEY
+            REGISTRY_KEYS.SAMPLE_KEY
         ).categorical_mapping
 
         self.n_obs_per_sample = jnp.array(
