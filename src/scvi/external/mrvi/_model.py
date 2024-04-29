@@ -2,33 +2,19 @@ from __future__ import annotations
 
 import logging
 import warnings
-from copy import deepcopy
-from functools import partial
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
-import numpyro.distributions as dist
-import pandas as pd
 import xarray as xr
 from anndata import AnnData
-from scipy.special import logsumexp
-from statsmodels.stats.multitest import multipletests
+from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
-from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
 from scvi.external.mrvi._constants import MRVI_REGISTRY_KEYS
-from scvi.external.mrvi._module import MrVAE
 from scvi.external.mrvi._types import MrVIReduction
-from scvi.external.mrvi._utils import _parse_local_statistics_requirements
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 
 logger = logging.getLogger(__name__)
@@ -52,8 +38,6 @@ DEFAULT_TRAIN_KWARGS = {
 
 class MrVI(JaxTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI).
-
-    TODO(martinkim0): add citation once available.
 
     Parameters
     ----------
@@ -96,6 +80,8 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         adata: AnnData,
         **model_kwargs,
     ):
+        from scvi.external.mrvi._module import MrVAE
+
         super().__init__(adata)
 
         n_sample = self.summary_stats.n_sample
@@ -166,16 +152,18 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
+        from scvi.data import AnnDataManager, fields
+
         setup_method_args = cls._get_setup_method_args(**locals())
         # Add index for batched computation of local statistics.
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(MRVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(MRVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
+            fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            fields.NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
+            fields.NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
 
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
@@ -194,16 +182,18 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
-        train_kwargs = dict(
-            max_epochs=max_epochs,
-            accelerator=accelerator,
-            devices=devices,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            early_stopping=early_stopping,
+        from copy import deepcopy
+
+        train_kwargs = {
+            "max_epochs": max_epochs,
+            "accelerator": accelerator,
+            "devices": devices,
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "batch_size": batch_size,
+            "early_stopping": early_stopping,
             **trainer_kwargs,
-        )
+        }
         train_kwargs = dict(deepcopy(DEFAULT_TRAIN_KWARGS), **train_kwargs)
         plan_kwargs = plan_kwargs or {}
         train_kwargs["plan_kwargs"] = dict(
@@ -296,6 +286,10 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             Number of Monte Carlo samples to use for computing the local statistics. Only applies
             if using sampled representations.
         """
+        from functools import partial
+
+        from scvi.external.mrvi._utils import _parse_local_statistics_requirements
+
         if not reductions or len(reductions) == 0:
             raise ValueError("At least one reduction must be provided.")
 
@@ -697,7 +691,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         sample: str | int | None = None,
         indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
-    ) -> dist.Distribution:
+    ) -> Distribution:
         """
         Computes the aggregated posterior over the ``u`` latent representations.
 
@@ -716,6 +710,8 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         -------
         A mixture distribution of the aggregated posterior.
         """
+        from numpyro.distributions import Categorical, MixtureSameFamily, Normal
+
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -739,9 +735,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         qu_loc = jnp.concatenate(qu_locs, axis=0).T
         qu_scale = jnp.concatenate(qu_scales, axis=0).T
-        return dist.MixtureSameFamily(
-            dist.Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
-            dist.Normal(qu_loc, qu_scale),
+        return MixtureSameFamily(
+            Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
+            Normal(qu_loc, qu_scale),
         )
 
     def differential_abundance(
@@ -784,6 +780,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
                 n_cov_values) containing the log probabilities for each cell across covariate
                 values.
         """
+        from pandas import DataFrame
+        from scipy.special import logsumexp
+
         adata = self._validate_anndata(adata)
 
         if sample_cov_keys is not None:
@@ -865,9 +864,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
                     )
                     enrichment_scores = val_log_probs - rest_val_log_probs
                     per_val_log_enrichs[sample_cov_value] = enrichment_scores
-            sample_cov_log_probs_map[sample_cov_key] = pd.DataFrame.from_dict(per_val_log_probs)
+            sample_cov_log_probs_map[sample_cov_key] = DataFrame.from_dict(per_val_log_probs)
             if compute_log_enrichment and len(per_val_log_enrichs) > 0:
-                sample_cov_log_enrichs_map[sample_cov_key] = pd.DataFrame.from_dict(
+                sample_cov_log_enrichs_map[sample_cov_key] = DataFrame.from_dict(
                     per_val_log_enrichs
                 )
 
@@ -998,7 +997,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         delta: float | None = 0.3,
         **filter_samples_kwargs,
     ) -> xr.Dataset:
-        """Utility function to perform cell-specific multivariate differential expression.
+        """Perform cell-specific multivariate differential expression.
 
         For every cell, we first compute all counterfactual cell-state shifts, defined as
         e_d = z_d - u, where z_d is the latent representation of the cell for sample d and u
@@ -1070,6 +1069,10 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             - `n_samples`: Number of admissible samples for each cell, if
                 `filter_inadmissible_samples` is True.
         """
+        from functools import partial
+
+        from statsmodels.stats.multitest import multipletests
+
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
             raise ValueError("Must assign `sample_cov_keys`")
@@ -1429,6 +1432,8 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         3. A mask precising which coefficients from the design matrix require to compute LFCs.
         4. A mask precising which coefficients from the design matrix correspond to offsets.
         """
+        from pandas import Series, get_dummies
+
         Xmat = []
         Xmat_names = []
         Xmat_dim_to_key = []
@@ -1437,7 +1442,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             cov = sample_info[sample_cov_key]
             if (cov.dtype == str) or (cov.dtype == "category"):
                 cov = cov.cat.remove_unused_categories()
-                cov = pd.get_dummies(cov, drop_first=True)
+                cov = get_dummies(cov, drop_first=True)
                 cov_names = np.array([f"{sample_cov_key}_{col}" for col in cov.columns])
                 cov = cov.values
             else:
@@ -1464,7 +1469,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
                 # Retrieve indices of offset covariates in the right order
                 offset_indices = (
-                    pd.Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
+                    Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
                 )
                 offset_indices = jnp.array(offset_indices)
             else:
