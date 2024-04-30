@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from jax import Array, ArrayLike, jit
+from jax import Array, jit
+from jax.typing import ArrayLike
 
 from scvi.external.mrvi._types import MrVIReduction, _ComputeLocalStatisticsRequirements
 
