@@ -2,33 +2,22 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
-from copy import deepcopy
-from functools import partial
+from typing import Literal
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import numpyro.distributions as dist
-import pandas as pd
+import numpy.typing as npt
 import xarray as xr
 from anndata import AnnData
-from scipy.special import logsumexp
-from statsmodels.stats.multitest import multipletests
+from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
-from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-)
-from scvi.external.mrvi._module import MrVAE
 from scvi.external.mrvi._types import MrVIReduction
-from scvi.external.mrvi._utils import _parse_local_statistics_requirements
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
+from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
 
@@ -50,50 +39,47 @@ DEFAULT_TRAIN_KWARGS = {
 
 
 class MrVI(JaxTrainingMixin, BaseModelClass):
-    """
-    Multi-resolution Variational Inference (MrVI).
+    """Multi-resolution Variational Inference (MrVI).
 
     Parameters
     ----------
-    adata : AnnData
-        AnnData object that has been registered via ``setup_anndata``.
-    n_latent : int
-        Dimensionality of the latent space for `z`.
-    n_latent_u : int
-        Dimensionality of the latent space for `u`.
-    encoder_n_hidden : int
+    adata
+        AnnData object that has been registered via :meth`~scvi.external.MrVI.setup_anndata`.
+    n_latent
+        Dimensionality of the latent space for ``z``.
+    n_latent_u
+        Dimensionality of the latent space for ``u``.
+    encoder_n_hidden
         Number of nodes per hidden layer in the encoder.
-    encoder_n_layers : int
+    encoder_n_layers
         Number of hidden layers in the encoder.
-    z_u_prior : bool
-        Whether to use a prior for `z_u`.
-    z_u_prior_scale : float
-        Scale of the prior for the difference between `z` and `u`.
-    u_prior_scale : float
-        Scale of the prior for `u`.
-    u_prior_mixture : bool
-        Whether to use a mixture model for the `u` prior.
-    u_prior_mixture_k : int
-        Number of components in the mixture model for the `u` prior.
-    learn_z_u_prior_scale : bool
-        Whether to learn the scale of the `z` and `u` difference prior during training.
-    laplace_scale : float, optional
+    z_u_prior
+        Whether to use a prior for ``z_u``.
+    z_u_prior_scale
+        Scale of the prior for the difference between ``z`` and ``u``.
+    u_prior_scale
+        Scale of the prior for ``u``.
+    u_prior_mixture
+        Whether to use a mixture model for the ``u`` prior.
+    u_prior_mixture_k
+        Number of components in the mixture model for the ``u`` prior.
+    learn_z_u_prior_scale
+        Whether to learn the scale of the ``z`` and ``u`` difference prior during training.
+    laplace_scale
         Scale parameter for the Laplace distribution in the decoder.
-    scale_observations : bool
+    scale_observations
         Whether to scale loss by the number of observations per sample.
-    px_kwargs : dict, optional
-        Keyword args for :class:`~mrvi.DecoderZX`.
-    qz_kwargs : dict, optional
-        Keyword args for :class:`~mrvi.EncoderUZ`.
-    qu_kwargs : dict, optional
-        Keyword args for :class:`~mrvi.EncoderXU`.
+    px_kwargs
+        Keyword args for :class:`~scvi.external.mrvi._module._DecoderZXAttention`.
+    qz_kwargs
+        Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
+    qu_kwargs
+        Keyword args for :class:`~scvi.external.mrvi._module._EncoderXU`.
     """
 
-    def __init__(
-        self,
-        adata,
-        **model_kwargs,
-    ):
+    def __init__(self, adata: AnnData, **model_kwargs):
+        from scvi.external.mrvi._module import MrVAE
+
         super().__init__(adata)
 
         n_sample = self.summary_stats.n_sample
@@ -130,7 +116,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         # TODO(jhong): remove this once we have a better way to handle device.
         pass
 
-    def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.PRNGKey]:
+    def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
         return_1d = isinstance(n_sets, int)
         if return_1d:
             n_sets_1d = n_sets
@@ -154,6 +140,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         return rngs
 
     @classmethod
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
         adata: AnnData,
@@ -164,22 +151,39 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
+        """%(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_sample_key)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_cont_cov_keys)s
+        **kwargs
+            Additional keyword arguments passed into
+            :meth:`~scvi.data.AnnDataManager.register_fields`.
+        """
+        from scvi.data import AnnDataManager, fields
+
         setup_method_args = cls._get_setup_method_args(**locals())
         # Add index for batched computation of local statistics.
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+            fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            fields.CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
+            fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            fields.NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
+            fields.NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
 
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -192,16 +196,43 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
-        train_kwargs = dict(
-            max_epochs=max_epochs,
-            accelerator=accelerator,
-            devices=devices,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            early_stopping=early_stopping,
+        """Train the model.
+
+        Parameters
+        ----------
+        max_epochs
+            Maximum number of epochs to train the model. The actual number of epochs may be less if
+            early stopping is enabled. If ``None``, defaults to a heuristic based on
+            :func:`~scvi.model.get_max_epochs_heuristic`.
+        %(param_accelerator)s
+        %(param_devices)s
+        train_size
+            Size of training set in the range ``[0.0, 1.0]``.
+        validation_size
+            Size of the validation set. If ``None``, defaults to ``1 - train_size``. If
+            ``train_size + validation_size < 1``, the remaining cells belong to a test set.
+        batch_size
+            Minibatch size to use during training.
+        early_stopping
+            Perform early stopping. Additional arguments can be passed in through ``**kwargs``.
+            See :class:`~scvi.train.Trainer` for further options.
+        plan_kwargs
+            Additional keyword arguments passed into :class:`~scvi.train.JaxTrainingPlan`.
+        **trainer_kwargs
+            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
+        """
+        from copy import deepcopy
+
+        train_kwargs = {
+            "max_epochs": max_epochs,
+            "accelerator": accelerator,
+            "devices": devices,
+            "train_size": train_size,
+            "validation_size": validation_size,
+            "batch_size": batch_size,
+            "early_stopping": early_stopping,
             **trainer_kwargs,
-        )
+        }
         train_kwargs = dict(deepcopy(DEFAULT_TRAIN_KWARGS), **train_kwargs)
         plan_kwargs = plan_kwargs or {}
         train_kwargs["plan_kwargs"] = dict(
@@ -212,13 +243,12 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
     def get_latent_representation(
         self,
         adata: AnnData | None = None,
-        indices=None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
         use_mean: bool = True,
         give_z: bool = False,
-    ) -> np.ndarray:
-        """
-        Computes the latent representation of the data.
+    ) -> npt.NDArray:
+        """Compute the latent representation of the data.
 
         Parameters
         ----------
@@ -265,14 +295,13 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         self,
         reductions: list[MrVIReduction],
         adata: AnnData | None = None,
-        indices: Sequence[int] | None = None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
         use_vmap: bool = True,
         norm: str = "l2",
         mc_samples: int = 10,
     ) -> xr.Dataset:
-        """
-        Compute local statistics from counterfactual sample representations.
+        """Compute local statistics from counterfactual sample representations.
 
         Local statistics are reductions over either the local counterfactual latent representations
         or the resulting local sample distance matrices. For a large number of cells and/or
@@ -296,6 +325,10 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             Number of Monte Carlo samples to use for computing the local statistics. Only applies
             if using sampled representations.
         """
+        from functools import partial
+
+        from scvi.external.mrvi._utils import _parse_local_statistics_requirements
+
         if not reductions or len(reductions) == 0:
             raise ValueError("At least one reduction must be provided.")
 
@@ -316,12 +349,12 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
-            stacked_rngs,
-            x,
-            sample_index,
-            cf_sample,
-            use_mean,
-            mc_samples=None,
+            stacked_rngs: dict[str, jax.random.KeyArray],
+            x: jax.typing.ArrayLike,
+            sample_index: jax.typing.ArrayLike,
+            cf_sample: jax.typing.ArrayLike,
+            use_mean: bool,
+            mc_samples: int | None = None,
         ):
             # TODO: use `self.module.get_jit_inference_fn` when it supports traced values.
             def inference_fn(
@@ -488,7 +521,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
     def _compute_local_baseline_dists(
         self, batch: dict, mc_samples: int = 250
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[npt.NDArray, npt.NDArray]:
         """
         Approximate the distributions used as baselines for normalizing the local sample distances.
 
@@ -520,9 +553,17 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         return np.array(jnp.mean(l2_dists, axis=1)), np.array(jnp.var(l2_dists, axis=1))
 
-    def _compute_distances_from_representations(self, reps, indices, norm="l2") -> xr.DataArray:
+    def _compute_distances_from_representations(
+        self,
+        reps: jax.typing.ArrayLike,
+        indices: jax.typing.ArrayLike,
+        norm: Literal["l2", "l1", "linf"] = "l2",
+    ) -> xr.DataArray:
+        if norm not in ("l2", "l1", "linf"):
+            raise ValueError(f"`norm` {norm} not supported")
+
         @jax.jit
-        def _compute_distance(rep):
+        def _compute_distance(rep: jax.typing.ArrayLike):
             delta_mat = jnp.expand_dims(rep, 0) - jnp.expand_dims(rep, 1)
             if norm == "l2":
                 res = delta_mat**2
@@ -531,8 +572,6 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
                 res = jnp.abs(delta_mat).sum(-1)
             elif norm == "linf":
                 res = jnp.abs(delta_mat).max(-1)
-            else:
-                raise ValueError(f"norm {norm} not supported")
             return res
 
         if reps.ndim == 3:
@@ -565,15 +604,14 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
     def get_local_sample_representation(
         self,
         adata: AnnData | None = None,
-        indices: list[int] | None = None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
         use_mean: bool = True,
         use_vmap: bool = True,
     ) -> xr.DataArray:
-        """
-        Computes the local sample representation of the cells in the adata object.
+        """Compute the local sample representation of the cells in the ``adata`` object.
 
-        For each cell, it returns a matrix of size (n_sample, n_features).
+        For each cell, it returns a matrix of size ``(n_sample, n_features)``.
 
         Parameters
         ----------
@@ -616,13 +654,12 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         norm: str = "l2",
         mc_samples: int = 10,
     ) -> xr.Dataset:
-        """
-        Computes local sample distances as `xr.Dataset`.
+        """Compute local sample distances.
 
-        Computes cell-specific distances between samples, of size (n_sample, n_sample),
-        stored as a Dataset, with variable name `cell`, of size (n_cell, n_sample, n_sample).
-        If in addition, groupby is provided, distances are also aggregated by group.
-        In this case, the group-specific distances via group name key.
+        Computes cell-specific distances between samples, of size ``(n_sample, n_sample)``,
+        stored as a Dataset, with variable name ``"cell"``, of size
+        ``(n_cell, n_sample, n_sample)``. If in addition, ``groupby`` is provided, distances are
+        also aggregated by group. In this case, the group-specific distances via group name key.
 
         Parameters
         ----------
@@ -634,22 +671,20 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             Whether to use the mean of the latent representation as the local sample
             representation.
         normalize_distances
-            Whether to normalize the local sample distances. Normalizes by
-            the standard deviation of the original intra-sample distances.
-            Only works with ``use_mean=False``.
+            Whether to normalize the local sample distances. Normalizes by the standard deviation
+            of the original intra-sample distances. Only works with ``use_mean=False``.
         use_vmap
-            Whether to use vmap for computing the local sample representation.
-            Disabling vmap can be useful if running out of memory on a GPU.
+            Whether to use vmap for computing the local sample representation. Disabling vmap can
+            be useful if running out of memory on a GPU.
         groupby
-            List of categorical keys or single key of the anndata that is
-            used to group the cells.
+            List of categorical keys or single key of the anndata that is used to group the cells.
         keep_cell
             Whether to keep the original cell sample-sample distance matrices.
         norm
             Norm to use for computing the local sample distances.
         mc_samples
-            Number of Monte Carlo samples to use for computing the local sample distances.
-            Only relevants if ``use_mean=False``.
+            Number of Monte Carlo samples to use for computing the local sample distances. Only
+            relevant if ``use_mean=False``.
         """
         input = "mean_distances" if use_mean else "sampled_distances"
         if normalize_distances:
@@ -696,18 +731,17 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         sample: str | int | None = None,
-        indices: list[int] | None = None,
+        indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
-    ) -> dist.Distribution:
-        """
-        Computes the aggregated posterior over the ``u`` latent representations.
+    ) -> Distribution:
+        """Compute the aggregated posterior over the ``u`` latent representations.
 
         Parameters
         ----------
         adata
             AnnData object to use. Defaults to the AnnData object used to initialize the model.
         sample
-            Name or index of the sample to filter on. If None, uses all cells.
+            Name or index of the sample to filter on. If ``None``, uses all cells.
         indices
             Indices of cells to use.
         batch_size
@@ -717,6 +751,8 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         -------
         A mixture distribution of the aggregated posterior.
         """
+        from numpyro.distributions import Categorical, MixtureSameFamily, Normal
+
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -740,9 +776,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         qu_loc = jnp.concatenate(qu_locs, axis=0).T
         qu_scale = jnp.concatenate(qu_scales, axis=0).T
-        return dist.MixtureSameFamily(
-            dist.Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
-            dist.Normal(qu_loc, qu_scale),
+        return MixtureSameFamily(
+            Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
+            Normal(qu_loc, qu_scale),
         )
 
     def differential_abundance(
@@ -753,11 +789,10 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         compute_log_enrichment: bool = False,
         batch_size: int = 128,
     ) -> xr.Dataset:
-        """
-        Compute the differential abundance between samples.
+        """Compute the differential abundance between samples.
 
-        Computes the logarithm of the ratio of the probabilities of each sample
-        conditioned on the estimated aggregate posterior distribution of each cell.
+        Computes the logarithm of the ratio of the probabilities of each sample conditioned on the
+        estimated aggregate posterior distribution of each cell.
 
         Parameters
         ----------
@@ -777,14 +812,17 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         Returns
         -------
-        :class:`xarray.Dataset`
-            Returns an xarray.Dataset with data variables:
-            - `log_probs`: Array of shape (n_cells, n_samples) containing the log probabilities for
-                each cell across samples.
-            - `{cov_key}_log_probs`: For each key in `sample_cov_keys`, an array of shape (n_cells,
-                n_cov_values) containing the log probabilities for each cell across covariate
-                values.
+        A dataset with data variables:
+
+        * ``"log_probs"``: Array of shape ``(n_cells, n_samples)`` containing the log probabilities
+            for each cell across samples.
+        * ``"{cov_key}_log_probs"``: For each key in ``sample_cov_keys``, an array of shape
+            ``(n_cells, _cov_values)`` containing the log probabilities for each cell across
+            covariate values.
         """
+        from pandas import DataFrame
+        from scipy.special import logsumexp
+
         adata = self._validate_anndata(adata)
 
         if sample_cov_keys is not None:
@@ -866,9 +904,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
                     )
                     enrichment_scores = val_log_probs - rest_val_log_probs
                     per_val_log_enrichs[sample_cov_value] = enrichment_scores
-            sample_cov_log_probs_map[sample_cov_key] = pd.DataFrame.from_dict(per_val_log_probs)
+            sample_cov_log_probs_map[sample_cov_key] = DataFrame.from_dict(per_val_log_probs)
             if compute_log_enrichment and len(per_val_log_enrichs) > 0:
-                sample_cov_log_enrichs_map[sample_cov_key] = pd.DataFrame.from_dict(
+                sample_cov_log_enrichs_map[sample_cov_key] = DataFrame.from_dict(
                     per_val_log_enrichs
                 )
 
@@ -904,18 +942,18 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
     def get_outlier_cell_sample_pairs(
         self,
-        adata=None,
+        adata: AnnData | None = None,
         subsample_size: int = 5_000,
         quantile_threshold: float = 0.05,
         admissibility_threshold: float = 0.0,
         batch_size: int = 256,
     ) -> xr.Dataset:
-        """Utils function to get outlier cell-sample pairs.
+        """Compute outlier cell-sample pairs.
 
-        This function fits a GMM for each sample based on the latent representation
-        of the cells in the sample or computes an approximate aggregated posterior for each sample.
-        Then, for every cell, it computes the log-probability of the cell under the approximated
-        posterior of each sample as a measure of admissibility.
+        This function fits a GMM for each sample based on the latent representation of the cells in
+        the sample or computes an approximate aggregated posterior for each sample. Then, for every
+        cell, it computes the log-probability of the cell under the approximated posterior of each
+        sample as a measure of admissibility.
 
         Parameters
         ----------
@@ -999,24 +1037,24 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         delta: float | None = 0.3,
         **filter_samples_kwargs,
     ) -> xr.Dataset:
-        """Utility function to perform cell-specific multivariate differential expression.
+        """Compute cell-specific multivariate differential expression.
 
         For every cell, we first compute all counterfactual cell-state shifts, defined as
-        e_d = z_d - u, where z_d is the latent representation of the cell for sample d and u
-        is the sample-unaware latent representation. Then, we fit a linear model in each cell
-        of the form: e_d = X_d * beta_d + iid gaussian noise.
+        ``e_d = z_d - u``, where ``z_d`` is the latent representation of the cell for sample ``d``
+        and ``u`` is the sample-unaware latent representation. Then, we fit a linear model in each
+        cell of the form: ``e_d = X_d * beta_d + iid gaussian noise``.
 
         Parameters
         ----------
         sample_cov_keys
             List of sample covariates to consider for the multivariate analysis.
-            These keys should be present in `adata.obs`.
+            These keys should be present in ``adata.obs``.
         adata
             AnnData object to use for computing the local sample representation.
-            If None, the analysis is performed on all cells in the dataset.
+            If ``None``, the analysis is performed on all cells in the dataset.
         sample_subset
             Optional list of samples to consider for the multivariate analysis.
-            If None, all samples are considered.
+            If ``None``, all samples are considered.
         batch_size
             Batch size to use for computing the local sample representation.
         use_vmap
@@ -1032,11 +1070,11 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         store_lfc
             Whether to store the log-fold changes in the module.
             Storing log-fold changes is memory-intensive and may require to specify
-            a smaller set of cells to analyze, e.g., by specifying `adata`.
+            a smaller set of cells to analyze, e.g., by specifying ``adata``.
         store_lfc_metadata_subset
             Specifies a subset of metadata for which log-fold changes are computed.
-            These keys must be a subset of `sample_cov_keys`.
-            Only applies when `store_lfc=True`.
+            These keys must be a subset of ``sample_cov_keys``.
+            Only applies when ``store_lfc=True``.
         store_baseline
             Whether to store the expression in the module if logfoldchanges are computed.
         eps_lfc
@@ -1049,28 +1087,33 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             LFC threshold used to compute posterior DE probabilities.
             If None does not compute them to save memory consumption.
         filter_samples_kwargs
-            Keyword arguments to pass to `get_outlier_cell_sample_pairs`.
+            Keyword arguments to pass to
+            :meth:``~scvi.external.MrVI.get_outlier_cell_sample_pairs``.
 
         Returns
         -------
-        xr.Dataset
-            An xarray Dataset containing the results of the differential expression analysis. The
-            dataset includes:
-            - `beta`: Coefficients for each covariate across cells and latent dimensions.
-            - `effect_size`: Effect sizes for each covariate across cells.
-            - `pvalue`: P-values for each covariate across cells.
-            - `padj`: Adjusted P-values for each covariate across cells using the
-                Benjamini-Hochberg procedure.
-            - `lfc`: Log fold changes for each covariate across cells and genes, if `store_lfc` is
-                True.
-            - `lfc_std`: Standard deviation of log fold changes, if `store_lfc` is True and `delta`
-                is not None.
-            - `pde`: Posterior DE probabilities, if `store_lfc` is True and `delta` is not None.
-            - `baseline_expression`: Baseline expression levels for each covariate across cells and
-                genes, if `store_baseline` is True.
-            - `n_samples`: Number of admissible samples for each cell, if
-                `filter_inadmissible_samples` is True.
+        A dataset containing the results of the differential expression analysis:
+
+        * ``"beta"``: Coefficients for each covariate across cells and latent dimensions.
+        * ``"effect_size"``: Effect sizes for each covariate across cells.
+        * ``"pvalue"``: P-values for each covariate across cells.
+        * ``"padj"``: Adjusted P-values for each covariate across cells using the
+            Benjamini-Hochberg procedure.
+        * ``"lfc"``: Log fold changes for each covariate across cells and genes, if ``store_lfc``
+            is ``True``.
+        - ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
+            ``delta`` is not ``None``.
+        - ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
+            ``None``.
+        - ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
+            genes, if ``store_baseline`` is ``True``.
+        - ``"n_samples"``: Number of admissible samples for each cell, if
+            ``filter_inadmissible_samples`` is ``True``.
         """
+        from functools import partial
+
+        from statsmodels.stats.multitest import multipletests
+
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
             raise ValueError("Must assign `sample_cov_keys`")
@@ -1124,9 +1167,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         @partial(jax.jit, backend="cpu")
         def process_design_matrix(
-            admissible_samples_dmat,
-            Xmat,
-        ):
+            admissible_samples_dmat: jax.typing.ArrayLike,
+            Xmat: jax.typing.ArrayLike,
+        ) -> tuple[jax.Array, jax.Array]:
             xtmx = jnp.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
             xtmx += lambd * jnp.eye(n_covariates)
 
@@ -1137,17 +1180,17 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
-            stacked_rngs,
-            x,
-            sample_index,
-            continuous_covs,
-            cf_sample,
-            Amat,
-            prefactor,
-            n_samples_per_cell,
-            admissible_samples_mat,
-            use_mean,
-            mc_samples,
+            stacked_rngs: dict[str, jax.random.KeyArray],
+            x: jax.typing.ArrayLike,
+            sample_index: jax.typing.ArrayLike,
+            continuous_covs: jax.typing.ArrayLike,
+            cf_sample: jax.typing.ArrayLike,
+            Amat: jax.typing.ArrayLike,
+            prefactor: jax.typing.ArrayLike,
+            n_samples_per_cell: int,
+            admissible_samples_mat: jax.typing.ArrayLike,
+            use_mean: bool,
+            mc_samples: int,
             rngs_de=None,
         ):
             def inference_fn(
@@ -1390,34 +1433,28 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
     def _construct_design_matrix(
         self,
         sample_cov_keys: list[str],
-        sample_mask: np.ndarray,
+        sample_mask: npt.ArrayLike,
         normalize_design_matrix: bool,
         add_batch_specific_offsets: bool,
         store_lfc: bool,
         store_lfc_metadata_subset: list[str] | None = None,
-    ):
+    ) -> tuple[jax.Array, npt.NDArray, jax.Array, jax.Array | None]:
         """Construct a design matrix of samples and covariates.
 
         Starting from a list of sample covariate keys, construct a design matrix of samples and
-        covariates.
-
-        Categorical covariates are one-hot encoded.
-        This method returns a tuple of:
-        1. The design matrix
-        2. A name for each column in the design matrix
-        3. The original sample key for each column in the design matrix
+        covariates. Categorical covariates are one-hot encoded.
 
         Parameters
         ----------
-        sample_cov_keys:
+        sample_cov_keys
             List of sample metadata to use as covariates.
-        sample_mask:
+        sample_mask
             Mask of admissible samples. Must have the same length as the number of samples in the
             dataset.
-        normalize_design_matrix:
+        normalize_design_matrix
             Whether the design matrix should be 0-1 normalized. This is useful to ensure that the
             beta coefficients are comparable across covariates.
-        add_batch_specific_offsets:
+        add_batch_specific_offsets
             Whether the design matrix should be offset. If True, the matrix includes batch-specific
             offsets. This ensures that we can learn perturbation effects that do not depend on
             batch effects.
@@ -1425,11 +1462,14 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         Returns
         -------
         A tuple consisting of:
+
         1. The design matrix
         2. Names for each column in the design matrix
         3. A mask precising which coefficients from the design matrix require to compute LFCs.
         4. A mask precising which coefficients from the design matrix correspond to offsets.
         """
+        from pandas import Series, get_dummies
+
         Xmat = []
         Xmat_names = []
         Xmat_dim_to_key = []
@@ -1438,7 +1478,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             cov = sample_info[sample_cov_key]
             if (cov.dtype == str) or (cov.dtype == "category"):
                 cov = cov.cat.remove_unused_categories()
-                cov = pd.get_dummies(cov, drop_first=True)
+                cov = get_dummies(cov, drop_first=True)
                 cov_names = np.array([f"{sample_cov_key}_{col}" for col in cov.columns])
                 cov = cov.values
             else:
@@ -1465,7 +1505,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
                 # Retrieve indices of offset covariates in the right order
                 offset_indices = (
-                    pd.Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
+                    Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
                 )
                 offset_indices = jnp.array(offset_indices)
             else:
