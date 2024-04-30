@@ -162,7 +162,7 @@ class EncoderUZ(nn.Module):
     stop_gradients_mlp
         Whether to stop gradients to the MLP in the attention block.
     use_map
-        TODO
+        Whether to use the MAP estimate to approximate the posterior of ``z`` given ``u``
     n_hidden
         Number of hidden units in the MLP.
     n_layers
@@ -308,21 +308,22 @@ class MrVAE(JaxBaseModuleClass):
     encoder_n_layers
         Number of layers in the encoder.
     z_u_prior
-        TODO
+        Whether to place a Gaussian prior on ``z`` given ``u``.
     z_u_prior_scale
-        TODO
+        Natural log of the scale parameter of the Gaussian prior placed on ``z`` given ``u``. Only
+        applies of ``learn_z_u_prior_scale`` is ``False``.
     u_prior_scale
-        TODO
+        Natural log of the scale parameter of the Gaussian prior placed on ``u``. If
+        ``u_prior_mixture`` is ``True``, this scale applies to each mixture component distribution.
     u_prior_mixture
-        TODO
+        Whether to use a mixture of Gaussians prior for ``u``.
     u_prior_mixture_k
-        TODO
+        Number of mixture components to use for the mixture of Gaussians prior on ``u``.
     learn_z_u_prior_scale
-        TODO
-    laplace_scale
-        TODO
+        Whether to learn the scale parameter of the prior distribution of ``z`` given ``u``.
     scale_observations
-        TODO
+        Whether to scale the loss associated with each observation by the total number of
+        observations linked to the associated sample.
     px_kwargs
         Keyword arguments for the generative model.
     qz_kwargs
@@ -350,7 +351,6 @@ class MrVAE(JaxBaseModuleClass):
     u_prior_mixture: bool = True
     u_prior_mixture_k: int = 20
     learn_z_u_prior_scale: bool = False
-    laplace_scale: float = None
     scale_observations: bool = False
     px_kwargs: dict | None = None
     qz_kwargs: dict | None = None
@@ -457,7 +457,6 @@ class MrVAE(JaxBaseModuleClass):
             loc_, scale_ = qeps_[..., : self.n_latent], qeps_[..., self.n_latent :]
             qeps = dist.Normal(loc_, nn.softplus(scale_) + 1e-3)
             eps = qeps.mean if use_mean else qeps.rsample(self.make_rng("eps"))
-        As = None
         z = z_base + eps
         library = jnp.log(x.sum(1, keepdims=True))
 
@@ -465,7 +464,6 @@ class MrVAE(JaxBaseModuleClass):
             "qu": qu,
             "qeps": qeps,
             "eps": eps,
-            "As": As,
             "u": u,
             "z": z,
             "z_base": z_base,
@@ -549,17 +547,6 @@ class MrVAE(JaxBaseModuleClass):
 
         weighted_kl_local = kl_weight * (kl_u + kl_z)
         loss = reconstruction_loss + weighted_kl_local
-
-        if self.laplace_scale is not None:
-            As = inference_outputs["As"]
-            n_obs = As.shape[0]
-            As = As.reshape((n_obs, -1))
-            p_As = dist.Laplace(0, self.laplace_scale).log_prob(As).sum(-1)
-
-            n_obs_total = self.n_obs_per_sample.sum()
-            As_pen = -p_As / n_obs_total
-            As_pen = As_pen.sum()
-            loss = loss + (kl_weight * As_pen)
 
         if self.scale_observations:
             sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().astype(int)
