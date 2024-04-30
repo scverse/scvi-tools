@@ -8,8 +8,8 @@ from xarray import DataArray
 
 
 @dataclass(frozen=True)
-class MrVIReduction:
-    """Reduction dataclass for :meth:`~scvi.external.MrVI.compute_local_statistics`.
+class MRVIReduction:
+    """Reduction dataclass for :meth:`~scvi.external.MRVI.compute_local_statistics`.
 
     Parameters
     ----------
@@ -44,12 +44,12 @@ class MrVIReduction:
 
 @dataclass(frozen=True)
 class _ComputeLocalStatisticsRequirements:
-    """Summarized requirements for :meth:`~scvi.external.MrVI.compute_local_statistics`."""
+    """Summarized requirements for :meth:`~scvi.external.MRVI.compute_local_statistics`."""
 
     needs_mean_representations: bool
     needs_mean_distances: bool
     needs_sampled_representations: bool
     needs_sampled_distances: bool
     needs_normalized_distances: bool
-    ungrouped_reductions: Iterable[MrVIReduction]
-    grouped_reductions: Iterable[MrVIReduction]
+    ungrouped_reductions: Iterable[MRVIReduction]
+    grouped_reductions: Iterable[MRVIReduction]

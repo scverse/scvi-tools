@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from scvi.data import synthetic_iid
-from scvi.external.mrvi import MrVI
+from scvi.external import MRVI
 
 
 @pytest.fixture
@@ -26,8 +26,8 @@ def adata():
 
 
 def test_mrvi(adata):
-    MrVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
-    model = MrVI(adata)
+    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
+    model = MRVI(adata)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
@@ -101,8 +101,8 @@ def test_mrvi(adata):
     ],
 )
 def test_mrvi_de(adata, setup_kwargs, de_kwargs):
-    MrVI.setup_anndata(adata, **setup_kwargs)
-    model = MrVI(adata)
+    MRVI.setup_anndata(adata, **setup_kwargs)
+    model = MRVI(adata)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     for de_kwarg in de_kwargs:
         model.differential_expression(**de_kwarg)
@@ -122,8 +122,8 @@ def test_mrvi_de(adata, setup_kwargs, de_kwargs):
     ],
 )
 def test_mrvi_da(adata, sample_key, da_kwargs):
-    MrVI.setup_anndata(adata, sample_key=sample_key, batch_key="batch")
-    model = MrVI(adata)
+    MRVI.setup_anndata(adata, sample_key=sample_key, batch_key="batch")
+    model = MRVI(adata)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.differential_abundance(**da_kwargs)
 
@@ -158,26 +158,26 @@ def test_mrvi_da(adata, sample_key, da_kwargs):
     ],
 )
 def test_mrvi_model_kwargs(adata, model_kwargs):
-    MrVI.setup_anndata(
+    MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
         continuous_covariate_keys=["cont_cov"],
     )
-    model = MrVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
+    model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
 
 
 def test_mrvi_sample_subset(adata):
-    MrVI.setup_anndata(
+    MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
         continuous_covariate_keys=["cont_cov"],
     )
-    model = MrVI(adata)
+    model = MRVI(adata)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
@@ -185,13 +185,13 @@ def test_mrvi_sample_subset(adata):
 
 
 def test_mrvi_shrink_u(adata):
-    MrVI.setup_anndata(
+    MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
         continuous_covariate_keys=["cont_cov"],
     )
-    model = MrVI(adata, n_latent=10, n_latent_u=5)
+    model = MRVI(adata, n_latent=10, n_latent_u=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.get_local_sample_distances()
     model.is_trained_ = True
@@ -218,13 +218,13 @@ def adata_stratifications():
 
 
 def test_mrvi_stratifications(adata_stratifications):
-    MrVI.setup_anndata(
+    MRVI.setup_anndata(
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
         continuous_covariate_keys=["cont_cov"],
     )
-    model = MrVI(adata_stratifications, n_latent=10)
+    model = MRVI(adata_stratifications, n_latent=10)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.is_trained_ = True
     _ = model.history

@@ -14,7 +14,7 @@ from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
-from scvi.external.mrvi._types import MrVIReduction
+from scvi.external.mrvi._types import MRVIReduction
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -38,13 +38,13 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class MrVI(JaxTrainingMixin, BaseModelClass):
+class MRVI(JaxTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI).
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth`~scvi.external.MrVI.setup_anndata`.
+        AnnData object that has been registered via :meth`~scvi.external.MRVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space for ``z``.
     n_latent_u
@@ -293,7 +293,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
     def compute_local_statistics(
         self,
-        reductions: list[MrVIReduction],
+        reductions: list[MRVIReduction],
         adata: AnnData | None = None,
         indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
@@ -627,7 +627,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             Disabling vmap can be useful if running out of memory on a GPU.
         """
         reductions = [
-            MrVIReduction(
+            MRVIReduction(
                 name="sample_representations",
                 input="mean_representations" if use_mean else "sampled_representations",
                 fn=lambda x: x,
@@ -703,7 +703,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             raise ValueError("Undefined computation because not keep_cell and no groupby.")
         if keep_cell:
             reductions.append(
-                MrVIReduction(
+                MRVIReduction(
                     name="cell",
                     input=input,
                     fn=lambda x: x,
@@ -712,7 +712,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         if groupby:
             for groupby_key in groupby:
                 reductions.append(
-                    MrVIReduction(
+                    MRVIReduction(
                         name=groupby_key,
                         input=input,
                         group_by=groupby_key,
@@ -1088,7 +1088,7 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
             If None does not compute them to save memory consumption.
         filter_samples_kwargs
             Keyword arguments to pass to
-            :meth:``~scvi.external.MrVI.get_outlier_cell_sample_pairs``.
+            :meth:``~scvi.external.MRVI.get_outlier_cell_sample_pairs``.
 
         Returns
         -------
