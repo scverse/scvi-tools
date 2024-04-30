@@ -1,6 +1,8 @@
-MrVI (Multi-resolution Variational Inference) is a deep generative model designed for the analysis
-of large-scale single-cell transcriptomics data with multi-sample, multi-batch experimental
-designs.
+# MrVI
+
+**MrVI** [^ref1] (Multi-resolution Variational Inference; Python class
+{class}`~scvi.external.MrVI`) is a deep generative model designed for the analysis of large-scale
+single-cell transcriptomics data with multi-sample, multi-batch experimental designs.
 
 The advantages of MrVI are:
 
@@ -29,7 +31,7 @@ Additionally, it requires specification of:
 - (Optional) Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.
     disease status, age, treatment).
 
-### Generative process
+## Generative process
 
 MrVI posits a two-level hierarchical model (Figure 1):
 
@@ -89,7 +91,7 @@ The latent variables, along with their description are summarized in the followi
      - ``u_prior_logits``
 ```
 
-### Inference
+## Inference
 
 MrVI uses variational inference to approximate the posterior of $u_n$ and $z_n$. The variational
 distributions are:
@@ -101,7 +103,7 @@ $z_n := u_n + f_{\phi}(u_n, s_n)$
 Here $\mu_{\phi}, \sigma^2_{\phi}$ are encoder neural networks and $f_{\phi}$ is a deterministic
 mapping based on multi-head attention between $u_n$ and a learned embedding for sample $s_n$.
 
-## Analysis tasks
+## Tasks
 
 ### Exploratory analysis
 
@@ -137,3 +139,6 @@ The differential abundance procedure at a high level is:
     covariate-group-specific aggregated posterior,
 3. Compare sample groups by computing the log probability ratios between the
     covariate-group-specific aggregated posteriors.
+
+[^ref1]:
+    TODO: Add reference here
