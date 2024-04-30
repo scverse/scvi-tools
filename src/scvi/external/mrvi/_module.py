@@ -71,7 +71,7 @@ class _DecoderZXAttention(nn.Module):
     n_out: int
     n_batch: int
     n_latent_sample: int = 16
-    h_activation: Callable[[jax.ArrayLike], jax.Array] = nn.softmax
+    h_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.softmax
     n_channels: int = 4
     n_heads: int = 2
     dropout_rate: float = 0.1
@@ -82,15 +82,15 @@ class _DecoderZXAttention(nn.Module):
     n_layers: int = 1
     training: bool | None = None
     low_dim_batch: bool = True
-    activation: Callable[[jax.ArrayLike], jax.Array] = nn.gelu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
 
     @nn.compact
     def __call__(
         self,
-        z: jax.ArrayLike,
-        batch_covariate: jax.ArrayLike,
-        size_factor: jax.ArrayLike,
-        continuous_covariates: jax.ArrayLike | None,
+        z: jax.typing.ArrayLike,
+        batch_covariate: jax.typing.ArrayLike,
+        size_factor: jax.typing.ArrayLike,
+        continuous_covariates: jax.typing.ArrayLike | None,
         training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
@@ -186,13 +186,13 @@ class EncoderUZ(nn.Module):
     n_hidden: int = 32
     n_layers: int = 1
     training: bool | None = None
-    activation: Callable[[jax.ArrayLike], jax.Array] = nn.gelu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
 
     @nn.compact
     def __call__(
         self,
-        u: jax.ArrayLike,
-        sample_covariate: jax.ArrayLike,
+        u: jax.typing.ArrayLike,
+        sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> tuple[jax.Array, jax.Array]:
         training = nn.merge_param("training", self.training, training)
@@ -254,14 +254,14 @@ class _EncoderXU(nn.Module):
     n_sample: int
     n_hidden: int
     n_layers: int = 1
-    activation: Callable[[jax.ArrayLike], jax.Array] = nn.gelu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
     training: bool | None = None
 
     @nn.compact
     def __call__(
         self,
-        x: jax.ArrayLike,
-        sample_covariate: jax.ArrayLike,
+        x: jax.typing.ArrayLike,
+        sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
         from scvi.external.mrvi._components import ConditionalNormalization, NormalDistOutputNN
@@ -356,7 +356,7 @@ class MrVAE(JaxBaseModuleClass):
     qz_kwargs: dict | None = None
     qu_kwargs: dict | None = None
     training: bool = True
-    n_obs_per_sample: jax.ArrayLike | None = None
+    n_obs_per_sample: jax.typing.ArrayLike | None = None
 
     def setup(self):
         px_kwargs = DEFAULT_PX_KWARGS.copy()
@@ -425,17 +425,17 @@ class MrVAE(JaxBaseModuleClass):
     def required_rngs(self):
         return ("params", "u", "dropout", "eps")
 
-    def _get_inference_input(self, tensors: dict[str, jax.ArrayLike]) -> dict[str, Any]:
+    def _get_inference_input(self, tensors: dict[str, jax.typing.ArrayLike]) -> dict[str, Any]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
         return {"x": x, "sample_index": sample_index}
 
     def inference(
         self,
-        x: jax.ArrayLike,
-        sample_index: jax.ArrayLike,
+        x: jax.typing.ArrayLike,
+        sample_index: jax.typing.ArrayLike,
         mc_samples: int | None = None,
-        cf_sample: jax.ArrayLike | None = None,
+        cf_sample: jax.typing.ArrayLike | None = None,
         use_mean: bool = False,
     ) -> dict[str, jax.Array | dist.Distribution]:
         """Latent variable inference."""
@@ -474,7 +474,7 @@ class MrVAE(JaxBaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: dict[str, jax.ArrayLike],
+        tensors: dict[str, jax.typing.ArrayLike],
         inference_outputs: dict[str, jax.Array | dist.Distribution],
     ) -> dict[str, jax.Array]:
         z = inference_outputs["z"]
@@ -492,11 +492,11 @@ class MrVAE(JaxBaseModuleClass):
 
     def generative(
         self,
-        z: jax.ArrayLike,
-        library: jax.ArrayLike,
-        batch_index: jax.ArrayLike,
-        label_index: jax.ArrayLike,
-        continuous_covs: jax.ArrayLike,
+        z: jax.typing.ArrayLike,
+        library: jax.typing.ArrayLike,
+        batch_index: jax.typing.ArrayLike,
+        label_index: jax.typing.ArrayLike,
+        continuous_covs: jax.typing.ArrayLike,
     ) -> dict[str, jax.Array | dist.Distribution]:
         """Generative model."""
         library_exp = jnp.exp(library)
@@ -522,7 +522,7 @@ class MrVAE(JaxBaseModuleClass):
 
     def loss(
         self,
-        tensors: dict[str, jax.ArrayLike],
+        tensors: dict[str, jax.typing.ArrayLike],
         inference_outputs: dict[str, jax.Array | dist.Distribution],
         generative_outputs: dict[str, jax.Array | dist.Distribution],
         kl_weight: float = 1.0,
@@ -576,12 +576,12 @@ class MrVAE(JaxBaseModuleClass):
 
     def compute_h_from_x_eps(
         self,
-        x: jax.ArrayLike,
-        sample_index: jax.ArrayLike,
-        batch_index: jax.ArrayLike,
+        x: jax.typing.ArrayLike,
+        sample_index: jax.typing.ArrayLike,
+        batch_index: jax.typing.ArrayLike,
         extra_eps: float,
-        cf_sample: jax.ArrayLike | None = None,
-        continuous_covs: jax.ArrayLike | None = None,
+        cf_sample: jax.typing.ArrayLike | None = None,
+        continuous_covs: jax.typing.ArrayLike | None = None,
         mc_samples: int = 10,
     ):
         """Compute normalized gene expression from observations using predefined eps"""

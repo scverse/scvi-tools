@@ -55,12 +55,12 @@ class ResnetBlock(nn.Module):
 
     n_out: int
     n_hidden: int = 128
-    internal_activation: Callable[[jax.ArrayLike], jax.Array] = nn.relu
-    output_activation: Callable[[jax.ArrayLike], jax.Array] = nn.relu
+    internal_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
+    output_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
     training: bool | None = None
 
     @nn.compact
-    def __call__(self, inputs: jax.ArrayLike, training: bool | None = None) -> jax.Array:
+    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
         h = Dense(self.n_hidden)(inputs)
         h = nn.LayerNorm()(h)
@@ -97,11 +97,11 @@ class MLP(nn.Module):
     n_out: int
     n_hidden: int = 128
     n_layers: int = 1
-    activation: Callable[[jax.ArrayLike], jax.Array] = nn.relu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
     training: bool | None = None
 
     @nn.compact
-    def __call__(self, inputs: jax.ArrayLike, training: bool | None = None) -> jax.Array:
+    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
         h = inputs
         for _ in range(self.n_layers):
@@ -139,7 +139,7 @@ class NormalDistOutputNN(nn.Module):
     training: bool | None = None
 
     @nn.compact
-    def __call__(self, inputs: jax.ArrayLike, training: bool | None = None) -> dist.Normal:
+    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> dist.Normal:
         training = nn.merge_param("training", self.training, training)
         h = inputs
         for _ in range(self.n_layers):
@@ -192,8 +192,8 @@ class ConditionalNormalization(nn.Module):
     @nn.compact
     def __call__(
         self,
-        x: jax.ArrayLike,
-        condition: jax.ArrayLike,
+        x: jax.typing.ArrayLike,
+        condition: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> jax.Array:
         training = nn.merge_param("training", self.training, training)
@@ -266,8 +266,8 @@ class AttentionBlock(nn.Module):
     @nn.compact
     def __call__(
         self,
-        query_embed: jax.ArrayLike,
-        kv_embed: jax.ArrayLike,
+        query_embed: jax.typing.ArrayLike,
+        kv_embed: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> jax.Array:
         training = nn.merge_param("training", self.training, training)

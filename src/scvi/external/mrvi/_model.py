@@ -350,9 +350,9 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
             stacked_rngs: dict[str, jax.random.KeyArray],
-            x: jax.ArrayLike,
-            sample_index: jax.ArrayLike,
-            cf_sample: jax.ArrayLike,
+            x: jax.typing.ArrayLike,
+            sample_index: jax.typing.ArrayLike,
+            cf_sample: jax.typing.ArrayLike,
             use_mean: bool,
             mc_samples: int | None = None,
         ):
@@ -554,13 +554,16 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         return np.array(jnp.mean(l2_dists, axis=1)), np.array(jnp.var(l2_dists, axis=1))
 
     def _compute_distances_from_representations(
-        self, reps: jax.ArrayLike, indices: jax.ArrayLike, norm: Literal["l2", "l1", "linf"] = "l2"
+        self,
+        reps: jax.typing.ArrayLike,
+        indices: jax.typing.ArrayLike,
+        norm: Literal["l2", "l1", "linf"] = "l2",
     ) -> xr.DataArray:
         if norm not in ("l2", "l1", "linf"):
             raise ValueError(f"`norm` {norm} not supported")
 
         @jax.jit
-        def _compute_distance(rep: jax.ArrayLike):
+        def _compute_distance(rep: jax.typing.ArrayLike):
             delta_mat = jnp.expand_dims(rep, 0) - jnp.expand_dims(rep, 1)
             if norm == "l2":
                 res = delta_mat**2
@@ -1164,8 +1167,8 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
 
         @partial(jax.jit, backend="cpu")
         def process_design_matrix(
-            admissible_samples_dmat: jax.ArrayLike,
-            Xmat: jax.ArrayLike,
+            admissible_samples_dmat: jax.typing.ArrayLike,
+            Xmat: jax.typing.ArrayLike,
         ) -> tuple[jax.Array, jax.Array]:
             xtmx = jnp.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
             xtmx += lambd * jnp.eye(n_covariates)
@@ -1178,14 +1181,14 @@ class MrVI(JaxTrainingMixin, BaseModelClass):
         @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
             stacked_rngs: dict[str, jax.random.KeyArray],
-            x: jax.ArrayLike,
-            sample_index: jax.ArrayLike,
-            continuous_covs: jax.ArrayLike,
-            cf_sample: jax.ArrayLike,
-            Amat: jax.ArrayLike,
-            prefactor: jax.ArrayLike,
+            x: jax.typing.ArrayLike,
+            sample_index: jax.typing.ArrayLike,
+            continuous_covs: jax.typing.ArrayLike,
+            cf_sample: jax.typing.ArrayLike,
+            Amat: jax.typing.ArrayLike,
+            prefactor: jax.typing.ArrayLike,
             n_samples_per_cell: int,
-            admissible_samples_mat: jax.ArrayLike,
+            admissible_samples_mat: jax.typing.ArrayLike,
             use_mean: bool,
             mc_samples: int,
             rngs_de=None,
