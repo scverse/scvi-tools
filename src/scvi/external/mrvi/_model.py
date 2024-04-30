@@ -78,7 +78,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
-        from scvi.external.mrvi._module import MrVAE
+        from scvi.external.mrvi._module import MRVAE
 
         super().__init__(adata)
 
@@ -101,7 +101,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             adata.obs._scvi_sample.value_counts().sort_index().values
         )
 
-        self.module = MrVAE(
+        self.module = MRVAE(
             n_input=self.summary_stats.n_vars,
             n_sample=n_sample,
             n_batch=n_batch,
