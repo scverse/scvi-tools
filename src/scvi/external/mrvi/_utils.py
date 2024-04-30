@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-import jax
-import jax.numpy as jnp
+from jax import Array, jit
+from jax.typing import ArrayLike
 
 from scvi.external.mrvi._types import MrVIReduction, _ComputeLocalStatisticsRequirements
 
 
 def _parse_local_statistics_requirements(
     reductions: list[MrVIReduction],
+    needs_mean_rep: bool = False,
+    needs_sampled_rep: bool = False,
+    needs_mean_dists: bool = False,
+    needs_sampled_dists: bool = False,
+    needs_normalized_dists: bool = False,
 ) -> _ComputeLocalStatisticsRequirements:
-    needs_mean_rep = False
-    needs_sampled_rep = False
-    needs_mean_dists = False
-    needs_sampled_dists = False
-    needs_normalized_dists = False
-
+    """Get requirements for computing local statistics for a set of reductions."""
     ungrouped_reductions = []
     grouped_reductions = []
 
@@ -51,15 +51,17 @@ def _parse_local_statistics_requirements(
     )
 
 
-@jax.jit
-def rowwise_max_excluding_diagonal(matrix):
-    """Returns the rowwise maximum of a matrix excluding the diagonal."""
+@jit
+def rowwise_max_excluding_diagonal(matrix: ArrayLike) -> Array:
+    """Get the rowwise maximum of a matrix excluding the diagonal."""
+    import jax.numpy as jnp
+
     assert matrix.ndim == 2
     num_cols = matrix.shape[1]
     mask = (1 - jnp.eye(num_cols)).astype(bool)
     return (jnp.where(mask, matrix, -jnp.inf)).max(axis=1)
 
 
-def simple_reciprocal(w, eps=1e-6):
+def simple_reciprocal(w: ArrayLike, eps: float = 1e-6) -> Array:
     """Convert distances to similarities via a reciprocal."""
     return 1.0 / (w + eps)

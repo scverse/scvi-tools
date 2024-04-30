@@ -1,21 +1,15 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import numpy as np
 import numpyro.distributions as dist
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.external.mrvi._components import (
-    AttentionBlock,
-    ConditionalNormalization,
-    Dense,
-    NormalDistOutputNN,
-)
+from scvi.external.mrvi._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 DEFAULT_PX_KWARGS = {
@@ -37,11 +31,47 @@ _normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
 class _DecoderZXAttention(nn.Module):
+    """Attention-based decoder.
+
+    Parameters
+    ----------
+    n_in
+        Number of input features.
+    n_out
+        Number of output features.
+    n_batch
+        Number of batches.
+    n_latent_sample
+        Number of latent samples.
+    h_activation
+        Activation function for the output layer.
+    n_channels
+        Number of channels in the attention block.
+    n_heads
+        Number of heads in the attention block.
+    dropout_rate
+        Dropout rate.
+    stop_gradients
+        Whether to stop gradients to ``z``.
+    stop_gradients_mlp
+        Whether to stop gradients to the MLP in the attention block.
+    training
+        Whether the model is in training mode.
+    n_hidden
+        Number of hidden units in the MLP.
+    n_layers
+        Number of layers in the MLP.
+    low_dim_batch
+        Whether to use low-dimensional batch embeddings.
+    activation
+        Activation function for the MLP.
+    """
+
     n_in: int
     n_out: int
     n_batch: int
     n_latent_sample: int = 16
-    h_activation: callable = nn.softmax
+    h_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.softmax
     n_channels: int = 4
     n_heads: int = 2
     dropout_rate: float = 0.1
@@ -52,15 +82,15 @@ class _DecoderZXAttention(nn.Module):
     n_layers: int = 1
     training: bool | None = None
     low_dim_batch: bool = True
-    activation: callable = nn.gelu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
 
     @nn.compact
     def __call__(
         self,
-        z: np.ndarray | jnp.ndarray,
-        batch_covariate: np.ndarray | jnp.ndarray,
-        size_factor: np.ndarray | jnp.ndarray,
-        continuous_covariates: np.ndarray | jnp.ndarray | None,
+        z: jax.typing.ArrayLike,
+        batch_covariate: jax.typing.ArrayLike,
+        size_factor: jax.typing.ArrayLike,
+        continuous_covariates: jax.typing.ArrayLike | None,
         training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
@@ -109,6 +139,40 @@ class _DecoderZXAttention(nn.Module):
 
 
 class EncoderUZ(nn.Module):
+    """Attention-based encoder from ``u`` to ``z``.
+
+    Parameters
+    ----------
+    n_latent
+        Number of latent variables.
+    n_sample
+        Number of samples.
+    n_latent_u
+        Number of latent variables for ``u``.
+    n_latent_sample
+        Number of latent samples.
+    n_channels
+        Number of channels in the attention block.
+    n_heads
+        Number of heads in the attention block.
+    dropout_rate
+        Dropout rate.
+    stop_gradients
+        Whether to stop gradients to ``u``.
+    stop_gradients_mlp
+        Whether to stop gradients to the MLP in the attention block.
+    use_map
+        Whether to use the MAP estimate to approximate the posterior of ``z`` given ``u``
+    n_hidden
+        Number of hidden units in the MLP.
+    n_layers
+        Number of layers in the MLP.
+    training
+        Whether the model is in training mode.
+    activation
+        Activation function for the MLP.
+    """
+
     n_latent: int
     n_sample: int
     n_latent_u: int | None = None
@@ -122,15 +186,15 @@ class EncoderUZ(nn.Module):
     n_hidden: int = 32
     n_layers: int = 1
     training: bool | None = None
-    activation: callable = nn.gelu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
 
     @nn.compact
     def __call__(
         self,
-        u: np.ndarray | jnp.ndarray,
-        sample_covariate: np.ndarray | jnp.ndarray,
+        u: jax.typing.ArrayLike,
+        sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
-    ):
+    ) -> tuple[jax.Array, jax.Array]:
         training = nn.merge_param("training", self.training, training)
         sample_covariate = sample_covariate.astype(int).flatten()
         self.n_latent_u if self.n_latent_u is not None else self.n_latent  # noqa: B018
@@ -168,20 +232,40 @@ class EncoderUZ(nn.Module):
 
 
 class _EncoderXU(nn.Module):
+    """Encoder from ``x`` to ``u``.
+
+    Parameters
+    ----------
+    n_latent
+        Number of latent variables.
+    n_sample
+        Number of samples.
+    n_hidden
+        Number of hidden units in the MLP.
+    n_layers
+        Number of layers in the MLP.
+    activation
+        Activation function for the MLP.
+    training
+        Whether the model is in training mode.
+    """
+
     n_latent: int
     n_sample: int
     n_hidden: int
     n_layers: int = 1
-    activation: callable = nn.gelu
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
     training: bool | None = None
 
     @nn.compact
     def __call__(
         self,
-        x: np.ndarray | jnp.ndarray,
-        sample_covariate: np.ndarray | jnp.ndarray,
+        x: jax.typing.ArrayLike,
+        sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
+        from scvi.external.mrvi._components import ConditionalNormalization, NormalDistOutputNN
+
         training = nn.merge_param("training", self.training, training)
         x_feat = jnp.log1p(x)
         for _ in range(2):
@@ -201,7 +285,56 @@ class _EncoderXU(nn.Module):
 
 @flax_configure
 class MrVAE(JaxBaseModuleClass):
-    """Flax module for the Multi-resolution Variational Inference (MrVI) model."""
+    """Multi-resolution Variational Inference (MrVI) module.
+
+    Parameters
+    ----------
+    n_input
+        Number of input features.
+    n_sample
+        Number of samples.
+    n_batch
+        Number of batches.
+    n_labels
+        Number of labels.
+    n_continuous_cov
+        Number of continuous covariates.
+    n_latent
+        Number of latent variables.
+    n_latent_u
+        Number of latent variables for ``u``.
+    encoder_n_hidden
+        Number of hidden units in the encoder.
+    encoder_n_layers
+        Number of layers in the encoder.
+    z_u_prior
+        Whether to place a Gaussian prior on ``z`` given ``u``.
+    z_u_prior_scale
+        Natural log of the scale parameter of the Gaussian prior placed on ``z`` given ``u``. Only
+        applies of ``learn_z_u_prior_scale`` is ``False``.
+    u_prior_scale
+        Natural log of the scale parameter of the Gaussian prior placed on ``u``. If
+        ``u_prior_mixture`` is ``True``, this scale applies to each mixture component distribution.
+    u_prior_mixture
+        Whether to use a mixture of Gaussians prior for ``u``.
+    u_prior_mixture_k
+        Number of mixture components to use for the mixture of Gaussians prior on ``u``.
+    learn_z_u_prior_scale
+        Whether to learn the scale parameter of the prior distribution of ``z`` given ``u``.
+    scale_observations
+        Whether to scale the loss associated with each observation by the total number of
+        observations linked to the associated sample.
+    px_kwargs
+        Keyword arguments for the generative model.
+    qz_kwargs
+        Keyword arguments for the inference model from ``u`` to ``z``.
+    qu_kwargs
+        Keyword arguments for the inference model from ``x`` to ``u``.
+    training
+        Whether the model is in training mode.
+    n_obs_per_sample
+        Number of observations per sample.
+    """
 
     n_input: int
     n_sample: int
@@ -218,13 +351,12 @@ class MrVAE(JaxBaseModuleClass):
     u_prior_mixture: bool = True
     u_prior_mixture_k: int = 20
     learn_z_u_prior_scale: bool = False
-    laplace_scale: float = None
     scale_observations: bool = False
     px_kwargs: dict | None = None
     qz_kwargs: dict | None = None
     qu_kwargs: dict | None = None
     training: bool = True
-    n_obs_per_sample: jnp.ndarray | None = None
+    n_obs_per_sample: jax.typing.ArrayLike | None = None
 
     def setup(self):
         px_kwargs = DEFAULT_PX_KWARGS.copy()
@@ -293,12 +425,19 @@ class MrVAE(JaxBaseModuleClass):
     def required_rngs(self):
         return ("params", "u", "dropout", "eps")
 
-    def _get_inference_input(self, tensors: dict[str, np.ndarray | jnp.ndarray]) -> dict[str, Any]:
+    def _get_inference_input(self, tensors: dict[str, jax.typing.ArrayLike]) -> dict[str, Any]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
         return {"x": x, "sample_index": sample_index}
 
-    def inference(self, x, sample_index, mc_samples=None, cf_sample=None, use_mean=False):
+    def inference(
+        self,
+        x: jax.typing.ArrayLike,
+        sample_index: jax.typing.ArrayLike,
+        mc_samples: int | None = None,
+        cf_sample: jax.typing.ArrayLike | None = None,
+        use_mean: bool = False,
+    ) -> dict[str, jax.Array | dist.Distribution]:
         """Latent variable inference."""
         qu = self.qu(x, sample_index, training=self.training)
         if use_mean:
@@ -318,7 +457,6 @@ class MrVAE(JaxBaseModuleClass):
             loc_, scale_ = qeps_[..., : self.n_latent], qeps_[..., self.n_latent :]
             qeps = dist.Normal(loc_, nn.softplus(scale_) + 1e-3)
             eps = qeps.mean if use_mean else qeps.rsample(self.make_rng("eps"))
-        As = None
         z = z_base + eps
         library = jnp.log(x.sum(1, keepdims=True))
 
@@ -326,7 +464,6 @@ class MrVAE(JaxBaseModuleClass):
             "qu": qu,
             "qeps": qeps,
             "eps": eps,
-            "As": As,
             "u": u,
             "z": z,
             "z_base": z_base,
@@ -335,9 +472,9 @@ class MrVAE(JaxBaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: dict[str, np.ndarray | jnp.ndarray],
-        inference_outputs: dict[str, Any],
-    ) -> dict[str, Any]:
+        tensors: dict[str, jax.typing.ArrayLike],
+        inference_outputs: dict[str, jax.Array | dist.Distribution],
+    ) -> dict[str, jax.Array]:
         z = inference_outputs["z"]
         library = inference_outputs["library"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -351,7 +488,14 @@ class MrVAE(JaxBaseModuleClass):
             "continuous_covs": continuous_covs,
         }
 
-    def generative(self, z, library, batch_index, label_index, continuous_covs):
+    def generative(
+        self,
+        z: jax.typing.ArrayLike,
+        library: jax.typing.ArrayLike,
+        batch_index: jax.typing.ArrayLike,
+        label_index: jax.typing.ArrayLike,
+        continuous_covs: jax.typing.ArrayLike,
+    ) -> dict[str, jax.Array | dist.Distribution]:
         """Generative model."""
         library_exp = jnp.exp(library)
         px = self.px(
@@ -376,11 +520,11 @@ class MrVAE(JaxBaseModuleClass):
 
     def loss(
         self,
-        tensors: dict[str, np.ndarray | jnp.ndarray],
-        inference_outputs: dict[str, Any],
-        generative_outputs: dict[str, Any],
+        tensors: dict[str, jax.typing.ArrayLike],
+        inference_outputs: dict[str, jax.Array | dist.Distribution],
+        generative_outputs: dict[str, jax.Array | dist.Distribution],
         kl_weight: float = 1.0,
-    ) -> jnp.ndarray:
+    ) -> LossOutput:
         """Compute the loss function value."""
         reconstruction_loss = (
             -generative_outputs["px"].log_prob(tensors[REGISTRY_KEYS.X_KEY]).sum(-1)
@@ -404,17 +548,6 @@ class MrVAE(JaxBaseModuleClass):
         weighted_kl_local = kl_weight * (kl_u + kl_z)
         loss = reconstruction_loss + weighted_kl_local
 
-        if self.laplace_scale is not None:
-            As = inference_outputs["As"]
-            n_obs = As.shape[0]
-            As = As.reshape((n_obs, -1))
-            p_As = dist.Laplace(0, self.laplace_scale).log_prob(As).sum(-1)
-
-            n_obs_total = self.n_obs_per_sample.sum()
-            As_pen = -p_As / n_obs_total
-            As_pen = As_pen.sum()
-            loss = loss + (kl_weight * As_pen)
-
         if self.scale_observations:
             sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().astype(int)
             prefactors = self.n_obs_per_sample[sample_index]
@@ -430,13 +563,13 @@ class MrVAE(JaxBaseModuleClass):
 
     def compute_h_from_x_eps(
         self,
-        x,
-        sample_index,
-        batch_index,
-        extra_eps,
-        cf_sample=None,
-        continuous_covs=None,
-        mc_samples=10,
+        x: jax.typing.ArrayLike,
+        sample_index: jax.typing.ArrayLike,
+        batch_index: jax.typing.ArrayLike,
+        extra_eps: float,
+        cf_sample: jax.typing.ArrayLike | None = None,
+        continuous_covs: jax.typing.ArrayLike | None = None,
+        mc_samples: int = 10,
     ):
         """Compute normalized gene expression from observations using predefined eps"""
         library = 7.0 * jnp.ones_like(
