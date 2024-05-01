@@ -1234,7 +1234,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             # Statistical tests
             betas_norm = jnp.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - jnp.nan_to_num(jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0)
+            pvals = 1 - jnp.nan_to_num(
+                jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0
+            )
 
             betas = betas * eps_std
 
