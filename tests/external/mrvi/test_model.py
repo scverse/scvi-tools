@@ -24,12 +24,14 @@ def adata():
     adata.obs["dummy_batch"] = 1
     return adata
 
+
 @pytest.fixture(scope="session")
 def model(adata):
     MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
     model = MRVI(adata)
     model.train(max_steps=2, train_size=0.5)
     return model
+
 
 def test_mrvi(model):
     model.get_local_sample_distances()
