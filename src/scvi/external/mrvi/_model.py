@@ -1112,7 +1112,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         """
         from functools import partial
 
-        from statsmodels.stats.multitest import multipletests
+        from scipy.stats import false_discovery_control
 
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
@@ -1234,7 +1234,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             # Statistical tests
             betas_norm = jnp.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None])
+            pvals = 1 - jnp.nan_to_num(
+                jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0
+            )
 
             betas = betas * eps_std
 
@@ -1374,7 +1376,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         effect_size = np.concatenate(effect_size, axis=0)
         pvalue = np.concatenate(pvalue, axis=0)
         pvalue_shape = pvalue.shape
-        padj = multipletests(pvalue.flatten(), method="fdr_bh")[1].reshape(pvalue_shape)
+        padj = false_discovery_control(pvalue.flatten(), method="bh").reshape(pvalue_shape)
 
         coords = {
             "cell_name": (("cell_name"), adata.obs_names),
