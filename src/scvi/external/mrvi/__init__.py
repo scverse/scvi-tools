@@ -1,4 +1,4 @@
-from ._model import MrVI
-from ._module import MrVAE
+from ._model import MRVI
+from ._module import MRVAE
 
-__all__ = ["MrVI", "MrVAE"]
+__all__ = ["MRVI", "MRVAE"]
