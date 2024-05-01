@@ -3,11 +3,11 @@ from __future__ import annotations
 from jax import Array, jit
 from jax.typing import ArrayLike
 
-from scvi.external.mrvi._types import MrVIReduction, _ComputeLocalStatisticsRequirements
+from scvi.external.mrvi._types import MRVIReduction, _ComputeLocalStatisticsRequirements
 
 
 def _parse_local_statistics_requirements(
-    reductions: list[MrVIReduction],
+    reductions: list[MRVIReduction],
     needs_mean_rep: bool = False,
     needs_sampled_rep: bool = False,
     needs_mean_dists: bool = False,
