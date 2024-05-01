@@ -44,7 +44,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth`~scvi.external.MRVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.MRVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space for ``z``.
     n_latent_u
@@ -1087,8 +1087,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             LFC threshold used to compute posterior DE probabilities.
             If None does not compute them to save memory consumption.
         filter_samples_kwargs
-            Keyword arguments to pass to
-            :meth:``~scvi.external.MRVI.get_outlier_cell_sample_pairs``.
+            Keyword arguments to pass to :meth:`~scvi.external.MRVI.get_outlier_cell_sample_pairs`.
 
         Returns
         -------
@@ -1101,13 +1100,13 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Benjamini-Hochberg procedure.
         * ``"lfc"``: Log fold changes for each covariate across cells and genes, if ``store_lfc``
             is ``True``.
-        - ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
+        * ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
             ``delta`` is not ``None``.
-        - ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
+        * ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
             ``None``.
-        - ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
+        * ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
             genes, if ``store_baseline`` is ``True``.
-        - ``"n_samples"``: Number of admissible samples for each cell, if
+        * ``"n_samples"``: Number of admissible samples for each cell, if
             ``filter_inadmissible_samples`` is ``True``.
         """
         from functools import partial
