@@ -67,6 +67,11 @@ to [Semantic Versioning]. Full commit history is available in the
     accessibility data {pr}`2739`.
 - The `data_module` argument in {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` has been
     renamed to `datamodule` for consistency {pr}`2749`.
+- Change the default saving method of variable names for {class}`mudata.MuData` based models
+    (_e.g._ {class}`scvi.model.TOTALVI`) to a dictionary of per-mod variable names instead of a
+    concatenated array of all variable names. Users may replicate the previous behavior by
+    passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
+    {pr}`2769`.
 
 #### Removed
 
