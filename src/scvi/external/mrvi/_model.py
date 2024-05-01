@@ -1112,7 +1112,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         """
         from functools import partial
 
-        from scipy.stats import false_discovery_rate
+        from scipy.stats import false_discovery_control
 
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
@@ -1374,7 +1374,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         effect_size = np.concatenate(effect_size, axis=0)
         pvalue = np.concatenate(pvalue, axis=0)
         pvalue_shape = pvalue.shape
-        padj = false_discovery_rate(pvalue.flatten(), method="bh").reshape(pvalue_shape)
+        padj = false_discovery_control(pvalue.flatten(), method="bh").reshape(pvalue_shape)
 
         coords = {
             "cell_name": (("cell_name"), adata.obs_names),
