@@ -70,11 +70,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     scale_observations
         Whether to scale loss by the number of observations per sample.
     px_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module._DecoderZXAttention`.
+        Keyword args for :class:`~scvi.external.mrvi._module.DecoderZXAttention`.
     qz_kwargs
         Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
     qu_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module._EncoderXU`.
+        Keyword args for :class:`~scvi.external.mrvi._module.EncoderXU`.
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
