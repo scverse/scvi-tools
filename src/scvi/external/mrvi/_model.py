@@ -85,7 +85,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         n_sample = self.summary_stats.n_sample
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
-        n_continuous_cov = self.summary_stats.get("n_extra_continuous_covs", 0)
 
         obs_df = adata.obs.copy()
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
@@ -106,7 +105,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             n_sample=n_sample,
             n_batch=n_batch,
             n_labels=n_labels,
-            n_continuous_cov=n_continuous_cov,
             n_obs_per_sample=self.n_obs_per_sample,
             **model_kwargs,
         )
@@ -148,7 +146,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_key: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
-        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -160,7 +157,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         %(param_sample_key)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_cont_cov_keys)s
         **kwargs
             Additional keyword arguments passed into
             :meth:`~scvi.data.AnnDataManager.register_fields`.
@@ -175,7 +171,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             fields.CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
             fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            fields.NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             fields.NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
 
@@ -1183,7 +1178,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             stacked_rngs: dict[str, jax.random.KeyArray],
             x: jax.typing.ArrayLike,
             sample_index: jax.typing.ArrayLike,
-            continuous_covs: jax.typing.ArrayLike,
             cf_sample: jax.typing.ArrayLike,
             Amat: jax.typing.ArrayLike,
             prefactor: jax.typing.ArrayLike,
@@ -1258,7 +1252,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                         sample_index=sample_index,
                         batch_index=batch_index_cf,
                         cf_sample=None,
-                        continuous_covs=continuous_covs,
                         mc_samples=None,  # mc_samples also taken for eps. vmap over mc_samples
                     )
 
@@ -1330,9 +1323,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             inf_inputs = self.module._get_inference_input(
                 array_dict,
             )
-            continuous_covs = inf_inputs.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
-            if continuous_covs is not None:
-                continuous_covs = jnp.array(continuous_covs)
             stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
 
             rngs_de = self.module.rngs if store_lfc else None
@@ -1350,7 +1340,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 stacked_rngs=stacked_rngs,
                 x=jnp.array(inf_inputs["x"]),
                 sample_index=jnp.array(inf_inputs["sample_index"]),
-                continuous_covs=continuous_covs,
                 cf_sample=jnp.array(cf_sample),
                 Amat=Amat,
                 prefactor=prefactor,

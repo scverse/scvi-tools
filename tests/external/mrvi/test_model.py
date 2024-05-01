@@ -66,20 +66,6 @@ def test_mrvi(adata):
             ],
         ),
         (
-            {
-                "sample_key": "sample_str",
-                "batch_key": "batch",
-                "continuous_covariate_keys": ["cont_cov"],
-            },
-            [
-                {
-                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
-                    "store_lfc": True,
-                    "add_batch_specific_offsets": False,
-                }
-            ],
-        ),
-        (
             {"sample_key": "sample_str", "batch_key": "dummy_batch"},
             [
                 {
@@ -162,7 +148,6 @@ def test_mrvi_model_kwargs(adata, model_kwargs):
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -175,7 +160,6 @@ def test_mrvi_sample_subset(adata):
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -189,7 +173,6 @@ def test_mrvi_shrink_u(adata):
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -222,7 +205,6 @@ def test_mrvi_stratifications(adata_stratifications):
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata_stratifications, n_latent=10)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
