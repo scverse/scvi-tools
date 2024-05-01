@@ -60,6 +60,7 @@ import scvi
    external.ContrastiveVI
    external.POISSONVI
    external.VELOVI
+   external.MRVI
 
 ```
 
