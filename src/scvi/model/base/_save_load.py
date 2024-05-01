@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import warnings
-from typing import Literal, Optional
+from typing import Literal
 
 import anndata
 import mudata
@@ -24,7 +26,7 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, dict, AnnData | None]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_MODEL_FNAME}")
     var_names_path = os.path.join(
         dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_VAR_NAMES_FNAME}"
@@ -55,9 +57,9 @@ def _load_legacy_saved_files(
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
-    prefix: Optional[str] = None,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-    backup_url: Optional[str] = None,
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
 ) -> tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
