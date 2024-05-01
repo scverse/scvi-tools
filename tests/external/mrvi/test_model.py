@@ -141,7 +141,6 @@ def test_mrvi_model_kwargs(adata, model_kwargs):
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(max_steps=2, train_size=0.5)
@@ -158,7 +157,6 @@ def test_mrvi_shrink_u(adata):
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5)
     model.train(max_steps=2, train_size=0.5)
@@ -189,7 +187,6 @@ def test_mrvi_stratifications(adata_stratifications):
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
-        continuous_covariate_keys=["cont_cov"],
     )
     model = MRVI(adata_stratifications, n_latent=10)
     model.train(max_steps=2, train_size=0.5)

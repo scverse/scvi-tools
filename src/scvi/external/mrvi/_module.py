@@ -90,7 +90,6 @@ class DecoderZXAttention(nn.Module):
         z: jax.typing.ArrayLike,
         batch_covariate: jax.typing.ArrayLike,
         size_factor: jax.typing.ArrayLike,
-        continuous_covariates: jax.typing.ArrayLike | None,
         training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
@@ -297,8 +296,6 @@ class MRVAE(JaxBaseModuleClass):
         Number of batches.
     n_labels
         Number of labels.
-    n_continuous_cov
-        Number of continuous covariates.
     n_latent
         Number of latent variables.
     n_latent_u
@@ -340,7 +337,6 @@ class MRVAE(JaxBaseModuleClass):
     n_sample: int
     n_batch: int
     n_labels: int
-    n_continuous_cov: int
     n_latent: int = 30
     n_latent_u: int = 10
     encoder_n_hidden: int = 128
@@ -479,13 +475,11 @@ class MRVAE(JaxBaseModuleClass):
         library = inference_outputs["library"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         label_index = tensors[REGISTRY_KEYS.LABELS_KEY]
-        continuous_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
         return {
             "z": z,
             "library": library,
             "batch_index": batch_index,
             "label_index": label_index,
-            "continuous_covs": continuous_covs,
         }
 
     def generative(
@@ -494,7 +488,6 @@ class MRVAE(JaxBaseModuleClass):
         library: jax.typing.ArrayLike,
         batch_index: jax.typing.ArrayLike,
         label_index: jax.typing.ArrayLike,
-        continuous_covs: jax.typing.ArrayLike,
     ) -> dict[str, jax.Array | dist.Distribution]:
         """Generative model."""
         library_exp = jnp.exp(library)
@@ -502,7 +495,6 @@ class MRVAE(JaxBaseModuleClass):
             z,
             batch_index,
             size_factor=library_exp,
-            continuous_covariates=continuous_covs,
             training=self.training,
         )
         h = px.mean / library_exp
@@ -568,7 +560,6 @@ class MRVAE(JaxBaseModuleClass):
         batch_index: jax.typing.ArrayLike,
         extra_eps: float,
         cf_sample: jax.typing.ArrayLike | None = None,
-        continuous_covs: jax.typing.ArrayLike | None = None,
         mc_samples: int = 10,
     ):
         """Compute normalized gene expression from observations using predefined eps"""
@@ -582,7 +573,6 @@ class MRVAE(JaxBaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "continuous_covs": continuous_covs,
             "label_index": jnp.zeros([x.shape[0], 1]),
         }
         generative_outputs = self.generative(**generative_inputs)
