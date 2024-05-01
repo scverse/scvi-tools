@@ -487,7 +487,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 outputs = r.fn(inputs)
 
                 if r.group_by is not None:
-                    group_by = self.adata.obs[r.group_by][indices]
+                    group_by = self.adata.obs[r.group_by].iloc[indices]
                     group_by_cats = group_by.unique()
                     for cat in group_by_cats:
                         cat_summed_outputs = outputs.sel(
