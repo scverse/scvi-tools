@@ -145,7 +145,7 @@ def test_mrvi_model_kwargs(adata, model_kwargs):
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(max_steps=2, train_size=0.5)
 
-    
+
 def test_mrvi_sample_subset(model):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
