@@ -30,7 +30,7 @@ DEFAULT_QU_KWARGS = {}
 _normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
-class _DecoderZXAttention(nn.Module):
+class DecoderZXAttention(nn.Module):
     """Attention-based decoder.
 
     Parameters
@@ -231,7 +231,7 @@ class EncoderUZ(nn.Module):
             return u, residual
 
 
-class _EncoderXU(nn.Module):
+class EncoderXU(nn.Module):
     """Encoder from ``x`` to ``u``.
 
     Parameters
@@ -375,7 +375,7 @@ class MRVAE(JaxBaseModuleClass):
         n_latent_u = None if is_isomorphic_uz else self.n_latent_u
 
         # Generative model
-        px_cls = _DecoderZXAttention
+        px_cls = DecoderZXAttention
         self.px = px_cls(
             self.n_latent,
             self.n_input,
@@ -392,7 +392,7 @@ class MRVAE(JaxBaseModuleClass):
         )
 
         # Inference model
-        self.qu = _EncoderXU(
+        self.qu = EncoderXU(
             n_latent=self.n_latent if is_isomorphic_uz else n_latent_u,
             n_sample=self.n_sample,
             n_hidden=self.encoder_n_hidden,
