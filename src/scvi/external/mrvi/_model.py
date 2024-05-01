@@ -44,7 +44,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth`~scvi.external.MRVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.MRVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space for ``z``.
     n_latent_u
@@ -70,11 +70,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     scale_observations
         Whether to scale loss by the number of observations per sample.
     px_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module._DecoderZXAttention`.
+        Keyword args for :class:`~scvi.external.mrvi._module.DecoderZXAttention`.
     qz_kwargs
         Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
     qu_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module._EncoderXU`.
+        Keyword args for :class:`~scvi.external.mrvi._module.EncoderXU`.
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
@@ -1082,8 +1082,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             LFC threshold used to compute posterior DE probabilities.
             If None does not compute them to save memory consumption.
         filter_samples_kwargs
-            Keyword arguments to pass to
-            :meth:``~scvi.external.MRVI.get_outlier_cell_sample_pairs``.
+            Keyword arguments to pass to :meth:`~scvi.external.MRVI.get_outlier_cell_sample_pairs`.
 
         Returns
         -------
@@ -1096,18 +1095,18 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Benjamini-Hochberg procedure.
         * ``"lfc"``: Log fold changes for each covariate across cells and genes, if ``store_lfc``
             is ``True``.
-        - ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
+        * ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
             ``delta`` is not ``None``.
-        - ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
+        * ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
             ``None``.
-        - ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
+        * ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
             genes, if ``store_baseline`` is ``True``.
-        - ``"n_samples"``: Number of admissible samples for each cell, if
+        * ``"n_samples"``: Number of admissible samples for each cell, if
             ``filter_inadmissible_samples`` is ``True``.
         """
         from functools import partial
 
-        from statsmodels.stats.multitest import multipletests
+        from scipy.stats import false_discovery_control
 
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
@@ -1228,7 +1227,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             # Statistical tests
             betas_norm = jnp.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None])
+            pvals = 1 - jnp.nan_to_num(
+                jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0
+            )
 
             betas = betas * eps_std
 
@@ -1363,7 +1364,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         effect_size = np.concatenate(effect_size, axis=0)
         pvalue = np.concatenate(pvalue, axis=0)
         pvalue_shape = pvalue.shape
-        padj = multipletests(pvalue.flatten(), method="fdr_bh")[1].reshape(pvalue_shape)
+        padj = false_discovery_control(pvalue.flatten(), method="bh").reshape(pvalue_shape)
 
         coords = {
             "cell_name": (("cell_name"), adata.obs_names),
