@@ -1,7 +1,7 @@
 # MrVI
 
 **MrVI** [^ref1] (Multi-resolution Variational Inference; Python class
-{class}`~scvi.external.MrVI`) is a deep generative model designed for the analysis of large-scale
+{class}`~scvi.external.MRVI`) is a deep generative model designed for the analysis of large-scale
 single-cell transcriptomics data with multi-sample, multi-batch experimental designs.
 
 The advantages of MrVI are:
@@ -18,7 +18,8 @@ The limitations of MrVI include:
 - Differential expression procedure does not provide single-cell gene-level p-values.
 
 ```{topic} Tutorials:
-- {doc}`/tutorials/notebooks/scrna/mrvi_covid`
+
+-    {doc}`tutorials/notebooks/scrna/MrVI_tutorial`
 ```
 
 ## Preliminaries
