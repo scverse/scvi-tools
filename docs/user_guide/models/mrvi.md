@@ -58,6 +58,14 @@ while $z_n$ augments $u_n$ with sample-specific effects while correcting for nui
 Gene expression is obtained from $z_n$ using multi-head attention mechanisms to
     flexibly model batch and sample effects.
 
+:::{figure} figures/mrvi_graphical_model.svg
+:align: center
+:alt: MrVI graphical model
+:class: img-fluid
+
+MrVI graphical model. Shaded nodes represent observed data, unshaded nodes represent latent variables.
+:::
+
 The latent variables, along with their description are summarized in the following table:
 
 ```{eval-rst}
