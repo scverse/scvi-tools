@@ -66,10 +66,10 @@ The latent variables, along with their description are summarized in the followi
      - Description
      - Code variable (if different)
    * - :math:`u_n \in \mathbb{R}^L`
-  - "sample-unaware" representation of a cell, invariant to both sample and nuisance covariates.
+     - "sample-unaware" representation of a cell, invariant to both sample and nuisance covariates.
      - ``u``
    * - :math:`z_n \in \mathbb{R}^L`
-  - "sample-aware" representation of a cell, invariant to nuisance covariates.
+     - "sample-aware" representation of a cell, invariant to nuisance covariates.
      - ``z``
    * - :math:`h_n \in \mathbb{R}^G`
      - Cell-specific normalized gene expression.
