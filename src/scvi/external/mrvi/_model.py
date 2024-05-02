@@ -75,6 +75,20 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
     qu_kwargs
         Keyword args for :class:`~scvi.external.mrvi._module.EncoderXU`.
+
+    Notes
+    -----
+    See further usage examples in the following tutorial:
+
+    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial`
+
+    See the user guide for this model:
+
+    1. :doc:`/user_guide/models/mrvi`
+
+    See Also
+    --------
+    :class:`~scvi.external.mrvi.MRVAE`
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
