@@ -10,7 +10,7 @@ It can capture nonlinear and cell-type specific variation of sample-level covari
 
 ```{topic} Tutorials:
 
--    {doc}`tutorials/notebooks/scrna/MrVI_tutorial`
+-    {doc}`/tutorials/notebooks/scrna/MrVI_tutorial`
 ```
 
 ## Preliminaries
