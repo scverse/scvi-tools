@@ -33,7 +33,7 @@ Additionally, it requires specification, for each cell $n$:
 - nuisance covariates $b_n$ (e.g. sequencing run, processing day).
 
 Optionally, MrVI can also take as input
-	- Cell-type labels for improved integration across samples, via a guided mixture of Gaussians prior.
+	- Cell-type labels for guided integration across samples, via a mixture of Gaussians prior where each mixture component serves as the mode of a cell type.
 	- Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.
 	  disease status, age, treatment) for comparative analysis.
 
