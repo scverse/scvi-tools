@@ -27,13 +27,15 @@ It can capture nonlinear and cell-type specific variation of sample-level covari
 ## Preliminaries
 
 MrVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes.
-Additionally, it requires specification of:
-Additionally, it requires specification, for each cell $n$ of
-- A sample ID $s_n$ for each cell $n$, denoting which sample the cell originated from,
-- Nuisance covariates $b_n$ for each cell $n$ (e.g. sequencing run, processing day),
-- (Optional) Cell-type labels for improved integration across samples, via a guided mixture of Gaussians prior.
-- (Optional) Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.
-    disease status, age, treatment) for comparative analysis.
+Additionally, it requires specification, for each cell $n$:
+- a sample-level target covariate $s_n$, that typically corresponds to the sample ID,
+	which defines which sample entities will be compared in explorary and comparative analyses.
+- nuisance covariates $b_n$ (e.g. sequencing run, processing day).
+
+Optionally, MrVI can also take as input
+	- Cell-type labels for improved integration across samples, via a guided mixture of Gaussians prior.
+	- Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.
+	  disease status, age, treatment) for comparative analysis.
 
 ## Generative process
 
@@ -51,12 +53,9 @@ MrVI posits a two-level hierarchical model (Figure 1):
 Here $l_n$ is the library size of cell $n$, $r_{ng}$ is the gene-specific inverse dispersion,
 $A_{zh}$ is a linear matrix of dimension $G \times L$, $\gamma_{zh}$ is a bias vector of dimension
 $G$, and $\theta$ are neural network parameters.
-
-The key ideas are:
-
-- $u_n$ captures broad cell states invariant to sample and batch
-- $z_n$ augments $u_n$ with sample-specific effects but is corrected for nuisance covariate effects
-- Gene expression parameters are generated from $z_n$ using multi-head attention mechanisms to
+$u_n$ captures broad cell states invariant to sample and batch,
+while $z_n$ augments $u_n$ with sample-specific effects while correcting for nuisance covariate effects.
+Gene expression is obtained from $z_n$ using multi-head attention mechanisms to
     flexibly model batch and sample effects.
 
 The latent variables, along with their description are summarized in the following table:
@@ -112,13 +111,11 @@ mapping based on multi-head attention between $u_n$ and a learned embedding for 
 ### Exploratory analysis
 
 MrVI enables unsupervised local sample stratification via the construction of cell-specific
-sample-sample distance matrices:
+sample-sample distance matrices, for every cell $n$:
 
-1. For any cell state $u$, compute counterfactual cell states $z^{(s)}$ for each sample $s$
-2. Compute sample-sample distance matrices $D^{(n)}$ based on the Euclidean distance between the
-    $z^{(s)}$ for each cell $n$
-3. Cluster cells based on their $D^{(n)}$ to find cell populations with distinct sample
-    stratifications
+1. For each cell state $u_n$, compute counterfactual cell states $z^{(s)}_n$ for all possible samples $s$.
+2. Compute cell-specific sample-sample distance matrices $D^{(n)}$ based on the Euclidean distance between all pairs of $z^{(s)}_n$.
+3. Cluster cells based on their $D^{(n)}$ to find cell populations with distinct sample stratifications.
 4. Average $D^{(n)}$ within each cell cluster and hierarchically cluster samples
 This automatically reveals distinct sample stratifications that are specific to particular cell
 subsets.
