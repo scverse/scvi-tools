@@ -4,21 +4,10 @@
 {class}`~scvi.external.MRVI`) is a deep generative model designed for the analysis of large-scale
 single-cell transcriptomics data with multi-sample, multi-batch experimental designs.
 
-The advantages of MrVI are:
-
-- Facilitates both exploratory analysis to divide samples into groups based on
-    molecular properties and comparative analysis to compare pre-defined groups of samples.
-- Provides single-cell-resolution differential expression and differential abundance estimates.
-- Captures nonlinear, cell-type specific effects of sample-level covariates on gene expression.
-- Scales to large datasets with millions of cells and hundreds of samples.
-
-The limitations of MrVI include:
-
-- Requires specification of sample-level target (i.e., of biological interest) and nuisance (i.e., introduces undesired variation) covariates.
-- Differential expression procedure does not provide single-cell gene-level p-values.
 MrVI conducts both **exploratory analyses** (locally dividing samples into groups based on molecular properties)
 and **comparative analyses** (comparing pre-defined groups of samples in terms of differential expression and differential abundance) at single-cell resolution.
 It can capture nonlinear and cell-type specific variation of sample-level covariates on gene expression.
+
 ```{topic} Tutorials:
 
 -    {doc}`tutorials/notebooks/scrna/MrVI_tutorial`
@@ -29,7 +18,7 @@ It can capture nonlinear and cell-type specific variation of sample-level covari
 MrVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes.
 Additionally, it requires specification, for each cell $n$:
 - a sample-level target covariate $s_n$, that typically corresponds to the sample ID,
-	which defines which sample entities will be compared in explorary and comparative analyses.
+	which defines which sample entities will be compared in exploratory and comparative analyses.
 - nuisance covariates $b_n$ (e.g. sequencing run, processing day).
 
 Optionally, MrVI can also take as input
@@ -129,25 +118,30 @@ This automatically reveals distinct sample stratifications that are specific to 
 subsets.
 
 ### Comparative analysis
+MrVI also enables supervised comparative analysis to detect cell-type specific DE and DA between sample groups.
 
-MrVI also enables supervised comparative analysis to detect cell-type specific DE and DA between
-sample groups:
+#### Differential expression
+At a high level, the DE procedure regresses, within each cell $n$, counterfactual cell states $z^{(s)}_n$ on sample-level covariates $c_s$ of interest for analysis as
+$z^{(s)}_n = \beta_n c_s + \beta_0 + \epsilon_n$.
+For instance, if $c_s$ is a binary covariate, then $\beta_n$ will capture the shift (in $z$-space) induced by samples for which $c_s = 1$ compared to samples for which $c_s = 0$.
+This procedure, repeated for all cells, allows several downstream analyses.
+First, comparing the norm of $\beta_n$ (using $\chi^2$ statistics) across cells can identify cell-states that vary the most for a given covariate, or conversely, identify sample covariates that strongly associate with specific cell states.
+Second, by decoding the linear approximation of $z^{(s)}_n$ for different covariate vectors that we would like to compare, we can compute associated log fold-changes to identify DE genes at the cell level.
 
-The differential expression procedure at a high level is:
-
-1. For each cell $n$, regress $z^{(s)}_n$ on sample-level covariates $c_s$ to obtain cell-level
-    coefficients $\beta_n$,
-2. Identify significant covariates based on $\chi^2$ statistic of $\beta_n$,
-3. Predict and decode $z^{(s')}_n$ for given covariate vectors and compute log fold-changes to get
-    cell-level DE genes.
-
-The differential abundance procedure at a high level is:
-
-1. Compute aggregated posteriors for each sample $q_s(u)$,
-2. For each sample group, average the densities of the constituent samples to get a
-    covariate-group-specific aggregated posterior,
-3. Compare sample groups by computing the log probability ratios between the
-    covariate-group-specific aggregated posteriors.
+#### Differential abundance
+To compare two sets of samples, MrVI computes the log-ratio between the aggregated posteriors of two groups, $S_1 \subset [[1, s]]$ and $S_2 \subset [[1, s]]$.
+In particular, the aggregated posterior for any sample $s$ is defined as
+$q_s := \frac{1}{|s|} \sum_{n, s_n=s} q^{u}_{n}$,
+where $q_n$ is the posterior of cell $n$ in $u$-space.
+This aggregated posterior $q_s$ characterizes the distribution of all cells in sample $s$.
+To characterize the distribution of cells in a group of samples $S$, we can consider the mixture of aggregated posteriors $q_s$ for all $s \in S$, corresponding to
+$q_S := \frac{1}{|S|} \sum_{s \in S} q_s$.
+In particular, cell states $u$ that are abundant in a sample group $S$ will have a high probability mass in $q_S$, while rare states will have low probability mass.
+More generally, we can consider the log-ratio of aggregated posteriors between two groups of samples $S_1$ and $S_2$ as a measure of differential abundance:
+$r = \log \frac{q_{S_1}}{q_{S_2}}$.
+We can evaluate these log-ratios for all cell states $u$ to identify DA cell-state regions.
+In particular, large positive (resp. negative) values of $r$ indicate that cell states are more abundant in $S_1$ (resp. $S_2$).
 
 [^ref1]:
-    TODO: Add reference here
+    TBA
+

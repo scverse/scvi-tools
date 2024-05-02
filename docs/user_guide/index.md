@@ -43,8 +43,8 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - scVI tasks with contrastive analysis
      - :cite:p:`Weinberger23`
    * - :doc:`/user_guide/models/mrvi`
-     - TODO tasks summary
-     - TODO citation
+     - Characterization of sample-level heterogeneity
+     - TBA
 
 ```
 
