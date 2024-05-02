@@ -44,7 +44,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth`~scvi.external.MRVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.MRVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space for ``z``.
     n_latent_u
@@ -70,11 +70,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     scale_observations
         Whether to scale loss by the number of observations per sample.
     px_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module._DecoderZXAttention`.
+        Keyword args for :class:`~scvi.external.mrvi._module.DecoderZXAttention`.
     qz_kwargs
         Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
     qu_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module._EncoderXU`.
+        Keyword args for :class:`~scvi.external.mrvi._module.EncoderXU`.
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
@@ -85,7 +85,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         n_sample = self.summary_stats.n_sample
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
-        n_continuous_cov = self.summary_stats.get("n_extra_continuous_covs", 0)
 
         obs_df = adata.obs.copy()
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
@@ -106,7 +105,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             n_sample=n_sample,
             n_batch=n_batch,
             n_labels=n_labels,
-            n_continuous_cov=n_continuous_cov,
             n_obs_per_sample=self.n_obs_per_sample,
             **model_kwargs,
         )
@@ -148,7 +146,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_key: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
-        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -160,7 +157,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         %(param_sample_key)s
         %(param_batch_key)s
         %(param_labels_key)s
-        %(param_cont_cov_keys)s
         **kwargs
             Additional keyword arguments passed into
             :meth:`~scvi.data.AnnDataManager.register_fields`.
@@ -175,7 +171,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             fields.CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
             fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            fields.NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             fields.NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
         ]
 
@@ -487,7 +482,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 outputs = r.fn(inputs)
 
                 if r.group_by is not None:
-                    group_by = self.adata.obs[r.group_by][indices]
+                    group_by = self.adata.obs[r.group_by].iloc[indices]
                     group_by_cats = group_by.unique()
                     for cat in group_by_cats:
                         cat_summed_outputs = outputs.sel(
@@ -1087,8 +1082,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             LFC threshold used to compute posterior DE probabilities.
             If None does not compute them to save memory consumption.
         filter_samples_kwargs
-            Keyword arguments to pass to
-            :meth:``~scvi.external.MRVI.get_outlier_cell_sample_pairs``.
+            Keyword arguments to pass to :meth:`~scvi.external.MRVI.get_outlier_cell_sample_pairs`.
 
         Returns
         -------
@@ -1101,18 +1095,18 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Benjamini-Hochberg procedure.
         * ``"lfc"``: Log fold changes for each covariate across cells and genes, if ``store_lfc``
             is ``True``.
-        - ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
+        * ``"lfc_std"``: Standard deviation of log fold changes, if ``store_lfc`` is ``True`` and
             ``delta`` is not ``None``.
-        - ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
+        * ``"pde"``: Posterior DE probabilities, if ``store_lfc`` is ``True`` and ``delta`` is not
             ``None``.
-        - ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
+        * ``"baseline_expression"``: Baseline expression levels for each covariate across cells and
             genes, if ``store_baseline`` is ``True``.
-        - ``"n_samples"``: Number of admissible samples for each cell, if
+        * ``"n_samples"``: Number of admissible samples for each cell, if
             ``filter_inadmissible_samples`` is ``True``.
         """
         from functools import partial
 
-        from statsmodels.stats.multitest import multipletests
+        from scipy.stats import false_discovery_control
 
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
@@ -1183,7 +1177,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             stacked_rngs: dict[str, jax.random.KeyArray],
             x: jax.typing.ArrayLike,
             sample_index: jax.typing.ArrayLike,
-            continuous_covs: jax.typing.ArrayLike,
             cf_sample: jax.typing.ArrayLike,
             Amat: jax.typing.ArrayLike,
             prefactor: jax.typing.ArrayLike,
@@ -1234,7 +1227,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             # Statistical tests
             betas_norm = jnp.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None])
+            pvals = 1 - jnp.nan_to_num(
+                jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0
+            )
 
             betas = betas * eps_std
 
@@ -1258,7 +1253,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                         sample_index=sample_index,
                         batch_index=batch_index_cf,
                         cf_sample=None,
-                        continuous_covs=continuous_covs,
                         mc_samples=None,  # mc_samples also taken for eps. vmap over mc_samples
                     )
 
@@ -1330,9 +1324,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             inf_inputs = self.module._get_inference_input(
                 array_dict,
             )
-            continuous_covs = inf_inputs.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
-            if continuous_covs is not None:
-                continuous_covs = jnp.array(continuous_covs)
             stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
 
             rngs_de = self.module.rngs if store_lfc else None
@@ -1350,7 +1341,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 stacked_rngs=stacked_rngs,
                 x=jnp.array(inf_inputs["x"]),
                 sample_index=jnp.array(inf_inputs["sample_index"]),
-                continuous_covs=continuous_covs,
                 cf_sample=jnp.array(cf_sample),
                 Amat=Amat,
                 prefactor=prefactor,
@@ -1374,7 +1364,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         effect_size = np.concatenate(effect_size, axis=0)
         pvalue = np.concatenate(pvalue, axis=0)
         pvalue_shape = pvalue.shape
-        padj = multipletests(pvalue.flatten(), method="fdr_bh")[1].reshape(pvalue_shape)
+        padj = false_discovery_control(pvalue.flatten(), method="bh").reshape(pvalue_shape)
 
         coords = {
             "cell_name": (("cell_name"), adata.obs_names),
