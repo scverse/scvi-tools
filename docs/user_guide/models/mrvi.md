@@ -6,7 +6,7 @@ single-cell transcriptomics data with multi-sample, multi-batch experimental des
 
 The advantages of MrVI are:
 
-- Facilitates both exploratory analysis to divide samples into groups based on cellular and
+- Facilitates both exploratory analysis to divide samples into groups based on
     molecular properties and comparative analysis to compare pre-defined groups of samples.
 - Provides single-cell-resolution differential expression and differential abundance estimates.
 - Captures nonlinear, cell-type specific effects of sample-level covariates on gene expression.
@@ -14,7 +14,7 @@ The advantages of MrVI are:
 
 The limitations of MrVI include:
 
-- Requires specification of which sample-level covariates are of interest vs nuisance factors.
+- Requires specification of sample-level target (i.e., of biological interest) and nuisance (i.e., introduces undesired variation) covariates.
 - Differential expression procedure does not provide single-cell gene-level p-values.
 
 ```{topic} Tutorials:
@@ -29,8 +29,9 @@ Additionally, it requires specification of:
 
 - A sample ID $s_n$ for each cell $n$, denoting which sample the cell originated from,
 - Nuisance covariates $b_n$ for each cell $n$ (e.g. sequencing run, processing day),
+- (Optional) Cell-type labels for improved integration across samples, via a guided mixture of Gaussians prior.
 - (Optional) Additional sample-level covariates of interest $c_s$ for each sample $s$ (e.g.
-    disease status, age, treatment).
+    disease status, age, treatment) for comparative analysis.
 
 ## Generative process
 
