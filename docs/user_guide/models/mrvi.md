@@ -26,7 +26,7 @@ The limitations of MrVI include:
 
 MrVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes.
 Additionally, it requires specification of:
-
+Additionally, it requires specification, for each cell $n$ of
 - A sample ID $s_n$ for each cell $n$, denoting which sample the cell originated from,
 - Nuisance covariates $b_n$ for each cell $n$ (e.g. sequencing run, processing day),
 - (Optional) Cell-type labels for improved integration across samples, via a guided mixture of Gaussians prior.
