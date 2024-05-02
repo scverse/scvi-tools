@@ -129,18 +129,18 @@ First, comparing the norm of $\beta_n$ (using $\chi^2$ statistics) across cells 
 Second, by decoding the linear approximation of $z^{(s)}_n$ for different covariate vectors that we would like to compare, we can compute associated log fold-changes to identify DE genes at the cell level.
 
 #### Differential abundance
-To compare two sets of samples, MrVI computes the log-ratio between the aggregated posteriors of two groups, $S_1 \subset [[1, s]]$ and $S_2 \subset [[1, s]]$.
+To compare two sets of samples, MrVI computes the log-ratio between the aggregated posteriors of the two groups, $A_1 \subset [[1, S]]$ and $A_2 \subset [[1, S]]$, where $S$ is the total number of samples.
 In particular, the aggregated posterior for any sample $s$ is defined as
 $q_s := \frac{1}{|s|} \sum_{n, s_n=s} q^{u}_{n}$,
 where $q_n$ is the posterior of cell $n$ in $u$-space.
 This aggregated posterior $q_s$ characterizes the distribution of all cells in sample $s$.
-To characterize the distribution of cells in a group of samples $S$, we can consider the mixture of aggregated posteriors $q_s$ for all $s \in S$, corresponding to
-$q_S := \frac{1}{|S|} \sum_{s \in S} q_s$.
-In particular, cell states $u$ that are abundant in a sample group $S$ will have a high probability mass in $q_S$, while rare states will have low probability mass.
-More generally, we can consider the log-ratio of aggregated posteriors between two groups of samples $S_1$ and $S_2$ as a measure of differential abundance:
-$r = \log \frac{q_{S_1}}{q_{S_2}}$.
+To characterize the distribution of cells in a group of samples $A$, we can consider the mixture of aggregated posteriors $q_s$ for all $s \in A$, corresponding to
+$q_A := \frac{1}{|A|} \sum_{s \in A} q_s$.
+In particular, cell states $u$ that are abundant in a sample group $A$ will have a high probability mass in $q_A$, while rare states will have low probability mass.
+More generally, we can consider the log-ratio of aggregated posteriors between two groups of samples $A_1$ and $A_2$ as a measure of differential abundance:
+$r = \log \frac{q_{A_1}}{q_{A_2}}$.
 We can evaluate these log-ratios for all cell states $u$ to identify DA cell-state regions.
-In particular, large positive (resp. negative) values of $r$ indicate that cell states are more abundant in $S_1$ (resp. $S_2$).
+In particular, large positive (resp. negative) values of $r$ indicate that cell states are more abundant in $A_1$ (resp. $A_2$).
 
 [^ref1]:
     TBA
