@@ -16,7 +16,9 @@ The limitations of MrVI include:
 
 - Requires specification of sample-level target (i.e., of biological interest) and nuisance (i.e., introduces undesired variation) covariates.
 - Differential expression procedure does not provide single-cell gene-level p-values.
-
+MrVI conducts both **exploratory analyses** (locally dividing samples into groups based on molecular properties)
+and **comparative analyses** (comparing pre-defined groups of samples in terms of differential expression and differential abundance) at single-cell resolution.
+It can capture nonlinear and cell-type specific variation of sample-level covariates on gene expression.
 ```{topic} Tutorials:
 
 -    {doc}`tutorials/notebooks/scrna/MrVI_tutorial`
