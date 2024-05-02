@@ -144,4 +144,3 @@ In particular, large positive (resp. negative) values of $r$ indicate that cell 
 
 [^ref1]:
     TBA
-
