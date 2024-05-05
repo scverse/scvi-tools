@@ -511,7 +511,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
         elif self.gene_likelihood == "poisson":
             px = Poisson(px_rate, scale=px_scale)
-        elif self.gene_likelihood == 'normal':
+        elif self.gene_likelihood == "normal":
             px = Normal(px_rate, torch.exp(px_scale))
 
         # Priors
@@ -523,8 +523,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 local_library_log_vars,
             ) = self._compute_local_library_params(batch_index)
             pl = Normal(local_library_log_means, local_library_log_vars.sqrt())
-            
-        if self.gene_likelihood == 'normal':
+
+        if self.gene_likelihood == "normal":
             pl = None
         pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 
