@@ -563,6 +563,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         overwrite: bool = False,
         save_anndata: bool = False,
         save_kwargs: dict | None = None,
+        legacy_mudata_format: bool = False,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -584,9 +585,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             If True, also saves the anndata
         save_kwargs
             Keyword arguments passed into :func:`~torch.save`.
+        legacy_mudata_format
+            If ``True``, saves the model ``var_names`` in the legacy format if the model was
+            trained with a :class:`~mudata.MuData` object. The legacy format is a flat array with
+            variable names across all modalities concatenated, while the new format is a dictionary
+            with keys corresponding to the modality names and values corresponding to the variable
+            names for each modality.
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
+        from scvi.model.base._save_load import _get_var_names
+
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -613,8 +622,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
+        var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()

@@ -29,7 +29,7 @@ up a local development environment:
     ```bash
     pip install -e ".[dev]"
     # or with uv
-    uv pip install "scvi-tools[dev] @ ."
+    uv pip install -e ".[dev]"
     ```
 
     Don't know how to set up a virtual environment? Check out our [installation] guide!

@@ -1,57 +1,87 @@
-"""File for computing log likelihood of the data."""
+from __future__ import annotations
 
-import torch
+from collections.abc import Iterator
+from typing import Any, Callable
+
+from torch import Tensor
+
+from scvi.module.base import LossOutput
 
 
-def compute_elbo(vae, data_loader, **kwargs):
-    """Computes the ELBO.
+def compute_elbo(
+    module: Callable[[dict[str, Tensor | None], dict], tuple[Any, Any, LossOutput]],
+    dataloader: Iterator[dict[str, Tensor | None]],
+    **kwargs,
+) -> float:
+    """Compute the evidence lower bound (ELBO) on the data.
 
-    The ELBO is the reconstruction error + the KL divergences
-    between the variational distributions and the priors.
-    It differs from the marginal log likelihood.
-    Specifically, it is a lower bound on the marginal log likelihood
-    plus a term that is constant with respect to the variational distribution.
-    It still gives good insights on the modeling of the data, and is fast to compute.
+    The ELBO is the reconstruction error plus the Kullback-Leibler (KL) divergences between the
+    variational distributions and the priors. It is different from the marginal log-likelihood;
+    specifically, it is a lower bound on the marginal log-likelihood plus a term that is constant
+    with respect to the variational distribution. It still gives good insights on the modeling of
+    the data and is fast to compute.
+
+    Parameters
+    ----------
+    module
+        A callable (can be a :class:`~torch.nn.Module` instance) that takes a dictionary of
+        :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
+        element is an instance of :class:`~scvi.module.base.LossOutput`.
+    dataloader
+        An iterator over minibatches of data on which to compute the metric. The minibatches
+        should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+        the ``forward`` method of ``module``.
+    **kwargs
+        Additional keyword arguments to pass into ``module``.
+
+    Returns
+    -------
+    The evidence lower bound (ELBO) of the data.
     """
-    # Iterate once over the data and compute the elbo
-    elbo = 0
-    for tensors in data_loader:
-        _, _, scvi_loss = vae(tensors, **kwargs)
+    elbo = 0.0
+    for tensors in dataloader:
+        _, _, loss_output = module(tensors, **kwargs)
+        elbo += (loss_output.reconstruction_loss_sum + loss_output.kl_local_sum).item()
 
-        recon_loss = scvi_loss.reconstruction_loss_sum
-        kl_local = scvi_loss.kl_local_sum
-        elbo += (recon_loss + kl_local).item()
-
-    kl_global = scvi_loss.kl_global_sum
-    n_samples = len(data_loader.indices)
-    elbo += kl_global
-    return elbo / n_samples
+    return (elbo + loss_output.kl_global_sum) / len(dataloader.dataset)
 
 
-# do each one
-def compute_reconstruction_error(vae, data_loader, **kwargs):
-    """Computes log p(x/z), which is the reconstruction error.
+def compute_reconstruction_error(
+    module: Callable[[dict[str, Tensor | None], dict], tuple[Any, Any, LossOutput]],
+    dataloader: Iterator[dict[str, Tensor | None]],
+    **kwargs,
+) -> dict[str, float]:
+    """Compute the reconstruction error on the data.
 
-    Differs from the marginal log likelihood, but still gives good
-    insights on the modeling of the data, and is fast to compute.
+    The reconstruction error is the negative log likelihood of the data given the latent
+    variables. It is different from the marginal log-likelihood, but still gives good insights on
+    the modeling of the data and is fast to compute.
+
+    Parameters
+    ----------
+    module
+        A callable (can be a :class:`~torch.nn.Module` instance) that takes a dictionary of
+        :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
+        element is an instance of :class:`~scvi.module.base.LossOutput`.
+    dataloader
+        An iterator over minibatches of data on which to compute the metric. The minibatches
+        should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+        the ``forward`` method of ``module``.
+    **kwargs
+        Additional keyword arguments to pass into ``module``.
+
+    Returns
+    -------
+    A dictionary of the reconstruction error of the data.
     """
-    # Iterate once over the data and computes the reconstruction error
-    log_lkl = {}
-    for tensors in data_loader:
-        loss_kwargs = {"kl_weight": 1}
-        _, _, losses = vae(tensors, loss_kwargs=loss_kwargs)
-        if not isinstance(losses.reconstruction_loss, dict):
-            rec_loss_dict = {"reconstruction_loss": losses.reconstruction_loss}
-        else:
-            rec_loss_dict = losses.reconstruction_loss
-        for key, value in rec_loss_dict.items():
-            if key in log_lkl:
-                log_lkl[key] += torch.sum(value).item()
-            else:
-                log_lkl[key] = torch.sum(value).item()
+    log_likelihoods = {}
+    for tensors in dataloader:
+        _, _, loss_output = module(tensors, loss_kwargs={"kl_weight": 1}, **kwargs)
+        rec_losses: dict[str, Tensor] | Tensor = loss_output.reconstruction_loss
+        if not isinstance(rec_losses, dict):
+            rec_losses = {"reconstruction_loss": rec_losses}
 
-    n_samples = len(data_loader.indices)
-    for key, _ in log_lkl.items():
-        log_lkl[key] = log_lkl[key] / n_samples
-        log_lkl[key] = -log_lkl[key]
-    return log_lkl
+        for key, value in rec_losses.items():
+            log_likelihoods[key] = log_likelihoods.get(key, 0.0) + value.sum().item()
+
+    return {key: -(value / len(dataloader.dataset)) for key, value in log_likelihoods.items()}

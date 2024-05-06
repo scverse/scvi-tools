@@ -34,6 +34,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
     distribution with mean-dispersion parameterization for modeling scBS-seq methylation data
     {pr}`2692`.
+- Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
+    the `dataloader` argument {pr}`2748`.
 
 #### Changed
 
@@ -63,6 +65,13 @@ to [Semantic Versioning]. Full commit history is available in the
     {func}`scvi.model.base._de_core_._fdr_de_prediction` {pr}`2731`.
 - {func}`scvi.data.synthetic_iid` now generates unique variable names for protein and
     accessibility data {pr}`2739`.
+- The `data_module` argument in {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` has been
+    renamed to `datamodule` for consistency {pr}`2749`.
+- Change the default saving method of variable names for {class}`mudata.MuData` based models
+    (_e.g._ {class}`scvi.model.TOTALVI`) to a dictionary of per-mod variable names instead of a
+    concatenated array of all variable names. Users may replicate the previous behavior by
+    passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
+    {pr}`2769`.
 
 #### Removed
 

@@ -666,3 +666,38 @@ def test_totalvi_online_update(save_path):
     model3 = TOTALVI.load_query_data(adata2, model)
     model3.train(max_epochs=1)
     model3.get_latent_representation()
+
+
+def test_totalvi_save_load_mudata_format(save_path: str):
+    mdata = synthetic_iid(return_mudata=True, protein_expression_key="protein")
+    invalid_mdata = mdata.copy()
+    invalid_mdata.mod["protein"] = invalid_mdata.mod["protein"][:, :10].copy()
+    TOTALVI.setup_mudata(
+        mdata,
+        modalities={"rna_layer": "rna", "protein_layer": "protein"},
+    )
+    model = TOTALVI(mdata)
+    model.train(max_epochs=1)
+
+    legacy_model_path = os.path.join(save_path, "legacy_model")
+    model.save(
+        legacy_model_path,
+        overwrite=True,
+        save_anndata=False,
+        legacy_mudata_format=True,
+    )
+
+    with pytest.raises(ValueError):
+        _ = TOTALVI.load(legacy_model_path, adata=invalid_mdata)
+    model = TOTALVI.load(legacy_model_path, adata=mdata)
+
+    model_path = os.path.join(save_path, "model")
+    model.save(
+        model_path,
+        overwrite=True,
+        save_anndata=False,
+        legacy_mudata_format=False,
+    )
+    with pytest.raises(ValueError):
+        _ = TOTALVI.load(legacy_model_path, adata=invalid_mdata)
+    model = TOTALVI.load(model_path, adata=mdata)
