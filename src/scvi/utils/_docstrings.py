@@ -185,6 +185,7 @@ setup_anndata_dsp = DocstringProcessor(
     param_mdata=param_mdata,
     param_adata=param_adata,
     param_batch_key=param_batch_key,
+    param_sample_key=param_sample_key,
     param_labels_key=param_labels_key,
     param_layer=param_layer,
     param_cat_cov_keys=param_cat_cov_keys,
