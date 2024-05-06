@@ -667,6 +667,26 @@ def test_totalvi_online_update(save_path):
     model3.train(max_epochs=1)
     model3.get_latent_representation()
 
+    # mudata model
+    mdata1 = synthetic_iid(return_mudata=True)
+    TOTALVI.setup_mudata(
+        mdata1,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+
+    model4 = TOTALVI(mdata1, n_latent=n_latent, use_batch_norm="decoder")
+    model4.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model4.save(dir_path, overwrite=True)
+
+    mdata2 = synthetic_iid(return_mudata=True)
+    mdata2.obs["batch"] = mdata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    model5 = TOTALVI.load_query_data(mdata2, dir_path)
+    assert model5.module.background_pro_alpha.requires_grad is True
+    model5.train(max_epochs=1)
+    model5.get_latent_representation()
+
 
 def test_totalvi_save_load_mudata_format(save_path: str):
     mdata = synthetic_iid(return_mudata=True, protein_expression_key="protein")
