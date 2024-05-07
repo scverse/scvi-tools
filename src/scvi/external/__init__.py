@@ -1,6 +1,7 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .gimvi import GIMVI
+from .poissonmultivi import POISSONMULTIVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
 from .scbasset import SCBASSET
@@ -19,6 +20,7 @@ __all__ = [
     "Tangram",
     "SCBASSET",
     "POISSONVI",
+    "POISSONMULTIVI",
     "ContrastiveVI",
     "VELOVI",
 ]
