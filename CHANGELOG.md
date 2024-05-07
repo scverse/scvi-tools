@@ -37,7 +37,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
     the `dataloader` argument {pr}`2748`.
 - Add option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
-    passing in `gene_likelihood="normal"` {pr}`xxxx`.
+    passing in `gene_likelihood="normal"` {pr}`2780`.
 
 #### Changed
 
