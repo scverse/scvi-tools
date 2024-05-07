@@ -6,6 +6,12 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.2 (unreleased)
 
+### 1.2.1 (unreleased)
+
+#### Added
+
+- Add normal distribution for the outputs of generative model.
+
 ### 1.2.0 (unreleased)
 
 #### Added
