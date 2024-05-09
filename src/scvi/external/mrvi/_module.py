@@ -297,7 +297,7 @@ class MRVAE(JaxBaseModuleClass):
     n_labels
         Number of labels.
     n_latent
-        Number of latent variables.
+        Number of latent variables for ``z``.
     n_latent_u
         Number of latent variables for ``u``.
     encoder_n_hidden
