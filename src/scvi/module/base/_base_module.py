@@ -582,7 +582,10 @@ class JaxBaseModuleClass(flax.linen.Module):
 
     @property
     def device(self):
-        return self.seed_rng.device()
+        devices = self.seed_rng.devices()
+        if len(devices) > 1:
+            raise RuntimeError("Module rng on multiple devices.")
+        return next(iter(devices))
 
     def train(self):
         """Switch to train mode. Emulates Pytorch's interface."""
