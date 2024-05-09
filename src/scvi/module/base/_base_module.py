@@ -41,6 +41,8 @@ class LossOutput:
     loss
         Tensor with loss for minibatch. Should be one dimensional with one value.
         Note that loss should be in an array/tensor and not a float.
+    mmd
+        Tensor with the MMD loss for minibatch. Should be one dimensional with one value.
     reconstruction_loss
         Reconstruction loss for each observation in the minibatch. If a tensor, converted to
         a dictionary with key "reconstruction_loss" and value as tensor.
@@ -75,6 +77,7 @@ class LossOutput:
     """
 
     loss: LossRecord
+    mmd: LossRecord | None = None
     reconstruction_loss: LossRecord | None = None
     kl_local: LossRecord | None = None
     kl_global: LossRecord | None = None

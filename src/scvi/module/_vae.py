@@ -21,6 +21,95 @@ from scvi.module.base import (
 logger = logging.getLogger(__name__)
 
 
+def compute_kernel(x, y):
+    """
+    Function that computes the kernel value for 2 vectors
+
+    :param x: a sample of Z (torch.Tensor)
+    :param y: a sample of Z (torch.Tensor)
+    :return: kernel calcualtion in torch tensor
+    """
+    x_size = x.size(0)
+    y_size = y.size(0)
+    dim = x.size(1)
+    x = x.unsqueeze(1)  # (x_size, 1, dim)
+    y = y.unsqueeze(0)  # (1, y_size, dim)
+    tiled_x = x.expand(x_size, y_size, dim)
+    tiled_y = y.expand(x_size, y_size, dim)
+    kernel_input = (tiled_x - tiled_y).pow(2).mean(2) / float(dim)
+    gamma = 1  # const here
+    return torch.exp(-gamma * kernel_input)  # (x_size, y_size)
+
+
+def _compute_mmd(z1: torch.Tensor, z2: torch.Tensor):
+    """
+    Function that computes the normal MMD score
+
+    :param z1: a sample of Z (torch.Tensor)
+    :param z2: a sample of Z (torch.Tensor)
+    :return: full MMD
+    """
+    z1_kernel = compute_kernel(z1, z1)
+    z2_kernel = compute_kernel(z2, z2)
+    z1z2_kernel = compute_kernel(z1, z2)
+    mmd = z1_kernel.mean() + z2_kernel.mean() - 2 * z1z2_kernel.mean()
+    return mmd
+
+
+def _compute_fast_mmd(z1: torch.Tensor, z2: torch.Tensor):
+    """
+    Function that computes the fast MMD score
+
+    :param z1: a sample of Z (torch.Tensor)
+    :param z2: a sample of Z (torch.Tensor)
+    :return: fast approximate MMD
+    """
+    # first make the 2 tensor in the same size
+    # (the smallest of the 2, if odd remove 1).
+    # we use first M samples
+    x_size = z1.size(0)
+    y_size = z2.size(0)
+    max_size = min(x_size, y_size)
+    max_size = max_size if max_size % 2 == 0 else max_size - 1
+    z1 = z1[0:max_size]
+    z2 = z2[0:max_size]
+    # now select their odd and even parts each
+    z1_odd = z1[0::2]
+    z1_even = z1[1::2]
+    z2_odd = z2[0::2]
+    z2_even = z2[1::2]
+    # use those to compute the kernels, faster
+    z1_kernel = compute_kernel(z1_odd, z1_even)
+    z2_kernel = compute_kernel(z2_odd, z2_even)
+    z1z2_1_kernel = compute_kernel(z1_odd, z2_even)
+    z1z2_2_kernel = compute_kernel(z1_even, z2_odd)
+    fast_mmd = z1_kernel.mean() + z2_kernel.mean() - z1z2_1_kernel.mean() - z1z2_2_kernel.mean()
+    return fast_mmd
+
+
+def _compute_mmd_loss(
+    z: torch.Tensor, batch_indices: torch.Tensor, mode: Literal["normal", "fast"]
+) -> torch.Tensor:
+    """
+    Function that computes the MMD Loss based on mode
+
+    :param z: stacked vectors of z's from different batches each
+    :param batch_indices: vector of corresponding batches id per each z
+    :param mode: argument that determines if it will use the fast or normal MMD computation
+    :return: torch.Tensor of the MMD loss with one value inside
+    """
+    mmd_loss = 0
+    batches = torch.unique(batch_indices)
+    for batch_0, batch_1 in zip(batches, batches[1:]):
+        z_0 = z[(batch_indices == batch_0).reshape(-1)]
+        z_1 = z[(batch_indices == batch_1).reshape(-1)]
+        if mode == "normal":
+            mmd_loss += _compute_mmd(z_0, z_1)
+        elif mode == "fast":
+            mmd_loss += _compute_fast_mmd(z_0, z_1)
+    return mmd_loss
+
+
 class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     """Variational auto-encoder :cite:p:`Lopez18`.
 
@@ -130,6 +219,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     batch_embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is
         set to ``"embedding"``.
+    mmd_mode
+        argument that determines if it will use the fast or normal MMD computation.
+        passed to _compute_mmd_loss
+    beta
+        a hyperparameter empirically chosen to balance the potential overmixing of cells
+        due to the MMD
 
     Notes
     -----
@@ -164,6 +259,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
+        mmd_mode: Literal["normal", "fast"] = "fast",
+        beta: int = 0,
     ):
         from scvi.nn import DecoderSCVI, Encoder
 
@@ -179,6 +276,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        self.mmd_mode = mmd_mode
+        self.beta = beta
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
@@ -559,8 +658,18 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
+        # Add out extention for the MMD loss
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        if self.beta != 0:
+            # this is the original version
+            mmd_loss = _compute_mmd_loss(x, batch_index, self.mmd_mode)
+        else:
+            mmd_loss = None
+        loss = loss + self.beta * mmd_loss
+
         return LossOutput(
             loss=loss,
+            mmd=mmd_loss,
             reconstruction_loss=reconst_loss,
             kl_local={
                 MODULE_KEYS.KL_L_KEY: kl_divergence_l,
