@@ -71,19 +71,24 @@ def _compute_fast_mmd(z1: torch.Tensor, z2: torch.Tensor):
     y_size = z2.size(0)
     max_size = min(x_size, y_size)
     max_size = max_size if max_size % 2 == 0 else max_size - 1
-    z1 = z1[0:max_size]
-    z2 = z2[0:max_size]
-    # now select their odd and even parts each
-    z1_odd = z1[0::2]
-    z1_even = z1[1::2]
-    z2_odd = z2[0::2]
-    z2_even = z2[1::2]
-    # use those to compute the kernels, faster
-    z1_kernel = compute_kernel(z1_odd, z1_even)
-    z2_kernel = compute_kernel(z2_odd, z2_even)
-    z1z2_1_kernel = compute_kernel(z1_odd, z2_even)
-    z1z2_2_kernel = compute_kernel(z1_even, z2_odd)
-    fast_mmd = z1_kernel.mean() + z2_kernel.mean() - z1z2_1_kernel.mean() - z1z2_2_kernel.mean()
+    if max_size > 1:
+        z1 = z1[0:max_size]
+        z2 = z2[0:max_size]
+        # now select their odd and even parts each
+        z1_odd = z1[0::2]
+        z1_even = z1[1::2]
+        z2_odd = z2[0::2]
+        z2_even = z2[1::2]
+        # use those to compute the kernels, faster
+        z1_kernel = compute_kernel(z1_odd, z1_even)
+        z2_kernel = compute_kernel(z2_odd, z2_even)
+        z1z2_1_kernel = compute_kernel(z1_odd, z2_even)
+        z1z2_2_kernel = compute_kernel(z1_even, z2_odd)
+        fast_mmd = (
+            z1_kernel.mean() + z2_kernel.mean() - z1z2_1_kernel.mean() - z1z2_2_kernel.mean()
+        )
+    else:
+        fast_mmd = 0
     return fast_mmd
 
 
@@ -662,7 +667,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         if self.beta != 0:
             # this is the original version
-            mmd_loss = _compute_mmd_loss(x, batch_index, self.mmd_mode)
+            mmd_loss = _compute_mmd_loss(inference_outputs["z"], batch_index, self.mmd_mode)
             loss = loss + self.beta * mmd_loss
         else:
             mmd_loss = None
