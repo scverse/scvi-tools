@@ -663,9 +663,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.beta != 0:
             # this is the original version
             mmd_loss = _compute_mmd_loss(x, batch_index, self.mmd_mode)
+            loss = loss + self.beta * mmd_loss
         else:
             mmd_loss = None
-        loss = loss + self.beta * mmd_loss
 
         return LossOutput(
             loss=loss,
