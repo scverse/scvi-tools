@@ -670,10 +670,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         # Add out extention for the MMD loss
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         if self.beta != 0:
-            # this is the original version
             mmd_loss = _compute_mmd_loss(inference_outputs["z"], batch_index, self.mmd_mode)
             loss = loss + self.beta * mmd_loss
         else:
+            # this is the original version no change in loss
             mmd_loss = None
 
         return LossOutput(

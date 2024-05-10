@@ -379,6 +379,226 @@ def test_scvi(n_latent: int = 5):
     assert "lr-Adam" in m.history.keys()
 
 
+def test_scvi_mmd(n_latent: int = 5, beta=0.1, mmd_mode="fast"):
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        size_factor_key="size_factor",
+    )
+    model = SCVI(adata, n_latent=n_latent, beta=beta, mmd_mode=mmd_mode)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # test mde
+    mde(model.get_latent_representation())
+
+    # Test with observed lib size.
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, n_latent=n_latent, beta=beta, mmd_mode=mmd_mode)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # Test without observed lib size.
+    model = SCVI(
+        adata,
+        n_latent=n_latent,
+        var_activation=Softplus(),
+        use_observed_lib_size=False,
+        beta=beta,
+        mmd_mode=mmd_mode,
+    )
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # tests __repr__
+    print(model)
+    # test view_anndata_setup
+    model.view_anndata_setup()
+    model.view_anndata_setup(hide_state_registries=True)
+
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], n_latent)
+    assert len(model.history["elbo_train"]) == 2
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
+
+    adata2 = synthetic_iid()
+    # test view_anndata_setup with different anndata before transfer setup
+    with pytest.raises(ValueError):
+        model.view_anndata_setup(adata=adata2)
+        model.view_anndata_setup(adata=adata2, hide_state_registries=True)
+    # test get methods with different anndata
+    model.get_elbo(adata2)
+    model.get_marginal_ll(adata2, n_mc_samples=3)
+    model.get_reconstruction_error(adata2)
+    latent = model.get_latent_representation(adata2, indices=[1, 2, 3])
+    assert latent.shape == (3, n_latent)
+    denoised = model.get_normalized_expression(adata2)
+    assert denoised.shape == adata.shape
+    # test view_anndata_setup with different anndata after transfer setup
+    model.view_anndata_setup(adata=adata2)
+    model.view_anndata_setup(adata=adata2, hide_state_registries=True)
+
+    denoised = model.get_normalized_expression(
+        adata2, indices=[1, 2, 3], transform_batch="batch_1"
+    )
+    denoised = model.get_normalized_expression(
+        adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"]
+    )
+    assert denoised.shape == (3, adata2.n_vars)
+    sample = model.posterior_predictive_sample(adata2)
+    assert sample.shape == adata2.shape
+    sample = model.posterior_predictive_sample(
+        adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
+    assert sample.shape == (3, 2)
+    sample = model.posterior_predictive_sample(
+        adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], n_samples=3
+    )
+    assert sample.shape == (3, 2, 3)
+
+    model.get_feature_correlation_matrix(correlation_type="pearson")
+    model.get_feature_correlation_matrix(
+        adata2,
+        indices=[1, 2, 3],
+        correlation_type="spearman",
+        rna_size_factor=500,
+        n_samples=5,
+    )
+    model.get_feature_correlation_matrix(
+        adata2,
+        indices=[1, 2, 3],
+        correlation_type="spearman",
+        rna_size_factor=500,
+        n_samples=5,
+        transform_batch=["batch_0", "batch_1"],
+    )
+    params = model.get_likelihood_parameters()
+    assert params["mean"].shape == adata.shape
+    assert params["mean"].shape == params["dispersions"].shape == params["dropout"].shape
+    params = model.get_likelihood_parameters(adata2, indices=[1, 2, 3])
+    assert params["mean"].shape == (3, adata.n_vars)
+    params = model.get_likelihood_parameters(
+        adata2, indices=[1, 2, 3], n_samples=3, give_mean=True
+    )
+    assert params["mean"].shape == (3, adata.n_vars)
+    model.get_latent_library_size()
+    model.get_latent_library_size(adata2, indices=[1, 2, 3])
+
+    # test transfer_anndata_setup
+    adata2 = synthetic_iid()
+    model._validate_anndata(adata2)
+    model.get_elbo(adata2)
+
+    # test automatic transfer_anndata_setup on a view
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, beta=beta, mmd_mode=mmd_mode)
+    adata2 = synthetic_iid()
+    model.get_elbo(adata2[:10])
+
+    # test automatic transfer_anndata_setup on a copy
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, beta=beta, mmd_mode=mmd_mode)
+    model.train(1, train_size=0.5)
+    adata2 = adata.copy()
+    model.get_elbo(adata2)
+    assert adata.uns[_constants._SCVI_UUID_KEY] != adata2.uns[_constants._SCVI_UUID_KEY]
+
+    # test mismatched categories raises ValueError
+    adata2 = synthetic_iid()
+    adata2.obs.labels = adata2.obs.labels.cat.rename_categories(["a", "b", "c"])
+    with pytest.raises(ValueError):
+        model.get_elbo(adata2)
+
+    # test differential expression
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
+    model.differential_expression(
+        groupby="labels", group1="label_1", group2="label_2", mode="change"
+    )
+    model.differential_expression(groupby="labels")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2])
+
+    model2 = SCVI(adata, use_observed_lib_size=False, beta=beta, mmd_mode=mmd_mode)
+    model2.train(1)
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+
+    # transform batch works with all different types
+    a = synthetic_iid()
+    batch = np.zeros(a.n_obs)
+    batch[:64] += 1
+    a.obs["batch"] = batch
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
+    m = SCVI(a, beta=beta, mmd_mode=mmd_mode)
+    m.train(1, train_size=0.5)
+    m.get_normalized_expression(transform_batch=1)
+    m.get_normalized_expression(transform_batch=[0, 1])
+
+    # test get_likelihood_parameters() when dispersion=='gene-cell'
+    model = SCVI(adata, dispersion="gene-cell", beta=beta, mmd_mode=mmd_mode)
+    model.get_likelihood_parameters()
+    model.get_likelihood_parameters(indices=np.arange(10))
+    model.get_likelihood_parameters(n_samples=10)
+    model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
+
+    # test get_likelihood_parameters() when gene_likelihood!='zinb'
+    model = SCVI(adata, gene_likelihood="nb", beta=beta, mmd_mode=mmd_mode)
+    model.get_likelihood_parameters()
+
+    # test different gene_likelihoods
+    for gene_likelihood in ["zinb", "nb", "poisson"]:
+        model = SCVI(adata, gene_likelihood=gene_likelihood, beta=beta, mmd_mode=mmd_mode)
+        model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model.posterior_predictive_sample()
+        model.get_latent_representation()
+        model.get_normalized_expression()
+
+    # test train callbacks work
+    a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    m = SCVI(a, beta=beta, mmd_mode=mmd_mode)
+    lr_monitor = LearningRateMonitor()
+    m.train(
+        callbacks=[lr_monitor],
+        max_epochs=10,
+        check_val_every_n_epoch=1,
+        log_every_n_steps=1,
+        plan_kwargs={"reduce_lr_on_plateau": True},
+    )
+    assert "lr-Adam" in m.history.keys()
+
+
 def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
     from scvi.module._constants import MODULE_KEYS
 
