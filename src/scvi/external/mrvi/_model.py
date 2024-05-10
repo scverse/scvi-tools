@@ -39,7 +39,7 @@ DEFAULT_TRAIN_KWARGS = {
 
 
 class MRVI(JaxTrainingMixin, BaseModelClass):
-    """Multi-resolution Variational Inference (MrVI).
+    """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
     ----------
