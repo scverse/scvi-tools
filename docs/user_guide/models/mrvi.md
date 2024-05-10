@@ -143,4 +143,6 @@ We can evaluate these log-ratios for all cell states $u$ to identify DA cell-sta
 In particular, large positive (resp. negative) values of $r$ indicate that cell states are more abundant in $A_1$ (resp. $A_2$).
 
 [^ref1]:
-    TBA
+     Pierre Boyeau, Justin Hong, Adam Gayoso, Martin Kim, Jose L McFaline-Figueroa, Michael Jordan, Elham Azizi, Can Ergen, Nir Yosef (2024),
+    _Deep generative modeling of sample-level heterogeneity in single-cell genomics_,
+    [bioRxiv](https://doi.org/10.1101/2022.10.04.510898).

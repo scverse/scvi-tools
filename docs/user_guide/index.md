@@ -44,7 +44,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`Weinberger23`
    * - :doc:`/user_guide/models/mrvi`
      - Characterization of sample-level heterogeneity
-     - TBA
+     - :cite:p:`Boyeau24`
 
 ```
 
