@@ -36,9 +36,24 @@ def compute_kernel(x, y):
     y = y.unsqueeze(0)  # (1, y_size, dim)
     tiled_x = x.expand(x_size, y_size, dim)
     tiled_y = y.expand(x_size, y_size, dim)
-    kernel_input = (tiled_x - tiled_y).pow(2).mean(2) / float(dim)
+    kernel_input = (tiled_x - tiled_y).pow(2).mean(2) / float(dim)  # a 2D calculation
     gamma = 1  # const here
     return torch.exp(-gamma * kernel_input)  # (x_size, y_size)
+
+
+def compute_fast_kernel(x, y):
+    """
+    Function that computes the kernel value for 2 vectors in fast mode
+
+    :param x: a sample of Z (torch.Tensor)
+    :param y: a sample of Z (torch.Tensor)
+    :return: kernel calcualtion in torch tensor
+    """
+    # we can assume same size here
+    dim = x.size(1)
+    kernel_input = (x - y).pow(2).mean(1) / float(dim)  # this is 1D now
+    gamma = 1  # const here
+    return torch.exp(-gamma * kernel_input)  # (x_size)
 
 
 def _compute_mmd(z1: torch.Tensor, z2: torch.Tensor):
@@ -64,31 +79,12 @@ def _compute_fast_mmd(z1: torch.Tensor, z2: torch.Tensor):
     :param z2: a sample of Z (torch.Tensor)
     :return: fast approximate MMD
     """
-    # first make the 2 tensor in the same size
-    # (the smallest of the 2, if odd remove 1).
-    # we use first M samples
-    x_size = z1.size(0)
-    y_size = z2.size(0)
-    max_size = min(x_size, y_size)
-    max_size = max_size if max_size % 2 == 0 else max_size - 1
-    if max_size > 1:
-        z1 = z1[0:max_size]
-        z2 = z2[0:max_size]
-        # now select their odd and even parts each
-        z1_odd = z1[0::2]
-        z1_even = z1[1::2]
-        z2_odd = z2[0::2]
-        z2_even = z2[1::2]
-        # use those to compute the kernels, faster
-        z1_kernel = compute_kernel(z1_odd, z1_even)
-        z2_kernel = compute_kernel(z2_odd, z2_even)
-        z1z2_1_kernel = compute_kernel(z1_odd, z2_even)
-        z1z2_2_kernel = compute_kernel(z1_even, z2_odd)
-        fast_mmd = (
-            z1_kernel.mean() + z2_kernel.mean() - z1z2_1_kernel.mean() - z1z2_2_kernel.mean()
-        )
-    else:
-        fast_mmd = 0
+    # use the vectors odd and even parts each to compute the kernels, faster
+    z1_kernel = compute_fast_kernel(z1[0::2], z1[1::2])
+    z2_kernel = compute_fast_kernel(z2[0::2], z2[1::2])
+    z1z2_1_kernel = compute_fast_kernel(z1[0::2], z2[1::2])
+    z1z2_2_kernel = compute_fast_kernel(z1[1::2], z2[0::2])
+    fast_mmd = z1_kernel.mean() + z2_kernel.mean() - z1z2_1_kernel.mean() - z1z2_2_kernel.mean()
     return fast_mmd
 
 
@@ -111,7 +107,15 @@ def _compute_mmd_loss(
         if mode == "normal":
             mmd_loss += _compute_mmd(z_0, z_1)
         elif mode == "fast":
-            mmd_loss += _compute_fast_mmd(z_0, z_1)
+            # first make the 2 tensor in the same size
+            # (the smallest of the 2, if odd remove 1).
+            # we use first M samples. Minimum samples is 1
+            x_size = z_0.size(0)
+            y_size = z_1.size(0)
+            max_size = min(x_size, y_size)
+            max_size = max_size if max_size % 2 == 0 else max_size - 1
+            if max_size > 1:
+                mmd_loss += _compute_fast_mmd(z_0[0:max_size], z_1[0:max_size])
     return mmd_loss
 
 
