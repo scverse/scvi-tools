@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any, Callable
 
 import flax.linen as nn
@@ -7,7 +8,7 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
@@ -369,6 +370,14 @@ class MRVAE(JaxBaseModuleClass):
 
         is_isomorphic_uz = self.n_latent == self.n_latent_u
         n_latent_u = None if is_isomorphic_uz else self.n_latent_u
+
+        if self.n_latent < self.n_latent_u:
+            warnings.warn(
+                "The number of latent variables for `z` is set to less than the number of latent "
+                "variables for `u`.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         # Generative model
         px_cls = DecoderZXAttention
