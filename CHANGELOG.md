@@ -36,6 +36,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2692`.
 - Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
     the `dataloader` argument {pr}`2748`.
+- Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
+    data {pr}`2756`.
 
 #### Changed
 
