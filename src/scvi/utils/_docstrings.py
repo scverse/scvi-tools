@@ -118,6 +118,12 @@ batch_key
     integer categories and saved to `adata.obs['_scvi_batch']`. If `None`, assigns the same batch
     to all the data."""
 
+param_sample_key = """\
+sample_key
+    key in `adata.obs` for sample information. Categories will automatically be converted into
+    integer categories and saved to `adata.obs['_scvi_sample']`. If `None`, assigns the same sample
+    to all the data."""
+
 param_labels_key = """\
 labels_key
     key in `adata.obs` for label information. Categories will automatically be converted into
@@ -179,6 +185,7 @@ setup_anndata_dsp = DocstringProcessor(
     param_mdata=param_mdata,
     param_adata=param_adata,
     param_batch_key=param_batch_key,
+    param_sample_key=param_sample_key,
     param_labels_key=param_labels_key,
     param_layer=param_layer,
     param_cat_cov_keys=param_cat_cov_keys,
