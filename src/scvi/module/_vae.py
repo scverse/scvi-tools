@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
-    """Variational auto-encoder :cite:p:`Lopez18`.
+    """
+    Variational auto-encoder :cite:p:`Lopez18`.
 
     Parameters
     ----------
@@ -130,6 +131,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     batch_embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is
         set to ``"embedding"``.
+    mmd_mode : Literal["normal", "fast"]
+        determines if it will use the fast or normal MMD computation
+    mmd_beta_scaling_factor : int
+        MMD beta factor represent the scaling factor of MMD loss
 
     Notes
     -----
@@ -164,6 +169,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
+        mmd_mode: Literal["normal", "fast"] = "normal",
+        mmd_beta_scaling_factor: int = 0,
     ):
         from scvi.nn import DecoderSCVI, Encoder
 
@@ -179,6 +186,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        self.mmd_mode = mmd_mode
+        self.mmd_beta_scaling_factor = mmd_beta_scaling_factor
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
@@ -557,10 +566,14 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
+        # Compute the MMD loss and add it to the total loss multiplied by the beta factor
+        mmd_loss = _compute_mmd_loss(x, x.nonzero(), mode=self.mmd_mode)
         loss = torch.mean(reconst_loss + weighted_kl_local)
+        loss += self.mmd_beta_scaling_factor * mmd_loss
 
         return LossOutput(
             loss=loss,
+            mmd=mmd_loss,
             reconstruction_loss=reconst_loss,
             kl_local={
                 MODULE_KEYS.KL_L_KEY: kl_divergence_l,
@@ -845,3 +858,141 @@ class LDVAE(VAE):
             loadings = loadings[:, : -self.n_batch]
 
         return loadings
+
+
+########################################################################################################################
+### Next functions were written by Noam Gal noamgal1@gmail.com ###
+
+
+def gaussian_kernel(x: torch.Tensor, y: torch.Tensor, gamma=1.0) -> torch.Tensor:
+    """
+    Compute the Gaussian kernel matrix between two sets of samples.
+
+    Parameters
+    ----------
+    x : Tensor
+        Tensor of shape (num_samples_x, num_features) representing the first set of samples.
+    y : Tensor
+        Tensor of shape (num_samples_y, num_features) representing the second set of samples.
+    gamma: float
+        Width parameter of the Gaussian kernel, we use 1.0 by default.
+
+    Returns
+    -------
+    Tensor
+        Kernel matrix of shape (num_samples_x, num_samples_y).
+    """
+    # Compute the squared Euclidean distances
+    distances = torch.cdist(x, y, p=2) ** 2
+
+    # Compute the kernel matrix
+    return torch.exp(-gamma * distances)
+
+
+def _compute_mmd(x: torch.Tensor, y: torch.Tensor, sigma=1.0) -> torch.Tensor:
+    """
+    Compute the squared Maximum Mean Discrepancy (MMD) between two sets of samples.
+
+    Parameters
+    ----------
+    x : Tensor
+        Tensor of shape (num_samples_x, num_features) representing the first set of samples.
+    y : Tensor
+        Tensor of shape (num_samples_y, num_features) representing the second set of samples.
+    sigma : float
+        Width parameter of the Gaussian kernel.
+
+    Returns
+    -------
+    Tensor
+        Squared MMD between the two sets of samples.
+    """
+    m = x.size(0)
+    n = y.size(0)
+
+    # Compute kernel matrices
+    xx_kernel = gaussian_kernel(x, x, sigma)
+    yy_kernel = gaussian_kernel(y, y, sigma)
+    xy_kernel = gaussian_kernel(x, y, sigma)
+
+    # Compute MMD
+    return (
+        (1.0 / (m**2)) * torch.sum(xx_kernel)
+        - (2.0 / (m * n)) * torch.sum(xy_kernel)
+        + (1.0 / (n**2)) * torch.sum(yy_kernel)
+    )
+
+
+def _compute_fast_mmd(x: torch.Tensor, y: torch.Tensor, sigma=1.0) -> torch.Tensor:
+    """
+    Compute the approximate Maximum Mean Discrepancy (MMD) between two sets of samples.
+
+    Parameters
+    ----------
+    x : Tensor
+        Tensor of shape (num_samples, num_features) representing the first set of samples.
+    y : Tensor
+        Tensor of shape (num_samples, num_features) representing the second set of samples.
+    sigma : float
+        Width parameter of the Gaussian kernel.
+
+    Returns
+    -------
+    float
+        Approximate MMD between the two sets of samples.
+    """
+    x_size = x.size(0)
+    y_size = y.size(0)
+    m2 = min(x_size, y_size) // 2  # Floor division to get m2
+
+    # Select subsets of samples
+    x_subset = x[: 2 * m2]
+    y_subset = y[: 2 * m2]
+
+    # Compute the Gaussian kernel values
+    # x_subset[::2] selects every other sample starting from the first sample (index 0)
+    # x_subset[1::2] selects every other sample starting from the second sample (index 1)
+    # compute the kernel between the 1st and 2nd samples, the 3rd and 4th samples, and so on
+    kernel_xx = gaussian_kernel(x_subset[::2], x_subset[1::2], sigma)
+    kernel_yy = gaussian_kernel(y_subset[::2], y_subset[1::2], sigma)
+    xy_kernel = gaussian_kernel(x_subset[::2], y_subset[1::2], sigma)
+    yx_kernel = gaussian_kernel(y_subset[::2], x_subset[1::2], sigma)
+
+    # Compute the MMD approximation
+    h_values = kernel_xx + kernel_yy - xy_kernel - yx_kernel
+    return h_values.mean(dim=1)
+
+
+def _compute_mmd_loss(
+    z: torch.Tensor,
+    batch_indices: torch.Tensor,
+    mode: Literal["normal", "fast"],
+) -> torch.Tensor:
+    """
+    Compute the MMD loss between batches of samples.
+
+    Parameters
+    ----------
+    z : Tensor
+        Stacked samples of Z where each sample has a corresponding batch index in batch_indices.
+    batch_indices : Tensor
+        Tensor containing batch indices corresponding to each sample in z.
+
+    Returns
+    -------
+    Tensor
+        MMD loss computed according to the provided formula.
+    """
+    batches = torch.unique(batch_indices)
+    mmd_loss = torch.tensor(0.0)
+
+    for batch_0, batch_1 in zip(batches, batches[1:]):
+        z_0 = z[batch_indices == batch_0]
+        z_1 = z[batch_indices == batch_1]
+
+        if mode == "normal":
+            mmd_loss += _compute_mmd(z_0, z_1)
+        elif mode == "fast":
+            mmd_loss += _compute_fast_mmd(z_0, z_1)
+
+    return mmd_loss

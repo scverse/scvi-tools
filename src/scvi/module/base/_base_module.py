@@ -52,6 +52,8 @@ class LossOutput:
         to a dictionary with key "kl_global" and value as tensor.
     classification_loss
         Classification loss.
+    mmd
+        MMD loss.
     logits
         Logits for classification.
     true_labels
@@ -79,6 +81,7 @@ class LossOutput:
     kl_local: LossRecord | None = None
     kl_global: LossRecord | None = None
     classification_loss: LossRecord | None = None
+    mmd: LossRecord | None = None
     logits: Tensor | None = None
     true_labels: Tensor | None = None
     extra_metrics: dict[str, Tensor] | None = field(default_factory=dict)
