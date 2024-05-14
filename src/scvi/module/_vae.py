@@ -864,6 +864,10 @@ class LDVAE(VAE):
 ### Next functions were written by Noam Gal noamgal1@gmail.com ###
 
 
+class TestGaussion:
+    pass
+
+
 def gaussian_kernel(x: torch.Tensor, y: torch.Tensor, gamma=1.0) -> torch.Tensor:
     """
     Compute the Gaussian kernel matrix between two sets of samples.
