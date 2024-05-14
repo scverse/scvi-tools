@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.module import VAE
+from scvi.module import VAE, gaussian_kernel
 
 
 @pytest.mark.parametrize("n_samples", [1, 2, 3])
@@ -29,3 +29,22 @@ def test_sample(
         assert x_hat.shape == (batch_size, n_input, n_samples)
     else:
         assert x_hat.shape == (batch_size, n_input)
+
+
+def test_gaussian_kernel():
+    # Define sample data
+    x = torch.tensor([[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]])
+    y = torch.tensor([[2.0, 1.0], [3.0, 2.0]])
+
+    # Compute the Gaussian kernel matrix
+    kernel_matrix = gaussian_kernel(x, y)
+    print(f"{kernel_matrix = }")
+
+    # Define the expected kernel matrix manually based on the sample data
+    expected_kernel_matrix = torch.tensor([[0.1353, 0.0183], [0.0183, 0.1353], [0.0001, 0.0183]])
+    print(f"{expected_kernel_matrix = }")
+
+    # Check if the computed kernel matrix matches the expected kernel matrix
+    assert torch.allclose(
+        kernel_matrix, expected_kernel_matrix, atol=1e-4
+    ), "Kernel matrix computation incorrect"
