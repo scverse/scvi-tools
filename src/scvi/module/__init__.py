@@ -7,7 +7,7 @@ from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
 from ._scanvae import SCANVAE
 from ._totalvae import TOTALVAE
-from ._vae import LDVAE, VAE
+from ._vae import LDVAE, VAE, gaussian_kernel
 from ._vaec import VAEC
 
 __all__ = [
