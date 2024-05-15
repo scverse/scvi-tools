@@ -2,11 +2,7 @@ import pytest
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.module import (
-    VAE,
-    _compute_mmd,
-    gaussian_kernel,
-)
+from scvi.module import VAE, _compute_mmd, gaussian_kernel
 
 
 @pytest.mark.parametrize("n_samples", [1, 2, 3])
