@@ -38,6 +38,8 @@ to [Semantic Versioning]. Full commit history is available in the
     the `dataloader` argument {pr}`2748`.
 - Add option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
     passing in `gene_likelihood="normal"` {pr}`2780`.
+- Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
+    data {pr}`2756`.
 
 #### Changed
 
