@@ -66,6 +66,7 @@ jobs:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
+          COLUMNS: 120
         run: |
           coverage run -m pytest -v --color=yes
           coverage report
