@@ -33,6 +33,7 @@ def model(adata):
     return model
 
 
+@pytest.mark.optional
 def test_mrvi(model):
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
@@ -40,6 +41,7 @@ def test_mrvi(model):
     model.get_latent_representation(give_z=True)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "setup_kwargs, de_kwargs",
     [
@@ -90,6 +92,7 @@ def test_mrvi_de(model, setup_kwargs, de_kwargs):
         model.differential_expression(**de_kwarg)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "sample_key",
     ["sample", "sample_str"],
@@ -107,6 +110,7 @@ def test_mrvi_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "model_kwargs",
     [
@@ -146,12 +150,14 @@ def test_mrvi_model_kwargs(adata, model_kwargs):
     model.train(max_steps=2, train_size=0.5)
 
 
+@pytest.mark.optional
 def test_mrvi_sample_subset(model):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
     model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset)
 
 
+@pytest.mark.optional
 def test_mrvi_shrink_u(adata):
     MRVI.setup_anndata(
         adata,
@@ -182,6 +188,7 @@ def adata_stratifications():
     return adata
 
 
+@pytest.mark.optional
 def test_mrvi_stratifications(adata_stratifications):
     MRVI.setup_anndata(
         adata_stratifications,
