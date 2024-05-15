@@ -170,7 +170,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
         mmd_mode: Literal["normal", "fast"] = "normal",
-        mmd_beta_scaling_factor: int = 0,
+        mmd_beta_scaling_factor: int = 1,
+        **kwargs,
     ):
         from scvi.nn import DecoderSCVI, Encoder
 
@@ -187,7 +188,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         self.mmd_mode = mmd_mode
-        self.mmd_beta_scaling_factor = mmd_beta_scaling_factor
+        self.mmd_beta_scaling_factor = kwargs.get(
+            "mmd_beta_scaling_factor", mmd_beta_scaling_factor
+        )
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
@@ -568,10 +571,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         # Compute the MMD loss and add it to the total loss multiplied by the beta factor
         x_indices = _calculate_batch_indices(x)
-        logging.warning(f"MMD loss compute {x_indices = } ")
-        print(f"MMD loss compute {x_indices = } ")
         mmd_loss = _compute_mmd_loss(x, x_indices, mode=self.mmd_mode)
         loss = torch.mean(reconst_loss + weighted_kl_local)
+        logging.info(f"Compute MMD loss with {self.mmd_beta_scaling_factor = }")
         loss += self.mmd_beta_scaling_factor * mmd_loss
 
         return LossOutput(
@@ -1027,6 +1029,7 @@ def _compute_mmd_loss(
     Tensor
         MMD loss computed according to the provided formula.
     """
+    logging.info(f"Compute MMD loss {mode = }")
     batches = torch.unique(batch_indices)
     mmd_loss: torch.Tensor = None
 
@@ -1034,8 +1037,6 @@ def _compute_mmd_loss(
         logging.warning(f"MMD loss compute {batch_0 = } {batch_indices = } ")
         logging.warning(f"MMD loss compute {z.shape = }")
 
-        print(f"MMD loss compute {batch_0 = } {batch_indices = } ")
-        print(f"MMD loss compute {z.shape = }")
         z_0 = z[batch_indices == batch_0]
         z_1 = z[batch_indices == batch_1]
 
@@ -1051,6 +1052,13 @@ def _compute_mmd_loss(
             mmd_loss = batch_mmd_loss
         else:
             logging.warning(f"MMD loss compute {mmd_loss.shape = } ")
+            batch_mmd_loss_length = batch_mmd_loss(0)
+            mmd_loss_length = mmd_loss(0)
+
+            if batch_mmd_loss_length < mmd_loss_length:
+                batch_mmd_loss = torch.cat(
+                    (batch_mmd_loss, torch.zeros(mmd_loss_length - batch_mmd_loss_length))
+                )
             mmd_loss += batch_mmd_loss
 
     return mmd_loss
