@@ -63,6 +63,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"nb"``: :class:`~scvi.distributions.NegativeBinomial`.
         * ``"zinb"``: :class:`~scvi.distributions.ZeroInflatedNegativeBinomial`.
         * ``"poisson"``: :class:`~scvi.distributions.Poisson`.
+        * ``"normal"``: :class:`~torch.distributions.Normal`.
     latent_distribution
         Distribution to use for the latent space. One of the following:
 
@@ -511,6 +512,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
         elif self.gene_likelihood == "poisson":
             px = Poisson(px_rate, scale=px_scale)
+        elif self.gene_likelihood == "normal":
+            px = Normal(px_rate, px_r)
 
         # Priors
         if self.use_observed_lib_size:
