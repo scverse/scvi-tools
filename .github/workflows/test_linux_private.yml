@@ -72,6 +72,7 @@ jobs:
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
           HF_API_TOKEN: ${{ secrets.HF_API_TOKEN }}
+          COLUMNS: 120
         run: |
           coverage run -m pytest -v --color=yes --private
           coverage report
