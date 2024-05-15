@@ -568,6 +568,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         # Compute the MMD loss and add it to the total loss multiplied by the beta factor
         x_indices = _calculate_batch_indices(x)
+        logging.warning(f"MMD loss compute {x_indices = } ")
         mmd_loss = _compute_mmd_loss(x, x_indices, mode=self.mmd_mode)
         loss = torch.mean(reconst_loss + weighted_kl_local)
         loss += self.mmd_beta_scaling_factor * mmd_loss
@@ -1029,6 +1030,8 @@ def _compute_mmd_loss(
     mmd_loss = torch.tensor(0.0)
 
     for batch_0, batch_1 in zip(batches, batches[1:]):
+        logging.warning(f"MMD loss compute {batch_0 = } {batch_indices = } ")
+        logging.warning(f"MMD loss compute {z.shape = }")
         z_0 = z[batch_indices == batch_0]
         z_1 = z[batch_indices == batch_1]
 
