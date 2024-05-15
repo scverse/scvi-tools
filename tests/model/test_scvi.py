@@ -166,7 +166,8 @@ def test_saving_and_loading(save_path):
     test_save_load_model(SCVI, adata, save_path, prefix=f"{SCVI.__name__}_")
 
 
-def test_scvi(n_latent: int = 5):
+@pytest.mark.parametrize("gene_likelihood", ["zinb", "nb", "poisson", "normal"])
+def test_scvi(gene_likelihood: str, n_latent: int = 5):
     adata = synthetic_iid()
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     SCVI.setup_anndata(
@@ -175,7 +176,7 @@ def test_scvi(n_latent: int = 5):
         labels_key="labels",
         size_factor_key="size_factor",
     )
-    model = SCVI(adata, n_latent=n_latent)
+    model = SCVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # test mde
@@ -998,3 +999,15 @@ def test_scvi_inference_custom_dataloader(n_latent: int = 5):
     _ = model.get_marginal_ll(dataloader=dataloader)
     _ = model.get_reconstruction_error(dataloader=dataloader)
     _ = model.get_latent_representation(dataloader=dataloader)
+
+
+def test_scvi_normal_likelihood():
+    import scanpy as sc
+
+    adata = synthetic_iid()
+    sc.pp.normalize_total(adata)
+    sc.pp.log1p(adata)
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, gene_likelihood="normal")
+    model.train(max_epochs=1)
