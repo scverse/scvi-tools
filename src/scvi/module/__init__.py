@@ -7,7 +7,7 @@ from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
 from ._scanvae import SCANVAE
 from ._totalvae import TOTALVAE
-from ._vae import LDVAE, VAE, TestGaussion, gaussian_kernel
+from ._vae import LDVAE, VAE, _compute_fast_mmd, _compute_mmd, _compute_mmd_loss, gaussian_kernel
 from ._vaec import VAEC
 
 __all__ = [
@@ -25,4 +25,7 @@ __all__ = [
     "JaxVAE",
     "TestGaussion",
     "gaussian_kernel",
+    "_compute_mmd",
+    "_compute_fast_mmd",
+    "_compute_mmd_loss",
 ]

@@ -2,7 +2,11 @@ import pytest
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.module import VAE, gaussian_kernel
+from scvi.module import (
+    VAE,
+    _compute_mmd,
+    gaussian_kernel,
+)
 
 
 @pytest.mark.parametrize("n_samples", [1, 2, 3])
@@ -48,3 +52,20 @@ def test_gaussian_kernel():
     assert torch.allclose(
         kernel_matrix, expected_kernel_matrix, atol=1e-4
     ), "Kernel matrix computation incorrect"
+
+
+def test_compute_mmd():
+    # Define sample data
+    x = torch.tensor([[1.0, 2.0], [2.0, 3.0], [3.0, 4.0]])
+    y = torch.tensor([[2.0, 1.0], [3.0, 2.0]])
+
+    # Compute the MMD
+    mmd = _compute_mmd(x, y)
+
+    # Define the expected MMD value manually based on the sample data
+    expected_mmd = torch.tensor(0.8527)
+
+    # Check if the computed MMD matches the expected MMD value (with a tolerance)
+    assert torch.isclose(
+        mmd, expected_mmd, atol=1e-4
+    ), f"MMD computation incorrect, expected {expected_mmd}, got {mmd}"

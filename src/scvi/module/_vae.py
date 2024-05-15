@@ -567,7 +567,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
         # Compute the MMD loss and add it to the total loss multiplied by the beta factor
-        mmd_loss = _compute_mmd_loss(x, x.nonzero(), mode=self.mmd_mode)
+        x_indices = _calculate_batch_indices(x)
+        mmd_loss = _compute_mmd_loss(x, x_indices, mode=self.mmd_mode)
         loss = torch.mean(reconst_loss + weighted_kl_local)
         loss += self.mmd_beta_scaling_factor * mmd_loss
 
@@ -965,6 +966,43 @@ def _compute_fast_mmd(x: torch.Tensor, y: torch.Tensor, sigma=1.0) -> torch.Tens
     # Compute the MMD approximation
     h_values = kernel_xx + kernel_yy - xy_kernel - yx_kernel
     return h_values.mean(dim=1)
+
+
+def _calculate_batch_indices(x: torch.Tensor) -> torch.Tensor:
+    """
+    Calculate batch indices based on the input tensor x
+
+    Parameters
+    ----------
+    x : Tensor
+
+    Returns
+    -------
+    Tensor
+        Tensor of batch indices corresponding to each sample in x.
+    """
+    num_samples = x.size(0)
+
+    # We set the batch size to be the maximum of 10 and 10^(number of digits in num_samples - 2)
+    batch_size = max(10, 10 ** (len(str(num_samples)) - 2))
+    num_batches = num_samples // batch_size
+    remainder = num_samples % batch_size
+
+    # Create a list to store batch indices
+    batch_indices = []
+
+    # Assign batch indices to samples
+    for i in range(num_batches):
+        batch_indices.extend([i] * batch_size)
+
+    # Assign remaining samples to the last batch
+    if remainder > 0:
+        batch_indices.extend([num_batches] * remainder)
+
+    # Convert the list to a tensor
+    batch_indices = torch.tensor(batch_indices)
+
+    return batch_indices
 
 
 def _compute_mmd_loss(
