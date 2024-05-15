@@ -1028,7 +1028,7 @@ def _compute_mmd_loss(
         MMD loss computed according to the provided formula.
     """
     batches = torch.unique(batch_indices)
-    mmd_loss = torch.tensor(0.0)
+    mmd_loss: torch.Tensor = None
 
     for batch_0, batch_1 in zip(batches, batches[1:]):
         logging.warning(f"MMD loss compute {batch_0 = } {batch_indices = } ")
@@ -1040,8 +1040,17 @@ def _compute_mmd_loss(
         z_1 = z[batch_indices == batch_1]
 
         if mode == "normal":
-            mmd_loss += _compute_mmd(z_0, z_1)
+            batch_mmd_loss = _compute_mmd(z_0, z_1)
         elif mode == "fast":
-            mmd_loss += _compute_fast_mmd(z_0, z_1)
+            batch_mmd_loss = _compute_fast_mmd(z_0, z_1)
+
+        logging.warning(f"MMD loss compute {batch_mmd_loss.shape = } ")
+        logging.warning(f"MMD loss compute {mmd_loss = } ")
+
+        if mmd_loss is None:
+            mmd_loss = batch_mmd_loss
+        else:
+            logging.warning(f"MMD loss compute {mmd_loss.shape = } ")
+            mmd_loss += batch_mmd_loss
 
     return mmd_loss
