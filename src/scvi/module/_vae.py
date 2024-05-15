@@ -1052,10 +1052,11 @@ def _compute_mmd_loss(
             mmd_loss = batch_mmd_loss
         else:
             logging.warning(f"MMD loss compute {mmd_loss.shape = } ")
-            batch_mmd_loss_length = batch_mmd_loss(0)
-            mmd_loss_length = mmd_loss(0)
+            batch_mmd_loss_length = batch_mmd_loss.size(0)
+            mmd_loss_length = mmd_loss.size(0)
 
             if batch_mmd_loss_length < mmd_loss_length:
+                # Pad the short batch tensor with zeros
                 batch_mmd_loss = torch.cat(
                     (batch_mmd_loss, torch.zeros(mmd_loss_length - batch_mmd_loss_length))
                 )
