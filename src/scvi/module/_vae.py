@@ -1030,13 +1030,13 @@ def _compute_mmd_loss(
     Tensor
         MMD loss computed according to the provided formula.
     """
-    logging.info(f"Compute MMD loss {mode = }")
+    # logging.warning(f"Compute MMD loss {mode = }")
     batches = torch.unique(batch_indices)
     mmd_loss: torch.Tensor = None
 
     for batch_0, batch_1 in zip(batches, batches[1:]):
-        logging.warning(f"MMD loss compute {batch_0 = } {batch_indices = } ")
-        logging.warning(f"MMD loss compute {z.shape = }")
+        # logging.warning(f"MMD loss compute {batch_0 = } {batch_indices = } ")
+        # logging.warning(f"MMD loss compute {z.shape = }")
 
         z_0 = z[batch_indices == batch_0]
         z_1 = z[batch_indices == batch_1]
@@ -1046,13 +1046,13 @@ def _compute_mmd_loss(
         elif mode == "fast":
             batch_mmd_loss = _compute_fast_mmd(z_0, z_1)
 
-        logging.warning(f"MMD loss compute {batch_mmd_loss.shape = } ")
-        logging.warning(f"MMD loss compute {mmd_loss = } ")
+        # logging.warning(f"MMD loss compute {batch_mmd_loss.shape = } ")
+        # logging.warning(f"MMD loss compute {mmd_loss = } ")
 
         if mmd_loss is None:
             mmd_loss = batch_mmd_loss
         else:
-            logging.warning(f"MMD loss compute {mmd_loss.shape = } ")
+            # logging.warning(f"MMD loss compute {mmd_loss.shape = } ")
             batch_mmd_loss_length = batch_mmd_loss.size(0)
             mmd_loss_length = mmd_loss.size(0)
 
