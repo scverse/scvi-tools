@@ -178,6 +178,7 @@ Module classes in the external API with respective generative and inference proc
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
+   external.mrvi.MRVAE
 
 ```
 
@@ -275,5 +276,3 @@ Utility functions used by scvi-tools.
    utils.attrdict
    model.get_max_epochs_heuristic
 ```
-
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html
