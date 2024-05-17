@@ -236,7 +236,7 @@ class RNASeqMixin:
                 )
             return_numpy = True
         if library_size == "latent":
-            generative_output_key = "mu"
+            generative_output_key = "mu" if self.module.gene_likelihood == "nb" else "rate"
             scaling = 1
         else:
             generative_output_key = "scale"
