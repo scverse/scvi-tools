@@ -95,6 +95,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
     instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
+- Breaking change: Fix {class}`scvi.dataloaders.SemiSupervisedDataSplitter` to properly sample
+    unlabeled observations without replacement {pr}`xxxx`.
 
 ### 1.1.2 (2024-03-01)
 
