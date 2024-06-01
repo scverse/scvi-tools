@@ -16,7 +16,12 @@ from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
-from scvi.model.base._save_load import _initialize_model, _load_saved_files, _validate_var_names
+from scvi.model.base._save_load import (
+    _get_var_names,
+    _initialize_model,
+    _load_saved_files,
+    _validate_var_names,
+)
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
@@ -359,22 +364,16 @@ def _get_loaded_data(reference_model, device=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        if isinstance(reference_model.adata, MuData):
-            var_names = {
-                mod: reference_model.adata[mod].var_names
-                for mod in reference_model.adata.mod.keys()
-            }
-        else:
-            var_names = reference_model.adata.var_names
+        var_names = _get_var_names(reference_model.adata)
         load_state_dict = deepcopy(reference_model.module.state_dict())
 
     return attr_dict, var_names, load_state_dict
 
 
 def _pad_and_sort_query_anndata(
-    adata,
-    reference_var_names,
-    inplace,
+    adata: AnnData,
+    reference_var_names: pd.Index,
+    inplace: bool,
 ):
     intersection = adata.var_names.intersection(reference_var_names)
     inter_len = len(intersection)

@@ -40,6 +40,7 @@ to [Semantic Versioning]. Full commit history is available in the
     passing in `gene_likelihood="normal"` {pr}`2780`.
 - Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
     data {pr}`2756`.
+- Add support for reference mapping with `MuData` models to {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
 
 #### Changed
 
