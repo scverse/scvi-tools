@@ -634,7 +634,7 @@ def test_totalvi_saving_and_loading_mudata(save_path):
     )
 
 
-def test_scarches_data_prep_layer(save_path):
+def test_scarches_mudata_prep_layer(save_path):
     n_latent = 5
     mdata1 = synthetic_iid(return_mudata=True)
 
