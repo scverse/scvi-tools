@@ -8,13 +8,20 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from mudata import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._types import AnnOrMuData
 from scvi.data import _constants
-from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
-from scvi.model.base._save_load import _initialize_model, _load_saved_files, _validate_var_names
+from scvi.model.base._save_load import (
+    _get_var_names,
+    _initialize_model,
+    _load_saved_files,
+    _validate_var_names,
+)
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
@@ -32,7 +39,7 @@ class ArchesMixin:
     @devices_dsp.dedent
     def load_query_data(
         cls,
-        adata: AnnData,
+        adata: AnnOrMuData,
         reference_model: Union[str, BaseModelClass],
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
@@ -85,6 +92,19 @@ class ArchesMixin:
 
         attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
 
+        if isinstance(adata, MuData):
+            for modality in adata.mod:
+                if inplace_subset_query_vars:
+                    logger.debug(f"Subsetting {modality} query vars to reference vars.")
+                    adata[modality]._inplace_subset_var(var_names[modality])
+                _validate_var_names(adata[modality], var_names[modality])
+
+        else:
+            if inplace_subset_query_vars:
+                logger.debug("Subsetting query vars to reference vars.")
+                adata._inplace_subset_var(var_names)
+            _validate_var_names(adata, var_names)
+
         if inplace_subset_query_vars:
             logger.debug("Subsetting query vars to reference vars.")
             adata._inplace_subset_var(var_names)
@@ -100,7 +120,8 @@ class ArchesMixin:
                 "Cannot load the original setup."
             )
 
-        cls.setup_anndata(
+        setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+        setup_method(
             adata,
             source_registry=registry,
             extend_categories=True,
@@ -193,54 +214,71 @@ class ArchesMixin:
         if return_reference_var_names:
             return var_names
 
-        intersection = adata.var_names.intersection(var_names)
-        inter_len = len(intersection)
-        if inter_len == 0:
-            raise ValueError(
-                "No reference var names found in query data. "
-                "Please rerun with return_reference_var_names=True "
-                "to see reference var names."
-            )
+        return _pad_and_sort_query_anndata(adata, var_names, inplace)
 
-        ratio = inter_len / len(var_names)
-        logger.info(f"Found {ratio * 100}% reference vars in query data.")
-        if ratio < MIN_VAR_NAME_RATIO:
-            warnings.warn(
-                f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference "
-                "var names. This may result in poor performance.",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-        genes_to_add = var_names.difference(adata.var_names)
-        needs_padding = len(genes_to_add) > 0
-        if needs_padding:
-            padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
-            adata_padding = AnnData(
-                X=padding_mtx.copy(),
-                layers={layer: padding_mtx.copy() for layer in adata.layers},
-            )
-            adata_padding.var_names = genes_to_add
-            adata_padding.obs_names = adata.obs_names
-            # Concatenate object
-            adata_out = anndata.concat(
-                [adata, adata_padding],
-                axis=1,
-                join="outer",
-                index_unique=None,
-                merge="unique",
-            )
-        else:
-            adata_out = adata
+    @staticmethod
+    def prepare_query_mudata(
+        mdata: MuData,
+        reference_model: Union[str, BaseModelClass],
+        return_reference_var_names: bool = False,
+        inplace: bool = True,
+    ) -> Optional[Union[MuData, dict[str, pd.Index]]]:
+        """Prepare multimodal dataset for query integration.
 
-        # also covers the case when new adata has more var names than old
-        if not var_names.equals(adata_out.var_names):
-            adata_out._inplace_subset_var(var_names)
+        This function will return a new MuData object such that the
+        AnnData objects for individual modalities are given padded zeros
+        for missing features, as well as correctly sorted features.
 
-        if inplace:
-            if adata_out is not adata:
-                adata._init_as_actual(adata_out)
-        else:
-            return adata_out
+        Parameters
+        ----------
+        mdata
+            MuData organized in the same way as data used to train model.
+            It is not necessary to run setup_mudata,
+            as MuData is validated against the ``registry``.
+        reference_model
+            Either an already instantiated model of the same class, or a path to
+            saved outputs for reference model.
+        return_reference_var_names
+            Only load and return reference var names if True.
+        inplace
+            Whether to subset and rearrange query vars inplace or return new MuData.
+
+        Returns
+        -------
+        Query mudata ready to use in `load_query_data` unless `return_reference_var_names`
+        in which case a dictionary of pd.Index of reference var names is returned.
+        """
+        attr_dict, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+
+        for modality in var_names.keys():
+            var_names[modality] = pd.Index(var_names[modality])
+
+        if return_reference_var_names:
+            return var_names
+
+        reference_modalities_dict = attr_dict["registry_"][_SETUP_ARGS_KEY]["modalities"]
+
+        reference_modalities = reference_modalities_dict.values()
+        query_modalities = mdata.mod
+
+        for mod in reference_modalities:
+            if mod not in query_modalities:
+                raise ValueError(
+                    "Query MuData does not contain same modalities as reference. "
+                    "Cannot load the original setup."
+                )
+
+        adata_dict = {}
+        for modality in reference_modalities:
+            adata_out = _pad_and_sort_query_anndata(
+                adata=mdata[modality],
+                reference_var_names=var_names[modality],
+                inplace=inplace,
+            )
+            adata_dict[modality] = adata_out
+
+        if not inplace:
+            return MuData(adata_dict)
 
 
 def _set_params_online_update(
@@ -326,7 +364,62 @@ def _get_loaded_data(reference_model, device=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        var_names = reference_model.adata.var_names
+        var_names = _get_var_names(reference_model.adata)
         load_state_dict = deepcopy(reference_model.module.state_dict())
 
     return attr_dict, var_names, load_state_dict
+
+
+def _pad_and_sort_query_anndata(
+    adata: AnnData,
+    reference_var_names: pd.Index,
+    inplace: bool,
+):
+    intersection = adata.var_names.intersection(reference_var_names)
+    inter_len = len(intersection)
+    if inter_len == 0:
+        raise ValueError(
+            "No reference var names found in query data. "
+            "Please rerun with return_reference_var_names=True "
+            "to see reference var names."
+        )
+
+    ratio = inter_len / len(reference_var_names)
+    logger.info(f"Found {ratio * 100}% reference vars in query data.")
+    if ratio < MIN_VAR_NAME_RATIO:
+        warnings.warn(
+            f"Query data contains less than {MIN_VAR_NAME_RATIO:.0%} of reference "
+            "var names. This may result in poor performance.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+    genes_to_add = reference_var_names.difference(adata.var_names)
+    needs_padding = len(genes_to_add) > 0
+    if needs_padding:
+        padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+        adata_padding = AnnData(
+            X=padding_mtx.copy(),
+            layers={layer: padding_mtx.copy() for layer in adata.layers},
+        )
+        adata_padding.var_names = genes_to_add
+        adata_padding.obs_names = adata.obs_names
+        # Concatenate object
+        adata_out = anndata.concat(
+            [adata, adata_padding],
+            axis=1,
+            join="outer",
+            index_unique=None,
+            merge="unique",
+        )
+    else:
+        adata_out = adata
+
+    # also covers the case when new adata has more var names than old
+    if not reference_var_names.equals(adata_out.var_names):
+        adata_out._inplace_subset_var(reference_var_names)
+
+    if inplace:
+        if adata_out is not adata:
+            adata._init_as_actual(adata_out)
+    else:
+        return adata_out
