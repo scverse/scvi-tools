@@ -353,7 +353,7 @@ class DifferentialComputation:
                 ) from err
             proba_m1 = np.mean(is_de_plus, 0)
             proba_m2 = np.mean(is_de_minus, 0)
-            proba_de = np.maximum(proba_m1, proba_m2)            
+            proba_de = np.maximum(proba_m1, proba_m2)
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
