@@ -325,18 +325,21 @@ class DifferentialComputation:
                         delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
                     )
                     logger.debug(f"Using delta ~ {delta_:.2f}")
-                    return np.abs(samples) >= delta_
+                    # return np.abs(samples) >= delta_
+                    samples_plus = samples >= delta_
+                    samples_minus = samples < -delta_
+                    return samples_plus, samples_minus
 
             change_fn_specs = inspect.getfullargspec(change_fn)
             domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
             if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
                 raise ValueError(
-                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one "
-                    "parameter."
+                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
                 )
             try:
                 change_distribution = change_fn(scales_1, scales_2)
-                is_de = m1_domain_fn(change_distribution)
+                # is_de = m1_domain_fn(change_distribution)
+                is_de_plus, is_de_minus = m1_domain_fn(change_distribution)
                 delta_ = (
                     estimate_delta(lfc_means=change_distribution.mean(0))
                     if delta is None
@@ -348,7 +351,9 @@ class DifferentialComputation:
                     "Please ensure that these functions have the right signatures and"
                     "outputs and that they can process numpy arrays"
                 ) from err
-            proba_m1 = np.mean(is_de, 0)
+            proba_m1 = np.mean(is_de_plus, 0)
+            proba_m2 = np.mean(is_de_minus, 0)
+            proba_de = np.maximum(proba_m1, proba_m2)            
             change_distribution_props = describe_continuous_distrib(
                 samples=change_distribution,
                 credible_intervals_levels=cred_interval_lvls,
@@ -360,7 +365,8 @@ class DifferentialComputation:
             res = dict(
                 proba_de=proba_m1,
                 proba_not_de=1.0 - proba_m1,
-                bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
+                # bayes_factor=np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
+                bayes_factor=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
                 scale1=px_scale_mean1,
                 scale2=px_scale_mean2,
                 pseudocounts=pseudocounts,
