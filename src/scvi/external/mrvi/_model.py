@@ -14,6 +14,8 @@ from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager, fields
+from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
@@ -92,8 +94,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
-        from scvi.external.mrvi._module import MRVAE
-
         super().__init__(adata)
 
         n_sample = self.summary_stats.n_sample
@@ -175,8 +175,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Additional keyword arguments passed into
             :meth:`~scvi.data.AnnDataManager.register_fields`.
         """
-        from scvi.data import AnnDataManager, fields
-
         setup_method_args = cls._get_setup_method_args(**locals())
         # Add index for batched computation of local statistics.
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
