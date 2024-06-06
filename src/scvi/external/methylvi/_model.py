@@ -554,8 +554,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
     def differential_methylation(
         self,
-        modality: str,
-        adata: AnnData | None = None,
+        modality: str | None = None,
+        adata: AnnOrMuData | None = None,
         groupby: str | None = None,
         group1: Iterable[str] | None = None,
         group2: str | None = None,
@@ -603,9 +603,9 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
         Returns
         -------
-        Differential accessibility DataFrame with the following columns:
+        Differential methylation DataFrame with the following columns:
         prob_da
-            the probability of the region being differentially accessible
+            the probability of the region being differentially methylated
         is_da_fdr
             whether the region passes a multiple hypothesis correction procedure
             with the target_fdr threshold
@@ -616,26 +616,38 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             (accessibility in population 1)
         emp_effect
             the empirical effect, based on observed detection rates instead of the estimated
-            accessibility scores from the PeakVI model
+            accessibility scores from the methylVI model
         est_prob1
-            the estimated probability of accessibility in population 1
+            the estimated methylation level in population 1
         est_prob2
-            the estimated probability of accessibility in population 2
+            the estimated methylation level in population 2
         emp_prob1
-            the empirical (observed) probability of accessibility in population 1
+            the empirical (observed) methylation level in population 1
         emp_prob2
-            the empirical (observed) probability of accessibility in population 2
+            the empirical (observed) methylation level in population 2
 
         """
         adata = self._validate_anndata(adata)
-        col_names = adata[modality].var_names
-        model_fn = partial(
-            self.get_specific_normalized_methylation,
-            batch_size=batch_size,
-            modality=modality,
-        )
 
-        # TODO check if change_fn in kwargs and raise error if so
+        if isinstance(adata, MuData):
+            if modality is None:
+                raise ValueError(
+                    "Must provided methylation modality when performing differential methylation"
+                    "analysis for a MuData Model."
+                )
+            col_names = adata[modality].var_names
+            model_fn = partial(
+                self.get_specific_normalized_methylation,
+                batch_size=batch_size,
+                modality=modality,
+            )
+        else:
+            col_names = adata.var_names
+            model_fn = partial(
+                self.get_normalized_methylation,
+                batch_size=batch_size,
+            )
+
         def change_fn(a, b):
             return a - b
 
