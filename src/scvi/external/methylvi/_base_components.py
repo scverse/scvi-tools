@@ -91,10 +91,8 @@ class DecoderMETHYLVI(nn.Module):
         dispersion
             One of the following
 
-            * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-            * ``'gene-batch'`` - dispersion can differ between different batches
-            * ``'gene-label'`` - dispersion can differ between different labels
-            * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+            * ``'region'`` - dispersion parameter of NB is constant per region across cells
+            * ``'region-cell'`` - dispersion can differ for every region in every cell
         z :
             tensor with shape ``(n_input,)``
         library_size
@@ -110,6 +108,6 @@ class DecoderMETHYLVI(nn.Module):
         """
         px = self.px_decoder(z, *cat_list)
         px_mu = self.px_mu_decoder(px)
-        px_gamma = self.px_gamma_decoder(px) if dispersion == "gene-cell" else None
+        px_gamma = self.px_gamma_decoder(px) if dispersion == "region-cell" else None
 
         return px_mu, px_gamma

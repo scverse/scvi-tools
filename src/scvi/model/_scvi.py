@@ -90,7 +90,7 @@ class SCVI(
     >>> vae = scvi.model.SCVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_methylation()
 
     Notes
     -----

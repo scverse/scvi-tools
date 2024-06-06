@@ -44,8 +44,8 @@ class METHYLVAE(BaseModuleClass):
         * ``'binomial'`` - Binomial distribution
     dispersion
         One of the following
-        * ``'gene'`` - dispersion parameter of BetaBinomial is constant per gene across cells
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+        * ``'region'`` - dispersion parameter of BetaBinomial is constant per region across cells
+        * ``'region-cell'`` - dispersion can differ for every regionin every cell
     """
 
     def __init__(
@@ -59,7 +59,7 @@ class METHYLVAE(BaseModuleClass):
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         likelihood: Literal["betabinomial", "binomial"] = "betabinomial",
-        dispersion: Literal["gene", "gene-cell"] = "gene",
+        dispersion: Literal["region", "region-cell"] = "region",
     ):
         super().__init__()
         self.n_latent = n_latent
@@ -95,14 +95,14 @@ class METHYLVAE(BaseModuleClass):
                 n_hidden=n_hidden,
             )
 
-        if self.dispersion == "gene":
+        if self.dispersion == "region":
             self.px_gamma = torch.nn.ParameterDict(
                 {
                     modality: nn.Parameter(torch.randn(num_features))
                     for (modality, num_features) in zip(modalities, num_features_per_modality)
                 }
             )
-        elif self.dispersion == "gene-cell":
+        elif self.dispersion == "region-cell":
             pass
 
     def _get_inference_input(self, tensors):
@@ -119,8 +119,8 @@ class METHYLVAE(BaseModuleClass):
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         input_dict = {
-            "mc": mc,
-            "cov": cov,
+            METHYLVI_REGISTRY_KEYS.MC_KEY: mc,
+            METHYLVI_REGISTRY_KEYS.COV_KEY: cov,
             "batch_index": batch_index,
         }
         return input_dict
@@ -189,21 +189,19 @@ class METHYLVAE(BaseModuleClass):
         minibatch_size = qz.loc.size()[0]
         reconst_loss = torch.zeros(minibatch_size).to(self.device)
 
-        px_mu = generative_outputs["px_mu"]
-        px_gamma = generative_outputs["px_gamma"]
         for modality in self.modalities:
-            px_mu_ = px_mu[modality]
-            px_gamma_ = px_gamma[modality]
+            px_mu = generative_outputs["px_mu"][modality]
+            px_gamma = generative_outputs["px_gamma"][modality]
             mc = tensors[f"{modality}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"]
             cov = tensors[f"{modality}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"]
 
-            if self.dispersion == "gene":
-                px_gamma_ = torch.sigmoid(self.px_gamma[modality])
+            if self.dispersion == "region":
+                px_gamma = torch.sigmoid(self.px_gamma[modality])
 
             if self.likelihood == "binomial":
-                dist = Binomial(probs=px_mu_, total_count=cov)
+                dist = Binomial(probs=px_mu, total_count=cov)
             elif self.likelihood == "betabinomial":
-                dist = BetaBinomial(mu=px_mu_, gamma=px_gamma_, total_count=cov)
+                dist = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
 
             reconst_loss += -dist.log_prob(mc).sum(dim=-1)
 
@@ -237,7 +235,7 @@ class METHYLVAE(BaseModuleClass):
         Returns
         -------
         x_new
-            tensor with shape (n_cells, n_genes, n_samples)
+            tensor with shape (n_cells, n_regions, n_samples)
         """
         inference_kwargs = {"n_samples": n_samples}
         (
@@ -249,28 +247,25 @@ class METHYLVAE(BaseModuleClass):
             compute_loss=False,
         )
 
-        px_mu = generative_outputs["px_mu"]
-        px_gamma = generative_outputs["px_gamma"]
-
         exprs = {}
         for modality in self.modalities:
-            px_mu_ = px_mu[modality]
-            px_gamma_ = px_gamma[modality]
+            px_mu = generative_outputs["px_mu"][modality]
+            px_gamma = generative_outputs["px_gamma"][modality]
             cov = tensors[f"{modality}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"]
 
-            if self.dispersion == "gene":
-                px_gamma_ = torch.sigmoid(self.px_gamma[modality])
+            if self.dispersion == "region":
+                px_gamma = torch.sigmoid(self.px_gamma[modality])
 
             if self.likelihood == "binomial":
-                dist = Binomial(probs=px_mu_, total_count=cov)
+                dist = Binomial(probs=px_mu, total_count=cov)
             elif self.likelihood == "betabinomial":
-                dist = BetaBinomial(mu=px_mu_, gamma=px_gamma_, total_count=cov)
+                dist = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
 
             if n_samples > 1:
                 exprs_ = dist.sample()
                 exprs[modality] = exprs_.permute(
                     [1, 2, 0]
-                ).cpu()  # Shape : (n_cells_batch, n_genes, n_samples)
+                ).cpu()  # Shape : (n_cells_batch, n_regions, n_samples)
             else:
                 exprs[modality] = dist.sample().cpu()
 
