@@ -24,7 +24,6 @@ from scvi.data.fields import (
     LayerField,
 )
 from scvi.distributions._utils import DistributionConcatenator
-from scvi.external.methylvi import METHYLVAE, METHYLVI_REGISTRY_KEYS
 from scvi.model.base import (
     ArchesMixin,
     BaseModelClass,
@@ -36,6 +35,8 @@ from scvi.model.base._utils import (
 )
 from scvi.utils import setup_anndata_dsp
 
+from ._constants import METHYLVI_REGISTRY_KEYS
+from ._module import METHYLVAE
 from ._utils import scmc_raw_counts_properties
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
     Examples
     --------
-    >>> mdata = anndata.read_h5mu(path_to_mudata)
+    >>> mdata = mudata.read_h5mu(path_to_mudata)
     >>> MethylVI.setup_mudata(mdata, batch_key="batch")
     >>> vae = MethylVI(adata)
     >>> vae.train()
@@ -554,8 +555,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
     def differential_methylation(
         self,
-        modality: str | None = None,
         adata: AnnOrMuData | None = None,
+        modality: str | None = None,
         groupby: str | None = None,
         group1: Iterable[str] | None = None,
         group2: str | None = None,
@@ -575,13 +576,15 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
     ) -> pd.DataFrame:
         r"""\.
 
-        A unified method for differential methylation analysis.
+        A unified method for differential methylation analysis. For MuData models, tests are
+        run for the feature set specified by `modality`.
 
         Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
         Parameters
         ----------
         %(de_adata)s
+        %(de_modality)s
         %(de_groupby)s
         %(de_group1)s
         %(de_group2)s
@@ -604,9 +607,9 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         Returns
         -------
         Differential methylation DataFrame with the following columns:
-        prob_da
+        proba_de
             the probability of the region being differentially methylated
-        is_da_fdr
+        is_de_fdr
             whether the region passes a multiple hypothesis correction procedure
             with the target_fdr threshold
         bayes_factor
@@ -617,13 +620,13 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         emp_effect
             the empirical effect, based on observed detection rates instead of the estimated
             accessibility scores from the methylVI model
-        est_prob1
+        scale1
             the estimated methylation level in population 1
-        est_prob2
+        scale2
             the estimated methylation level in population 2
-        emp_prob1
+        emp_mean1
             the empirical (observed) methylation level in population 1
-        emp_prob2
+        emp_mean2
             the empirical (observed) methylation level in population 2
 
         """
@@ -680,6 +683,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
+            change_fn=change_fn,
+            m1_domain_fn=m1_domain_fn,
             **kwargs,
         )
 
