@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import warnings
 from collections import defaultdict
@@ -298,6 +299,12 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
         return x_new
 
+    def _get_transform_batch_gen_kwargs(self, batch):
+        if "transform_batch" in inspect.signature(self.module.generative).parameters:
+            return {"transform_batch": batch}
+        else:
+            raise NotImplementedError("Transforming batches is not implemented for this model.")
+
     @torch.inference_mode()
     def get_normalized_expression(
         self,
@@ -334,10 +341,6 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
             of interest.
-        library_size
-            Scale the expression frequencies to a common library size.
-            This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
@@ -404,8 +407,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         px_store = DistributionConcatenator()
         for tensors in scdl:
             per_batch_exprs = defaultdict(list)
-            for _ in transform_batch:
-                generative_kwargs = {}  # TODO: implement this at some point.
+            for batch in transform_batch:
+                generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
                 inference_kwargs = {"n_samples": n_samples}
                 inference_outputs, generative_outputs = self.module.forward(
                     tensors=tensors,
