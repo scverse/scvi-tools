@@ -138,15 +138,18 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
-        modality_name = "unimodal"
-
-        # If we don't have
+        # To facilitate code reuse, under the hood we treat AnnData models like MuData models with
+        # a single modality.
         anndata_fields = [
             LayerField(
-                f"{modality_name}_METHYLVI_REGISTRY_KEYS.MC_KEY", mc_layer, is_count_data=True
+                f"{METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER}_{METHYLVI_REGISTRY_KEYS.MC_KEY}",
+                mc_layer,
+                is_count_data=True,
             ),
             LayerField(
-                f"{modality_name}_METHYLVI_REGISTRY_KEYS.COV_KEY", cov_layer, is_count_data=True
+                f"{METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER}_{METHYLVI_REGISTRY_KEYS.COV_KEY}",
+                cov_layer,
+                is_count_data=True,
             ),
         ]
 
@@ -156,7 +159,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
-        adata_manager.modalities = [modality_name]
+        adata_manager.modalities = [METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
         cls.register_manager(adata_manager)
 
     @classmethod
@@ -450,17 +453,16 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
                     )
                 return exprs_dfs
             else:
-                modality = self.modalities[0]
                 return pd.DataFrame(
                     exprs,
-                    columns=adata[modality].var_names[region_mask],
-                    index=adata[modality].obs_names[indices],
+                    columns=adata.var_names[region_mask],
+                    index=adata.obs_names[indices],
                 )
         else:
             if isinstance(self.adata, MuData):
                 return exprs
             else:
-                return exprs[self.modalities[0]]
+                return exprs[METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
 
     @torch.inference_mode()
     def get_specific_normalized_methylation(
@@ -644,11 +646,16 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
                 batch_size=batch_size,
                 modality=modality,
             )
+            all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
         else:
             col_names = adata.var_names
             model_fn = partial(
                 self.get_normalized_methylation,
                 batch_size=batch_size,
+            )
+            all_stats_fn = partial(
+                scmc_raw_counts_properties,
+                modality=METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER,
             )
 
         def change_fn(a, b):
@@ -674,7 +681,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             idx1=idx1,
             idx2=idx2,
             all_stats=all_stats,
-            all_stats_fn=partial(scmc_raw_counts_properties, modality=modality),
+            all_stats_fn=all_stats_fn,
             col_names=col_names,
             mode=mode,
             batchid1=batchid1,
