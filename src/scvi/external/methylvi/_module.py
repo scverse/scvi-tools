@@ -3,6 +3,7 @@
 from typing import Literal
 
 import torch
+import torch.nn as nn
 from torch.distributions import Binomial, Normal
 from torch.distributions import kl_divergence as kl
 
@@ -72,8 +73,6 @@ class METHYLVAE(BaseModuleClass):
 
         cat_list = [n_batch]
 
-        # z encoder goes from the n_input-dimensional data to an n_latent-d
-        # latent space representation
         self.z_encoder = Encoder(
             n_input
             * 2,  # For each input region, we have both methylated counts and coverage --> x2
@@ -86,76 +85,42 @@ class METHYLVAE(BaseModuleClass):
             var_activation=torch.nn.functional.softplus,  # Better numerical stability than exp
         )
 
-        # decoder goes from n_latent-dimensional space to n_input-d data
-        self.decoder = DecoderMETHYLVI(
-            n_latent,
-            n_input,
-            n_cat_list=cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-        )
+        self.decoders = nn.ModuleDict()
+        for modality, num_features in zip(modalities, num_features_per_modality):
+            self.decoders[modality] = DecoderMETHYLVI(
+                n_latent,
+                num_features,
+                n_cat_list=cat_list,
+                n_layers=n_layers,
+                n_hidden=n_hidden,
+            )
 
         if self.dispersion == "gene":
-            self.px_gamma = torch.nn.Parameter(torch.randn(n_input))
+            self.px_gamma = torch.nn.ParameterDict(
+                {
+                    modality: nn.Parameter(torch.randn(num_features))
+                    for (modality, num_features) in zip(modalities, num_features_per_modality)
+                }
+            )
         elif self.dispersion == "gene-cell":
             pass
 
-    def _get_methylation_features(self, tensors):
-        if len(self.modalities) > 1:
-            mc_keys = sorted(
-                [x for x in tensors.keys() if x.endswith(f"_{METHYLVI_REGISTRY_KEYS.MC_KEY}")]
-            )
-            cov_keys = sorted(
-                [x for x in tensors.keys() if x.endswith(f"_{METHYLVI_REGISTRY_KEYS.COV_KEY}")]
-            )
-
-            mc = torch.cat([tensors[x] for x in mc_keys], dim=1)
-            cov = torch.cat([tensors[x] for x in cov_keys], dim=1)
-
-        else:
-            mc = tensors[METHYLVI_REGISTRY_KEYS.MC_KEY]
-            cov = tensors[METHYLVI_REGISTRY_KEYS.COV_KEY]
-
-        return mc, cov
-
-    def _split_by_modality(self, tensor):
-        tensor_by_modality = {}
-        idxs = []
-        for i in range(len(self.num_features_per_modality)):
-            if i == 0:
-                start = 0
-            else:
-                start = idxs[i - 1][1]
-            end = start + self.num_features_per_modality[i]
-            idxs.append((start, end))
-
-        for i, modality in enumerate(self.modalities):
-            tensor_by_modality[modality] = tensor[..., idxs[i][0] : idxs[i][1]]
-
-        return tensor_by_modality
-
-    def _get_methylation_features(self, tensors):
-        if len(self.modalities) > 1:
-            mc_keys = [f"{x}_{METHYLVI_REGISTRY_KEYS.MC_KEY}" for x in self.modalities]
-            cov_keys = [f"{x}_{METHYLVI_REGISTRY_KEYS.COV_KEY}" for x in self.modalities]
-
-            mc = torch.cat([tensors[x] for x in mc_keys], dim=1)
-            cov = torch.cat([tensors[x] for x in cov_keys], dim=1)
-        else:
-            mc = tensors[METHYLVI_REGISTRY_KEYS.MC_KEY]
-            cov = tensors[METHYLVI_REGISTRY_KEYS.COV_KEY]
-
-        return mc, cov
-
     def _get_inference_input(self, tensors):
         """Parse the dictionary to get appropriate args"""
-        mc, cov = self._get_methylation_features(tensors)
+        mc = torch.cat(
+            [tensors[f"{x}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"] for x in sorted(self.modalities)],
+            dim=1,
+        )
+        cov = torch.cat(
+            [tensors[f"{x}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"] for x in sorted(self.modalities)],
+            dim=1,
+        )
 
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
 
         input_dict = {
-            METHYLVI_REGISTRY_KEYS.MC_KEY: mc,
-            METHYLVI_REGISTRY_KEYS: cov,
+            "mc": mc,
+            "cov": cov,
             "batch_index": batch_index,
         }
         return input_dict
@@ -195,13 +160,15 @@ class METHYLVAE(BaseModuleClass):
     def generative(self, z, batch_index):
         """Runs the generative model."""
         # form the parameters of the BetaBinomial likelihood
-        px_mu, px_gamma = self.decoder(z, batch_index)
+        px_mu, px_gamma = {}, {}
+        for modality in self.modalities:
+            px_mu[modality], px_gamma[modality] = self.decoders[modality](
+                self.dispersion, z, batch_index
+            )
+
         pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 
-        px_mu_by_modality = self._split_by_modality(px_mu)
-        px_gamma_by_modality = self._split_by_modality(px_gamma)
-
-        return {"px_mu": px_mu_by_modality, "px_gamma": px_gamma_by_modality, "pz": pz}
+        return {"px_mu": px_mu, "px_gamma": px_gamma, "pz": pz}
 
     def loss(
         self,
@@ -211,31 +178,34 @@ class METHYLVAE(BaseModuleClass):
         kl_weight: float = 1.0,
     ):
         """Loss function."""
-        mc, cov = self._get_methylation_features(tensors)
-
-        px_mu = generative_outputs["px_mu"]
-        px_gamma = generative_outputs["px_gamma"]
-
-        px_mu = torch.concatenate([px_mu[modality] for modality in self.modalities], dim=1)
-        px_gamma = torch.concatenate([px_gamma[modality] for modality in self.modalities], dim=1)
-
-        if self.dispersion == "gene":
-            px_gamma = torch.sigmoid(self.px_gamma)
-
         qz = inference_outputs["qz"]
         pz = generative_outputs["pz"]
         kl_divergence_z = kl(qz, pz).sum(dim=1)
 
-        if self.likelihood == "binomial":
-            dist = Binomial(probs=px_mu, total_count=cov)
-        elif self.likelihood == "betabinomial":
-            dist = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
-
-        reconst_loss = -dist.log_prob(mc).sum(dim=-1)
-
         kl_local_for_warmup = kl_divergence_z
 
         weighted_kl_local = kl_weight * kl_local_for_warmup
+
+        minibatch_size = qz.loc.size()[0]
+        reconst_loss = torch.zeros(minibatch_size).to(self.device)
+
+        px_mu = generative_outputs["px_mu"]
+        px_gamma = generative_outputs["px_gamma"]
+        for modality in self.modalities:
+            px_mu_ = px_mu[modality]
+            px_gamma_ = px_gamma[modality]
+            mc = tensors[f"{modality}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"]
+            cov = tensors[f"{modality}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"]
+
+            if self.dispersion == "gene":
+                px_gamma_ = torch.sigmoid(self.px_gamma[modality])
+
+            if self.likelihood == "binomial":
+                dist = Binomial(probs=px_mu_, total_count=cov)
+            elif self.likelihood == "betabinomial":
+                dist = BetaBinomial(mu=px_mu_, gamma=px_gamma_, total_count=cov)
+
+            reconst_loss += -dist.log_prob(mc).sum(dim=-1)
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
@@ -251,7 +221,7 @@ class METHYLVAE(BaseModuleClass):
         self,
         tensors,
         n_samples=1,
-    ) -> torch.Tensor:
+    ) -> dict[torch.Tensor]:
         r"""
         Generate observation samples from the posterior predictive distribution.
 
@@ -282,27 +252,26 @@ class METHYLVAE(BaseModuleClass):
         px_mu = generative_outputs["px_mu"]
         px_gamma = generative_outputs["px_gamma"]
 
-        px_mu = torch.concatenate([px_mu[modality] for modality in self.modalities], dim=-1)
-        px_gamma = torch.concatenate([px_gamma[modality] for modality in self.modalities], dim=-1)
+        exprs = {}
+        for modality in self.modalities:
+            px_mu_ = px_mu[modality]
+            px_gamma_ = px_gamma[modality]
+            cov = tensors[f"{modality}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"]
 
-        if self.dispersion == "gene":
-            px_gamma = torch.sigmoid(self.px_gamma)
+            if self.dispersion == "gene":
+                px_gamma_ = torch.sigmoid(self.px_gamma[modality])
 
-        mc, cov = self._get_methylation_features(tensors)
+            if self.likelihood == "binomial":
+                dist = Binomial(probs=px_mu_, total_count=cov)
+            elif self.likelihood == "betabinomial":
+                dist = BetaBinomial(mu=px_mu_, gamma=px_gamma_, total_count=cov)
 
-        if self.likelihood == "binomial":
-            dist = Binomial(probs=px_mu, total_count=cov)
-        elif self.likelihood == "betabinomial":
-            dist = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
-
-        if n_samples > 1:
-            exprs = dist.sample()
-            exprs = self._split_by_modality(exprs)
-            for modality in self.modalities:
-                exprs[modality] = (
-                    exprs[modality].permute([1, 2, 0]).cpu()
-                )  # Shape : (n_cells_batch, n_genes, n_samples)
-        else:
-            exprs = dist.sample().cpu()
+            if n_samples > 1:
+                exprs_ = dist.sample()
+                exprs[modality] = exprs_.permute(
+                    [1, 2, 0]
+                ).cpu()  # Shape : (n_cells_batch, n_genes, n_samples)
+            else:
+                exprs[modality] = dist.sample().cpu()
 
         return exprs

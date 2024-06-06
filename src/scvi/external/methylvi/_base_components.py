@@ -76,6 +76,7 @@ class DecoderMETHYLVI(nn.Module):
 
     def forward(
         self,
+        dispersion: str,
         z: torch.Tensor,
         *cat_list: int,
     ):
@@ -109,6 +110,6 @@ class DecoderMETHYLVI(nn.Module):
         """
         px = self.px_decoder(z, *cat_list)
         px_mu = self.px_mu_decoder(px)
-        px_gamma = self.px_gamma_decoder(px)
+        px_gamma = self.px_gamma_decoder(px) if dispersion == "gene-cell" else None
 
         return px_mu, px_gamma
