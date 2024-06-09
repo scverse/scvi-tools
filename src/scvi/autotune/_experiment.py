@@ -474,7 +474,6 @@ class AutotuneExperiment:
         run_config = RunConfig(
             name=self.name,
             storage_path=self.logging_dir,
-            local_dir=self.logging_dir,
             log_to_file=True,
             verbose=1,
         )
