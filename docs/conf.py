@@ -145,21 +145,6 @@ html_theme_options = {
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
-    "icon_links": [
-        {
-            "name": "Scverse",
-            "url": "https://scverse.org/",
-            "icon": "https://raw.githubusercontent.com/scverse/scverse.github.io/main/static/img/icons/scverse_bw_logo.svg",
-            "type": "url",
-        },
-        {
-            "name": "GitHub",
-            # main repo github icon is defined here
-            "url": repository_url,
-            "icon": "fa-brands fa-github",
-            "type": "fontawesome",
-        },
-    ],
 }
 
 pygments_style = "default"

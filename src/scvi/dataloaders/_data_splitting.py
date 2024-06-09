@@ -297,7 +297,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             if self.shuffle_set_split:
                 rs = np.random.RandomState(seed=settings.seed)
                 unlabeled_permutation = rs.choice(
-                    self._unlabeled_indices, len(self._unlabeled_indices)
+                    self._unlabeled_indices,
+                    len(self._unlabeled_indices),
+                    replace=False,
                 )
 
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]

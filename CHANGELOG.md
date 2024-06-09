@@ -32,7 +32,16 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add `load_best_on_end` argument to {class}`scvi.train.SaveCheckpoint` to load the best model
     state at the end of training {pr}`2672`.
 - Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
-    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data {pr}`2692`.
+    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data
+    {pr}`2692`.
+- Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
+    the `dataloader` argument {pr}`2748`.
+- Add option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
+    passing in `gene_likelihood="normal"` {pr}`2780`.
+- Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
+    data {pr}`2756`.
+- Add support for reference mapping with {class}`mudata.MuData` models to
+    {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
 
 #### Changed
 
@@ -46,6 +55,29 @@ to [Semantic Versioning]. Full commit history is available in the
     {meth}`scvi.model.MULTIVI.train`, to be removed in v1.3. Please pass in `enable_checkpointing`
     or specify a custom checkpointing procedure with {class}`scvi.train.SaveCheckpoint` instead
     {pr}`2673`.
+- Move {func}`scvi.model.base._utils._load_legacy_saved_files` to
+    {func}`scvi.model.base._save_load._load_legacy_saved_files` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._load_saved_files` to
+    {func}`scvi.model.base._save_load._load_saved_files` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._initialize_model` to
+    {func}`scvi.model.base._save_load._initialize_model` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._validate_var_names` to
+    {func}`scvi.model.base._save_load._validate_var_names` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._prepare_obs` to
+    {func}`scvi.model.base._de_core._prepare_obs` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._de_core` to
+    {func}`scvi.model.base._de_core._de_core` {pr}`2731`.
+- Move {func}`scvi.model.base._utils._fdr_de_prediction` to
+    {func}`scvi.model.base._de_core_._fdr_de_prediction` {pr}`2731`.
+- {func}`scvi.data.synthetic_iid` now generates unique variable names for protein and
+    accessibility data {pr}`2739`.
+- The `data_module` argument in {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` has been
+    renamed to `datamodule` for consistency {pr}`2749`.
+- Change the default saving method of variable names for {class}`mudata.MuData` based models
+    (_e.g._ {class}`scvi.model.TOTALVI`) to a dictionary of per-mod variable names instead of a
+    concatenated array of all variable names. Users may replicate the previous behavior by
+    passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
+    {pr}`2769`.
 
 #### Removed
 
@@ -65,6 +97,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
     instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
+- Breaking change: Fix {class}`scvi.dataloaders.SemiSupervisedDataSplitter` to properly sample
+    unlabeled observations without replacement {pr}`2816`.
 
 ### 1.1.2 (2024-03-01)
 

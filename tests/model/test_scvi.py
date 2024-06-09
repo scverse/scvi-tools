@@ -166,7 +166,8 @@ def test_saving_and_loading(save_path):
     test_save_load_model(SCVI, adata, save_path, prefix=f"{SCVI.__name__}_")
 
 
-def test_scvi(n_latent: int = 5):
+@pytest.mark.parametrize("gene_likelihood", ["zinb", "nb", "poisson", "normal"])
+def test_scvi(gene_likelihood: str, n_latent: int = 5):
     adata = synthetic_iid()
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     SCVI.setup_anndata(
@@ -175,7 +176,7 @@ def test_scvi(n_latent: int = 5):
         labels_key="labels",
         size_factor_key="size_factor",
     )
-    model = SCVI(adata, n_latent=n_latent)
+    model = SCVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # test mde
@@ -238,10 +239,12 @@ def test_scvi(n_latent: int = 5):
     assert denoised.shape == (3, adata2.n_vars)
     sample = model.posterior_predictive_sample(adata2)
     assert sample.shape == adata2.shape
-    sample = model.posterior_predictive_sample(adata2, indices=[1, 2, 3], gene_list=["1", "2"])
+    sample = model.posterior_predictive_sample(
+        adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
     assert sample.shape == (3, 2)
     sample = model.posterior_predictive_sample(
-        adata2, indices=[1, 2, 3], gene_list=["1", "2"], n_samples=3
+        adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], n_samples=3
     )
     assert sample.shape == (3, 2, 3)
 
@@ -904,36 +907,36 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     SCVI.setup_anndata(adata, batch_key="batch")
     manager = SCVI._get_most_recent_anndata_manager(adata)
 
-    data_module = DataSplitter(manager)
-    data_module.n_vars = adata.n_vars
-    data_module.n_batch = n_batches
+    datamodule = DataSplitter(manager)
+    datamodule.n_vars = adata.n_vars
+    datamodule.n_batch = n_batches
 
     model = SCVI(n_latent=5)
     assert model._module_init_on_train
     assert model.module is None
 
-    # cannot infer default max_epochs without n_obs set in data_module
+    # cannot infer default max_epochs without n_obs set in datamodule
     with pytest.raises(ValueError):
-        model.train(data_module=data_module)
+        model.train(datamodule=datamodule)
 
-    # must pass in data_module if not initialized with adata
+    # must pass in datamodule if not initialized with adata
     with pytest.raises(ValueError):
         model.train()
 
-    model.train(max_epochs=1, data_module=data_module)
+    model.train(max_epochs=1, datamodule=datamodule)
 
     # must set n_obs for defaulting max_epochs
-    data_module.n_obs = 100_000_000  # large number for fewer default epochs
-    model.train(data_module=data_module)
+    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
+    model.train(datamodule=datamodule)
 
     model = SCVI(adata, n_latent=5)
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
 
-    # initialized with adata, cannot pass in data_module
+    # initialized with adata, cannot pass in datamodule
     with pytest.raises(ValueError):
-        model.train(data_module=data_module)
+        model.train(datamodule=datamodule)
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
@@ -982,3 +985,29 @@ def test_scvi_batch_embeddings(
 
     with pytest.raises(KeyError):
         _ = model.get_batch_representation()
+
+
+def test_scvi_inference_custom_dataloader(n_latent: int = 5):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(max_epochs=1)
+
+    dataloader = model._make_data_loader(adata)
+    _ = model.get_elbo(dataloader=dataloader)
+    _ = model.get_marginal_ll(dataloader=dataloader)
+    _ = model.get_reconstruction_error(dataloader=dataloader)
+    _ = model.get_latent_representation(dataloader=dataloader)
+
+
+def test_scvi_normal_likelihood():
+    import scanpy as sc
+
+    adata = synthetic_iid()
+    sc.pp.normalize_total(adata)
+    sc.pp.log1p(adata)
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, gene_likelihood="normal")
+    model.train(max_epochs=1)

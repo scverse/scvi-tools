@@ -4,7 +4,6 @@ on:
   push:
     branches: [main, "[0-9]+.[0-9]+.x"]
   pull_request:
-    branches: [main, "[0-9]+.[0-9]+.x"]
   schedule:
     - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
@@ -52,6 +51,7 @@ jobs:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
+          COLUMNS: 120
         run: |
           coverage run -m pytest -v --color=yes
           coverage report
