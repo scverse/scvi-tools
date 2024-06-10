@@ -72,7 +72,7 @@ For each methylation context $C$, the MethylVI generative process uses a single 
 :nowrap: true
 
 \begin{align}
-        f_{\theta^{C}}(z_{i}, s_i) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \left(0,1\right)^M
+    f_{\theta^{C}}(z_{i}, s_i) &: \mathbb{R}^{d} \times \{0, 1\}^K \to \left(0,1\right)^M
 \end{align}
 ```
 
@@ -153,7 +153,7 @@ As the expectation can be expensive to compute, by default, MethylVI uses the me
 ### Differential methylation
 
 Differential methylation analysis is achieved with {meth}`~scvi.external.METHYLVI.differential_methylation`.
-MehtylVI tests differences in methylation levels $\mu^{C}_{i} = f_{\theta^{C}}\left(z_{i}, s_i)\right)$.
+MethylVI tests differences in methylation levels $\mu^{C}_{i} = f_{\theta^{C}}\left(z_{i}, s_i)\right)$.
 
 [^ref1]:
     Ethan Weinberger and Su-In Lee (2021),

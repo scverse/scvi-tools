@@ -62,7 +62,6 @@ import scvi
    external.VELOVI
    external.MRVI
    external.METHYLVI
-
 ```
 
 ## Data loading
