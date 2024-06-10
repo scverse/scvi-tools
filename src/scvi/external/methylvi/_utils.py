@@ -2,10 +2,9 @@ import logging
 from typing import Optional, Union
 
 import numpy as np
+from mudata import MuData
 
 from scvi.data import AnnDataManager
-
-from ._constants import METHYLVI_REGISTRY_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,10 @@ def scmc_raw_counts_properties(
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+    mc_key
+        denotes layer where methylated cytosine counts are stored in AnnData
+    cov_key
+        denotes layer where total cytosine counts are stored in AnnData
     var_idx
         subset of variables to extract properties from. if None, all variables are used.
 
@@ -35,9 +38,16 @@ def scmc_raw_counts_properties(
     type
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
     """
-    mc = adata_manager.get_from_registry(f"{modality}_{METHYLVI_REGISTRY_KEYS.MC_KEY}")
-    cov = adata_manager.get_from_registry(f"{modality}_{METHYLVI_REGISTRY_KEYS.COV_KEY}")
+    adata = adata_manager.adata
 
+    if isinstance(adata, MuData):
+        if modality is None:
+            raise ValueError("Must specify specific modality for MuData object.")
+        mc = adata[modality].layers[adata_manager.mc_layer]
+        cov = adata[modality].layers[adata_manager.cov_layer]
+    else:
+        mc = adata.layers[adata_manager.mc_layer]
+        cov = adata.layers[adata_manager.mc_layer]
     mc1 = mc[idx1]
     mc2 = mc[idx2]
 

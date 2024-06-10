@@ -162,6 +162,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         adata_manager.modalities = [METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
+        adata_manager.mc_layer = mc_layer
+        adata_manager.cov_layer = cov_layer
         cls.register_manager(adata_manager)
 
     @classmethod
@@ -252,6 +254,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         adata_manager.modalities = methylation_modalities
+        adata_manager.mc_layer = mc_layer
+        adata_manager.cov_layer = cov_layer
 
         cls.register_manager(adata_manager)
 

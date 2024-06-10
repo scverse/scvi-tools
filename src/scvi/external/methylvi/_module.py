@@ -26,7 +26,7 @@ class METHYLVAE(BaseModuleClass):
     n_input
         Total number of input genomic regions
     modalities
-        Human-readable list of methylation modalities (e.g. ["mCG", "mCH"])
+        List of methylation modalities (e.g. ["mCG", "mCH"])
     num_features_per_modality
         Number of features corresponding to each modality
     n_batch
