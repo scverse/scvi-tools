@@ -303,7 +303,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
     @torch.inference_mode()
     def get_normalized_methylation(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         region_list: Sequence[str] | None = None,
         n_samples: int = 1,
@@ -321,8 +321,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData or MuData object with equivalent structure to initial AnnData/Mudata.
+            If `None`, defaults to the AnnData/MuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         region_list
