@@ -634,6 +634,54 @@ def test_totalvi_saving_and_loading_mudata(save_path):
     )
 
 
+def test_scarches_mudata_prep_layer(save_path):
+    n_latent = 5
+    mdata1 = synthetic_iid(return_mudata=True)
+
+    mdata1["rna"].layers["counts"] = mdata1["rna"].X.copy()
+    TOTALVI.setup_mudata(
+        mdata1,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+    model = TOTALVI(mdata1, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # mdata2 has more genes and missing 10 genes from mdata1.
+    # protein/acessibility features are same as in mdata1
+    mdata2 = synthetic_iid(n_genes=110, return_mudata=True)
+    mdata2["rna"].layers["counts"] = mdata2["rna"].X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + mdata2["rna"].var_names[10:].to_list()
+    mdata2["rna"].var_names = new_var_names
+
+    original_protein_values = mdata2["protein_expression"].X.copy()
+    original_accessibility_values = mdata2["accessibility"].X.copy()
+
+    TOTALVI.prepare_query_mudata(mdata2, dir_path)
+    # should be padded 0s
+    assert np.sum(mdata2["rna"][:, mdata2["rna"].var_names[:10]].layers["counts"]) == 0
+    np.testing.assert_equal(
+        mdata2["rna"].var_names[:10].to_numpy(), mdata1["rna"].var_names[:10].to_numpy()
+    )
+
+    # values of other modalities should be unchanged
+    np.testing.assert_equal(original_protein_values, mdata2["protein_expression"].X)
+    np.testing.assert_equal(original_accessibility_values, mdata2["accessibility"].X)
+
+    # and names should also be the same
+    np.testing.assert_equal(
+        mdata2["protein_expression"].var_names.to_numpy(),
+        mdata1["protein_expression"].var_names.to_numpy(),
+    )
+    np.testing.assert_equal(
+        mdata2["accessibility"].var_names.to_numpy(), mdata1["accessibility"].var_names.to_numpy()
+    )
+    TOTALVI.load_query_data(mdata2, dir_path)
+
+
 def test_totalvi_online_update(save_path):
     # basic case
     n_latent = 5
@@ -666,6 +714,26 @@ def test_totalvi_online_update(save_path):
     model3 = TOTALVI.load_query_data(adata2, model)
     model3.train(max_epochs=1)
     model3.get_latent_representation()
+
+    # mudata model
+    mdata1 = synthetic_iid(return_mudata=True)
+    TOTALVI.setup_mudata(
+        mdata1,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+
+    model4 = TOTALVI(mdata1, n_latent=n_latent, use_batch_norm="decoder")
+    model4.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model4.save(dir_path, overwrite=True)
+
+    mdata2 = synthetic_iid(return_mudata=True)
+    mdata2.obs["batch"] = mdata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    model5 = TOTALVI.load_query_data(mdata2, dir_path)
+    assert model5.module.background_pro_alpha.requires_grad is True
+    model5.train(max_epochs=1)
+    model5.get_latent_representation()
 
 
 def test_totalvi_save_load_mudata_format(save_path: str):

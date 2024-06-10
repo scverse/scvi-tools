@@ -36,6 +36,12 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2692`.
 - Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
     the `dataloader` argument {pr}`2748`.
+- Add option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
+    passing in `gene_likelihood="normal"` {pr}`2780`.
+- Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
+    data {pr}`2756`.
+- Add support for reference mapping with {class}`mudata.MuData` models to
+    {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
 
 #### Changed
 
@@ -91,6 +97,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
     instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
+- Breaking change: Fix {class}`scvi.dataloaders.SemiSupervisedDataSplitter` to properly sample
+    unlabeled observations without replacement {pr}`2816`.
 
 ### 1.1.2 (2024-03-01)
 
