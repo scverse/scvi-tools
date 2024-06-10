@@ -1,5 +1,6 @@
 """PyTorch module for methylVI for single cell methylation data."""
 
+from collections.abc import Iterable
 from typing import Literal
 
 import torch
@@ -51,8 +52,8 @@ class METHYLVAE(BaseModuleClass):
     def __init__(
         self,
         n_input: int,
-        modalities: list[str],
-        num_features_per_modality: list[int],
+        modalities: Iterable[str],
+        num_features_per_modality: Iterable[int],
         n_batch: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -74,8 +75,7 @@ class METHYLVAE(BaseModuleClass):
         cat_list = [n_batch]
 
         self.z_encoder = Encoder(
-            n_input
-            * 2,  # For each input region, we have both methylated counts and coverage --> x2
+            n_input * 2,  # Methylated counts and coverage for each feature --> x2
             n_latent,
             n_cat_list=cat_list,
             n_layers=n_layers,

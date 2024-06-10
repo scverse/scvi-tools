@@ -127,10 +127,12 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
         Parameters
         ----------
-        %(param_adata)s
+        %(param_mdata)s
+        mc_layer
+            Layer containing methylated cytosine counts for each set of methylation features.
+        cov_layer
+            Layer containing total coverage counts for each set of methylation features.
         %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_layer)s
 
         Returns
         -------
@@ -169,8 +171,8 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         mdata: MuData,
         mc_layer: str,
         cov_layer: str,
+        methylation_modalities: Iterable[str],
         batch_key: str | None = None,
-        methylation_modalities: dict[str, str] | None = None,
         covariate_modalities=None,
         **kwargs,
     ):
@@ -183,8 +185,12 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             Layer containing methylated cytosine counts for each set of methylation features.
         cov_layer
             Layer containing total coverage counts for each set of methylation features.
+        methylation_modalities
+            List of modalities in `mdata` object representing different methylation contexts.
+            Each modality must be equipped with a layer containing the number of methylated counts
+            (specified by `mc_layer`) and total number of counts (specified by `cov_layer`) for
+            each genomic region feature.
         %(param_batch_key)s
-        %(param_methylation_modalities)s
         %(param_covariate_modalities)s
 
         Examples
@@ -194,10 +200,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             mc_layer="mc",
             cov_layer="cov",
             batch_key="Platform",
-            methylation_modalities={
-                "mCG": "mCG",
-                "mCH": "mCH"
-            },
+            methylation_modalities=['mCG', 'mCH'],
             covariate_modalities={
                 "batch_key": "mCG"
             },
@@ -229,7 +232,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
                 fields.MuDataLayerField(
                     f"{mod}_{METHYLVI_REGISTRY_KEYS.MC_KEY}",
                     mc_layer,
-                    mod_key=methylation_modalities[mod],
+                    mod_key=mod,
                     is_count_data=True,
                     mod_required=True,
                 )
@@ -239,7 +242,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
                 fields.MuDataLayerField(
                     f"{mod}_{METHYLVI_REGISTRY_KEYS.COV_KEY}",
                     cov_layer,
-                    mod_key=methylation_modalities[mod],
+                    mod_key=mod,
                     is_count_data=True,
                     mod_required=True,
                 )
@@ -255,10 +258,10 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        mdata: MuData | None = None,
+        adata: AnnOrMuData | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
-    ) -> dict[str, sparse.GCXS]:
+    ) -> dict[str, sparse.GCXS] | sparse.GCXS:
         r"""
         Generate observation samples from the posterior predictive distribution.
 
@@ -279,7 +282,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_regions, n_samples)
         """
-        adata = self._validate_anndata(mdata)
+        adata = self._validate_anndata(adata)
 
         scdl = self._make_data_loader(adata=adata, batch_size=batch_size)
 
@@ -297,6 +300,9 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             x_new[modality] = sparse.concatenate(
                 x_new[modality]
             )  # Shape (n_cells, n_regions, n_samples)
+
+        if isinstance(adata, AnnData):
+            x_new = x_new[METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
 
         return x_new
 
@@ -558,7 +564,6 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
     def differential_methylation(
         self,
         adata: AnnOrMuData | None = None,
-        modality: str | None = None,
         groupby: str | None = None,
         group1: Iterable[str] | None = None,
         group2: str | None = None,
@@ -575,11 +580,10 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         silent: bool = False,
         two_sided: bool = True,
         **kwargs,
-    ) -> pd.DataFrame:
+    ) -> dict[str, pd.DataFrame] | pd.DataFrame:
         r"""\.
 
-        A unified method for differential methylation analysis. For MuData models, tests are
-        run for the feature set specified by `modality`.
+        A unified method for differential methylation analysis.
 
         Implements `"vanilla"` DE :cite:p:`Lopez18`. and `"change"` mode DE :cite:p:`Boyeau19`.
 
@@ -634,30 +638,6 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         """
         adata = self._validate_anndata(adata)
 
-        if isinstance(adata, MuData):
-            if modality is None:
-                raise ValueError(
-                    "Must provided methylation modality when performing differential methylation"
-                    "analysis for a MuData Model."
-                )
-            col_names = adata[modality].var_names
-            model_fn = partial(
-                self.get_specific_normalized_methylation,
-                batch_size=batch_size,
-                modality=modality,
-            )
-            all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
-        else:
-            col_names = adata.var_names
-            model_fn = partial(
-                self.get_normalized_methylation,
-                batch_size=batch_size,
-            )
-            all_stats_fn = partial(
-                scmc_raw_counts_properties,
-                modality=METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER,
-            )
-
         def change_fn(a, b):
             return a - b
 
@@ -671,28 +651,41 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
             def m1_domain_fn(samples):
                 return samples >= delta
 
-        result = _de_core(
-            adata_manager=self.get_anndata_manager(adata, required=True),
-            model_fn=model_fn,
-            representation_fn=None,
-            groupby=groupby,
-            group1=group1,
-            group2=group2,
-            idx1=idx1,
-            idx2=idx2,
-            all_stats=all_stats,
-            all_stats_fn=all_stats_fn,
-            col_names=col_names,
-            mode=mode,
-            batchid1=batchid1,
-            batchid2=batchid2,
-            delta=delta,
-            batch_correction=batch_correction,
-            fdr=fdr_target,
-            silent=silent,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
-            **kwargs,
-        )
+        result = {}
+        for modality in self.modalities:
+            col_names = adata[modality].var_names
+            model_fn = partial(
+                self.get_specific_normalized_methylation,
+                batch_size=batch_size,
+                modality=modality,
+            )
+            all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
+
+            result[modality] = _de_core(
+                adata_manager=self.get_anndata_manager(adata, required=True),
+                model_fn=model_fn,
+                representation_fn=None,
+                groupby=groupby,
+                group1=group1,
+                group2=group2,
+                idx1=idx1,
+                idx2=idx2,
+                all_stats=all_stats,
+                all_stats_fn=all_stats_fn,
+                col_names=col_names,
+                mode=mode,
+                batchid1=batchid1,
+                batchid2=batchid2,
+                delta=delta,
+                batch_correction=batch_correction,
+                fdr=fdr_target,
+                silent=silent,
+                change_fn=change_fn,
+                m1_domain_fn=m1_domain_fn,
+                **kwargs,
+            )
+
+        if isinstance(adata, AnnData):
+            return result[METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
 
         return result
