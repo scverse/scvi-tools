@@ -30,7 +30,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
-from scvi.model.base._utils import (
+from scvi.model.base._de_core import (
     _de_core,
 )
 from scvi.utils import setup_anndata_dsp
