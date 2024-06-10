@@ -653,13 +653,22 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
 
         result = {}
         for modality in self.modalities:
-            col_names = adata[modality].var_names
-            model_fn = partial(
-                self.get_specific_normalized_methylation,
-                batch_size=batch_size,
-                modality=modality,
-            )
-            all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
+            if isinstance(adata, MuData):
+                col_names = adata[modality].var_names
+                model_fn = partial(
+                    self.get_specific_normalized_methylation,
+                    batch_size=batch_size,
+                    modality=modality,
+                )
+                all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
+            else:
+                col_names = adata.var_names
+                model_fn = partial(
+                    self.get_normalized_methylation,
+                    batch_size=batch_size,
+                    modality=modality,
+                )
+                all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
 
             result[modality] = _de_core(
                 adata_manager=self.get_anndata_manager(adata, required=True),
