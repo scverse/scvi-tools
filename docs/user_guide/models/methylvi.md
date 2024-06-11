@@ -136,7 +136,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 
 A MethylVI model can be pre-trained on reference data and updated with query data using {func}`~scvi.model.MethylVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
-### Estimation of accessibility
+### Estimation of methylation levels
 
 In {func}`~scvi.model.MethylVI.get_normalized_methylation` MethylVI returns the expected value of $\mu_i$ under the approximate posterior. For one cell $i$, this can be written as:
 
@@ -150,7 +150,7 @@ In {func}`~scvi.model.MethylVI.get_normalized_methylation` MethylVI returns the 
 
 As the expectation can be expensive to compute, by default, MethylVI uses the mean of $z_i$ as a point estimate, but this behaviour can be changed by setting `use_z_mean=False` argument.
 
-### Differential accessibility
+### Differential methylation
 
 Differential methylation analysis is achieved with {func}`~scvi.model.external.MethylVI.differential_methylation`.
 MehtylVI tests differences in methylation levels $\mu^{C}_{i} = f_{\theta^{C}}\left(z_{i}, s_i)\right)$.
