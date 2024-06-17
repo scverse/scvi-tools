@@ -30,7 +30,7 @@ def _download(url: Optional[str], save_path: str, filename: str):
         if exc.code == "404":
             raise FileNotFoundError(f"Could not find file at {url}") from exc
         raise exc
-    logger.info("Downloading file at %s" % os.path.join(save_path, filename))
+    logger.info("Downloading file at {os.path.join(save_path, filename)}")
 
     def read_iter(file, block_size=1000):
         """Iterates through file.

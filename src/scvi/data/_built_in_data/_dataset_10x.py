@@ -169,4 +169,4 @@ def _find_path_to_mtx(save_path: str) -> tuple[str, str]:
             is_tar = files[0][-3:] == ".gz"
             suffix = ".gz" if is_tar else ""
             return root, suffix
-    raise FileNotFoundError("No matrix.mtx(.gz) found in path (%s)." % save_path)
+    raise FileNotFoundError(f"No matrix.mtx(.gz) found in path ({save_path}).")
