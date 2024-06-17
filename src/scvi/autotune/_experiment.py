@@ -464,6 +464,7 @@ class AutotuneExperiment:
         from ray.tune.tune_config import TuneConfig
 
         trainable = with_parameters(_trainable, experiment=self)
+        trainable = with_parameters(_trainable, experiment=self)
         trainable = with_resources(trainable, resources=self.resources)
 
         tune_config = TuneConfig(
