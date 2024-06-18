@@ -263,7 +263,7 @@ def _check_nonnegative_integers(
         raise TypeError("data type not understood")
 
     ret = True
-    if len(data) != 0:
+    if data.shape[0] != 0:
         inds = np.random.choice(len(data), size=(n_to_check,))
         check = data[inds]
         negative = np.any(check < 0)
