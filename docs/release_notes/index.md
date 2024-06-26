@@ -33,6 +33,8 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
     {class}`scvi.autotune.TuneAnalysis` in favor of new experimental functional API with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` {pr}`2561`.
 
+### 1.1.4 (unreleased)
+
 ### 1.1.3 (2024-06-26)
 
 #### Fixed
