@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Union
 from uuid import uuid4
 
 import h5py
@@ -36,9 +35,6 @@ from scvi._types import AnnOrMuData, MinifiedDataType
 from . import _constants
 
 logger = logging.getLogger(__name__)
-
-
-ScipySparse = Union[sp_sparse.csr_matrix, sp_sparse.csc_matrix]
 
 
 def registry_key_to_default_dtype(key: str) -> type:
