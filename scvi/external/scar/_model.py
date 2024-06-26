@@ -231,7 +231,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
             for b in range(n_batch):
                 try:
-                    count_batch = raw_adata[batch_idx == b].X.astype(int).A
+                    count_batch = raw_adata[batch_idx == b].X.astype(int).toarray()
                 except MemoryError as err:
                     raise MemoryError("use more batches by setting a higher n_batch") from err
                 log_prob_batch = Multinomial(
