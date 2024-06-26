@@ -40,6 +40,8 @@ to [Semantic Versioning]. Full commit history is available in the
     passing in `gene_likelihood="normal"` {pr}`2780`.
 - Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
     data {pr}`2756`.
+- Add support for reference mapping with {class}`mudata.MuData` models to
+    {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
 
 #### Changed
 
@@ -89,12 +91,14 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.1
 
-### 1.1.3 (unreleased)
+### 1.1.3 (2024-06-26)
 
 #### Fixed
 
 - Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
     instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
+- Breaking change: Fix {class}`scvi.dataloaders.SemiSupervisedDataSplitter` to properly sample
+    unlabeled observations without replacement {pr}`2816`.
 
 ### 1.1.2 (2024-03-01)
 

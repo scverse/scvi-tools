@@ -262,7 +262,7 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False) -> Optiona
     if copy:
         adata = adata.copy()
 
-    pro_array = adata[:, adata.var["feature_types"] == "Antibody Capture"].X.copy().A
+    pro_array = adata[:, adata.var["feature_types"] == "Antibody Capture"].X.copy().toarray()
     pro_names = np.array(adata.var_names[adata.var["feature_types"] == "Antibody Capture"])
 
     genes = (adata.var["feature_types"] != "Antibody Capture").values

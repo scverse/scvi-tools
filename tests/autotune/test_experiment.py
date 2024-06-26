@@ -18,7 +18,7 @@ def test_experiment_init(save_path: str):
         metrics=["elbo_validation"],
         mode="min",
         search_space={
-            "model_args": {
+            "model_params": {
                 "n_hidden": [1, 2],
             }
         },
@@ -135,7 +135,7 @@ def test_experiment_no_setup_anndata():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -154,7 +154,7 @@ def test_experiment_invalid_metrics():
             metrics=[],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -167,7 +167,7 @@ def test_experiment_invalid_metrics():
             metrics=None,
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -180,7 +180,7 @@ def test_experiment_invalid_metrics():
             metrics={"elbo_validation": None},
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -199,7 +199,7 @@ def test_experiment_invalid_mode():
             metrics=["elbo_validation"],
             mode="minimum",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -212,7 +212,7 @@ def test_experiment_invalid_mode():
             metrics=["elbo_validation"],
             mode=None,
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -268,7 +268,7 @@ def test_experiment_invalid_num_samples():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -287,7 +287,7 @@ def test_experiment_invalid_scheduler():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -301,7 +301,7 @@ def test_experiment_invalid_scheduler():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -321,7 +321,7 @@ def test_experiment_invalid_scheduler_kwargs():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -341,7 +341,7 @@ def test_experiment_invalid_searcher():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -355,7 +355,7 @@ def test_experiment_invalid_searcher():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -375,7 +375,7 @@ def test_experiment_invalid_searcher_kwargs():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -395,7 +395,7 @@ def test_experiment_invalid_seed():
             metrics=["elbo_validation"],
             mode="min",
             search_space={
-                "model_args": {
+                "model_params": {
                     "n_hidden": [1, 2],
                 }
             },
@@ -417,7 +417,7 @@ def test_experiment_get_tuner(save_path: str):
         metrics=["elbo_validation"],
         mode="min",
         search_space={
-            "model_args": {
+            "model_params": {
                 "n_hidden": [1, 2],
             }
         },
@@ -438,14 +438,14 @@ def test_trainable(save_path: str):
         metrics=["elbo_validation"],
         mode="min",
         search_space={
-            "model_args": {
+            "model_params": {
                 "n_hidden": [1, 2],
             }
         },
         num_samples=1,
     )
     sample = {
-        "model_args": {
+        "model_params": {
             "n_hidden": 1,
         }
     }

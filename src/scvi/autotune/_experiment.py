@@ -43,8 +43,8 @@ class AutotuneExperiment:
         `API <https://docs.ray.io/en/latest/tune/api/search_space.html>`_ for available search
         specifications. Must only contain the following top-level keys:
 
-        * ``"model_args"``: parameters to pass to the model constructor.
-        * ``"train_args"``: parameters to pass to the model's ``train`` method.
+        - ``"model_params"``: parameters to pass to the model constructor.
+        - ``"train_params"``: parameters to pass to the model's ``train`` method.
 
         Passed into :class:`~ray.tune.Tuner` as ``param_space``.
     num_samples
@@ -53,17 +53,17 @@ class AutotuneExperiment:
     scheduler
         Ray Tune scheduler to use. One of the following:
 
-        * ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler`
-        * ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
-        * ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
-        * ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
+        - ``"asha"``: :class:`~ray.tune.schedulers.AsyncHyperBandScheduler`
+        - ``"hyperband"``: :class:`~ray.tune.schedulers.HyperBandScheduler`
+        - ``"median"``: :class:`~ray.tune.schedulers.MedianStoppingRule`
+        - ``"fifo"``: :class:`~ray.tune.schedulers.FIFOScheduler`
 
         Configured with reasonable defaults, which can be overridden with ``scheduler_kwargs``.
     searcher
         Ray Tune search algorithm to use. One of the following:
 
-        * ``"hyperopt"``: :class:`~ray.tune.search.hyperopt.HyperOptSearch`
-        * ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
+        - ``"hyperopt"``: :class:`~ray.tune.search.hyperopt.HyperOptSearch`
+        - ``"random"``: :class:`~ray.tune.search.basic_variant.BasicVariantGenerator`
 
         Configured with reasonable defaults, which can be overridden with ``searcher_kwargs``.
     seed
@@ -72,15 +72,15 @@ class AutotuneExperiment:
     resources
         Dictionary of resources to allocate per trial in the experiment. Available keys include:
 
-        * ``"cpu"``: number of CPU cores
-        * ``"gpu"``: number of GPUs
-        * ``"memory"``: amount of memory
+        - ``"cpu"``: number of CPU cores
+        - ``"gpu"``: number of GPUs
+        - ``"memory"``: amount of memory
 
         Passed into :func:`~ray.tune.with_resources`.
     name
         Name of the experiment, used for logging purposes. Defaults to a unique ID.
     logging_dir
-        Base directory to store experiment logs. Defaults to :attr:``scvi.settings.logging_dir``.
+        Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
     scheduler_kwargs
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
@@ -101,7 +101,7 @@ class AutotuneExperiment:
         data: AnnOrMuData | LightningDataModule,
         metrics: str | list[str],
         mode: Literal["min", "max"],
-        search_space: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
+        search_space: dict[str, dict[Literal["model_params", "train_params"], dict[str, Any]]],
         num_samples: int,
         scheduler: Literal["asha", "hyperband", "median", "fifo"] = "asha",
         searcher: Literal["hyperopt", "random"] = "hyperopt",
@@ -220,7 +220,9 @@ class AutotuneExperiment:
         self._mode = value
 
     @property
-    def search_space(self) -> dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]]:
+    def search_space(
+        self,
+    ) -> dict[str, dict[Literal["model_params", "train_params"], dict[str, Any]]]:
         """Search space for hyperparameters."""
         if not hasattr(self, "_search_space"):
             raise AttributeError("`search_space` not yet available.")
@@ -234,8 +236,10 @@ class AutotuneExperiment:
             raise TypeError("`search_space` must be a dictionary")
         elif len(value) == 0:
             raise ValueError("`search_space` must not be empty")
-        elif any(key not in ["model_args", "train_args"] for key in value.keys()):
-            raise KeyError("`search_space` must only contain 'model_args' and 'train_args' keys")
+        elif any(key not in ["model_params", "train_params"] for key in value.keys()):
+            raise KeyError(
+                "`search_space` must only contain 'model_params' and 'train_params' keys"
+            )
 
         self._search_space = value
 
@@ -474,7 +478,6 @@ class AutotuneExperiment:
         run_config = RunConfig(
             name=self.name,
             storage_path=self.logging_dir,
-            local_dir=self.logging_dir,
             log_to_file=True,
             verbose=1,
         )
@@ -491,7 +494,7 @@ class AutotuneExperiment:
 
 
 def _trainable(
-    param_sample: dict[str, dict[Literal["model_args", "train_args"], dict[str, Any]]],
+    param_sample: dict[str, dict[Literal["model_params", "train_params"], dict[str, Any]]],
     experiment: AutotuneExperiment,
 ) -> None:
     """Implements a Ray Tune trainable function for an :class:`~scvi.autotune.AutotuneExperiment`.
@@ -519,15 +522,18 @@ def _trainable(
 
     from scvi import settings
 
-    model_args, train_args = param_sample.get("model_args", {}), param_sample.get("train_args", {})
-    train_args = {
+    model_params, train_params = (
+        param_sample.get("model_params", {}),
+        param_sample.get("train_params", {}),
+    )
+    train_params = {
         "accelerator": "auto",
         "devices": "auto",
         "check_val_every_n_epoch": 1,
         "enable_progress_bar": False,
         "logger": experiment.get_logger(get_context().get_trial_name()),
         "callbacks": [experiment.metrics_callback],
-        **train_args,
+        **train_params,
     }
 
     settings.seed = experiment.seed
@@ -536,8 +542,8 @@ def _trainable(
             experiment.data,
             **experiment.setup_method_args,
         )
-        model = experiment.model_cls(experiment.data, **model_args)
-        model.train(**train_args)
+        model = experiment.model_cls(experiment.data, **model_params)
+        model.train(**train_params)
     else:
-        model = experiment.model_cls(**model_args)
-        model.train(datamodule=experiment.data, **train_args)
+        model = experiment.model_cls(**train_params)
+        model.train(datamodule=experiment.data, **train_params)
