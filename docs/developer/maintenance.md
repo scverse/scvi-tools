@@ -216,8 +216,25 @@ a branch.
 
 ## Documentation
 
-Documentation is built and hosted on [Read the Docs], and the configuration can be found in
-`.readthedocs.yaml`.
+Documentation is built and hosted on [Read the Docs] (RTD), and the configuration can be found in
+`.readthedocs.yaml`. While the documentation will be automatically built for pull requests into
+`main` and release branches, it can be useful to build the documentation locally since RTD only
+allows one build at a time.
+
+Make sure to install the documentation dependencies first:
+
+```bash
+pip install -e ".[docsbuild]"
+```
+
+Run the following command to build the documentation locally from
+the root of the repository:
+
+```bash
+python -m sphinx -b html docs docs/_build
+```
+
+The documentation can be viewed by opening `docs/_build/index.html` in a web browser.
 
 ## Conventional commits
 
