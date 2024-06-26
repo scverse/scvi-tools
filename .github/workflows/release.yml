@@ -1,35 +1,41 @@
 name: release
 
+# based off of https://github.com/astral-sh/ruff/blob/main/.github/workflows/release.yaml
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The version to tag (without the leading 'v'). If omitted, will initiate a dry run (no uploads)."
+        default: ""
+        type: string
+      branch:
+        description: "The branch from which to release."
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  release:
+  validate-tag:
+    name: Validate tag
     runs-on: ubuntu-latest
-
-    environment:
-      name: pypi
-      url: https://pypi.org/p/scvi-tools
-
-    permissions:
-      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
-
+    # If you don't set an input tag, it's a dry run (no uploads).
+    if: ${{ inputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
-          filter: blob:none
-          fetch-depth: 0
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
-
-      - name: Install dependencies
-        run: pip install build
-
-      - name: Build package
-        run: python -m build
-
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          ref: ${{ inputs.branch }}
+      - name: Check tag consistency
+        run: |
+          # Switch to the commit we want to release
+          git checkout ${{ inputs.branch }}
+          version=$(grep "version = " pyproject.toml | sed -e 's/version = "\(.*\)"/\1/g')
+          if [ "${{ inputs.tag }}" != "${version}" ]; then
+            echo "The input tag does not match the version from pyproject.toml:" >&2
+            echo "${{ inputs.tag }}" >&2
+            echo "${version}" >&2
+            exit 1
+          else
+            echo "Releasing ${version}"
+          fi
