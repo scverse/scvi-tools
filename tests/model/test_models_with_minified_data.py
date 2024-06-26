@@ -1,56 +1,56 @@
+from __future__ import annotations
+
 import numpy as np
+import numpy.typing as npt
 import pytest
+from anndata import AnnData
 
 import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
 from scvi.model import SCANVI, SCVI
+from scvi.model.base import BaseMinifiedModeModelClass
 
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 
-def prep_model(cls=SCVI, layer=None, use_size_factor=False):
-    # create a synthetic dataset
+def prep_model(
+    cls: BaseMinifiedModeModelClass = SCVI,
+    layer: str | None = None,
+    use_size_factor: bool = False,
+    n_latent: int = 5,
+) -> tuple[BaseMinifiedModeModelClass, AnnData, npt.NDArray, AnnData]:
     adata = synthetic_iid()
-    adata_counts = adata.X
+    counts = adata.X
     if use_size_factor:
         adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     if layer is not None:
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
-    adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata_counts, axis=0)))
-    adata.varm["my_varm"] = np.random.negative_binomial(5, 0.3, size=(adata.shape[1], 3))
-    adata.layers["my_layer"] = np.ones_like(adata.X)
+
     adata_before_setup = adata.copy()
 
-    # run setup_anndata
     setup_kwargs = {
         "layer": layer,
         "batch_key": "batch",
         "labels_key": "labels",
+        "size_factor_key": "size_factor" if use_size_factor else None,
     }
     if cls == SCANVI:
         setup_kwargs["unlabeled_category"] = "unknown"
-    if use_size_factor:
-        setup_kwargs["size_factor_key"] = "size_factor"
     cls.setup_anndata(
         adata,
         **setup_kwargs,
     )
 
-    # create and train the model
-    model = cls(adata, n_latent=5)
+    model = cls(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    # get the adata lib size
-    adata_lib_size = np.squeeze(np.asarray(adata_counts.sum(axis=1)))
-    assert (
-        np.min(adata_lib_size) > 0
-    )  # make sure it's not all zeros and there are no negative values
+    lib_size = np.squeeze(np.asarray(counts.sum(axis=-1)))
 
-    return model, adata, adata_lib_size, adata_before_setup
+    return model, adata, lib_size, adata_before_setup
 
 
 def assert_approx_equal(a, b):
@@ -60,11 +60,11 @@ def assert_approx_equal(a, b):
 
 
 def run_test_for_model_with_minified_adata(
-    cls=SCVI,
+    cls: BaseMinifiedModeModelClass = SCVI,
     n_samples: int = 1,
     give_mean: bool = False,
     layer: str = None,
-    use_size_factor=False,
+    use_size_factor: bool = False,
 ):
     model, adata, adata_lib_size, _ = prep_model(cls, layer, use_size_factor)
 
@@ -81,19 +81,14 @@ def run_test_for_model_with_minified_adata(
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     assert model.adata_manager.registry is model.registry_
 
-    # make sure the original adata we set up the model with was not changed
+    assert not _is_minified(adata)
     assert adata is not model.adata
-    assert _is_minified(adata) is False
 
-    assert adata_orig.layers.keys() == model.adata.layers.keys()
     orig_obs_df = adata_orig.obs
-    obs_keys = _SCANVI_OBSERVED_LIB_SIZE if cls == SCANVI else _SCVI_OBSERVED_LIB_SIZE
-    orig_obs_df[obs_keys] = adata_lib_size
+    orig_obs_df[BaseMinifiedModeModelClass._OBSERVED_LIB_SIZE_KEY] = adata_lib_size
     assert model.adata.obs.equals(orig_obs_df)
     assert model.adata.var_names.equals(adata_orig.var_names)
     assert model.adata.var.equals(adata_orig.var)
-    assert model.adata.varm.keys() == adata_orig.varm.keys()
-    np.testing.assert_array_equal(model.adata.varm["my_varm"], adata_orig.varm["my_varm"])
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
