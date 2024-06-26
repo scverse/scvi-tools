@@ -30,7 +30,7 @@ jobs:
         run: |
           # Switch to the commit we want to release
           git checkout ${{ inputs.branch }}
-          version=$(grep "version = " pyproject.toml | sed -e 's/version = "\(.*\)"/\1/g')
+          version=$(grep "^version = " pyproject.toml | sed -e 's/version = "\(.*\)"/\1/g')
           if [ "${{ inputs.tag }}" != "${version}" ]; then
             echo "The input tag does not match the version from pyproject.toml:" >&2
             echo "${{ inputs.tag }}" >&2
