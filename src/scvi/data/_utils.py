@@ -1,15 +1,14 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import Optional, Union
 from uuid import uuid4
 
 import h5py
-import jax
-import jax.numpy as jnp
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import scipy.sparse as sp_sparse
-import torch
 from anndata import AnnData
 
 try:
@@ -28,7 +27,7 @@ except ImportError:
 
 from mudata import MuData
 from pandas.api.types import CategoricalDtype
-from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
+from torch import Tensor, as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
@@ -36,9 +35,6 @@ from scvi._types import AnnOrMuData, MinifiedDataType
 from . import _constants
 
 logger = logging.getLogger(__name__)
-
-
-ScipySparse = Union[sp_sparse.csr_matrix, sp_sparse.csc_matrix]
 
 
 def registry_key_to_default_dtype(key: str) -> type:
@@ -54,7 +50,7 @@ def registry_key_to_default_dtype(key: str) -> type:
     return np.float32
 
 
-def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
+def scipy_to_torch_sparse(x: sp_sparse.csr_matrix | sp_sparse.csc_matrix) -> Tensor:
     """Converts a SciPy sparse data structure to a sparse :class:`~torch.Tensor`.
 
     Parameters
@@ -97,9 +93,9 @@ def scipy_to_torch_sparse(x: ScipySparse) -> torch.Tensor:
 def get_anndata_attribute(
     adata: AnnOrMuData,
     attr_name: str,
-    attr_key: Optional[str],
-    mod_key: Optional[str] = None,
-) -> Union[np.ndarray, pd.DataFrame]:
+    attr_key: str | None,
+    mod_key: str | None = None,
+) -> npt.NDArray | pd.DataFrame:
     """Returns the requested data from a given AnnData/MuData object."""
     if mod_key is not None:
         if isinstance(adata, AnnData):
@@ -107,18 +103,19 @@ def get_anndata_attribute(
         if mod_key not in adata.mod:
             raise ValueError(f"{mod_key} is not a valid modality in adata.mod.")
         adata = adata.mod[mod_key]
+
     adata_attr = getattr(adata, attr_name)
     if attr_key is None:
         field = adata_attr
+    elif isinstance(adata_attr, pd.DataFrame):
+        if attr_key not in adata_attr.columns:
+            raise ValueError(f"{attr_key} is not a valid column in adata.{attr_name}.")
+        field = adata_attr.loc[:, attr_key]
     else:
-        if isinstance(adata_attr, pd.DataFrame):
-            if attr_key not in adata_attr.columns:
-                raise ValueError(f"{attr_key} is not a valid column in adata.{attr_name}.")
-            field = adata_attr.loc[:, attr_key]
-        else:
-            if attr_key not in adata_attr.keys():
-                raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
-            field = adata_attr[attr_key]
+        if attr_key not in adata_attr.keys():
+            raise ValueError(f"{attr_key} is not a valid key in adata.{attr_name}.")
+        field = adata_attr[attr_key]
+
     if isinstance(field, pd.Series):
         field = field.to_numpy().reshape(-1, 1)
     return field
@@ -126,10 +123,10 @@ def get_anndata_attribute(
 
 def _set_data_in_registry(
     adata: AnnData,
-    data: Union[np.ndarray, pd.DataFrame],
+    data: npt.NDArray | pd.DataFrame,
     attr_name: str,
-    attr_key: Optional[str],
-):
+    attr_key: str | None,
+) -> None:
     """Sets the data in the AnnData object according to the attr_name and attr_key.
 
     Note: This is a dangerous method and will change the underlying data of the user's anndata
@@ -159,7 +156,7 @@ def _set_data_in_registry(
         setattr(adata, attr_name, attribute)
 
 
-def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: Optional[str]):
+def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: str | None):
     """Check data format and correct if necessary.
 
     Checks that the user's AnnData field is C_CONTIGUOUS and csr if it is dense numpy or sparse
@@ -178,18 +175,18 @@ def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: Op
     data_loc_str = (
         f"adata.{attr_name}[{attr_key}]" if attr_key is not None else f"adata.{attr_name}"
     )
-    if sp_sparse.isspmatrix(data) and (data.getformat() != "csr"):
+    if sp_sparse.isspmatrix(data) and data.getformat() != "csr":
         warnings.warn(
             "Training will be faster when sparse matrix is formatted as CSR. It is safe to cast "
             "before model initialization.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
-    elif isinstance(data, np.ndarray) and (data.flags["C_CONTIGUOUS"] is False):
+    elif isinstance(data, np.ndarray) and not data.flags["C_CONTIGUOUS"]:
         logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         data = np.asarray(data, order="C")
         _set_data_in_registry(adata, data, attr_name, attr_key)
-    elif isinstance(data, pd.DataFrame) and (data.to_numpy().flags["C_CONTIGUOUS"] is False):
+    elif isinstance(data, pd.DataFrame) and not data.to_numpy().flags["C_CONTIGUOUS"]:
         logger.debug(f"{data_loc_str} is not C_CONTIGUOUS. Overwriting to C_CONTIGUOUS.")
         index = data.index
         vals = data.to_numpy()
@@ -202,7 +199,7 @@ def _make_column_categorical(
     df: pd.DataFrame,
     column_key: str,
     alternate_column_key: str,
-    categorical_dtype: Optional[Union[str, CategoricalDtype]] = None,
+    categorical_dtype: str | CategoricalDtype | None = None,
 ):
     """Makes the data in column_key in DataFrame all categorical.
 
@@ -249,7 +246,7 @@ def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
 
 
 def _check_nonnegative_integers(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    data: pd.DataFrame | npt.NDArray | sp_sparse.spmatrix | h5py.Dataset,
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
@@ -267,20 +264,13 @@ def _check_nonnegative_integers(
         raise TypeError("data type not understood")
 
     ret = True
-    if len(data) != 0:
-        inds = np.random.choice(len(data), size=(n_to_check,))
-        check = jax.device_put(data.flat[inds], device=jax.devices("cpu")[0])
-        negative, non_integer = _is_not_count_val(check)
+    if data.shape[0] != 0:
+        inds = np.random.choice(data.shape[0], size=(n_to_check,))
+        check = data[inds]
+        negative = np.any(check < 0)
+        non_integer = np.any(check % 1 != 0)
         ret = not (negative or non_integer)
     return ret
-
-
-@jax.jit
-def _is_not_count_val(data: jnp.ndarray):
-    negative = jnp.any(data < 0)
-    non_integer = jnp.any(data % 1 != 0)
-
-    return negative, non_integer
 
 
 def _check_if_view(adata: AnnOrMuData, copy_if_view: bool = False):
@@ -311,11 +301,11 @@ def _check_mudata_fully_paired(mdata: MuData):
             )
 
 
-def _get_adata_minify_type(adata: AnnData) -> Union[MinifiedDataType, None]:
+def _get_adata_minify_type(adata: AnnData) -> MinifiedDataType | None:
     return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
 
 
-def _is_minified(adata: Union[AnnData, str]) -> bool:
+def _is_minified(adata: AnnData | str) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
         return adata.uns.get(uns_key, None) is not None
@@ -327,13 +317,13 @@ def _is_minified(adata: Union[AnnData, str]) -> bool:
 
 
 def _check_fragment_counts(
-    data: Union[pd.DataFrame, np.ndarray, sp_sparse.spmatrix, h5py.Dataset],
+    data: pd.DataFrame | npt.NDArray | sp_sparse.spmatrix | h5py.Dataset,
     n_to_check: int = 100,
 ):
     """Approximately checks values of data to ensure it is fragment count data."""
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
-        if len(data) >= 400:
+        if data.shape[0] >= 400:
             data = data[:400]
         else:
             data = data[:]
