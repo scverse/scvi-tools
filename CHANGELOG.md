@@ -42,6 +42,7 @@ to [Semantic Versioning]. Full commit history is available in the
     data {pr}`2756`.
 - Add support for reference mapping with {class}`mudata.MuData` models to
     {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
+- Add {class}`scvi.external.methylVI` for methylVI {pr}`2834`.
 
 #### Changed
 
