@@ -123,8 +123,9 @@ repository targeting `main`. This release should be named according to the new v
 
 #### Updating the main repository
 
-Create a new branch off `main` in the main repository and run `git submodule update --remote`. This
-is necessary as the tutorials repository is included as a git submodule, so this step ensures that
+Create a new branch off `main` in the main repository and run `git submodule update --remote` (you
+may have to run `git submodule init` if this is the first time you run the command). This is
+necessary as the tutorials repository is included as a git submodule, so this step ensures that
 the latest changes are included in the documentation. This PR should also be backported.
 
 #### Creating a GitHub release
@@ -177,12 +178,63 @@ Finally, build new Docker images with the `stable` and semantic versioning tags 
 
 ## Continuous integration
 
-Work in progress!
+We use a combination of GitHub-hosted and self-hosted runners for our continuous integration
+(CI) workflows. The GitHub-hosted runners are used for most of our workflows, while the self-hosted
+runners are used for workflows that require a GPU.
+
+Each `.yaml` file under `.github/workflows/` corresponds to a specific workflow, where the
+tags under `on:` specify the events that trigger the workflow. Additionally, our branch rulesets
+(`Settings > Rules > Rulesets`) specify which workflows are required to pass before merging into
+a branch.
+
+- [`build`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/build.yml): Runs
+  on pushes and pull requests into `main` and release branches. This workflow attempts to build the
+  package.
+- [`release`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/release.yml):
+  Triggered by a new release on GitHub, this workflow builds the package and uploads it to PyPI
+- [`test`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux.yml): Runs
+  the test suite on Ubuntu using a GitHub-hosted runner. This workflow is triggered on pushes and
+  pull requests into `main` and release branches, as well as based on a cron schedule and manual
+  triggers.
+- [`test (cuda)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_cuda.yml):
+  Same as the `test` workflow, but runs on a self-hosted runner with a GPU. This workflow is only
+  triggered on pull requests with the `cuda tests` or `all tests` labels, which can only be added
+  by maintainers.
+- [`test (private)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_private.yml):
+  Runs on a GitHub-hosted runner for tests that require authentication (_e.g._, downloading and
+  uploading to AWS S3). This workflow is triggered on pull requests with the `private tests` or
+  `all tests` labels, which can only be added by maintainers.
+- [`test (resolution)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_resolution.yml):
+  Optionally triggered on pull requests with the `resolution tests` or `all tests` labels, this
+  workflow runs for various package resolution settings (_e.g._, pre-releases, lowest suppported
+  dependencies). Useful for catching dependency issues early if packages have pre-releases.
+- [`test (macos)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos.yml):
+  Runs the test suite on a GitHub-hosted macOS runner. Useful for catching macOS-specific issues.
+- [`test (windows)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_windows.yml):
+  Runs the test suite on a GitHub-hosted Windows runner. Useful for catching Windows-specific
+  issues.
 
 ## Documentation
 
-Documentation is built and hosted on [Read the Docs], and the configuration can be found in
-`.readthedocs.yaml`.
+Documentation is built and hosted on [Read the Docs] (RTD), and the configuration can be found in
+`.readthedocs.yaml`. While the documentation will be automatically built for pull requests into
+`main` and release branches, it can be useful to build the documentation locally since RTD only
+allows one build at a time.
+
+Make sure to install the documentation dependencies first:
+
+```bash
+pip install -e ".[docsbuild]"
+```
+
+Run the following command to build the documentation locally from
+the root of the repository:
+
+```bash
+python -m sphinx -b html docs docs/_build
+```
+
+The documentation can be viewed by opening `docs/_build/index.html` in a web browser.
 
 ## Conventional commits
 
