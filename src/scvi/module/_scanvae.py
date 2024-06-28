@@ -287,14 +287,13 @@ class SCANVAE(VAE):
         classification_ratio: float | None = None,
     ):
         """Compute the loss."""
-        px = generative_ouputs["px"]
-        qz1 = inference_outputs["qz"]
-        z1 = inference_outputs["z"]
-        x = tensors[REGISTRY_KEYS.X_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        y = None
+        px: Distribution = generative_ouputs["px"]
+        qz1: torch.Tensor = inference_outputs["qz"]
+        z1: torch.Tensor = inference_outputs["z"]
+        x: torch.Tensor = tensors[REGISTRY_KEYS.X_KEY]
+        batch_index: torch.Tensor = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
+        ys, z1s = broadcast_labels(z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
         reconst_loss = -px.log_prob(x).sum(-1)
