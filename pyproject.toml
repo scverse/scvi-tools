@@ -36,6 +36,7 @@ dependencies = [
     "flax",
     "jax",
     "jaxlib",
+    "jaxtyping",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
@@ -200,6 +201,8 @@ ignore = [
     "D203",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
+    # Ignore for jaxtyping
+    "F722",
 ]
 
 [tool.ruff.lint.pydocstyle]
