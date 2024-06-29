@@ -2,10 +2,10 @@ from math import ceil, floor
 
 import numpy as np
 import pytest
+from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi.dataloaders import BatchDistributedSampler
-from tests.data.utils import generic_setup_adata_manager
 
 
 def test_batchdistributedsampler_init(
@@ -143,7 +143,5 @@ def test_batchdistributedsampler_indices(
             assert len(sampler_indices[i].intersection(sampler_indices[j])) == 0
 
     # check that all indices are covered
-    covered_indices = np.concatenate(
-        [np.array(list(indices)) for indices in sampler_indices]
-    )
+    covered_indices = np.concatenate([np.array(list(indices)) for indices in sampler_indices])
     assert len(covered_indices) == len(dataset)
