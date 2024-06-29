@@ -66,9 +66,9 @@ class ArchesMixin:
         freeze_dropout
             Whether to freeze dropout during training
         freeze_expression
-            Freeze neurons corersponding to expression in first layer
+            Freeze neurons corresponding to expression in first layer
         freeze_decoder_first_layer
-            Freeze neurons corersponding to first layer in decoder
+            Freeze neurons corresponding to first layer in decoder
         freeze_batchnorm_encoder
             Whether to freeze batchnorm weight and bias during training for encoder
         freeze_batchnorm_decoder

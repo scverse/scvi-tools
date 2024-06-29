@@ -5,19 +5,21 @@ import numpy as np
 import torch
 from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal
 from torch.distributions import kl_divergence as kl
+from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
+from ._classifier import Classifier
 from scvi._types import Tunable
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
-from scvi.nn import Encoder, FCLayers
+from scvi.module.base import EmbeddingModuleMixin, BaseMinifiedModeModuleClass, LossOutput, auto_move_data
+from scvi.nn import Encoder, FCLayers, DecoderSCVI
 
 torch.backends.cudnn.benchmark = True
 
 
 # Conditional VAE model
-class VAEC(BaseMinifiedModeModuleClass):
+class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     """Conditional Variational auto-encoder model.
 
     This is an implementation of the CondSCVI model
@@ -53,6 +55,7 @@ class VAEC(BaseMinifiedModeModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
+        n_fine_labels: Optional[int] = None,
         n_hidden: Tunable[int] = 128,
         n_latent: Tunable[int] = 5,
         n_layers: Tunable[int] = 2,
@@ -62,8 +65,8 @@ class VAEC(BaseMinifiedModeModuleClass):
         encode_covariates: bool = False,
         extra_encoder_kwargs: Optional[dict] = None,
         extra_decoder_kwargs: Optional[dict] = None,
+        linear_classifier: bool = True,
         prior: str = 'normal',
-        df_ct_id_dict: dict = None,
         num_classes_mog: Optional[int] = 10,
     ):
         super().__init__()
@@ -79,15 +82,15 @@ class VAEC(BaseMinifiedModeModuleClass):
         # Automatically deactivate if useless
         self.n_batch = n_batch
         self.n_labels = n_labels
+        self.n_fine_labels = n_fine_labels
         self.prior = prior
-        if df_ct_id_dict is not None:
-            self.num_classes_mog = max([v[2] for v in df_ct_id_dict.values()]) + 1
-            mapping_mog = torch.tensor([v[2] for _, v in sorted(df_ct_id_dict.items())])
-            self.register_buffer("mapping_mog", mapping_mog)
-        else:
-            self.num_classes_mog = num_classes_mog
-        cat_list = [n_labels, n_batch]
+        self.num_classes_mog = num_classes_mog
+        self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, {})
+        batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
+        
+        cat_list = [n_labels]
         encoder_cat_list = cat_list if self.encode_covariates else [n_labels]
+        n_input_encoder += batch_dim * encode_covariates
 
         # gene dispersion
         self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -95,7 +98,7 @@ class VAEC(BaseMinifiedModeModuleClass):
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         _extra_encoder_kwargs = {}
         self.z_encoder = Encoder(
-            n_input,
+            n_input_encoder,
             n_latent,
             n_cat_list=encoder_cat_list,
             n_layers=n_layers,
@@ -107,11 +110,37 @@ class VAEC(BaseMinifiedModeModuleClass):
             return_dist=True,
             **_extra_encoder_kwargs,
         )
+        if n_fine_labels is not None:
+            cls_parameters = {
+                "n_layers": 0,
+                "n_hidden": 0,
+                "dropout_rate": dropout_rate,
+                "logits": True,
+            }
+            # linear mapping from latent space to a coarse-celltype aware space
+            self.linear_mapping = FCLayers(
+                n_in=n_latent,
+                n_out=n_hidden,
+                n_cat_list=[n_labels],
+                use_layer_norm=True,
+                dropout_rate=0.0,
+            )
+            
+            self.classifier = Classifier(
+                n_hidden,
+                n_labels=n_fine_labels,
+                use_batch_norm=False,
+                use_layer_norm=True,
+                **cls_parameters,
+            )
+        else:
+            self.classifier = None
 
         # decoder goes from n_latent-dimensional space to n_input-d data
         _extra_decoder_kwargs = {}
+        n_input_decoder = n_latent + batch_dim
         self.decoder = FCLayers(
-            n_in=n_latent,
+            n_in=n_input_decoder,
             n_out=n_hidden,
             n_cat_list=cat_list,
             n_layers=n_layers,
@@ -122,9 +151,7 @@ class VAEC(BaseMinifiedModeModuleClass):
             use_layer_norm=True,
             **_extra_decoder_kwargs,
         )
-        self.px_decoder = torch.nn.Sequential(
-            torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()
-        )
+        self.px_decoder = torch.nn.Linear(n_hidden, n_input)
 
         if ct_weight is not None:
             ct_weight = torch.tensor(ct_weight, dtype=torch.float32)
@@ -134,7 +161,7 @@ class VAEC(BaseMinifiedModeModuleClass):
         if self.prior=='mog':
             self.prior_means = torch.nn.Parameter(
                     0.01 * torch.randn([n_labels, self.num_classes_mog, n_latent]))
-            self.prior_log_scales = torch.nn.Parameter(
+            self.prior_log_std = torch.nn.Parameter(
                     torch.zeros([n_labels, self.num_classes_mog, n_latent]))
             self.prior_logits = torch.nn.Parameter(
                     torch.zeros([n_labels, self.num_classes_mog]))
@@ -192,11 +219,9 @@ class VAEC(BaseMinifiedModeModuleClass):
         library = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log(1 + x_)
-        if self.encode_covariates:
-            categorical_input = [y, batch_index]
-        else:
-            categorical_input = [y]
-        qz, z = self.z_encoder(x_, *categorical_input)
+        batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+        encoder_input = torch.cat([x_, batch_rep], dim=-1)
+        qz, z = self.z_encoder(encoder_input, y)
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
@@ -226,12 +251,39 @@ class VAEC(BaseMinifiedModeModuleClass):
             )
         outputs = {"z": z, "qz": qz, "library": library}
         return outputs
+    
+    @auto_move_data
+    def classify(
+        self,
+        z: torch.Tensor,
+        label_index: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Forward pass through the encoder and classifier.
+
+        Parameters
+        ----------
+        z
+            Tensor of shape ``(n_obs, n_latent)``.
+        label_index
+            Tensor of shape ``(n_obs,)`` denoting label indices.
+
+        Returns
+        -------
+        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
+        """
+        if len(label_index.shape)==1:
+            label_index = label_index.unsqueeze(1)
+        classifier_latent = self.linear_mapping(z, label_index)
+        w_y = self.classifier(classifier_latent)
+        return w_y
 
     @auto_move_data
     def generative(self, z, library, y, batch_index):
         """Runs the generative model."""
-        h = self.decoder(z, y, batch_index)
-        px_scale = self.px_decoder(h)
+        batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+        decoder_input = torch.cat([decoder_input, batch_rep], dim=-1)
+        h = self.decoder(decoder_input, y, batch_index)
+        px_scale = torch.nn.Softmax(dim=-1)(self.px_decoder(h))
         px_rate = library * px_scale
         px = NegativeBinomial(px_rate, logits=self.px_r)
         return {"px": px, "px_scale": px_scale}
@@ -242,30 +294,24 @@ class VAEC(BaseMinifiedModeModuleClass):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
+        classification_ratio = 5.,
     ):
         """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
         qz = inference_outputs["qz"]
         px = generative_outputs["px"]
-        fine_celltypes = tensors['fine_labels'].ravel().long() if 'fine_labels' in tensors.keys() else None
+        fine_labels = tensors['fine_labels'].ravel().long() if 'fine_labels' in tensors.keys() else None
 
         if self.prior == "mog":
             indexed_means = self.prior_means[y]
-            indexed_log_scales = self.prior_log_scales[y]
+            indexed_log_std = self.prior_log_std[y]
             indexed_logits = self.prior_logits[y]
-
-            # Assigns zero meaning equal weight to all unlabeled cells. Otherwise biases to sample from respective MoG.
-            if fine_celltypes is not None:
-                logits_input = torch.nn.functional.one_hot(
-                    self.mapping_mog[fine_celltypes], self.num_classes_mog)
-                cats = Categorical(logits=10*logits_input + indexed_logits)
-            else:
-                cats = Categorical(logits=indexed_logits)
-            normal_dists = torch.distributions.Independent(
+            cats = Categorical(logits=indexed_logits)
+            normal_dists = Independent(
                 Normal(
                     indexed_means,
-                    torch.exp(indexed_log_scales) + 1e-4
+                    torch.exp(indexed_log_std) + 1e-4
                 ),
                 reinterpreted_batch_ndims=1
             )
@@ -280,6 +326,12 @@ class VAEC(BaseMinifiedModeModuleClass):
 
         reconst_loss = -px.log_prob(x).sum(-1)
         scaling_factor = self.ct_weight[y]
+        
+        if self.classifier is not None:
+            fine_labels = fine_labels.view(-1)
+            logits = self.classify(qz.loc, label_index=tensors[REGISTRY_KEYS.LABELS_KEY])  # (n_obs, n_labels)
+            reconst_loss = reconst_loss + classification_ratio * F.cross_entropy(logits, fine_labels, reduction="none")
+        
         loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
 
         return LossOutput(

@@ -81,6 +81,11 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
         n_vars = self.summary_stats.n_vars
+        if 'n_fine_labels' in self.summary_stats:
+            self.n_fine_labels = self.summary_stats.n_fine_labels
+        else:
+            self.n_fine_labels = None
+        self._set_indices_and_labels(adata)
         if weight_obs:
             ct_counts = np.unique(
                 self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
@@ -91,51 +96,16 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             ct_prop = ct_prop / np.sum(ct_prop)
             ct_weight = 1.0 / ct_prop
             module_kwargs.update({"ct_weight": ct_weight})
-        if 'fine_labels' in self.adata_manager.data_registry:
-            fine_labels = get_anndata_attribute(
-                adata,
-                self.adata_manager.data_registry.labels.attr_name,
-                '_scvi_fine_labels',
-            )
-            coarse_labels = get_anndata_attribute(
-                adata,
-                self.adata_manager.data_registry.labels.attr_name,
-                '_scvi_labels'
-            )
-
-            df_ct = pd.DataFrame({
-                'fine_labels_key': fine_labels.ravel(),
-                'coarse_labels_key': coarse_labels.ravel()}).drop_duplicates()
-            print('YYYY', df_ct)
-            fine_labels_mapping = self.adata_manager.get_state_registry(
-                'fine_labels'
-            ).categorical_mapping
-            coarse_labels_mapping = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-            ).categorical_mapping
-
-            df_ct['fine_labels'] = fine_labels_mapping[df_ct['fine_labels_key']]
-            df_ct['coarse_labels'] = coarse_labels_mapping[df_ct['coarse_labels_key']]
-
-            self.df_ct_name_dict = {}
-            self.df_ct_id_dict = {}
-            for i, row in df_ct.iterrows():
-                count = len(df_ct.loc[:i][df_ct['coarse_labels'] == row['coarse_labels']]) - 1
-                self.df_ct_name_dict[row['fine_labels']] = (row['coarse_labels'], row['coarse_labels_key'], count)
-                self.df_ct_id_dict[row['fine_labels_key']] = (row['coarse_labels'], row['coarse_labels_key'], count)
-        else:
-            self.df_ct_name_dict = None
-            self.df_ct_id_dict = None
 
         self.module = self._module_cls(
             n_input=n_vars,
             n_batch=n_batch,
             n_labels=n_labels,
+            n_fine_labels=self.n_fine_labels,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
-            df_ct_id_dict=self.df_ct_id_dict,
             **module_kwargs,
         )
         self._model_summary_string = (
@@ -144,7 +114,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
-    def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10, scales_prior_n_samples: int | None = None, default_cat: list | None = None) -> np.ndarray:
+    def get_vamp_prior(self, adata: AnnData | None = None, p: int = 10) -> np.ndarray:
         r"""Return an empirical prior over the cell-type specific latent space (vamp prior) that may be used for deconvolution.
 
         Parameters
@@ -154,10 +124,6 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             AnnData object used to initialize the model.
         p
             number of clusters in kmeans clustering for cell-type sub-clustering for empirical prior
-        scales_prior_n_samples
-            return scales of negative binomial distribution for calculates prior means and variances using n_samples.
-        default_cat
-            default value for categorical covariates
 
         Returns
         -------
@@ -167,13 +133,10 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             (n_labels, p, D) array
         weights_vprior
             (n_labels, p) array
-        scales_vprior
-            (n_labels, p, G) array
         """
         if self.is_trained_ is False:
             warnings.warn(
-                "Trying to query inferred values from an untrained model. Please train "
-                "the model first.",
+                "Trying to query inferred values from an untrained model. Please train the model first.",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -183,7 +146,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
         if self.module.prior == "mog":
             results = {
                 "mean_vprior": self.module.prior_means,
-                "var_vprior": torch.exp(self.module.prior_log_scales)**2 + 1e-4,
+                "var_vprior": torch.exp(self.module.prior_log_std)**2,
                 "weights_vprior": torch.nn.functional.softmax(self.module.prior_logits, dim=-1)
             }
         else:
@@ -250,21 +213,128 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
                 "weights_vprior": mp_vprior
             }
 
-        if scales_prior_n_samples is not None:
-            scales_vprior = np.zeros((self.summary_stats.n_labels, p, self.summary_stats.n_vars))
-            cat_covs = [
-                torch.full([scales_prior_n_samples, 1], float(np.where(value==default_cat[ind])[0]) if default_cat else 0, device=self.module.device)
-                           for ind, value in enumerate(self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).mappings.values())]
-            for ct in range(self.summary_stats["n_labels"]):
-                for cluster in range(p):
-                    sampled_z = torch.distributions.Normal(
-                        results['mean_vprior'][ct, cluster, :], torch.sqrt(results['var_vprior'][ct, cluster, :])
-                    ).sample([scales_prior_n_samples,]).to(self.module.device)
-                    h = self.module.decoder(sampled_z, torch.full([scales_prior_n_samples, 1], ct, device=self.module.device), *cat_covs)
-                    scales_vprior[ct, cluster, :] = self.module.px_decoder(h).mean(0).cpu()
-            results["scales_vprior"] = scales_vprior
-
         return results
+    
+    @torch.inference_mode()
+    def predict(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        soft: bool = False,
+        batch_size: int | None = None,
+        use_posterior_mean: bool = True,
+    ) -> np.ndarray | pd.DataFrame:
+        """Return cell label predictions.
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+        indices
+            Return probabilities for each class label.
+        soft
+            If True, returns per class probabilities
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        use_posterior_mean
+            If ``True``, uses the mean of the posterior distribution to predict celltype
+            labels. Otherwise, uses a sample from the posterior distribution - this
+            means that the predictions will be stochastic.
+        """
+        adata = self._validate_anndata(adata)
+
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        scdl = self._make_data_loader(
+            adata=adata,
+            indices=indices,
+            batch_size=batch_size,
+        )
+        y_pred = []
+        for _, tensors in enumerate(scdl):
+            inference_input = self.module._get_inference_input(tensors)
+            qz = self.module.inference(**inference_input)['qz']
+            if use_posterior_mean:
+                z = qz.loc
+            else:
+                z = qz.sample()
+            pred = self.module.classify(
+                z,
+                label_index=inference_input["y"],
+            )
+            if self.module.classifier.logits:
+                pred = torch.nn.functional.softmax(pred, dim=-1)
+            if not soft:
+                pred = pred.argmax(dim=1)
+            y_pred.append(pred.detach().cpu())
+
+        y_pred = torch.cat(y_pred).numpy()
+        if not soft:
+            predictions = []
+            for p in y_pred:
+                predictions.append(self._code_to_fine_label[p])
+
+            return np.array(predictions)
+        else:
+            n_labels = len(pred[0])
+            pred = pd.DataFrame(
+                y_pred,
+                columns=self._fine_label_mapping[:n_labels],
+                index=adata.obs_names[indices],
+            )
+            return pred
+    
+    @torch.inference_mode()    
+    def confusion_coarse_celltypes(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+    ) -> np.ndarray | pd.DataFrame:
+        """Return likelihood ratios of switching coarse cell-types to inform whether resolution is to granular.
+
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+        indices
+            Return probabilities for each class label.
+        soft
+            If True, returns per class probabilities
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        use_posterior_mean
+            If ``True``, uses the mean of the posterior distribution to predict celltype
+            labels. Otherwise, uses a sample from the posterior distribution - this
+            means that the predictions will be stochastic.
+        """
+        adata = self._validate_anndata(adata)
+
+        if indices is None:
+            indices = np.arange(adata.n_obs)
+
+        scdl = self._make_data_loader(
+            adata=adata,
+            indices=indices,
+            batch_size=batch_size,
+        )
+        # Iterate once over the data and computes the reconstruction error
+        keys = list(self._label_mapping) + ['original']
+        log_lkl = {key: [] for key in keys}
+        for tensors in scdl:
+            loss_kwargs = {"kl_weight": 1}
+            _, _, losses = self.module(tensors, loss_kwargs=loss_kwargs)
+            log_lkl['original'] += [losses.reconstruction_loss]
+            for i in range(self.module.n_labels):
+                tensors_ = tensors
+                tensors_['y'] = torch.full_like(tensors['y'], i)
+                _, _, losses = self.module(tensors_, loss_kwargs=loss_kwargs)
+                log_lkl[keys[i]] += [losses.reconstruction_loss]
+        for key in keys:
+            log_lkl[key] = torch.stack(log_lkl[key]).detach().numpy()
+
+        return log_lkl
 
     @devices_dsp.dedent
     def train(
@@ -328,6 +398,22 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedMod
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
+        
+    def _set_indices_and_labels(self, adata: AnnData):
+        """Set indices for labeled and unlabeled cells."""
+        labels_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        )
+        self.original_label_key = labels_state_registry.original_key
+        self._label_mapping = labels_state_registry.categorical_mapping
+        self._code_to_label = dict(enumerate(self._label_mapping))
+        if self.n_fine_labels is not None:
+            fine_labels_state_registry = self.adata_manager.get_state_registry(
+                'fine_labels'
+            )
+            self.original_fine_label_key = fine_labels_state_registry.original_key
+            self._fine_label_mapping = fine_labels_state_registry.categorical_mapping
+            self._code_to_fine_label = dict(enumerate(self._fine_label_mapping))
 
     @classmethod
     @setup_anndata_dsp.dedent
