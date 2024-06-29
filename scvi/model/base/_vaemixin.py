@@ -129,6 +129,9 @@ class VAEMixin:
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            If False, return the marginal log likelihood for each observation.
+            Otherwise, return the mmean arginal log likelihood.
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(

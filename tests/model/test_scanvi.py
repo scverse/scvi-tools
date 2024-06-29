@@ -80,14 +80,10 @@ def test_saving_and_loading(save_path):
 
     # Test legacy loading
     legacy_save_path = os.path.join(save_path, "legacy/")
-    legacy_save(
-        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-    )
+    legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
     with pytest.raises(ValueError):
         SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
-    SCANVI.convert_legacy_save(
-        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
-    )
+    SCANVI.convert_legacy_save(legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix)
     m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
 
@@ -179,9 +175,7 @@ def test_scanvi():
     # test from_scvi_model with size_factor
     a = synthetic_iid()
     a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
-    SCVI.setup_anndata(
-        a, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
-    )
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels", size_factor_key="size_factor")
     m = SCVI(a, use_observed_lib_size=False)
     a2 = synthetic_iid()
     a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
@@ -381,18 +375,10 @@ def test_scanvi_online_update(save_path):
 
     # test classifier frozen
     class_query_weight = (
-        model2.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     # weight decay makes difference
     np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
@@ -403,18 +389,10 @@ def test_scanvi_online_update(save_path):
     model2._labeled_indices = []
     model2.train(max_epochs=1)
     class_query_weight = (
-        model2.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     with pytest.raises(AssertionError):
         np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)

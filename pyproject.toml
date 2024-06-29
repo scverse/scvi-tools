@@ -2,10 +2,9 @@
 build-backend = "hatchling.build"
 requires = ["hatchling"]
 
-
 [project]
 name = "scvi-tools"
-version = "1.1.0rc1"
+version = "1.1.4"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -32,48 +31,35 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata>=0.7.5",
-    "chex<=0.1.8",  # see https://github.com/scverse/scvi-tools/pull/2187
+    "anndata",
     "docrep>=0.3.2",
     "flax",
-    "jax>=0.4.4",
-    "jaxlib>=0.4.3",
-    "optax",
-    "numpy>=1.21.0",
-    "pandas>=1.0,!=2.1.2",
-    "scipy",
-    "scikit-learn>=0.21.2",
-    "rich>=12.0.0",
-    "h5py>=2.9.0",
-    "torch>=1.8.0",
-    "lightning>=2.0,<2.2",
-    "torchmetrics>=0.11.0",
-    "pyro-ppl>=1.6.0",
-    "tqdm>=4.56.0",
-    "scikit-learn>=0.21.2",
-    "numpyro>=0.12.1",
+    "jax",
+    "jaxlib",
+    "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
+    "numpy<2.0",
+    "numpyro>=0.12.1",
+    "pandas",
+    "pyro-ppl>=1.6.0",
+    "optax",
+    "rich>=12.0.0",
+    "scikit-learn>=0.21.2",
+    "scipy",
     "sparse>=0.14.0",
+    "tensorboard>=2.0",
+    "torch",
+    "torchmetrics>=0.11.0",
+    "tqdm",
     "xarray>=2023.2.0",
 ]
 
 
 [project.optional-dependencies]
-tests = [
-    "pytest",
-    "pytest-cov",
-    "scvi-tools[optional]"
-]  # dependencies for running the test suite
-editing = [
-    "black",
-    "flake8",
-    "jupyter",
-    "nbformat",
-    "pre-commit",
-    "ruff",
-]  # dependencies for editing and committing code
-dev = ["scvi-tools[editing,tests]"]  # dependencies for dev work
+tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
+editing = ["jupyter", "pre-commit"]
+dev = ["scvi-tools[editing,tests]"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -88,26 +74,29 @@ docs = [
     "myst-parser",
     "myst-nb",
     "sphinx-autodoc-typehints",
-]  # basic docs dependencies
-docsbuild = ["scvi-tools[docs,optional]"]  # docs build dependencies
+]
+docsbuild = ["scvi-tools[docs,optional]"]
 
-autotune = [
-    "hyperopt>=0.2",
-    "ray[tune]>=2.5.0,<2.8.0",
-    "ipython",
-    "scib-metrics>=0.4.1",
-    "tensorboard",
-]  # scvi.autotune
-census = ["cellxgene-census"]  # scvi.data.cellxgene
-hub = ["huggingface_hub"]  # scvi.hub dependencies
-pymde = ["pymde"]  # scvi.model.utils.mde dependencies
-regseq = ["biopython>=1.81", "genomepy"]  # scvi.data.add_dna_sequence
-loompy = ["loompy>=3.0.6"]  # read loom
-scanpy = ["scanpy>=1.6"]  # scvi.criticism and read 10x
+# scvi.autotune
+autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
+# scvi.hub.HubModel.pull_from_s3
+aws = ["boto3"]
+# scvi.data.cellxgene
+census = ["cellxgene-census"]
+# scvi.hub dependencies
+hub = ["huggingface_hub"]
+# scvi.model.utils.mde dependencies
+pymde = ["pymde"]
+# scvi.data.add_dna_sequence
+regseq = ["biopython>=1.81", "genomepy"]
+# read loom
+loompy = ["loompy>=3.0.6"]
+# scvi.criticism and read 10x
+scanpy = ["scanpy>=1.6"]
+
 optional = [
-    "scvi-tools[autotune,census,hub,loompy,pymde,regseq,scanpy]"
-]  # all optional user functionality
-
+    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
+]
 tutorials = [
     "cell2location",
     "gdown",
@@ -122,12 +111,12 @@ tutorials = [
     "scrublet",
     "scvi-tools[optional]",
     "squidpy",
-]  # dependencies for all tutorials
+]
 
-all = ["scvi-tools[dev,docs,tutorials]"]  # all dependencies
+all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
-packages = ['scvi']
+packages = ['src/scvi']
 
 [tool.coverage.run]
 source = ["scvi"]
@@ -138,10 +127,15 @@ omit = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 xfail_strict = true
+markers = [
+    "internet: mark tests that requires internet access",
+    "optional: mark optional tests",
+    "private: mark tests that are private",
+]
 
 [tool.ruff]
-src = ["."]
-line-length = 89
+src = ["src"]
+line-length = 99
 indent-width = 4
 target-version = "py39"
 
@@ -185,10 +179,6 @@ select = [
     "RUF100",  # Report unused noqa directives
 ]
 ignore = [
-    # line too long -> we accept long comment lines; black gets rid of long code lines
-    "E501",
-    # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
-    "E731",
     # allow I, O, l as variable names -> I is the identity matrix
     "E741",
     # Missing docstring in public package
@@ -210,9 +200,16 @@ ignore = [
     "D203",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
-    # Missing argument description in the docstring TODO: enable
-    "D417",
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"docs/*" = ["I", "BLE001"]
+"tests/*" = ["D"]
+"*/__init__.py" = ["F401"]
+"src/scvi/__init__.py" = ["I"]
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings.
@@ -226,15 +223,6 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-
-[tool.ruff.pydocstyle]
-convention = "numpy"
-
-[tool.ruff.per-file-ignores]
-"docs/*" = ["I", "BLE001"]
-"tests/*" = ["D"]
-"*/__init__.py" = ["F401"]
-"scvi/__init__.py" = ["I"]
 
 [tool.jupytext]
 formats = "ipynb,md"

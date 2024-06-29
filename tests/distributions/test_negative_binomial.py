@@ -1,24 +1,8 @@
-import numpy as np
 import pytest
 import torch
 
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.distributions._negative_binomial import log_nb_positive, log_zinb_positive
-from scvi.model._metrics import unsupervised_clustering_accuracy
-
-
-def test_deprecated_munkres():
-    y = np.array([0, 1, 0, 1, 0, 1, 1, 1])
-    y_pred = np.array([0, 0, 0, 0, 1, 1, 1, 1])
-    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
-    assert reward == 0.625
-    assert (assignment == np.array([[0, 0], [1, 1]])).all()
-
-    y = np.array([1, 1, 2, 2, 0, 0, 3, 3])
-    y_pred = np.array([1, 1, 2, 2, 3, 3, 0, 0])
-    reward, assignment = unsupervised_clustering_accuracy(y, y_pred)
-    assert reward == 1.0
-    assert (assignment == np.array([[0, 3], [1, 1], [2, 2], [3, 0]])).all()
 
 
 def test_zinb_distribution():
@@ -69,3 +53,16 @@ def test_zinb_distribution():
         dist1.log_prob(-x)  # ensures neg values raise warning
     with pytest.warns(UserWarning):
         dist2.log_prob(0.5 * x)  # ensures float values raise warning
+
+    # test with no scale
+    dist1 = ZeroInflatedNegativeBinomial(mu=mu, theta=theta, zi_logits=pi, validate_args=True)
+    dist2 = NegativeBinomial(mu=mu, theta=theta, validate_args=True)
+    dist1.__repr__()
+    dist2.__repr__()
+    assert dist1.log_prob(x).shape == size
+    assert dist2.log_prob(x).shape == size
+
+    with pytest.warns(UserWarning):
+        dist1.log_prob(-x)
+    with pytest.warns(UserWarning):
+        dist2.log_prob(0.5 * x)

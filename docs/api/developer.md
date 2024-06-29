@@ -75,8 +75,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
-   dataloaders.ContrastiveDataLoader
-   dataloaders.ContrastiveDataSplitter
 
 ```
 
@@ -93,10 +91,12 @@ Parameterizable probability distributions.
    :toctree: reference/
    :nosignatures:
 
+   distributions.Poisson
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
    distributions.JaxNegativeBinomialMeanDisp
+   distributions.BetaBinomial
 
 ```
 
@@ -124,6 +124,7 @@ These classes should be used to construct user-facing model classes.
     model.base.PyroJitGuideWarmup
     model.base.PyroModelGuideWarmup
     model.base.DifferentialComputation
+    model.base.EmbeddingMixin
 ```
 
 ## Module
@@ -176,6 +177,8 @@ Module classes in the external API with respective generative and inference proc
    external.tangram.TangramMapper
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
+   external.velovi.VELOVAE
+   external.mrvi.MRVAE
 
 ```
 
@@ -197,6 +200,7 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseMinifiedModeModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
+   module.base.EmbeddingModuleMixin
    module.base.LossOutput
    module.base.auto_move_data
 
@@ -219,7 +223,9 @@ Basic neural network building blocks.
    nn.FCLayers
    nn.Encoder
    nn.Decoder
+   nn.DecoderSCVI
    nn.one_hot
+   nn.Embedding
 
 ```
 
@@ -252,25 +258,6 @@ TrainingPlans define train/test/val optimization steps for modules.
 
 ```
 
-## Model hyperparameter tuning
-
-`scvi-tools` supports automatic model hyperparameter tuning using [Ray Tune]. These
-classes allow for new model classes to be easily integrated with the module.
-
-```{eval-rst}
-.. currentmodule:: scvi
-```
-
-```{eval-rst}
-.. autosummary::
-   :toctree: reference/
-   :nosignatures:
-
-   autotune.TunerManager
-   autotune.Tunable
-   autotune.TunableMixin
-```
-
 ## Utilities
 
 ```{eval-rst}
@@ -287,6 +274,5 @@ Utility functions used by scvi-tools.
    utils.track
    utils.setup_anndata_dsp
    utils.attrdict
+   model.get_max_epochs_heuristic
 ```
-
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html

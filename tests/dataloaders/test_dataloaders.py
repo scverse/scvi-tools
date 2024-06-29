@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 import torch
+from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi import REGISTRY_KEYS
-from tests.data.utils import generic_setup_adata_manager
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
@@ -54,9 +54,7 @@ def test_semisuperviseddataloader_subsampling(
     n_labels: int = 3,
     n_samples_per_label: int = 10,
 ):
-    adata = scvi.data.synthetic_iid(
-        batch_size=batch_size, n_batches=n_batches, n_labels=n_labels
-    )
+    adata = scvi.data.synthetic_iid(batch_size=batch_size, n_batches=n_batches, n_labels=n_labels)
     adata.obs["indices"] = np.arange(adata.n_obs)
 
     original_training_plan_cls = scvi.model.SCANVI._training_plan_cls
