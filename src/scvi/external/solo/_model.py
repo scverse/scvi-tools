@@ -386,7 +386,12 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.inference_mode()
-    def predict(self, soft: bool = True, include_simulated_doublets: bool = False) -> pd.DataFrame:
+    def predict(
+        self,
+        soft: bool = True,
+        include_simulated_doublets: bool = False,
+        return_logits: bool = False,
+    ) -> pd.DataFrame:
         """Return doublet predictions.
 
         Parameters
@@ -395,6 +400,8 @@ class SOLO(BaseModelClass):
             Return probabilities instead of class label.
         include_simulated_doublets
             Return probabilities for simulated doublets as well.
+        return_logits
+            Whether to return logits instead of probabilities when ``soft`` is ``True``.
 
         Returns
         -------
@@ -403,7 +410,8 @@ class SOLO(BaseModelClass):
         warnings.warn(
             "Prior to scvi-tools 1.1.3, `SOLO.predict` with `soft=True` (the default option) "
             "returned logits instead of probabilities. This behavior has since been corrected to "
-            "return probabiltiies.",
+            "return probabiltiies. The previous behavior can be replicated by passing in "
+            "`return_logits=True`.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -417,8 +425,8 @@ class SOLO(BaseModelClass):
 
         y_pred = []
         for _, tensors in enumerate(scdl):
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            pred = torch.nn.functional.softmax(auto_forward(self.module, x), dim=-1)
+            pred = auto_forward(self.module, tensors[REGISTRY_KEYS.X_KEY])
+            pred = torch.nn.functional.softmax(pred, dim=-1) if not return_logits else pred
             y_pred.append(pred.cpu())
 
         y_pred = torch.cat(y_pred).numpy()
