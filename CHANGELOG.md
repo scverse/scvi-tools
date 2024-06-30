@@ -93,6 +93,12 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ### 1.1.4 (unreleased)
 
+#### Added
+
+- Add argument `return_logits` to {meth}`scvi.external.SOLO.predict` that allows returning logits
+    instead of probabilities when passing in `soft=True` to replicate the buggy behavior previous
+    to v1.1.3 {pr}`2870`.
+
 ### 1.1.3 (2024-06-26)
 
 #### Fixed
