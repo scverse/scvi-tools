@@ -91,7 +91,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.1
 
-### 1.1.4 (unreleased)
+### 1.1.4 (2024-06-30)
 
 #### Added
 
