@@ -7,7 +7,8 @@ from scvi.model import SCVI
 
 
 @pytest.mark.parametrize("soft", [True, False])
-def test_solo(soft: bool):
+@pytest.mark.parametrize("return_logits", [True, False])
+def test_solo(soft: bool, return_logits: bool):
     n_latent = 5
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -17,11 +18,14 @@ def test_solo(soft: bool):
     solo = SOLO.from_scvi_model(model)
     solo.train(1, check_val_every_n_epoch=1, train_size=0.9)
     assert "validation_loss" in solo.history.keys()
-    predictions = solo.predict(soft=soft)
+    predictions = solo.predict(soft=soft, return_logits=return_logits)
     if soft:
         preds = predictions.to_numpy()
         assert preds.shape == (adata.n_obs, 2)
-        assert np.allclose(preds.sum(axis=-1), 1)
+        if not return_logits:
+            assert np.allclose(preds.sum(axis=-1), 1)
+        else:
+            assert not np.allclose(preds.sum(axis=-1), 1)
 
     bdata = synthetic_iid()
     solo = SOLO.from_scvi_model(model, bdata)
