@@ -1,4 +1,4 @@
-See the [release notes](https://docs.scvi-tools.org/en/stable/release_notes/index.html) for all changes.
+See the [release notes](https://docs.scvi-tools.org/en/stable/changelog.html) for all changes.
 
 This release is available via PyPi:
 
