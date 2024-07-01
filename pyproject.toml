@@ -39,7 +39,6 @@ dependencies = [
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
-    "numpy<2.0",
     "numpyro>=0.12.1",
     "pandas",
     "pyro-ppl>=1.6.0",
