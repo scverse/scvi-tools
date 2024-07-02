@@ -89,9 +89,9 @@ release (see [#2327] for an example). This section provides an overview of the s
 #### (Optional) creating a release branch
 
 As mentioned above, if the release increments the major or minor version, a new release branch
-should be created from `main`. This branch should be named according to the new version, _e.g._,
-`1.0.x`. Our GitHub rulesets will automatically protect this branch from direct pushes and will
-require pull requests for changes.
+should be created from `main`. This branch should be named according to the new version, with the
+literal `x` in place of the patch version, _e.g._, `1.0.x`. Our GitHub rulesets will automatically
+protect this branch from direct pushes and will require pull requests for changes.
 
 #### Bumping the version
 
@@ -128,12 +128,15 @@ may have to run `git submodule init` if this is the first time you run the comma
 necessary as the tutorials repository is included as a git submodule, so this step ensures that
 the latest changes are included in the documentation. This PR should also be backported.
 
-#### Creating a GitHub release
+#### Run the release workflow
 
-Create a new GitHub release targeting the release branch with the same body as the previous
-release. Once the release is published, this will trigger the [release workflow] that will build
-the package and upload it to PyPI. Note that this workflow will only run if the version tag matches
-the `*.*.*` pattern (this pattern is protected by our GitHub rulesets).
+Once the version is bumped in `pyproject.toml` and the tutorials have been updated, it is time to
+run the [release workflow]. To run the workflow, you will need to provide two arguments: the
+semantic versioning tag (_e.g._ 1.1.5) and the release branch name (_e.g._, `1.0.x`). The workflow
+will fail if the version tag does not match the one in `pyproject.toml`.
+
+The workflow will build the package, tag the version with Git, publish the release on GitHub with
+a default body, and upload the package to PyPI.
 
 At this point, check that the version updates correctly on [PyPI]. If necessary, follow the
 instructions in the next section. Additionally, check that [Read the Docs] builds correctly and
