@@ -13,8 +13,10 @@ def get_minified_adata_scrna(
 ) -> AnnData:
     """Get a minified version of an :class:`~anndata.AnnData` or :class:`~mudata.MuData` object."""
     counts = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+    all_zeros = csr_matrix(counts.shape)
     return AnnData(
-        X=counts if keep_count_data else csr_matrix(counts.shape),
+        X=counts if keep_count_data else all_zeros,
+        layers={layer: all_zeros.copy() for layer in adata_manager.adata.layers},
         obs=adata_manager.adata.obs.copy(),
         var=adata_manager.adata.var.copy(),
         uns=adata_manager.adata.uns.copy(),
