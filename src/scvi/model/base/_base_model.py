@@ -903,7 +903,6 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
         use_latent_qzm_key: str = "X_latent_qzm",
         use_latent_qzv_key: str = "X_latent_qzv",
-        keep_count_data: bool = False,
     ) -> None:
         """Minify the model's :attr:`~scvi.model.base.BaseModelClass.adata`.
 
@@ -917,25 +916,25 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         minified_data_type
             Method for minifying the data. One of the following:
 
-            - ``"latent_posterior"``: Store the latent posterior mean and variance in
+            - ``"latent_posterior_parameters"``: Store the latent posterior mean and variance in
                 :attr:`~anndata.AnnData.obsm` using the keys ``use_latent_qzm_key`` and
                 ``use_latent_qzv_key``.
+            - ``"latent_posterior_parameters_with_counts"``: Store the latent posterior mean and
+                variance in :attr:`~anndata.AnnData.obsm` using the keys ``use_latent_qzm_key`` and
+                ``use_latent_qzv_key``, and the raw count data in :attr:`~anndata.AnnData.X`.
         use_latent_qzm_key
             Key to use for storing the latent posterior mean in :attr:`~anndata.AnnData.obsm` when
             ``minified_data_type`` is ``"latent_posterior"``.
         use_latent_qzv_key
             Key to use for storing the latent posterior variance in :attr:`~anndata.AnnData.obsm`
             when ``minified_data_type`` is ``"latent_posterior"``.
-        keep_count_data
-            If ``True``, the full count matrix is kept in the minified
-            :attr:`~scvi.model.base.BaseModelClass.adata`.
 
         Notes
         -----
         The modification is not done inplace -- instead the model is assigned a new (minified)
         version of the :class:`~anndata.AnnData`.
         """
-        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if minified_data_type not in ADATA_MINIFY_TYPE:
             raise NotImplementedError(
                 f"Minification method {minified_data_type} is not supported."
             )
@@ -944,11 +943,13 @@ class BaseMinifiedModeModelClass(BaseModelClass):
                 "Minification is not supported for models that do not use observed library size."
             )
 
+        keep_count_data = minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
         mini_adata = get_minified_adata_scrna(
             adata_manager=self.adata_manager,
-            minified_data_type=minified_data_type,
             keep_count_data=keep_count_data,
         )
+        del mini_adata.uns[_SCVI_UUID_KEY]
+        mini_adata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = minified_data_type
         mini_adata.obsm[self._LATENT_QZM_KEY] = self.adata.obsm[use_latent_qzm_key]
         mini_adata.obsm[self._LATENT_QZV_KEY] = self.adata.obsm[use_latent_qzv_key]
         mini_adata.obs[self._OBSERVED_LIB_SIZE_KEY] = np.squeeze(
@@ -957,7 +958,6 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         self._update_adata_and_manager_post_minification(
             mini_adata,
             minified_data_type,
-            keep_count_data=keep_count_data,
         )
         self.module.minified_data_type = minified_data_type
 
@@ -965,10 +965,9 @@ class BaseMinifiedModeModelClass(BaseModelClass):
     def _get_fields_for_adata_minification(
         cls,
         minified_data_type: MinifiedDataType,
-        keep_count_data: bool,
     ):
         """Return the fields required for minification of the given type."""
-        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if minified_data_type not in ADATA_MINIFY_TYPE:
             raise NotImplementedError(
                 f"Minification method {minified_data_type} is not supported."
             )
@@ -979,7 +978,7 @@ class BaseMinifiedModeModelClass(BaseModelClass):
             fields.NumericalObsField(REGISTRY_KEYS.OBSERVED_LIB_SIZE, cls._OBSERVED_LIB_SIZE_KEY),
             fields.StringUnsField(REGISTRY_KEYS.MINIFY_TYPE_KEY, _ADATA_MINIFY_TYPE_UNS_KEY),
         ]
-        if keep_count_data:
+        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS:
             mini_fields.append(fields.LayerField(REGISTRY_KEYS.X_KEY, None, is_count_data=True))
 
         return mini_fields
@@ -988,7 +987,6 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         self,
         minified_adata: AnnOrMuData,
         minified_data_type: MinifiedDataType,
-        keep_count_data: bool,
     ):
         """Update the :class:`~anndata.AnnData` and :class:`~scvi.data.AnnDataManager` in-place.
 
@@ -1005,7 +1003,7 @@ class BaseMinifiedModeModelClass(BaseModelClass):
         self._validate_anndata(minified_adata)
         new_adata_manager = self.get_anndata_manager(minified_adata, required=True)
         new_adata_manager.register_new_fields(
-            self._get_fields_for_adata_minification(minified_data_type, keep_count_data)
+            self._get_fields_for_adata_minification(minified_data_type)
         )
         self.adata = minified_adata
 
