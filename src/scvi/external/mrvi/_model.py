@@ -788,6 +788,40 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Normal(qu_loc, qu_scale),
         )
 
+        # my torch version below
+        import torch
+        import torch.distributions.Distribution as D
+
+        self._check_if_trained(warn=False)
+        adata = self._validate_anndata(adata)
+        if indices is None:
+            indices = np.arange(self.adata.n_obs)
+        if sample is not None:
+            indices = np.intersect1d(
+                np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
+            )
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
+        )
+
+        qu_locs = []
+        qu_scales = []
+        for array_dict in scdl:
+            # need to use self.qu of module to do inference, avoiding using the jax inference fn
+            # then you have posteriors for each cell, can continue on
+
+            # qu = self.qu(x, sample_index, training=self.training)
+            # tensor of posterior distributions for each cell in batch
+            qu = self.module.qu(
+                array_dict, indices, training=self.module.training
+            )  # need to check params
+            # i think the above should generate the u posteriors
+            # for each sample in the current batch
+
+            # then we can do the mixture of gaussians
+
+            return D.MixtureSameFamily(D.Categorical(torch.ones(qu.shape[0])), qu)
+
     def differential_abundance(
         self,
         adata: AnnData | None = None,
