@@ -15,9 +15,10 @@ jobs:
       - name: Update tutorials 🔧
         run: git submodule update --remote --recursive
 
-      - uses: peter-evans/create-pull-request@v5
+      - uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "docs: update tutorials"
-          title: "docs: update tutorials"
+          commit-message: "docs: automated update of tutorials"
+          title: "docs: automated update of tutorials"
           branch: "update-tutorials"
+          base: "main"
           body: "automated update of tutorials submodule"
