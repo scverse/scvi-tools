@@ -2,6 +2,16 @@
 
 This guide includes various sections that are applicable to maintainers of the project.
 
+## Updating tutorials
+
+The [tutorials] repository is included as a git submodule in the main repository under
+`docs/tutorials/notebooks`. This allows us to lower the size of the main repository as the
+notebooks can be quite large. This also means that changes committed to the tutorials repository
+are not immediately reflected in the main repository. In order to update the tutorials in the
+main repository (and subsequently the documentation), run the [update tutorials workflow], which
+will create a PR updating the head reference of the submodule to the latest commit in the
+tutorials repository.
+
 ## Releases
 
 We follow [Semantic Versioning] for naming releases. In short, this means that each release is
@@ -121,12 +131,9 @@ Once all relevant tutorials have been updated and merged, create a new release o
 repository targeting `main`. This release should be named according to the new version, _e.g._,
 `1.0.0`.
 
-#### Updating the main repository
+#### Updating the tutorials
 
-Create a new branch off `main` in the main repository and run `git submodule update --remote` (you
-may have to run `git submodule init` if this is the first time you run the command). This is
-necessary as the tutorials repository is included as a git submodule, so this step ensures that
-the latest changes are included in the documentation. This PR should also be backported.
+Then, update the tutorials submodule in the main repository using the [update tutorials workflow].
 
 #### Run the release workflow
 
@@ -292,3 +299,4 @@ We use the `BREAKING CHANGE` footer to indicate that a commit introduces a break
 [Read the Docs]: https://readthedocs.org/projects/scvi/
 [conventional commits]: https://www.conventionalcommits.org/
 [Angular convention]: https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines
+[update tutorials workflow]: https://github.com/scverse/scvi-tools/actions/workflows/tutorials.yaml
