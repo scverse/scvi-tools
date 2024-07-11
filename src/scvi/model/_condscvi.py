@@ -11,9 +11,9 @@ from anndata import AnnData
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import _get_adata_minify_type, get_anndata_attribute
-from scvi.data.fields import CategoricalJointObsField, CategoricalObsField, LayerField
+from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.model.base import (
-    BaseMinifiedModeModelClass,
+    BaseModelClass,
     RNASeqMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
@@ -25,9 +25,7 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-class CondSCVI(
-    RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseMinifiedModeModelClass
-):
+class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Conditional version of single-cell Variational Inference, used for multi-resolution deconvolution of spatial transcriptomics data :cite:p:`Lopez22`.
 
     Parameters
@@ -434,7 +432,7 @@ class CondSCVI(
         labels_key: str | None = None,
         fine_labels_key: str | None = None,
         layer: str | None = None,
-        batch_key: str | None = None,
+        unlabeled_category: str = "unlabeled",
         **kwargs,
     ):
         """%(summary)s.
@@ -446,6 +444,7 @@ class CondSCVI(
         %(param_labels_key)s
         fine_labels_key
             Key in `adata.obs` where fine-grained labels are stored.
+        %(unlabeled_category)ss
         %(param_layer)s
         %(param_batch_key)s
         """
@@ -457,8 +456,7 @@ class CondSCVI(
         ]
         if fine_labels_key is not None:
             anndata_fields.append(
-                CategoricalObsField('fine_labels', fine_labels_key
-                )
+                LabelsWithUnlabeledObsField('fine_labels', fine_labels_key, unlabeled_category),
             )
 
         # register new fields if the adata is minified

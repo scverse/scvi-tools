@@ -12,9 +12,12 @@ import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
+from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
+    _ADATA_MINIFY_TYPE_UNS_KEY,
     _SETUP_ARGS_KEY,
+    ADATA_MINIFY_TYPE,
 )
 from scvi.data._utils import _get_adata_minify_type, _is_minified, get_anndata_attribute
 from scvi.data.fields import (

@@ -83,7 +83,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cell_type_mapping: np.ndarray,
         decoder_state_dict: OrderedDict,
         px_decoder_state_dict: OrderedDict,
-        px_r: np.ndarray,
+        px_r: torch.tensor,
+        per_ct_bias: torch.tensor,
         n_hidden: int,
         n_latent: int,
         n_layers: int,
@@ -99,6 +100,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             decoder_state_dict=decoder_state_dict,
             px_decoder_state_dict=px_decoder_state_dict,
             px_r=px_r,
+            per_ct_bias=per_ct_bias,
             n_genes=st_adata.n_vars,
             n_latent=n_latent,
             n_layers=n_layers,
@@ -107,6 +109,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             **module_kwargs,
         )
         self.cell_type_mapping = cell_type_mapping
+        self.cell_type_mapping_extended = list(self.cell_type_mapping) + [f'additional_{i}' for i in range(self.module.add_celltypes)]
         self._model_summary_string = "DestVI Model"
         self.init_params_ = self._get_init_params(locals())
 
@@ -143,6 +146,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         decoder_state_dict = OrderedDict((i[8:], load_state_dict[i]) for i in load_state_dict.keys() if i.split('.')[0]=='decoder')
         px_decoder_state_dict = OrderedDict((i[11:], load_state_dict[i]) for i in load_state_dict.keys() if i.split('.')[0]=='px_decoder')
         px_r = load_state_dict['px_r']
+        per_ct_bias = load_state_dict['per_ct_bias']
         mapping = registry['field_registries']['labels']['state_registry']['categorical_mapping']
 
         dropout_decoder = attr_dict['init_params_']['non_kwargs']['dropout_rate']
@@ -158,11 +162,15 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             mean_vprior, var_vprior, mp_vprior = sc_model.get_vamp_prior(
                 sc_model.adata, p=vamp_prior_p
             ).values()
+            
+        if anndata_setup_kwargs is None:
+            anndata_setup_kwargs = {}
         
         cls.setup_anndata(
             st_adata,
             source_registry=registry,
             extend_categories=True,
+            **anndata_setup_kwargs,
             **registry[_SETUP_ARGS_KEY],
         )
 
@@ -172,6 +180,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             decoder_state_dict,
             px_decoder_state_dict,
             px_r,
+            per_ct_bias,
             sc_model.module.n_hidden,
             sc_model.module.n_latent,
             sc_model.module.n_layers,
@@ -185,19 +194,19 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_proportions(
         self,
-        keep_noise: bool = False,
+        keep_additional: bool = False,
         normalize: bool = True,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
     ) -> pd.DataFrame:
         """Returns the estimated cell type proportion for the spatial data.
 
-        Shape is n_cells x n_labels OR n_cells x (n_labels + 1) if keep_noise.
+        Shape is n_cells x n_labels OR n_cells x (n_labels + add_celltypes) if keep_additional.
 
         Parameters
         ----------
-        keep_noise
-            whether to account for the noise term as a standalone cell type in the proportion estimate.
+        keep_additional
+            whether to account for the additional cell-types as standalone cell types in the proportion estimate.
         normalize
             whether to normalize the proportions to sum to 1.
         indices
@@ -211,8 +220,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         column_names = self.cell_type_mapping
         index_names = self.adata.obs.index
-        if keep_noise:
-            column_names = np.append(column_names, "noise_term")
+        if keep_additional:
+            column_names = list(self.cell_type_mapping_extended)
+        else:
+            column_names = list(self.cell_type_mapping)
 
         if self.module.amortization in ["both", "proportion"]:
             stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
@@ -221,17 +232,17 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 inference_inputs = self.module._get_inference_input(tensors)
                 outputs = self.module.inference(**inference_inputs)
                 generative_inputs = self.module._get_generative_input(tensors, outputs)
-                prop_local = self.module.generative(**generative_inputs)["v"].squeeze(0)
+                prop_local = self.module.generative(**generative_inputs)["v"][0, ...]
                 prop_ += [prop_local.cpu()]
-            data = torch.cat(prop_).numpy()
+            data = torch.cat(prop_).detach().numpy()
             if indices:
                 index_names = index_names[indices]
         else:
-            data = torch.nn.functional.softplus(self.module.V[indices, :]).transpose(1, 0).detach().cpu().numpy()
+            data = torch.nn.functional.softplus(self.module.V).transpose(0, 1).detach().cpu().numpy()
+        if not keep_additional:
+            data = data[:, :-self.module.add_celltypes]
         if normalize:
             data = data / data.sum(axis=1, keepdims=True)
-        if not keep_noise:
-            data = data[:, :-1]
 
         return pd.DataFrame(
             data=data,
@@ -276,7 +287,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             n_modes, batch_size, n_celltypes = proportions_modes_local.shape
             gamma_local_ = gamma_local.permute((3, 2, 0, 1)).reshape(-1, self.module.n_latent) # m*p*c, n
             proportions_modes_local_ = proportions_modes_local.permute((1, 0, 2)).flatten() # m*p*c
-            v_local = generative_outputs['v'][..., :-1].flatten().repeat_interleave(n_modes) # m*p*c
+            v_local = generative_outputs['v'][0, ..., :-self.module.add_celltypes].flatten().repeat_interleave(n_modes) # m*p*c
             label = torch.arange(self.module.n_labels, device=gamma_local.device).repeat(batch_size).repeat_interleave(n_modes).unsqueeze(-1) # m*p*c, 1
             predicted_fine_celltype_local = v_local.unsqueeze(-1) * proportions_modes_local_.unsqueeze(-1) * torch.nn.functional.softmax(
                 sc_model.module.classify(gamma_local_, label), dim=-1)
@@ -324,19 +335,18 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
                 outputs = self.module.inference(**inference_inputs)
                 generative_inputs = self.module._get_generative_input(tensors, outputs)
                 generative_outputs = self.module.generative(**generative_inputs)
-                gamma_local = generative_outputs["gamma"].squeeze(0)
+                gamma_local = generative_outputs["gamma"][0, ...]
                 if self.module.prior_mode == 'mog':
-                    proportions_model_local = generative_outputs['proportion_modes'].squeeze(0)
+                    proportions_model_local = generative_outputs['proportion_modes'][0, ...]
                     gamma_local = torch.einsum('pncm,pmc->ncm', gamma_local, proportions_model_local)
                 else:
-                    gamma_local = gamma_local.squeeze(0).squeeze(0)
+                    gamma_local = gamma_local[0, ...].squeeze(0)
                 gamma_ += [gamma_local.cpu()]
             data = torch.cat(gamma_, dim=-1).numpy()
             if indices is not None:
                 index_names = index_names[indices]
         else:
-            data = self.module.gamma[indices, :, :].detach().cpu().numpy()
-
+            data = self.module.gamma.detach().cpu().numpy()
         data = np.transpose(data, (2, 0, 1))
         if return_numpy:
             return data
@@ -398,7 +408,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         latent_qzv = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
-            inference_outputs = self.module.inference(**inference_inputs, n_samples=mc_samples).values()
+            inference_outputs = self.module.inference(**inference_inputs, n_samples=mc_samples)
             z = inference_outputs['z'][0, ...]
             qz = inference_outputs['qz']
             if give_mean:
@@ -438,7 +448,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         self._check_if_trained()
         self._validate_anndata()
         
-        cell_type_mapping_extended = list(self.cell_type_mapping) + ['noise']
+        cell_type_mapping_extended = list(self.cell_type_mapping) + [f'additional_{i}' for i in range(self.module.add_celltypes)]
 
         if label not in cell_type_mapping_extended:
             raise ValueError("Unknown cell type")
@@ -487,11 +497,10 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Pandas dataframe of gene_expression
         """
         self._check_if_trained()
-        cell_type_mapping_extended = list(self.cell_type_mapping) + ['noise']
 
-        if label not in cell_type_mapping_extended:
+        if label not in self.cell_type_mapping_extended:
             raise ValueError("Unknown cell type")
-        y = cell_type_mapping_extended.index(label)
+        y = self.cell_type_mapping_extended.index(label)
 
         stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
         expression_ct = []
@@ -591,6 +600,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: str | None = None,
+        smoothed_layer: str | None = None,
         batch_key: str | None = None,
         **kwargs,
     ):
@@ -610,6 +620,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
+        if smoothed_layer is not None:
+            anndata_fields.append(LayerField("x_smoothed", smoothed_layer, is_count_data=True))
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
