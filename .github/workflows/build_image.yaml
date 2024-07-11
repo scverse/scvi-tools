@@ -73,8 +73,8 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          cache-from: type=registry,ref=scverse/scvi-tools:buildcache
-          cache-to: type=inline,ref=scverse/scvi-tools:buildcache
+          cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
+          cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
           target: ${{ steps.build.outputs.target }}
           tags: ghcr.io/scverse/scvi-tools:py3.11-cu12-${{ steps.build.outputs.dependencies }}${{ steps.build.outputs.versiontag }}
           build-args: |
