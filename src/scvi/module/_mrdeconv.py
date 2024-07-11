@@ -89,9 +89,9 @@ class MRDeconv(EmbeddingModuleMixin, BaseModuleClass):
         per_ct_bias: torch.tensor,
         dropout_decoder: float,
         dropout_amortization: float = 0.03,
-        augmentation: bool = False,
-        n_samples_augmentation: int = 1,
-        n_states_per_label: int = 1,
+        augmentation: bool = True,
+        n_samples_augmentation: int = 2,
+        n_states_per_label: int = 3,
         eps_v: float = 2e-3,
         mean_vprior: np.ndarray = None,
         var_vprior: np.ndarray = None,
@@ -433,12 +433,13 @@ class MRDeconv(EmbeddingModuleMixin, BaseModuleClass):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
-        ct_sparsity_weight: float = 0.,
-        weighting_augmentation: float = 10.,
-        weighting_smoothing: float = 0.1,
+        ct_sparsity_weight: float = 2.,
+        weighting_augmentation: float = 100.,
+        weighting_smoothing: float = 100.,
         eta_reg: float = 1.,
-        beta_reg: float = 1e-3,
-        reconst_weight: float = 1.0,
+        beta_reg: float = 1.,
+        weighting_kl_latent: float = 1e-3,
+        reconst_weight: float = 3.0,
     ):
         """Compute the loss."""
         x_augmented = inference_outputs["x_augmented"]
@@ -539,7 +540,7 @@ class MRDeconv(EmbeddingModuleMixin, BaseModuleClass):
             log_likelihood_prior = torch.logsumexp(pre_lse, -2)  # n_samples, minibatch, n_labels
             neg_log_likelihood_prior = - log_likelihood_prior.sum(-1)  # n_samples, minibatch
         if self.n_latent_amortization is not None:
-            neg_log_likelihood_prior += 1e-3 * kl(
+            neg_log_likelihood_prior += weighting_kl_latent * kl(
                 inference_outputs["qz"],
                 Normal(torch.zeros([self.n_latent_amortization], device=x_augmented.device), torch.ones([self.n_latent_amortization], device=x_augmented.device))
             ).sum(dim=-1)
