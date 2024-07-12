@@ -1,6 +1,8 @@
-name: build image (base)
+name: build image (release branch)
 
 on:
+  push:
+    branches: ["[0-9]+.[0-9]+.x"]
   workflow_dispatch:
 
 concurrency:
@@ -18,6 +20,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dependencies: ["", "dev", "tutorials"]
 
     steps:
       - uses: actions/checkout@v4
@@ -37,5 +44,7 @@ jobs:
           push: true
           cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
           cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
-          target: base
-          tags: ghcr.io/scverse/scvi-tools:py3.11-cu12-base
+          target: build
+          tags: ghcr.io/scverse/scvi-tools:py3.11-cu12-${{ github.ref_name }}-${{ matrix.dependencies }}
+          build-args: |
+            DEPENDENCIES=${{ matrix.dependencies }}
