@@ -45,7 +45,7 @@ jobs:
           echo "dependencies=${DEPENDENCIES}" >> $GITHUB_OUTPUT
 
           INPUT_REF=${{ github.ref_name }}
-          if [[ $INPUT_REF] == "main" ]]; then
+          if [[ $INPUT_REF == "main" ]]; then
             VERSION="latest"
           else
             VERSION=${INPUT_REF}
