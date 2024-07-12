@@ -5,6 +5,10 @@ on:
     branches: [main, "[0-9]+.[0-9]+.x"]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,8 +27,6 @@ jobs:
         dependencies: ["", "dev", "tutorials"]
 
     steps:
-      - run: echo ${{ github.ref_name }}
-
       - uses: actions/checkout@v4
 
       - uses: docker/setup-buildx-action@v3
@@ -35,6 +37,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set build inputs
+        id: build
+        run: |
+          INPUT_DEPENDENCIES=${{ matrix.dependencies }}
+          DEPENDENCIES=${INPUT_DEPENDENCIES:-"runtime"}
+          echo "dependencies=${DEPENDENCIES}" >> $GITHUB_OUTPUT
+
+          INPUT_REF=${{ github.ref_name }}
+          if [[ $INPUT_REF] == "main" ]]; then
+            VERSION="latest"
+          else
+            VERSION=${INPUT_REF}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
       - uses: docker/build-push-action@v5
         with:
           context: .
@@ -43,6 +60,6 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
           cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
           target: build
-          tags: ghcr.io/scverse/scvi-tools:py3.11-cu12-latest-${{ matrix.dependencies }}
+          tags: ghcr.io/scverse/scvi-tools:py3.11-cu12-${{ steps.build.outputs.version }}-${{ steps.build.outputs.dependencies }}
           build-args: |
             DEPENDENCIES=${{ matrix.dependencies }}
