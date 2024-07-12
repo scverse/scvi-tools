@@ -1,0 +1,16 @@
+name: build image (base)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+
+    uses: ./.github/workflows/build_image.yaml
+    with:
+      version: "cuda"
+      dependencies: "base"
+
+    secrets: inherit
