@@ -7,6 +7,7 @@ import xarray as xr
 from anndata import AnnData
 from torch import Tensor
 from torch.distributions import Distribution, Normal
+from tqdm import tqdm
 
 
 def get_aggregated_posterior(
@@ -76,11 +77,30 @@ def differential_abundance(
     """Same issue as with get_aggregated_posterior. Not sure how I should get the u
     latent representation as get_latent_representation in _vaemixin only has the z
     representation, and get_latent_representation for mrvi uses jax."""
-    # us = self.get_latent_representation(
-    # adata, use_mean=True, give_z=False, batch_size=batch_size
-    # )
+    us = self.get_latent_representation(adata, use_mean=True, give_z=False, batch_size=batch_size)
 
-    # log_probs = []
-    # unique_samples = adata.obs[self.sample_key].unique()
-    # for sample_name in tqdm(unique_samples):
-    # ap = self.get_aggregated_posterior()
+    log_probs = []
+    unique_samples = adata.obs[self.sample_key].unique()
+    for sample_name in tqdm(unique_samples):
+        ap = self.get_aggregated_posterior(adata=adata, sample=sample_name, batch_size=batch_size)
+
+        log_probs_ = []
+        n_splits = max(adata.n_obs // batch_size, 1)
+        for u_rep in np.array_split(us, n_splits):
+            log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True).cpu())
+
+        log_probs.append(np.concatenate(log_probs_, axis=0))
+
+    log_probs = np.concatenate(log_probs, 1)
+
+    coords = {
+        "cell_name": adata.obs_names.to_numpy(),
+        "sample": unique_samples,
+    }
+    data_vars = {
+        "log_probs": (["cell_name", "sample"], log_probs),
+    }
+    log_probs_arr = xr.Dataset(data_vars, coords=coords)
+
+    if sample_cov_keys is None or len(sample_cov_keys) == 0:
+        return log_probs_arr
