@@ -53,6 +53,8 @@ class ContrastiveDataSplitter(DataSplitter):
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
+        use_external_indexing: bool = False,
+        external_indexing: list = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -66,15 +68,17 @@ class ContrastiveDataSplitter(DataSplitter):
         )
         self.background_indices = background_indices
         self.target_indices = target_indices
+        self.use_external_indexing = use_external_indexing
+        self.external_indexing = external_indexing
 
         self.n_background = len(background_indices)
         self.n_background_train, self.n_background_val = validate_data_split(
-            self.n_background, self.train_size, self.validation_size
+            self.n_background, self.train_size, self.validation_size, self.use_external_indexing, self.external_indexing
         )
 
         self.n_target = len(target_indices)
         self.n_target_train, self.n_target_val = validate_data_split(
-            self.n_target, self.train_size, self.validation_size
+            self.n_target, self.train_size, self.validation_size, self.use_external_indexing, self.external_indexing
         )
 
         self.n_train = self.n_background_train + self.n_target_train

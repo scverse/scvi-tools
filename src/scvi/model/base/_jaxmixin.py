@@ -30,6 +30,8 @@ class JaxTrainingMixin:
         batch_size: int = 128,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
+        use_external_indexing: bool = False,
+        external_indexing: list = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -59,6 +61,11 @@ class JaxTrainingMixin:
         plan_kwargs
             Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        use_external_indexing
+            Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+        external_indexing
+            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
+            User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -89,6 +96,8 @@ class JaxTrainingMixin:
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
             iter_ndarray=True,
+            use_external_indexing=use_external_indexing,
+            external_indexing=external_indexing,
             **datasplitter_kwargs,
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}

@@ -30,6 +30,8 @@ class UnsupervisedTrainingMixin:
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         datamodule: LightningDataModule | None = None,
+        use_external_indexing: bool = False,
+        external_indexing: list = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -78,6 +80,11 @@ class UnsupervisedTrainingMixin:
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        use_external_indexing
+            Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+        external_indexing
+            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
+            User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -111,6 +118,8 @@ class UnsupervisedTrainingMixin:
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
+                use_external_indexing = use_external_indexing,
+                external_indexing = external_indexing
                 **datasplitter_kwargs,
             )
         elif self.module is None:

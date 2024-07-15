@@ -22,7 +22,8 @@ from scvi.utils._docstrings import devices_dsp
 
 
 def validate_data_split(
-    n_samples: int, train_size: float, validation_size: Optional[float] = None
+    n_samples: int, train_size: float, validation_size: Optional[float] = None,
+    use_external_indexing: Optional[bool] = False, external_indexing: Optional[list] = None
 ):
     """Check data splitting parameters and return n_train and n_val.
 
@@ -34,27 +35,70 @@ def validate_data_split(
         Size of train set. Need to be: 0 < train_size <= 1.
     validation_size
         Size of validation set. Need to be 0 <= validation_size < 1
+    use_external_indexing
+        Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+    external_indexing
+        A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
     """
-    if train_size > 1.0 or train_size <= 0.0:
-        raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
+    if use_external_indexing:
+        if external_indexing is None:
+            raise ValueError("External indexing list is missing")
 
-    n_train = ceil(train_size * n_samples)
+        if type(external_indexing) is not list:
+            raise ValueError("External indexing is not of list type")
 
-    if validation_size is None:
-        n_val = n_samples - n_train
-    elif validation_size >= 1.0 or validation_size < 0.0:
-        raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
-    elif (train_size + validation_size) > 1:
-        raise ValueError("train_size + validation_size must be between 0 and 1")
+        #validate the structure of it
+        if type(external_indexing[0]) is not np.ndarray:
+            raise ValueError("The first element of the list of lists is not a np.array")
+
+        if external_indexing[1] is None:
+            #we can assume the 2nd element is not exists or empty list (i.e, only train index are supported)
+            external_indexing[1] = np.array([]) #empty np.array
+        if external_indexing[2] is None:
+            #we can assume the 3rd element is not exists or empty list (i.e, only train and valid index are supported)
+            external_indexing[2] = np.array([]) #empty np.array
+        if type(external_indexing[1]) is not np.ndarray:
+            raise ValueError("The second element of the list of lists is not a np.array")
+        if type(external_indexing[2]) is not np.ndarray:
+            raise ValueError("The third element of the list of lists is not a np.array")
+
+        #check for total number of indexes (overlapping or missing)
+        if (len(external_indexing[0])+len(external_indexing[1])+len(external_indexing[2]))>n_samples:
+            raise ValueError("There are overlapping indexing please fix")
+        if (len(external_indexing[0])+len(external_indexing[1])+len(external_indexing[2]))<n_samples:
+            raise ValueError("There are missing indexing please fix or remove those lines")
+        if len(np.intersect1d(external_indexing[0], external_indexing[1])) != 0:
+            raise ValueError("There are overlapping indexing between train and valid sets")
+        if len(np.intersect1d(external_indexing[0], external_indexing[2])) != 0:
+            raise ValueError("There are overlapping indexing between train and test sets")
+        if len(np.intersect1d(external_indexing[2], external_indexing[1])) != 0:
+            raise ValueError("There are overlapping indexing between test and valid sets")
+
+        n_train = len(external_indexing[0])
+        n_val = len(external_indexing[1])
+
     else:
-        n_val = floor(n_samples * validation_size)
+        # just like it used to be w/o external indexing
+        if train_size > 1.0 or train_size <= 0.0:
+            raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
 
-    if n_train == 0:
-        raise ValueError(
-            f"With n_samples={n_samples}, train_size={train_size} and "
-            f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
-            "any of the aforementioned parameters."
-        )
+        n_train = ceil(train_size * n_samples)
+
+        if validation_size is None:
+            n_val = n_samples - n_train
+        elif validation_size >= 1.0 or validation_size < 0.0:
+            raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
+        elif (train_size + validation_size) > 1:
+            raise ValueError("train_size + validation_size must be between 0 and 1")
+        else:
+            n_val = floor(n_samples * validation_size)
+
+        if n_train == 0:
+            raise ValueError(
+                f"With n_samples={n_samples}, train_size={train_size} and "
+                f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
+                "any of the aforementioned parameters."
+            )
 
     return n_train, n_val
 
@@ -83,6 +127,11 @@ class DataSplitter(pl.LightningDataModule):
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
+    use_external_indexing
+        Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+    external_indexing
+        A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
+        User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -108,6 +157,8 @@ class DataSplitter(pl.LightningDataModule):
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
+        use_external_indexing: bool = False,
+        external_indexing: list = None,
         **kwargs,
     ):
         super().__init__()
@@ -118,24 +169,33 @@ class DataSplitter(pl.LightningDataModule):
         self.load_sparse_tensor = load_sparse_tensor
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
+        self.use_external_indexing = use_external_indexing
+        self.external_indexing = external_indexing
 
         self.n_train, self.n_val = validate_data_split(
-            self.adata_manager.adata.n_obs, self.train_size, self.validation_size
-        )
+            self.adata_manager.adata.n_obs, self.train_size, self.validation_size, self.use_external_indexing,
+            self.external_indexing)
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
-        n_train = self.n_train
-        n_val = self.n_val
-        indices = np.arange(self.adata_manager.adata.n_obs)
+        if self.use_external_indexing:
+            #The structure and its order is gurenteed at this stage (can include missing indexes for some group)
+            self.train_idx = self.external_indexing[0]
+            self.val_idx = self.external_indexing[1]
+            self.test_idx = self.external_indexing[2]
+        else:
+            #just like it used to be w/o external indexing
+            n_train = self.n_train
+            n_val = self.n_val
+            indices = np.arange(self.adata_manager.adata.n_obs)
 
-        if self.shuffle_set_split:
-            random_state = np.random.RandomState(seed=settings.seed)
-            indices = random_state.permutation(indices)
+            if self.shuffle_set_split:
+                random_state = np.random.RandomState(seed=settings.seed)
+                indices = random_state.permutation(indices)
 
-        self.val_idx = indices[:n_val]
-        self.train_idx = indices[n_val : (n_val + n_train)]
-        self.test_idx = indices[(n_val + n_train) :]
+            self.val_idx = indices[:n_val]
+            self.train_idx = indices[n_val : (n_val + n_train)]
+            self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -214,6 +274,12 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
+    use_external_indexing
+        Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+    external_indexing
+        A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
+        User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
+        This is only relevant for the labeld rows tough
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -238,6 +304,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         shuffle_set_split: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
+        use_external_indexing: bool = False,
+        external_indexing: list = None,
         **kwargs,
     ):
         super().__init__()
@@ -260,6 +328,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
+        self.use_external_indexing = use_external_indexing
+        self.external_indexing = external_indexing
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
@@ -268,7 +338,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         if n_labeled_idx != 0:
             n_labeled_train, n_labeled_val = validate_data_split(
-                n_labeled_idx, self.train_size, self.validation_size
+                n_labeled_idx, self.train_size, self.validation_size, self.use_external_indexing, self.external_indexing
             )
 
             labeled_permutation = self._labeled_indices
@@ -290,7 +360,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         if n_unlabeled_idx != 0:
             n_unlabeled_train, n_unlabeled_val = validate_data_split(
-                n_unlabeled_idx, self.train_size, self.validation_size
+                n_unlabeled_idx, self.train_size, self.validation_size, self.use_external_indexing,
+                self.external_indexing
             )
 
             unlabeled_permutation = self._unlabeled_indices
