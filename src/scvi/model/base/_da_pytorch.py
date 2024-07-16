@@ -5,6 +5,8 @@ import numpy as np
 import torch
 import xarray as xr
 from anndata import AnnData
+from pandas import DataFrame
+from scipy.special import logsumexp
 from torch import Tensor
 from torch.distributions import Distribution, Normal
 from tqdm import tqdm
@@ -57,6 +59,8 @@ def differential_abundance(
     self,
     adata: AnnData | None = None,
     sample_cov_keys: list[str] | None = None,
+    sample_subset: list[str] | None = None,
+    compute_log_enrichment: bool = False,
     batch_size: int = 128,
 ) -> xr.Dataset:
     adata = self._validate_anndata(adata)
@@ -104,3 +108,79 @@ def differential_abundance(
 
     if sample_cov_keys is None or len(sample_cov_keys) == 0:
         return log_probs_arr
+
+    sample_cov_log_probs_map = {}
+    sample_cov_log_enrichs_map = {}
+
+    for sample_cov_key in sample_cov_keys:
+        # need to add sample_info or do a different way
+        sample_cov_unique_values = self.sample_info[sample_cov_key].unique()
+        per_val_log_probs = {}
+        per_val_log_enrichs = {}
+
+        for sample_cov_value in sample_cov_unique_values:
+            cov_samples = (self.sample_info[self.sample_info[sample_cov_key] == sample_cov_value])[
+                self.sample_key
+            ].to_numpy()
+            if sample_subset is not None:
+                cov_samples = np.intersect1d(cov_samples, np.array(sample_subset))
+            if len(cov_samples) == 0:
+                continue
+
+            sel_log_probs = log_probs_arr.log_probs.loc[{"sample": cov_samples}]
+            val_log_probs = logsumexp(sel_log_probs, axis=1) - np.log(sel_log_probs.shape[1])
+            per_val_log_probs[sample_cov_value] = val_log_probs
+
+            if compute_log_enrichment:
+                rest_samples = np.setdiff1d(unique_samples, cov_samples)
+                if len(rest_samples) == 0:
+                    warnings.warn(
+                        f"All samples have {sample_cov_key}={sample_cov_value}. Skipping log "
+                        "enrichment computation.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
+                    continue
+
+                rest_log_probs = log_probs_arr.log_probs.loc[{"sample": rest_samples}]
+                rest_val_log_probs = logsumexp(rest_log_probs, axis=1) - np.log(
+                    rest_log_probs.shape[1]
+                )
+                enrichment_scores = val_log_probs - rest_val_log_probs
+                per_val_log_enrichs[sample_cov_value] = enrichment_scores
+
+        sample_cov_log_probs_map[sample_cov_key] = DataFrame.from_dict(per_val_log_probs)
+        if compute_log_enrichment and len(per_val_log_enrichs) > 0:
+            sample_cov_log_enrichs_map[sample_cov_key] = DataFrame.from_dict(per_val_log_enrichs)
+
+    coords = {
+        "cell_name": adata.obs_names.to_numpy(),
+        "sample": unique_samples,
+        **{
+            sample_cov_key: sample_cov_log_probs.columns
+            for sample_cov_key, sample_cov_log_probs in sample_cov_log_probs_map.items()
+        },
+    }
+
+    data_vars = {
+        "log_probs": (["cell_name", "sample"], log_probs),
+        **{
+            f"{sample_cov_key}_log_probs": (
+                ["cell_name", sample_cov_key],
+                sample_cov_log_probs.values,
+            )
+            for sample_cov_key, sample_cov_log_probs in sample_cov_log_probs_map.items()
+        },
+    }
+
+    if compute_log_enrichment:
+        data_vars.update(
+            {
+                f"{sample_key}_log_enrichs": (
+                    ["cell_name", sample_key],
+                    sample_log_enrichs.values,
+                )
+                for sample_key, sample_log_enrichs in sample_cov_log_enrichs_map.items()
+            }
+        )
+    return xr.Dataset(data_vars, coords=coords)
