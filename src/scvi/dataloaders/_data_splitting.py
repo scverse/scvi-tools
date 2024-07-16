@@ -211,8 +211,8 @@ class DataSplitter(pl.LightningDataModule):
                 indices = random_state.permutation(indices)
 
             self.val_idx = indices[:n_val]
-            self.train_idx = indices[n_val: (n_val + n_train)]
-            self.test_idx = indices[(n_val + n_train):]
+            self.train_idx = indices[n_val : (n_val + n_train)]
+            self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -373,9 +373,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
             labeled_idx_val = labeled_permutation[:n_labeled_val]
             labeled_idx_train = labeled_permutation[
-                n_labeled_val: (n_labeled_val + n_labeled_train)
+                n_labeled_val : (n_labeled_val + n_labeled_train)
             ]
-            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train):]
+            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
         else:
             labeled_idx_test = []
             labeled_idx_train = []
@@ -401,9 +401,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
             unlabeled_idx_train = unlabeled_permutation[
-                n_unlabeled_val: (n_unlabeled_val + n_unlabeled_train)
+                n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
             ]
-            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train):]
+            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
         else:
             unlabeled_idx_train = []
             unlabeled_idx_val = []
