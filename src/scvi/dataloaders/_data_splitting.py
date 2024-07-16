@@ -22,8 +22,11 @@ from scvi.utils._docstrings import devices_dsp
 
 
 def validate_data_split(
-    n_samples: int, train_size: float, validation_size: Optional[float] = None,
-    use_external_indexing: Optional[bool] = False, external_indexing: Optional[list] = None
+    n_samples: int,
+    train_size: float,
+    validation_size: Optional[float] = None,
+    use_external_indexing: Optional[bool] = False,
+    external_indexing: Optional[list] = None,
 ):
     """Check data splitting parameters and return n_train and n_val.
 
@@ -47,25 +50,29 @@ def validate_data_split(
         if type(external_indexing) is not list:
             raise ValueError("External indexing is not of list type")
 
-        #validate the structure of it
+        # validate the structure of it
         if type(external_indexing[0]) is not np.ndarray:
             raise ValueError("The first element of the list of lists is not a np.array")
 
         if external_indexing[1] is None:
-            #we can assume the 2nd element is not exists or empty list (i.e, only train index are supported)
-            external_indexing[1] = np.array([]) #empty np.array
+            # we can assume the 2nd element is not exists or empty list (i.e, only train index are supported)
+            external_indexing[1] = np.array([])  # empty np.array
         if external_indexing[2] is None:
-            #we can assume the 3rd element is not exists or empty list (i.e, only train and valid index are supported)
-            external_indexing[2] = np.array([]) #empty np.array
+            # we can assume the 3rd element is not exists or empty list (i.e, only train and valid index are supported)
+            external_indexing[2] = np.array([])  # empty np.array
         if type(external_indexing[1]) is not np.ndarray:
             raise ValueError("The second element of the list of lists is not a np.array")
         if type(external_indexing[2]) is not np.ndarray:
             raise ValueError("The third element of the list of lists is not a np.array")
 
-        #check for total number of indexes (overlapping or missing)
-        if (len(external_indexing[0])+len(external_indexing[1])+len(external_indexing[2]))>n_samples:
+        # check for total number of indexes (overlapping or missing)
+        if (
+            len(external_indexing[0]) + len(external_indexing[1]) + len(external_indexing[2])
+        ) > n_samples:
             raise ValueError("There are overlapping indexing please fix")
-        if (len(external_indexing[0])+len(external_indexing[1])+len(external_indexing[2]))<n_samples:
+        if (
+            len(external_indexing[0]) + len(external_indexing[1]) + len(external_indexing[2])
+        ) < n_samples:
             raise ValueError("There are missing indexing please fix or remove those lines")
         if len(np.intersect1d(external_indexing[0], external_indexing[1])) != 0:
             raise ValueError("There are overlapping indexing between train and valid sets")
@@ -173,18 +180,22 @@ class DataSplitter(pl.LightningDataModule):
         self.external_indexing = external_indexing
 
         self.n_train, self.n_val = validate_data_split(
-            self.adata_manager.adata.n_obs, self.train_size, self.validation_size, self.use_external_indexing,
-            self.external_indexing)
+            self.adata_manager.adata.n_obs,
+            self.train_size,
+            self.validation_size,
+            self.use_external_indexing,
+            self.external_indexing,
+        )
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
         if self.use_external_indexing:
-            #The structure and its order is gurenteed at this stage (can include missing indexes for some group)
+            # The structure and its order is gurenteed at this stage (can include missing indexes for some group)
             self.train_idx = self.external_indexing[0]
             self.val_idx = self.external_indexing[1]
             self.test_idx = self.external_indexing[2]
         else:
-            #just like it used to be w/o external indexing
+            # just like it used to be w/o external indexing
             n_train = self.n_train
             n_val = self.n_val
             indices = np.arange(self.adata_manager.adata.n_obs)
@@ -338,7 +349,11 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         if n_labeled_idx != 0:
             n_labeled_train, n_labeled_val = validate_data_split(
-                n_labeled_idx, self.train_size, self.validation_size, self.use_external_indexing, self.external_indexing
+                n_labeled_idx,
+                self.train_size,
+                self.validation_size,
+                self.use_external_indexing,
+                self.external_indexing,
             )
 
             labeled_permutation = self._labeled_indices
@@ -360,8 +375,11 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         if n_unlabeled_idx != 0:
             n_unlabeled_train, n_unlabeled_val = validate_data_split(
-                n_unlabeled_idx, self.train_size, self.validation_size, self.use_external_indexing,
-                self.external_indexing
+                n_unlabeled_idx,
+                self.train_size,
+                self.validation_size,
+                self.use_external_indexing,
+                self.external_indexing,
             )
 
             unlabeled_permutation = self._unlabeled_indices

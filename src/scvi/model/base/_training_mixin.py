@@ -118,9 +118,8 @@ class UnsupervisedTrainingMixin:
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
-                use_external_indexing = use_external_indexing,
-                external_indexing = external_indexing
-                **datasplitter_kwargs,
+                use_external_indexing=use_external_indexing,
+                external_indexing=external_indexing**datasplitter_kwargs,
             )
         elif self.module is None:
             self.module = self._module_cls(

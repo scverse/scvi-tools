@@ -73,12 +73,20 @@ class ContrastiveDataSplitter(DataSplitter):
 
         self.n_background = len(background_indices)
         self.n_background_train, self.n_background_val = validate_data_split(
-            self.n_background, self.train_size, self.validation_size, self.use_external_indexing, self.external_indexing
+            self.n_background,
+            self.train_size,
+            self.validation_size,
+            self.use_external_indexing,
+            self.external_indexing,
         )
 
         self.n_target = len(target_indices)
         self.n_target_train, self.n_target_val = validate_data_split(
-            self.n_target, self.train_size, self.validation_size, self.use_external_indexing, self.external_indexing
+            self.n_target,
+            self.train_size,
+            self.validation_size,
+            self.use_external_indexing,
+            self.external_indexing,
         )
 
         self.n_train = self.n_background_train + self.n_target_train

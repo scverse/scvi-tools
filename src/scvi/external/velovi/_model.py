@@ -185,7 +185,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             validation_size=validation_size,
             batch_size=batch_size,
             use_external_indexing=use_external_indexing,
-            external_indexing=external_indexing
+            external_indexing=external_indexing,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
 
