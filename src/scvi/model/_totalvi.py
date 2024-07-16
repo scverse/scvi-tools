@@ -254,10 +254,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             Keyword args for :class:`~scvi.train.AdversarialTrainingPlan`. Keyword arguments passed
             to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         use_external_indexing
-            Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+            Whether to use external supproted indexing. This bypass any other flag or input
+            parameter that was before
         external_indexing
-            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
-            User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
+            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]]
+            User is responsible to insert the correct indices, but there is overlapping/missing
+            indexes validation checks
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
