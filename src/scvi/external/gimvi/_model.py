@@ -237,7 +237,8 @@ class GIMVI(VAEMixin, BaseModelClass):
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
                 use_external_indexing=use_external_indexing,
-                external_indexing=external_indexing**datasplitter_kwargs,
+                external_indexing=external_indexing,
+                **datasplitter_kwargs,
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())

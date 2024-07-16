@@ -230,7 +230,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             batch_size=batch_size,
             shuffle_set_split=shuffle_set_split,
             use_external_indexing=use_external_indexing,
-            external_indexing=external_indexing**datasplitter_kwargs,
+            external_indexing=external_indexing,
+            **datasplitter_kwargs,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
         runner = TrainRunner(
