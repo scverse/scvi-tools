@@ -39,7 +39,8 @@ def validate_data_split(
     validation_size
         Size of validation set. Need to be 0 <= validation_size < 1
     use_external_indexing
-        Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+        Whether to use external supported indexing. This bypass any other flag or input parameter
+        that was before
     external_indexing
         A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
     """
@@ -55,10 +56,12 @@ def validate_data_split(
             raise ValueError("The first element of the list of lists is not a np.array")
 
         if external_indexing[1] is None:
-            # we can assume the 2nd element is not exists or empty list (i.e, only train index are supported)
+            # we can assume the 2nd element is not exists or empty list
+            # (i.e, only train index are supported)
             external_indexing[1] = np.array([])  # empty np.array
         if external_indexing[2] is None:
-            # we can assume the 3rd element is not exists or empty list (i.e, only train and valid index are supported)
+            # we can assume the 3rd element is not exists or empty list (
+            # i.e, only train and valid index are supported)
             external_indexing[2] = np.array([])  # empty np.array
         if type(external_indexing[1]) is not np.ndarray:
             raise ValueError("The second element of the list of lists is not a np.array")
@@ -103,7 +106,7 @@ def validate_data_split(
         if n_train == 0:
             raise ValueError(
                 f"With n_samples={n_samples}, train_size={train_size} and "
-                f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
+                f"validation_size={validation_size}, the resulting train set will be empty. Adjust"
                 "any of the aforementioned parameters."
             )
 
@@ -135,10 +138,12 @@ class DataSplitter(pl.LightningDataModule):
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
     use_external_indexing
-        Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+        Wheter to use external supproted indexing. This bypass any other flag or input parameter
+        that was before
     external_indexing
         A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
-        User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
+        User is responsible to insert the correct indices, but there is overlapping/missing indeces
+        validation checks
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -190,7 +195,8 @@ class DataSplitter(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
         if self.use_external_indexing:
-            # The structure and its order is gurenteed at this stage (can include missing indexes for some group)
+            # The structure and its order are guaranteed at this stage
+            # (can include missing indexes for some group)
             self.train_idx = self.external_indexing[0]
             self.val_idx = self.external_indexing[1]
             self.test_idx = self.external_indexing[2]
@@ -205,8 +211,8 @@ class DataSplitter(pl.LightningDataModule):
                 indices = random_state.permutation(indices)
 
             self.val_idx = indices[:n_val]
-            self.train_idx = indices[n_val : (n_val + n_train)]
-            self.test_idx = indices[(n_val + n_train) :]
+            self.train_idx = indices[n_val: (n_val + n_train)]
+            self.test_idx = indices[(n_val + n_train):]
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -286,10 +292,12 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
     use_external_indexing
-        Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+        Wheter to use external supproted indexing. This bypass any other flag or input parameter
+        that was before
     external_indexing
         A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
-        User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
+        User is responsible to insert the correct indices, but there is overlapping/missing indeces
+        validation checks
         This is only relevant for the labeld rows tough
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
@@ -365,9 +373,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
             labeled_idx_val = labeled_permutation[:n_labeled_val]
             labeled_idx_train = labeled_permutation[
-                n_labeled_val : (n_labeled_val + n_labeled_train)
+                n_labeled_val: (n_labeled_val + n_labeled_train)
             ]
-            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
+            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train):]
         else:
             labeled_idx_test = []
             labeled_idx_train = []
@@ -393,9 +401,9 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
             unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
             unlabeled_idx_train = unlabeled_permutation[
-                n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
+                n_unlabeled_val: (n_unlabeled_val + n_unlabeled_train)
             ]
-            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
+            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train):]
         else:
             unlabeled_idx_train = []
             unlabeled_idx_val = []

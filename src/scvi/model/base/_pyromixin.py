@@ -61,7 +61,7 @@ class PyroModelGuideWarmup(Callback):
     def setup(self, trainer, pl_module, stage=None):
         """Way to warmup Pyro Model and Guide in an automated way.
 
-        Setup occurs before any device movement, so params are iniitalized on CPU.
+        Setup occurs before any device movement, so params are initialized on CPU.
         """
         if stage == "fit":
             pyro_guide = pl_module.module.guide
@@ -137,10 +137,12 @@ class PyroSviTrainMixin:
             Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         use_external_indexing
-            Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+            Whether to use external supproted indexing. This bypass any other flag or input
+            parameter that was before
         external_indexing
-            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
-            User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
+            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]]
+            User is responsible to insert the correct indices, but there is overlapping/missing
+            indeces validation checks
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
