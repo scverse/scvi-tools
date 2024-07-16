@@ -81,10 +81,12 @@ class UnsupervisedTrainingMixin:
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         use_external_indexing
-            Wheter to use external supproted indexing. This bypass any other flag or input parameter that was before
+            Whether to use external supproted indexing. This bypass any other flag or input
+            parameter that was before
         external_indexing
-            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]].
-            User is responsible to insert the correct indices, but there is overlapping/missing indeces validation checks
+            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]]
+            User is responsible to insert the correct indices, but there is overlapping/missing
+            indeces validation checks
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
