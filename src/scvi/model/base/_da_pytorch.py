@@ -109,6 +109,8 @@ def differential_abundance(
     if sample_cov_keys is None or len(sample_cov_keys) == 0:
         return log_probs_arr
 
+    # TODO make code below into a separate function, use pandas instead of xarray,
+    # user should pass in the sample info and covariates
     sample_cov_log_probs_map = {}
     sample_cov_log_enrichs_map = {}
 
