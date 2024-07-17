@@ -1,12 +1,9 @@
-import warnings
 from collections.abc import Sequence
 
 import numpy as np
 import torch
 import xarray as xr
 from anndata import AnnData
-from pandas import DataFrame
-from scipy.special import logsumexp
 from torch import Tensor
 from torch.distributions import Distribution, Normal
 from tqdm import tqdm
@@ -65,19 +62,6 @@ def differential_abundance(
 ) -> xr.Dataset:
     adata = self._validate_anndata(adata)
 
-    if sample_cov_keys is not None:
-        for key in sample_cov_keys:
-            n_cov_values = len(adata.obs[key].unique())
-            n_samples = len(adata.obs[self.sample_key].unique())
-            if n_cov_values > n_samples / 2:
-                warnings.warn(
-                    f"The covariate '{key}' does not seem to refer to a discrete key. "
-                    f"It has {len(n_cov_values)} unique values, which exceeds one half of the "
-                    f"total samples ({n_samples}).",
-                    UserWarning,
-                    stacklevel=2,
-                )
-
     """Same issue as with get_aggregated_posterior. Not sure how I should get the u
     latent representation as get_latent_representation in _vaemixin only has the z
     representation, and get_latent_representation for mrvi uses jax."""
@@ -106,12 +90,26 @@ def differential_abundance(
     }
     log_probs_arr = xr.Dataset(data_vars, coords=coords)
 
-    if sample_cov_keys is None or len(sample_cov_keys) == 0:
-        return log_probs_arr
+    # if sample_cov_keys is None or len(sample_cov_keys) == 0:
+    return log_probs_arr
+
+    # warning code that was at beginning of function
+    """if sample_cov_keys is not None:
+        for key in sample_cov_keys:
+            n_cov_values = len(adata.obs[key].unique())
+            n_samples = len(adata.obs[self.sample_key].unique())
+            if n_cov_values > n_samples / 2:
+                warnings.warn(
+                    f"The covariate '{key}' does not seem to refer to a discrete key. "
+                    f"It has {len(n_cov_values)} unique values, which exceeds one half of the "
+                    f"total samples ({n_samples}).",
+                    UserWarning,
+                    stacklevel=2,
+                )"""
 
     # TODO make code below into a separate function, use pandas instead of xarray,
     # user should pass in the sample info and covariates
-    sample_cov_log_probs_map = {}
+    """sample_cov_log_probs_map = {}
     sample_cov_log_enrichs_map = {}
 
     for sample_cov_key in sample_cov_keys:
@@ -185,4 +183,4 @@ def differential_abundance(
                 for sample_key, sample_log_enrichs in sample_cov_log_enrichs_map.items()
             }
         )
-    return xr.Dataset(data_vars, coords=coords)
+    return xr.Dataset(data_vars, coords=coords)"""
