@@ -49,12 +49,12 @@ def test_datasplitter_external():
     test_sec = 0.8
 
     # random split of data
-    train_ind, validate_ind, test_ind = np.split(
+    train_ind, valid_ind, test_ind = np.split(
         [int(x) for x in adata.obs.sample(frac=1).index],
         [int(valid_sec * len(adata.obs)), int(test_sec * len(adata.obs))],
     )
     datasplitter = scvi.dataloaders.DataSplitter(
-        manager, use_external_indexing=True, external_indexing=[train_ind, validate_ind, test_ind]
+        manager, external_indexing=[train_ind, valid_ind, test_ind]
     )
     datasplitter.setup()
     assert isinstance(datasplitter.train_idx, np.ndarray)
@@ -70,6 +70,47 @@ def test_datasplitter_external():
     assert len(np.intersect1d(datasplitter.train_idx, datasplitter.val_idx)) == 0
     assert len(np.intersect1d(datasplitter.train_idx, datasplitter.test_idx)) == 0
     assert len(np.intersect1d(datasplitter.test_idx, datasplitter.val_idx)) == 0
+
+
+def test_datasplitter_external_with_overlap():
+    adata = scvi.data.synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+
+    # those can be inputs to the run
+    valid_sec = 0.6
+    test_sec = 1
+
+    # random split of data
+    train_ind, valid_ind, test_ind = np.split(
+        [int(x) for x in adata.obs.sample(frac=1).index],
+        [int(valid_sec * len(adata.obs)), int(test_sec * len(adata.obs))],
+    )
+    train_ind = np.append(train_ind, valid_ind[0])
+
+    with pytest.raises(ValueError) as excinfo:
+        scvi.dataloaders.DataSplitter(manager, external_indexing=[train_ind, valid_ind, test_ind])
+    assert str(excinfo.value) == "There are overlapping indexing between train and valid sets"
+
+
+def test_datasplitter_external_with_duplicates():
+    adata = scvi.data.synthetic_iid()
+    manager = generic_setup_adata_manager(adata)
+
+    # those can be inputs to the run
+    valid_sec = 0.6
+    test_sec = 1
+
+    # random split of data
+    train_ind, valid_ind, test_ind = np.split(
+        [int(x) for x in adata.obs.sample(frac=1).index],
+        [int(valid_sec * len(adata.obs)), int(test_sec * len(adata.obs))],
+    )
+    # Add duplicates
+    train_ind = np.append(train_ind, train_ind[0])
+
+    with pytest.raises(Warning) as excinfo:
+        scvi.dataloaders.DataSplitter(manager, external_indexing=[train_ind, valid_ind, test_ind])
+    assert str(excinfo.value) == "There are duplicate indexing in train set"
 
 
 @pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix"])

@@ -204,8 +204,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        use_external_indexing: bool = False,
-        external_indexing: list = None,
+        external_indexing: list[np.array] = None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -253,13 +252,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.AdversarialTrainingPlan`. Keyword arguments passed
             to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        use_external_indexing
-            Whether to use external supproted indexing. This bypass any other flag or input
-            parameter that was before
         external_indexing
-            A list of np.arrays that is always in the order of [[train_idx],[valid_idx],[test_idx]]
-            User is responsible to insert the correct indices, but there is overlapping/missing
-            indexes validation checks
+            A list of data split indexes in the order of training, validation, and test sets.
+            Validation and test set and not required and can be left empty.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -295,7 +290,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
-            use_external_indexing=use_external_indexing,
             external_indexing=external_indexing,
             **datasplitter_kwargs,
         )
