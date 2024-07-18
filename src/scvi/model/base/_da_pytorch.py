@@ -1,8 +1,10 @@
 from collections.abc import Sequence
 
 import numpy as np
+
+# import xarray as xr
+import pandas as pd
 import torch
-import xarray as xr
 from anndata import AnnData
 from torch import Tensor
 from torch.distributions import Distribution, Normal
@@ -59,7 +61,7 @@ def differential_abundance(
     sample_subset: list[str] | None = None,
     compute_log_enrichment: bool = False,
     batch_size: int = 128,
-) -> xr.Dataset:
+) -> pd.DataFrame:
     adata = self._validate_anndata(adata)
 
     """Same issue as with get_aggregated_posterior. Not sure how I should get the u
@@ -81,7 +83,7 @@ def differential_abundance(
 
     log_probs = np.concatenate(log_probs, 1)
 
-    coords = {
+    """coords = {
         "cell_name": adata.obs_names.to_numpy(),
         "sample": unique_samples,
     }
@@ -90,8 +92,15 @@ def differential_abundance(
     }
     log_probs_arr = xr.Dataset(data_vars, coords=coords)
 
-    # if sample_cov_keys is None or len(sample_cov_keys) == 0:
-    return log_probs_arr
+    if sample_cov_keys is None or len(sample_cov_keys) == 0:
+        return log_probs_arr"""
+
+    indices = adata.obs_names.to_numpy()
+    columns = unique_samples
+
+    log_probs_df = pd.DataFrame(data=log_probs, index=indices, columns=columns)
+
+    return log_probs_df
 
     # warning code that was at beginning of function
     """if sample_cov_keys is not None:
