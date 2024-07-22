@@ -97,12 +97,23 @@ class ContrastiveDataSplitter(DataSplitter):
                     [self.background_train_idx, self.background_val_idx, self.background_test_idx],
                 )
             )
+            self.background_train_idx, self.background_val_idx, self.background_test_idx = (
+                self.background_train_idx.tolist(),
+                self.background_val_idx.tolist(),
+                self.background_test_idx.tolist(),
+            )
+
             self.target_train_idx, self.target_val_idx, self.target_test_idx = (
                 np.intersect1d(self.external_indexing[n], self.target_indices) for n in range(3)
             )
             self.n_target_train, self.n_target_val = validate_data_split_with_external_indexing(
                 self.n_target,
                 [self.target_train_idx, self.target_val_idx, self.target_test_idx],
+            )
+            self.target_train_idx, self.target_val_idx, self.target_test_idx = (
+                self.target_train_idx.tolist(),
+                self.target_val_idx.tolist(),
+                self.target_test_idx.tolist(),
             )
 
         self.n_train = self.n_background_train + self.n_target_train
