@@ -334,8 +334,8 @@ class SOLO(BaseModelClass):
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         external_indexing
-            A list of data split indexes in the order of training, validation, and test sets.
-            Validation and test set and not required and can be left empty.
+            A list of data split indices in the order of training, validation, and test sets.
+            Validation and test set are not required and can be left empty.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """

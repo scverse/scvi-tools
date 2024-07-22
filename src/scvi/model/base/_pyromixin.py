@@ -137,7 +137,7 @@ class PyroSviTrainMixin:
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         external_indexing
             A list of data split indexes in the order of training, validation, and test sets.
-            Validation and test set and not required and can be left empty.
+            Validation and test set are not required and can be left empty.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """

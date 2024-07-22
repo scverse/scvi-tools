@@ -81,8 +81,8 @@ class UnsupervisedTrainingMixin:
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         external_indexing
-            A list of data split indexes in the order of training, validation, and test sets.
-            Validation and test set and not required and can be left empty.
+            A list of data split indices in the order of training, validation, and test sets.
+            Validation and test set are not required and can be left empty.
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """

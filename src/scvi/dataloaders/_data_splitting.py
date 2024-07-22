@@ -70,13 +70,21 @@ def validate_data_split_with_external_indexing(
     n_samples
         Number of samples to split
     external_indexing
-        A list of data split indexes in the order of training, validation, and test sets.
-        Validation and test set and not required and can be left empty.
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
     """
     if not isinstance(external_indexing, list):
         raise ValueError("External indexing is not of list type")
 
     # validate the structure of it
+    # make sure 3 elements exists and impute with None if not
+    if len(external_indexing) == 0:
+        external_indexing = [None, None, None]
+    if len(external_indexing) == 1:
+        external_indexing.append(None)
+        external_indexing.append(None)
+    if len(external_indexing) == 2:
+        external_indexing.append(None)
     # (we can assume not all lists are given by user and impute the rest with empty arrays)
     external_indexing[0], external_indexing[1], external_indexing[2] = (
         np.array([]) if external_indexing[n] is None else external_indexing[n] for n in range(3)
@@ -105,7 +113,7 @@ def validate_data_split_with_external_indexing(
         + len(external_indexing_unique[1])
         + len(external_indexing_unique[2])
     ) < n_samples:
-        raise Warning("There are missing indexing please fix or remove those lines")
+        raise Warning("There are missing indices please fix or remove those lines")
 
     if len(external_indexing_unique[0].intersection(external_indexing_unique[1])) != 0:
         raise ValueError("There are overlapping indexing between train and valid sets")
@@ -145,8 +153,8 @@ class DataSplitter(pl.LightningDataModule):
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
     external_indexing
-        A list of data split indexes in the order of training, validation, and test sets.
-        Validation and test set and not required and can be left empty.
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -295,8 +303,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
     external_indexing
-        A list of data split indexes in the order of training, validation, and test sets.
-        Validation and test set and not required and can be left empty.
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
         Note that per group (train,valid,test) it will cover both the labeled and unlebeled parts
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
@@ -353,7 +361,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         n_unlabeled_idx = len(self._unlabeled_indices)
 
         if n_labeled_idx != 0:
-            # Need to separate tp the external and non-external cases of the labeled indices
+            # Need to separate to the external and non-external cases of the labeled indices
             if self.external_indexing is not None:
                 # first we need to intersect the external indexing given with the labeled indices
                 labeled_idx_train, labeled_idx_val, labeled_idx_test = (
@@ -387,15 +395,15 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             labeled_idx_val = []
 
         if n_unlabeled_idx != 0:
-            # Need to separate tp the external and non-external cases of the unlabeled indices
+            # Need to separate to the external and non-external cases of the unlabeled indices
             if self.external_indexing is not None:
                 # we need to intersect the external indexing given with the labeled indices
                 unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test = (
                     np.intersect1d(self.external_indexing[n], self._unlabeled_indices)
                     for n in range(3)
                 )
-                n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
-                    n_labeled_idx,
+                n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
+                    n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
                 )
             else:

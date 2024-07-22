@@ -42,8 +42,8 @@ class ContrastiveDataSplitter(DataSplitter):
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
     external_indexing
-        A list of data split indexes in the order of training, validation, and test sets.
-        Validation and test set and not required and can be left empty.
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
         Note that per group (train,valid,test) it will cover both the background and target indices
     **kwargs
         Keyword args for data loader. Data loader class is
@@ -118,7 +118,7 @@ class ContrastiveDataSplitter(DataSplitter):
         n_target_train = self.n_target_train
         n_target_val = self.n_target_val
 
-        # Need to separate tp the external and non-external cases of the unlabeled indices
+        # Need to separate to the external and non-external cases of the target/bg indices
         if self.external_indexing is None:
             if self.shuffle_set_split:
                 random_state = np.random.RandomState(seed=settings.seed)
