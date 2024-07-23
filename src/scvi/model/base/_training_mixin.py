@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import numpy as np
 from lightning import LightningDataModule
 
 from scvi.dataloaders import DataSplitter
@@ -31,7 +30,6 @@ class UnsupervisedTrainingMixin:
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         datamodule: LightningDataModule | None = None,
-        external_indexing: list[np.ndarray] = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -80,9 +78,6 @@ class UnsupervisedTrainingMixin:
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
-        external_indexing
-            A list of data split indices in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -116,7 +111,6 @@ class UnsupervisedTrainingMixin:
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
-                external_indexing=external_indexing,
                 **datasplitter_kwargs,
             )
         elif self.module is None:

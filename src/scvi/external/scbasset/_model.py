@@ -112,7 +112,6 @@ class SCBASSET(BaseModelClass):
         early_stopping_min_delta: float = 1e-6,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.ndarray] = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -153,9 +152,6 @@ class SCBASSET(BaseModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        external_indexing
-            A list of data split indices in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -174,7 +170,6 @@ class SCBASSET(BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
-            external_indexing=external_indexing,
             # We don't want to dataload the batch ids into the module
             data_and_attributes={
                 REGISTRY_KEYS.X_KEY: np.float32,

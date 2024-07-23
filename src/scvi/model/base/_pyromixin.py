@@ -98,7 +98,6 @@ class PyroSviTrainMixin:
         training_plan: PyroTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.array] = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -135,9 +134,6 @@ class PyroSviTrainMixin:
         plan_kwargs
             Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        external_indexing
-            A list of data split indexes in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -168,7 +164,6 @@ class PyroSviTrainMixin:
                 validation_size=validation_size,
                 shuffle_set_split=shuffle_set_split,
                 batch_size=batch_size,
-                external_indexing=external_indexing,
                 **datasplitter_kwargs,
             )
 

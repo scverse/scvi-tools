@@ -14,6 +14,29 @@ def test_lda_model_single_step(n_topics: int = 5):
     assert len(mod1.history["elbo_train"]) == 1
 
 
+def test_lda_model_single_step_with_external_indices(n_topics: int = 5):
+    adata = synthetic_iid()
+    AmortizedLDA.setup_anndata(adata)
+    mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    mod1.train(
+        max_steps=1,
+        max_epochs=10,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+    )
+    assert len(mod1.history["elbo_train"]) == 1
+
+
 def test_lda_model(n_topics: int = 5):
     adata = synthetic_iid()
 

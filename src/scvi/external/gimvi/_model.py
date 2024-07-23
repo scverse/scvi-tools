@@ -173,7 +173,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         batch_size: int = 128,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.ndarray] = None,
         **kwargs,
     ):
         """Train the model.
@@ -203,9 +202,6 @@ class GIMVI(VAEMixin, BaseModelClass):
         plan_kwargs
             Keyword args for model-specific Pytorch Lightning task. Keyword arguments passed
             to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        external_indexing
-            A list of data split indices in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -231,7 +227,6 @@ class GIMVI(VAEMixin, BaseModelClass):
                 validation_size=validation_size,
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
-                external_indexing=external_indexing,
                 **datasplitter_kwargs,
             )
             ds.setup()

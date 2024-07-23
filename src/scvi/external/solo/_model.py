@@ -298,7 +298,6 @@ class SOLO(BaseModelClass):
         early_stopping: bool = True,
         early_stopping_patience: int = 30,
         early_stopping_min_delta: float = 0.0,
-        external_indexing: list[np.ndarray] = None,
         **kwargs,
     ):
         """Trains the model.
@@ -333,9 +332,6 @@ class SOLO(BaseModelClass):
         early_stopping_min_delta
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        external_indexing
-            A list of data split indices in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -375,7 +371,6 @@ class SOLO(BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
-            external_indexing=external_indexing,
             **datasplitter_kwargs,
         )
         training_plan = ClassifierTrainingPlan(self.module, **plan_kwargs)

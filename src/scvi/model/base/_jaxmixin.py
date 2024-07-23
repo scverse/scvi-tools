@@ -3,8 +3,6 @@ from __future__ import annotations
 import logging
 import warnings
 
-import numpy as np
-
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
@@ -32,7 +30,6 @@ class JaxTrainingMixin:
         batch_size: int = 128,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.array] = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -62,9 +59,6 @@ class JaxTrainingMixin:
         plan_kwargs
             Keyword args for :class:`~scvi.train.JaxTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        external_indexing
-            A list of data split indices in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -95,7 +89,6 @@ class JaxTrainingMixin:
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
             iter_ndarray=True,
-            external_indexing=external_indexing,
             **datasplitter_kwargs,
         )
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
