@@ -145,6 +145,10 @@ class TestDataSplitters:
             scvi.dataloaders.DataSplitter(manager, external_indexing=[train_ind])
         assert str(excinfo.value) == "There are missing indices please fix or remove those lines"
 
+        with pytest.raises(Warning) as excinfo:
+            scvi.dataloaders.DataSplitter(manager, external_indexing=[])
+        assert str(excinfo.value) == "There are missing indices please fix or remove those lines"
+
         with pytest.raises(ValueError) as excinfo:
             scvi.dataloaders.DataSplitter(manager, external_indexing=train_ind)
         assert str(excinfo.value) == "External indexing is not of list type"
