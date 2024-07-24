@@ -292,7 +292,6 @@ class SCANVAE(VAE):
         z1: torch.Tensor = inference_outputs["z"]
         x: torch.Tensor = tensors[REGISTRY_KEYS.X_KEY]
         batch_index: torch.Tensor = tensors[REGISTRY_KEYS.BATCH_KEY]
-        # y = None
 
         ys, z1s = broadcast_labels(z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, ys)  # TODO: AN ISSUE HERE WITH N_SAMPLES AND N_LABELS >1
