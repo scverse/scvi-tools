@@ -292,8 +292,9 @@ class SCANVAE(VAE):
         z1: torch.Tensor = inference_outputs["z"]
         x: torch.Tensor = tensors[REGISTRY_KEYS.X_KEY]
         batch_index: torch.Tensor = tensors[REGISTRY_KEYS.BATCH_KEY]
+        y = None
 
-        ys, z1s = broadcast_labels(z1, n_broadcast=self.n_labels)
+        ys, z1s = broadcast_labels(y, z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
         reconst_loss = -px.log_prob(x).sum(-1)
@@ -302,7 +303,7 @@ class SCANVAE(VAE):
         mean = torch.zeros_like(qz2.loc)
         scale = torch.ones_like(qz2.scale)
 
-        kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=1)
+        kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=-1)
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
         if not self.use_observed_lib_size:
@@ -323,15 +324,17 @@ class SCANVAE(VAE):
         if self.classifier.logits:
             probs = F.softmax(probs, dim=-1)
 
-        reconst_loss += loss_z1_weight + (
-            (loss_z1_unweight).view(self.n_labels, -1).t() * probs
-        ).sum(dim=1)
+        reconst_loss += loss_z1_weight + (loss_z1_unweight * probs.squeeze(-1))
 
-        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
+        kl_divergence = kl_divergence_z2 * probs.squeeze(-1)
         kl_divergence += kl(
-            Categorical(probs=probs),
-            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
-        )
+            Categorical(probs=probs.squeeze(-1)),
+            Categorical(
+                probs=self.y_prior.repeat(probs.size(1), probs.size(0), 1)
+                if len(probs.size()) == 3
+                else self.y_prior.repeat(probs.size(0), 1)
+            ),
+        ).t()
         kl_divergence += kl_divergence_l
 
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
