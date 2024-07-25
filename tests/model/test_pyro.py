@@ -23,7 +23,6 @@ from scvi.model.base import (
     PyroSampleMixin,
     PyroSviTrainMixin,
 )
-from scvi.model._utils import parse_device_args
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
@@ -92,9 +91,9 @@ class BayesianRegressionPyroModel(PyroModule):
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
-        print('UUUUU', x.device, y.device, ind_x.device)
+        print("UUUUU", x.device, y.device, ind_x.device)
         obs_plate = self.create_plates(x, y, ind_x)
-        print('SSSS', self.linear.weight.device, self.linear.bias.device)
+        print("SSSS", self.linear.weight.device, self.linear.bias.device)
 
         sigma = pyro.sample("sigma", dist.Exponential(self.one))
 
@@ -198,7 +197,7 @@ def test_pyro_bayesian_regression_low_level(
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator="cpu", # not handled correctly for low level trainingplan.
+        accelerator="cpu",  # not handled correctly for low level trainingplan.
         devices="auto",
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
