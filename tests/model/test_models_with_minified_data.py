@@ -72,7 +72,6 @@ def run_test_for_model_with_minified_adata(
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
-
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters(n_samples=n_samples, give_mean=give_mean)
     adata_orig = adata.copy()
@@ -125,8 +124,8 @@ def test_scvi_with_minified_adata_one_sample_with_layer():
 
 
 def test_scvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(n_samples=10, give_mean=True)
-    run_test_for_model_with_minified_adata(n_samples=10, give_mean=True, use_size_factor=True)
+    run_test_for_model_with_minified_adata(n_samples=400, give_mean=True)
+    run_test_for_model_with_minified_adata(n_samples=400, give_mean=True, use_size_factor=True)
 
 
 def test_scanvi_with_minified_adata_one_sample():
@@ -140,9 +139,9 @@ def test_scanvi_with_minified_adata_one_sample_with_layer():
 
 
 def test_scanvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(SCANVI, n_samples=10, give_mean=True)
+    run_test_for_model_with_minified_adata(SCANVI, n_samples=400, give_mean=True)
     run_test_for_model_with_minified_adata(
-        SCANVI, n_samples=10, give_mean=True, use_size_factor=True
+        SCANVI, n_samples=400, give_mean=True, use_size_factor=True
     )
 
 
