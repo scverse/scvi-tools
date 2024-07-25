@@ -23,7 +23,11 @@ def broadcast_labels(y, *o, n_broadcast=-1):
         ys = enumerate_discrete(o[0], n_broadcast)
         new_o = iterate(
             o,
-            lambda x: x.repeat(n_broadcast, 1) if len(x.size()) == 2 else x.repeat(n_broadcast),
+            lambda x: x.repeat(n_broadcast, 1, 1)
+            if len(x.size()) == 3
+            else x.repeat(n_broadcast, 1)
+            if len(x.size()) == 2
+            else x.repeat(n_broadcast),
         )
     else:
         ys = torch.nn.functional.one_hot(y.squeeze(-1), n_broadcast)
