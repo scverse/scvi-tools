@@ -14,13 +14,12 @@ def broadcast_labels(o, n_broadcast=-1):
         # return size (batch_size, n_broadcast)
         return torch.nn.functional.one_hot(labels.squeeze(-1), n_broadcast)
 
+    batch_size = o.size(-2)
     if o.ndim == 2:
-        batch_size = o.size(0)
         ys = torch.cat([batch(batch_size, i) for i in range(n_broadcast)])
         new_o = o.repeat(n_broadcast, 1)
     elif o.ndim == 3:
         n_samples = o.size(0)
-        batch_size = o.size(1)
         ys = torch.cat([batch(batch_size, i) for i in range(n_broadcast)])
         ys = ys.unsqueeze(0).repeat(n_samples, 1, 1)
         new_o = o.repeat(n_broadcast, 1, 1)

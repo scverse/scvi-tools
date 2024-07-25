@@ -326,7 +326,7 @@ class SCANVAE(VAE):
         if self.n_labels > 1:
             reconst_loss += loss_z1_weight + (
                 (loss_z1_unweight).view(self.n_labels, -1).t() * probs
-            ).sum(dim=1)
+            ).sum(dim=-1)
             kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
             kl_divergence += kl(
                 Categorical(probs=probs),
