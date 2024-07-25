@@ -131,7 +131,6 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping: bool = True,
         gradient_clip_val: float = 10,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.ndarray] = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -162,9 +161,6 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             this method will overwrite values present in ``plan_kwargs``, when appropriate.
-        external_indexing
-            A list of data split indices in the order of training, validation, and test sets.
-            Validation and test set are not required and can be left empty.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -181,7 +177,6 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
-            external_indexing=external_indexing,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
 

@@ -939,54 +939,6 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
         model.train(datamodule=datamodule)
 
 
-def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
-    from scvi.dataloaders import DataSplitter
-
-    adata = synthetic_iid(n_batches=n_batches)
-    SCVI.setup_anndata(adata, batch_key="batch")
-    manager = SCVI._get_most_recent_anndata_manager(adata)
-
-    # in this case we will make a stratified version of indexing
-    from sklearn.model_selection import train_test_split
-
-    train_ind, valid_ind = train_test_split(
-        adata.obs.batch.index.astype(int), test_size=0.25, stratify=adata.obs.batch
-    )
-
-    datamodule = DataSplitter(
-        manager, external_indexing=[np.array(train_ind), np.array(valid_ind), None]
-    )
-    datamodule.n_vars = adata.n_vars
-    datamodule.n_batch = n_batches
-
-    model = SCVI(n_latent=5)
-    assert model._module_init_on_train
-    assert model.module is None
-
-    # cannot infer default max_epochs without n_obs set in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
-
-    # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
-        model.train()
-
-    model.train(max_epochs=1, datamodule=datamodule)
-
-    # must set n_obs for defaulting max_epochs
-    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
-    model.train(datamodule=datamodule)
-
-    model = SCVI(adata, n_latent=5)
-    assert not model._module_init_on_train
-    assert model.module is not None
-    assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
-
-
 @pytest.mark.parametrize("embedding_dim", [5, 10])
 @pytest.mark.parametrize("encode_covariates", [True, False])
 @pytest.mark.parametrize("use_observed_lib_size", [True, False])

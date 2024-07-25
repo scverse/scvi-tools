@@ -52,78 +52,9 @@ def validate_data_split(
     if n_train == 0:
         raise ValueError(
             f"With n_samples={n_samples}, train_size={train_size} and "
-            f"validation_size={validation_size}, the resulting train set will be empty. Adjust"
+            f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
             "any of the aforementioned parameters."
         )
-
-    return n_train, n_val
-
-
-def validate_data_split_with_external_indexing(
-    n_samples: int,
-    external_indexing: Optional[list[np.array, np.array, np.array]] = None,
-):
-    """Check data splitting parameters and return n_train and n_val.
-
-    Parameters
-    ----------
-    n_samples
-        Number of samples to split
-    external_indexing
-        A list of data split indices in the order of training, validation, and test sets.
-        Validation and test set are not required and can be left empty.
-    """
-    if not isinstance(external_indexing, list):
-        raise ValueError("External indexing is not of list type")
-
-    # validate the structure of it
-    # make sure 3 elements exists and impute with None if not
-    if len(external_indexing) == 0:
-        external_indexing = [None, None, None]
-    if len(external_indexing) == 1:
-        external_indexing.append(None)
-        external_indexing.append(None)
-    if len(external_indexing) == 2:
-        external_indexing.append(None)
-    # (we can assume not all lists are given by user and impute the rest with empty arrays)
-    external_indexing[0], external_indexing[1], external_indexing[2] = (
-        np.array([]) if external_indexing[n] is None else external_indexing[n] for n in range(3)
-    )
-    if not all(isinstance(elem, np.ndarray) for elem in external_indexing):
-        raise ValueError("One of the given external indexing arrays is not a np.array")
-
-    # From this point on we will use the unique elements only
-    external_indexing_unique = [
-        set(external_indexing[0]),
-        set(external_indexing[1]),
-        set(external_indexing[2]),
-    ]
-
-    # check for duplications per subset
-    if len(external_indexing_unique[0]) < len(external_indexing[0]):
-        raise Warning("There are duplicate indexing in train set")
-    if len(external_indexing_unique[1]) < len(external_indexing[1]):
-        raise Warning("There are duplicate indexing in valid set")
-    if len(external_indexing_unique[2]) < len(external_indexing[2]):
-        raise Warning("There are duplicate indexing in test set")
-
-    # check for total number of indexes (overlapping or missing)
-    if (
-        len(external_indexing_unique[0])
-        + len(external_indexing_unique[1])
-        + len(external_indexing_unique[2])
-    ) < n_samples:
-        raise Warning("There are missing indices please fix or remove those lines")
-
-    if len(external_indexing_unique[0].intersection(external_indexing_unique[1])) != 0:
-        raise ValueError("There are overlapping indexing between train and valid sets")
-    if len(external_indexing_unique[0].intersection(external_indexing_unique[2])) != 0:
-        raise ValueError("There are overlapping indexing between train and test sets")
-    if len(external_indexing_unique[2].intersection(external_indexing_unique[1])) != 0:
-        raise ValueError("There are overlapping indexing between test and valid sets")
-
-    n_train = len(external_indexing[0])
-    n_val = len(external_indexing[1])
 
     return n_train, n_val
 
@@ -152,9 +83,6 @@ class DataSplitter(pl.LightningDataModule):
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
-    external_indexing
-        A list of data split indices in the order of training, validation, and test sets.
-        Validation and test set are not required and can be left empty.
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -180,7 +108,6 @@ class DataSplitter(pl.LightningDataModule):
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
-        external_indexing: Optional[list[np.array, np.array, np.array]] = None,
         **kwargs,
     ):
         super().__init__()
@@ -191,39 +118,24 @@ class DataSplitter(pl.LightningDataModule):
         self.load_sparse_tensor = load_sparse_tensor
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
-        self.external_indexing = external_indexing
 
-        if self.external_indexing is not None:
-            self.n_train, self.n_val = validate_data_split_with_external_indexing(
-                self.adata_manager.adata.n_obs,
-                self.external_indexing,
-            )
-        else:
-            self.n_train, self.n_val = validate_data_split(
-                self.adata_manager.adata.n_obs, self.train_size, self.validation_size
-            )
+        self.n_train, self.n_val = validate_data_split(
+            self.adata_manager.adata.n_obs, self.train_size, self.validation_size
+        )
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
-        if self.external_indexing is not None:
-            # The structure and its order are guaranteed at this stage
-            # (can include missing indexes for some group)
-            self.train_idx = self.external_indexing[0]
-            self.val_idx = self.external_indexing[1]
-            self.test_idx = self.external_indexing[2]
-        else:
-            # just like it used to be w/o external indexing
-            n_train = self.n_train
-            n_val = self.n_val
-            indices = np.arange(self.adata_manager.adata.n_obs)
+        n_train = self.n_train
+        n_val = self.n_val
+        indices = np.arange(self.adata_manager.adata.n_obs)
 
-            if self.shuffle_set_split:
-                random_state = np.random.RandomState(seed=settings.seed)
-                indices = random_state.permutation(indices)
+        if self.shuffle_set_split:
+            random_state = np.random.RandomState(seed=settings.seed)
+            indices = random_state.permutation(indices)
 
-            self.val_idx = indices[:n_val]
-            self.train_idx = indices[n_val : (n_val + n_train)]
-            self.test_idx = indices[(n_val + n_train) :]
+        self.val_idx = indices[:n_val]
+        self.train_idx = indices[n_val : (n_val + n_train)]
+        self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
         """Create train data loader."""
@@ -302,10 +214,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
         into :class:`~scvi.data.AnnDataLoader`.
-    external_indexing
-        A list of data split indices in the order of training, validation, and test sets.
-        Validation and test set are not required and can be left empty.
-        Note that per group (train,valid,test) it will cover both the labeled and unlebeled parts
     **kwargs
         Keyword args for data loader. If adata has labeled data, data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
@@ -330,7 +238,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         shuffle_set_split: bool = True,
         n_samples_per_label: Optional[int] = None,
         pin_memory: bool = False,
-        external_indexing: Optional[list[np.array, np.array, np.array]] = None,
         **kwargs,
     ):
         super().__init__()
@@ -353,7 +260,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
-        self.external_indexing = external_indexing
 
     def setup(self, stage: Optional[str] = None):
         """Split indices in train/test/val sets."""
@@ -361,70 +267,46 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         n_unlabeled_idx = len(self._unlabeled_indices)
 
         if n_labeled_idx != 0:
-            # Need to separate to the external and non-external cases of the labeled indices
-            if self.external_indexing is not None:
-                # first we need to intersect the external indexing given with the labeled indices
-                labeled_idx_train, labeled_idx_val, labeled_idx_test = (
-                    np.intersect1d(self.external_indexing[n], self._labeled_indices)
-                    for n in range(3)
-                )
-                n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
-                    n_labeled_idx,
-                    [labeled_idx_train, labeled_idx_val, labeled_idx_test],
-                )
-            else:
-                n_labeled_train, n_labeled_val = validate_data_split(
-                    n_labeled_idx, self.train_size, self.validation_size
+            n_labeled_train, n_labeled_val = validate_data_split(
+                n_labeled_idx, self.train_size, self.validation_size
+            )
+
+            labeled_permutation = self._labeled_indices
+            if self.shuffle_set_split:
+                rs = np.random.RandomState(seed=settings.seed)
+                labeled_permutation = rs.choice(
+                    self._labeled_indices, len(self._labeled_indices), replace=False
                 )
 
-                labeled_permutation = self._labeled_indices
-                if self.shuffle_set_split:
-                    rs = np.random.RandomState(seed=settings.seed)
-                    labeled_permutation = rs.choice(
-                        self._labeled_indices, len(self._labeled_indices), replace=False
-                    )
-
-                labeled_idx_val = labeled_permutation[:n_labeled_val]
-                labeled_idx_train = labeled_permutation[
-                    n_labeled_val : (n_labeled_val + n_labeled_train)
-                ]
-                labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
+            labeled_idx_val = labeled_permutation[:n_labeled_val]
+            labeled_idx_train = labeled_permutation[
+                n_labeled_val : (n_labeled_val + n_labeled_train)
+            ]
+            labeled_idx_test = labeled_permutation[(n_labeled_val + n_labeled_train) :]
         else:
             labeled_idx_test = []
             labeled_idx_train = []
             labeled_idx_val = []
 
         if n_unlabeled_idx != 0:
-            # Need to separate to the external and non-external cases of the unlabeled indices
-            if self.external_indexing is not None:
-                # we need to intersect the external indexing given with the labeled indices
-                unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test = (
-                    np.intersect1d(self.external_indexing[n], self._unlabeled_indices)
-                    for n in range(3)
-                )
-                n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
-                    n_unlabeled_idx,
-                    [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
-                )
-            else:
-                n_unlabeled_train, n_unlabeled_val = validate_data_split(
-                    n_unlabeled_idx, self.train_size, self.validation_size
+            n_unlabeled_train, n_unlabeled_val = validate_data_split(
+                n_unlabeled_idx, self.train_size, self.validation_size
+            )
+
+            unlabeled_permutation = self._unlabeled_indices
+            if self.shuffle_set_split:
+                rs = np.random.RandomState(seed=settings.seed)
+                unlabeled_permutation = rs.choice(
+                    self._unlabeled_indices,
+                    len(self._unlabeled_indices),
+                    replace=False,
                 )
 
-                unlabeled_permutation = self._unlabeled_indices
-                if self.shuffle_set_split:
-                    rs = np.random.RandomState(seed=settings.seed)
-                    unlabeled_permutation = rs.choice(
-                        self._unlabeled_indices,
-                        len(self._unlabeled_indices),
-                        replace=False,
-                    )
-
-                unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
-                unlabeled_idx_train = unlabeled_permutation[
-                    n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
-                ]
-                unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
+            unlabeled_idx_val = unlabeled_permutation[:n_unlabeled_val]
+            unlabeled_idx_train = unlabeled_permutation[
+                n_unlabeled_val : (n_unlabeled_val + n_unlabeled_train)
+            ]
+            unlabeled_idx_test = unlabeled_permutation[(n_unlabeled_val + n_unlabeled_train) :]
         else:
             unlabeled_idx_train = []
             unlabeled_idx_val = []
