@@ -452,6 +452,18 @@ def test_scvi_sparse(n_latent: int = 5):
     model.get_normalized_expression()
     model.differential_expression(groupby="labels", group1="label_1")
 
+def test_scvi_n_obs_error(n_latent: int = 5):
+    adata = synthetic_iid()
+    adata = adata[0:129].copy()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0)
+    with pytest.warns(UserWarning):
+        # Warning is emitted if last batch less than 3 cells.
+        model.train(1, train_size=1.0, batch_size=127)
+    assert model.is_trained is True
+
 
 def test_setting_adata_attr(n_latent: int = 5):
     adata = synthetic_iid()
