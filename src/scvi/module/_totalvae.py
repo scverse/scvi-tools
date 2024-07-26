@@ -749,4 +749,6 @@ class TOTALVAE(BaseModuleClass):
         # pre 1.2 activation function
         manager.registry[_constants._SCVI_VERSION_KEY] = source_version
         model_kwargs = model.init_params_.get("model_kwargs", {})
+        if "extra_decoder_kwargs" not in model_kwargs:
+            model_kwargs["extra_decoder_kwargs"] = {}
         model_kwargs['extra_decoder_kwargs']['activation_function_bg'] = "exp"
