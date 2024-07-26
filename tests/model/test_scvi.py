@@ -452,6 +452,7 @@ def test_scvi_sparse(n_latent: int = 5):
     model.get_normalized_expression()
     model.differential_expression(groupby="labels", group1="label_1")
 
+
 def test_scvi_n_obs_error(n_latent: int = 5):
     adata = synthetic_iid()
     adata = adata[0:129].copy()
