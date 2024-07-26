@@ -361,6 +361,7 @@ class NegativeBinomial(Distribution):
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
+            scale = mu / torch.sum(mu, dim=-1, keepdim=True)
         else:
             mu, theta = broadcast_all(mu, theta)
         self.mu = mu
