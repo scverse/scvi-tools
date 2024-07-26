@@ -328,10 +328,9 @@ class SCANVAE(VAE):
                 loss_z1_unweight_ = loss_z1_unweight.view(self.n_labels, -1).t()
             else:
                 loss_z1_unweight_ = torch.transpose(
-                        loss_z1_unweight.view(z1.shape[0], self.n_labels, -1), -1, -2)
-            reconst_loss += loss_z1_weight + (
-                    loss_z1_unweight_ * probs
-            ).sum(dim=-1)
+                    loss_z1_unweight.view(z1.shape[0], self.n_labels, -1), -1, -2
+                )
+            reconst_loss += loss_z1_weight + (loss_z1_unweight_ * probs).sum(dim=-1)
             kl_divergence = (loss_z1_unweight_ * probs).sum(dim=-1)
             kl_divergence += kl(
                 Categorical(probs=probs),
@@ -339,12 +338,11 @@ class SCANVAE(VAE):
                     probs=self.y_prior.repeat(probs.size(0), probs.size(1), 1)
                     if len(probs.size()) == 3
                     else self.y_prior.repeat(probs.size(0), 1)
-                )
+                ),
             )
         else:
             reconst_loss += loss_z1_weight + loss_z1_unweight
             kl_divergence = kl_divergence_z2
-
 
         kl_divergence += kl_divergence_l
 
