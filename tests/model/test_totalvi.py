@@ -792,7 +792,7 @@ def test_totalvi_logits_backwards_compat(save_path: str):
 
 
 def test_totalvi_old_activation_load(save_path: str):
-    """See #XXXX. Check old model saves use the old behavior."""
+    """See #2913. Check old model saves use the old behavior."""
     model_path = "tests/test_data/exp_activation_totalvi"
     model = TOTALVI.load(model_path)
 
