@@ -81,9 +81,7 @@ to [Semantic Versioning]. Full commit history is available in the
     concatenated array of all variable names. Users may replicate the previous behavior by
     passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
     {pr}`2769`.
-- Changed internal activation function in {class}`scvi.nn.DecoderTOTALVI`` to Softplus to increase
-    numerical stability. This is the new default for new models. Previously trained models will be loaded
-    with exponential activation function {pr}`XXX`.
+- Changed internal activation function in {class}``` scvi.nn.DecoderTOTALVI`` to Softplus to increase   numerical stability. This is the new default for new models. Previously trained models will be loaded   with exponential activation function {pr} ```XXX\`.
 
 #### Removed
 
