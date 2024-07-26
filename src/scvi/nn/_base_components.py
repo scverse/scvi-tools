@@ -7,6 +7,8 @@ from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
+from scvi.nn._utils import ExpActivation
+
 
 def _identity(x):
     return x
@@ -715,10 +717,15 @@ class DecoderTOTALVI(nn.Module):
         use_batch_norm: float = True,
         use_layer_norm: float = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
+        activation_function_bg: Literal["exp", "softplus"] = "softplus",
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
+        if activation_function_bg == "exp":
+            self.activation_function_bg = ExpActivation()  # reproducibility remove for totalVI 2.0
+        elif activation_function_bg == "softplus":
+            self.activation_function_bg = nn.Softplus()
 
         linear_args = {
             "n_layers": 1,
@@ -871,7 +878,9 @@ class DecoderTOTALVI(nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+        py_["back_beta"] = self.activation_function_bg(
+            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
+        )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 

@@ -91,9 +91,7 @@ class BayesianRegressionPyroModel(PyroModule):
         return (x, y, ind_x), {}
 
     def forward(self, x, y, ind_x):
-        print("UUUUU", x.device, y.device, ind_x.device)
         obs_plate = self.create_plates(x, y, ind_x)
-        print("SSSS", self.linear.weight.device, self.linear.bias.device)
 
         sigma = pyro.sample("sigma", dist.Exponential(self.one))
 
