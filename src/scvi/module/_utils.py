@@ -9,8 +9,8 @@ def broadcast_labels(o, n_broadcast=-1):
     arguments if not None)
     """
     ys_ = torch.nn.functional.one_hot(
-        torch.arange(n_broadcast, device=o.device, dtype=torch.long),
-        n_broadcast)
+        torch.arange(n_broadcast, device=o.device, dtype=torch.long), n_broadcast
+    )
     ys = ys_.repeat_interleave(o.size(-2), dim=0)
     if o.ndim == 2:
         new_o = o.repeat(n_broadcast, 1)
