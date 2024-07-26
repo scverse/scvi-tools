@@ -13,6 +13,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
     by passing `external_indexing=list[train_idx,valid_idx,test_idx]` as well as in all models
     available {pr}`2902`.
+- Add warning if creating data splits in `scvi.dataloaders` that create last batch with less than 3
+    cells {pr}`2916`.
 - Add new experimental functional API for hyperparameter tuning with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` to replace
     {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
