@@ -83,7 +83,7 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2769`.
 - Changed internal activation function in {class}`scvi.nn.DecoderTOTALVI`` to Softplus to increase
     numerical stability. This is the new default for new models. Previously trained models will be loaded
-    with exponential activation function {pr}`XXX`.
+    with exponential activation function {pr}`2913`.
 
 #### Removed
 
