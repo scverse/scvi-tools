@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import warnings
-
 import torch
-from torch.distributions import Distribution
 from torch.distributions import Normal as NormalTorch
+
 
 class Normal(NormalTorch):
     """Normal distribution.
@@ -47,9 +45,9 @@ class Normal(NormalTorch):
         return self.__class__.__name__ + "(" + args_string + ")"
 
     def get_normalized(self, key) -> torch.Tensor:
-        if key=='mu':
+        if key == "mu":
             return self.loc
-        elif key=='scale':
+        elif key == "scale":
             return self.normal_mu
         else:
             raise ValueError(f"normalized key {key} not recognized")
