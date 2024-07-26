@@ -142,7 +142,6 @@ class TOTALVAE(BaseModuleClass):
         extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
-        print("GGGGGGU", extra_decoder_kwargs)
         self.gene_dispersion = gene_dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
