@@ -61,6 +61,7 @@ import scvi
    external.POISSONVI
    external.VELOVI
    external.MRVI
+   external.MethylVI
 
 ```
 
