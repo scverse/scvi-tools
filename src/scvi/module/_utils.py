@@ -8,19 +8,13 @@ def broadcast_labels(o, n_broadcast=-1):
     If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other
     arguments if not None)
     """
-    #TODO check this function.
-
-    def batch(batch_size, label):
-        labels = torch.ones(batch_size, 1, device=o.device, dtype=torch.long) * label
-        # return size (batch_size, n_broadcast)
-        return torch.nn.functional.one_hot(labels.squeeze(-1), n_broadcast)
-
-    batch_size = o.size(-2)
+    ys_ = torch.nn.functional.one_hot(
+        torch.arange(n_broadcast, device=o.device, dtype=torch.long),
+        n_broadcast)
+    ys = ys_.repeat_interleave(o.size(-2), dim=0)
     if o.ndim == 2:
-        ys = torch.cat([batch(batch_size, i) for i in range(n_broadcast)])
         new_o = o.repeat(n_broadcast, 1)
     elif o.ndim == 3:
-        ys = torch.cat([batch(batch_size, i) for i in range(n_broadcast)])
         new_o = o.repeat(1, n_broadcast, 1)
     return ys, new_o
 
