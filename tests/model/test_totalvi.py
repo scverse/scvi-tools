@@ -11,6 +11,7 @@ from scvi import REGISTRY_KEYS
 from scvi.data import pbmcs_10x_cite_seq, synthetic_iid
 from scvi.model import TOTALVI
 from scvi.utils import attrdict
+from scvi.nn._utils import ExpActivation
 
 
 def test_saving_and_loading(save_path):
@@ -786,18 +787,18 @@ def test_totalvi_logits_backwards_compat(save_path: str):
     model_path = os.path.join(save_path, "totalvi_exp_activation")
     model.save(model_path, overwrite=True)
     model = TOTALVI.load(model_path, adata)
-    assert model.module.decoder.activation_function_bg == "exp"
+    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
 
-def test_totalvi_pre_logits_fix_load(save_path: str):
+def test_totalvi_old_activation_load(save_path: str):
      """See #XXXX. Check old model saves use the old behavior."""
-     model_path = "tests/test_data/totalvi_old_activation"
+     model_path = "tests/test_data/exp_activation_totalvi"
      model = TOTALVI.load(model_path)
 
-     assert model.module.decoder.activation_function_bg == "exp"
-     resave_model_path = os.path.join(save_path, "old_totalvi_activation")
+     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+     resave_model_path = os.path.join(save_path, "exp_activation_totalvi_re")
      model.save(resave_model_path, overwrite=True)
      adata = model.adata
      del model
 
      model = TOTALVI.load(resave_model_path, adata)
-     assert model.module.decoder.activation_function_bg == "exp"
+     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)

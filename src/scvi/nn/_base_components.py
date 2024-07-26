@@ -7,6 +7,8 @@ from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
 
+from scvi.nn._utils import ExpActivation
+
 
 def _identity(x):
     return x
@@ -721,7 +723,7 @@ class DecoderTOTALVI(nn.Module):
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
         if activation_function_bg == "exp":
-            self.activation_function_bg = torch.exp
+            self.activation_function_bg = ExpActivation() # reproducibility remove for totalVI 2.0
         elif activation_function_bg == "softplus":
             self.activation_function_bg = nn.Softplus()
 

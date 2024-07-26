@@ -20,6 +20,7 @@ from scvi.distributions import (
 from scvi.model.base import BaseModelClass
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
+from scvi.nn._utils import ExpActivation
 
 torch.backends.cudnn.benchmark = True
 
@@ -141,6 +142,7 @@ class TOTALVAE(BaseModuleClass):
         extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
+        print('GGGGGGU', extra_decoder_kwargs)
         self.gene_dispersion = gene_dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
@@ -749,6 +751,8 @@ class TOTALVAE(BaseModuleClass):
         # pre 1.2 activation function
         manager.registry[_constants._SCVI_VERSION_KEY] = source_version
         model_kwargs = model.init_params_.get("model_kwargs", {})
-        if "extra_decoder_kwargs" not in model_kwargs:
-            model_kwargs["extra_decoder_kwargs"] = {}
-        model_kwargs['extra_decoder_kwargs']['activation_function_bg'] = "exp"
+        if model_kwargs.get("extra_decoder_kwargs", False):
+            if model_kwargs["extra_decoder_kwargs"].get(
+                "activation_function_bg", False):
+                return
+        self.decoder.activation_function_bg = ExpActivation() # requires nn.module
