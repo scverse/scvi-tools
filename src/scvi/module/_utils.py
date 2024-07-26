@@ -8,7 +8,7 @@ def broadcast_labels(o, n_broadcast=-1):
     If y is undefined (unlabelled batch) then generate all possible labels (and broadcast other
     arguments if not None)
     """
-    #TODO check this function.
+    # TODO check this function.
 
     def batch(batch_size, label):
         labels = torch.ones(batch_size, 1, device=o.device, dtype=torch.long) * label
