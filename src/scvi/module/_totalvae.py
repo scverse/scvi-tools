@@ -142,7 +142,7 @@ class TOTALVAE(BaseModuleClass):
         extra_decoder_kwargs: Optional[dict] = None,
     ):
         super().__init__()
-        print('GGGGGGU', extra_decoder_kwargs)
+        print("GGGGGGU", extra_decoder_kwargs)
         self.gene_dispersion = gene_dispersion
         self.n_latent = n_latent
         self.log_variational = log_variational
@@ -743,7 +743,7 @@ class TOTALVAE(BaseModuleClass):
 
     def on_load(self, model: BaseModelClass):
         manager = model.get_anndata_manager(model.adata)
-        source_version = manager.registry[_constants._SCVI_VERSION_KEY] 
+        source_version = manager.registry[_constants._SCVI_VERSION_KEY]
         version_split = source_version.split(".")
         if int(version_split[0]) >= 1 and int(version_split[1]) >= 2:
             return
@@ -752,7 +752,6 @@ class TOTALVAE(BaseModuleClass):
         manager.registry[_constants._SCVI_VERSION_KEY] = source_version
         model_kwargs = model.init_params_.get("model_kwargs", {})
         if model_kwargs.get("extra_decoder_kwargs", False):
-            if model_kwargs["extra_decoder_kwargs"].get(
-                "activation_function_bg", False):
+            if model_kwargs["extra_decoder_kwargs"].get("activation_function_bg", False):
                 return
-        self.decoder.activation_function_bg = ExpActivation() # requires nn.module
+        self.decoder.activation_function_bg = ExpActivation()  # requires nn.module

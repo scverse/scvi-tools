@@ -723,7 +723,7 @@ class DecoderTOTALVI(nn.Module):
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
         if activation_function_bg == "exp":
-            self.activation_function_bg = ExpActivation() # reproducibility remove for totalVI 2.0
+            self.activation_function_bg = ExpActivation()  # reproducibility remove for totalVI 2.0
         elif activation_function_bg == "softplus":
             self.activation_function_bg = nn.Softplus()
 
@@ -879,7 +879,8 @@ class DecoderTOTALVI(nn.Module):
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
         py_["back_beta"] = self.activation_function_bg(
-            self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
+        )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
