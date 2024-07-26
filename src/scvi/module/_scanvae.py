@@ -323,34 +323,26 @@ class SCANVAE(VAE):
         if self.classifier.logits:
             probs = F.softmax(probs, dim=-1)
 
-        if self.n_labels > 1:
-            if z1.ndim == 2:
-                loss_z1_unweight_ = loss_z1_unweight.view(self.n_labels, -1).t()
-                kl_divergence_z2_ = kl_divergence_z2.view(self.n_labels, -1).t()
-            else:
-                loss_z1_unweight_ = torch.transpose(
-                    loss_z1_unweight.view(z1.shape[0], self.n_labels, -1), -1, -2
-                )
-                kl_divergence_z2_ = torch.transpose(
-                    kl_divergence_z2.view(z1.shape[0], self.n_labels, -1), -1, -2
-                )
-            reconst_loss += loss_z1_weight + (loss_z1_unweight_ * probs).sum(dim=-1)
-            kl_divergence = (kl_divergence_z2_ * probs).sum(dim=-1)
-            kl_divergence += kl(
-                Categorical(probs=probs),
-                Categorical(
-                    probs=self.y_prior.repeat(probs.size(0), probs.size(1), 1)
-                    if len(probs.size()) == 3
-                    else self.y_prior.repeat(probs.size(0), 1)
-                ),
-            )
+        if z1.ndim == 2:
+            loss_z1_unweight_ = loss_z1_unweight.view(self.n_labels, -1).t()
+            kl_divergence_z2_ = kl_divergence_z2.view(self.n_labels, -1).t()
         else:
-            reconst_loss += loss_z1_weight + loss_z1_unweight
-            kl_divergence = kl_divergence_z2
-            kl_divergence += kl(
-                Categorical(probs=torch.ones([1], device=z1.device)),
-                Categorical(probs=torch.ones([1], device=z1.device)),
+            loss_z1_unweight_ = torch.transpose(
+                loss_z1_unweight.view(z1.shape[0], self.n_labels, -1), -1, -2
             )
+            kl_divergence_z2_ = torch.transpose(
+                kl_divergence_z2.view(z1.shape[0], self.n_labels, -1), -1, -2
+            )
+        reconst_loss += loss_z1_weight + (loss_z1_unweight_ * probs).sum(dim=-1)
+        kl_divergence = (kl_divergence_z2_ * probs).sum(dim=-1)
+        kl_divergence += kl(
+            Categorical(probs=probs),
+            Categorical(
+                probs=self.y_prior.repeat(probs.size(0), probs.size(1), 1)
+                if len(probs.size()) == 3
+                else self.y_prior.repeat(probs.size(0), 1)
+            ),
+        )
 
         kl_divergence += kl_divergence_l
 
