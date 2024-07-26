@@ -515,7 +515,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         if adversarial_classifier is True:
-            if self.module.n_batch==1:
+            if self.module.n_batch == 1:
                 warnings.warn(
                     "Disabling adversarial classifier.",
                     UserWarning,
