@@ -769,3 +769,35 @@ def test_totalvi_save_load_mudata_format(save_path: str):
     with pytest.raises(ValueError):
         _ = TOTALVI.load(legacy_model_path, adata=invalid_mdata)
     model = TOTALVI.load(model_path, adata=mdata)
+
+def test_totalvi_logits_backwards_compat(save_path: str):
+    """
+    Check that we can replicate pre-fix behavior with
+    `extra_decoder_kwargs={"activation_function_bg": "exp"}`."""
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(adata, extra_decoder_kwargs={"activation_function_bg": "exp"})
+    model.train(1, check_val_every_n_epoch=1)
+    model_path = os.path.join(save_path, "totalvi_exp_activation")
+    model.save(model_path, overwrite=True)
+    model = TOTALVI.load(model_path, adata)
+    assert model.module.decoder.activation_function_bg == "exp"
+
+def test_totalvi_pre_logits_fix_load(save_path: str):
+     """See #XXXX. Check old model saves use the old behavior."""
+     model_path = "tests/test_data/totalvi_old_activation"
+     model = TOTALVI.load(model_path)
+
+     assert model.module.decoder.activation_function_bg == "exp"
+     resave_model_path = os.path.join(save_path, "old_totalvi_activation")
+     model.save(resave_model_path, overwrite=True)
+     adata = model.adata
+     del model
+
+     model = TOTALVI.load(resave_model_path, adata)
+     assert model.module.decoder.activation_function_bg == "exp"
