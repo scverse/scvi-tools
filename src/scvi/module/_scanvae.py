@@ -344,9 +344,9 @@ class SCANVAE(VAE):
             reconst_loss += loss_z1_weight + loss_z1_unweight
             kl_divergence = kl_divergence_z2
             kl_divergence += kl(
-                 Categorical(probs=torch.ones([1], device=z1.device)),
-                 Categorical(probs=torch.ones([1], device=z1.device)),
-             )
+                Categorical(probs=torch.ones([1], device=z1.device)),
+                Categorical(probs=torch.ones([1], device=z1.device)),
+            )
 
         kl_divergence += kl_divergence_l
 
