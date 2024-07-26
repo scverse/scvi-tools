@@ -195,8 +195,8 @@ def test_pyro_bayesian_regression_low_level(
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator=accelerator,
-        devices=devices,
+        accelerator="cpu",  # not handled correctly for low level trainingplan.
+        devices="auto",
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
     )

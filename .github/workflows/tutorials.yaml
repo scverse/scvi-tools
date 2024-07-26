@@ -1,0 +1,24 @@
+name: update tutorials
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+
+      - name: Update tutorials 🔧
+        run: git submodule update --remote --recursive
+
+      - uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "docs: automated update of tutorials"
+          title: "docs: automated update of tutorials"
+          branch: "update-tutorials"
+          base: "main"
+          body: "automated update of tutorials submodule"

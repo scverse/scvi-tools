@@ -10,6 +10,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
+    by passing `external_indexing=list[train_idx,valid_idx,test_idx]` as well as in all models
+    available {pr}`2902`.
 - Add new experimental functional API for hyperparameter tuning with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` to replace
     {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
@@ -78,6 +81,11 @@ to [Semantic Versioning]. Full commit history is available in the
     concatenated array of all variable names. Users may replicate the previous behavior by
     passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
     {pr}`2769`.
+- Changed internal activation function in {class}`scvi.nn.DecoderTOTALVI` to Softplus to
+    increase numerical stability. This is the new default for new models. Previously trained models
+    will be loaded with exponential activation function {pr} `2913`.
+- Disable adversarial classifier if training with a single batch.
+    Previously this raised a None error {pr} `2914`.
 
 #### Removed
 
