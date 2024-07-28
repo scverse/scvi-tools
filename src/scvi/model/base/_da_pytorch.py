@@ -14,7 +14,7 @@ from tqdm import tqdm
 def get_aggregated_posterior(
     self,
     adata: AnnData | None = None,
-    # below params let you pass in the latent reps already, if we already have computed them
+    # below params let you pass in the latent reps already, if we have already computed them
     # locs and scales must already be for the cells of the desired sample, as indices and sample
     # are ignored if locs and scales are passed in
     locs: np.ndarray | None = None,  # TODO add explanation of these vars
@@ -29,6 +29,8 @@ def get_aggregated_posterior(
         qu_loc = torch.from_numpy(locs)
         qu_scale = torch.from_numpy(scales)
     else:
+        # TODO: If latent reps aren't passed in, I think I need to modify for if model is MrVI
+        # since it's jax not pytorch, would use get_jit_inference_fn not inference
         adata = self._validate_anndata(adata)
 
         if indices is None:
@@ -48,8 +50,6 @@ def get_aggregated_posterior(
             code would be in _vaemixin.py, and I think this would work if it
             was still in mrvi/_model.py"""
 
-            """Also I think this would return a jax distribution.
-            Do I need to create a new inference fn?"""
             outputs = self.module.inference(self.module._get_inference_input(tensors))
 
             qu_locs.append(outputs["qu"].loc)
@@ -64,9 +64,16 @@ def get_aggregated_posterior(
     )
 
 
+# TODO: add function headers, descriptions of new params
 def differential_abundance(
     self,
     adata: AnnData | None = None,
+    # Below allows user to pass in latent representations directly instead
+    # of using adata. Useful for simulation
+    # TODO: change datatypes of below params?
+    locs: np.ndarray | None = None,
+    scales: np.ndarray | None = None,
+    sample_id: np.ndarray | None = None,  # sample ids of each latent rep above.
     sample_cov_keys: list[str] | None = None,
     sample_subset: list[str] | None = None,
     compute_log_enrichment: bool = False,
@@ -74,25 +81,30 @@ def differential_abundance(
 ) -> pd.DataFrame:
     adata = self._validate_anndata(adata)
 
-    """Same issue as with get_aggregated_posterior. Not sure how I should get the u
-    latent representation as get_latent_representation in _vaemixin only has the z
-    representation, and get_latent_representation for mrvi uses jax."""
-    us = self.get_latent_representation(adata, use_mean=True, give_z=False, batch_size=batch_size)
+    if locs and scales:  # if user passes in latent reps directly
+        us = locs
+        variances = scales
+        unique_samples = np.unique(sample_id)
+    else:
+        # return dist so that we can also get the vars, and don't have redundantly get the latent
+        # reps again in get_aggregated_posterior
+        us, variances = self.get_latent_representation(
+            adata, use_mean=True, give_z=False, batch_size=batch_size, return_dist=True
+        )
 
-    # return dist so that we can also get the vars, and don't have redundantly get the latent
-    # reps again in get_aggregated_posterior
-    us, variances = self.get_latent_representation(
-        adata, use_mean=True, give_z=False, batch_size=batch_size, return_dist=True
-    )
+        unique_samples = adata.obs[self.sample_key].unique()
 
     log_probs = []
-    unique_samples = adata.obs[self.sample_key].unique()
     for sample_name in tqdm(unique_samples):
         # ap = self.get_aggregated_posterior(
         # adata=adata, sample=sample_name, batch_size=batch_size)
 
         # below code to prevent getting latent reps twice.
-        indices = np.where(adata.obs[self.sample_key] == sample_name)[0]
+        if locs and scales:
+            indices = np.where(sample_id == sample_name)
+        else:
+            indices = np.where(adata.obs[self.sample_key] == sample_name)[0]
+
         locs_per_sample = us[indices]
         scales_per_sample = variances[indices]
         ap = self.get_aggregated_posterior(locs=locs_per_sample, scales=scales_per_sample)
