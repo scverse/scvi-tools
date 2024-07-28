@@ -141,6 +141,7 @@ class SCVI(
         )
 
         if self._module_init_on_train:
+            # Here we need to adjust given the new custom data loader
             self.module = None
             warnings.warn(
                 "Model was initialized without `adata`. The module will be initialized when "
