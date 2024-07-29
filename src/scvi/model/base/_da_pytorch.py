@@ -81,7 +81,7 @@ def differential_abundance(
 ) -> pd.DataFrame:
     adata = self._validate_anndata(adata)
 
-    if locs and scales:  # if user passes in latent reps directly
+    if locs is not None and scales is not None:  # if user passes in latent reps directly
         us = locs
         variances = scales
         unique_samples = np.unique(sample_id)
@@ -100,7 +100,7 @@ def differential_abundance(
         # adata=adata, sample=sample_name, batch_size=batch_size)
 
         # below code to prevent getting latent reps twice.
-        if locs and scales:
+        if locs is not None and scales is not None:
             indices = np.where(sample_id == sample_name)
         else:
             indices = np.where(adata.obs[self.sample_key] == sample_name)[0]
