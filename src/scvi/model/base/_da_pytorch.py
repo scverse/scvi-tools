@@ -112,7 +112,7 @@ def differential_abundance(
         log_probs_ = []
         n_splits = max(adata.n_obs // batch_size, 1)
         for u_rep in np.array_split(us, n_splits):
-            log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True).cpu())
+            log_probs_.append(ap.log_prob(torch.tensor(u_rep)).sum(-1, keepdims=True).cpu())
 
         log_probs.append(np.concatenate(log_probs_, axis=0))
 
