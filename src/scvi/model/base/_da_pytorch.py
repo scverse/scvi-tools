@@ -130,7 +130,12 @@ def differential_abundance(
     if sample_cov_keys is None or len(sample_cov_keys) == 0:
         return log_probs_arr"""
 
-    indices = adata.obs_names.to_numpy()
+    if locs is not None and scales is not None:
+        # index is identifier for each cell (useful for simulation with synthetic data)
+        indices = np.arange(locs.shape[0])
+    else:
+        indices = adata.obs_names.to_numpy()
+
     columns = unique_samples
 
     log_probs_df = pd.DataFrame(data=log_probs, index=indices, columns=columns)
