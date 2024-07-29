@@ -5,9 +5,9 @@ import numpy as np
 # import xarray as xr
 import pandas as pd
 import torch
+import torch.distributions as dist
 from anndata import AnnData
 from torch import Tensor
-from torch.distributions import Distribution, Normal
 from tqdm import tqdm
 
 
@@ -22,7 +22,7 @@ def get_aggregated_posterior(
     sample: str | int | None = None,
     indices: Sequence[int] | None = None,
     batch_size: int | None = None,
-) -> Distribution:
+) -> dist.Distribution:
     self._check_if_trained(warn=False)
 
     if locs is not None and scales is not None:
@@ -59,8 +59,8 @@ def get_aggregated_posterior(
         qu_loc = torch.cat(qu_locs, 0).T
         qu_scale = torch.cat(qu_scales, 0).T
 
-    return Distribution.MixtureSameFamily(
-        Distribution.Categorical(torch.ones(qu_loc.shape[1])), Normal(qu_loc, qu_scale)
+    return dist.MixtureSameFamily(
+        dist.Categorical(torch.ones(qu_loc.shape[1])), dist.Normal(qu_loc, qu_scale)
     )
 
 
