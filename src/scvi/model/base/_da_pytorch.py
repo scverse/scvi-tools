@@ -26,8 +26,8 @@ def get_aggregated_posterior(
     self._check_if_trained(warn=False)
 
     if locs is not None and scales is not None:
-        qu_loc = torch.from_numpy(locs)
-        qu_scale = torch.from_numpy(scales)
+        qu_loc = torch.from_numpy(locs).T
+        qu_scale = torch.from_numpy(scales).T
     else:
         # TODO: If latent reps aren't passed in, I think I need to modify for if model is MrVI
         # since it's jax not pytorch, would use get_jit_inference_fn not inference
@@ -55,9 +55,9 @@ def get_aggregated_posterior(
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
 
-    # transpose because we need num cells to be rightmost dimension for mixture
-    qu_loc = torch.cat(qu_locs, 0).T
-    qu_scale = torch.cat(qu_scales, 0).T
+        # transpose because we need num cells to be rightmost dimension for mixture
+        qu_loc = torch.cat(qu_locs, 0).T
+        qu_scale = torch.cat(qu_scales, 0).T
 
     return Distribution.MixtureSameFamily(
         Distribution.Categorical(torch.ones(qu_loc.shape[1])), Normal(qu_loc, qu_scale)
