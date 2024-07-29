@@ -25,7 +25,7 @@ def get_aggregated_posterior(
 ) -> Distribution:
     self._check_if_trained(warn=False)
 
-    if locs and scales:
+    if locs is not None and scales is not None:
         qu_loc = torch.from_numpy(locs)
         qu_scale = torch.from_numpy(scales)
     else:
