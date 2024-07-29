@@ -107,7 +107,7 @@ def differential_abundance(
 
         locs_per_sample = us[indices]
         scales_per_sample = variances[indices]
-        ap = self.get_aggregated_posterior(locs=locs_per_sample, scales=scales_per_sample)
+        ap = get_aggregated_posterior(locs=locs_per_sample, scales=scales_per_sample)
 
         log_probs_ = []
         n_splits = max(adata.n_obs // batch_size, 1)
