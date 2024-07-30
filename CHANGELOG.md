@@ -34,6 +34,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add `unsigned` argument to {meth}`scvi.hub.HubModel.pull_from_s3` to allow for unsigned
     downloads of models from AWS S3 {pr}`2615`.
 - Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
+- Add support for {meth}`scvi.model.base.RNASeqMixin` in {class}`scvi.model.CondSCVI` {pr}`2915`.
 - Add `load_best_on_end` argument to {class}`scvi.train.SaveCheckpoint` to load the best model
     state at the end of training {pr}`2672`.
 - Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
@@ -85,9 +86,14 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2769`.
 - Changed internal activation function in {class}`scvi.nn.DecoderTOTALVI` to Softplus to
     increase numerical stability. This is the new default for new models. Previously trained models
-    will be loaded with exponential activation function {pr} `2913`.
+    will be loaded with exponential activation function {pr}`2913`.
+
+#### Fixed
+
 - Disable adversarial classifier if training with a single batch.
-    Previously this raised a None error {pr} `2914`.
+    Previously this raised a None error {pr}`2914`.
+- {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
+    Negative Binomial with latent_library_size {pr}`2915`.
 
 #### Removed
 

@@ -289,6 +289,14 @@ class Poisson(PoissonTorch):
         )
         return self.__class__.__name__ + "(" + args_string + ")"
 
+    def get_normalized(self, key) -> torch.Tensor:
+        if key == "mu":
+            return self.rate
+        elif key == "scale":
+            return self.scale
+        else:
+            raise ValueError(f"normalized key {key} not recognized")
+
 
 class NegativeBinomial(Distribution):
     r"""Negative binomial distribution.
@@ -353,6 +361,7 @@ class NegativeBinomial(Distribution):
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
+            scale = mu / torch.sum(mu, dim=-1, keepdim=True)
         else:
             mu, theta = broadcast_all(mu, theta)
         self.mu = mu
@@ -363,6 +372,14 @@ class NegativeBinomial(Distribution):
     @property
     def mean(self) -> torch.Tensor:
         return self.mu
+
+    def get_normalized(self, key) -> torch.Tensor:
+        if key == "mu":
+            return self.mu
+        elif key == "scale":
+            return self.scale
+        else:
+            raise ValueError(f"normalized key {key} not recognized")
 
     @property
     def variance(self) -> torch.Tensor:
@@ -579,6 +596,14 @@ class NegativeBinomialMixture(Distribution):
     def mean(self) -> torch.Tensor:
         pi = self.mixture_probs
         return pi * self.mu1 + (1 - pi) * self.mu2
+
+    def get_normalized(self, key) -> torch.Tensor:
+        if key == "mu":
+            return self.rate
+        elif key == "scale":
+            return self.scale
+        else:
+            raise ValueError(f"normalized key {key} not recognized")
 
     @lazy_property
     def mixture_probs(self) -> torch.Tensor:
