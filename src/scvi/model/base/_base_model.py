@@ -817,6 +817,23 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
         """
 
+    @classmethod
+    @abstractmethod
+    @setup_anndata_dsp.dedent
+    def setup_datamodule(
+        cls,
+        datamodule,
+        *args,
+        **kwargs,
+    ):
+        """%(summary)s.
+
+        Each model class deriving from this class provides parameters to this method
+        according to its needs. To operate correctly with the model initialization,
+        the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
+        on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
+        """
+
     @staticmethod
     def view_setup_args(dir_path: str, prefix: str | None = None) -> None:
         """Print args used to setup a saved model.

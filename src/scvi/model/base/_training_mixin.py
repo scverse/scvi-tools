@@ -102,6 +102,7 @@ class UnsupervisedTrainingMixin:
                 )
 
         if datamodule is None:
+            # In the general case we enter here
             datasplitter_kwargs = datasplitter_kwargs or {}
             datamodule = self._data_splitter_cls(
                 self.adata_manager,
@@ -114,6 +115,7 @@ class UnsupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         elif self.module is None:
+            # in CZI case we enter here
             self.module = self._module_cls(
                 datamodule.n_vars,
                 n_batch=datamodule.n_batch,
@@ -122,6 +124,8 @@ class UnsupervisedTrainingMixin:
                 n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
                 **self._module_kwargs,
             )
+        # after either of the cases we should be here with the same self.module
+        # and same datamodule
 
         plan_kwargs = plan_kwargs or {}
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)

@@ -192,6 +192,55 @@ class AnnDataManager:
         self._assign_uuid()
         self._assign_most_recent_manager_uuid()
 
+    def register_data_module_fields(
+        self,
+        datamodule,
+        source_registry: dict | None = None,
+        **transfer_kwargs,
+    ):
+        """Registers each field associated with this instance with the AnnData object.
+
+        Either registers or transfers the setup from `source_setup_dict` if passed in.
+        Sets ``self.adata``.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to be registered.
+        source_registry
+            Registry created after registering an AnnData using an
+            :class:`~scvi.data.AnnDataManager` object.
+        transfer_kwargs
+            Additional keywords which modify transfer behavior. Only applicable if
+            ``source_registry`` is set.
+        """
+        if self.adata is not None:
+            raise AssertionError("Existing AnnData object registered with this Manager instance.")
+
+        if source_registry is None and transfer_kwargs:
+            raise TypeError(
+                f"register_fields() got unexpected keyword arguments {transfer_kwargs} passed "
+                "without a source_registry."
+            )
+
+        self._validate_anndata_object(datamodule)
+
+        for field in self.fields:
+            self._add_field(
+                field=field,
+                adata=datamodule,
+                source_registry=source_registry,
+                **transfer_kwargs,
+            )
+
+        # Save arguments for register_fields.
+        self._source_registry = deepcopy(source_registry)
+        self._transfer_kwargs = deepcopy(transfer_kwargs)
+
+        self.adata = datamodule
+        self._assign_uuid()
+        self._assign_most_recent_manager_uuid()
+
     def _add_field(
         self,
         field: AnnDataField,

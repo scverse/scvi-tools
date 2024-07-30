@@ -960,6 +960,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     model.train(datamodule=datamodule)
 
     model = SCVI(adata, n_latent=5)
+    # Add an example for external custom dataloader?
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
