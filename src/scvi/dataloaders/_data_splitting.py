@@ -1,3 +1,4 @@
+import warnings
 from math import ceil, floor
 from typing import Optional, Union
 
@@ -39,6 +40,15 @@ def validate_data_split(
         raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
 
     n_train = ceil(train_size * n_samples)
+
+    if n_train % settings.batch_size < 3 and n_train % settings.batch_size > 0:
+        warnings.warn(
+            f"Last batch will have a small size of {n_train % settings.batch_size}"
+            f"samples. Consider changing settings.batch_size or batch_size in model.train"
+            f"currently {settings.batch_size} to avoid errors during model training.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
     if validation_size is None:
         n_val = n_samples - n_train
