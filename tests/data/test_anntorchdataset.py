@@ -10,7 +10,6 @@ from torch.utils.data import Dataset
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.utils._exceptions import InvalidParameterError
 from tests.data.utils import generic_setup_adata_manager
 
 
@@ -59,9 +58,7 @@ def test_getitem_tensors():
     assert list(dataset.keys_and_dtypes.keys()) == [REGISTRY_KEYS.X_KEY]
 
     # dict
-    dataset = manager.create_torch_dataset(
-        data_and_attributes={REGISTRY_KEYS.X_KEY: np.float64}
-    )
+    dataset = manager.create_torch_dataset(data_and_attributes={REGISTRY_KEYS.X_KEY: np.float64})
     assert isinstance(dataset.keys_and_dtypes, dict)
     assert list(dataset.keys_and_dtypes.keys()) == [REGISTRY_KEYS.X_KEY]
     assert dataset.keys_and_dtypes[REGISTRY_KEYS.X_KEY] == np.float64
@@ -72,7 +69,7 @@ def test_getitem_tensors():
     with pytest.raises(KeyError):
         manager.create_torch_dataset(data_and_attributes=[REGISTRY_KEYS.CAT_COVS_KEY])
 
-    with pytest.raises(InvalidParameterError):
+    with pytest.raises(ValueError):
         manager.create_torch_dataset(data_and_attributes=1)
 
 

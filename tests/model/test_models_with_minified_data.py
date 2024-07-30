@@ -72,11 +72,8 @@ def run_test_for_model_with_minified_adata(
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
-
     scvi.settings.seed = 1
-    params_orig = model.get_likelihood_parameters(
-        n_samples=n_samples, give_mean=give_mean
-    )
+    params_orig = model.get_likelihood_parameters(n_samples=n_samples, give_mean=give_mean)
     adata_orig = adata.copy()
 
     model.minify_adata()
@@ -95,24 +92,18 @@ def run_test_for_model_with_minified_adata(
     assert model.adata.var_names.equals(adata_orig.var_names)
     assert model.adata.var.equals(adata_orig.var)
     assert model.adata.varm.keys() == adata_orig.varm.keys()
-    np.testing.assert_array_equal(
-        model.adata.varm["my_varm"], adata_orig.varm["my_varm"]
-    )
+    np.testing.assert_array_equal(model.adata.varm["my_varm"], adata_orig.varm["my_varm"])
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
     if n_samples == 1:
-        params_latent = model.get_likelihood_parameters(
-            n_samples=n_samples, give_mean=give_mean
-        )
+        params_latent = model.get_likelihood_parameters(n_samples=n_samples, give_mean=give_mean)
     else:
         # do this so that we generate the same sequence of random numbers in the
         # minified and non-minified cases (purely to get the tests to pass). this is
         # because in the non-minified case we sample once more (in the call to z_encoder
         # during inference)
-        params_latent = model.get_likelihood_parameters(
-            n_samples=n_samples + 1, give_mean=False
-        )
+        params_latent = model.get_likelihood_parameters(n_samples=n_samples + 1, give_mean=False)
         for k in keys:
             params_latent[k] = params_latent[k][1:].mean(0)
     for k in keys:
@@ -133,10 +124,8 @@ def test_scvi_with_minified_adata_one_sample_with_layer():
 
 
 def test_scvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(n_samples=10, give_mean=True)
-    run_test_for_model_with_minified_adata(
-        n_samples=10, give_mean=True, use_size_factor=True
-    )
+    run_test_for_model_with_minified_adata(n_samples=400, give_mean=True)
+    run_test_for_model_with_minified_adata(n_samples=400, give_mean=True, use_size_factor=True)
 
 
 def test_scanvi_with_minified_adata_one_sample():
@@ -146,15 +135,13 @@ def test_scanvi_with_minified_adata_one_sample():
 
 def test_scanvi_with_minified_adata_one_sample_with_layer():
     run_test_for_model_with_minified_adata(SCANVI, layer="data_layer")
-    run_test_for_model_with_minified_adata(
-        SCANVI, layer="data_layer", use_size_factor=True
-    )
+    run_test_for_model_with_minified_adata(SCANVI, layer="data_layer", use_size_factor=True)
 
 
 def test_scanvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(SCANVI, n_samples=10, give_mean=True)
+    run_test_for_model_with_minified_adata(SCANVI, n_samples=400, give_mean=True)
     run_test_for_model_with_minified_adata(
-        SCANVI, n_samples=10, give_mean=True, use_size_factor=True
+        SCANVI, n_samples=400, give_mean=True, use_size_factor=True
     )
 
 
@@ -172,10 +159,11 @@ def test_scanvi_from_scvi(save_path):
 
     with pytest.raises(ValueError) as e:
         scvi.model.SCANVI.from_scvi_model(model, "label_0")
-    assert (
-        str(e.value)
-        == "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
+
+    msg = (
+        "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
     )
+    assert str(e.value) == msg
 
     # let's load scvi_model with a non-minified adata
     model.save(save_path, overwrite=True)
@@ -387,7 +375,7 @@ def test_scvi_with_minified_adata_posterior_predictive_sample():
 
     scvi.settings.seed = 1
     sample_orig = model.posterior_predictive_sample(
-        indices=[1, 2, 3], gene_list=["1", "2"]
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
     )
 
     model.minify_adata()
@@ -395,7 +383,7 @@ def test_scvi_with_minified_adata_posterior_predictive_sample():
 
     scvi.settings.seed = 1
     sample_new = model.posterior_predictive_sample(
-        indices=[1, 2, 3], gene_list=["1", "2"]
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
     )
     assert sample_new.shape == (3, 2)
 

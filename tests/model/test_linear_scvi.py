@@ -92,9 +92,7 @@ def test_saving_and_loading(save_path):
 
         # Test legacy loading
         legacy_save_path = os.path.join(save_path, "legacy/")
-        legacy_save(
-            model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-        )
+        legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
         with pytest.raises(ValueError):
             cls.load(legacy_save_path, adata=adata, prefix=prefix)
         cls.convert_legacy_save(
@@ -120,6 +118,16 @@ def test_linear_scvi():
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     assert len(model.history["elbo_train"]) == 1
     assert len(model.history["elbo_validation"]) == 1
+    model.get_loadings()
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+
+def test_linear_scvi_use_observed_lib_size():
+    adata = synthetic_iid()
+    LinearSCVI.setup_anndata(adata)
+    model = LinearSCVI(adata, n_latent=10, use_observed_lib_size=True)
+    model.train(max_epochs=1)
     model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")

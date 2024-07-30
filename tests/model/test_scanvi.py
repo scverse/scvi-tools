@@ -80,14 +80,10 @@ def test_saving_and_loading(save_path):
 
     # Test legacy loading
     legacy_save_path = os.path.join(save_path, "legacy/")
-    legacy_save(
-        model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix
-    )
+    legacy_save(model, legacy_save_path, overwrite=True, save_anndata=True, prefix=prefix)
     with pytest.raises(ValueError):
         SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
-    SCANVI.convert_legacy_save(
-        legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix
-    )
+    SCANVI.convert_legacy_save(legacy_save_path, legacy_save_path, overwrite=True, prefix=prefix)
     m = SCANVI.load(legacy_save_path, adata=adata, prefix=prefix)
     m.train(1)
 
@@ -179,9 +175,117 @@ def test_scanvi():
     # test from_scvi_model with size_factor
     a = synthetic_iid()
     a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
-    SCVI.setup_anndata(
-        a, batch_key="batch", labels_key="labels", size_factor_key="size_factor"
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels", size_factor_key="size_factor")
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = synthetic_iid()
+    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model.train(1)
+
+
+def test_scanvi_with_external_indices():
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "label_0",
+        batch_key="batch",
     )
+    model = SCANVI(adata, n_latent=10)
+    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+    )
+    logged_keys = model.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "validation_classification_loss" in logged_keys
+    assert "validation_accuracy" in logged_keys
+    assert "validation_f1_score" in logged_keys
+    assert "validation_calibration_error" in logged_keys
+    adata2 = synthetic_iid()
+    predictions = model.predict(adata2, indices=[1, 2, 3])
+    assert len(predictions) == 3
+    model.predict()
+    df = model.predict(adata2, soft=True)
+    assert isinstance(df, pd.DataFrame)
+    model.predict(adata2, soft=True, indices=[1, 2, 3])
+    model.get_normalized_expression(adata2)
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+    # test that all data labeled runs
+    unknown_label = "asdf"
+    a = synthetic_iid()
+    SCANVI.setup_anndata(
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
+    )
+    m = SCANVI(a)
+    m.train(1)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    a = synthetic_iid()
+    SCANVI.setup_anndata(
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
+    )
+    m = SCANVI(a)
+    m.train(1, train_size=0.9)
+
+    # test from_scvi_model
+    a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = synthetic_iid()
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key="labels", adata=a2)
+    with pytest.raises(ValueError):
+        scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key=None, adata=a2)
+
+    # make sure the state_dicts are different objects for the two models
+    assert scanvi_model.module.state_dict() is not m.module.state_dict()
+    scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
+    scvi_pxr = m.module.state_dict().get("px_r", None)
+    assert scanvi_pxr is not None and scvi_pxr is not None
+    assert scanvi_pxr is not scvi_pxr
+    scanvi_model.train(1)
+
+    # Test without label groups
+    scanvi_model = SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", use_labels_groups=False
+    )
+    scanvi_model.train(1)
+
+    # test from_scvi_model with size_factor
+    a = synthetic_iid()
+    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels", size_factor_key="size_factor")
     m = SCVI(a, use_observed_lib_size=False)
     a2 = synthetic_iid()
     a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
@@ -392,18 +496,10 @@ def test_scanvi_online_update(save_path):
 
     # test classifier frozen
     class_query_weight = (
-        model2.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     # weight decay makes difference
     np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
@@ -414,18 +510,10 @@ def test_scanvi_online_update(save_path):
     model2._labeled_indices = []
     model2.train(max_epochs=1)
     class_query_weight = (
-        model2.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model2.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     class_ref_weight = (
-        model.module.classifier.classifier[0]
-        .fc_layers[0][0]
-        .weight.detach()
-        .cpu()
-        .numpy()
+        model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
     with pytest.raises(AssertionError):
         np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)

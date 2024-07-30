@@ -141,37 +141,10 @@ html_theme_options = {
     "repository_url": repository_url,
     "use_repository_button": True,
     "logo_only": True,
-    "show_toc_level": 4,
+    "show_toc_level": 1,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
-    "icon_links": [
-        {
-            "name": "Scverse",
-            "url": "https://scverse.org/",
-            "icon": "https://raw.githubusercontent.com/scverse/scverse.github.io/main/static/img/icons/scverse_bw_logo.svg",
-            "type": "url",
-        },
-        {
-            "name": "GitHub",
-            # main repo github icon is defined here
-            "url": repository_url,
-            "icon": "fa-brands fa-github",
-            "type": "fontawesome",
-        },
-        {
-            "name": "Discourse",
-            "url": "https://discourse.scverse.org/",
-            "icon": "fa-brands fa-discourse",
-            "type": "fontawesome",
-        },
-        {
-            "name": "Model hub",
-            "url": "https://huggingface.co/scvi-tools/",
-            "icon": "fa-solid fa-cloud",
-            "type": "fontawesome",
-        },
-    ],
 }
 
 pygments_style = "default"

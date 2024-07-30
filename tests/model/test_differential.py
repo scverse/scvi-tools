@@ -5,12 +5,12 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+from scvi.model.base._de_core import _prepare_obs
 from scvi.model.base._differential import (
     DifferentialComputation,
     estimate_delta,
     estimate_pseudocounts_offset,
 )
-from scvi.model.base._utils import _prepare_obs
 
 
 def test_features():
@@ -66,9 +66,7 @@ def test_differential_computation(save_path):
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
-    res = dc.get_bayes_factors(
-        cell_idx1, cell_idx2, mode="change", use_permutation=False
-    )
+    res = dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False)
 
     model_fn = partial(
         model.get_normalized_expression,
@@ -83,9 +81,7 @@ def test_differential_computation(save_path):
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
-    res = dc.get_bayes_factors(
-        cell_idx1, cell_idx2, mode="change", use_permutation=False
-    )
+    res = dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False)
     assert (res["delta"] == 0.5) and (res["pseudocounts"] == 0.0)
     res = dc.get_bayes_factors(
         cell_idx1, cell_idx2, mode="change", use_permutation=False, delta=None
@@ -121,18 +117,14 @@ def test_differential_computation(save_path):
         model.differential_expression(adata[:20], groupby="batch")
 
     # test view
-    model.differential_expression(
-        adata[adata.obs["labels"] == "label_1"], groupby="batch"
-    )
+    model.differential_expression(adata[adata.obs["labels"] == "label_1"], groupby="batch")
 
     # Test query features
     (
         obs_col,
         group1,
         _,
-    ) = _prepare_obs(
-        idx1="(labels == 'label_1') & (batch == 'batch_1')", idx2=None, adata=adata
-    )
+    ) = _prepare_obs(idx1="(labels == 'label_1') & (batch == 'batch_1')", idx2=None, adata=adata)
     assert (obs_col == group1).sum() == adata.obs.loc[
         lambda x: (x.labels == "label_1") & (x.batch == "batch_1")
     ].shape[0]
