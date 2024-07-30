@@ -1,4 +1,5 @@
 """File for computing log likelihood of the data."""
+
 import numpy as np
 import torch
 
@@ -21,9 +22,7 @@ def compute_elbo(vae, data_loader, feed_labels=True, return_mean=True, **kwargs)
     for tensors in data_loader:
         _, _, scvi_loss = vae(tensors, **kwargs)
 
-        recon_loss = np.sum(
-            [np.array(i) for i in scvi_loss.reconstruction_loss.values()], axis=0
-        )
+        recon_loss = np.sum([np.array(i) for i in scvi_loss.reconstruction_loss.values()], axis=0)
         kl_local = np.sum([np.array(i) for i in scvi_loss.kl_local.values()], axis=0)
 
         if return_mean:

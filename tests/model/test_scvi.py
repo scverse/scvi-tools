@@ -195,13 +195,15 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     assert model.get_elbo(return_mean=False).shape == (adata.n_obs,)
     assert model.get_marginal_ll(n_mc_samples=3).ndim == 0
     assert model.get_marginal_ll(n_mc_samples=3, return_mean=False).shape == (adata.n_obs,)
-    assert model.get_reconstruction_error()['reconstruction_loss'].ndim == 0
-    assert model.get_reconstruction_error(return_mean=False)['reconstruction_loss'].shape == (
-        adata.n_obs,)
+    assert model.get_reconstruction_error()["reconstruction_loss"].ndim == 0
+    assert model.get_reconstruction_error(return_mean=False)["reconstruction_loss"].shape == (
+        adata.n_obs,
+    )
     assert model.get_normalized_expression(transform_batch="batch_1").shape == (
-        adata.n_obs, adata.n_vars)
-    assert model.get_normalized_expression(n_samples=2).shape == (
-        adata.n_obs, adata.n_vars)
+        adata.n_obs,
+        adata.n_vars,
+    )
+    assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
     # Test without observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)

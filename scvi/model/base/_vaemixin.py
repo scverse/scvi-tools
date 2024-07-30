@@ -44,9 +44,7 @@ class VAEMixin:
             Otherwise, return the mean ELBO.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         elbo = compute_elbo(self.module, scdl, return_mean=return_mean)
         return -elbo
 
@@ -139,9 +137,7 @@ class VAEMixin:
             Otherwise, return the mean reconstruction loss.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         reconstruction_error = compute_reconstruction_error(
             self.module, scdl, return_mean=return_mean
         )
@@ -188,9 +184,7 @@ class VAEMixin:
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         latent_qzm = []
         latent_qzv = []

@@ -214,7 +214,8 @@ class VAEMixin:
             )
 
         return compute_reconstruction_error(
-            self.module, dataloader, return_mean=return_mean, **kwargs)
+            self.module, dataloader, return_mean=return_mean, **kwargs
+        )
 
     @torch.inference_mode()
     def get_latent_representation(
