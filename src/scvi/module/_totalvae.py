@@ -620,7 +620,7 @@ class TOTALVAE(BaseModuleClass):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_div_l_gene = 0.0
+            kl_div_l_gene = torch.zeros_like(kl_div_z)
 
         kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
