@@ -341,7 +341,7 @@ class SCAR_VAE(VAE):
                 generative_outputs["pl"],
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         # need to add the ambient rate and scale to the distribution for the loss
         px = generative_outputs["px"]

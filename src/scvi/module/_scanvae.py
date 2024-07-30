@@ -305,19 +305,6 @@ class SCANVAE(VAE):
         kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=-1)
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
-        if not self.use_observed_lib_size:
-            ql = inference_outputs["ql"]
-            (
-                local_library_log_means,
-                local_library_log_vars,
-            ) = self._compute_local_library_params(batch_index)
-
-            kl_divergence_l = kl(
-                ql,
-                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
-            ).sum(dim=1)
-        else:
-            kl_divergence_l = 0.0
 
         probs = self.classifier(z1)
         if self.classifier.logits:
@@ -343,6 +330,20 @@ class SCANVAE(VAE):
                 else self.y_prior.repeat(probs.size(0), 1)
             ),
         )
+
+        if not self.use_observed_lib_size:
+            ql = inference_outputs["ql"]
+            (
+                local_library_log_means,
+                local_library_log_vars,
+            ) = self._compute_local_library_params(batch_index)
+
+            kl_divergence_l = kl(
+                ql,
+                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
+            ).sum(dim=1)
+        else:
+            kl_divergence_l = torch.zeros_like(kl_divergence)
 
         kl_divergence += kl_divergence_l
 
