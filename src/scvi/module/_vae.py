@@ -443,10 +443,14 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
         """Run the generative process."""
-        from torch.distributions import Normal
         from torch.nn.functional import linear
 
-        from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+        from scvi.distributions import (
+            NegativeBinomial,
+            Normal,
+            Poisson,
+            ZeroInflatedNegativeBinomial,
+        )
 
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
@@ -511,9 +515,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         elif self.gene_likelihood == "nb":
             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
         elif self.gene_likelihood == "poisson":
-            px = Poisson(px_rate, scale=px_scale)
+            px = Poisson(rate=px_rate, scale=px_scale)
         elif self.gene_likelihood == "normal":
-            px = Normal(px_rate, px_r)
+            px = Normal(px_rate, px_r, normal_mu=px_scale)
 
         # Priors
         if self.use_observed_lib_size:

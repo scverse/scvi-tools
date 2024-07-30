@@ -191,6 +191,11 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
 
     # Test without observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
@@ -1072,3 +1077,8 @@ def test_scvi_normal_likelihood():
 
     model = SCVI(adata, gene_likelihood="normal")
     model.train(max_epochs=1)
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)

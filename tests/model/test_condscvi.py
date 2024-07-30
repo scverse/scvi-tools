@@ -22,6 +22,10 @@ def test_condscvi_batch_key(
     _ = model.get_latent_representation()
     _ = model.get_vamp_prior(adata)
 
+    model.get_normalized_expression(adata)
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
     model_path = os.path.join(save_path, __name__)
     model.save(model_path, overwrite=True, save_anndata=False)
     model = CondSCVI.load(model_path, adata=adata)
