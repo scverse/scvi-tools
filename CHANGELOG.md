@@ -516,7 +516,6 @@ to [Semantic Versioning]. Full commit history is available in the
     parameters are. We provide utility functions and methods to dynamically convert a model to
     latent mode.
 - Added {class}`~scvi.external.SCAR` as an external model for ambient RNA removal [#1683].
-- Add weight support to {class}`~scvi.model.MULTIVI` [#1697].
 
 #### Minor changes
 
@@ -532,7 +531,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Breaking changes
 
-None
+- Add weight support to {class}`~scvi.model.MULTIVI` [#1697]. Old models can't be loaded anymore.
 
 #### Bug Fixes
 
