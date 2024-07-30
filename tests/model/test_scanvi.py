@@ -341,7 +341,8 @@ def test_multiple_covariates_scanvi():
     m.get_latent_representation()
     m.get_elbo()
     m.get_marginal_ll(n_mc_samples=3)
-    # m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=1)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=1)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=6)
     m.differential_expression(
         idx1=np.arange(50), idx2=51 + np.arange(50), mode="vanilla", weights="uniform"
     )
