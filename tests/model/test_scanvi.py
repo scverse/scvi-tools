@@ -352,6 +352,13 @@ def test_multiple_covariates_scanvi():
         weights="importance",
         importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 1},
     )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 10},
+    )
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)

@@ -48,6 +48,11 @@ to [Semantic Versioning]. Full commit history is available in the
     data {pr}`2756`.
 - Add support for reference mapping with {class}`mudata.MuData` models to
     {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
+- Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
+    and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
+    without averaging across cells {pr}`2362`.
+- Add support for setting `weights="importance"` in
+    {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
 
 #### Changed
 
@@ -94,6 +99,7 @@ to [Semantic Versioning]. Full commit history is available in the
     Previously this raised a None error {pr}`2914`.
 - {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
     Negative Binomial with latent_library_size {pr}`2915`.
+- Fix {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
 
 #### Removed
 
