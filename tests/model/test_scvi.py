@@ -191,11 +191,19 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
-    model.get_elbo()
-    model.get_marginal_ll(n_mc_samples=3)
-    model.get_reconstruction_error()
-    model.get_normalized_expression(transform_batch="batch_1")
-    model.get_normalized_expression(n_samples=2)
+    assert model.get_elbo().ndim == 0
+    assert model.get_elbo(return_mean=False).shape == (adata.n_obs,)
+    assert model.get_marginal_ll(n_mc_samples=3).ndim == 0
+    assert model.get_marginal_ll(n_mc_samples=3, return_mean=False).shape == (adata.n_obs,)
+    assert model.get_reconstruction_error()["reconstruction_loss"].ndim == 0
+    assert model.get_reconstruction_error(return_mean=False)["reconstruction_loss"].shape == (
+        adata.n_obs,
+    )
+    assert model.get_normalized_expression(transform_batch="batch_1").shape == (
+        adata.n_obs,
+        adata.n_vars,
+    )
+    assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
     # Test without observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
@@ -213,8 +221,11 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     assert z.shape == (adata.shape[0], n_latent)
     assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
+    model.get_elbo(return_mean=False)
     model.get_marginal_ll(n_mc_samples=3)
+    model.get_marginal_ll(n_mc_samples=3, return_mean=False)
     model.get_reconstruction_error()
+    model.get_reconstruction_error(return_mean=False)
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
 
