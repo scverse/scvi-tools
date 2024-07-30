@@ -256,6 +256,8 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
+
+        # Remove these lines. We don't need an adata_manager.
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
@@ -271,20 +273,25 @@ class SCVI(
         #    anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.registry["setup_method_name"] = "setup_datamodule"
+
+        """
+        ORI check here the elements are used in the datamodule.
+        We can stick to their solution for now. But we should check for all setup things whether
+        they are present in the datamodule.
+        These checks can adfterwards go to a new class. But implement them here. And ignore all adata things.
+        We just want to have the same dictionary 
+        """
+        if datamodule.get_batch_keys() is not None:
+            adata_manager.registry["setup_args"]["batch_key"] = datamodule.get_batch_keys()
+        if datamodule.get_labels_keys() is not None:
+            adata_manager.registry["setup_args"]["labels_key"] = datamodule.get_labels_keys()
         adata_manager.registry["setup_args"]["layer"] = datamodule.datapipe.layer_name
-        adata_manager.registry["setup_args"]["batch_key"] = datamodule.batch_keys
-        adata_manager.registry["setup_args"]["labels_key"]
-        adata_manager.registry["setup_args"]["batch_key"]
-        adata_manager.registry["setup_args"]["batch_key"]
-        adata_manager.registry["setup_args"]["batch_key"]
-        # datamodule._datapipe.obs_column_names
-        # datamodule._datapipe.obs_encoders
-        # adata_manager.register_fields(adata, **kwargs)
-        # how to etract the information we need from the datamodule
+        datamodule.get_var_names() # ORI this has to be provided no check otherwise raise error.
         adata_manager.register_data_module_fields(
             datamodule, **kwargs
         )  # here we need a new function for data module
 
+        # ORI No need to register here using adata manager. Instead populate dictionary. It will be sufficient.
         cls.register_manager(adata_manager)
         # adata_manager.get_state_registry(SCVI.REGISTRY_KEYS.X_KEY).to_dict()
         # adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
