@@ -140,8 +140,10 @@ class SCVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
 
+        # in the next part we need to construct the same module no mather the way
+        # dataloader was given
         if self._module_init_on_train:
-            # Here we need to adjust given the new custom data loader
+            # Here we need to adjust given the new custom data loader like CZI case
             self.module = None
             warnings.warn(
                 "Model was initialized without `adata`. The module will be initialized when "
@@ -225,6 +227,68 @@ class SCVI(
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+        # adata_manager.get_state_registry(SCVI.REGISTRY_KEYS.X_KEY).to_dict()
+        # adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
+        # pprint(adata_manager.registry)
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_datamodule(
+        cls,
+        datamodule,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        **kwargs,
+    ):
+        """%(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+        anndata_fields = [
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
+        ]
+        # register new fields if the adata is minified
+        # adata_minify_type = _get_adata_minify_type(adata)
+        # if adata_minify_type is not None:
+        #    anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager.registry["setup_method_name"] = "setup_datamodule"
+        adata_manager.registry["setup_args"]["layer"] = datamodule.datapipe.layer_name
+        adata_manager.registry["setup_args"]["batch_key"] = datamodule.batch_keys
+        adata_manager.registry["setup_args"]["labels_key"]
+        adata_manager.registry["setup_args"]["batch_key"]
+        adata_manager.registry["setup_args"]["batch_key"]
+        adata_manager.registry["setup_args"]["batch_key"]
+        # datamodule._datapipe.obs_column_names
+        # datamodule._datapipe.obs_encoders
+        # adata_manager.register_fields(adata, **kwargs)
+        # how to etract the information we need from the datamodule
+        adata_manager.register_data_module_fields(
+            datamodule, **kwargs
+        )  # here we need a new function for data module
+
+        cls.register_manager(adata_manager)
+        # adata_manager.get_state_registry(SCVI.REGISTRY_KEYS.X_KEY).to_dict()
+        # adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
+        # pprint(adata_manager.registry)
 
     @staticmethod
     def _get_fields_for_adata_minification(
