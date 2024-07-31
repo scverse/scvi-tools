@@ -136,6 +136,11 @@ class ScviConfig:
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+            # Ensure deterministic CUDA operations for Jax (see https://github.com/google/jax/issues/13672)
+            if "XLA_FLAGS" not in os.environ:
+                os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_ops=true"
+            else:
+                os.environ["XLA_FLAGS"] += " --xla_gpu_deterministic_ops=true"
             seed_everything(seed)
             self._seed = seed
 
@@ -164,7 +169,9 @@ class ScviConfig:
             console = Console(force_terminal=True)
             if console.is_jupyter is True:
                 console.is_jupyter = False
-            ch = RichHandler(level=level, show_path=False, console=console, show_time=False)
+            ch = RichHandler(
+                level=level, show_path=False, console=console, show_time=False
+            )
             formatter = logging.Formatter("%(message)s")
             ch.setFormatter(formatter)
             scvi_logger.addHandler(ch)
