@@ -6,6 +6,7 @@ from typing import Literal
 
 import numpy as np
 from anndata import AnnData
+from lightning import LightningDataModule
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import MinifiedDataType
@@ -112,6 +113,7 @@ class SCVI(
     def __init__(
         self,
         adata: AnnData | None = None,
+        datamodule: LightningDataModule | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -121,7 +123,7 @@ class SCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, datamodule)
 
         self._module_kwargs = {
             "n_hidden": n_hidden,
@@ -140,49 +142,35 @@ class SCVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
 
-        # in the next part we need to construct the same module no mather the way
-        # dataloader was given
-        if self._module_init_on_train:
-            # Here we need to adjust given the new custom data loader like CZI case
-            self.module = None
-            warnings.warn(
-                "Model was initialized without `adata`. The module will be initialized when "
-                "calling `train`. This behavior is experimental and may change in the future.",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
+        n_cats_per_cov = self.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}']
+        if n_cats_per_cov == 0:
+            n_cats_per_cov = None
+        n_batch = self.summary_stats.n_batch
+        use_size_factor_key =  self.registry_['setup_args'][f'{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key']
+        library_log_means, library_log_vars = None, None
+        if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
+            library_log_means, library_log_vars = _init_library_size(
+                self.adata_manager, n_batch
             )
-        else:
-            n_cats_per_cov = (
-                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-                else None
-            )
-            n_batch = self.summary_stats.n_batch
-            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-            library_log_means, library_log_vars = None, None
-            if not use_size_factor_key and self.minified_data_type is None:
-                library_log_means, library_log_vars = _init_library_size(
-                    self.adata_manager, n_batch
-                )
-            self.module = self._module_cls(
-                n_input=self.summary_stats.n_vars,
-                n_batch=n_batch,
-                n_labels=self.summary_stats.n_labels,
-                n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-                n_cats_per_cov=n_cats_per_cov,
-                n_hidden=n_hidden,
-                n_latent=n_latent,
-                n_layers=n_layers,
-                dropout_rate=dropout_rate,
-                dispersion=dispersion,
-                gene_likelihood=gene_likelihood,
-                latent_distribution=latent_distribution,
-                use_size_factor_key=use_size_factor_key,
-                library_log_means=library_log_means,
-                library_log_vars=library_log_vars,
-                **kwargs,
-            )
-            self.module.minified_data_type = self.minified_data_type
+        self.module = self._module_cls(
+            n_input=self.summary_stats.n_vars,
+            n_batch=n_batch,
+            n_labels=self.summary_stats.n_labels,
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
+            n_cats_per_cov=n_cats_per_cov,
+            n_hidden=n_hidden,
+            n_latent=n_latent,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
+            dispersion=dispersion,
+            gene_likelihood=gene_likelihood,
+            latent_distribution=latent_distribution,
+            use_size_factor_key=use_size_factor_key,
+            library_log_means=library_log_means,
+            library_log_vars=library_log_vars,
+            **kwargs,
+        )
+        self.module.minified_data_type = self.minified_data_type
 
         self.init_params_ = self._get_init_params(locals())
 
@@ -257,45 +245,7 @@ class SCVI(
         %(param_cont_cov_keys)s
         """
 
-        # Remove these lines. We don't need an adata_manager.
-        setup_method_args = cls._get_setup_method_args(**locals())
-        anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-        ]
-        # register new fields if the adata is minified
-        # adata_minify_type = _get_adata_minify_type(adata)
-        # if adata_minify_type is not None:
-        #    anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.registry["setup_method_name"] = "setup_datamodule"
-
-        """
-        ORI check here the elements are used in the datamodule.
-        We can stick to their solution for now. But we should check for all setup things whether
-        they are present in the datamodule.
-        These checks can adfterwards go to a new class. But implement them here. And ignore all adata things.
-        We just want to have the same dictionary 
-        """
-        if datamodule.get_batch_keys() is not None:
-            adata_manager.registry["setup_args"]["batch_key"] = datamodule.get_batch_keys()
-        if datamodule.get_labels_keys() is not None:
-            adata_manager.registry["setup_args"]["labels_key"] = datamodule.get_labels_keys()
-        adata_manager.registry["setup_args"]["layer"] = datamodule.datapipe.layer_name
-        datamodule.get_var_names() # ORI this has to be provided no check otherwise raise error.
-        adata_manager.register_data_module_fields(
-            datamodule, **kwargs
-        )  # here we need a new function for data module
-
-        # ORI No need to register here using adata manager. Instead populate dictionary. It will be sufficient.
-        cls.register_manager(adata_manager)
-        # adata_manager.get_state_registry(SCVI.REGISTRY_KEYS.X_KEY).to_dict()
-        # adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
-        # pprint(adata_manager.registry)
+        pass
 
     @staticmethod
     def _get_fields_for_adata_minification(

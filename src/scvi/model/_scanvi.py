@@ -178,6 +178,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         unlabeled_category: str,
         labels_key: str | None = None,
         adata: AnnData | None = None,
+        datamodule: LightningDataModule | None = None,
         **scanvi_kwargs,
     ):
         """Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
@@ -194,6 +195,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+        datamodule
+            LightningDataModule object that has been registered.
         scanvi_kwargs
             kwargs for scANVI model
         """
@@ -242,6 +245,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             **scvi_setup_args,
         )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
+        print('TTTT', scanvi_model.registry)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
         scanvi_model.was_pretrained = True

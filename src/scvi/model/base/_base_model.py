@@ -9,9 +9,11 @@ from collections.abc import Sequence
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import rich
 import torch
 from anndata import AnnData
+from lightning import LightningDataModule
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
@@ -85,7 +87,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     _data_loader_cls = AnnDataLoader
 
-    def __init__(self, adata: AnnOrMuData | None = None):
+    def __init__(self, adata: AnnOrMuData | None = None, datamodule: object | None = None):
         # check if the given adata is minified and check if the model being created
         # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
         # If not, raise an error to inform the user of the lack of minified-data functionality
@@ -98,13 +100,22 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
+            self._datamodule = None
             self._adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = self._adata_manager.registry
             self.summary_stats = self._adata_manager.summary_stats
+        elif datamodule is not None:
+            self._adata = None
+            self._datamodule = datamodule
+            self._adata_manager = None
+            # Suffix registry instance variable with _ to include it when saving the model.
+            self.registry_ = datamodule.registry
+            self.summary_stats = datamodule.summary_stats
+        else:
+            raise ValueError("adata or datamodule must be provided.")
 
-        self._module_init_on_train = adata is None
         self.is_trained_ = False
         self._model_summary_string = ""
         self.train_indices_ = None
@@ -113,9 +124,19 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.history_ = None
 
     @property
-    def adata(self) -> AnnOrMuData:
+    def adata(self) -> None | AnnOrMuData:
         """Data attached to model instance."""
         return self._adata
+
+    @property
+    def datamodule(self) -> None | LightningDataModule:
+        """Data attached to model instance."""
+        return self._datamodule
+
+    @property
+    def registry(self) -> dict:
+        """Data attached to model instance."""
+        return self.registry_
 
     @adata.setter
     def adata(self, adata: AnnOrMuData):
@@ -126,6 +147,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._adata_manager = self.get_anndata_manager(adata, required=True)
         self.registry_ = self._adata_manager.registry
         self.summary_stats = self._adata_manager.summary_stats
+
+    @datamodule.setter
+    def datamodule(self, datamodule: LightningDataModule):
+        if datamodule is None:
+            raise ValueError("datamodule cannot be None.")
+        self._datamodule = datamodule
+        self.registry_ = datamodule.registry
+        self.summary_stats = datamodule.summary_stats
 
     @property
     def adata_manager(self) -> AnnDataManager:
@@ -237,6 +266,40 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata_id = adata_manager.adata_uuid
         instance_manager_store = self._per_instance_manager_store[self.id]
         instance_manager_store[adata_id] = adata_manager
+
+    def data_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
+        """Returns the object in AnnData associated with the key in the data registry.
+
+        Parameters
+        ----------
+        registry_key
+            key of object to get from ``self.data_registry``
+
+        Returns
+        -------
+        The requested data.
+        """
+        if not self.adata:
+            raise ValueError("self.adata is None. Please register AnnData object to access data.")
+        else:
+            return self._adata_manager.get_from_registry(registry_key)
+
+    def get_from_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
+        """Returns the object in AnnData associated with the key in the data registry.
+
+        Parameters
+        ----------
+        registry_key
+            key of object to get from ``self.data_registry``
+
+        Returns
+        -------
+        The requested data.
+        """
+        if not self.adata:
+            raise ValueError("self.adata is None. Please registry AnnData object.")
+        else:
+            return self._adata_manager.get_from_registry(registry_key)
 
     def deregister_manager(self, adata: AnnData | None = None):
         """Deregisters the :class:`~scvi.data.AnnDataManager` instance associated with `adata`.
@@ -530,7 +593,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def _get_init_params(self, locals):
         """Returns the model init signature with associated passed in values.
 
-        Ignores the initial AnnData.
+        Ignores the initial AnnData or DataModule.
         """
         init = self.__init__
         sig = inspect.signature(init)
@@ -542,6 +605,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             k: v
             for (k, v) in all_params.items()
             if not isinstance(v, AnnData) and not isinstance(v, MuData)
+            and not isinstance(v, LightningDataModule)
+            and k not in ("adata", "datamodule")
         }
         # not very efficient but is explicit
         # separates variable params (**kwargs) from non variable params into two dicts
@@ -624,7 +689,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
+        if self.adata:
+            var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
+        else:
+            var_names = self.datamodule.var_names
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -647,6 +715,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls,
         dir_path: str,
         adata: AnnOrMuData | None = None,
+        datamodule: LightningDataModule | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         prefix: str | None = None,
@@ -679,7 +748,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model = ModelClass.load(save_path, adata)
         >>> model.get_....
         """
-        load_adata = adata is None
+        load_adata = adata is None and datamodule is None
         _, _, device = parse_device_args(
             accelerator=accelerator,
             devices=device,
@@ -701,31 +770,35 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
         adata = new_adata if new_adata is not None else adata
 
-        _validate_var_names(adata, var_names)
-
         registry = attr_dict.pop("registry_")
+        if datamodule is not None:
+            registry['setup_method_name'] = 'setup_datamodule'
+        else:
+            registry['setup_method_name'] = 'setup_anndata'
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
             raise ValueError("It appears you are loading a model from a different class.")
-
-        if _SETUP_ARGS_KEY not in registry:
-            raise ValueError(
-                "Saved model does not contain original setup inputs. "
-                "Cannot load the original setup."
-            )
 
         # Calling ``setup_anndata`` method with the original arguments passed into
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
-        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-        getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
+        if adata is not None:
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
+            _validate_var_names(adata, var_names)
+            method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+            getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
-        model = _initialize_model(cls, adata, attr_dict)
+        model = _initialize_model(cls, adata, datamodule, attr_dict)
         model.module.on_load(model)
         model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
         model.module.eval()
-        model._validate_anndata(adata)
+        if adata is not None:
+            model._validate_anndata(adata)
         return model
 
     @classmethod
@@ -818,7 +891,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
 
     @classmethod
-    @abstractmethod
     @setup_anndata_dsp.dedent
     def setup_datamodule(
         cls,
@@ -905,11 +977,14 @@ class BaseMinifiedModeModelClass(BaseModelClass):
     @property
     def minified_data_type(self) -> MinifiedDataType | None:
         """The type of minified data associated with this model, if applicable."""
-        return (
-            self.adata_manager.get_from_registry(REGISTRY_KEYS.MINIFY_TYPE_KEY)
-            if REGISTRY_KEYS.MINIFY_TYPE_KEY in self.adata_manager.data_registry
-            else None
-        )
+        if self.adata_manager:
+            return (
+                self.adata_manager.get_from_registry(REGISTRY_KEYS.MINIFY_TYPE_KEY)
+                if REGISTRY_KEYS.MINIFY_TYPE_KEY in self.adata_manager.data_registry
+                else None
+            )
+        else:
+            return None
 
     @abstractmethod
     def minify_adata(
