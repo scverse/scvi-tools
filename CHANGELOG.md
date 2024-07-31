@@ -100,6 +100,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
     Negative Binomial with latent_library_size {pr}`2915`.
 - Fix {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
+- Fix JAX to be deterministic on CUDA when seed is manually set {pr}`2923`.
 
 #### Removed
 
