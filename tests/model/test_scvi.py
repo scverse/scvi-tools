@@ -1088,7 +1088,6 @@ def test_scvi_train_custom_dataloader(n_latent: int = 5):
     model = SCVI(adata, n_latent=n_latent)
     model.train(max_epochs=1)
     dataloader = model._make_data_loader(adata)
-    """
     SCVI.setup_datamodule(dataloader)
     # continue from here. Datamodule will always require to pass it into all downstream functions.
     model.train(max_epochs=1, datamodule=dataloader)
@@ -1096,7 +1095,7 @@ def test_scvi_train_custom_dataloader(n_latent: int = 5):
     _ = model.get_marginal_ll(dataloader=dataloader)
     _ = model.get_reconstruction_error(dataloader=dataloader)
     _ = model.get_latent_representation(dataloader=dataloader)
-    """
+
 
 def test_scvi_normal_likelihood():
     import scanpy as sc

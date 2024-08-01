@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pprint import pprint
 
 import numpy as np
 import scanpy as sc
@@ -41,6 +42,11 @@ model_orig.save(model_dir, overwrite=True)
 # Loading the model (just as a compariosn)
 model_orig_loaded = scvi.model.SCVI.load(model_dir, adata=adata)
 
+# when loading from disk
+scvi.model.SCVI.prepare_query_anndata(adata, model_dir)
+# O
+scvi.model.SCVI.prepare_query_anndata(adata, model_orig_loaded)
+
 # Obtaining model outputs
 SCVI_LATENT_KEY = "X_scVI"
 latent = model_orig.get_latent_representation()
@@ -52,6 +58,8 @@ adata_manager = model_orig.adata_manager
 model_orig.view_anndata_setup(hide_state_registries=True)
 # adata_manager.get_state_registry(SCVI.REGISTRY_KEYS.X_KEY).to_dict()
 adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
+
+pprint(adata_manager.registry)
 
 # Plot UMAP and save the figure for later check
 sc.pp.neighbors(adata, use_rep="scvi", key_added="scvi")
