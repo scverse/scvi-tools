@@ -97,7 +97,9 @@ class ArchesMixin:
             validate_single_device=True,
         )
 
-        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
+        attr_dict, var_names, load_state_dict = _get_loaded_data(
+            reference_model, device=device, adata=adata
+        )
 
         if adata is not None:
             if isinstance(adata, MuData):
@@ -216,7 +218,7 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+        _, var_names, _ = _get_loaded_data(reference_model, device="cpu", adata=adata)
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
@@ -364,7 +366,7 @@ def _set_params_online_update(
             par.requires_grad = False
 
 
-def _get_loaded_data(reference_model, device=None):
+def _get_loaded_data(reference_model, device=None, adata=None):
     if isinstance(reference_model, str):
         attr_dict, var_names, load_state_dict, _ = _load_saved_files(
             reference_model, load_adata=False, map_location=device
@@ -372,7 +374,11 @@ def _get_loaded_data(reference_model, device=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        var_names = _get_var_names(reference_model.adata)
+        var_names = (
+            _get_var_names(reference_model.adata)
+            if attr_dict["registry_"]["setup_method_name"] != "setup_datamodule"
+            else _get_var_names(adata)
+        )
         load_state_dict = deepcopy(reference_model.module.state_dict())
 
     return attr_dict, var_names, load_state_dict
