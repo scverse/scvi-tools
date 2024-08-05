@@ -134,6 +134,8 @@ class TrainingPlan(pl.LightningModule):
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
         Minimum scaling factor on KL divergence during training.
+    compile
+        Whether to compile the model using torch.compile.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -160,10 +162,14 @@ class TrainingPlan(pl.LightningModule):
         lr_min: float = 0,
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
+        compile: bool = False,
         **loss_kwargs,
     ):
         super().__init__()
-        self.module = module
+        if compile:
+            self.module = torch.compile(module, dynamic=False, mode="reduce-overhead")
+        else:
+            self.module = module
         self.lr = lr
         self.weight_decay = weight_decay
         self.eps = eps
@@ -342,15 +348,17 @@ class TrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        loss = self.module.warmup_loss(scvi_loss, kl_weight)
+
         self.log(
             "train_loss",
-            scvi_loss.loss,
+            loss,
             on_epoch=True,
             prog_bar=True,
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
-        return scvi_loss.loss
+        return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step for the model."""

@@ -575,6 +575,13 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             },
         )
 
+    def warmup_loss(self, loss: LossOutput, kl_weight: float):
+        return torch.mean(
+            loss.reconstruction_loss["reconstruction_loss"] +
+            kl_weight * loss.kl_local["kl_divergence_z"] +
+            loss.kl_local["kl_divergence_l"]
+        )
+
     @torch.inference_mode()
     def sample(
         self,
