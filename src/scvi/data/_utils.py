@@ -11,6 +11,8 @@ import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
 
+from scvi.utils import attrdict
+
 try:
     # anndata >= 0.10
     from anndata.experimental import CSCDataset, CSRDataset
@@ -154,6 +156,14 @@ def _set_data_in_registry(
         else:
             attribute[attr_key] = data
         setattr(adata, attr_name, attribute)
+
+
+def _get_summary_stats_from_registry(registry: dict) -> attrdict:
+    summary_stats = {}
+    for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
+        field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
+        summary_stats.update(field_summary_stats)
+    return attrdict(summary_stats)
 
 
 def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: str | None):

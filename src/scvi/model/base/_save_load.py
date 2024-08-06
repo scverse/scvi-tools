@@ -97,7 +97,7 @@ def _load_saved_files(
     return attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, datamodule, attr_dict):
+def _initialize_model(cls, adata, registry, attr_dict):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -121,9 +121,6 @@ def _initialize_model(cls, adata, datamodule, attr_dict):
         kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
         kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         non_kwargs.pop("use_cuda")
-    # adata and datamodule None is stored in the registry
-    non_kwargs.pop("adata", None)
-    non_kwargs.pop("datamodule", None)
 
     # backwards compat for scANVI
     if "unlabeled_category" in non_kwargs.keys():
@@ -131,7 +128,10 @@ def _initialize_model(cls, adata, datamodule, attr_dict):
     if "pretrained_model" in non_kwargs.keys():
         non_kwargs.pop("pretrained_model")
 
-    model = cls(adata=adata, datamodule=datamodule, **non_kwargs, **kwargs)
+    if not adata:
+        adata = None
+
+    model = cls(adata=adata, registry=registry, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
 

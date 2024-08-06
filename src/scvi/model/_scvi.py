@@ -113,7 +113,7 @@ class SCVI(
     def __init__(
         self,
         adata: AnnData | None = None,
-        datamodule: LightningDataModule | None = None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -123,7 +123,7 @@ class SCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **kwargs,
     ):
-        super().__init__(adata, datamodule)
+        super().__init__(adata, registry)
 
         self._module_kwargs = {
             "n_hidden": n_hidden,
@@ -146,7 +146,7 @@ class SCVI(
         if n_cats_per_cov == 0:
             n_cats_per_cov = None
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key =  self.registry_['setup_args'][f'{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key']
+        use_size_factor_key =  self.get_setup_arg(f'{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key')
         library_log_means, library_log_vars = None, None
         if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
             library_log_means, library_log_vars = _init_library_size(

@@ -3,9 +3,11 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import sys
 import warnings
 from abc import ABCMeta, abstractmethod
 from collections.abc import Sequence
+from io import StringIO
 from uuid import uuid4
 
 import numpy as np
@@ -13,20 +15,28 @@ import pandas as pd
 import rich
 import torch
 from anndata import AnnData
-from lightning import LightningDataModule
 from mudata import MuData
+from rich import box
+from rich.console import Console
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
+    _FIELD_REGISTRIES_KEY,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
+    _STATE_REGISTRY_KEY,
 )
-from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
+from scvi.data._utils import (
+    _assign_adata_uuid,
+    _check_if_view,
+    _get_adata_minify_type,
+    _get_summary_stats_from_registry,
+)
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.model.base._constants import SAVE_KEYS
@@ -38,6 +48,8 @@ from scvi.model.base._save_load import (
 )
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+from . import _constants
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +99,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     _data_loader_cls = AnnDataLoader
 
-    def __init__(self, adata: AnnOrMuData | None = None, datamodule: object | None = None):
+    def __init__(self, adata: AnnOrMuData | None = None, registry: object | None = None):
         # check if the given adata is minified and check if the model being created
         # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
         # If not, raise an error to inform the user of the lack of minified-data functionality
@@ -100,21 +112,19 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.id = str(uuid4())  # Used for cls._manager_store keys.
         if adata is not None:
             self._adata = adata
-            self._datamodule = None
             self._adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
-            self.registry_ = self._adata_manager.registry
-            self.summary_stats = self._adata_manager.summary_stats
-        elif datamodule is not None:
+            self.registry_ = self._adata_manager._registry
+            self.summary_stats = _get_summary_stats_from_registry(self.registry_)
+        elif registry is not None:
             self._adata = None
-            self._datamodule = datamodule
             self._adata_manager = None
             # Suffix registry instance variable with _ to include it when saving the model.
-            self.registry_ = datamodule.registry
-            self.summary_stats = datamodule.summary_stats
+            self.registry_ = registry
+            self.summary_stats = _get_summary_stats_from_registry(registry)
         else:
-            raise ValueError("adata or datamodule must be provided.")
+            raise ValueError("adata or registry must be provided.")
 
         self.is_trained_ = False
         self._model_summary_string = ""
@@ -129,14 +139,18 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return self._adata
 
     @property
-    def datamodule(self) -> None | LightningDataModule:
-        """Data attached to model instance."""
-        return self._datamodule
-
-    @property
     def registry(self) -> dict:
         """Data attached to model instance."""
         return self.registry_
+
+    def get_var_names(self, legacy_mudata_format=False) -> dict:
+        """Variable names of input data."""
+        from scvi.model.base._save_load import _get_var_names
+        if self.adata:
+            return _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
+        else:
+            return self.registry[
+                _FIELD_REGISTRIES_KEY]['X'][_STATE_REGISTRY_KEY]['column_names']
 
     @adata.setter
     def adata(self, adata: AnnOrMuData):
@@ -147,14 +161,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._adata_manager = self.get_anndata_manager(adata, required=True)
         self.registry_ = self._adata_manager.registry
         self.summary_stats = self._adata_manager.summary_stats
-
-    @datamodule.setter
-    def datamodule(self, datamodule: LightningDataModule):
-        if datamodule is None:
-            raise ValueError("datamodule cannot be None.")
-        self._datamodule = datamodule
-        self.registry_ = datamodule.registry
-        self.summary_stats = datamodule.summary_stats
 
     @property
     def adata_manager(self) -> AnnDataManager:
@@ -393,6 +399,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             If True, errors on missing manager. Otherwise, returns None when manager is missing.
         """
         cls = self.__class__
+        if not adata:
+            return None
+
         if _SCVI_UUID_KEY not in adata.uns:
             if required:
                 raise ValueError(
@@ -524,12 +533,19 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 "Input AnnData not setup with scvi-tools. "
                 + "attempting to transfer AnnData setup"
             )
-            self._register_manager_for_instance(self.adata_manager.transfer_fields(adata))
+            self._register_manager_for_instance(self.transfer_fields(adata))
         else:
             # Case where correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
 
         return adata
+
+    def transfer_fields(self, adata: AnnOrMuData, **kwargs) -> AnnData:
+        """Transfer fields from a model to an AnnData object."""
+        if self.adata:
+            return self.adata_manager.transfer_fields(adata, **kwargs)
+        else:
+            raise ValueError("Model need to be initialized with AnnData to transfer fields.")
 
     def _check_if_trained(self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE):
         """Check if the model is trained.
@@ -593,7 +609,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def _get_init_params(self, locals):
         """Returns the model init signature with associated passed in values.
 
-        Ignores the initial AnnData or DataModule.
+        Ignores the initial AnnData or Registry.
         """
         init = self.__init__
         sig = inspect.signature(init)
@@ -605,8 +621,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             k: v
             for (k, v) in all_params.items()
             if not isinstance(v, AnnData) and not isinstance(v, MuData)
-            and not isinstance(v, LightningDataModule)
-            and k not in ("adata", "datamodule")
+            and k not in ("adata", "registry")
         }
         # not very efficient but is explicit
         # separates variable params (**kwargs) from non variable params into two dicts
@@ -661,8 +676,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
-        from scvi.model.base._save_load import _get_var_names
-
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -688,11 +701,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
-
-        if self.adata:
-            var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
-        else:
-            var_names = self.datamodule.var_names
+        var_names = self.get_var_names(legacy_mudata_format=legacy_mudata_format)
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -715,7 +724,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         cls,
         dir_path: str,
         adata: AnnOrMuData | None = None,
-        datamodule: LightningDataModule | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         prefix: str | None = None,
@@ -732,6 +740,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             It is not necessary to run setup_anndata,
             as AnnData is validated against the saved `scvi` setup dictionary.
             If None, will check for and load anndata saved with the model.
+            If False, will load the model without AnnData.
         %(param_accelerator)s
         %(param_device)s
         prefix
@@ -748,7 +757,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model = ModelClass.load(save_path, adata)
         >>> model.get_....
         """
-        load_adata = adata is None and datamodule is None
+        load_adata = adata is None
         _, _, device = parse_device_args(
             accelerator=accelerator,
             devices=device,
@@ -771,17 +780,14 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
 
         registry = attr_dict.pop("registry_")
-        if datamodule is not None:
-            registry['setup_method_name'] = 'setup_datamodule'
-        else:
-            registry['setup_method_name'] = 'setup_anndata'
+        registry['setup_method_name'] = 'setup_anndata'
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
             raise ValueError("It appears you are loading a model from a different class.")
 
         # Calling ``setup_anndata`` method with the original arguments passed into
         # the saved model. This enables simple backwards compatibility in the case of
         # newly introduced fields or parameters.
-        if adata is not None:
+        if adata:
             if _SETUP_ARGS_KEY not in registry:
                 raise ValueError(
                     "Saved model does not contain original setup inputs. "
@@ -791,13 +797,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
             getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
-        model = _initialize_model(cls, adata, datamodule, attr_dict)
+        model = _initialize_model(cls, adata, registry, attr_dict)
         model.module.on_load(model)
         model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
         model.module.eval()
-        if adata is not None:
+        if adata:
             model._validate_anndata(adata)
         return model
 
@@ -890,22 +896,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
         """
 
-    @classmethod
-    @setup_anndata_dsp.dedent
-    def setup_datamodule(
-        cls,
-        datamodule,
-        *args,
-        **kwargs,
-    ):
-        """%(summary)s.
-
-        Each model class deriving from this class provides parameters to this method
-        according to its needs. To operate correctly with the model initialization,
-        the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
-        on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
-        """
-
     @staticmethod
     def view_setup_args(dir_path: str, prefix: str | None = None) -> None:
         """Print args used to setup a saved model.
@@ -970,6 +960,152 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ) from err
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
 
+    def view_setup_method_args(self) -> None:
+        """Prints setup kwargs used to produce a given registry.
+
+        Parameters
+        ----------
+        registry
+            Registry produced by an AnnDataManager.
+        """
+        model_name = self.registry_[_MODEL_NAME_KEY]
+        setup_args = self.registry_[_SETUP_ARGS_KEY]
+        if model_name is not None and setup_args is not None:
+            rich.print(f"Setup via `{model_name}.setup_anndata` with arguments:")
+            rich.pretty.pprint(setup_args)
+            rich.print()
+
+    def view_registry(self, hide_state_registries: bool = False) -> None:
+        """Prints summary of the registry.
+
+        Parameters
+        ----------
+        hide_state_registries
+            If True, prints a shortened summary without details of each state registry.
+        """
+        version = self.registry_[_SCVI_VERSION_KEY]
+        rich.print(f"Anndata setup with scvi-tools version {version}.")
+        rich.print()
+        self.view_setup_method_args(self._registry)
+
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = rich.console.Console(force_jupyter=force_jupyter)
+
+        ss = _get_summary_stats_from_registry(self._registry)
+        dr = self._get_data_registry_from_registry(self._registry)
+        console.print(self._view_summary_stats(ss))
+        console.print(self._view_data_registry(dr))
+
+        if not hide_state_registries:
+            for field in self.fields:
+                state_registry = self.get_state_registry(field.registry_key)
+                t = field.view_state_registry(state_registry)
+                if t is not None:
+                    console.print(t)
+
+    def get_state_registry(self, registry_key: str) -> attrdict:
+        """Returns the state registry for the AnnDataField registered with this instance."""
+        return attrdict(
+            self.registry_[_FIELD_REGISTRIES_KEY][registry_key][
+                _STATE_REGISTRY_KEY
+            ]
+        )
+
+    def get_setup_arg(self, setup_arg: str) -> attrdict:
+        """Returns the string provided to setup of a specific setup_arg."""
+        return self.registry_[_SETUP_ARGS_KEY][setup_arg]
+
+    @staticmethod
+    def _view_summary_stats(
+        summary_stats: attrdict, as_markdown: bool = False
+    ) -> rich.table.Table | str:
+        """Prints summary stats."""
+        if not as_markdown:
+            t = rich.table.Table(title="Summary Statistics")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
+        t.add_column(
+            "Summary Stat Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "Value",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+        for stat_key, count in summary_stats.items():
+            t.add_row(stat_key, str(count))
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue().strip()
+
+        return t
+
+    @staticmethod
+    def _view_data_registry(
+        data_registry: attrdict, as_markdown: bool = False
+    ) -> rich.table.Table | str:
+        """Prints data registry."""
+        if not as_markdown:
+            t = rich.table.Table(title="Data Registry")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
+        t.add_column(
+            "Registry Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "scvi-tools Location",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+
+        for registry_key, data_loc in data_registry.items():
+            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
+            attr_name = data_loc.attr_name
+            attr_key = data_loc.attr_key
+            scvi_data_str = "adata"
+            if mod_key is not None:
+                scvi_data_str += f".mod['{mod_key}']"
+            if attr_key is None:
+                scvi_data_str += f".{attr_name}"
+            else:
+                scvi_data_str += f".{attr_name}['{attr_key}']"
+            t.add_row(registry_key, scvi_data_str)
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue().strip()
+
+        return t
+
+    def update_setup_method_args(self, setup_method_args: dict):
+        """Update setup method args.
+
+        Parameters
+        ----------
+        setup_method_args
+            This is a bit of a misnomer, this is a dict representing kwargs
+            of the setup method that will be used to update the existing values
+            in the registry of this instance.
+        """
+        self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
 
 class BaseMinifiedModeModelClass(BaseModelClass):
     """Abstract base class for scvi-tools models that can handle minified data."""
