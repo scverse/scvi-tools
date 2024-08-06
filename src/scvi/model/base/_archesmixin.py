@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from lightning import LightningDataModule
 from mudata import MuData
 from scipy.sparse import csr_matrix
 
@@ -42,7 +41,7 @@ class ArchesMixin:
         cls,
         adata: None | AnnOrMuData = None,
         reference_model: Union[str, BaseModelClass] = None,
-        datamodule: None | LightningDataModule = None,
+        registry: None | dict = None,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",
@@ -87,8 +86,8 @@ class ArchesMixin:
         """
         if reference_model is None:
             raise ValueError("Please provide a reference model as string or loaded model.")
-        if adata is None and datamodule is None:
-            raise ValueError("Please provide either an AnnData or a datamodule.")
+        if adata is None and registry is None:
+            raise ValueError("Please provide either an AnnData or a registry dictionary.")
 
         _, _, device = parse_device_args(
             accelerator=accelerator,
@@ -139,15 +138,14 @@ class ArchesMixin:
                 **registry[_SETUP_ARGS_KEY],
             )
 
-        model = _initialize_model(cls, adata, datamodule, attr_dict)
-        adata_manager = model.get_anndata_manager(adata, required=True)
+        model = _initialize_model(cls, adata, registry, attr_dict)
 
-        if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
+        if model.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}'] > 0:
             raise NotImplementedError(
                 "scArches currently does not support models with extra categorical covariates."
             )
 
-        version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
+        version_split = model.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
                 "Query integration should be performed using models trained with "
@@ -374,11 +372,7 @@ def _get_loaded_data(reference_model, device=None, adata=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        var_names = (
-            _get_var_names(reference_model.adata)
-            if attr_dict["registry_"]["setup_method_name"] != "setup_datamodule"
-            else _get_var_names(adata)
-        )
+        var_names = reference_model.get_var_names()
         load_state_dict = deepcopy(reference_model.module.state_dict())
 
     return attr_dict, var_names, load_state_dict
