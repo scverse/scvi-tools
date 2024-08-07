@@ -434,6 +434,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         if "num_workers" not in data_loader_kwargs:
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
+        if "persistent_workers" not in data_loader_kwargs:
+            data_loader_kwargs.update({"persistent_workers": settings.dl_persistent_workers})
 
         dl = data_loader_class(
             adata_manager,
