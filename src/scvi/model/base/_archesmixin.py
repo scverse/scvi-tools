@@ -17,7 +17,6 @@ from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.model.base._save_load import (
-    _get_var_names,
     _initialize_model,
     _load_saved_files,
     _validate_var_names,
@@ -140,7 +139,7 @@ class ArchesMixin:
 
         model = _initialize_model(cls, adata, registry, attr_dict)
 
-        if model.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}'] > 0:
+        if model.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"] > 0:
             raise NotImplementedError(
                 "scArches currently does not support models with extra categorical covariates."
             )
