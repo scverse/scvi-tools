@@ -136,6 +136,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     def __init__(
         self,
         adata: AnnData,
+        registry: dict,
         n_genes: int,
         n_regions: int,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",

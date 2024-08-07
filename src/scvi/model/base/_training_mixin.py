@@ -82,7 +82,10 @@ class UnsupervisedTrainingMixin:
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
+            if self.adata is not None:
+                max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
+            else:
+                max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
 
         if datamodule is None:
             # In the general case we enter here

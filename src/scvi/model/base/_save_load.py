@@ -131,7 +131,7 @@ def _initialize_model(cls, adata, registry, attr_dict):
     if not adata:
         adata = None
 
-    model = cls(adata=adata, registry=registry, **non_kwargs, **kwargs)
+    model = cls(adata, registry=registry, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
 
