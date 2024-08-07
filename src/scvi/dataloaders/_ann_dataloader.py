@@ -101,6 +101,8 @@ class AnnDataLoader(DataLoader):
         )
         if "num_workers" not in kwargs:
             kwargs["num_workers"] = settings.dl_num_workers
+        if "persistent_workers" not in kwargs:
+            kwargs["persistent_workers"] = settings.dl_persistent_workers
 
         self.kwargs = copy.deepcopy(kwargs)
 
