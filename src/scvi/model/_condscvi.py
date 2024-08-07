@@ -64,7 +64,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,

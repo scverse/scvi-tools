@@ -103,7 +103,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_latent: int = 20,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",

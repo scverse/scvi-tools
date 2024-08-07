@@ -81,27 +81,14 @@ class UnsupervisedTrainingMixin:
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
-        if datamodule is not None and not self._module_init_on_train:
-            raise ValueError(
-                "Cannot pass in `datamodule` if the model was initialized with `adata`."
-            )
-        elif datamodule is None and self._module_init_on_train:
-            raise ValueError(
-                "If the model was not initialized with `adata`, a `datamodule` must be passed in."
-            )
-
         if max_epochs is None:
-            if datamodule is None:
+            if self.adata is not None:
                 max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
-            elif hasattr(datamodule, "n_obs"):
-                max_epochs = get_max_epochs_heuristic(datamodule.n_obs)
             else:
-                raise ValueError(
-                    "If `datamodule` does not have `n_obs` attribute, `max_epochs` must be "
-                    "passed in."
-                )
+                max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
 
         if datamodule is None:
+            # In the general case we enter here
             datasplitter_kwargs = datasplitter_kwargs or {}
             datamodule = self._data_splitter_cls(
                 self.adata_manager,
@@ -112,15 +99,6 @@ class UnsupervisedTrainingMixin:
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
-            )
-        elif self.module is None:
-            self.module = self._module_cls(
-                datamodule.n_vars,
-                n_batch=datamodule.n_batch,
-                n_labels=getattr(datamodule, "n_labels", 1),
-                n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
-                n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
-                **self._module_kwargs,
             )
 
         plan_kwargs = plan_kwargs or {}
