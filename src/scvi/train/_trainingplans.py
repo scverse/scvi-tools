@@ -71,11 +71,13 @@ def _compute_kl_weight(
     slope = max_kl_weight - min_kl_weight
     if n_epochs_kl_warmup:
         if epoch < n_epochs_kl_warmup:
-            return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+            kl_weight = slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
     elif n_steps_kl_warmup:
         if step < n_steps_kl_warmup:
-            return slope * (step / n_steps_kl_warmup) + min_kl_weight
-    return max_kl_weight
+            kl_weight =  slope * (step / n_steps_kl_warmup) + min_kl_weight
+    else:
+        kl_weight = max_kl_weight
+    return torch.tensor(kl_weight)
 
 
 class TrainingPlan(pl.LightningModule):
@@ -217,28 +219,6 @@ class TrainingPlan(pl.LightningModule):
         )
         return elbo, rec_loss, kl_local, kl_global, collection
 
-    def initialize_train_metrics(self):
-        """Initialize train related metrics."""
-        (
-            self.elbo_train,
-            self.rec_loss_train,
-            self.kl_local_train,
-            self.kl_global_train,
-            self.train_metrics,
-        ) = self._create_elbo_metric_components(mode="train", n_total=self.n_obs_training)
-        self.elbo_train.reset()
-
-    def initialize_val_metrics(self):
-        """Initialize val related metrics."""
-        (
-            self.elbo_val,
-            self.rec_loss_val,
-            self.kl_local_val,
-            self.kl_global_val,
-            self.val_metrics,
-        ) = self._create_elbo_metric_components(mode="validation", n_total=self.n_obs_validation)
-        self.elbo_val.reset()
-
     @property
     def use_sync_dist(self):
         return isinstance(self.trainer.strategy, DDPStrategy)
@@ -348,17 +328,16 @@ class TrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        loss = self.module.warmup_loss(scvi_loss, kl_weight)
 
         self.log(
             "train_loss",
-            loss,
+            scvi_loss.loss,
             on_epoch=True,
             prog_bar=True,
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
-        return loss
+        return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step for the model."""
@@ -479,6 +458,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         Scaling factor on the adversarial components of the loss.
         By default, adversarial loss is scaled from 1 to 0 following opposite of
         kl warmup.
+    compile
+        Whether to compile the model for faster training
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -504,6 +485,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_min: float = 0,
         adversarial_classifier: Union[bool, Classifier] = False,
         scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
+        compile: bool = False,
         **loss_kwargs,
     ):
         super().__init__(
@@ -520,6 +502,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
+            compile=compile,
             **loss_kwargs,
         )
         if adversarial_classifier is True:
@@ -715,6 +698,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
+        compile: bool = False,
         **loss_kwargs,
     ):
         super().__init__(
@@ -728,6 +712,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_patience=lr_patience,
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
+            compile=compile,
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})

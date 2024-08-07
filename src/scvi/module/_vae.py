@@ -541,7 +541,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, Distribution | None],
-        kl_weight: float = 1.0,
+        kl_weight: torch.tensor | float = 1.0,
     ) -> LossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence
@@ -559,10 +559,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
-        kl_local_for_warmup = kl_divergence_z
-        kl_local_no_warmup = kl_divergence_l
-
-        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
+        weighted_kl_local = kl_weight * kl_divergence_z + kl_divergence_l
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
