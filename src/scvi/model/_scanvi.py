@@ -110,7 +110,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     def __init__(
         self,
         adata: AnnData,
-        registry: dict,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -127,17 +127,20 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
         # ignores unlabeled catgegory
         n_labels = self.summary_stats.n_labels - 1
-        n_cats_per_cov = self.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}']
-        if n_cats_per_cov == 0:
-            n_cats_per_cov = None
+        # n_cats_per_cov = self.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}']
+        # if n_cats_per_cov == 0:
+        #     n_cats_per_cov = None
+        n_cats_per_cov = (
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+            else None
+        )
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = self.registry_['setup_args'][f'{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key']
+        use_size_factor_key = self.registry_["setup_args"][f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"]
         library_log_means, library_log_vars = None, None
         if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -479,7 +482,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             adata_minify_type = _get_adata_minify_type(adata)
             if adata_minify_type is not None:
                 anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
-            adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+            adata_manager = AnnDataManager(
+                fields=anndata_fields, setup_method_args=setup_method_args
+            )
             adata_manager.register_fields(adata, **kwargs)
             cls.register_manager(adata_manager)
 

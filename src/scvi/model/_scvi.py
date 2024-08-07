@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import Literal
 
 import numpy as np
 from anndata import AnnData
-from lightning import LightningDataModule
 
-from scvi import REGISTRY_KEYS, settings
+import scvi
+from scvi import REGISTRY_KEYS
 from scvi._types import MinifiedDataType
-from scvi.data import AnnDataManager
+from scvi.data import AnnDataManager, _constants
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
@@ -27,7 +26,7 @@ from scvi.model._utils import _init_library_size
 from scvi.model.base import EmbeddingMixin, UnsupervisedTrainingMixin
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import VAE
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import attrdict, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
 
@@ -142,16 +141,20 @@ class SCVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
 
-        n_cats_per_cov = self.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}']
-        if n_cats_per_cov == 0:
-            n_cats_per_cov = None
+        n_cats_per_cov = (
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+            else None
+        )
+        # n_cats_per_cov = self.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}']
+        # if n_cats_per_cov == 0:
+        #     n_cats_per_cov = None
+
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key =  self.get_setup_arg(f'{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key')
+        use_size_factor_key = self.get_setup_arg(f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key")
         library_log_means, library_log_vars = None, None
         if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
@@ -215,17 +218,22 @@ class SCVI(
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-        # adata_manager.get_state_registry(SCVI.REGISTRY_KEYS.X_KEY).to_dict()
-        # adata_manager.registry[_constants._FIELD_REGISTRIES_KEY]
-        # pprint(adata_manager.registry)
+
+    @staticmethod
+    def _get_summary_stats_from_registry(registry: dict) -> attrdict:
+        summary_stats = {}
+        for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
+            field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
+            summary_stats.update(field_summary_stats)
+        return attrdict(summary_stats)
 
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_datamodule(
         cls,
-        datamodule,
+        datamodule,  # TODO: what to put here?
         layer: str | None = None,
-        batch_key: str | None = None,
+        batch_key: list[str] | None = None,
         labels_key: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
@@ -244,8 +252,59 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
-
-        pass
+        datamodule.registry = {
+            "scvi_version": scvi.__version__,
+            "model_name": "SCVI",
+            "setup_args": {
+                "layer": layer,
+                "batch_key": batch_key,
+                "labels_key": labels_key,
+                "size_factor_key": size_factor_key,
+                "categorical_covariate_keys": categorical_covariate_keys,
+                "continuous_covariate_keys": continuous_covariate_keys,
+            },
+            "field_registries": {
+                "X": {
+                    "data_registry": {"attr_name": "X", "attr_key": None},
+                    "state_registry": {
+                        "n_obs": datamodule.n_obs,
+                        "n_vars": datamodule.n_vars,
+                        "column_names": datamodule.vars,
+                    },
+                    "summary_stats": {"n_vars": datamodule.n_vars, "n_cells": datamodule.n_obs},
+                },
+                "batch": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+                    "state_registry": {
+                        "categorical_mapping": datamodule.datapipe.obs_encoders["batch"].classes_,
+                        "original_key": "batch",
+                    },
+                    "summary_stats": {"n_batch": datamodule.n_batch},
+                },
+                "labels": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+                    "state_registry": {
+                        "categorical_mapping": np.array([0]),
+                        "original_key": "_scvi_labels",
+                    },
+                    "summary_stats": {"n_labels": 1},
+                },
+                "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
+                "extra_categorical_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_categorical_covs": 0},
+                },
+                "extra_continuous_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_continuous_covs": 0},
+                },
+            },
+            "setup_method_name": "setup_datamodule",
+        }
+        datamodule.summary_stats = cls._get_summary_stats_from_registry(datamodule.registry)
+        datamodule.var_names = [str(i) for i in datamodule.vars]
 
     @staticmethod
     def _get_fields_for_adata_minification(

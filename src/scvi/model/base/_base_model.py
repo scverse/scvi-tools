@@ -27,6 +27,7 @@ from scvi.data._constants import (
     _FIELD_REGISTRIES_KEY,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
+    _SCVI_VERSION_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
     _STATE_REGISTRY_KEY,
@@ -146,11 +147,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def get_var_names(self, legacy_mudata_format=False) -> dict:
         """Variable names of input data."""
         from scvi.model.base._save_load import _get_var_names
+
         if self.adata:
             return _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
         else:
-            return self.registry[
-                _FIELD_REGISTRIES_KEY]['X'][_STATE_REGISTRY_KEY]['column_names']
+            return self.registry[_FIELD_REGISTRIES_KEY]["X"][_STATE_REGISTRY_KEY]["column_names"]
 
     @adata.setter
     def adata(self, adata: AnnOrMuData):
@@ -290,22 +291,22 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             return self._adata_manager.get_from_registry(registry_key)
 
-    def get_from_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
-        """Returns the object in AnnData associated with the key in the data registry.
-
-        Parameters
-        ----------
-        registry_key
-            key of object to get from ``self.data_registry``
-
-        Returns
-        -------
-        The requested data.
-        """
-        if not self.adata:
-            raise ValueError("self.adata is None. Please registry AnnData object.")
-        else:
-            return self._adata_manager.get_from_registry(registry_key)
+    # def get_from_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
+    #     """Returns the object in AnnData associated with the key in the data registry.
+    #
+    #     Parameters
+    #     ----------
+    #     registry_key
+    #         key of object to get from ``self.data_registry``
+    #
+    #     Returns
+    #     -------
+    #     The requested data.
+    #     """
+    #     if not self.adata:
+    #         raise ValueError("self.adata is None. Please registry AnnData object.")
+    #     else:
+    #         return self._adata_manager.get_from_registry(registry_key)
 
     def deregister_manager(self, adata: AnnData | None = None):
         """Deregisters the :class:`~scvi.data.AnnDataManager` instance associated with `adata`.
@@ -620,7 +621,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         all_params = {
             k: v
             for (k, v) in all_params.items()
-            if not isinstance(v, AnnData) and not isinstance(v, MuData)
+            if not isinstance(v, AnnData)
+            and not isinstance(v, MuData)
             and k not in ("adata", "registry")
         }
         # not very efficient but is explicit
@@ -780,7 +782,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
 
         registry = attr_dict.pop("registry_")
-        registry['setup_method_name'] = 'setup_anndata'
+        registry["setup_method_name"] = "setup_anndata"
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
             raise ValueError("It appears you are loading a model from a different class.")
 
@@ -1006,11 +1008,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def get_state_registry(self, registry_key: str) -> attrdict:
         """Returns the state registry for the AnnDataField registered with this instance."""
-        return attrdict(
-            self.registry_[_FIELD_REGISTRIES_KEY][registry_key][
-                _STATE_REGISTRY_KEY
-            ]
-        )
+        return attrdict(self.registry_[_FIELD_REGISTRIES_KEY][registry_key][_STATE_REGISTRY_KEY])
 
     def get_setup_arg(self, setup_arg: str) -> attrdict:
         """Returns the string provided to setup of a specific setup_arg."""
@@ -1106,6 +1104,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             in the registry of this instance.
         """
         self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
+
 
 class BaseMinifiedModeModelClass(BaseModelClass):
     """Abstract base class for scvi-tools models that can handle minified data."""

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import sys
 from collections import defaultdict
 from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
+from io import StringIO
 from uuid import uuid4
 
 import numpy as np
 import pandas as pd
+import rich
 from mudata import MuData
+from rich import box
+from rich.console import Console
 from torch.utils.data import Subset
 
 import scvi
@@ -287,12 +292,29 @@ class AnnDataManager:
             adata, self.adata = self.adata, None  # Reset self.adata.
             self.register_fields(adata, self._source_registry, **self._transfer_kwargs)
 
+    def update_setup_method_args(self, setup_method_args: dict):
+        """Update setup method args.
+
+        Parameters
+        ----------
+        setup_method_args
+            This is a bit of a misnomer, this is a dict representing kwargs
+            of the setup method that will be used to update the existing values
+            in the registry of this instance.
+        """
+        self._registry[_constants._SETUP_ARGS_KEY].update(setup_method_args)
+
     @property
     def adata_uuid(self) -> str:
         """Returns the UUID for the AnnData object registered with this instance."""
         self._assert_anndata_registered()
 
         return self._registry[_constants._SCVI_UUID_KEY]
+
+    @property
+    def registry(self) -> dict:
+        """Returns the top-level registry dictionary for the AnnData object."""
+        return self._registry
 
     @property
     def data_registry(self) -> attrdict:
@@ -347,6 +369,20 @@ class AnnDataManager:
                 data_registry[registry_key] = field_data_registry
         return attrdict(data_registry)
 
+    @property
+    def summary_stats(self) -> attrdict:
+        """Returns the summary stats for the AnnData object registered with this instance."""
+        self._assert_anndata_registered()
+        return self._get_summary_stats_from_registry(self._registry)
+
+    @staticmethod
+    def _get_summary_stats_from_registry(registry: dict) -> attrdict:
+        summary_stats = {}
+        for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
+            field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
+            summary_stats.update(field_summary_stats)
+        return attrdict(summary_stats)
+
     def get_from_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
         """Returns the object in AnnData associated with the key in the data registry.
 
@@ -368,3 +404,136 @@ class AnnDataManager:
 
         return get_anndata_attribute(self.adata, attr_name, attr_key, mod_key=mod_key)
 
+    def get_state_registry(self, registry_key: str) -> attrdict:
+        """Returns the state registry for the AnnDataField registered with this instance."""
+        self._assert_anndata_registered()
+
+        return attrdict(
+            self._registry[_constants._FIELD_REGISTRIES_KEY][registry_key][
+                _constants._STATE_REGISTRY_KEY
+            ]
+        )
+
+    @staticmethod
+    def _view_summary_stats(
+        summary_stats: attrdict, as_markdown: bool = False
+    ) -> rich.table.Table | str:
+        """Prints summary stats."""
+        if not as_markdown:
+            t = rich.table.Table(title="Summary Statistics")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
+        t.add_column(
+            "Summary Stat Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "Value",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+        for stat_key, count in summary_stats.items():
+            t.add_row(stat_key, str(count))
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue().strip()
+
+        return t
+
+    @staticmethod
+    def _view_data_registry(
+        data_registry: attrdict, as_markdown: bool = False
+    ) -> rich.table.Table | str:
+        """Prints data registry."""
+        if not as_markdown:
+            t = rich.table.Table(title="Data Registry")
+        else:
+            t = rich.table.Table(box=box.MARKDOWN)
+
+        t.add_column(
+            "Registry Key",
+            justify="center",
+            style="dodger_blue1",
+            no_wrap=True,
+            overflow="fold",
+        )
+        t.add_column(
+            "scvi-tools Location",
+            justify="center",
+            style="dark_violet",
+            no_wrap=True,
+            overflow="fold",
+        )
+
+        for registry_key, data_loc in data_registry.items():
+            mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
+            attr_name = data_loc.attr_name
+            attr_key = data_loc.attr_key
+            scvi_data_str = "adata"
+            if mod_key is not None:
+                scvi_data_str += f".mod['{mod_key}']"
+            if attr_key is None:
+                scvi_data_str += f".{attr_name}"
+            else:
+                scvi_data_str += f".{attr_name}['{attr_key}']"
+            t.add_row(registry_key, scvi_data_str)
+
+        if as_markdown:
+            console = Console(file=StringIO(), force_jupyter=False)
+            console.print(t)
+            return console.file.getvalue().strip()
+
+        return t
+
+    @staticmethod
+    def view_setup_method_args(registry: dict) -> None:
+        """Prints setup kwargs used to produce a given registry.
+
+        Parameters
+        ----------
+        registry
+            Registry produced by an AnnDataManager.
+        """
+        model_name = registry[_constants._MODEL_NAME_KEY]
+        setup_args = registry[_constants._SETUP_ARGS_KEY]
+        if model_name is not None and setup_args is not None:
+            rich.print(f"Setup via `{model_name}.setup_anndata` with arguments:")
+            rich.pretty.pprint(setup_args)
+            rich.print()
+
+    def view_registry(self, hide_state_registries: bool = False) -> None:
+        """Prints summary of the registry.
+
+        Parameters
+        ----------
+        hide_state_registries
+            If True, prints a shortened summary without details of each state registry.
+        """
+        version = self._registry[_constants._SCVI_VERSION_KEY]
+        rich.print(f"Anndata setup with scvi-tools version {version}.")
+        rich.print()
+        self.view_setup_method_args(self._registry)
+
+        in_colab = "google.colab" in sys.modules
+        force_jupyter = None if not in_colab else True
+        console = rich.console.Console(force_jupyter=force_jupyter)
+
+        ss = self._get_summary_stats_from_registry(self._registry)
+        dr = self._get_data_registry_from_registry(self._registry)
+        console.print(self._view_summary_stats(ss))
+        console.print(self._view_data_registry(dr))
+
+        if not hide_state_registries:
+            for field in self.fields:
+                state_registry = self.get_state_registry(field.registry_key)
+                t = field.view_state_registry(state_registry)
+                if t is not None:
+                    console.print(t)
