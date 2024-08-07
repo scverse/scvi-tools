@@ -148,6 +148,11 @@ class ScviConfig:
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+            # Ensure deterministic CUDA operations for Jax (see https://github.com/google/jax/issues/13672)
+            if "XLA_FLAGS" not in os.environ:
+                os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_ops=true"
+            else:
+                os.environ["XLA_FLAGS"] += " --xla_gpu_deterministic_ops=true"
             seed_everything(seed)
             self._seed = seed
 
