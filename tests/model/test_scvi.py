@@ -1094,3 +1094,18 @@ def test_scvi_normal_likelihood():
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
+
+
+def test_scvi_num_workers():
+    adata = synthetic_iid()
+    scvi.settings.dl_num_workers = 7
+    scvi.settings.dl_persistent_workers = True
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata)
+    model.train(max_epochs=1, accelerator="cpu")
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
