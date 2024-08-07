@@ -479,6 +479,7 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     with pytest.warns(UserWarning):
         # Warning is emitted if last batch less than 3 cells.
         model.train(1, train_size=1.0, batch_size=127)
+    model.train(1, train_size=1.0, datasplitter_kwargs={"drop_last": True})
     assert model.is_trained is True
 
 
@@ -1088,6 +1089,21 @@ def test_scvi_normal_likelihood():
 
     model = SCVI(adata, gene_likelihood="normal")
     model.train(max_epochs=1)
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
+
+
+def test_scvi_num_workers():
+    adata = synthetic_iid()
+    scvi.settings.dl_num_workers = 7
+    scvi.settings.dl_persistent_workers = True
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata)
+    model.train(max_epochs=1, accelerator="cpu")
     model.get_elbo()
     model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()

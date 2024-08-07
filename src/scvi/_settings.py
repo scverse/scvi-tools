@@ -50,6 +50,7 @@ class ScviConfig:
         seed: Optional[int] = None,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
+        dl_persistent_workers: bool = False,
         jax_preallocate_gpu_memory: bool = False,
         warnings_stacklevel: int = 2,
     ):
@@ -61,6 +62,7 @@ class ScviConfig:
         self.progress_bar_style = progress_bar_style
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
+        self.dl_persistent_workers = dl_persistent_workers
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
@@ -92,6 +94,16 @@ class ScviConfig:
     def dl_num_workers(self, dl_num_workers: int):
         """Number of workers for PyTorch data loaders (Default is 0)."""
         self._dl_num_workers = dl_num_workers
+
+    @property
+    def dl_persistent_workers(self) -> bool:
+        """Whether to use persistent_workers in PyTorch data loaders (Default is False)."""
+        return self._dl_persistent_workers
+
+    @dl_persistent_workers.setter
+    def dl_persistent_workers(self, dl_persistent_workers: bool):
+        """Whether to use persistent_workers in PyTorch data loaders (Default is False)."""
+        self._dl_persistent_workers = dl_persistent_workers
 
     @property
     def logging_dir(self) -> Path:
@@ -136,6 +148,11 @@ class ScviConfig:
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+            # Ensure deterministic CUDA operations for Jax (see https://github.com/google/jax/issues/13672)
+            if "XLA_FLAGS" not in os.environ:
+                os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_ops=true"
+            else:
+                os.environ["XLA_FLAGS"] += " --xla_gpu_deterministic_ops=true"
             seed_everything(seed)
             self._seed = seed
 
