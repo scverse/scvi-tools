@@ -199,6 +199,7 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.load_sparse_tensor = load_sparse_tensor
+        self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
@@ -241,7 +242,7 @@ class DataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=False,
+            drop_last=self.drop_last,
             load_sparse_tensor=self.load_sparse_tensor,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
@@ -348,6 +349,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
+        self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
@@ -361,7 +363,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
-        self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
 
@@ -465,7 +466,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=False,
+            drop_last=self.drop_last,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
