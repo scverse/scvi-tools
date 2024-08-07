@@ -109,7 +109,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
         registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -127,14 +127,17 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
         # ignores unlabeled catgegory
         n_labels = self.summary_stats.n_labels - 1
-        # n_cats_per_cov = self.summary_stats[f'n_{REGISTRY_KEYS.CAT_COVS_KEY}']
-        # if n_cats_per_cov == 0:
-        #     n_cats_per_cov = None
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else None
+            )
+        else:
+            # custom datamodule
+            n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
+            if n_cats_per_cov == 0:
+                n_cats_per_cov = None
 
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = self.registry_["setup_args"][f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"]
