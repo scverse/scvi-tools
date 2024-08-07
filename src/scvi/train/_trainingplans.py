@@ -74,7 +74,7 @@ def _compute_kl_weight(
             kl_weight = slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
     elif n_steps_kl_warmup:
         if step < n_steps_kl_warmup:
-            kl_weight =  slope * (step / n_steps_kl_warmup) + min_kl_weight
+            kl_weight = slope * (step / n_steps_kl_warmup) + min_kl_weight
     else:
         kl_weight = max_kl_weight
     return torch.tensor(kl_weight)
@@ -172,7 +172,7 @@ class TrainingPlan(pl.LightningModule):
         if compile:
             if compile_kwargs is None:
                 compile_kwargs = {}
-            compile_kwargs['dynamic'] = compile_kwargs.get('dynamic', False)
+            compile_kwargs["dynamic"] = compile_kwargs.get("dynamic", False)
             self.module = torch.compile(module, **compile_kwargs)
         else:
             self.module = module
