@@ -479,6 +479,7 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     with pytest.warns(UserWarning):
         # Warning is emitted if last batch less than 3 cells.
         model.train(1, train_size=1.0, batch_size=127)
+    model.train(1, train_size=1.0, datasplitter_kwargs={"drop_last": True})
     assert model.is_trained is True
 
 
