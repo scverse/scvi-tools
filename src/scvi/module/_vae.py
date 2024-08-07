@@ -559,7 +559,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
-        weighted_kl_local = kl_weight * kl_divergence_z + kl_divergence_l
+        kl_local_for_warmup = kl_divergence_z
+        kl_local_no_warmup = kl_divergence_l
+
+        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
@@ -570,13 +573,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 MODULE_KEYS.KL_L_KEY: kl_divergence_l,
                 MODULE_KEYS.KL_Z_KEY: kl_divergence_z,
             },
-        )
-
-    def warmup_loss(self, loss: LossOutput, kl_weight: float):
-        return torch.mean(
-            loss.reconstruction_loss["reconstruction_loss"] +
-            kl_weight * loss.kl_local["kl_divergence_z"] +
-            loss.kl_local["kl_divergence_l"]
         )
 
     @torch.inference_mode()

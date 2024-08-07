@@ -148,7 +148,7 @@ class TrainingPlan(pl.LightningModule):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[TorchOptimizerCreator] = None,
+        optimizer_creator: TorchOptimizerCreator | None = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -165,11 +165,15 @@ class TrainingPlan(pl.LightningModule):
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
         compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__()
         if compile:
-            self.module = torch.compile(module, dynamic=False, mode="reduce-overhead")
+            if compile_kwargs is None:
+                compile_kwargs = {}
+            compile_kwargs['dynamic'] = compile_kwargs.get('dynamic', False)
+            self.module = torch.compile(module, **compile_kwargs)
         else:
             self.module = module
         self.lr = lr
@@ -218,6 +222,28 @@ class TrainingPlan(pl.LightningModule):
             [(metric.name, metric) for metric in [elbo, rec_loss, kl_local, kl_global]]
         )
         return elbo, rec_loss, kl_local, kl_global, collection
+
+    def initialize_train_metrics(self):
+        """Initialize train related metrics."""
+        (
+            self.elbo_train,
+            self.rec_loss_train,
+            self.kl_local_train,
+            self.kl_global_train,
+            self.train_metrics,
+        ) = self._create_elbo_metric_components(mode="train", n_total=self.n_obs_training)
+        self.elbo_train.reset()
+
+    def initialize_val_metrics(self):
+        """Initialize val related metrics."""
+        (
+            self.elbo_val,
+            self.rec_loss_val,
+            self.kl_local_val,
+            self.kl_global_val,
+            self.val_metrics,
+        ) = self._create_elbo_metric_components(mode="validation", n_total=self.n_obs_validation)
+        self.elbo_val.reset()
 
     @property
     def use_sync_dist(self):
@@ -410,7 +436,7 @@ class TrainingPlan(pl.LightningModule):
             self.n_steps_kl_warmup,
             self.max_kl_weight,
             self.min_kl_weight,
-        )
+        ).to(self.device)
 
 
 class AdversarialTrainingPlan(TrainingPlan):
