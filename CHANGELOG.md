@@ -9,6 +9,7 @@ to [Semantic Versioning]. Full commit history is available in the
 ### 1.2.0 (unreleased)
 
 #### Added
+
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
     {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
