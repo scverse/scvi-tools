@@ -79,7 +79,7 @@ class DecoderMETHYLVI(nn.Module):
         dispersion: str,
         z: torch.Tensor,
         *cat_list: int,
-    ):
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
