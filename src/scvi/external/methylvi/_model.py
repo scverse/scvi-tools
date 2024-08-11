@@ -40,7 +40,7 @@ from ._utils import scmc_raw_counts_properties
 logger = logging.getLogger(__name__)
 
 
-class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass):
+class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass):
     """
     Model class for methylVI
 
@@ -209,7 +209,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
         """
         if covariate_modalities is None:
             covariate_modalities = {}
-        setup_method_args = MethylVIModel._get_setup_method_args(**locals())
+        setup_method_args = METHYLVI._get_setup_method_args(**locals())
 
         if methylation_modalities is None:
             raise ValueError("Methylation modalities cannot be None.")
