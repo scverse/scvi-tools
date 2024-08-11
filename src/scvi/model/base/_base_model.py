@@ -785,7 +785,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
 
         registry = attr_dict.pop("registry_")
-        registry["setup_method_name"] = "setup_anndata"
+        # registry["setup_method_name"] = "setup_anndata" #do we need this line?
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
             raise ValueError("It appears you are loading a model from a different class.")
 

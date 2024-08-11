@@ -1179,8 +1179,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
-        adata: AnnData,
-        protein_expression_obsm_key: str,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
+        protein_expression_obsm_key: str | None = None,
         protein_names_uns_key: str | None = None,
         batch_key: str | None = None,
         layer: str | None = None,
