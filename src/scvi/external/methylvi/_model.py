@@ -1,5 +1,3 @@
-"""Model class for methylVI for single cell methylation data."""
-
 from __future__ import annotations
 
 import logging
