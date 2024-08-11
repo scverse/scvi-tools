@@ -51,7 +51,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config --global url."https://${GH_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          pip install git+https://github.com/ebezzi/cellxgene-census.git@census-scvi-datamodule
+          pip install git+https://github.com/ebezzi/chanzuckerberg/cellxgene-census.git@census-scvi-datamodule
 
       - name: Run specific custom dataloader pytest
         env:
@@ -61,7 +61,6 @@ jobs:
           COLUMNS: 120
         run: |
           pytest -m custom.dataloader -v --color=yes
-          coverage report
 
       - uses: codecov/codecov-action@v4
         with:

@@ -13,7 +13,7 @@ from scvi.data import synthetic_iid
 
 
 @pytest.custom.dataloader
-def custom_dataloader_test(save_path):
+def test_custom_dataloader(save_path):
     # this test checks the local custom dataloder made by CZI and run several tests with it
     census = cellxgene_census.open_soma(census_version="stable")
 
