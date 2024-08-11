@@ -111,7 +111,7 @@ infer the parameters of our approximate posterior.
 
 ## Tasks
 
-Here we provide an overview of some of the tasks that MethylVI can perform. Please see {class}`scvi.model.MethylVI`
+Here we provide an overview of some of the tasks that MethylVI can perform. Please see {class}`scvi.external.MethylVI`
 for the full API reference.
 
 ### Dimensionality reduction
