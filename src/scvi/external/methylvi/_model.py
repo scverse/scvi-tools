@@ -57,7 +57,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
     **model_kwargs
-        Keyword args for :class:`~MethylVIModule`
+        Keyword args for :class:`~scvi.external.methylvi.METHYLVAE`
 
     Examples
     --------
