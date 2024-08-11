@@ -18,8 +18,7 @@ TensorDict = dict[str, torch.Tensor]
 
 
 class METHYLVAE(BaseModuleClass):
-    """
-    Pytorch module for methylVI.
+    """PyTorch module for methylVI.
 
     Parameters
     ----------
