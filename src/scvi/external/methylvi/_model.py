@@ -49,7 +49,7 @@ class MethylVIModel(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelC
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~methyl_vi.MethylVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.MethylVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
