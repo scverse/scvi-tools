@@ -363,8 +363,8 @@ class DifferentialComputation:
             }
 
             res = dict(
-                proba_de=proba_m1,
-                proba_not_de=1.0 - proba_m1,
+                proba_de=proba_de,
+                proba_not_de=1.0 - proba_de,
                 # bayes_factor=np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
                 bayes_factor=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
                 scale1=px_scale_mean1,
