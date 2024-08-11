@@ -15,12 +15,8 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, Number
+from scvi._types import Number
 from scvi.data import AnnDataManager, fields
-from scvi.data.fields import (
-    CategoricalObsField,
-    LayerField,
-)
 from scvi.distributions._utils import DistributionConcatenator
 from scvi.model.base import (
     ArchesMixin,
@@ -46,8 +42,8 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
     Parameters
     ----------
-    adata
-        AnnData object that has been registered via :meth:`~scvi.external.MethylVI.setup_anndata`.
+    mdata
+        MuData object that has been registered via :meth:`~scvi.external.MethylVI.setup_mudata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -61,33 +57,28 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
     --------
     >>> mdata = mudata.read_h5mu(path_to_mudata)
     >>> MethylVI.setup_mudata(mdata, batch_key="batch")
-    >>> vae = MethylVI(adata)
+    >>> vae = MethylVI(mdata)
     >>> vae.train()
     >>> mdata.obsm["X_methylVI"] = vae.get_latent_representation()
     """
 
     def __init__(
         self,
-        adata: AnnOrMuData,
+        mdata: MuData,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(mdata)
 
         n_batch = self.summary_stats.n_batch
 
         # We feed in both the number of methylated counts (mc) and the
         # total number of counts (cov) as inputs
-        self.modalities = self.get_anndata_manager(adata).modalities
+        self.modalities = self.get_anndata_manager(mdata).modalities
 
-        if isinstance(adata, AnnData):
-            self.num_features_per_modality = [adata.shape[1]]
-        else:
-            self.num_features_per_modality = [
-                adata[modality].shape[1] for modality in self.modalities
-            ]
+        self.num_features_per_modality = [mdata[modality].shape[1] for modality in self.modalities]
 
         n_input = np.sum(self.num_features_per_modality)
 
@@ -114,10 +105,6 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
     def setup_anndata(
         cls,
         adata: AnnData,
-        mc_layer: str,
-        cov_layer: str,
-        batch_key: str | None = None,
-        labels_key: str | None = None,
         **kwargs,
     ) -> AnnData | None:
         """
@@ -136,33 +123,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         -------
         %(returns)s
         """
-        setup_method_args = cls._get_setup_method_args(**locals())
-
-        # To facilitate code reuse, under the hood we treat AnnData models like MuData models with
-        # a single modality.
-        anndata_fields = [
-            LayerField(
-                f"{METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER}_{METHYLVI_REGISTRY_KEYS.MC_KEY}",
-                mc_layer,
-                is_count_data=True,
-            ),
-            LayerField(
-                f"{METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER}_{METHYLVI_REGISTRY_KEYS.COV_KEY}",
-                cov_layer,
-                is_count_data=True,
-            ),
-        ]
-
-        anndata_fields = anndata_fields + [
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-        ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
-        adata_manager.modalities = [METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
-        adata_manager.mc_layer = mc_layer
-        adata_manager.cov_layer = cov_layer
-        cls.register_manager(adata_manager)
+        raise NotImplementedError("METHYLVI must be used with a MuData object.")
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -260,7 +221,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: AnnOrMuData | None = None,
+        mdata: MuData | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
     ) -> dict[str, sparse.GCXS] | sparse.GCXS:
@@ -271,9 +232,9 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         Parameters
         ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+        mdata
+            MuData object with equivalent structure to initial MuData. If `None`, defaults to the
+            MuData object used to initialize the model.
         n_samples
             Number of samples for each cell.
         batch_size
@@ -284,9 +245,9 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_regions, n_samples)
         """
-        adata = self._validate_anndata(adata)
+        mdata = self._validate_anndata(mdata)
 
-        scdl = self._make_data_loader(adata=adata, batch_size=batch_size)
+        scdl = self._make_data_loader(adata=mdata, batch_size=batch_size)
 
         x_new = defaultdict(list)
         for tensors in scdl:
@@ -303,15 +264,12 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 x_new[modality]
             )  # Shape (n_cells, n_regions, n_samples)
 
-        if isinstance(adata, AnnData):
-            x_new = x_new[METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
-
         return x_new
 
     @torch.inference_mode()
     def get_normalized_methylation(
         self,
-        adata: AnnOrMuData | None = None,
+        mdata: MuData | None = None,
         indices: Sequence[int] | None = None,
         region_list: Sequence[str] | None = None,
         n_samples: int = 1,
@@ -328,11 +286,11 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         Parameters
         ----------
-        adata
-            AnnData or MuData object with equivalent structure to initial AnnData/Mudata.
-            If `None`, defaults to the AnnData/MuData object used to initialize the model.
+        mdata
+            MuData object with equivalent structure to initial Mudata.
+            If `None`, defaults to the MuData object used to initialize the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of cells in mdata to use. If `None`, all cells are used.
         region_list
             Return frequencies of expression for a subset of regions.
             This can save memory when working with large datasets and few regions are
@@ -369,16 +327,16 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         corresponding to individual methylation modalities with values determined as
         described above.
         """
-        adata = self._validate_anndata(adata)
+        mdata = self._validate_anndata(mdata)
 
         if indices is None:
-            indices = np.arange(adata.n_obs)
+            indices = np.arange(mdata.n_obs)
         if n_samples_overall is not None:
             assert n_samples == 1  # default value
             n_samples = n_samples_overall // len(indices) + 1
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(adata=mdata, indices=indices, batch_size=batch_size)
 
-        region_mask = slice(None) if region_list is None else adata.var_names.isin(region_list)
+        region_mask = slice(None) if region_list is None else mdata.var_names.isin(region_list)
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -434,7 +392,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                     x_axis = 0 if n_samples == 1 else 1
                     px = px_store.get_concatenated_distributions(axis=x_axis)
                     p = self._get_importance_weights(
-                        adata,
+                        mdata,
                         indices,
                         qz=qz,
                         px=px,
@@ -452,25 +410,15 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         if return_numpy is None or return_numpy is False:
             exprs_dfs = {}
-            if isinstance(self.adata, MuData):
-                for modality in self.modalities:
-                    exprs_dfs[modality] = pd.DataFrame(
-                        exprs[modality],
-                        columns=adata[modality].var_names[region_mask],
-                        index=adata[modality].obs_names[indices],
-                    )
-                return exprs_dfs
-            else:
-                return pd.DataFrame(
-                    exprs,
-                    columns=adata.var_names[region_mask],
-                    index=adata.obs_names[indices],
+            for modality in self.modalities:
+                exprs_dfs[modality] = pd.DataFrame(
+                    exprs[modality],
+                    columns=mdata[modality].var_names[region_mask],
+                    index=mdata[modality].obs_names[indices],
                 )
+            return exprs_dfs
         else:
-            if isinstance(self.adata, MuData):
-                return exprs
-            else:
-                return exprs[METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
+            return exprs
 
     @torch.inference_mode()
     def get_specific_normalized_methylation(
@@ -498,7 +446,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             MuData object with equivalent structure to initial MuData. If `None`, defaults to the
             MuData object used to initialize the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of cells in mdata to use. If `None`, all cells are used.
         transform_batch
             Batch to condition on.
             If transform_batch is:
@@ -537,19 +485,8 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_regions).
         """
-        if mdata is not None:
-            if not isinstance(mdata, MuData):
-                raise ValueError(
-                    "get_specific_normalized_expression can only be called with MuData objects."
-                )
-        else:
-            if not isinstance(self.adata, MuData):
-                raise ValueError(
-                    "get_specific_normalized_expression can only be called for MuData models."
-                )
-
         exprs = self.get_normalized_methylation(
-            adata=mdata,
+            mdata=mdata,
             indices=indices,
             transform_batch=transform_batch,
             region_list=region_list,
@@ -565,7 +502,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
     def differential_methylation(
         self,
-        adata: AnnOrMuData | None = None,
+        mdata: MuData | None = None,
         groupby: str | None = None,
         group1: Iterable[str] | None = None,
         group2: str | None = None,
@@ -591,7 +528,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         Parameters
         ----------
-        %(de_adata)s
+        %(de_mdata)s
         %(de_modality)s
         %(de_groupby)s
         %(de_group1)s
@@ -638,7 +575,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             the empirical (observed) methylation level in population 2
 
         """
-        adata = self._validate_anndata(adata)
+        mdata = self._validate_anndata(mdata)
 
         def change_fn(a, b):
             return a - b
@@ -655,25 +592,16 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         result = {}
         for modality in self.modalities:
-            if isinstance(adata, MuData):
-                col_names = adata[modality].var_names
-                model_fn = partial(
-                    self.get_specific_normalized_methylation,
-                    batch_size=batch_size,
-                    modality=modality,
-                )
-                all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
-            else:
-                col_names = adata.var_names
-                model_fn = partial(
-                    self.get_normalized_methylation,
-                    batch_size=batch_size,
-                    modality=modality,
-                )
-                all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
+            col_names = mdata[modality].var_names
+            model_fn = partial(
+                self.get_specific_normalized_methylation,
+                batch_size=batch_size,
+                modality=modality,
+            )
+            all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
 
             result[modality] = _de_core(
-                adata_manager=self.get_anndata_manager(adata, required=True),
+                adata_manager=self.get_anndata_manager(mdata, required=True),
                 model_fn=model_fn,
                 representation_fn=None,
                 groupby=groupby,
@@ -695,8 +623,5 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 m1_domain_fn=m1_domain_fn,
                 **kwargs,
             )
-
-        if isinstance(adata, AnnData):
-            return result[METHYLVI_REGISTRY_KEYS.ANNDATA_MODALITY_PLACEHOLDER]
 
         return result
