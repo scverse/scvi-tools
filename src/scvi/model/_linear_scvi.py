@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
 import pandas as pd
 from anndata import AnnData
@@ -128,9 +130,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        batch_key: None | str = None,
+        labels_key: None | str = None,
+        layer: None | str = None,
         **kwargs,
     ):
         """%(summary)s.
