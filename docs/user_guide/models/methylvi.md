@@ -134,7 +134,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 
 ### Transfer learning
 
-A MethylVI model can be pre-trained on reference data and updated with query data using {func}`~scvi.model.MethylVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
+A MethylVI model can be pre-trained on reference data and updated with query data using {meth}`~scvi.external.MethylVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
 ### Estimation of methylation levels
 
