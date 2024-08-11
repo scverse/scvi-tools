@@ -102,8 +102,6 @@ class METHYLVAE(BaseModuleClass):
                     for (modality, num_features) in zip(modalities, num_features_per_modality)
                 }
             )
-        elif self.dispersion == "region-cell":
-            pass
 
     def _get_inference_input(self, tensors):
         """Parse the dictionary to get appropriate args"""
