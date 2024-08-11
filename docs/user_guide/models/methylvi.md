@@ -1,6 +1,6 @@
 # MethylVI
 
-**methylVI** [^ref1] (Python class {class}`~scvi.model.MethylVI`) is a generative model of scBS-seq data that can subsequently
+**methylVI** [^ref1] (Python class {class}`~scvi.external.METHYLVI`) is a generative model of scBS-seq data that can subsequently
 be used for many common downstream tasks.
 
 The advantages of methylVI are:
@@ -111,7 +111,7 @@ infer the parameters of our approximate posterior.
 
 ## Tasks
 
-Here we provide an overview of some of the tasks that MethylVI can perform. Please see {class}`scvi.external.MethylVI`
+Here we provide an overview of some of the tasks that MethylVI can perform. Please see {class}`scvi.external.METHYLVI`
 for the full API reference.
 
 ### Dimensionality reduction
@@ -119,14 +119,14 @@ for the full API reference.
 For dimensionality reduction, the mean of the approximate posterior $q_\phi(z_i \mid y_i, n_i)$ is returned by default.
 This is achieved using the method:
 
-```python
+```
 >>> adata.obsm["X_methylvi"] = model.get_latent_representation()
 ```
 
 Users may also return samples from this distribution, as opposed to the mean, by passing the argument `give_mean=False`.
 The latent representation can be used to create a nearest neighbor graph with scanpy with:
 
-```python
+```
 >>> import scanpy as sc
 >>> sc.pp.neighbors(adata, use_rep="X_methylvi")
 >>> adata.obsp["distances"]
@@ -134,11 +134,11 @@ The latent representation can be used to create a nearest neighbor graph with sc
 
 ### Transfer learning
 
-A MethylVI model can be pre-trained on reference data and updated with query data using {meth}`~scvi.external.MethylVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
+A MethylVI model can be pre-trained on reference data and updated with query data using {meth}`~scvi.external.METHYLVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
 ### Estimation of methylation levels
 
-In {meth}`~scvi.external.MethylVI.get_normalized_methylation` MethylVI returns the expected value of $\mu_i$ under the approximate posterior. For one cell $i$, this can be written as:
+In {meth}`~scvi.external.METHYLVI.get_normalized_methylation` MethylVI returns the expected value of $\mu_i$ under the approximate posterior. For one cell $i$, this can be written as:
 
 ```{math}
 :nowrap: true
@@ -152,7 +152,7 @@ As the expectation can be expensive to compute, by default, MethylVI uses the me
 
 ### Differential methylation
 
-Differential methylation analysis is achieved with {meth}`~scvi.external.MethylVI.differential_methylation`.
+Differential methylation analysis is achieved with {meth}`~scvi.external.METHYLVI.differential_methylation`.
 MehtylVI tests differences in methylation levels $\mu^{C}_{i} = f_{\theta^{C}}\left(z_{i}, s_i)\right)$.
 
 [^ref1]:
