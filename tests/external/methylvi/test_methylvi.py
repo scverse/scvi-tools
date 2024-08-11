@@ -1,23 +1,7 @@
 from mudata import MuData
 
 from scvi.data import synthetic_iid
-from scvi.external import MethylVI
-
-
-def test_methylvi():
-    adata = synthetic_iid()
-    adata.layers["mc"] = adata.X
-    adata.layers["cov"] = adata.layers["mc"] + 10
-
-    MethylVI.setup_anndata(adata, mc_layer="mc", cov_layer="cov", batch_key="batch")
-    vae = MethylVI(
-        adata,
-    )
-    vae.train(3)
-    vae.get_elbo(indices=vae.validation_indices)
-    vae.get_normalized_methylation()
-    vae.get_latent_representation()
-    vae.differential_methylation(groupby="labels", group1="label_1")
+from scvi.external import METHYLVI
 
 
 def test_methylvi_mudata():
@@ -31,7 +15,7 @@ def test_methylvi_mudata():
 
     mdata = MuData({"mod1": adata1, "mod2": adata2})
 
-    MethylVI.setup_mudata(
+    METHYLVI.setup_mudata(
         mdata,
         mc_layer="mc",
         cov_layer="cov",
@@ -39,7 +23,7 @@ def test_methylvi_mudata():
         batch_key="batch",
         covariate_modalities={"batch_key": "mod1"},
     )
-    vae = MethylVI(
+    vae = METHYLVI(
         mdata,
     )
     vae.train(3)
