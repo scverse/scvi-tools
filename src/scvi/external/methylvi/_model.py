@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass):
     """
-    Model class for methylVI
+    Model class for methylVI :cite:p:`Weinberger2023a`
 
     Parameters
     ----------
