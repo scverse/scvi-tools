@@ -38,9 +38,9 @@ class ArchesMixin:
     @devices_dsp.dedent
     def load_query_data(
         cls,
-        adata: None | AnnOrMuData = None,
+        adata: AnnOrMuData = None,
         reference_model: Union[str, BaseModelClass] = None,
-        registry: None | dict = None,
+        registry: dict = None,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
         device: Union[int, str] = "auto",

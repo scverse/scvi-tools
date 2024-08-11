@@ -272,7 +272,7 @@ class SCVI(
                     "state_registry": {
                         "n_obs": datamodule.n_obs,
                         "n_vars": datamodule.n_vars,
-                        "column_names": datamodule.vars,
+                        "column_names": [str(i) for i in datamodule.vars],
                     },
                     "summary_stats": {"n_vars": datamodule.n_vars, "n_cells": datamodule.n_obs},
                 },
@@ -306,8 +306,6 @@ class SCVI(
             },
             "setup_method_name": "setup_datamodule",
         }
-        datamodule.summary_stats = cls._get_summary_stats_from_registry(datamodule.registry)
-        datamodule.var_names = [str(i) for i in datamodule.vars]
 
     @staticmethod
     def _get_fields_for_adata_minification(
