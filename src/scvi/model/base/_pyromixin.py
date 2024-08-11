@@ -61,7 +61,7 @@ class PyroModelGuideWarmup(Callback):
     def setup(self, trainer, pl_module, stage=None):
         """Way to warmup Pyro Model and Guide in an automated way.
 
-        Setup occurs before any device movement, so params are iniitalized on CPU.
+        Setup occurs before any device movement, so params are initialized on CPU.
         """
         if stage == "fit":
             pyro_guide = pl_module.module.guide

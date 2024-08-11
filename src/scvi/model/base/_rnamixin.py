@@ -264,7 +264,7 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                exp_ = getattr(generative_outputs["px"], generative_output_key)
+                exp_ = generative_outputs["px"].get_normalized(generative_output_key)
                 exp_ = exp_[..., gene_mask]
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())

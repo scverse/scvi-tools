@@ -443,10 +443,14 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
         """Run the generative process."""
-        from torch.distributions import Normal
         from torch.nn.functional import linear
 
-        from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+        from scvi.distributions import (
+            NegativeBinomial,
+            Normal,
+            Poisson,
+            ZeroInflatedNegativeBinomial,
+        )
 
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
@@ -511,9 +515,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         elif self.gene_likelihood == "nb":
             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
         elif self.gene_likelihood == "poisson":
-            px = Poisson(px_rate, scale=px_scale)
+            px = Poisson(rate=px_rate, scale=px_scale)
         elif self.gene_likelihood == "normal":
-            px = Normal(px_rate, px_r)
+            px = Normal(px_rate, px_r, normal_mu=px_scale)
 
         # Priors
         if self.use_observed_lib_size:
@@ -551,7 +555,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 inference_outputs[MODULE_KEYS.QL_KEY], generative_outputs[MODULE_KEYS.PL_KEY]
             ).sum(dim=1)
         else:
-            kl_divergence_l = torch.tensor(0.0, device=x.device)
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
@@ -693,6 +697,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 q_l_x = ql.log_prob(library).sum(dim=-1)
 
                 log_prob_sum += p_l - q_l_x
+            if n_mc_samples_per_pass == 1:
+                log_prob_sum = log_prob_sum.unsqueeze(0)
 
             to_sum.append(log_prob_sum)
         to_sum = torch.cat(to_sum, dim=0)

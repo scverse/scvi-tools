@@ -191,6 +191,19 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    assert model.get_elbo().ndim == 0
+    assert model.get_elbo(return_mean=False).shape == (adata.n_obs,)
+    assert model.get_marginal_ll(n_mc_samples=3).ndim == 0
+    assert model.get_marginal_ll(n_mc_samples=3, return_mean=False).shape == (adata.n_obs,)
+    assert model.get_reconstruction_error()["reconstruction_loss"].ndim == 0
+    assert model.get_reconstruction_error(return_mean=False)["reconstruction_loss"].shape == (
+        adata.n_obs,
+    )
+    assert model.get_normalized_expression(transform_batch="batch_1").shape == (
+        adata.n_obs,
+        adata.n_vars,
+    )
+    assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
     # Test without observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
@@ -208,8 +221,11 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     assert z.shape == (adata.shape[0], n_latent)
     assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
+    model.get_elbo(return_mean=False)
     model.get_marginal_ll(n_mc_samples=3)
+    model.get_marginal_ll(n_mc_samples=3, return_mean=False)
     model.get_reconstruction_error()
+    model.get_reconstruction_error(return_mean=False)
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
 
@@ -451,6 +467,20 @@ def test_scvi_sparse(n_latent: int = 5):
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.differential_expression(groupby="labels", group1="label_1")
+
+
+def test_scvi_n_obs_error(n_latent: int = 5):
+    adata = synthetic_iid()
+    adata = adata[0:129].copy()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0)
+    with pytest.warns(UserWarning):
+        # Warning is emitted if last batch less than 3 cells.
+        model.train(1, train_size=1.0, batch_size=127)
+    model.train(1, train_size=1.0, datasplitter_kwargs={"drop_last": True})
+    assert model.is_trained is True
 
 
 def test_setting_adata_attr(n_latent: int = 5):
@@ -939,6 +969,54 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
         model.train(datamodule=datamodule)
 
 
+def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
+    from scvi.dataloaders import DataSplitter
+
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+    manager = SCVI._get_most_recent_anndata_manager(adata)
+
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.25, stratify=adata.obs.batch
+    )
+
+    datamodule = DataSplitter(
+        manager, external_indexing=[np.array(train_ind), np.array(valid_ind), None]
+    )
+    datamodule.n_vars = adata.n_vars
+    datamodule.n_batch = n_batches
+
+    model = SCVI(n_latent=5)
+    assert model._module_init_on_train
+    assert model.module is None
+
+    # cannot infer default max_epochs without n_obs set in datamodule
+    with pytest.raises(ValueError):
+        model.train(datamodule=datamodule)
+
+    # must pass in datamodule if not initialized with adata
+    with pytest.raises(ValueError):
+        model.train()
+
+    model.train(max_epochs=1, datamodule=datamodule)
+
+    # must set n_obs for defaulting max_epochs
+    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
+    model.train(datamodule=datamodule)
+
+    model = SCVI(adata, n_latent=5)
+    assert not model._module_init_on_train
+    assert model.module is not None
+    assert hasattr(model, "adata")
+
+    # initialized with adata, cannot pass in datamodule
+    with pytest.raises(ValueError):
+        model.train(datamodule=datamodule)
+
+
 @pytest.mark.parametrize("embedding_dim", [5, 10])
 @pytest.mark.parametrize("encode_covariates", [True, False])
 @pytest.mark.parametrize("use_observed_lib_size", [True, False])
@@ -1011,3 +1089,23 @@ def test_scvi_normal_likelihood():
 
     model = SCVI(adata, gene_likelihood="normal")
     model.train(max_epochs=1)
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
+
+
+def test_scvi_num_workers():
+    adata = synthetic_iid()
+    scvi.settings.dl_num_workers = 7
+    scvi.settings.dl_persistent_workers = True
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata)
+    model.train(max_epochs=1, accelerator="cpu")
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)

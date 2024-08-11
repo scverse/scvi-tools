@@ -1,3 +1,4 @@
+import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
 from functools import partial
@@ -16,7 +17,7 @@ from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -514,14 +515,22 @@ class AdversarialTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         if adversarial_classifier is True:
-            self.n_output_classifier = self.module.n_batch
-            self.adversarial_classifier = Classifier(
-                n_input=self.module.n_latent,
-                n_hidden=32,
-                n_labels=self.n_output_classifier,
-                n_layers=2,
-                logits=True,
-            )
+            if self.module.n_batch == 1:
+                warnings.warn(
+                    "Disabling adversarial classifier.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+                self.adversarial_classifier = False
+            else:
+                self.n_output_classifier = self.module.n_batch
+                self.adversarial_classifier = Classifier(
+                    n_input=self.module.n_latent,
+                    n_hidden=32,
+                    n_labels=self.n_output_classifier,
+                    n_layers=2,
+                    logits=True,
+                )
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss

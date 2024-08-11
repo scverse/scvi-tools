@@ -183,6 +183,116 @@ def test_scanvi():
     scanvi_model.train(1)
 
 
+def test_scanvi_with_external_indices():
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "label_0",
+        batch_key="batch",
+    )
+    model = SCANVI(adata, n_latent=10)
+    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+    )
+    logged_keys = model.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "validation_classification_loss" in logged_keys
+    assert "validation_accuracy" in logged_keys
+    assert "validation_f1_score" in logged_keys
+    assert "validation_calibration_error" in logged_keys
+    adata2 = synthetic_iid()
+    predictions = model.predict(adata2, indices=[1, 2, 3])
+    assert len(predictions) == 3
+    model.predict()
+    df = model.predict(adata2, soft=True)
+    assert isinstance(df, pd.DataFrame)
+    model.predict(adata2, soft=True, indices=[1, 2, 3])
+    model.get_normalized_expression(adata2)
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+    # test that all data labeled runs
+    unknown_label = "asdf"
+    a = synthetic_iid()
+    SCANVI.setup_anndata(
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
+    )
+    m = SCANVI(a)
+    m.train(1)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    a = synthetic_iid()
+    SCANVI.setup_anndata(
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
+    )
+    m = SCANVI(a)
+    m.train(1, train_size=0.9)
+
+    # test from_scvi_model
+    a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = synthetic_iid()
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key="labels", adata=a2)
+    with pytest.raises(ValueError):
+        scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key=None, adata=a2)
+
+    # make sure the state_dicts are different objects for the two models
+    assert scanvi_model.module.state_dict() is not m.module.state_dict()
+    scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
+    scvi_pxr = m.module.state_dict().get("px_r", None)
+    assert scanvi_pxr is not None and scvi_pxr is not None
+    assert scanvi_pxr is not scvi_pxr
+    scanvi_model.train(1)
+
+    # Test without label groups
+    scanvi_model = SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", use_labels_groups=False
+    )
+    scanvi_model.train(1)
+
+    # test from_scvi_model with size_factor
+    a = synthetic_iid()
+    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels", size_factor_key="size_factor")
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = synthetic_iid()
+    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model.train(1)
+
+
 def test_scanvi_predict_use_posterior_mean():
     adata = synthetic_iid()
     SCANVI.setup_anndata(adata, labels_key="labels", unlabeled_category="label_0")
@@ -231,6 +341,25 @@ def test_multiple_covariates_scanvi():
     m.get_latent_representation()
     m.get_elbo()
     m.get_marginal_ll(n_mc_samples=3)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=1)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=6)
+    m.differential_expression(
+        idx1=np.arange(50), idx2=51 + np.arange(50), mode="vanilla", weights="uniform"
+    )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 1},
+    )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 10},
+    )
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)

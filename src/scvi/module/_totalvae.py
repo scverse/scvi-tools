@@ -11,13 +11,16 @@ from torch.distributions import kl_divergence as kl
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
+from scvi.data import _constants
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
+from scvi.model.base import BaseModelClass
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
+from scvi.nn._utils import ExpActivation
 
 torch.backends.cudnn.benchmark = True
 
@@ -617,7 +620,7 @@ class TOTALVAE(BaseModuleClass):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_div_l_gene = 0.0
+            kl_div_l_gene = torch.zeros_like(kl_div_z)
 
         kl_div_back_pro_full = kl(
             Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
@@ -736,3 +739,18 @@ class TOTALVAE(BaseModuleClass):
         if return_mean:
             log_lkl = torch.mean(batch_log_lkl).item()
         return log_lkl
+
+    def on_load(self, model: BaseModelClass):
+        manager = model.get_anndata_manager(model.adata)
+        source_version = manager.registry[_constants._SCVI_VERSION_KEY]
+        version_split = source_version.split(".")
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 2:
+            return
+
+        # pre 1.2 activation function
+        manager.registry[_constants._SCVI_VERSION_KEY] = source_version
+        model_kwargs = model.init_params_.get("model_kwargs", {})
+        if model_kwargs.get("extra_decoder_kwargs", False):
+            if model_kwargs["extra_decoder_kwargs"].get("activation_function_bg", False):
+                return
+        self.decoder.activation_function_bg = ExpActivation()  # requires nn.module
