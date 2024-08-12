@@ -56,6 +56,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
+          python -m pip install tiledbsoma
 
       - name: Install Specific Branch of Repository
         env:
@@ -74,7 +75,7 @@ jobs:
           DISPLAY: :42
           COLUMNS: 120
         run: |
-          coverage run -m pytest -v --color=yes --custom.dataloader-tests
+          coverage run -m pytest -v --color=yes --custom-dataloader-tests
           coverage report
 
       - uses: codecov/codecov-action@v4
