@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import sys
+
+# the next should be ready for improting
+sys.path.insert(0, "/cellxgene-census/api/python/cellxgene_census/src")
+sys.path.insert(0, "src")
+
 import cellxgene_census
 import numpy as np
 import pandas as pd

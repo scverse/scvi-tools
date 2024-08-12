@@ -62,7 +62,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config --global url."https://${GH_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          pip install git+https://github.com/ori-kron-wis/cellxgene-census.git@ebezzi/census-scvi-datamodule
+          #pip install git+https://github.com/ebezzi/cellxgene-census.git@ebezzi/census-scvi-datamodule
+          git clone --single-branch --branch ebezzi/census-scvi-datamodule https://github.com/ebezzi/cellxgene-census.git
+          #cd cellxgene-census
+          #python -m pip install
 
       - name: Run specific custom dataloader pytest
         env:
