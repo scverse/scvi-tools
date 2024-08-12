@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import sys
 
-# the next should be ready for improting
-sys.path.insert(0, "/cellxgene-census/api/python/cellxgene_census/src")
+# should be ready for importing the cloned branch on a remote machine that runs github action
+sys.path.insert(
+    0,
+    "/home/runner/work/scvi-tools/scvi-tools/" "cellxgene-census/api/python/cellxgene_census/src",
+)
 sys.path.insert(0, "src")
 
 import cellxgene_census
@@ -18,7 +21,7 @@ import scvi
 from scvi.data import synthetic_iid
 
 
-@pytest.custom.dataloader
+@pytest.mark.custom.dataloader
 def test_custom_dataloader(save_path):
     # this test checks the local custom dataloder made by CZI and run several tests with it
     census = cellxgene_census.open_soma(census_version="stable")

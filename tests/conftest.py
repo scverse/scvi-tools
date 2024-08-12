@@ -72,7 +72,7 @@ def pytest_collection_modifyitems(config, items):
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
 
-        # All tests marked with `pytest.custom.dataloader` get skipped unless
+        # All tests marked with `pytest.mark.custom.dataloader` get skipped unless
         # `--custom.dataloader-tests` passed
         if not run_custom_dataloader and ("custom.dataloader" in item.keywords):
             item.add_marker(skip_custom_dataloader)
