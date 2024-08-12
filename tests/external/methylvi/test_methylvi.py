@@ -1,7 +1,7 @@
 from mudata import MuData
 
 from scvi.data import synthetic_iid
-from scvi.external.methylvi import METHYLVI
+from scvi.external import METHYLVI
 
 
 def test_methylvi():
