@@ -737,6 +737,50 @@ def test_scarches_data_prep(save_path):
     SCVI.load_query_data(adata5, dir_path)
 
 
+def test_scarches_data_prep_with_categorial_covariates(save_path):
+    n_latent = 5
+    adata1 = synthetic_iid()
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cat2"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+
+    SCVI.setup_anndata(
+        adata1,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCVI(adata1, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata2 has more genes and a perfect subset of adata1
+    adata2 = synthetic_iid(n_genes=110)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    SCVI.prepare_query_anndata(adata2, dir_path)
+    SCVI.load_query_data(adata2, dir_path)
+
+    adata3 = SCVI.prepare_query_anndata(adata2, dir_path, inplace=False)
+    SCVI.load_query_data(adata3, dir_path)
+
+    # try the opposite - with a new categ covariate
+    # adata4 has more genes and a perfect subset of adata1
+    adata4 = synthetic_iid(n_genes=110)
+    adata4.obs["batch"] = adata4.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata4.obs["cont1"] = np.random.normal(size=(adata4.shape[0],))
+    adata4.obs["cont2"] = np.random.normal(size=(adata4.shape[0],))
+    adata4.obs["cat1"] = np.random.randint(0, 5, size=(adata4.shape[0],))
+    adata4.obs["cat2"] = np.random.randint(0, 5, size=(adata4.shape[0],))
+    SCVI.prepare_query_anndata(adata4, dir_path)
+    SCVI.load_query_data(adata4, dir_path)
+
+    adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVI.load_query_data(adata5, dir_path)
+
+
 def test_scarches_data_prep_layer(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
