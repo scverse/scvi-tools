@@ -1,10 +1,10 @@
 from mudata import MuData
 
 from scvi.data import synthetic_iid
-from scvi.external import METHYLVI
+from scvi.external.methylvi import METHYLVI
 
 
-def test_methylvi_mudata():
+def test_methylvi():
     adata1 = synthetic_iid()
     adata1.layers["mc"] = adata1.X
     adata1.layers["cov"] = adata1.layers["mc"] + 10
