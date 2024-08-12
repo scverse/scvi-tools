@@ -21,7 +21,7 @@ import scvi
 from scvi.data import synthetic_iid
 
 
-@pytest.mark.internet
+@pytest.mark.custom.dataloader
 def test_custom_dataloader(save_path):
     # this test checks the local custom dataloder made by CZI and run several tests with it
     census = cellxgene_census.open_soma(census_version="stable")

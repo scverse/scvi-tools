@@ -58,6 +58,7 @@ jobs:
           python -m uv pip install --system "scvi-tools[tests] @ ."
           python -m pip install tiledbsoma
           python -m pip install s3fs
+          python -m pip install torchdata
 
       - name: Install Specific Branch of Repository
         env:
