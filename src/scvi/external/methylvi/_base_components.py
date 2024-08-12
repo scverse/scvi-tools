@@ -84,7 +84,7 @@ class DecoderMETHYLVI(nn.Module):
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the beta-binomial distribution of methylation
-         #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
+         #. If ``dispersion != 'region-cell'`` then value for that param will be ``None``
 
         Parameters
         ----------

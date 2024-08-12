@@ -45,7 +45,7 @@ class METHYLVAE(BaseModuleClass):
     dispersion
         One of the following
         * ``'region'`` - dispersion parameter of BetaBinomial is constant per region across cells
-        * ``'region-cell'`` - dispersion can differ for every regionin every cell
+        * ``'region-cell'`` - dispersion can differ for every region in every cell
     """
 
     def __init__(

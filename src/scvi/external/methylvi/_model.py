@@ -43,7 +43,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
     Parameters
     ----------
     mdata
-        MuData object that has been registered via :meth:`~scvi.external.MethylVI.setup_mudata`.
+        MuData object that has been registered via :meth:`~scvi.external.METHYLVI.setup_mudata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
