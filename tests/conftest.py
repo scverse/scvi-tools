@@ -17,7 +17,7 @@ def pytest_addoption(parser):
     )
     parser.addoption(
         "--custom.dataloader-tests",
-        action="store_false",
+        action="store_true",
         default=False,
         help="Run tests that deals with custom dataloaders. This increases test time.",
     )
