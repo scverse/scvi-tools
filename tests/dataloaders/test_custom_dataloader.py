@@ -8,7 +8,7 @@ import scvi
 from scvi.data import synthetic_iid
 
 
-@pytest.mark.custom.dataloader
+@pytest.mark.custom_dataloader
 def test_custom_dataloader(save_path):
     # local bracnh with fix only for this test
     import sys
