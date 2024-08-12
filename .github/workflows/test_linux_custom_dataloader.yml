@@ -59,6 +59,7 @@ jobs:
           python -m pip install tiledbsoma
           python -m pip install s3fs
           python -m pip install torchdata
+          python -m pip install psutil
 
       - name: Install Specific Branch of Repository
         env:
