@@ -16,6 +16,12 @@ def pytest_addoption(parser):
         help="Run tests that retrieve stuff from the internet. This increases test time.",
     )
     parser.addoption(
+        "--custom.dataloader-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that deals with custom dataloaders. This increases test time.",
+    )
+    parser.addoption(
         "--optional",
         action="store_true",
         default=False,
@@ -55,12 +61,21 @@ def pytest_configure(config):
 def pytest_collection_modifyitems(config, items):
     """Docstring for pytest_collection_modifyitems."""
     run_internet = config.getoption("--internet-tests")
+    run_custom_dataloader = config.getoption("--custom.dataloader-tests")
     skip_internet = pytest.mark.skip(reason="need --internet-tests option to run")
+    skip_custom_dataloader = pytest.mark.skip(
+        reason="need ---custom.dataloader-tests option to run"
+    )
     for item in items:
         # All tests marked with `pytest.mark.internet` get skipped unless
         # `--internet-tests` passed
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
+
+        # All tests marked with `pytest.custom.dataloader` get skipped unless
+        # `--custom.dataloader-tests` passed
+        if not run_custom_dataloader and ("custom.dataloader" in item.keywords):
+            item.add_marker(skip_custom_dataloader)
 
     run_optional = config.getoption("--optional")
     skip_optional = pytest.mark.skip(reason="need --optional option to run")
