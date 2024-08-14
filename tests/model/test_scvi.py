@@ -737,7 +737,7 @@ def test_scarches_data_prep(save_path):
     SCVI.load_query_data(adata5, dir_path)
 
 
-def test_scarches_data_prep_with_categorial_covariates(save_path="."):
+def test_scarches_data_prep_with_categorial_covariates(save_path):
     n_latent = 5
     num_categ_orig = 5
     adata1 = synthetic_iid()
@@ -785,11 +785,15 @@ def test_scarches_data_prep_with_categorial_covariates(save_path="."):
     SCVI.load_query_data(adata4, dir_path)
     model4 = SCVI(adata4, n_latent=n_latent)
     model4.train(1, check_val_every_n_epoch=1)
+    model4.get_latent_representation()
+    model4.get_elbo()
 
     adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
     SCVI.load_query_data(adata5, dir_path)
     model5 = SCVI(adata5, n_latent=n_latent)
     model5.train(1, check_val_every_n_epoch=1)
+    model5.get_latent_representation()
+    model5.get_elbo()
 
     # try also different categ - it expects cat1
     adata6 = synthetic_iid(n_genes=110)
@@ -834,6 +838,8 @@ def test_scarches_data_prep_with_categorial_covariates(save_path="."):
     SCVI.load_query_data(adata9, dir_path)
     model9 = SCVI(adata9, n_latent=n_latent)
     model9.train(1, check_val_every_n_epoch=1)
+    model9.get_latent_representation()
+    model9.get_elbo()
 
     # try also additional cont/categ cov - it works
     adata10 = synthetic_iid(n_genes=110)
@@ -865,6 +871,8 @@ def test_scarches_data_prep_with_categorial_covariates(save_path="."):
         registry["field_registries"]["extra_continuous_covs"]["state_registry"]["columns"][0]
         == "cont1"
     )
+    model10.get_latent_representation()
+    model10.get_elbo()
 
     # try also runing with less categories than needed
     num_categ = 4
@@ -886,6 +894,8 @@ def test_scarches_data_prep_with_categorial_covariates(save_path="."):
         if num_categ > num_categ_orig
         else num_categ_orig
     )
+    model11.get_latent_representation()
+    model11.get_elbo()
 
     # try also runing with more categories than needed
     num_categ = 6
@@ -907,6 +917,8 @@ def test_scarches_data_prep_with_categorial_covariates(save_path="."):
         if num_categ > num_categ_orig
         else num_categ_orig
     )
+    model12.get_latent_representation()
+    model12.get_elbo()
 
 
 def test_scarches_data_prep_layer(save_path):
