@@ -232,7 +232,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     @torch.inference_mode()
     def get_region_factors(self):
         """Return region-specific factors."""
-        region_factors = self.module.decoder.px_scale_decoder[-2].bias
+        region_factors = self.module.decoder.px_scale_decoder[-2].bias.numpy()
         if region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return region_factors
