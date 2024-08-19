@@ -97,6 +97,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Fix multiclass accuracy bug which happend during SemiSupervisedDataSplitter usage of scvi->
+    scanvi transfer learning. there was a batch with 1 sample per one of the classes {pr}`2938`.
 - Disable adversarial classifier if training with a single batch.
     Previously this raised a None error {pr}`2914`.
 - {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
