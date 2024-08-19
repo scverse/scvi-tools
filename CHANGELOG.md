@@ -10,6 +10,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
+- {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
+    {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
     by passing `external_indexing=list[train_idx,valid_idx,test_idx]` as well as in all models
     available {pr}`2902`.
@@ -100,6 +103,10 @@ to [Semantic Versioning]. Full commit history is available in the
 - {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
     Negative Binomial with latent_library_size {pr}`2915`.
 - Fix {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
+- {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
+- Enable option to drop_last minibatch during training by `datasplitter_kwargs={"drop_last": True}`
+    {pr}`2926`.
+- Fix JAX to be deterministic on CUDA when seed is manually set {pr}`2923`.
 
 #### Removed
 
@@ -112,6 +119,13 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`scvi.train.Trainer` {pr}`2646`.
 
 ## Version 1.1
+
+### 1.1.6 (2024-08-19)
+
+#### Fixed
+
+- Breaking change: In `scvi.autotune._manager` we changed the parameter in RunConfig from
+    `local_dir` to `storage_path` see issue `2908` {pr}`2689`.
 
 ### 1.1.5 (2024-06-30)
 
