@@ -97,7 +97,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fix logging of accuracy for cases with 1 sample per class in scANVI as this could happend with
+- Fix logging of accuracy for cases with 1 sample per class in scANVI {pr}`2938`.
       the DataSplitter {pr}`2938`.
 - Disable adversarial classifier if training with a single batch.
     Previously this raised a None error {pr}`2914`.
