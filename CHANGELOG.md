@@ -10,6 +10,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
     {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
