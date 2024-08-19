@@ -557,7 +557,7 @@ class TunerManager:
         )
         run_config = air.config.RunConfig(
             name=_experiment_name,
-            local_dir=_logging_dir,
+            storage_path=_logging_dir,
             progress_reporter=_reporter,
             log_to_file=True,
             verbose=1,
