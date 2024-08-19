@@ -158,7 +158,7 @@ class ContrastiveDataSplitter(DataSplitter):
             background_indices=self.background_train_idx,
             target_indices=self.target_train_idx,
             shuffle=True,
-            drop_last=False,
+            drop_last=self.drop_last,
             load_sparse_tensor=self.load_sparse_tensor,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
