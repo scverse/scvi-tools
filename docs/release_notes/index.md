@@ -40,7 +40,7 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 #### Fixed
 
 - Breaking change: In `scvi.autotune._manager` we changed the parameter in RunConfig from
-  `local_dir` to `storage_path` {pr}`2689`. But this is not part of 1.2.x anymore
+  `local_dir` to `storage_path` {pr}`2689`.
   
 ### 1.1.5 (2024-06-30)
 
