@@ -36,7 +36,7 @@ dependencies = [
     "flax",
     "jax",
     "jaxlib",
-    "lightning>=2.0",
+    "lightning>=2.4.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "numpy<2.0",
