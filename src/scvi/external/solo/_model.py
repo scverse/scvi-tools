@@ -259,16 +259,15 @@ class SOLO(BaseModelClass):
             Seed for reproducibility
         """
         adata = adata_manager.adata
-        n_obs = adata.n_obs if indices is None else len(indices)
+        allowed_indices = np.arange(adata.n_obs) if indices is None else indices
+        n_obs = len(allowed_indices)
         num_doublets = doublet_ratio * n_obs
 
         # counts can be in many locations, this uses where it was registered in setup
         x = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        if indices is not None:
-            x = x[indices]
 
         random_state = np.random.RandomState(seed=seed)
-        parent_inds = random_state.choice(n_obs, size=(num_doublets, 2))
+        parent_inds = random_state.choice(allowed_indices, size=(num_doublets, 2))
         doublets = x[parent_inds[:, 0]] + x[parent_inds[:, 1]]
 
         doublets_ad = AnnData(doublets)
