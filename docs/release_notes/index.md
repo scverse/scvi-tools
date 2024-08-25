@@ -39,9 +39,9 @@ is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/
 
 #### Fixed
 
-- Breaking change: In `scvi.autotune._manager` we changed the parameter in RunConfig from
-  `local_dir` to `storage_path` see issue `2908` {pr}`2689`.
-  
+-   Breaking change: In `scvi.autotune._manager` we changed the parameter in RunConfig from
+    `local_dir` to `storage_path` see issue `2908` {pr}`2689`.
+
 ### 1.1.5 (2024-06-30)
 
 ### 1.1.4 (2024-06-30)
