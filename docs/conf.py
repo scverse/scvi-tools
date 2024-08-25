@@ -33,7 +33,7 @@ html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "scverse",  # Username
     "github_repo": project_name,  # Repo name
-    "github_version": "main",  # Version 
+    "github_version": "main",  # Version
     "conf_py_path": "/docs/",  # Path in the checkout to the docs root
 }
 
