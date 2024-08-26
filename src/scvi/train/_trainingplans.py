@@ -760,7 +760,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             return
 
         classification_loss = loss_output.classification_loss
-        true_labels = loss_output.true_labels.squeeze()
+        true_labels = loss_output.true_labels.squeeze(-1)
         logits = loss_output.logits
         predicted_labels = torch.argmax(logits, dim=-1)
 
