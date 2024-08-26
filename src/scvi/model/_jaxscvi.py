@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
-from typing import Literal, Optional
+from typing import Literal
 
 import jax.numpy as jnp
 import numpy as np
@@ -53,7 +55,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         dropout_rate: float = 0.1,
@@ -82,8 +84,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
+        layer: None | str = None,
+        batch_key: None | str = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -105,11 +107,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: None | AnnData = None,
+        indices: None | Sequence[int] = None,
         give_mean: bool = True,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: None | int = None,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Sequence
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -98,15 +100,15 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        alpha_prior: Optional[float] = 0.5,
-        beta_prior: Optional[float] = 0.5,
+        alpha_prior: None | float = 0.5,
+        beta_prior: None | float = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
         use_observed_lib_size: bool = True,
@@ -146,19 +148,17 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def get_alphas_betas(
-        self, as_numpy: bool = True
-    ) -> dict[str, Union[torch.Tensor, np.ndarray]]:
+    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str, torch.Tensor | np.ndarray]:
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
         return self.module.get_alphas_betas(as_numpy=as_numpy)
 
     @torch.inference_mode()
     def get_marginal_ll(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: None | AnnData = None,
+        indices: None | Sequence[int] = None,
         n_mc_samples: int = 1000,
-        batch_size: Optional[int] = None,
+        batch_size: None | int = None,
     ) -> float:
         """Return the marginal LL for the data.
 
@@ -261,9 +261,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        batch_key: None | str = None,
+        labels_key: None | str = None,
+        layer: None | str = None,
         **kwargs,
     ):
         """%(summary)s.

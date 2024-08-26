@@ -88,7 +88,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
         n_hidden: int | None = None,
         n_latent: int | None = None,
         n_layers_encoder: int = 2,
