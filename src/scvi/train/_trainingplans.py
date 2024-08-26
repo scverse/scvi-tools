@@ -71,13 +71,11 @@ def _compute_kl_weight(
     slope = max_kl_weight - min_kl_weight
     if n_epochs_kl_warmup:
         if epoch < n_epochs_kl_warmup:
-            kl_weight = slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+            return torch.tensor(slope * (epoch / n_epochs_kl_warmup) + min_kl_weight)
     elif n_steps_kl_warmup:
         if step < n_steps_kl_warmup:
-            kl_weight = slope * (step / n_steps_kl_warmup) + min_kl_weight
-    else:
-        kl_weight = max_kl_weight
-    return torch.tensor(kl_weight)
+            return torch.tensor(slope * (step / n_steps_kl_warmup) + min_kl_weight)
+    return torch.tensor(max_kl_weight)
 
 
 class TrainingPlan(pl.LightningModule):
@@ -148,7 +146,7 @@ class TrainingPlan(pl.LightningModule):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: TorchOptimizerCreator | None = None,
+        optimizer_creator: Optional[TorchOptimizerCreator] = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -165,7 +163,7 @@ class TrainingPlan(pl.LightningModule):
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
         compile: bool = False,
-        compile_kwargs: dict | None = None,
+        compile_kwargs: Optional[dict] = None,
         **loss_kwargs,
     ):
         super().__init__()
