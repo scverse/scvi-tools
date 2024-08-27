@@ -13,13 +13,10 @@ import sparse
 import torch
 from anndata import AnnData
 from mudata import MuData
-from torch.distributions import Binomial
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager, fields
-from scvi.distributions import BetaBinomial
-from scvi.distributions._utils import DistributionConcatenator
 from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.model.base import (
     ArchesMixin,
@@ -290,7 +287,6 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         region_list: Sequence[str] | None = None,
         n_samples: int = 1,
         n_samples_overall: int = None,
-        weights: Literal["uniform", "importance"] | None = None,
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
@@ -315,8 +311,6 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             Number of posterior samples to use for estimation.
         n_samples_overall
             Number of posterior samples to use for estimation. Overrides `n_samples`.
-        weights
-            Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_mean
@@ -325,9 +319,6 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`.
             DataFrame includes region names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
-        importance_weighting_kwargs
-            Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
 
         Returns
         -------
@@ -364,12 +355,8 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 )
             return_numpy = True
 
-        store_distributions = weights == "importance"
-
         exprs = defaultdict(list)
-        zs = []
-        qz_store = DistributionConcatenator()
-        px_store = defaultdict(DistributionConcatenator)
+
         for tensors in scdl:
             inference_kwargs = {"n_samples": n_samples}
             inference_outputs, generative_outputs = self.module.forward(
@@ -383,50 +370,18 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 exp_ = generative_outputs["px_mu"][context]
                 exp_ = exp_[..., region_mask]
                 exprs[context].append(exp_.cpu())
-            if store_distributions:
-                qz_store.store_distribution(inference_outputs["qz"])
-                for context in self.contexts:
-                    px_mu = generative_outputs["px_mu"][context]
-                    px_gamma = generative_outputs["px_gamma"][context]
-                    cov = _context_cov_key(context)
-
-                    if self.module.likelihood == "betabinomial":
-                        px = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
-                    elif self.module.likelihood == "binomial":
-                        px = Binomial(probs=px_mu, total_count=cov)
-
-                    px_store[context].store_distribution(px)
-
-            zs.append(inference_outputs["z"].cpu())
 
         cell_axis = 1 if n_samples > 1 else 0
 
         for context in self.contexts:
             exprs[context] = np.concatenate(exprs[context], axis=cell_axis)
 
-        zs = torch.concat(zs, dim=cell_axis)
-
         if n_samples_overall is not None:
             # Converts the 3d tensor to a 2d tensor
             for context in self.contexts:
                 exprs[context] = exprs[context].reshape(-1, exprs[context].shape[-1])
                 n_samples_ = exprs[context].shape[0]
-                if (weights is None) or weights == "uniform":
-                    p = None
-                else:
-                    qz = qz_store.get_concatenated_distributions(axis=0)
-                    x_axis = 0 if n_samples == 1 else 1
-                    px = px_store[context].get_concatenated_distributions(axis=x_axis)
-                    p = self._get_importance_weights(
-                        mdata,
-                        indices,
-                        qz=qz,
-                        px=px,
-                        zs=zs,
-                        **importance_weighting_kwargs,
-                    )
-
-                ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
+                ind_ = np.random.choice(n_samples_, n_samples_overall, replace=True)
                 exprs[context] = exprs[context][ind_]
                 return_numpy = True
 
