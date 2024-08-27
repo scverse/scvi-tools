@@ -11,6 +11,7 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi.distributions import BetaBinomial
 from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS, DecoderMETHYLVI
+from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
 
@@ -105,20 +106,14 @@ class METHYLVAE(BaseModuleClass):
                 }
             )
 
-    def _context_cov_key(self, context):
-        return f"{context}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"
-
-    def _context_mc_key(self, context):
-        return f"{context}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"
-
     def _get_inference_input(self, tensors):
         """Parse the dictionary to get appropriate args"""
         mc = torch.cat(
-            [tensors[self._context_mc_key(context)] for context in self.contexts],
+            [tensors[_context_mc_key(context)] for context in self.contexts],
             dim=1,
         )
         cov = torch.cat(
-            [tensors[self.context_cov_key(context)] for context in self.contexts],
+            [tensors[_context_cov_key(context)] for context in self.contexts],
             dim=1,
         )
 

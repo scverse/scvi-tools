@@ -20,6 +20,7 @@ from scvi._types import Number
 from scvi.data import AnnDataManager, fields
 from scvi.distributions import BetaBinomial
 from scvi.distributions._utils import DistributionConcatenator
+from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.model.base import (
     ArchesMixin,
     BaseModelClass,
@@ -31,7 +32,6 @@ from scvi.model.base._de_core import (
 )
 from scvi.utils import setup_anndata_dsp
 
-from ._constants import METHYLVI_REGISTRY_KEYS
 from ._module import METHYLVAE
 from ._utils import scmc_raw_counts_properties
 
@@ -204,12 +204,12 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         mc_fields = []
         cov_fields = []
 
-        for mod in methylation_contexts:
+        for context in methylation_contexts:
             mc_fields.append(
                 fields.MuDataLayerField(
-                    f"{mod}_{METHYLVI_REGISTRY_KEYS.MC_KEY}",
+                    _context_mc_key(context),
                     mc_layer,
-                    mod_key=mod,
+                    mod_key=context,
                     is_count_data=True,
                     mod_required=True,
                 )
@@ -217,9 +217,9 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
             cov_fields.append(
                 fields.MuDataLayerField(
-                    f"{mod}_{METHYLVI_REGISTRY_KEYS.COV_KEY}",
+                    _context_cov_key(context),
                     cov_layer,
-                    mod_key=mod,
+                    mod_key=context,
                     is_count_data=True,
                     mod_required=True,
                 )
@@ -388,7 +388,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 for context in self.contexts:
                     px_mu = generative_outputs["px_mu"][context]
                     px_gamma = generative_outputs["px_gamma"][context]
-                    cov = self.module._context_cov_key(context)
+                    cov = _context_cov_key(context)
 
                     if self.module.likelihood == "betabinomial":
                         px = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)

@@ -4,6 +4,7 @@ from typing import Optional, Union
 import numpy as np
 
 from scvi.data import AnnDataManager
+from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS
 
 logger = logging.getLogger(__name__)
 
@@ -57,3 +58,11 @@ def scmc_raw_counts_properties(
 
     properties = {"emp_mean1": mean1, "emp_mean2": mean2, "emp_effect": (mean1 - mean2)}
     return properties
+
+
+def _context_cov_key(context):
+    return f"{context}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"
+
+
+def _context_mc_key(context):
+    return f"{context}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"
