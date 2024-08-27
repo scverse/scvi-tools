@@ -2,7 +2,6 @@ import logging
 from typing import Optional, Union
 
 import numpy as np
-from mudata import MuData
 
 from scvi.data import AnnDataManager
 
@@ -39,15 +38,8 @@ def scmc_raw_counts_properties(
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
     """
     adata = adata_manager.adata
-
-    if isinstance(adata, MuData):
-        if modality is None:
-            raise ValueError("Must specify specific modality for MuData object.")
-        mc = adata[modality].layers[adata_manager.mc_layer]
-        cov = adata[modality].layers[adata_manager.cov_layer]
-    else:
-        mc = adata.layers[adata_manager.mc_layer]
-        cov = adata.layers[adata_manager.mc_layer]
+    mc = adata[modality].layers[adata_manager.mc_layer]
+    cov = adata[modality].layers[adata_manager.cov_layer]
     mc1 = mc[idx1]
     mc2 = mc[idx2]
 
