@@ -105,14 +105,20 @@ class METHYLVAE(BaseModuleClass):
                 }
             )
 
+    def _context_cov_key(self, context):
+        return f"{context}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"
+
+    def _context_mc_key(self, context):
+        return f"{context}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"
+
     def _get_inference_input(self, tensors):
         """Parse the dictionary to get appropriate args"""
         mc = torch.cat(
-            [tensors[f"{x}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"] for x in self.contexts],
+            [tensors[self._context_mc_key(context)] for context in self.contexts],
             dim=1,
         )
         cov = torch.cat(
-            [tensors[f"{x}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"] for x in self.contexts],
+            [tensors[self.context_cov_key(context)] for context in self.contexts],
             dim=1,
         )
 

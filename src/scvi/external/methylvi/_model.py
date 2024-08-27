@@ -13,10 +13,12 @@ import sparse
 import torch
 from anndata import AnnData
 from mudata import MuData
+from torch.distributions import Binomial
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager, fields
+from scvi.distributions import BetaBinomial
 from scvi.distributions._utils import DistributionConcatenator
 from scvi.model.base import (
     ArchesMixin,
@@ -367,7 +369,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         exprs = defaultdict(list)
         zs = []
         qz_store = DistributionConcatenator()
-        px_store = DistributionConcatenator()
+        px_store = defaultdict(DistributionConcatenator)
         for tensors in scdl:
             inference_kwargs = {"n_samples": n_samples}
             inference_outputs, generative_outputs = self.module.forward(
@@ -383,7 +385,17 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 exprs[context].append(exp_.cpu())
             if store_distributions:
                 qz_store.store_distribution(inference_outputs["qz"])
-                px_store.store_distribution(generative_outputs["px"])
+                for context in self.contexts:
+                    px_mu = generative_outputs["px_mu"][context]
+                    px_gamma = generative_outputs["px_gamma"][context]
+                    cov = self.module._context_cov_key(context)
+
+                    if self.module.likelihood == "betabinomial":
+                        px = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
+                    elif self.module.likelihood == "binomial":
+                        px = Binomial(probs=px_mu, total_count=cov)
+
+                    px_store[context].store_distribution(px)
 
             zs.append(inference_outputs["z"].cpu())
 
@@ -404,7 +416,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 else:
                     qz = qz_store.get_concatenated_distributions(axis=0)
                     x_axis = 0 if n_samples == 1 else 1
-                    px = px_store.get_concatenated_distributions(axis=x_axis)
+                    px = px_store[context].get_concatenated_distributions(axis=x_axis)
                     p = self._get_importance_weights(
                         mdata,
                         indices,
