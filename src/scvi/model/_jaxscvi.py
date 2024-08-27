@@ -55,7 +55,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData | None = None,
+        adata: AnnData,
         n_hidden: int = 128,
         n_latent: int = 10,
         dropout_rate: float = 0.1,
@@ -84,8 +84,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: None | str = None,
-        batch_key: None | str = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -107,11 +107,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
     def get_latent_representation(
         self,
-        adata: None | AnnData = None,
-        indices: None | Sequence[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
         n_samples: int = 1,
-        batch_size: None | int = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 

@@ -134,7 +134,7 @@ class BayesianRegressionModule(PyroBaseModuleClass):
 class BayesianRegressionModel(PyroSviTrainMixin, PyroSampleMixin, BaseModelClass):
     def __init__(
         self,
-        adata: AnnData | None = None,
+        adata: AnnData,
         per_cell_weight=False,
     ):
         # in case any other model was created before that shares the same parameter names.
