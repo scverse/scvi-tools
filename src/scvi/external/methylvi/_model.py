@@ -73,14 +73,21 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         super().__init__(mdata)
 
         n_batch = self.summary_stats.n_batch
+        n_cats_per_cov = (
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
+                fields.CategoricalJointObsField.N_CATS_PER_KEY
+            ]
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+            else None
+        )
 
         # We feed in both the number of methylated counts (mc) and the
         # total number of counts (cov) as inputs
-        self.modalities = self.get_anndata_manager(mdata).modalities
+        self.contexts = self.get_anndata_manager(mdata).contexts
 
-        self.num_features_per_modality = [mdata[modality].shape[1] for modality in self.modalities]
+        self.num_features_per_context = [mdata[context].shape[1] for context in self.contexts]
 
-        n_input = np.sum(self.num_features_per_modality)
+        n_input = np.sum(self.num_features_per_context)
 
         self.module = METHYLVAE(
             n_input=n_input,
@@ -88,8 +95,9 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             n_latent=n_latent,
             n_layers=n_layers,
             n_batch=n_batch,
-            modalities=self.modalities,
-            num_features_per_modality=self.num_features_per_modality,
+            n_cats_per_cov=n_cats_per_cov,
+            contexts=self.contexts,
+            num_features_per_context=self.num_features_per_context,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -132,9 +140,10 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         mdata: MuData,
         mc_layer: str,
         cov_layer: str,
-        methylation_modalities: Iterable[str],
+        methylation_contexts: Iterable[str],
         batch_key: str | None = None,
-        covariate_modalities=None,
+        categorical_covariate_keys: list[str] | None = None,
+        modalities=None,
         **kwargs,
     ):
         """%(summary_mdata)s.
@@ -146,13 +155,14 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             Layer containing methylated cytosine counts for each set of methylation features.
         cov_layer
             Layer containing total coverage counts for each set of methylation features.
-        methylation_modalities
-            List of modalities in `mdata` object representing different methylation contexts.
-            Each modality must be equipped with a layer containing the number of methylated counts
+        methylation_contexts
+            List of modality fields in `mdata` object representing different methylation contexts.
+            Each context must be equipped with a layer containing the number of methylated counts
             (specified by `mc_layer`) and total number of counts (specified by `cov_layer`) for
             each genomic region feature.
         %(param_batch_key)s
-        %(param_covariate_modalities)s
+        %(param_categorical_covariate_keys)s
+        %(param_modalities)s
 
         Examples
         --------
@@ -162,33 +172,37 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             cov_layer="cov",
             batch_key="Platform",
             methylation_modalities=['mCG', 'mCH'],
-            covariate_modalities={
+            modalities={
                 "batch_key": "mCG"
             },
         )
 
         """
-        if covariate_modalities is None:
-            covariate_modalities = {}
+        if modalities is None:
+            modalities = {}
         setup_method_args = METHYLVI._get_setup_method_args(**locals())
 
-        if methylation_modalities is None:
-            raise ValueError("Methylation modalities cannot be None.")
+        if methylation_contexts is None:
+            raise ValueError("Methylation contexts cannot be None.")
 
-        covariate_modalities_ = cls._create_modalities_attr_dict(
-            covariate_modalities, setup_method_args
-        )
+        modalities_ = cls._create_modalities_attr_dict(modalities, setup_method_args)
 
         batch_field = fields.MuDataCategoricalObsField(
             REGISTRY_KEYS.BATCH_KEY,
             batch_key,
-            mod_key=covariate_modalities_.batch_key,
+            mod_key=modalities_.batch_key,
+        )
+
+        cat_cov_field = fields.MuDataCategoricalJointObsField(
+            REGISTRY_KEYS.CAT_COVS_KEY,
+            categorical_covariate_keys,
+            mod_key=modalities_.categorical_covariate_keys,
         )
 
         mc_fields = []
         cov_fields = []
 
-        for mod in methylation_modalities:
+        for mod in methylation_contexts:
             mc_fields.append(
                 fields.MuDataLayerField(
                     f"{mod}_{METHYLVI_REGISTRY_KEYS.MC_KEY}",
@@ -209,10 +223,10 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 )
             )
 
-        mudata_fields = mc_fields + cov_fields + [batch_field]
+        mudata_fields = mc_fields + cov_fields + [batch_field] + [cat_cov_field]
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
-        adata_manager.modalities = methylation_modalities
+        adata_manager.contexts = methylation_contexts
         adata_manager.mc_layer = mc_layer
         adata_manager.cov_layer = cov_layer
 
@@ -256,12 +270,12 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 n_samples=n_samples,
             )
 
-            for modality in self.modalities:
-                x_new[modality].append(sparse.GCXS.from_numpy(samples[modality].numpy()))
+            for context in self.contexts:
+                x_new[context].append(sparse.GCXS.from_numpy(samples[context].numpy()))
 
-        for modality in self.modalities:
-            x_new[modality] = sparse.concatenate(
-                x_new[modality]
+        for context in self.contexts:
+            x_new[context] = sparse.concatenate(
+                x_new[context]
             )  # Shape (n_cells, n_regions, n_samples)
 
         return x_new
@@ -324,7 +338,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         of shape (n_samples_overall, n_regions).
 
         If model was set up using a MuData object, a dictionary is returned with keys
-        corresponding to individual methylation modalities with values determined as
+        corresponding to individual methylation contexts with values determined as
         described above.
         """
         mdata = self._validate_anndata(mdata)
@@ -363,10 +377,10 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 compute_loss=False,
             )
 
-            for modality in self.modalities:
-                exp_ = generative_outputs["px_mu"][modality]
+            for context in self.contexts:
+                exp_ = generative_outputs["px_mu"][context]
                 exp_ = exp_[..., region_mask]
-                exprs[modality].append(exp_.cpu())
+                exprs[context].append(exp_.cpu())
             if store_distributions:
                 qz_store.store_distribution(inference_outputs["qz"])
                 px_store.store_distribution(generative_outputs["px"])
@@ -375,16 +389,16 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         cell_axis = 1 if n_samples > 1 else 0
 
-        for modality in self.modalities:
-            exprs[modality] = np.concatenate(exprs[modality], axis=cell_axis)
+        for context in self.contexts:
+            exprs[context] = np.concatenate(exprs[context], axis=cell_axis)
 
         zs = torch.concat(zs, dim=cell_axis)
 
         if n_samples_overall is not None:
             # Converts the 3d tensor to a 2d tensor
-            for modality in self.modalities:
-                exprs[modality] = exprs[modality].reshape(-1, exprs[modality].shape[-1])
-                n_samples_ = exprs[modality].shape[0]
+            for context in self.contexts:
+                exprs[context] = exprs[context].reshape(-1, exprs[context].shape[-1])
+                n_samples_ = exprs[context].shape[0]
                 if (weights is None) or weights == "uniform":
                     p = None
                 else:
@@ -401,20 +415,20 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                     )
 
                 ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
-                exprs[modality] = exprs[modality][ind_]
+                exprs[context] = exprs[context][ind_]
                 return_numpy = True
 
         elif n_samples > 1 and return_mean:
-            for modality in self.modalities:
-                exprs[modality] = exprs[modality].mean(0)
+            for context in self.contexts:
+                exprs[context] = exprs[context].mean(0)
 
         if return_numpy is None or return_numpy is False:
             exprs_dfs = {}
-            for modality in self.modalities:
-                exprs_dfs[modality] = pd.DataFrame(
-                    exprs[modality],
-                    columns=mdata[modality].var_names[region_mask],
-                    index=mdata[modality].obs_names[indices],
+            for context in self.contexts:
+                exprs_dfs[context] = pd.DataFrame(
+                    exprs[context],
+                    columns=mdata[context].var_names[region_mask],
+                    index=mdata[context].obs_names[indices],
                 )
             return exprs_dfs
         else:
@@ -424,7 +438,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
     def get_specific_normalized_methylation(
         self,
         mdata: MuData | None = None,
-        modality: str = None,
+        context: str = None,
         indices: Sequence[int] | None = None,
         transform_batch: Sequence[Number | str] | None = None,
         region_list: Sequence[str] | None = None,
@@ -436,7 +450,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         return_numpy: bool | None = None,
         **importance_weighting_kwargs,
     ) -> (np.ndarray | pd.DataFrame) | dict[str, np.ndarray | pd.DataFrame]:
-        r"""Convenience function to obtain normalized methylation values for a single modality.
+        r"""Convenience function to obtain normalized methylation values for a single context.
 
         Only applicable to MuData models.
 
@@ -445,6 +459,8 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         mdata
             MuData object with equivalent structure to initial MuData. If `None`, defaults to the
             MuData object used to initialize the model.
+        context
+            Methylation context for which to obtain normalized methylation levels.
         indices
             Indices of cells in mdata to use. If `None`, all cells are used.
         transform_batch
@@ -498,7 +514,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             return_numpy=return_numpy,
             **importance_weighting_kwargs,
         )
-        return exprs[modality]
+        return exprs[context]
 
     def differential_methylation(
         self,
@@ -591,16 +607,16 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 return samples >= delta
 
         result = {}
-        for modality in self.modalities:
-            col_names = mdata[modality].var_names
+        for context in self.contexts:
+            col_names = mdata[context].var_names
             model_fn = partial(
                 self.get_specific_normalized_methylation,
                 batch_size=batch_size,
-                modality=modality,
+                context=context,
             )
-            all_stats_fn = partial(scmc_raw_counts_properties, modality=modality)
+            all_stats_fn = partial(scmc_raw_counts_properties, context=context)
 
-            result[modality] = _de_core(
+            result[context] = _de_core(
                 adata_manager=self.get_anndata_manager(mdata, required=True),
                 model_fn=model_fn,
                 representation_fn=None,
