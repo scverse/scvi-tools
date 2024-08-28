@@ -48,7 +48,7 @@ class SCBASSET(BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_sc_anndata)
     >>> scvi.data.add_dna_sequence(adata)
-    >>> adata = adata.transpose() # regions by cells
+    >>> adata = adata.transpose()  # regions by cells
     >>> scvi.external.SCBASSET.setup_anndata(adata, dna_code_key="dna_code")
     >>> model = scvi.external.SCBASSET(adata)
     >>> model.train()

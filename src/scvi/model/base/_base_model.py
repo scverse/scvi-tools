@@ -145,9 +145,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         --------
         >>> adata = scvi.data.synthetic_iid()
         >>> model = scvi.model.SCVI(adata)
-        >>> model.to_device('cpu')      # moves model to CPU
-        >>> model.to_device('cuda:0')   # moves model to GPU 0
-        >>> model.to_device(0)          # also moves model to GPU 0
+        >>> model.to_device("cpu")  # moves model to CPU
+        >>> model.to_device("cuda:0")  # moves model to GPU 0
+        >>> model.to_device(0)  # also moves model to GPU 0
         """
         my_device = torch.device(device)
         self.module.to(my_device)
