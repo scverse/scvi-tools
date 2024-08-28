@@ -60,8 +60,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData,
         n_topics: int = 20,
         n_hidden: int = 128,
-        cell_topic_prior: float | Sequence[float] = None,
-        topic_feature_prior: float | Sequence[float] = None,
+        cell_topic_prior: float | Sequence[float] | None = None,
+        topic_feature_prior: float | Sequence[float] | None = None,
     ):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
