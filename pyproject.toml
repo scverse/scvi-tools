@@ -177,7 +177,7 @@ select = [
     "BLE",  # flake8-blind-except
     "UP",  # pyupgrade
     "RUF",  # Report unused noqa directives
-    "PT" # pytest style
+    "PT", # pytest style
     "NPY" # numpy formatting
 ]
 
