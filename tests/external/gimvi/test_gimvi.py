@@ -1,5 +1,6 @@
 import os
 import pickle
+from time import time
 
 import numpy as np
 import pytest
@@ -179,3 +180,49 @@ def test_gimvi_reinit():
     model.train(max_epochs=1)
     model = GIMVI(adata_seq, adata_spatial)
     model.train(max_epochs=1)
+
+
+def test_cpu_gpu_gimvi():
+    if torch.cuda.is_available():
+        adata_seq = synthetic_iid(10000, 500)
+        adata_spatial = synthetic_iid(10000, 500)
+
+        GIMVI.setup_anndata(
+            adata_seq,
+            batch_key="batch",
+            labels_key="labels",
+        )
+        GIMVI.setup_anndata(
+            adata_spatial,
+            batch_key="batch",
+            labels_key="labels",
+        )
+
+        m = GIMVI(adata_seq, adata_spatial, n_latent=10)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_imputed_values()
+
+        # run the exact same thing on GPU:
+        m2 = GIMVI(adata_seq, adata_spatial, n_latent=10)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_imputed_values()

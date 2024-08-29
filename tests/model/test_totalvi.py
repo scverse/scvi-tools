@@ -1,5 +1,6 @@
 import os
 import pickle
+from time import time
 
 import numpy as np
 import pytest
@@ -804,3 +805,48 @@ def test_totalvi_old_activation_load(save_path: str):
 
     model = TOTALVI.load(resave_model_path, adata)
     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+
+
+def test_cpu_gpu_totalvi():
+    if torch.cuda.is_available():
+        adata = synthetic_iid(10000, 500)
+
+        TOTALVI.setup_anndata(
+            adata,
+            batch_key="batch",
+            protein_expression_obsm_key="protein_expression",
+            protein_names_uns_key="protein_names",
+        )
+
+        m = TOTALVI(adata)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_elbo()
+        m.get_marginal_ll(n_mc_samples=3)
+        m.get_reconstruction_error()
+
+        # run the exact same thing on GPU:
+        m2 = TOTALVI(adata)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cuda",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_elbo()
+        m2.get_marginal_ll(n_mc_samples=3)
+        m2.get_reconstruction_error()

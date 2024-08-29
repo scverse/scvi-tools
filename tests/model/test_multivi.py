@@ -1,5 +1,8 @@
+from time import time
+
 import numpy as np
 import pytest
+import torch
 
 from scvi.data import synthetic_iid
 from scvi.model import MULTIVI
@@ -76,3 +79,44 @@ def test_multivi_single_batch():
     vae = MULTIVI(data, n_genes=50, n_regions=50)
     with pytest.warns(UserWarning):
         vae.train(3)
+
+
+def test_cpu_gpu_multivi():
+    if torch.cuda.is_available():
+        adata = synthetic_iid(10000, 500)
+
+        MULTIVI.setup_anndata(
+            adata,
+            batch_key="batch",
+        )
+
+        m = MULTIVI(adata, n_genes=50, n_regions=50)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_elbo()
+        m.get_reconstruction_error()
+
+        # run the exact same thing on GPU:
+        m2 = MULTIVI(adata, n_genes=50, n_regions=50)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cuda",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_elbo()
+        m2.get_reconstruction_error()

@@ -2,6 +2,7 @@ import inspect
 import os
 import pickle
 import tarfile
+from time import time
 from unittest import mock
 
 import anndata
@@ -1109,3 +1110,49 @@ def test_scvi_num_workers():
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
+
+
+def test_cpu_gpu_scvi():
+    if torch.cuda.is_available():
+        adata = synthetic_iid(10000, 500)
+
+        adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+        SCVI.setup_anndata(
+            adata,
+            batch_key="batch",
+            labels_key="labels",
+            size_factor_key="size_factor",
+        )
+
+        m = SCVI(adata)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_elbo()
+        m.get_marginal_ll(n_mc_samples=3)
+        m.get_reconstruction_error()
+
+        # run the exact same thing on GPU:
+        m2 = SCVI(adata)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cuda",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_elbo()
+        m2.get_marginal_ll(n_mc_samples=3)
+        m2.get_reconstruction_error()

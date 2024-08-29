@@ -1,6 +1,8 @@
 import os
+from time import time
 
 import pytest
+import torch
 
 from scvi.data import synthetic_iid
 from scvi.model import CondSCVI
@@ -63,3 +65,41 @@ def test_condscvi_no_batch_key(save_path: str, weight_obs: bool):
     model_path = os.path.join(save_path, __name__)
     model.save(model_path, overwrite=True, save_anndata=False)
     model = CondSCVI.load(model_path, adata=adata)
+
+
+def test_cpu_gpu_condscvi():
+    if torch.cuda.is_available():
+        adata = synthetic_iid(10000, 500)
+
+        CondSCVI.setup_anndata(adata, labels_key="labels")
+
+        m = CondSCVI(adata)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_elbo()
+        m.get_reconstruction_error()
+
+        # run the exact same thing on GPU:
+        m2 = CondSCVI(adata)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cuda",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_elbo()
+        m2.get_reconstruction_error()

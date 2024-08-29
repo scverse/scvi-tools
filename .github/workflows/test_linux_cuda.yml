@@ -32,8 +32,8 @@ jobs:
         shell: bash -e {0} # -e to fail on error
 
     container:
-      #image: ghcr.io/scverse/scvi-tools:py3.11-cu12-base #should we change this?
-      image: ghcr.io/scverse/scvi-tools:py3.11-cu12-can_compile-dev #should we change this?
+      image: ghcr.io/scverse/scvi-tools:py3.11-cu12-base #TODO: should we change this?
+      #image: ghcr.io/scverse/scvi-tools:py3.11-cu12-can_compile-dev
       options: --user root --gpus all
 
     name: integration

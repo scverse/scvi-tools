@@ -1,5 +1,6 @@
 import os
 import pickle
+from time import time
 
 import numpy as np
 import pytest
@@ -232,3 +233,44 @@ def test_peakvi_online_update(save_path):
     grad = model3.module.z_decoder.px_decoder.fc_layers[0][0].weight.grad.cpu().numpy()
     # linear layer weight in decoder layer has non-zero grad
     assert np.count_nonzero(grad[:, :-4]) != 0
+
+
+def test_cpu_gpu_peakvi():
+    if torch.cuda.is_available():
+        adata = synthetic_iid(10000, 500)
+
+        PEAKVI.setup_anndata(
+            adata,
+            batch_key="batch",
+        )
+
+        m = PEAKVI(adata)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_elbo()
+        m.get_reconstruction_error()
+
+        # run the exact same thing on GPU:
+        m2 = PEAKVI(adata)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cuda",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_elbo()
+        m2.get_reconstruction_error()
