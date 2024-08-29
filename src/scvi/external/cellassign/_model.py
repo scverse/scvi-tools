@@ -81,12 +81,9 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         except KeyError as err:
             raise KeyError("Anndata and cell type markers do not contain the same genes.") from err
 
-        assert cell_type_markers.index.nunique() == len(
-            cell_type_markers.index
+        assert (
+            not cell_type_markers.index.has_duplicates
         ), "There are duplicates in cell type markers (rows in cell_type_markers)"
-        assert adata.var_names.nunique() == len(
-            adata.var_names
-        ), "There are duplicates in cell type markers (columns in adata)"
 
         super().__init__(adata)
 
