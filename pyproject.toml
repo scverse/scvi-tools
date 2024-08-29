@@ -176,8 +176,11 @@ select = [
     "C4",  # flake8-comprehensions
     "BLE",  # flake8-blind-except
     "UP",  # pyupgrade
-    "RUF100",  # Report unused noqa directives
+    "RUF",  # Report unused noqa directives
+    "PT" # pytest style
+    "NPY" # numpy formatting
 ]
+
 ignore = [
     # allow I, O, l as variable names -> I is the identity matrix
     #"E741",
