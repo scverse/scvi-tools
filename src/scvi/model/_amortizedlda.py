@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import pyro
-import torch
+import torchhttps://github.com/scverse/scvi-tools/pulls
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
