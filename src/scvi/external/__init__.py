@@ -1,11 +1,7 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .gimvi import GIMVI
-<<<<<<< HEAD
 from .methylvi import METHYLVI
-=======
-from .methylvi import MethylVI
->>>>>>> 28b58066 (Add documentation)
 from .mrvi import MRVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
