@@ -19,9 +19,9 @@ def test_methylvi():
         mdata,
         mc_layer="mc",
         cov_layer="cov",
-        methylation_modalities=["mod1", "mod2"],
+        methylation_contexts=["mod1", "mod2"],
         batch_key="batch",
-        covariate_modalities={"batch_key": "mod1"},
+        modalities={"batch_key": "mod1"},
     )
     vae = METHYLVI(
         mdata,
