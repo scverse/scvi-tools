@@ -59,7 +59,6 @@ to [Semantic Versioning]. Full commit history is available in the
     without averaging across cells {pr}`2362`.
 - Add support for setting `weights="importance"` in
     {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
-- Add {class}`scvi.external.methylVI` for methylVI {pr}`2834`.
 
 #### Changed
 
