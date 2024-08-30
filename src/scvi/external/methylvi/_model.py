@@ -17,6 +17,7 @@ from mudata import MuData
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager, fields
+from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.model.base import (
     ArchesMixin,
@@ -80,10 +81,9 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             else None
         )
 
-        # We feed in both the number of methylated counts (mc) and the
-        # total number of counts (cov) as inputs
-        self.contexts = self.get_anndata_manager(mdata).contexts
-
+        self.contexts = self.get_anndata_manager(mdata).registry[_SETUP_ARGS_KEY][
+            "methylation_contexts"
+        ]
         self.num_features_per_context = [mdata[context].shape[1] for context in self.contexts]
 
         n_input = np.sum(self.num_features_per_context)
@@ -119,12 +119,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
         Parameters
         ----------
-        %(param_mdata)s
-        mc_layer
-            Layer containing methylated cytosine counts for each set of methylation features.
-        cov_layer
-            Layer containing total coverage counts for each set of methylation features.
-        %(param_batch_key)s
+        %(param_adata)s
 
         Returns
         -------
@@ -225,9 +220,6 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         mudata_fields = mc_fields + cov_fields + [batch_field] + [cat_cov_field]
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
-        adata_manager.contexts = methylation_contexts
-        adata_manager.mc_layer = mc_layer
-        adata_manager.cov_layer = cov_layer
 
         cls.register_manager(adata_manager)
 
