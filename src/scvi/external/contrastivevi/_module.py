@@ -1,8 +1,9 @@
 """PyTorch module for Contrastive VI for single cell expression data."""
 
-from typing import Optional
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
@@ -12,6 +13,9 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder
+
+if TYPE_CHECKING:
+    import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
@@ -61,8 +65,8 @@ class ContrastiveVAE(BaseModuleClass):
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         use_observed_lib_size: bool = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
         wasserstein_penalty: float = 0,
     ) -> None:
         super().__init__()

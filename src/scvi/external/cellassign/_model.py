@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from lightning.pytorch.callbacks import Callback
 
 from scvi import REGISTRY_KEYS
@@ -24,6 +24,9 @@ from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 

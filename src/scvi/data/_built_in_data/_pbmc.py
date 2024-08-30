@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import anndata
@@ -10,7 +12,7 @@ from scvi.data._download import _download
 
 def _load_purified_pbmc_dataset(
     save_path: str = "data/",
-    subset_datasets: list[str] = None,
+    subset_datasets: list[str] | None = None,
 ) -> anndata.AnnData:
     url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
     save_fn = "PurifiedPBMCDataset.h5ad"

@@ -176,9 +176,10 @@ select = [
     "C4",  # flake8-comprehensions
     "BLE",  # flake8-blind-except
     "UP",  # pyupgrade
-    "RUF",  # Report unused noqa directives
     "PT", # pytest style
-    "NPY" # numpy formatting
+    "NPY", # numpy formatting
+    "TCH", # flake8-type-checking
+    "FA", # flake8-future-annotations
 ]
 
 ignore = [
@@ -200,6 +201,10 @@ ignore = [
     "D401",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
+    # Raising ValueError is sufficient in tests.
+    "PT011",
+    # We support np.random functions.
+    "NPY002"
 ]
 
 [tool.ruff.lint.pydocstyle]

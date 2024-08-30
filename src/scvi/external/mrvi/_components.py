@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal
+from typing import TYPE_CHECKING
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
+
+if TYPE_CHECKING:
+    from typing import Any, Callable, Literal
 
 PYTORCH_DEFAULT_SCALE = 1 / 3
 

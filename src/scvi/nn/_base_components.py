@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import collections
-from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from typing import TYPE_CHECKING
 
 import torch
 from torch import nn
@@ -8,6 +9,10 @@ from torch.distributions import Normal
 from torch.nn import ModuleList
 
 from scvi.nn._utils import ExpActivation
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Callable, Literal
 
 
 def _identity(x):
@@ -51,7 +56,7 @@ class FCLayers(nn.Module):
         self,
         n_in: int,
         n_out: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -223,13 +228,13 @@ class Encoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
-        var_activation: Optional[Callable] = None,
+        var_activation: Callable | None = None,
         return_dist: bool = False,
         **kwargs,
     ):
@@ -326,7 +331,7 @@ class DecoderSCVI(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         inject_covariates: bool = True,
@@ -417,7 +422,7 @@ class LinearDecoderSCVI(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
@@ -497,7 +502,7 @@ class Decoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         **kwargs,
@@ -553,7 +558,7 @@ class MultiEncoder(nn.Module):
         n_hidden: int = 128,
         n_layers_individual: int = 1,
         n_layers_shared: int = 2,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         return_dist: bool = False,
         **kwargs,
@@ -615,7 +620,7 @@ class MultiDecoder(nn.Module):
         n_hidden_shared: int = 128,
         n_layers_conditioned: int = 1,
         n_layers_shared: int = 1,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         dropout_rate: float = 0.2,
         **kwargs,
     ):
@@ -710,7 +715,7 @@ class DecoderTOTALVI(nn.Module):
         n_input: int,
         n_output_genes: int,
         n_output_proteins: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 1,
         n_hidden: int = 256,
         dropout_rate: float = 0,
@@ -939,7 +944,7 @@ class EncoderTOTALVI(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 2,
         n_hidden: int = 256,
         dropout_rate: float = 0.1,

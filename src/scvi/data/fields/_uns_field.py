@@ -1,12 +1,15 @@
-import logging
-from typing import Optional
+from __future__ import annotations
 
-import rich
-from anndata import AnnData
+import logging
+from typing import TYPE_CHECKING
 
 from scvi.data import _constants
 
 from ._base_field import BaseAnnDataField
+
+if TYPE_CHECKING:
+    import rich
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +29,7 @@ class BaseUnsField(BaseAnnDataField):
 
     _attr_name = _constants._ADATA_ATTRS.UNS
 
-    def __init__(self, registry_key: str, uns_key: Optional[str], required: bool = True) -> None:
+    def __init__(self, registry_key: str, uns_key: str | None, required: bool = True) -> None:
         super().__init__()
         if required and uns_key is None:
             raise ValueError(
@@ -80,6 +83,6 @@ class StringUnsField(BaseUnsField):
         """Get summary stats."""
         return {}
 
-    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         return None

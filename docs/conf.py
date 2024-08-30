@@ -5,9 +5,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 from importlib.metadata import metadata
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]

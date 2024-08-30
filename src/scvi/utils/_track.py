@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import sys
-from collections.abc import Iterable
-from typing import Literal
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.progress import track as track_base
@@ -8,12 +9,16 @@ from tqdm import tqdm as tqdm_base
 
 from scvi import settings
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Literal
+
 
 def track(
     sequence: Iterable,
     description: str = "Working...",
     disable: bool = False,
-    style: Literal["rich", "tqdm"] = None,
+    style: Literal["rich", "tqdm"] | None = None,
     **kwargs,
 ):
     """Progress bar with `'rich'` and `'tqdm'` styles.

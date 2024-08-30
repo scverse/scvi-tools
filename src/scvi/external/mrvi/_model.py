@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import numpy.typing as npt
 import xarray as xr
-from anndata import AnnData
-from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
@@ -20,6 +17,13 @@ from scvi.external.mrvi._types import MRVIReduction
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    import numpy.typing as npt
+    from anndata import AnnData
+    from numpyro.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 def _load_brainlarge_dataset(
     save_path: str = "data/",
     sample_size_gene_var: int = 10000,
-    max_cells_to_keep: int = None,
+    max_cells_to_keep: int | None = None,
     n_genes_to_keep: int = 720,
     loading_batch_size: int = 100000,
 ) -> anndata.AnnData:

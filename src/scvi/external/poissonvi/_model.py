@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -28,6 +25,13 @@ from scvi.model.base._de_core import _de_core
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import de_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    import pandas as pd
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -134,13 +138,13 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     def get_accessibility_estimates(
         self,
         adata: AnnData | None = None,
-        indices: Sequence[int] = None,
+        indices: Sequence[int] | None = None,
         transform_batch: str | int | None = None,
         region_list: Sequence[str] | None = None,
         library_size: float | Literal["latent"] = 1,
         normalize_regions: bool = False,
         n_samples: int = 1,
-        n_samples_overall: int = None,
+        n_samples_overall: int | None = None,
         weights: Literal["uniform", "importance"] | None = None,
         batch_size: int = 128,
         return_mean: bool = True,

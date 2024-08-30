@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 from itertools import cycle
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 from torch.utils.data import DataLoader
 
-from scvi.data import AnnDataManager
-
 from ._ann_dataloader import AnnDataLoader
+
+if TYPE_CHECKING:
+    from scvi.data import AnnDataManager
 
 
 class ConcatDataLoader(DataLoader):
@@ -36,8 +39,8 @@ class ConcatDataLoader(DataLoader):
         indices_list: list[list[int]],
         shuffle: bool = False,
         batch_size: int = 128,
-        data_and_attributes: Optional[dict] = None,
-        drop_last: Union[bool, int] = False,
+        data_and_attributes: dict | None = None,
+        drop_last: bool | int = False,
         **data_loader_kwargs,
     ):
         self.adata_manager = adata_manager

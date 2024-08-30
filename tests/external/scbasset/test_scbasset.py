@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 import pytest
@@ -10,7 +11,7 @@ from scvi.external import SCBASSET
 _DNA_CODE_KEY = "code"
 
 
-def _get_adata(sparse_format: Optional[str] = None):
+def _get_adata(sparse_format: str | None = None):
     dataset1 = synthetic_iid(batch_size=100, sparse_format=sparse_format).transpose()
     dataset1.X = (dataset1.X > 0).astype(float)
     dataset1.obsm[_DNA_CODE_KEY] = np.random.randint(0, 3, size=(dataset1.n_obs, 1344))
@@ -41,7 +42,7 @@ def test_scbasset_batch():
     assert hasattr(model.module, "batch_ids")
 
 
-@pytest.mark.internet
+@pytest.mark.internet()
 def test_scbasset_motif_download(save_path):
     # get a temporary directory name
     SCBASSET._download_motifs(genome="human", motif_dir=save_path)
@@ -51,7 +52,7 @@ def test_scbasset_motif_download(save_path):
     return
 
 
-@pytest.mark.internet
+@pytest.mark.internet()
 def test_scbasset_tf(save_path):
     adata = _get_adata()
     SCBASSET.setup_anndata(

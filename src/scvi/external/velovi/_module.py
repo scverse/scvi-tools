@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Literal
+from typing import TYPE_CHECKING
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn as nn
@@ -14,6 +12,12 @@ from scvi.external.velovi._constants import VELOVI_REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Literal
+
+    import numpy as np
 
 
 class DecoderVELOVI(nn.Module):
@@ -50,7 +54,7 @@ class DecoderVELOVI(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         inject_covariates: bool = True,
@@ -104,7 +108,7 @@ class DecoderVELOVI(nn.Module):
         self.linear_scaling_tau = nn.Parameter(torch.zeros(n_output))
         self.linear_scaling_tau_intercept = nn.Parameter(torch.zeros(n_output))
 
-    def forward(self, z: torch.Tensor, latent_dim: int = None):
+    def forward(self, z: torch.Tensor, latent_dim: int | None = None):
         """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network

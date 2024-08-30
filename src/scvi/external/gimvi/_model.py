@@ -4,10 +4,10 @@ import logging
 import os
 import warnings
 from itertools import cycle
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from anndata import AnnData
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS, settings
@@ -15,7 +15,7 @@ from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.dataloaders import AnnDataLoader, DataSplitter
+from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
@@ -25,6 +25,11 @@ from scvi.utils._docstrings import devices_dsp
 from ._module import JVAE
 from ._task import GIMVITrainingPlan
 from ._utils import _load_legacy_saved_gimvi_files, _load_saved_gimvi_files
+
+if TYPE_CHECKING:
+    from anndata import AnnData
+
+    from scvi.dataloaders import AnnDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -264,7 +269,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         self.is_trained_ = True
 
     def _make_scvi_dls(
-        self, adatas: list[AnnData] = None, batch_size: int = 128
+        self, adatas: list[AnnData] | None = None, batch_size: int = 128
     ) -> list[AnnDataLoader]:
         if adatas is None:
             adatas = self.adatas
@@ -277,7 +282,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adatas: list[AnnData] = None,
+        adatas: list[AnnData] | None = None,
         deterministic: bool = True,
         batch_size: int = 128,
     ) -> list[np.ndarray]:
@@ -318,7 +323,7 @@ class GIMVI(VAEMixin, BaseModelClass):
     @torch.inference_mode()
     def get_imputed_values(
         self,
-        adatas: list[AnnData] = None,
+        adatas: list[AnnData] | None = None,
         deterministic: bool = True,
         normalized: bool = True,
         decode_mode: int | None = None,

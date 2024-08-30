@@ -1,8 +1,9 @@
 """Main module."""
 
-from typing import Optional, Union
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal, Poisson
@@ -13,6 +14,9 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, MultiDecoder, MultiEncoder
+
+if TYPE_CHECKING:
+    import numpy as np
 
 torch.backends.cudnn.benchmark = True
 
@@ -80,11 +84,11 @@ class JVAE(BaseModuleClass):
         self,
         dim_input_list: list[int],
         total_genes: int,
-        indices_mappings: list[Union[np.ndarray, slice]],
+        indices_mappings: list[np.ndarray | slice],
         gene_likelihoods: list[str],
         model_library_bools: list[bool],
-        library_log_means: list[Optional[np.ndarray]],
-        library_log_vars: list[Optional[np.ndarray]],
+        library_log_means: list[np.ndarray | None],
+        library_log_vars: list[np.ndarray | None],
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
         n_layers_encoder_shared: int = 1,
@@ -173,7 +177,7 @@ class JVAE(BaseModuleClass):
             pass
 
     def sample_from_posterior_z(
-        self, x: torch.Tensor, mode: int = None, deterministic: bool = False
+        self, x: torch.Tensor, mode: int | None = None, deterministic: bool = False
     ) -> torch.Tensor:
         """Sample tensor of latent values from the posterior.
 
@@ -204,7 +208,7 @@ class JVAE(BaseModuleClass):
         return z
 
     def sample_from_posterior_l(
-        self, x: torch.Tensor, mode: int = None, deterministic: bool = False
+        self, x: torch.Tensor, mode: int | None = None, deterministic: bool = False
     ) -> torch.Tensor:
         """Sample the tensor of library sizes from the posterior.
 
@@ -235,9 +239,9 @@ class JVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int,
         batch_index: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
+        y: torch.Tensor | None = None,
         deterministic: bool = False,
-        decode_mode: Optional[int] = None,
+        decode_mode: int | None = None,
     ) -> torch.Tensor:
         """Return the tensor of predicted frequencies of expression.
 
@@ -282,9 +286,9 @@ class JVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int,
         batch_index: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
+        y: torch.Tensor | None = None,
         deterministic: bool = False,
-        decode_mode: int = None,
+        decode_mode: int | None = None,
     ) -> dict:
         """Run the forward pass of the model."""
         if decode_mode is None:
@@ -307,9 +311,9 @@ class JVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int,
         batch_index: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
+        y: torch.Tensor | None = None,
         deterministic: bool = False,
-        decode_mode: int = None,
+        decode_mode: int | None = None,
     ) -> torch.Tensor:
         """Returns the tensor of scaled frequencies of expression.
 
@@ -379,7 +383,7 @@ class JVAE(BaseModuleClass):
         return {"z": z, "library": library, "batch_index": batch_index, "y": y}
 
     @auto_move_data
-    def inference(self, x: torch.Tensor, mode: Optional[int] = None) -> dict:
+    def inference(self, x: torch.Tensor, mode: int | None = None) -> dict:
         """Run the inference model."""
         x_ = x
         if self.log_variational:
@@ -399,9 +403,9 @@ class JVAE(BaseModuleClass):
         self,
         z: torch.Tensor,
         library: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
-        mode: Optional[int] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
+        mode: int | None = None,
     ) -> dict:
         """Run the generative model."""
         px_scale, px_r, px_rate, px_dropout = self.decoder(
@@ -432,7 +436,7 @@ class JVAE(BaseModuleClass):
         tensors,
         inference_outputs,
         generative_outputs,
-        mode: Optional[int] = None,
+        mode: int | None = None,
         kl_weight=1.0,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return the reconstruction loss and the Kullback divergences.

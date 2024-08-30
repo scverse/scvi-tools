@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 
@@ -37,7 +39,7 @@ def _load_csv(
     path_to_file: str,
     gene_by_cell: bool = False,
     delimiter: str = ",",
-    first_column_names: bool = None,
+    first_column_names: bool | None = None,
 ):
     logger.info(f"Loading dataset from {path_to_file}")
     adata = anndata.read_csv(

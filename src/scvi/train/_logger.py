@@ -1,9 +1,14 @@
-from typing import Any, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import torch
 from lightning.pytorch.loggers.logger import Logger, rank_zero_experiment
 from lightning.pytorch.utilities import rank_zero_only
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 class SimpleExperiment:
@@ -15,7 +20,7 @@ class SimpleExperiment:
     def log_hparams(self, params: dict[str, Any]) -> None:
         """Record hparams."""
 
-    def log_metrics(self, metrics: dict[str, float], step: Optional[int] = None) -> None:
+    def log_metrics(self, metrics: dict[str, float], step: int | None = None) -> None:
         """Record metrics."""
 
         def _handle_value(value):
@@ -45,7 +50,7 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(self, name: str = "lightning_logs", version: Optional[Union[int, str]] = None):
+    def __init__(self, name: str = "lightning_logs", version: int | str | None = None):
         super().__init__()
         self._name = name
         self._experiment = None

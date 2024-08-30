@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Callable, Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch.distributions import Distribution
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS, settings
@@ -17,6 +16,11 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
+
+if TYPE_CHECKING:
+    from typing import Callable, Literal
+
+    from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +165,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: np.ndarray | None = None,
         library_log_vars: np.ndarray | None = None,
-        var_activation: Callable[[torch.Tensor], torch.Tensor] = None,
+        var_activation: Callable[[torch.Tensor], torch.Tensor] | None = None,
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
@@ -221,7 +225,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             n_input_encoder += batch_dim * encode_covariates
             cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
         else:
-            cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
+            cat_list = [n_batch, *list([] if n_cats_per_cov is None else n_cats_per_cov)]
 
         encoder_cat_list = cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}

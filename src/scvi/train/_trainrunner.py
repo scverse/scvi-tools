@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import logging
 import warnings
-from typing import Union
+from typing import TYPE_CHECKING
 
-import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
 
 from scvi import settings
-from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
-from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
+
+if TYPE_CHECKING:
+    import lightning.pytorch as pl
+
+    from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
+    from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
@@ -58,10 +63,10 @@ class TrainRunner:
         self,
         model: BaseModelClass,
         training_plan: pl.LightningModule,
-        data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
+        data_splitter: SemiSupervisedDataSplitter | DataSplitter,
         max_epochs: int,
         accelerator: str = "auto",
-        devices: Union[int, list[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan

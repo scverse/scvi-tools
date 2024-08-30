@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
-import numpy as np
-import pandas as pd
-import rich
-
-from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._utils import get_anndata_attribute
+
+if TYPE_CHECKING:
+    import numpy as np
+    import pandas as pd
+    import rich
+
+    from scvi._types import AnnOrMuData
 
 
 class BaseAnnDataField(ABC):
@@ -29,11 +33,11 @@ class BaseAnnDataField(ABC):
 
     @property
     @abstractmethod
-    def attr_key(self) -> Optional[str]:
+    def attr_key(self) -> str | None:
         """The key of the data field within the relevant AnnData attribute."""
 
     @property
-    def mod_key(self) -> Optional[str]:
+    def mod_key(self) -> str | None:
         """The modality key of the data field within the MuData (if applicable)."""
         return None
 
@@ -108,7 +112,7 @@ class BaseAnnDataField(ABC):
         """
 
     @abstractmethod
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """Returns a :class:`rich.table.Table` summarizing a state registry produced by this field.
 
         Parameters
@@ -123,7 +127,7 @@ class BaseAnnDataField(ABC):
             Optional :class:`rich.table.Table` summarizing the ``state_registry``.
         """
 
-    def get_field_data(self, adata: AnnOrMuData) -> Union[np.ndarray, pd.DataFrame]:
+    def get_field_data(self, adata: AnnOrMuData) -> np.ndarray | pd.DataFrame:
         """Returns the requested data as determined by the field."""
         if self.is_empty:
             raise AssertionError(f"The {self.registry_key} field is empty.")

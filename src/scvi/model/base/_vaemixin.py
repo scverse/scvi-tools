@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING
 
-import numpy.typing as npt
 import torch
-from anndata import AnnData
-from torch import Tensor
 
 from scvi.utils import unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
+    import numpy.typing as npt
+    from anndata import AnnData
+    from torch import Tensor
+    from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +28,7 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
         **kwargs,
     ) -> float:
@@ -85,7 +90,7 @@ class VAEMixin:
         n_mc_samples: int = 1_000,
         batch_size: int | None = None,
         return_mean: bool = True,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         **kwargs,
     ) -> float | Tensor:
         """Compute the marginal log-likehood of the data.
@@ -161,7 +166,7 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
         **kwargs,
     ) -> dict[str, float]:
@@ -226,7 +231,7 @@ class VAEMixin:
         mc_samples: int = 5_000,
         batch_size: int | None = None,
         return_dist: bool = False,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
         """Compute the latent representation of the data.
 
@@ -265,7 +270,7 @@ class VAEMixin:
         a tuple of arrays ``(n_obs, n_latent)`` with the mean and variance of the latent
         distribution.
         """
-        from torch.distributions import Distribution, Normal
+        from torch.distributions import Normal
         from torch.nn.functional import softmax
 
         from scvi.module._constants import MODULE_KEYS

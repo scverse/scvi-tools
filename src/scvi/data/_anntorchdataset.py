@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import h5py
 import numpy as np
 import pandas as pd
-import torch
 
 try:
     # anndata >= 0.10
@@ -22,6 +21,8 @@ from torch.utils.data import Dataset
 from scvi._constants import REGISTRY_KEYS
 
 if TYPE_CHECKING:
+    import torch
+
     from ._manager import AnnDataManager
 from ._utils import registry_key_to_default_dtype, scipy_to_torch_sparse
 

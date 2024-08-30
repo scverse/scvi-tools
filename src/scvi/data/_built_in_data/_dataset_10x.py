@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import shutil
@@ -75,10 +77,10 @@ group_to_filename_skeleton = {
 
 
 def _load_dataset_10x(
-    dataset_name: str = None,
-    filename: str = None,
+    dataset_name: str | None = None,
+    filename: str | None = None,
     save_path: str = "data/10X",
-    url: str = None,
+    url: str | None = None,
     return_filtered: bool = True,
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,

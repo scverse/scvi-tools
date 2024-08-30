@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from copy import deepcopy
-from typing import Optional
 
 import numpy as np
 
@@ -26,7 +27,7 @@ LEGACY_REGISTRY_KEY_MAP = {
 }
 
 
-def _infer_setup_args(model_cls, setup_dict: dict, unlabeled_category: Optional[str]) -> dict:
+def _infer_setup_args(model_cls, setup_dict: dict, unlabeled_category: str | None) -> dict:
     setup_args = {}
     data_registry = setup_dict[_constants._DATA_REGISTRY_KEY]
     categorical_mappings = setup_dict["categorical_mappings"]
@@ -73,7 +74,7 @@ def _infer_setup_args(model_cls, setup_dict: dict, unlabeled_category: Optional[
 
 
 def registry_from_setup_dict(
-    model_cls, setup_dict: dict, unlabeled_category: Optional[str] = None
+    model_cls, setup_dict: dict, unlabeled_category: str | None = None
 ) -> dict:
     """Converts old setup dict format to new registry dict format.
 

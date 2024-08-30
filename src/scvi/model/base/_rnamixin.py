@@ -4,22 +4,27 @@ import inspect
 import logging
 import warnings
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.distributions as db
-from anndata import AnnData
 from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
 from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import de_dsp, dependencies, unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
+
+    from scvi._types import Number
 
 try:
     from sparse import GCXS
@@ -151,7 +156,7 @@ class RNASeqMixin:
         gene_list: list[str] | None = None,
         library_size: float | Literal["latent"] = 1,
         n_samples: int = 1,
-        n_samples_overall: int = None,
+        n_samples_overall: int | None = None,
         weights: Literal["uniform", "importance"] | None = None,
         batch_size: int | None = None,
         return_mean: bool = True,

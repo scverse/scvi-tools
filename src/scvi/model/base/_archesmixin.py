@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from copy import deepcopy
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 import anndata
 import numpy as np
@@ -12,7 +14,6 @@ from mudata import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
@@ -25,7 +26,10 @@ from scvi.model.base._save_load import (
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
-from ._base_model import BaseModelClass
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
+
+    from ._base_model import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
@@ -40,10 +44,10 @@ class ArchesMixin:
     def load_query_data(
         cls,
         adata: AnnOrMuData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
+        device: int | str = "auto",
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -180,10 +184,10 @@ class ArchesMixin:
     @staticmethod
     def prepare_query_anndata(
         adata: AnnData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[AnnData, pd.Index]]:
+    ) -> AnnData | pd.Index | None:
         """Prepare data for query integration.
 
         This function will return a new AnnData object with padded zeros
@@ -219,10 +223,10 @@ class ArchesMixin:
     @staticmethod
     def prepare_query_mudata(
         mdata: MuData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[MuData, dict[str, pd.Index]]]:
+    ) -> MuData | dict[str, pd.Index] | None:
         """Prepare multimodal dataset for query integration.
 
         This function will return a new MuData object such that the

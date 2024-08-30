@@ -1,13 +1,17 @@
-from typing import Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from scvi import REGISTRY_KEYS
-from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 
 from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
+
+if TYPE_CHECKING:
+    from scvi.data import AnnDataManager
 
 
 class SemiSupervisedDataLoader(ConcatDataLoader):
@@ -37,12 +41,12 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        n_samples_per_label: Optional[int] = None,
-        indices: Optional[list[int]] = None,
+        n_samples_per_label: int | None = None,
+        indices: list[int] | None = None,
         shuffle: bool = False,
         batch_size: int = 128,
-        data_and_attributes: Optional[dict] = None,
-        drop_last: Union[bool, int] = False,
+        data_and_attributes: dict | None = None,
+        drop_last: bool | int = False,
         **data_loader_kwargs,
     ):
         adata = adata_manager.adata

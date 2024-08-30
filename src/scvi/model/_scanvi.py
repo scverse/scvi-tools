@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from copy import deepcopy
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
     _ADATA_MINIFY_TYPE_UNS_KEY,
@@ -21,7 +18,6 @@ from scvi.data._constants import (
 )
 from scvi.data._utils import _get_adata_minify_type, _is_minified, get_anndata_attribute
 from scvi.data.fields import (
-    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
@@ -40,8 +36,20 @@ from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
-from ._scvi import SCVI
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from anndata import AnnData
+
+    from scvi._types import MinifiedDataType
+    from scvi.data.fields import (
+        BaseAnnDataField,
+    )
+
+    from ._scvi import SCVI
 
 _SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
 _SCANVI_LATENT_QZV = "_scanvi_latent_qzv"

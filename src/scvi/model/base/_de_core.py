@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Iterable as IterableClass
-from typing import Union
+from typing import TYPE_CHECKING
 
-import anndata
 import numpy as np
 import pandas as pd
 
@@ -10,12 +11,15 @@ from scvi.utils import track
 
 from ._differential import DifferentialComputation
 
+if TYPE_CHECKING:
+    import anndata
+
 logger = logging.getLogger(__name__)
 
 
 def _prepare_obs(
-    idx1: Union[list[bool], np.ndarray, str],
-    idx2: Union[list[bool], np.ndarray, str],
+    idx1: list[bool] | np.ndarray | str,
+    idx2: list[bool] | np.ndarray | str,
     adata: anndata.AnnData,
 ):
     """Construct an array used for masking.

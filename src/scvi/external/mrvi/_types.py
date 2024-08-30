@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import TYPE_CHECKING
 
 from xarray import DataArray
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Callable, Literal
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import inspect
 import logging
 import warnings
-from collections.abc import Sequence
-from typing import Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -12,8 +13,13 @@ from sklearn.covariance import EllipticEnvelope
 from sklearn.mixture import GaussianMixture
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
-from scvi.data import AnnDataManager
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Callable, Literal
+
+    from scvi._types import Number
+    from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +53,7 @@ class DifferentialComputation:
         self.model_fn = model_fn
         self.representation_fn = representation_fn
 
-    def filter_outlier_cells(self, selection: Union[list[bool], np.ndarray]):
+    def filter_outlier_cells(self, selection: list[bool] | np.ndarray):
         """Filters out cells that are outliers in the representation space."""
         selection = self.process_selection(selection)
         reps = self.representation_fn(
@@ -68,20 +74,20 @@ class DifferentialComputation:
 
     def get_bayes_factors(
         self,
-        idx1: Union[list[bool], np.ndarray],
-        idx2: Union[list[bool], np.ndarray],
+        idx1: list[bool] | np.ndarray,
+        idx2: list[bool] | np.ndarray,
         mode: Literal["vanilla", "change"] = "vanilla",
-        batchid1: Optional[Sequence[Union[Number, str]]] = None,
-        batchid2: Optional[Sequence[Union[Number, str]]] = None,
-        use_observed_batches: Optional[bool] = False,
+        batchid1: Sequence[Number | str] | None = None,
+        batchid2: Sequence[Number | str] | None = None,
+        use_observed_batches: bool | None = False,
         n_samples: int = 5000,
         use_permutation: bool = False,
         m_permutation: int = 10000,
-        change_fn: Optional[Union[str, Callable]] = None,
-        m1_domain_fn: Optional[Callable] = None,
-        delta: Optional[float] = 0.5,
-        pseudocounts: Union[float, None] = 0.0,
-        cred_interval_lvls: Optional[Union[list[float], np.ndarray]] = None,
+        change_fn: str | Callable | None = None,
+        m1_domain_fn: Callable | None = None,
+        delta: float | None = 0.5,
+        pseudocounts: float | None = 0.0,
+        cred_interval_lvls: list[float] | np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
 
@@ -375,12 +381,12 @@ class DifferentialComputation:
     @torch.inference_mode()
     def scale_sampler(
         self,
-        selection: Union[list[bool], np.ndarray],
-        n_samples: Optional[int] = 5000,
-        n_samples_per_cell: Optional[int] = None,
-        batchid: Optional[Sequence[Union[Number, str]]] = None,
-        use_observed_batches: Optional[bool] = False,
-        give_mean: Optional[bool] = False,
+        selection: list[bool] | np.ndarray,
+        n_samples: int | None = 5000,
+        n_samples_per_cell: int | None = None,
+        batchid: Sequence[Number | str] | None = None,
+        use_observed_batches: bool | None = False,
+        give_mean: bool | None = False,
     ) -> dict:
         """Samples the posterior scale using the variational posterior distribution.
 
@@ -471,7 +477,7 @@ class DifferentialComputation:
             px_scales = px_scales.mean(0)
         return {"scale": px_scales, "batch": batch_ids}
 
-    def process_selection(self, selection: Union[list[bool], np.ndarray]) -> np.ndarray:
+    def process_selection(self, selection: list[bool] | np.ndarray) -> np.ndarray:
         """If selection is a mask, convert it to indices."""
         selection = np.asarray(selection)
         if selection.dtype is np.dtype("bool"):
@@ -509,7 +515,7 @@ def estimate_pseudocounts_offset(
     scales_b: list[np.ndarray],
     where_zero_a: list[np.ndarray],
     where_zero_b: list[np.ndarray],
-    percentile: Optional[float] = 0.9,
+    percentile: float | None = 0.9,
 ):
     """Determines pseudocount offset.
 
@@ -551,13 +557,13 @@ def estimate_pseudocounts_offset(
 
 
 def pairs_sampler(
-    arr1: Union[list[float], np.ndarray, torch.Tensor],
-    arr2: Union[list[float], np.ndarray, torch.Tensor],
+    arr1: list[float] | np.ndarray | torch.Tensor,
+    arr2: list[float] | np.ndarray | torch.Tensor,
     use_permutation: bool = True,
-    m_permutation: int = None,
+    m_permutation: int | None = None,
     sanity_check_perm: bool = False,
-    weights1: Union[list[float], np.ndarray, torch.Tensor] = None,
-    weights2: Union[list[float], np.ndarray, torch.Tensor] = None,
+    weights1: list[float] | np.ndarray | torch.Tensor = None,
+    weights2: list[float] | np.ndarray | torch.Tensor = None,
 ) -> tuple:
     """Creates more pairs.
 
@@ -615,7 +621,7 @@ def pairs_sampler(
 
 
 def credible_intervals(
-    ary: np.ndarray, confidence_level: Union[float, list[float], np.ndarray] = 0.94
+    ary: np.ndarray, confidence_level: float | list[float] | np.ndarray = 0.94
 ) -> np.ndarray:
     """Calculate highest posterior density (HPD) of array for given credible_interval.
 
@@ -660,8 +666,8 @@ def credible_intervals(
 
 
 def describe_continuous_distrib(
-    samples: Union[np.ndarray, torch.Tensor],
-    credible_intervals_levels: Optional[Union[list[float], np.ndarray]] = None,
+    samples: np.ndarray | torch.Tensor,
+    credible_intervals_levels: list[float] | np.ndarray | None = None,
 ) -> dict:
     """Computes properties of distribution based on its samples.
 

@@ -1,30 +1,35 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 import flax
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pyro
-import torch
 from flax.training import train_state
 from jax import random
-from jaxlib.xla_extension import Device
-from numpyro.distributions import Distribution
-from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Any, Callable
+
+    import jax.numpy as jnp
+    import torch
+    from jaxlib.xla_extension import Device
+    from numpyro.distributions import Distribution
+    from pyro.infer.predictive import Predictive
+
+    from scvi._types import LossRecord, MinifiedDataType, Tensor
 
 
 @flax.struct.dataclass
@@ -114,7 +119,7 @@ class LossOutput:
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
-            object.__setattr__(self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0])
+            object.__setattr__(self, "n_obs_minibatch", next(iter(rec_loss.values())).shape[0])
 
         if self.classification_loss is not None and (
             self.logits is None or self.true_labels is None

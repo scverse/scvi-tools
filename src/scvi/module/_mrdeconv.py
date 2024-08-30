@@ -1,7 +1,7 @@
-from collections import OrderedDict
-from typing import Literal, Optional
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
 from torch.distributions import Normal
 
@@ -9,6 +9,12 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
+
+if TYPE_CHECKING:
+    from collections import OrderedDict
+    from typing import Literal
+
+    import numpy as np
 
 
 def identity(x):
@@ -89,8 +95,8 @@ class MRDeconv(BaseModuleClass):
         l1_reg: float = 0.0,
         beta_reg: float = 5.0,
         eta_reg: float = 1e-4,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.n_spots = n_spots
@@ -365,7 +371,7 @@ class MRDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(
-        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
+        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int | None = None
     ):
         """Returns cell type specific gene expression at the queried spots.
 

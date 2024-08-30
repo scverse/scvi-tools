@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import warnings
 from itertools import cycle
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 from scvi import settings
-from scvi.data import AnnDataManager
 from scvi.dataloaders import ConcatDataLoader
+
+if TYPE_CHECKING:
+    from scvi.data import AnnDataManager
 
 
 class _ContrastiveIterator:
@@ -74,8 +78,8 @@ class ContrastiveDataLoader(ConcatDataLoader):
         target_indices: list[int],
         shuffle: bool = False,
         batch_size: int = 128,
-        data_and_attributes: Optional[dict] = None,
-        drop_last: Union[bool, int] = False,
+        data_and_attributes: dict | None = None,
+        drop_last: bool | int = False,
         distributed_sampler: bool = False,
         load_sparse_tensor: bool = False,
         **data_loader_kwargs,

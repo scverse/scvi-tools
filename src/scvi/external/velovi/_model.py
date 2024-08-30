@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from anndata import AnnData
 from joblib import Parallel, delayed
 from scipy.stats import ttest_ind
 
@@ -22,6 +20,12 @@ from scvi.external.velovi._module import VELOVAE
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +135,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         early_stopping: bool = True,
         gradient_clip_val: float = 10,
         plan_kwargs: dict | None = None,
-        external_indexing: list[np.ndarray] = None,
+        external_indexing: list[np.ndarray] | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -942,7 +946,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         n_samples: int = 50,
-        gene_list: Iterable[str] = None,
+        gene_list: Iterable[str] | None = None,
         n_jobs: int = -1,
     ):
         adata = self._validate_anndata(adata)

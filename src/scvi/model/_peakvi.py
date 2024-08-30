@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 
 from scvi import settings
@@ -32,6 +30,12 @@ from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, VAEMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -264,7 +268,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def get_library_size_factors(
         self,
         adata: AnnData | None = None,
-        indices: Sequence[int] = None,
+        indices: Sequence[int] | None = None,
         batch_size: int = 128,
     ) -> dict[str, np.ndarray]:
         """Return library size factors.
@@ -305,7 +309,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def get_accessibility_estimates(
         self,
         adata: AnnData | None = None,
-        indices: Sequence[int] = None,
+        indices: Sequence[int] | None = None,
         n_samples_overall: int | None = None,
         region_list: Sequence[str] | None = None,
         transform_batch: str | int | None = None,

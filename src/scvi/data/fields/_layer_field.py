@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
-import rich
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
@@ -15,6 +15,10 @@ from scvi.data._utils import (
 
 from ._base_field import BaseAnnDataField
 from ._mudata import MuDataWrapper
+
+if TYPE_CHECKING:
+    import rich
+    from anndata import AnnData
 
 
 class LayerField(BaseAnnDataField):
@@ -43,7 +47,7 @@ class LayerField(BaseAnnDataField):
     def __init__(
         self,
         registry_key: str,
-        layer: Optional[str],
+        layer: str | None,
         is_count_data: bool = True,
         correct_data_format: bool = True,
         check_fragment_counts: bool = False,
@@ -72,7 +76,7 @@ class LayerField(BaseAnnDataField):
         return self._attr_name
 
     @property
-    def attr_key(self) -> Optional[str]:
+    def attr_key(self) -> str | None:
         return self._attr_key
 
     @property
@@ -140,7 +144,7 @@ class LayerField(BaseAnnDataField):
             summary_stats[self.N_CELLS_KEY] = state_registry[self.N_OBS_KEY]
         return summary_stats
 
-    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         return None
 

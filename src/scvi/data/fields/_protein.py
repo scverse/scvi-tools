@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-from anndata import AnnData
-from mudata import MuData
 
 from ._arraylike_field import ObsmField
 from ._layer_field import LayerField
 from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
+
+if TYPE_CHECKING:
+    from anndata import AnnData
+    from mudata import MuData
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +39,7 @@ class ProteinFieldMixin:
         self,
         *base_field_args,
         use_batch_mask: bool = True,
-        batch_field: Optional[str] = None,
+        batch_field: str | None = None,
         **base_field_kwargs,
     ) -> None:
         if use_batch_mask and batch_field is None:
@@ -50,7 +54,7 @@ class ProteinFieldMixin:
             **base_field_kwargs,
         )
 
-    def _get_batch_mask_protein_data(self, adata: AnnData) -> Optional[dict]:
+    def _get_batch_mask_protein_data(self, adata: AnnData) -> dict | None:
         """Returns a dict with length number of batches where each entry is a mask.
 
         The mask is over cell measurement columns that are present (observed)

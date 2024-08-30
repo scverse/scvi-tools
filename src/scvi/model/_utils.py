@@ -1,27 +1,35 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
-from collections.abc import Sequence
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
-from lightning.pytorch.strategies import DDPStrategy, Strategy
+from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
-from scvi.data import AnnDataManager
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from lightning.pytorch.strategies import Strategy
+
+    from scvi._types import Number
+    from scvi.data import AnnDataManager
 
 logger = logging.getLogger(__name__)
 
 
-def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
+def use_distributed_sampler(strategy: str | Strategy) -> bool:
     """``EXPERIMENTAL`` Return whether to use a distributed sampler.
 
     Currently only supports DDP.
@@ -73,8 +81,8 @@ def get_max_epochs_heuristic(
 @devices_dsp.dedent
 def parse_device_args(
     accelerator: str = "auto",
-    devices: Union[int, list[int], str] = "auto",
-    return_device: Optional[Literal["torch", "jax"]] = None,
+    devices: int | list[int] | str = "auto",
+    return_device: Literal["torch", "jax"] | None = None,
     validate_single_device: bool = False,
 ):
     """Parses device-related arguments.
@@ -150,9 +158,9 @@ def parse_device_args(
 
 def scrna_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -218,8 +226,8 @@ def scrna_raw_counts_properties(
 
 def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -262,9 +270,9 @@ def cite_seq_raw_counts_properties(
 
 def scatac_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -296,9 +304,7 @@ def scatac_raw_counts_properties(
     return properties
 
 
-def _get_batch_code_from_category(
-    adata_manager: AnnDataManager, category: Sequence[Union[Number, str]]
-):
+def _get_batch_code_from_category(adata_manager: AnnDataManager, category: Sequence[Number | str]):
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 

@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -38,6 +36,11 @@ from scvi.utils._docstrings import devices_dsp
 
 from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 Number = Union[int, float]

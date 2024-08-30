@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,6 @@ from sklearn.metrics import (
 from sparse import GCXS, SparseArray
 from xarray import DataArray, Dataset
 
-from scvi.model.base import BaseModelClass
 from scvi.utils import dependencies
 
 from ._constants import (
@@ -32,6 +31,9 @@ from ._constants import (
     UNS_NAME_RGG_PPC,
     UNS_NAME_RGG_RAW,
 )
+
+if TYPE_CHECKING:
+    from scvi.model.base import BaseModelClass
 
 Dims = Literal["cells", "features"]
 
@@ -195,7 +197,7 @@ class PosteriorPredictiveCheck:
         mean = _make_dataset_dense(mean)
         self.metrics[METRIC_ZERO_FRACTION] = mean.to_dataframe()
 
-    def calibration_error(self, confidence_intervals: list[float] | float = None) -> None:
+    def calibration_error(self, confidence_intervals: list[float] | float | None = None) -> None:
         """Calibration error for each observed count.
 
         For a series of credible intervals of the samples, the fraction of observed counts that

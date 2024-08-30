@@ -1,16 +1,27 @@
-from typing import Literal, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import torch
-from anndata import AnnData
 
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager, fields
 from scvi.train import TrainRunner
 
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
+
 
 class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
-    def __init__(self, *args, expected_sparse_layout: Literal["csr", "csc"] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        expected_sparse_layout: Literal["csr", "csc"] | None = None,
+        **kwargs,
+    ):
         if expected_sparse_layout == "csr":
             self.expected_sparse_layout = torch.sparse_csr
         elif expected_sparse_layout == "csc":
@@ -72,8 +83,8 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
     ):
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -88,8 +99,8 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         self,
         max_epochs: int = 1,
         accelerator: str = "auto",
-        devices: Union[int, list[int], str] = "auto",
-        expected_sparse_layout: Literal["csr", "csc"] = None,
+        devices: int | list[int] | str = "auto",
+        expected_sparse_layout: Literal["csr", "csc"] | None = None,
     ):
         data_splitter = TestSparseDataSplitter(
             self.adata_manager,

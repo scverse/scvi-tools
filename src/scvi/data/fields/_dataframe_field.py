@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import rich
-from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 from scvi.data import _constants
@@ -11,6 +12,11 @@ from scvi.data._utils import _make_column_categorical, get_anndata_attribute
 
 from ._base_field import BaseAnnDataField
 from ._mudata import MuDataWrapper
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +40,8 @@ class BaseDataFrameField(BaseAnnDataField):
     def __init__(
         self,
         registry_key: str,
-        attr_key: Optional[str],
-        field_type: Literal["obs", "var"] = None,
+        attr_key: str | None,
+        field_type: Literal["obs", "var"] | None = None,
         required: bool = True,
     ) -> None:
         super().__init__()
@@ -102,7 +108,7 @@ class NumericalDataFrameField(BaseDataFrameField):
         """Get summary stats."""
         return {}
 
-    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View state registry."""
         return None
 
@@ -145,8 +151,8 @@ class CategoricalDataFrameField(BaseDataFrameField):
     def __init__(
         self,
         registry_key: str,
-        attr_key: Optional[str],
-        field_type: Literal["obs", "var"] = None,
+        attr_key: str | None,
+        field_type: Literal["obs", "var"] | None = None,
     ) -> None:
         self.is_default = attr_key is None
         self._original_attr_key = attr_key or registry_key
@@ -238,7 +244,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View state registry."""
         source_key = state_registry[self.ORIGINAL_ATTR_KEY]
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]

@@ -1,5 +1,6 @@
-from collections.abc import Iterable
-from typing import Literal, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -20,6 +21,10 @@ from scvi.nn import DecoderSCVI, Encoder, FCLayers
 
 from ._utils import masked_softmax
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Literal
+
 
 class LibrarySizeEncoder(torch.nn.Module):
     """Library size encoder."""
@@ -27,7 +32,7 @@ class LibrarySizeEncoder(torch.nn.Module):
     def __init__(
         self,
         n_input: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 2,
         n_hidden: int = 128,
         use_batch_norm: bool = False,
@@ -63,7 +68,7 @@ class DecoderADT(torch.nn.Module):
         self,
         n_input: int,
         n_output_proteins: int,
-        n_cat_list: Iterable[int] = None,
+        n_cat_list: Iterable[int] | None = None,
         n_layers: int = 2,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -273,12 +278,12 @@ class MULTIVAE(BaseModuleClass):
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        n_hidden: int = None,
-        n_latent: int = None,
+        n_hidden: int | None = None,
+        n_latent: int | None = None,
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         region_factors: bool = True,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
@@ -287,8 +292,8 @@ class MULTIVAE(BaseModuleClass):
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         use_size_factor_key: bool = False,
-        protein_background_prior_mean: Optional[np.ndarray] = None,
-        protein_background_prior_scale: Optional[np.ndarray] = None,
+        protein_background_prior_mean: np.ndarray | None = None,
+        protein_background_prior_scale: np.ndarray | None = None,
         protein_dispersion: str = "protein",
     ):
         super().__init__()
@@ -324,7 +329,7 @@ class MULTIVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
         self.use_size_factor_key = use_size_factor_key
 
-        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
+        cat_list = [n_batch, *list(n_cats_per_cov)] if n_cats_per_cov is not None else []
         encoder_cat_list = cat_list if encode_covariates else None
 
         # expression
@@ -960,7 +965,7 @@ class MULTIVAE(BaseModuleClass):
 
 
 @auto_move_data
-def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
+def mix_modalities(Xs, masks, weights, weight_transform: callable | None = None):
     """Compute the weighted mean of the Xs while masking unmeasured modality values.
 
     Parameters

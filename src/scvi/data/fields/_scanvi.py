@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 import warnings
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
-from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 from scvi import settings
 from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
 from ._dataframe_field import CategoricalObsField
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 class LabelsWithUnlabeledObsField(CategoricalObsField):
@@ -32,8 +36,8 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
     def __init__(
         self,
         registry_key: str,
-        obs_key: Optional[str],
-        unlabeled_category: Union[str, int, float],
+        obs_key: str | None,
+        unlabeled_category: str | int | float,
     ) -> None:
         super().__init__(registry_key, obs_key)
         self._unlabeled_category = unlabeled_category
@@ -49,7 +53,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         # could be in mapping in transfer case
         elif self._unlabeled_category not in mapping:
             # just put as last category
-            mapping = np.asarray(list(mapping) + [self._unlabeled_category])
+            mapping = np.asarray([*list(mapping), self._unlabeled_category])
 
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         # rerun setup for the batch column

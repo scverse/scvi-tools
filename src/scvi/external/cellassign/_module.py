@@ -1,5 +1,6 @@
-from collections.abc import Iterable
-from typing import Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -8,6 +9,9 @@ from torch.distributions import Dirichlet, Normal
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
@@ -46,10 +50,10 @@ class CellAssignModule(BaseModuleClass):
         n_genes: int,
         rho: torch.Tensor,
         basis_means: torch.Tensor,
-        b_g_0: Optional[torch.Tensor] = None,
+        b_g_0: torch.Tensor | None = None,
         random_b_g_0: bool = True,
         n_batch: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         n_continuous_cov: int = 0,
     ):
         super().__init__()

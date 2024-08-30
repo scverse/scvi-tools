@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pytest
 
@@ -63,7 +65,7 @@ def run_test_for_model_with_minified_adata(
     cls=SCVI,
     n_samples: int = 1,
     give_mean: bool = False,
-    layer: str = None,
+    layer: str | None = None,
     use_size_factor=False,
 ):
     model, adata, adata_lib_size, _ = prep_model(cls, layer, use_size_factor)
@@ -169,10 +171,10 @@ def test_scanvi_from_scvi(save_path):
     model.save(save_path, overwrite=True)
     loaded_model = SCVI.load(save_path, adata=adata_before_setup)
 
+    adata2 = synthetic_iid()
+    # just add this to pretend the data is minified
+    adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     with pytest.raises(ValueError) as e:
-        adata2 = synthetic_iid()
-        # just add this to pretend the data is minified
-        adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
         scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0", adata=adata2)
     assert str(e.value) == "Please provide a non-minified `adata` to initialize scanvi."
 

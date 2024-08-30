@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -14,6 +14,9 @@ from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +425,7 @@ class PyroSampleMixin:
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
-                obs_plate_dim = list(obs_plate_sites.values())[0]
+                obs_plate_dim = next(iter(obs_plate_sites.values()))
 
                 sample_kwargs_obs_plate = sample_kwargs.copy()
                 sample_kwargs_obs_plate["return_sites"] = self._get_obs_plate_return_sites(

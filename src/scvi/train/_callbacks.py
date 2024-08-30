@@ -5,10 +5,9 @@ import warnings
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 import flax
-import lightning.pytorch as pl
 import numpy as np
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
@@ -16,9 +15,13 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
 
 from scvi import settings
-from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
+
+if TYPE_CHECKING:
+    import lightning.pytorch as pl
+
+    from scvi.dataloaders import AnnDataLoader
 
 MetricCallable = Callable[[BaseModelClass], float]
 
@@ -220,20 +223,20 @@ class SaveBestState(Callback):
 
         if mode == "min":
             self.monitor_op = np.less
-            self.best_module_metric_val = np.Inf
+            self.best_module_metric_val = np.inf
             self.mode = "min"
         elif mode == "max":
             self.monitor_op = np.greater
-            self.best_module_metric_val = -np.Inf
+            self.best_module_metric_val = -np.inf
             self.mode = "max"
         else:
             if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
                 self.monitor_op = np.greater
-                self.best_module_metric_val = -np.Inf
+                self.best_module_metric_val = -np.inf
                 self.mode = "max"
             else:
                 self.monitor_op = np.less
-                self.best_module_metric_val = np.Inf
+                self.best_module_metric_val = np.inf
                 self.mode = "min"
 
     def check_monitor_top(self, current):
