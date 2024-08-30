@@ -42,7 +42,7 @@ def test_scbasset_batch():
     assert hasattr(model.module, "batch_ids")
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_scbasset_motif_download(save_path):
     # get a temporary directory name
     SCBASSET._download_motifs(genome="human", motif_dir=save_path)
@@ -52,7 +52,7 @@ def test_scbasset_motif_download(save_path):
     return
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_scbasset_tf(save_path):
     adata = _get_adata()
     SCBASSET.setup_anndata(

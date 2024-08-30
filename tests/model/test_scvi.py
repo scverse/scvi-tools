@@ -569,7 +569,7 @@ def test_new_setup_compat():
     )
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_backwards_compatible_loading(save_path):
     def download_080_models(save_path):
         file_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
@@ -592,7 +592,7 @@ def test_backwards_compatible_loading(save_path):
     m.train(1)
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_backup_url(save_path):
     backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
     a = synthetic_iid()

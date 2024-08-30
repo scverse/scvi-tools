@@ -107,7 +107,7 @@ def multiprocessing_worker(
     return
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 def test_anndataloader_distributed_sampler(save_path: str, num_processes: int = 2):
     adata = scvi.data.synthetic_iid()
     manager = generic_setup_adata_manager(adata)

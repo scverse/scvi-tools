@@ -28,32 +28,32 @@ REQUIRED_GENERATIVE_OUTPUT_KEYS = [
 ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_n_input(mock_contrastive_adata_manager):
     return mock_contrastive_adata_manager.adata.X.shape[1]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_n_batch(mock_contrastive_adata_manager):
     return len(mock_contrastive_adata_manager.adata.obs["batch"].unique())
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_library_log_means_and_vars(mock_contrastive_adata_manager, mock_n_batch):
     return _init_library_size(mock_contrastive_adata_manager, n_batch=mock_n_batch)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_library_log_means(mock_library_log_means_and_vars):
     return mock_library_log_means_and_vars[0]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_library_log_vars(mock_library_log_means_and_vars):
     return mock_library_log_means_and_vars[1]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_contrastive_dataloader(
     mock_contrastive_adata_manager, mock_background_indices, mock_target_indices
 ):
@@ -66,13 +66,13 @@ def mock_contrastive_dataloader(
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_contrastive_batch(mock_contrastive_dataloader):
     batch = next(batch for batch in mock_contrastive_dataloader)
     return batch
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_background_batch(mock_contrastive_adata_manager, mock_background_indices):
     background_batch = mock_contrastive_adata_manager.adata.obs["_scvi_batch"][
         mock_background_indices
@@ -81,7 +81,7 @@ def mock_background_batch(mock_contrastive_adata_manager, mock_background_indice
     return background_batch.item()
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_target_batch(mock_contrastive_adata_manager, mock_target_indices):
     target_batch = mock_contrastive_adata_manager.adata.obs["_scvi_batch"][
         mock_target_indices

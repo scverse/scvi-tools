@@ -73,23 +73,23 @@ def test_mouse_ob_dataset(save_path: str):
     )
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_download_spleen_lymph_data(save_path: str):
     scvi.data.spleen_lymph_cite_seq(save_path=save_path)
     scvi.data.spleen_lymph_cite_seq(save_path=save_path, protein_join="outer")
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_download_heart_cell_atlas(save_path: str):
     scvi.data.heart_cell_atlas_subsampled(save_path=save_path)
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_download_seurat_v4_pbmc(save_path: str):
     scvi.data.pbmc_seurat_v4_cite_seq(save_path=save_path, mask_protein_batches=5)
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_download_cellxgene(save_path: str):
     url = "https://cellxgene.cziscience.com/e/8d73847b-33e7-48f0-837f-e3e6579bf12d.cxg/"
     filename = "cellxgene.h5ad"

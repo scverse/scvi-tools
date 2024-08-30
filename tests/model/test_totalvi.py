@@ -119,7 +119,7 @@ def test_saving_and_loading(save_path):
     test_save_load_model(TOTALVI, adata, save_path, prefix=f"{TOTALVI.__name__}_")
 
 
-@pytest.mark.internet()
+@pytest.mark.internet
 def test_backup_url(save_path):
     backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
     a = synthetic_iid()

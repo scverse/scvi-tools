@@ -4,7 +4,7 @@ import pytest
 from scvi.data import synthetic_iid
 
 
-@pytest.fixture()
+@pytest.fixture
 def adata():
     anndata = synthetic_iid()
     raw_counts = anndata.X.copy()

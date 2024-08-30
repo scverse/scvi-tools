@@ -198,7 +198,7 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
 
-@pytest.mark.private()
+@pytest.mark.private
 def test_hub_model_large_training_adata(request, save_path):
     training_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"
     model = prep_model()
@@ -220,7 +220,7 @@ def test_hub_model_large_training_adata(request, save_path):
     assert hmo.adata is None
 
 
-@pytest.mark.private()
+@pytest.mark.private
 def test_hub_model_create_repo_hf(save_path: str):
     from huggingface_hub import delete_repo
 
@@ -233,7 +233,7 @@ def test_hub_model_create_repo_hf(save_path: str):
     delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
 
 
-@pytest.mark.private()
+@pytest.mark.private
 def test_hub_model_push_to_hf(save_path: str):
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
@@ -258,7 +258,7 @@ def test_hub_model_push_to_hf(save_path: str):
     )
 
 
-@pytest.mark.private()
+@pytest.mark.private
 def test_hub_model_pull_from_hf():
     hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi")
     assert hub_model.model is not None
@@ -278,7 +278,7 @@ def test_hub_model_pull_from_hf():
     assert hub_model.adata is None
 
 
-@pytest.mark.private()
+@pytest.mark.private
 def test_hub_model_push_to_s3(save_path: str):
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi")
@@ -292,7 +292,7 @@ def test_hub_model_push_to_s3(save_path: str):
     hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-minified")
 
 
-@pytest.mark.private()
+@pytest.mark.private
 def test_hub_model_pull_from_s3():
     from botocore.exceptions import ClientError
 

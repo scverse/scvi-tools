@@ -44,7 +44,7 @@ def model(adata: AnnData):
     return model
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
@@ -56,7 +56,7 @@ def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -107,7 +107,7 @@ def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str,
         model.differential_expression(**de_kwarg)
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "sample_key",
     ["sample", "sample_str"],
@@ -125,7 +125,7 @@ def test_mrvi_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "model_kwargs",
     [
@@ -169,7 +169,7 @@ def test_mrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_pa
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 def test_mrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
@@ -180,7 +180,7 @@ def test_mrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 def test_mrvi_shrink_u(adata: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata,
@@ -201,7 +201,7 @@ def test_mrvi_shrink_u(adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.fixture()
+@pytest.fixture
 def adata_stratifications():
     adata = synthetic_iid()
     adata.obs["sample"] = np.random.choice(15, size=adata.shape[0])
@@ -215,7 +215,7 @@ def adata_stratifications():
     return adata
 
 
-@pytest.mark.optional()
+@pytest.mark.optional
 def test_mrvi_stratifications(adata_stratifications: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata_stratifications,
