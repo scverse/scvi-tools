@@ -4,6 +4,7 @@ from typing import Optional, Union
 import numpy as np
 
 from scvi.data import AnnDataManager
+from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,7 @@ def scmc_raw_counts_properties(
     idx1: Union[list[int], np.ndarray],
     idx2: Union[list[int], np.ndarray],
     var_idx: Optional[Union[list[int], np.ndarray]] = None,
-    modality: str = None,
+    context: str = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -39,8 +40,8 @@ def scmc_raw_counts_properties(
         Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
     """
     adata = adata_manager.adata
-    mc = adata[modality].layers[adata_manager.mc_layer]
-    cov = adata[modality].layers[adata_manager.cov_layer]
+    mc = adata[context].layers[adata_manager.registry[_SETUP_ARGS_KEY]["mc_layer"]]
+    cov = adata[context].layers[adata_manager.registry[_SETUP_ARGS_KEY]["cov_layer"]]
     mc1 = mc[idx1]
     mc2 = mc[idx2]
 
