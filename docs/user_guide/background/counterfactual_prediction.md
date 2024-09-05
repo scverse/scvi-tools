@@ -8,8 +8,11 @@ We are using the term "counterfactual prediction" here rather loosely. In partic
 
 :::{figure} figures/counterfactual_prediction.svg
 :align: center
-:alt: Cartoon of counterfactual prediction task across two conditions.
+:alt: Cartoon of the counterfactual prediction task across two conditions.
 :class: img-fluid
+
+Cartoon of the counterfactual prediction task across two conditions. This counterfactual prediction can be thought of as an interpolation of nearby points in the feature space originating from condition B.
+:::
 
 ## Preliminaries
 
