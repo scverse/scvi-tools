@@ -6,7 +6,7 @@ Once we have trained a model to predict a variable of interest or a generative m
 We are using the term "counterfactual prediction" here rather loosely. In particular, we are not following the rigorous definition of counterfactual prediction in the causality literature[^ref1]. While closely related in spirit, we are making counterfactual queries with statistical models to gain some insight into what the model has learned about the data distribution.
 :::
 
-:::{figure} figures/counterfactual_prediction.svg
+:::{figure} figures/counterfactual_cartoon.svg
 :align: center
 :alt: Cartoon of the counterfactual prediction task across two conditions.
 :class: img-fluid
