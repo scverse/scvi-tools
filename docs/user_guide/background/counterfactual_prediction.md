@@ -18,8 +18,8 @@ Cartoon of the counterfactual prediction task across two conditions. This counte
 
 Suppose we have a trained model $f_\theta$ that takes in a data point $x$ (e.g., gene expression counts) and a condition $c$ (e.g., treatment group) and returns a prediction $\hat{y}$.
 Each data point takes the form of a tuple $(x,c) \in \mathcal{D}$.
-We can define a **counterfactual query** as a pair $(x,c')$ where $c' \neq c$,
-and the respective model output as the **counterfactual prediction**, $\hat{y}' = f_\theta(x,c')$.
+We can define a *counterfactual query* as a pair $(x,c')$ where $c' \neq c$,
+and the respective model output as the *counterfactual prediction*, $\hat{y}' = f_\theta(x,c')$.
 
 We separate $c$ here out from $x$ to make the counterfactual portion of the query explicit, but it can be thought of as another dimension of $x$.
 
@@ -40,7 +40,7 @@ The most direct application of counterfactual prediction in scvi-tools can be fo
 
 The described approach to counterfactual prediction has also been used in a variety of applications, including:
 - characterizing cell-type-specific sample-level effects [^ref2]
-- predicting chemical perturbation responses in different cell types [^ref2,^ref3]
+- predicting chemical perturbation responses in different cell types [^ref2][^ref3]
 - predicting infection/perturbation responses across species [^ref4]
 
 For more details on how counterfactual prediction is used in another method implemented in scvi-tools, see the {doc}`/user_guide/models/mrvi`.
