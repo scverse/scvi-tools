@@ -33,12 +33,14 @@ Dimensionality reduction techniques or harmonization methods may help create mor
 
 ## Applications
 
-The described approach to counterfactual prediction has been used in a variety of applications, including:
+The most direct application of counterfactual prediction in scvi-tools can be found in the `transform_batch` kwarg of the {func}`~scvi.model.SCVI.get_normalized_expression` function. In this case, we can pass in a counterfactual batch label to get a prediction of what the normalized expression would be for a cell if it were a member of that batch. This can be useful if one wants to compare cells across different batches in the gene space.
+
+The described approach to counterfactual prediction has also been used in a variety of applications, including:
 - characterizing cell-type-specific sample-level effects [^ref2]
 - predicting chemical perturbation responses in different cell types [^ref2,^ref3]
 - predicting infection/perturbation responses across species [^ref4]
 
-For more details on how counterfactual prediction is used in MrVI, a method implemented in scvi-tools, see the {doc}`/user_guide/models/mrvi`.
+For more details on how counterfactual prediction is used in another method implemented in scvi-tools, see the {doc}`/user_guide/models/mrvi`.
 
 [^ref1]:
     Judea Pearl. Causality. Cambridge university press, 2009.
