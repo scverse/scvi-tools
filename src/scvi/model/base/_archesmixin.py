@@ -11,7 +11,7 @@ from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import settings
 from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -131,11 +131,6 @@ class ArchesMixin:
 
         model = _initialize_model(cls, adata, attr_dict)
         adata_manager = model.get_anndata_manager(adata, required=True)
-
-        if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
-            raise NotImplementedError(
-                "scArches currently does not support models with extra categorical covariates."
-            )
 
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
