@@ -10,6 +10,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
+- Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
     {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
@@ -97,6 +99,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Fix logging of accuracy for cases with 1 sample per class in scANVI {pr}`2938`.
 - Disable adversarial classifier if training with a single batch.
     Previously this raised a None error {pr}`2914`.
 - {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
@@ -118,6 +121,13 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`scvi.train.Trainer` {pr}`2646`.
 
 ## Version 1.1
+
+### 1.1.6 (2024-08-19)
+
+#### Fixed
+
+- Breaking change: In `scvi.autotune._manager` we changed the parameter in RunConfig from
+    `local_dir` to `storage_path` see issue `2908` {pr}`2689`.
 
 ### 1.1.5 (2024-06-30)
 

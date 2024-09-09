@@ -130,9 +130,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: None | str = None,
-        labels_key: None | str = None,
-        layer: None | str = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

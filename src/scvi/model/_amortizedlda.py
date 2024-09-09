@@ -61,8 +61,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         registry: dict | None = None,
         n_topics: int = 20,
         n_hidden: int = 128,
-        cell_topic_prior: float | Sequence[float] = None,
-        topic_feature_prior: float | Sequence[float] = None,
+        cell_topic_prior: float | Sequence[float] | None = None,
+        topic_feature_prior: float | Sequence[float] | None = None,
     ):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
@@ -111,9 +111,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: None | str = None,
+        layer: str | None = None,
         **kwargs,
-    ) -> None | AnnData:
+    ) -> AnnData | None:
         """%(summary)s.
 
         Parameters
@@ -156,9 +156,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def get_latent_representation(
         self,
-        adata: None | AnnData = None,
-        indices: None | Sequence[int] = None,
-        batch_size: None | int = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
         n_samples: int = 5000,
     ) -> pd.DataFrame:
         """Converts a count matrix to an inferred topic distribution.
@@ -199,9 +199,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def get_elbo(
         self,
-        adata: None | AnnData = None,
-        indices: None | Sequence[int] = None,
-        batch_size: None | int = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         """Return the ELBO for the data.
 
@@ -236,9 +236,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def get_perplexity(
         self,
-        adata: None | AnnData = None,
-        indices: None | Sequence[int] = None,
-        batch_size: None | int = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         """Computes approximate perplexity for `adata`.
 

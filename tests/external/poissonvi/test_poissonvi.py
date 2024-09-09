@@ -11,6 +11,7 @@ def test_poissonvi():
     model.train(max_epochs=1)
     model.get_latent_representation()
     model.get_accessibility_estimates()
+    model.get_region_factors()
 
 
 def test_poissonvi_default_params():

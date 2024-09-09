@@ -108,8 +108,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        alpha_prior: None | float = 0.5,
-        beta_prior: None | float = 0.5,
+        alpha_prior: float | None = 0.5,
+        beta_prior: float | None = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
         use_observed_lib_size: bool = True,
@@ -156,10 +156,10 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @torch.inference_mode()
     def get_marginal_ll(
         self,
-        adata: None | AnnData = None,
-        indices: None | Sequence[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         n_mc_samples: int = 1000,
-        batch_size: None | int = None,
+        batch_size: int | None = None,
     ) -> float:
         """Return the marginal LL for the data.
 
@@ -262,9 +262,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: None | str = None,
-        labels_key: None | str = None,
-        layer: None | str = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
