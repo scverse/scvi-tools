@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import Literal
+from typing import Literal, Tuple
 
 import numpy as np
 import pandas as pd
@@ -119,8 +119,8 @@ class SysVI(TrainingCustom, BaseModelClass):
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
         batch_size: int | None = None,
-        as_numpy: bool = True,
-    ) -> np.ndarray | torch.Tensor:
+        return_dist: bool = False,
+    ) -> np.ndarray | Tuple[np.ndarray, np.ndarray]:
         """Return the latent representation for each cell.
 
         Parameters
@@ -131,11 +131,12 @@ class SysVI(TrainingCustom, BaseModelClass):
             Data indices to embed. If None embedd all cells.
         give_mean
             Return the posterior mean instead of a sample from the posterior.
+            Ignored if `return_dist` is ``True``.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        as_numpy
-            Return in numpy rather than torch format.
-
+        return_dist
+            If ``True``, returns the mean and variance of the latent distribution. Otherwise,
+            returns the mean of the latent distribution.
         Returns
         -------
         Latent Embedding
@@ -149,21 +150,26 @@ class SysVI(TrainingCustom, BaseModelClass):
         tensors_fwd = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, shuffle=False
         )
-        predicted = []
+        predicted_m = []
+        predicted_v = []
         for tensors in tensors_fwd:
             # Inference
             inference_inputs = self.module._get_inference_input(tensors)
             inference_outputs = self.module.inference(**inference_inputs)
-            if give_mean:
-                predicted += [inference_outputs["z_m"]]
+            if give_mean or return_dist:
+                predicted_m += [inference_outputs["z_m"]]
             else:
-                predicted += [inference_outputs["z"]]
+                predicted_m += [inference_outputs["z"]]
+            if return_dist:
+                predicted_v += [inference_outputs["z_v"]]
 
-        predicted = torch.cat(predicted).cpu()
+        predicted_m = torch.cat(predicted_m).cpu().numpy()
+        predicted_v = torch.cat(predicted_v).cpu().numpy()
 
-        if as_numpy:
-            predicted = predicted.numpy()
-        return predicted
+        if return_dist:
+            return predicted_m, predicted_v
+        else:
+            return predicted_m
 
     def _validate_anndata(
         self, adata: AnnData | None = None, copy_if_view: bool = True
