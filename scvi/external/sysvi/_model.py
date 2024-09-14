@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from typing import Literal
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from typing import Literal
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
