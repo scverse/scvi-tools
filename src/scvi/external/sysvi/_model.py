@@ -175,7 +175,7 @@ class SysVI(TrainingCustom, BaseModelClass):
     def _validate_anndata(
         self, adata: AnnData | None = None, copy_if_view: bool = True
     ) -> AnnData:
-        """Validate anndata has been properly registered"
+        """Validate anndata has been properly registered
 
         Parameters
         ----------
@@ -187,27 +187,35 @@ class SysVI(TrainingCustom, BaseModelClass):
         Returns
         -------
 
-        """ ""
-        super()._validate_anndata(adata)
+        """
+        if adata is None:
+            adata = self.adata
 
-        # Check that all required fields are present and match the Model's adata
-        assert (
-            self.adata.uns["layer_information"]["layer"]
-            == adata.uns["layer_information"]["layer"]
-        )
-        assert (
-            self.adata.uns["layer_information"]["var_names"]
-            == adata.uns["layer_information"]["var_names"]
-        )
-        assert self.adata.uns["system_order"] == adata.uns["system_order"]
-        for covariate_type, covariate_keys in self.adata.uns["covariate_key_orders"].items():
-            assert covariate_keys == adata.uns["covariate_key_orders"][covariate_type]
-            if "categorical" in covariate_type:
-                for covariate_key in covariate_keys:
-                    assert (
-                        self.adata.uns["covariate_categ_orders"][covariate_key]
-                        == adata.uns["covariate_categ_orders"][covariate_key]
+        _check_if_view(adata, copy_if_view=copy_if_view)
+
+        if _SCVI_UUID_KEY not in adata.uns:
+            raise ValueError("Adata is not set up. Use SysVI.setup_anndata first.")
+        else:
+            # Check that all required fields are present and match the Model's adata
+            assert (
+                self.adata.uns["layer_information"]["layer"]
+                == adata.uns["layer_information"]["layer"]
+            )
+            assert (
+                self.adata.uns["layer_information"]["var_names"]
+                == adata.uns["layer_information"]["var_names"]
+            )
+            assert self.adata.uns["system_order"] == adata.uns["system_order"]
+            for covariate_type, covariate_keys in self.adata.uns["covariate_key_orders"].items():
+                assert covariate_keys == adata.uns["covariate_key_orders"][covariate_type]
+                if "categorical" in covariate_type:
+                    for covariate_key in covariate_keys:
+                        assert (
+                            self.adata.uns["covariate_categ_orders"][covariate_key]
+                            == adata.uns["covariate_categ_orders"][covariate_key]
                         )
+        # Ensures that manager is set up
+        super()._validate_anndata(adata)
 
         return adata
 
