@@ -47,10 +47,11 @@ class SysVI(TrainingCustom, BaseModelClass):
     prior
         The prior distribution to be used. You can choose between "standard_normal" and "vamp".
     n_prior_components
-        Number of prior components in VampPrior.
+        Number of prior components (i.e. modes) to use in VampPrior.
     pseudoinputs_data_indices
         By default VampPrior pseudoinputs are randomly selected from data.
         Alternatively, one can specify pseudoinput indices using this parameter.
+        The number of specified indices in the input 1D array should match n_prior_components
     **model_kwargs
         Keyword args for :class:`~scvi.external.sysvi.SysVAE`
     """
@@ -70,6 +71,7 @@ class SysVI(TrainingCustom, BaseModelClass):
                 pseudoinputs_data_indices = np.random.randint(
                     0, adata.shape[0], n_prior_components
                 )
+            assert pseudoinputs_data_indices.shape[0] == n_prior_components
             pseudoinput_data = next(
                 iter(
                     self._make_data_loader(
