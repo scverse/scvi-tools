@@ -72,6 +72,7 @@ class SysVI(TrainingCustom, BaseModelClass):
                     0, adata.shape[0], n_prior_components
                 )
             assert pseudoinputs_data_indices.shape[0] == n_prior_components
+            assert pseudoinputs_data_indices.ndim == 1
             pseudoinput_data = next(
                 iter(
                     self._make_data_loader(
