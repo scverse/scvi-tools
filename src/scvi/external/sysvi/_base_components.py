@@ -109,7 +109,7 @@ class EncoderDecoder(Module):
         y = self.decoder_y(x=x, cov=cov)
         # TODO better handling of inappropriate edge-case values than nan_to_num or at least warn
         y_m = torch.nan_to_num(self.mean_encoder(y))
-        y_v = self.var_encoder(y, x_m=y_m)
+        y_v = self.var_encoder(y)
 
         outputs = {"y_m": y_m, "y_v": y_v}
 
