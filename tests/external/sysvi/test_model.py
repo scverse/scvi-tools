@@ -99,7 +99,7 @@ def test_model():
     _ = SysVI(
         adata=adata,
         prior="vamp",
-        pseudoinputs_data_indices=list(range(5)),
+        pseudoinputs_data_indices=np.array(list(range(5))),
         n_prior_components=5,
     )
 
