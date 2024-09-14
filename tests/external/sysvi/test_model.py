@@ -140,7 +140,7 @@ def test_model():
 
     # Ensure that embedding with another adata properly checks if it was setu up correctly
     _ = model.get_latent_representation(adata=adata0)
-    with assert_raises(AssertionError):
+    with assert_raises(KeyError):
         # TODO could add more check for each property separately
         _ = model.get_latent_representation(adata=adata_no_cov)
 
