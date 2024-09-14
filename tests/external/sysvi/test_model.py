@@ -73,7 +73,7 @@ def test_model():
         continuous_covariate_keys=["covariate_cont"],
         covariate_categ_orders=adata0.uns["covariate_categ_orders"],
         covariate_key_orders=adata0.uns["covariate_key_orders"],
-        system_order=adata0.uns["system_order"],
+        batch_order=adata0.uns["batch_order"],
     )
 
     # Check that setup of adata without covariates works
