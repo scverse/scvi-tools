@@ -164,7 +164,8 @@ class SysVI(TrainingCustom, BaseModelClass):
                 predicted_v += [inference_outputs["z_v"]]
 
         predicted_m = torch.cat(predicted_m).cpu().numpy()
-        predicted_v = torch.cat(predicted_v).cpu().numpy()
+        if return_dist:
+            predicted_v = torch.cat(predicted_v).cpu().numpy()
 
         if return_dist:
             return predicted_m, predicted_v
