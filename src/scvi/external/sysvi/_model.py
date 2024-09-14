@@ -199,7 +199,7 @@ class SysVI(TrainingCustom, BaseModelClass):
             self.adata.uns["layer_information"]["var_names"]
             == adata.uns["layer_information"]["var_names"]
         )
-        assert self.adata.uns["system_order"] == adata.uns["system_order"]
+        assert self.adata.uns["batch_order"] == adata.uns["batch_order"]
         for covariate_type, covariate_keys in self.adata.uns["covariate_key_orders"].items():
             assert covariate_keys == adata.uns["covariate_key_orders"][covariate_type]
             if "categorical" in covariate_type:
@@ -223,10 +223,20 @@ class SysVI(TrainingCustom, BaseModelClass):
         continuous_covariate_keys: list[str] | None = None,
         covariate_categ_orders: dict | None = None,
         covariate_key_orders: dict | None = None,
-        system_order: list[str] | None = None,
+        batch_order: list[str] | None = None,
         **kwargs,
     ):
         """Prepare adata for input to Model
+
+        Setup distinguishes between two main types of covariates that can be corrected for:
+        - batch (referred to as "system" in the original publication): Single categorical covariate that
+        will be corrected via cycle consistency loss. It will be also used as a condition in cVAE.
+        This covariate is expected to correspond to stronger batch effects, such as between datasets from the
+        different sequencing technology or model systems (animal species, in-vitro models, etc.).
+        - covariate (includes both continous and categorical covariates): Additional covariates to be used only
+        as a condition in cVAE, but not corrected via cycle loss.
+        These covariates are expected to correspond to weaker batch effects, such as between datasets from the
+        same sequencing technology and model system (animal, in-vitro, etc.) or between samples within a dataset.
 
         Parameters
         ----------
@@ -254,8 +264,8 @@ class SysVI(TrainingCustom, BaseModelClass):
         covariate_key_orders
             Covariate encoding information. Should be used if a new adata is to be set up according
             to setup of an existing adata. Access via adata.uns['covariate_key_orders'] of already setup adata.
-        system_order
-            Same as covariate_orders, but for system. Access via adata.uns['system_order']
+        batch_order
+            Same as covariate_orders, but for system. Access via adata.uns['batch_order']
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
@@ -270,8 +280,8 @@ class SysVI(TrainingCustom, BaseModelClass):
         }
 
         # If setup is to be prepared wtr another adata specs make sure all relevant info is present
-        if covariate_categ_orders or covariate_key_orders or system_order:
-            assert system_order is not None
+        if covariate_categ_orders or covariate_key_orders or batch_order:
+            assert batch_order is not None
             if (
                 categorical_covariate_keys is not None
                 or categorical_covariate_embed_keys is not None
@@ -283,19 +293,19 @@ class SysVI(TrainingCustom, BaseModelClass):
         # Make system embedding with specific category order
 
         # Define order of system categories
-        if system_order is None:
-            system_order = sorted(adata.obs[batch_key].unique())
-        # Validate that the provided system_order matches the categories in adata.obs[system_key]
-        if set(system_order) != set(adata.obs[batch_key].unique()):
+        if batch_order is None:
+            batch_order = sorted(adata.obs[batch_key].unique())
+        # Validate that the provided batch_order matches the categories in adata.obs[batch_key]
+        if set(batch_order) != set(adata.obs[batch_key].unique()):
             raise ValueError(
-                "Provided system_order does not match the categories in adata.obs[system_key]"
+                "Provided batch_order does not match the categories in adata.obs[batch_key]"
             )
 
         # Make one-hot embedding with specified order
-        systems_dict = dict(zip(system_order, ([float(i) for i in range(0, len(system_order))])))
-        adata.uns["system_order"] = system_order
+        systems_dict = dict(zip(batch_order, ([float(i) for i in range(0, len(batch_order))])))
+        adata.uns["batch_order"] = batch_order
         system_cat = pd.Series(
-            pd.Categorical(values=adata.obs[batch_key], categories=system_order, ordered=True),
+            pd.Categorical(values=adata.obs[batch_key], categories=batch_order, ordered=True),
             index=adata.obs.index,
             name="system",
         )
@@ -307,13 +317,13 @@ class SysVI(TrainingCustom, BaseModelClass):
         # System must not be in cov
         if categorical_covariate_keys is not None:
             if batch_key in categorical_covariate_keys:
-                raise ValueError("system_key should not be within covariate keys")
+                raise ValueError("batch_key should not be within covariate keys")
         if categorical_covariate_embed_keys is not None:
             if batch_key in categorical_covariate_embed_keys:
-                raise ValueError("system_key should not be within covariate keys")
+                raise ValueError("batch_key should not be within covariate keys")
         if continuous_covariate_keys is not None:
             if batch_key in continuous_covariate_keys:
-                raise ValueError("system_key should not be within covariate keys")
+                raise ValueError("batch_key should not be within covariate keys")
 
         # Prepare covariate training representations/embedding
         covariates, covariates_embed, orders_dict, cov_dict = prepare_metadata(
