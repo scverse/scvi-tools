@@ -117,7 +117,6 @@ class SysVI(TrainingCustom, BaseModelClass):
         self,
         adata: AnnData,
         indices: Sequence[int] | None = None,
-        cycle: bool = False,
         give_mean: bool = True,
         batch_size: int | None = None,
         as_numpy: bool = True,
@@ -130,8 +129,6 @@ class SysVI(TrainingCustom, BaseModelClass):
             Input adata for which latent representation should be obtained.
         indices
             Data indices to embed. If None embedd all cells.
-        cycle
-            Return latent embedding of the cycle pass.
         give_mean
             Return the posterior mean instead of a sample from the posterior.
         batch_size
@@ -157,22 +154,6 @@ class SysVI(TrainingCustom, BaseModelClass):
             # Inference
             inference_inputs = self.module._get_inference_input(tensors)
             inference_outputs = self.module.inference(**inference_inputs)
-            if cycle:
-                selected_system = self.module.random_select_systems(tensors["system"])
-                generative_inputs = self.module._get_generative_input(
-                    tensors,
-                    inference_outputs,
-                    selected_system=selected_system,
-                )
-                generative_outputs = self.module.generative(
-                    **generative_inputs, x_x=False, x_y=True
-                )
-                inference_cycle_inputs = self.module._get_inference_cycle_input(
-                    tensors=tensors,
-                    generative_outputs=generative_outputs,
-                    selected_system=selected_system,
-                )
-                inference_outputs = self.module.inference(**inference_cycle_inputs)
             if give_mean:
                 predicted += [inference_outputs["z_m"]]
             else:
