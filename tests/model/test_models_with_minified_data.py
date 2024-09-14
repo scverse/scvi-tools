@@ -72,7 +72,6 @@ def run_test_for_model_with_minified_adata(
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
-
     scvi.settings.seed = 1
     params_orig = model.get_likelihood_parameters(n_samples=n_samples, give_mean=give_mean)
     adata_orig = adata.copy()
@@ -125,8 +124,8 @@ def test_scvi_with_minified_adata_one_sample_with_layer():
 
 
 def test_scvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(n_samples=10, give_mean=True)
-    run_test_for_model_with_minified_adata(n_samples=10, give_mean=True, use_size_factor=True)
+    run_test_for_model_with_minified_adata(n_samples=400, give_mean=True)
+    run_test_for_model_with_minified_adata(n_samples=400, give_mean=True, use_size_factor=True)
 
 
 def test_scanvi_with_minified_adata_one_sample():
@@ -140,9 +139,9 @@ def test_scanvi_with_minified_adata_one_sample_with_layer():
 
 
 def test_scanvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(SCANVI, n_samples=10, give_mean=True)
+    run_test_for_model_with_minified_adata(SCANVI, n_samples=400, give_mean=True)
     run_test_for_model_with_minified_adata(
-        SCANVI, n_samples=10, give_mean=True, use_size_factor=True
+        SCANVI, n_samples=400, give_mean=True, use_size_factor=True
     )
 
 
@@ -375,13 +374,17 @@ def test_scvi_with_minified_adata_posterior_predictive_sample():
     model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
-    sample_orig = model.posterior_predictive_sample(indices=[1, 2, 3], gene_list=["1", "2"])
+    sample_orig = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
 
     model.minify_adata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    sample_new = model.posterior_predictive_sample(indices=[1, 2, 3], gene_list=["1", "2"])
+    sample_new = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
+    )
     assert sample_new.shape == (3, 2)
 
     np.testing.assert_array_equal(sample_new.todense(), sample_orig.todense())

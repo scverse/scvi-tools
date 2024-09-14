@@ -2,10 +2,10 @@ from math import ceil, floor
 
 import numpy as np
 import pytest
+from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi.dataloaders import BatchDistributedSampler
-from tests.data.utils import generic_setup_adata_manager
 
 
 def test_batchdistributedsampler_init(

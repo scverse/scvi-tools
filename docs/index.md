@@ -65,11 +65,12 @@ Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the late
 
 installation
 tutorials/index
+faq
 user_guide/index
 api/index
-release_notes/index
+developer/index
+changelog.md
 references
-contributing/index
 Discussion <https://discourse.scvi-tools.org>
 GitHub <https://github.com/scverse/scvi-tools>
 Model hub <https://huggingface.co/scvi-tools>

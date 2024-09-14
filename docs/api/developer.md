@@ -75,8 +75,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
-   dataloaders.ContrastiveDataLoader
-   dataloaders.ContrastiveDataSplitter
 
 ```
 
@@ -98,6 +96,7 @@ Parameterizable probability distributions.
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
    distributions.JaxNegativeBinomialMeanDisp
+   distributions.BetaBinomial
 
 ```
 
@@ -178,6 +177,8 @@ Module classes in the external API with respective generative and inference proc
    external.tangram.TangramMapper
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
+   external.velovi.VELOVAE
+   external.mrvi.MRVAE
 
 ```
 
@@ -275,5 +276,3 @@ Utility functions used by scvi-tools.
    utils.attrdict
    model.get_max_epochs_heuristic
 ```
-
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html
