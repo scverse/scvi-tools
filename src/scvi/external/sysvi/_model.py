@@ -11,8 +11,6 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data._constants import _SCVI_UUID_KEY
-from scvi.data._utils import _check_if_view
 from scvi.data.fields import (
     LayerField,
     ObsmField,
@@ -137,6 +135,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         return_dist
             If ``True``, returns the mean and variance of the latent distribution. Otherwise,
             returns the mean of the latent distribution.
+
         Returns
         -------
         Latent Embedding
@@ -192,8 +191,7 @@ class SysVI(TrainingCustom, BaseModelClass):
 
         # Check that all required fields are present and match the Model's adata
         assert (
-            self.adata.uns["layer_information"]["layer"]
-            == adata.uns["layer_information"]["layer"]
+            self.adata.uns["layer_information"]["layer"] == adata.uns["layer_information"]["layer"]
         )
         assert (
             self.adata.uns["layer_information"]["var_names"]

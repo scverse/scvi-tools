@@ -350,7 +350,8 @@ class SysVAE(BaseModuleClass):
 
         # Reconstruction loss
         reconst_loss_x = torch.nn.GaussianNLLLoss(reduction="none")(
-            generative_outputs["x_m"], x_true, generative_outputs["x_v"]).sum(dim=1)
+            generative_outputs["x_m"], x_true, generative_outputs["x_v"]
+        ).sum(dim=1)
 
         reconst_loss = reconst_loss_x
 

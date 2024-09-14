@@ -171,5 +171,3 @@ def test_model():
                 give_mean=False,
             ),
         )
-
-
