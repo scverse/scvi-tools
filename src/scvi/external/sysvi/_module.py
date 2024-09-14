@@ -362,7 +362,11 @@ class SysVAE(BaseModuleClass):
         )
 
         def z_dist(z_x_m: torch.Tensor, z_y_m: torch.Tensor):
-            """MSE loss between standardised inputs with standardizer fitted on concatenation of both inputs"""
+            """MSE loss between standardised inputs with standardizer fitted on concatenation of both inputs
+
+            MSE loss should be computed on standardized latent values as else model can learn to cheat the MSE
+            loss by putting latent parameters to even smaller numbers.
+            """
             # Standardise data (jointly both z-s) before MSE calculation
             z = torch.concat([z_x_m, z_y_m])
             means = z.mean(dim=0, keepdim=True)
