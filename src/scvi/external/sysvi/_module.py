@@ -349,15 +349,9 @@ class SysVAE(BaseModuleClass):
         x_true = tensors[REGISTRY_KEYS.X_KEY]
 
         # Reconstruction loss
+        reconst_loss_x = torch.nn.GaussianNLLLoss(reduction="none")(
+            generative_outputs["x_m"], x_true, generative_outputs["x_v"]).sum(dim=1)
 
-        def reconst_loss_part(x_m, x, x_v):
-            """Compute reconstruction loss"""
-            return torch.nn.GaussianNLLLoss(reduction="none")(x_m, x, x_v).sum(dim=1)
-
-        # Reconstruction loss
-        reconst_loss_x = reconst_loss_part(
-            x_m=generative_outputs["x_m"], x=x_true, x_v=generative_outputs["x_v"]
-        )
         reconst_loss = reconst_loss_x
 
         # Kl divergence on latent space
