@@ -213,7 +213,7 @@ class Layers(Module):
         def _hook_fn_weight(grad):
             new_grad = torch.zeros_like(grad)
             if self.n_cov > 0:
-                new_grad[:, -self.n_cov:] = grad[:, -self.n_cov:]
+                new_grad[:, -self.n_cov :] = grad[:, -self.n_cov :]
             return new_grad
 
         def _hook_fn_zero_out(grad):
