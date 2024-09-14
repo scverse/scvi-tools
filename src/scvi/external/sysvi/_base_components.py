@@ -300,7 +300,7 @@ class VarEncoder(Module):
             self.var_param = Parameter(torch.zeros(1, n_output))
         else:
             raise ValueError("Mode not recognised.")
-        self.activation = torch.nn.Softplus()
+        self.activation = torch.exp
 
     def forward(self, x: torch.Tensor):
         """Forward pass through model
