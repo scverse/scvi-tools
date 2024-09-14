@@ -345,7 +345,7 @@ class SysVAE(BaseModuleClass):
         kl_weight: float = 1.0,
         reconstruction_weight: float = 1.0,
         z_distance_cycle_weight: float = 2.0,
-    ):
+    ) -> LossOutput:
         x_true = tensors[REGISTRY_KEYS.X_KEY]
 
         # Reconstruction loss
