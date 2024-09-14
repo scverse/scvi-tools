@@ -300,7 +300,7 @@ class VarEncoder(Module):
             self.var_param = Parameter(torch.zeros(1, n_output))
         else:
             raise ValueError("Mode not recognised.")
-        self.activation = torch.exp
+        self.activation = torch.nn.Softplus()
 
     def forward(self, x: torch.Tensor):
         """Forward pass through model
@@ -317,12 +317,8 @@ class VarEncoder(Module):
         # Force to be non nan - TODO come up with better way to do so
         if self.mode == "sample_feature":
             v = self.encoder(x)
-            v = (
-                torch.nan_to_num(self.activation(v)) + self.eps
-            )  # Ensure that var is strictly positive
+            v = (self.activation(v) + self.eps)  # Ensure that var is strictly positive
         elif self.mode == "feature":
             v = self.var_param.expand(x.shape[0], -1)  # Broadcast to input size
-            v = (
-                torch.nan_to_num(self.activation(v)) + self.eps
-            )  # Ensure that var is strictly positive
+            v = (self.activation(v) + self.eps)  # Ensure that var is strictly positive
         return v
