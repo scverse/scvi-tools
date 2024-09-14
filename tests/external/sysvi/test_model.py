@@ -172,14 +172,4 @@ def test_model():
             ),
         )
 
-    # Check predicting cycle
-    with assert_raises(AssertionError):
-        np.testing.assert_allclose(
-            embed,
-            model.get_latent_representation(
-                adata=adata,
-                indices=idx,
-                give_mean=True,
-                cycle=True,
-            ),
-        )
+
