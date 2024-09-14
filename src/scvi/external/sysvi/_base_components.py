@@ -86,7 +86,7 @@ class EncoderDecoder(Module):
         n_cov: int,
         n_hidden: int = 256,
         n_layers: int = 3,
-        var_mode: Literal["sample_feature", "feature", "linear"] = "feature",
+        var_mode: Literal["sample_feature", "feature"] = "feature",
         sample: bool = False,
         **kwargs,
     ):
