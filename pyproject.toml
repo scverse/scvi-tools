@@ -7,13 +7,13 @@ name = "scvi-tools"
 version = "1.1.6"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     {name = "The scvi-tools development team"},
 ]
 maintainers = [
-    {name = "The scvi-tools development team", email = "martinkim@berkeley.edu"},
+    {name = "The scvi-tools development team", email = "ori.kronfeld@weitzmann.ac.il"},
 ]
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
@@ -22,9 +22,9 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -137,7 +137,7 @@ markers = [
 src = ["src"]
 line-length = 99
 indent-width = 4
-target-version = "py39"
+target-version = "py310"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
