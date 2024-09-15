@@ -12,7 +12,7 @@ from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import settings
 from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -146,6 +146,7 @@ class ArchesMixin:
             )
 
         version_split = model.registry[_constants._SCVI_VERSION_KEY].split(".")
+
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
                 "Query integration should be performed using models trained with "
