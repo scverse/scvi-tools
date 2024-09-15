@@ -136,11 +136,6 @@ class ArchesMixin:
         model = _initialize_model(cls, adata, attr_dict)
         adata_manager = model.get_anndata_manager(adata, required=True)
 
-        if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
-            raise NotImplementedError(
-                "scArches currently does not support models with extra categorical covariates."
-            )
-
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
