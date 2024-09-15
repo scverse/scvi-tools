@@ -40,7 +40,7 @@ from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
 
 logger = logging.getLogger(__name__)
-Number = Union[int, float]
+Number = int | float
 
 
 class ContrastiveVI(BaseModelClass):
