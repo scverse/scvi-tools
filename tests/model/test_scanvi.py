@@ -441,7 +441,7 @@ def test_scanvi_online_update(save_path):
     model.get_latent_representation()
     model.predict()
 
-    # Test error on extra categoricals
+    # Test on extra categoricals as well
     adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
@@ -474,8 +474,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
     adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
     adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
-    with pytest.raises(NotImplementedError):
-        SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
 
     # ref has fully-observed labels
     n_latent = 5
