@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -21,7 +20,7 @@ def _generate_synthetic(
     n_batches: int,
     n_labels: int,
     dropout_ratio: float,
-    sparse_format: Optional[str],
+    sparse_format: str | None,
     generate_coordinates: bool,
     return_mudata: bool,
     batch_key: str = "batch",

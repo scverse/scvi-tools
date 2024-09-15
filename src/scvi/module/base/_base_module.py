@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import field
-from typing import Any, Callable
+from typing import Any
 
 import flax
 import jax

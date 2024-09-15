@@ -540,7 +540,7 @@ class GIMVI(VAEMixin, BaseModelClass):
                 )
 
         registries = attr_dict.pop("registries_")
-        for adata, registry in zip(adatas, registries):
+        for adata, registry in zip(adatas, registries, strict=False):
             if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
                 raise ValueError("It appears you are loading a model from a different class.")
 
@@ -689,4 +689,4 @@ class TrainDL(DataLoader):
             dl if i == self.largest_train_dl_idx else cycle(dl)
             for i, dl in enumerate(self.data_loader_list)
         ]
-        return zip(*train_dls)
+        return zip(*train_dls, strict=False)

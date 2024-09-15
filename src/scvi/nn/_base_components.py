@@ -1,6 +1,6 @@
 import collections
-from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from collections.abc import Callable, Iterable
+from typing import Literal
 
 import torch
 from torch import nn
@@ -96,7 +96,9 @@ class FCLayers(nn.Module):
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))
+                    for i, (n_in, n_out) in enumerate(
+                        zip(layers_dim[:-1], layers_dim[1:], strict=False)
+                    )
                 ]
             )
         )
@@ -152,7 +154,7 @@ class FCLayers(nn.Module):
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
-        for n_cat, cat in zip(self.n_cat_list, cat_list):
+        for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
@@ -229,7 +231,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
-        var_activation: Optional[Callable] = None,
+        var_activation: Callable | None = None,
         return_dist: bool = False,
         **kwargs,
     ):
