@@ -45,14 +45,13 @@ dependencies = [
     "rich>=12.0.0",
     "h5py>=2.9.0",
     "torch>=1.8.0",
-    "lightning>=2.0,<2.2",
+    "lightning>=2.0",
     "torchmetrics>=0.11.0",
     "pyro-ppl>=1.6.0",
     "tqdm>=4.56.0",
     "scikit-learn>=0.21.2",
     "numpyro>=0.12.1",
     "ml-collections>=0.1.1",
-    "setuptools<=69.5.1",
     "mudata>=0.1.2",
 ]
 
@@ -92,6 +91,7 @@ autotune = [
     "ray[tune]>=2.5.0,<2.10.0",
     "ipython",
     "scib-metrics>=0.4.1",
+    "setuptools<=69.5.1",
     "tensorboard",
 ]  # scvi.autotune
 aws = ["boto3"] # scvi.hub.HubModel.pull_from_s3
