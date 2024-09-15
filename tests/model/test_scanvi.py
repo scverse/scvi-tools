@@ -341,6 +341,25 @@ def test_multiple_covariates_scanvi():
     m.get_latent_representation()
     m.get_elbo()
     m.get_marginal_ll(n_mc_samples=3)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=1)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=6)
+    m.differential_expression(
+        idx1=np.arange(50), idx2=51 + np.arange(50), mode="vanilla", weights="uniform"
+    )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 1},
+    )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 10},
+    )
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)
@@ -422,7 +441,7 @@ def test_scanvi_online_update(save_path):
     model.get_latent_representation()
     model.predict()
 
-    # Test error on extra categoricals
+    # Test on extra categoricals as well
     adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
@@ -455,8 +474,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
     adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
     adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
-    with pytest.raises(NotImplementedError):
-        SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
 
     # ref has fully-observed labels
     n_latent = 5

@@ -367,7 +367,7 @@ class AutoZIVAE(VAE):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         # KL divergence wrt Bernoulli parameters
         kl_divergence_bernoulli = self.compute_global_kl_divergence()

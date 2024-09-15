@@ -1,3 +1,4 @@
+import warnings
 from math import ceil, floor
 from typing import Optional, Union
 
@@ -39,6 +40,15 @@ def validate_data_split(
         raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
 
     n_train = ceil(train_size * n_samples)
+
+    if n_train % settings.batch_size < 3 and n_train % settings.batch_size > 0:
+        warnings.warn(
+            f"Last batch will have a small size of {n_train % settings.batch_size}"
+            f"samples. Consider changing settings.batch_size or batch_size in model.train"
+            f"currently {settings.batch_size} to avoid errors during model training.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
     if validation_size is None:
         n_val = n_samples - n_train
@@ -189,6 +199,7 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.load_sparse_tensor = load_sparse_tensor
+        self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
@@ -231,7 +242,7 @@ class DataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=False,
+            drop_last=self.drop_last,
             load_sparse_tensor=self.load_sparse_tensor,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
@@ -338,6 +349,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.train_size = float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
+        self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
@@ -351,7 +363,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category).ravel()
 
-        self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
 
@@ -455,7 +466,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             self.adata_manager,
             indices=self.train_idx,
             shuffle=True,
-            drop_last=False,
+            drop_last=self.drop_last,
             pin_memory=self.pin_memory,
             **self.data_loader_kwargs,
         )
