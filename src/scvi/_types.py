@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import Literal, Union
+
+from typing import Literal
 
 import anndata
 import jax.numpy as jnp
