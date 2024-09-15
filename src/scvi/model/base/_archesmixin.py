@@ -13,7 +13,7 @@ from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import settings
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
