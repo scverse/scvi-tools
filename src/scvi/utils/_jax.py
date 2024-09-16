@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 import jax
 from jax import random

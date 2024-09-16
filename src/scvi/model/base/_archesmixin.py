@@ -192,7 +192,7 @@ class ArchesMixin:
         reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> AnnData | pd.Index:
+    ) -> AnnData | pd.Index | None:
         """Prepare data for query integration.
 
         This function will return a new AnnData object with padded zeros
@@ -231,7 +231,7 @@ class ArchesMixin:
         reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> None | MuData | dict[str, pd.Index]:
+    ) -> MuData | dict[str, pd.Index] | None:
         """Prepare multimodal dataset for query integration.
 
         This function will return a new MuData object such that the
