@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import torch
 from lightning.pytorch import seed_everything
 from rich.console import Console
 from rich.logging import RichHandler
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 scvi_logger = logging.getLogger("scvi")
 

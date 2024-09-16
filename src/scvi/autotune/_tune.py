@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from typing import TYPE_CHECKING
 
-from lightning.pytorch import LightningDataModule
-
-from scvi._types import AnnOrMuData
 from scvi.autotune._experiment import AutotuneExperiment
-from scvi.model.base import BaseModelClass
+
+if TYPE_CHECKING:
+    from typing import Any, Literal
+
+    from lightning.pytorch import LightningDataModule
+
+    from scvi._types import AnnOrMuData
+    from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
