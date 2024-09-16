@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
-from anndata import AnnData
 from sparse import GCXS
 from xarray import Dataset
 
 from scvi.criticism import PosteriorPredictiveCheck as PPC
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices: list[int] | None = None):

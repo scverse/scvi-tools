@@ -6,9 +6,9 @@ from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
+from typing import TYPE_CHECKING
 
 import flax
-import lightning.pytorch as pl
 import numpy as np
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
@@ -16,9 +16,13 @@ from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
 
 from scvi import settings
-from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
+
+if TYPE_CHECKING:
+    import lightning.pytorch as pl
+
+    from scvi.dataloaders import AnnDataLoader
 
 MetricCallable = Callable[[BaseModelClass], float]
 
