@@ -163,7 +163,7 @@ class TrainingPlan(pl.LightningModule):
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
         compile: bool = False,
-        compile_kwargs: Optional[dict] = None,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__()
