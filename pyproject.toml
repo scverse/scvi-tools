@@ -5,7 +5,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.1.6.post1"
+version = "1.1.6.post2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,7 +14,7 @@ authors = [
     {name = "The scvi-tools development team"},
 ]
 maintainers = [
-    {name = "The scvi-tools development team", email = "martinkim@berkeley.edu"},
+    {name = "The scvi-tools development team", email = "ori.kronfeld@weitzmann.ac.il"},
 ]
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
@@ -32,7 +32,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata>=0.7.5",
+    "anndata>=0.7.5,<=0.10.8",
     "docrep>=0.3.2",
     "flax",
     "jax>=0.4.4",
