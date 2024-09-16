@@ -431,7 +431,7 @@ def add_dna_sequence(
         block_ends = block_starts + seq_len
         seqs = []
 
-        for start, end in zip(block_starts, block_ends - 1, strict=False):
+        for start, end in zip(block_starts, block_ends - 1, strict=True):
             seq = str(g.get_seq(chrom, start, end)).upper()
             seqs.append(list(seq))
 

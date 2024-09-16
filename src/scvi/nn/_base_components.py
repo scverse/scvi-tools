@@ -97,7 +97,7 @@ class FCLayers(nn.Module):
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:], strict=False)
+                        zip(layers_dim[:-1], layers_dim[1:], strict=True)
                     )
                 ]
             )
@@ -154,7 +154,7 @@ class FCLayers(nn.Module):
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
-        for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
+        for n_cat, cat in zip(self.n_cat_list, cat_list, strict=True):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information

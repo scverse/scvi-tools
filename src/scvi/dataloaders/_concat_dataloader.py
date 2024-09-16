@@ -74,4 +74,4 @@ class ConcatDataLoader(DataLoader):
         is the same as indices_list.
         """
         iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
-        return zip(*iter_list, strict=False)
+        return zip(*iter_list, strict=True)

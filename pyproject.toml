@@ -13,7 +13,7 @@ authors = [
     {name = "The scvi-tools development team"},
 ]
 maintainers = [
-    {name = "The scvi-tools development team", email = "ori.kronfeld@weitzmann.ac.il"},
+    {name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il"},
 ]
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
