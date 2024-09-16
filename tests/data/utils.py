@@ -1,5 +1,3 @@
-from typing import Optional
-
 from anndata import AnnData
 from mudata import MuData
 
@@ -25,8 +23,8 @@ from scvi.model import SCVI
 def unsupervised_training_one_epoch(
     adata: AnnData,
     run_setup_anndata: bool = True,
-    batch_key: Optional[str] = None,
-    labels_key: Optional[str] = None,
+    batch_key: str | None = None,
+    labels_key: str | None = None,
 ):
     if run_setup_anndata:
         SCVI.setup_anndata(adata, batch_key=batch_key, labels_key=labels_key)
@@ -36,13 +34,13 @@ def unsupervised_training_one_epoch(
 
 def generic_setup_adata_manager(
     adata: AnnData,
-    batch_key: Optional[str] = None,
-    labels_key: Optional[str] = None,
-    categorical_covariate_keys: Optional[list[str]] = None,
-    continuous_covariate_keys: Optional[list[str]] = None,
-    layer: Optional[str] = None,
-    protein_expression_obsm_key: Optional[str] = None,
-    protein_names_uns_key: Optional[str] = None,
+    batch_key: str | None = None,
+    labels_key: str | None = None,
+    categorical_covariate_keys: list[str] | None = None,
+    continuous_covariate_keys: list[str] | None = None,
+    layer: str | None = None,
+    protein_expression_obsm_key: str | None = None,
+    protein_names_uns_key: str | None = None,
 ) -> AnnDataManager:
     setup_args = locals()
     setup_args.pop("adata")
@@ -75,8 +73,8 @@ def generic_setup_adata_manager(
 def scanvi_setup_adata_manager(
     adata: AnnData,
     unlabeled_category: str,
-    batch_key: Optional[str] = None,
-    labels_key: Optional[str] = None,
+    batch_key: str | None = None,
+    labels_key: str | None = None,
 ) -> AnnDataManager:
     setup_args = locals()
     setup_args.pop("adata")
@@ -93,15 +91,15 @@ def scanvi_setup_adata_manager(
 def generic_setup_mudata_manager(
     mdata: MuData,
     layer_mod,
-    layer: Optional[str] = None,
-    batch_mod: Optional[str] = None,
-    batch_key: Optional[str] = None,
-    categorical_covariate_mod: Optional[str] = None,
-    categorical_covariate_keys: Optional[list[str]] = None,
-    continuous_covariate_mod: Optional[str] = None,
-    continuous_covariate_keys: Optional[list[str]] = None,
-    protein_expression_mod: Optional[str] = None,
-    protein_expression_layer: Optional[str] = None,
+    layer: str | None = None,
+    batch_mod: str | None = None,
+    batch_key: str | None = None,
+    categorical_covariate_mod: str | None = None,
+    categorical_covariate_keys: list[str] | None = None,
+    continuous_covariate_mod: str | None = None,
+    continuous_covariate_keys: list[str] | None = None,
+    protein_expression_mod: str | None = None,
+    protein_expression_layer: str | None = None,
 ) -> AnnDataManager:
     setup_args = locals()
     setup_args.pop("mdata")

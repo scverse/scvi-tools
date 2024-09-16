@@ -133,7 +133,7 @@ class AnnTorchDataset(Dataset):
         if isinstance(indexes, int):
             indexes = [indexes]  # force batched single observations
 
-        if self.adata_manager.adata.isbacked and isinstance(indexes, (list, np.ndarray)):
+        if self.adata_manager.adata.isbacked and isinstance(indexes, list | np.ndarray):
             # need to sort indexes for h5py datasets
             indexes = np.sort(indexes)
 
@@ -142,7 +142,7 @@ class AnnTorchDataset(Dataset):
         for key, dtype in self.keys_and_dtypes.items():
             data = self.data[key]
 
-            if isinstance(data, (np.ndarray, h5py.Dataset)):
+            if isinstance(data, np.ndarray | h5py.Dataset):
                 sliced_data = data[indexes].astype(dtype, copy=False)
             elif isinstance(data, pd.DataFrame):
                 sliced_data = data.iloc[indexes, :].to_numpy().astype(dtype, copy=False)

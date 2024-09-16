@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import Callable
 
 import flax
 import lightning.pytorch as pl

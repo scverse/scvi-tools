@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -143,7 +143,7 @@ class PEAKVAE(BaseModuleClass):
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
@@ -152,8 +152,8 @@ class PEAKVAE(BaseModuleClass):
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
 
