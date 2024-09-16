@@ -6,7 +6,6 @@ import logging
 import warnings
 from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -40,7 +39,7 @@ from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
 
 logger = logging.getLogger(__name__)
-Number = Union[int, float]
+Number = int | float
 
 
 class ContrastiveVI(BaseModelClass):

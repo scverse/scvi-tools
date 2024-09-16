@@ -1,6 +1,5 @@
 import copy
 import logging
-from typing import Optional, Union
 
 import numpy as np
 from torch.utils.data import (
@@ -75,13 +74,13 @@ class AnnDataLoader(DataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        indices: Optional[Union[list[int], list[bool]]] = None,
+        indices: list[int] | list[bool] | None = None,
         batch_size: int = 128,
         shuffle: bool = False,
-        sampler: Optional[Sampler] = None,
+        sampler: Sampler | None = None,
         drop_last: bool = False,
         drop_dataset_tail: bool = False,
-        data_and_attributes: Optional[Union[list[str], dict[str, np.dtype]]] = None,
+        data_and_attributes: list[str] | dict[str, np.dtype] | None = None,
         iter_ndarray: bool = False,
         distributed_sampler: bool = False,
         load_sparse_tensor: bool = False,

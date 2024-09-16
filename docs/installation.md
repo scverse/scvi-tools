@@ -23,14 +23,14 @@ Don't know how to get started with virtual environments or `conda`/`pip`? Check 
 ### Virtual environment
 
 A virtual environment can be created with either `conda` or `venv`. We recommend using `conda`. We
-currently support Python 3.9 - 3.11.
+currently support Python 3.10 - 3.12.
 
 For `conda`, we recommend using the [Miniforge](https://github.com/conda-forge/miniforge)
 distribution, which is generally faster than the official distribution and comes with conda-forge
 as the default channel (where scvi-tools is hosted).
 
 ```bash
-conda create -n scvi-env python=3.11  # any python 3.9 to 3.11
+conda create -n scvi-env python=3.12  # any python 3.10 to 3.12
 conda activate scvi-env
 ```
 

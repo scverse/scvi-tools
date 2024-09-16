@@ -1,6 +1,6 @@
 import importlib
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 
 def error_on_missing_dependencies(*modules):
