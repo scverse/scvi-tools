@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from anndata import AnnData
 from torch import logsumexp
 from torch.distributions import Beta
 
@@ -19,6 +17,12 @@ from scvi.module import AutoZIVAE
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, VAEMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
