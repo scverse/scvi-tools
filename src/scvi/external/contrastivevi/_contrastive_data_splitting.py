@@ -1,5 +1,3 @@
-from typing import Optional
-
 import numpy as np
 
 from scvi import settings
@@ -56,11 +54,11 @@ class ContrastiveDataSplitter(DataSplitter):
         background_indices: list[int],
         target_indices: list[int],
         train_size: float = 0.9,
-        validation_size: Optional[float] = None,
+        validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
         pin_memory: bool = False,
-        external_indexing: Optional[list[np.array, np.array, np.array]] = None,
+        external_indexing: list[np.array, np.array, np.array] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -119,7 +117,7 @@ class ContrastiveDataSplitter(DataSplitter):
         self.n_train = self.n_background_train + self.n_target_train
         self.n_val = self.n_background_val + self.n_target_val
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: str | None = None):
         """Split background and target indices into train/val/test sets."""
         background_indices = self.background_indices
         n_background_train = self.n_background_train

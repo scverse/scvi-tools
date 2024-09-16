@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -35,7 +34,7 @@ class ProteinFieldMixin:
         self,
         *base_field_args,
         use_batch_mask: bool = True,
-        batch_field: Optional[str] = None,
+        batch_field: str | None = None,
         **base_field_kwargs,
     ) -> None:
         if use_batch_mask and batch_field is None:
@@ -50,7 +49,7 @@ class ProteinFieldMixin:
             **base_field_kwargs,
         )
 
-    def _get_batch_mask_protein_data(self, adata: AnnData) -> Optional[dict]:
+    def _get_batch_mask_protein_data(self, adata: AnnData) -> dict | None:
         """Returns a dict with length number of batches where each entry is a mask.
 
         The mask is over cell measurement columns that are present (observed)

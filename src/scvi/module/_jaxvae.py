@@ -1,5 +1,3 @@
-from typing import Optional
-
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
@@ -30,7 +28,7 @@ class FlaxEncoder(nn.Module):
     n_latent: int
     n_hidden: int
     dropout_rate: int
-    training: Optional[bool] = None
+    training: bool | None = None
 
     def setup(self):
         """Setup encoder."""
@@ -44,7 +42,7 @@ class FlaxEncoder(nn.Module):
         self.dropout1 = nn.Dropout(self.dropout_rate)
         self.dropout2 = nn.Dropout(self.dropout_rate)
 
-    def __call__(self, x: jnp.ndarray, training: Optional[bool] = None):
+    def __call__(self, x: jnp.ndarray, training: bool | None = None):
         """Forward pass."""
         training = nn.merge_param("training", self.training, training)
         is_eval = not training
@@ -72,7 +70,7 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
-    training: Optional[bool] = None
+    training: bool | None = None
 
     def setup(self):
         """Setup decoder."""
@@ -91,7 +89,7 @@ class FlaxDecoder(nn.Module):
             "disp", lambda rng, shape: jax.random.normal(rng, shape), (self.n_input, 1)
         )
 
-    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: Optional[bool] = None):
+    def __call__(self, z: jnp.ndarray, batch: jnp.ndarray, training: bool | None = None):
         """Forward pass."""
         # TODO(adamgayoso): Test this
         training = nn.merge_param("training", self.training, training)
