@@ -1,9 +1,8 @@
 """Main module."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal, Poisson
@@ -177,7 +176,7 @@ class JVAE(BaseModuleClass):
             pass
 
     def sample_from_posterior_z(
-        self, x: torch.Tensor, mode: int | None = None, deterministic: bool = False
+        self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
         """Sample tensor of latent values from the posterior.
 
@@ -208,7 +207,7 @@ class JVAE(BaseModuleClass):
         return z
 
     def sample_from_posterior_l(
-        self, x: torch.Tensor, mode: int | None = None, deterministic: bool = False
+        self, x: torch.Tensor, mode: int = None, deterministic: bool = False
     ) -> torch.Tensor:
         """Sample the tensor of library sizes from the posterior.
 
@@ -288,7 +287,7 @@ class JVAE(BaseModuleClass):
         batch_index: torch.Tensor,
         y: torch.Tensor | None = None,
         deterministic: bool = False,
-        decode_mode: int | None = None,
+        decode_mode: int = None,
     ) -> dict:
         """Run the forward pass of the model."""
         if decode_mode is None:
@@ -313,7 +312,7 @@ class JVAE(BaseModuleClass):
         batch_index: torch.Tensor,
         y: torch.Tensor | None = None,
         deterministic: bool = False,
-        decode_mode: int | None = None,
+        decode_mode: int = None,
     ) -> torch.Tensor:
         """Returns the tensor of scaled frequencies of expression.
 

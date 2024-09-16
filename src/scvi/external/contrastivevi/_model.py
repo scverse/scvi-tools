@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from anndata import AnnData
 
 logger = logging.getLogger(__name__)
-Number = Union[int, float]
+Number = int | float
 
 
 class ContrastiveVI(BaseModelClass):

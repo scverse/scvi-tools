@@ -223,20 +223,20 @@ class SaveBestState(Callback):
 
         if mode == "min":
             self.monitor_op = np.less
-            self.best_module_metric_val = np.inf
+            self.best_module_metric_val = np.Inf
             self.mode = "min"
         elif mode == "max":
             self.monitor_op = np.greater
-            self.best_module_metric_val = -np.inf
+            self.best_module_metric_val = -np.Inf
             self.mode = "max"
         else:
             if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
                 self.monitor_op = np.greater
-                self.best_module_metric_val = -np.inf
+                self.best_module_metric_val = -np.Inf
                 self.mode = "max"
             else:
                 self.monitor_op = np.less
-                self.best_module_metric_val = np.inf
+                self.best_module_metric_val = np.Inf
                 self.mode = "min"
 
     def check_monitor_top(self, current):

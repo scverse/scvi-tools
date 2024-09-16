@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import torch
@@ -16,12 +14,7 @@ if TYPE_CHECKING:
 
 
 class TestSparseDataSplitter(scvi.dataloaders.DataSplitter):
-    def __init__(
-        self,
-        *args,
-        expected_sparse_layout: Literal["csr", "csc"] | None = None,
-        **kwargs,
-    ):
+    def __init__(self, *args, expected_sparse_layout: Literal["csr", "csc"] = None, **kwargs):
         if expected_sparse_layout == "csr":
             self.expected_sparse_layout = torch.sparse_csr
         elif expected_sparse_layout == "csc":
@@ -100,7 +93,7 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         max_epochs: int = 1,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        expected_sparse_layout: Literal["csr", "csc"] | None = None,
+        expected_sparse_layout: Literal["csr", "csc"] = None,
     ):
         data_splitter = TestSparseDataSplitter(
             self.adata_manager,

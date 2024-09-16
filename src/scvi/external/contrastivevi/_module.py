@@ -1,9 +1,8 @@
 """PyTorch module for Contrastive VI for single cell expression data."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal

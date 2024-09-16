@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -41,7 +39,7 @@ class BaseDataFrameField(BaseAnnDataField):
         self,
         registry_key: str,
         attr_key: str | None,
-        field_type: Literal["obs", "var"] | None = None,
+        field_type: Literal["obs", "var"] = None,
         required: bool = True,
     ) -> None:
         super().__init__()
@@ -152,7 +150,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
         self,
         registry_key: str,
         attr_key: str | None,
-        field_type: Literal["obs", "var"] | None = None,
+        field_type: Literal["obs", "var"] = None,
     ) -> None:
         self.is_default = attr_key is None
         self._original_attr_key = attr_key or registry_key

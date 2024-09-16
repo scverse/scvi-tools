@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import inspect
 import logging
 import warnings
@@ -560,7 +558,7 @@ def pairs_sampler(
     arr1: list[float] | np.ndarray | torch.Tensor,
     arr2: list[float] | np.ndarray | torch.Tensor,
     use_permutation: bool = True,
-    m_permutation: int | None = None,
+    m_permutation: int = None,
     sanity_check_perm: bool = False,
     weights1: list[float] | np.ndarray | torch.Tensor = None,
     weights2: list[float] | np.ndarray | torch.Tensor = None,

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -52,7 +50,7 @@ class Decoder(nn.Module):
         self,
         n_input: int,
         n_output: int,
-        n_cat_list: Iterable[int] | None = None,
+        n_cat_list: Iterable[int] = None,
         n_layers: int = 2,
         n_hidden: int = 128,
         use_batch_norm: bool = False,
@@ -143,8 +141,8 @@ class PEAKVAE(BaseModuleClass):
         self,
         n_input_regions: int,
         n_batch: int = 0,
-        n_hidden: int | None = None,
-        n_latent: int | None = None,
+        n_hidden: int = None,
+        n_latent: int = None,
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
@@ -179,7 +177,7 @@ class PEAKVAE(BaseModuleClass):
         self.deeply_inject_covariates = deeply_inject_covariates
         self.encode_covariates = encode_covariates
 
-        cat_list = [n_batch, *list(n_cats_per_cov)] if n_cats_per_cov is not None else []
+        cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
 
         n_input_encoder = self.n_input_regions + n_continuous_cov * encode_covariates
         encoder_cat_list = cat_list if encode_covariates else None

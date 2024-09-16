@@ -1,8 +1,7 @@
-from __future__ import annotations
-
 import logging
 import warnings
 from typing import TYPE_CHECKING
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -80,7 +79,7 @@ class ArrayLikeField(BaseArrayLikeField):
         self,
         registry_key: str,
         attr_key: str,
-        field_type: Literal["obsm", "varm"] | None = None,
+        field_type: Literal["obsm", "varm"] = None,
         colnames_uns_key: str | None = None,
         is_count_data: bool = False,
         correct_data_format: bool = True,
@@ -224,7 +223,7 @@ class BaseJointField(BaseArrayLikeField):
         self,
         registry_key: str,
         attr_keys: list[str] | None,
-        field_type: Literal["obsm", "varm"] | None = None,
+        field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key)
         if field_type == "obsm":
@@ -296,7 +295,7 @@ class NumericalJointField(BaseJointField):
         self,
         registry_key: str,
         attr_keys: list[str] | None,
-        field_type: Literal["obsm", "varm"] | None = None,
+        field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
 
@@ -383,7 +382,7 @@ class CategoricalJointField(BaseJointField):
         self,
         registry_key: str,
         attr_keys: list[str] | None,
-        field_type: Literal["obsm", "varm"] | None = None,
+        field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
         self.count_stat_key = f"n_{self.registry_key}"

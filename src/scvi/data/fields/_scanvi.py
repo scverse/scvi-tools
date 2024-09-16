@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import warnings
 from typing import TYPE_CHECKING
 
@@ -53,7 +51,7 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         # could be in mapping in transfer case
         elif self._unlabeled_category not in mapping:
             # just put as last category
-            mapping = np.asarray([*list(mapping), self._unlabeled_category])
+            mapping = np.asarray(list(mapping) + [self._unlabeled_category])
 
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         # rerun setup for the batch column

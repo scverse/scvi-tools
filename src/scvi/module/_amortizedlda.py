@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import math
 from typing import TYPE_CHECKING
+from collections.abc import Iterable, Sequence
 
 import pyro
 import pyro.distributions as dist

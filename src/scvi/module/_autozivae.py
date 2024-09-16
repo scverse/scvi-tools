@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Literal
 
 from typing import TYPE_CHECKING
 
@@ -135,7 +135,7 @@ class AutoZIVAE(VAE):
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
-    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str] | torch.Tensor | np.ndarray:
+    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str, torch.Tensor | np.ndarray]:
         """Get the parameters of the Bernoulli beta prior and posterior distributions."""
         # Return parameters of Bernoulli Beta distributions in a dictionary
         outputs = {}

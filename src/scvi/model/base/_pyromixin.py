@@ -425,7 +425,7 @@ class PyroSampleMixin:
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
-                obs_plate_dim = next(iter(obs_plate_sites.values()))
+                obs_plate_dim = list(obs_plate_sites.values())[0]
 
                 sample_kwargs_obs_plate = sample_kwargs.copy()
                 sample_kwargs_obs_plate["return_sites"] = self._get_obs_plate_return_sites(

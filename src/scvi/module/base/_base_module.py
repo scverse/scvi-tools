@@ -119,7 +119,7 @@ class LossOutput:
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
-            object.__setattr__(self, "n_obs_minibatch", next(iter(rec_loss.values())).shape[0])
+            object.__setattr__(self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0])
 
         if self.classification_loss is not None and (
             self.logits is None or self.true_labels is None

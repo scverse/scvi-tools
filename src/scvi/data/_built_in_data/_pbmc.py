@@ -77,7 +77,7 @@ def _load_pbmc_dataset(
     adata = pbmc8k.concatenate(pbmc4k)
     adata.obs_names = barcodes
 
-    dict_barcodes = dict(zip(barcodes, np.arange(len(barcodes))))
+    dict_barcodes = dict(zip(barcodes, np.arange(len(barcodes)), strict=True))
     subset_cells = []
     barcodes_metadata = pbmc_metadata["barcodes"].index.values.ravel().astype(str)
     for barcode in barcodes_metadata:

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -66,7 +64,7 @@ class _ConvBlock(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int,
-        pool_size: int | None = None,
+        pool_size: int = None,
         batch_norm: bool = True,
         dropout: float = 0.0,
         activation_fn: Callable | None = None,
@@ -341,7 +339,7 @@ class ScBassetModule(BaseModuleClass):
     def _get_accessibility(
         self,
         dna_codes: torch.Tensor,
-        batch_size: int | None = None,
+        batch_size: int = None,
     ) -> torch.Tensor:
         """Perform minibatch inference of accessibility scores."""
         accessibility = torch.zeros(

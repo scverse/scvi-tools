@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import torch
@@ -126,7 +124,7 @@ class CellAssignModule(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         if cat_key in tensors.keys():
             for cat_input, n_cat in zip(
-                torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
+                torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov, strict=True
             ):
                 to_cat.append(F.one_hot(cat_input.squeeze(-1), n_cat))
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import logging
 import tempfile
 from typing import TYPE_CHECKING
@@ -34,7 +32,7 @@ def poisson_gene_selection(
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,
-    batch_key: str | None = None,
+    batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
 ) -> pd.DataFrame | None:
@@ -437,7 +435,7 @@ def add_dna_sequence(
         block_ends = block_starts + seq_len
         seqs = []
 
-        for start, end in zip(block_starts, block_ends - 1):
+        for start, end in zip(block_starts, block_ends - 1, strict=True):
             seq = str(g.get_seq(chrom, start, end)).upper()
             seqs.append(list(seq))
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import torch
@@ -371,7 +369,7 @@ class MRDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(
-        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int | None = None
+        self, x: torch.Tensor = None, ind_x: torch.Tensor = None, y: int = None
     ):
         """Returns cell type specific gene expression at the queried spots.
 

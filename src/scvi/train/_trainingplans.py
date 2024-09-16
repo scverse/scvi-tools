@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
@@ -157,7 +155,7 @@ class TrainingPlan(pl.LightningModule):
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
-        n_steps_kl_warmup: int | None = None,
+        n_steps_kl_warmup: int = None,
         n_epochs_kl_warmup: int = 400,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
@@ -493,7 +491,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         optimizer_creator: TorchOptimizerCreator | None = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
-        n_steps_kl_warmup: int | None = None,
+        n_steps_kl_warmup: int = None,
         n_epochs_kl_warmup: int = 400,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,

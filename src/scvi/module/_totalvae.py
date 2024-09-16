@@ -1,7 +1,5 @@
 """Main module."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -134,7 +132,7 @@ class TOTALVAE(BaseModuleClass):
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        protein_batch_mask: dict[str | int, np.ndarray] | None = None,
+        protein_batch_mask: dict[str | int, np.ndarray] = None,
         encode_covariates: bool = True,
         protein_background_prior_mean: np.ndarray | None = None,
         protein_background_prior_scale: np.ndarray | None = None,
@@ -227,7 +225,7 @@ class TOTALVAE(BaseModuleClass):
         # latent space representation
         n_input = n_input_genes + self.n_input_proteins
         n_input_encoder = n_input + n_continuous_cov * encode_covariates
-        cat_list = [n_batch, *list([] if n_cats_per_cov is None else n_cats_per_cov)]
+        cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.encoder = EncoderTOTALVI(

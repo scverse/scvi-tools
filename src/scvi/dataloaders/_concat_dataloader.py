@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from itertools import cycle
 from typing import TYPE_CHECKING
 
@@ -78,4 +76,4 @@ class ConcatDataLoader(DataLoader):
         is the same as indices_list.
         """
         iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
-        return zip(*iter_list)
+        return zip(*iter_list, strict=True)
