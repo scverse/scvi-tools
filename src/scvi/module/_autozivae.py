@@ -1,6 +1,4 @@
-from typing import Literal
-
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import torch
 import torch.nn.functional as F

@@ -16,7 +16,7 @@ from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

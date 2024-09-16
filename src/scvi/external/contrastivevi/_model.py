@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import partial
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd

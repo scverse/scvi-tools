@@ -23,6 +23,7 @@ from scvi.utils._docstrings import devices_dsp
 if TYPE_CHECKING:
     from scvi.data import AnnDataManager
 
+
 def validate_data_split(n_samples: int, train_size: float, validation_size: float | None = None):
     """Check data splitting parameters and return n_train and n_val.
 
@@ -326,7 +327,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     >>> adata = scvi.data.synthetic_iid()
     >>> scvi.model.SCVI.setup_anndata(adata, labels_key="labels")
     >>> adata_manager = scvi.model.SCVI(adata).adata_manager
-    >>> unknown_label = 'label_0'
+    >>> unknown_label = "label_0"
     >>> splitter = SemiSupervisedDataSplitter(adata, unknown_label)
     >>> splitter.setup()
     >>> train_dl = splitter.train_dataloader()

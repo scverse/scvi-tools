@@ -8,6 +8,7 @@ from scipy.io import mmread
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 def read_10x_atac(base_path: str | Path) -> AnnData:
     """Read scATAC-seq data outputted by 10x Genomics software.
 

@@ -14,7 +14,8 @@ from scvi.external.mrvi._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from collections.abc import Callable
+    from typing import Any
 
 DEFAULT_PX_KWARGS = {
     "n_hidden": 32,

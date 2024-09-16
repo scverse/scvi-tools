@@ -1,9 +1,9 @@
 import warnings
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from inspect import signature
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import jax
 import lightning.pytorch as pl

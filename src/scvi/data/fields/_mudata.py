@@ -1,5 +1,4 @@
-from typing import Callable, Optional
-
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from anndata import AnnData
@@ -7,7 +6,7 @@ from anndata import AnnData
 from ._base_field import BaseAnnDataField
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
     import rich
     from mudata import MuData

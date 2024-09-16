@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 from pyro.distributions import BetaBinomial as BetaBinomialDistribution
 from torch.distributions import constraints

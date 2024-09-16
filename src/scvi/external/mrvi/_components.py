@@ -8,7 +8,8 @@ import jax.numpy as jnp
 import numpyro.distributions as dist
 
 if TYPE_CHECKING:
-    from typing import Any, Callable, Literal
+    from collections.abc import Callable
+    from typing import Any, Literal
 
 PYTORCH_DEFAULT_SCALE = 1 / 3
 

@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
 
 def _partial_freeze_hook_factory(freeze: int) -> Callable[[torch.Tensor], torch.Tensor]:

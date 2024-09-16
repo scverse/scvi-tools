@@ -13,8 +13,8 @@ from sklearn.mixture import GaussianMixture
 from scvi import REGISTRY_KEYS, settings
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from typing import Callable, Literal
+    from collections.abc import Callable, Sequence
+    from typing import Literal
 
     from scvi._types import Number
     from scvi.data import AnnDataManager

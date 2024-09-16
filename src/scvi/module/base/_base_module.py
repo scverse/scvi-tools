@@ -20,8 +20,8 @@ from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from typing import Any, Callable
+    from collections.abc import Callable, Iterable
+    from typing import Any
 
     import jax.numpy as jnp
     import torch

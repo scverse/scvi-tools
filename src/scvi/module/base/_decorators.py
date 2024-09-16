@@ -8,7 +8,8 @@ import torch
 from torch.nn import Module
 
 if TYPE_CHECKING:
-    from typing import Any, Callable
+    from collections.abc import Callable
+    from typing import Any
 
     import flax.linen as nn
 

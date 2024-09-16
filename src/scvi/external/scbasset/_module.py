@@ -9,7 +9,7 @@ from torch import nn
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 

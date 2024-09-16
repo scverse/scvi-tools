@@ -9,8 +9,8 @@ from torch.nn import ModuleList
 from scvi.nn._utils import ExpActivation
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from typing import Callable, Literal
+    from collections.abc import Callable, Iterable
+    from typing import Literal
 
 
 def _identity(x):

@@ -18,7 +18,8 @@ from scvi.module.base import (
 )
 
 if TYPE_CHECKING:
-    from typing import Callable, Literal
+    from collections.abc import Callable
+    from typing import Literal
 
     from torch.distributions import Distribution
 

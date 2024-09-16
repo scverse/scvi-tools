@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import flax
 import numpy as np
@@ -223,20 +224,20 @@ class SaveBestState(Callback):
 
         if mode == "min":
             self.monitor_op = np.less
-            self.best_module_metric_val = np.Inf
+            self.best_module_metric_val = np.inf
             self.mode = "min"
         elif mode == "max":
             self.monitor_op = np.greater
-            self.best_module_metric_val = -np.Inf
+            self.best_module_metric_val = -np.inf
             self.mode = "max"
         else:
             if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
                 self.monitor_op = np.greater
-                self.best_module_metric_val = -np.Inf
+                self.best_module_metric_val = -np.inf
                 self.mode = "max"
             else:
                 self.monitor_op = np.less
-                self.best_module_metric_val = np.Inf
+                self.best_module_metric_val = np.inf
                 self.mode = "min"
 
     def check_monitor_top(self, current):
