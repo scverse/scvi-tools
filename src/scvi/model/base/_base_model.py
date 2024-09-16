@@ -5,7 +5,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -15,7 +15,6 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -36,6 +35,11 @@ from scvi.model.base._save_load import (
 )
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
 
