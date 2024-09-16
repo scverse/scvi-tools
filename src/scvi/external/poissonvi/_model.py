@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -28,6 +25,13 @@ from scvi.model.base._de_core import _de_core
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import de_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    import pandas as pd
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 

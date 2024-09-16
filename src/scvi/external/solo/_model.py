@@ -3,8 +3,8 @@ from __future__ import annotations
 import io
 import logging
 import warnings
-from collections.abc import Sequence
 from contextlib import redirect_stdout
+from typing import TYPE_CHECKING
 
 import anndata
 import numpy as np
@@ -16,7 +16,6 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model import SCVI
 from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
@@ -24,6 +23,11 @@ from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from scvi.model import SCVI
 
 logger = logging.getLogger(__name__)
 
