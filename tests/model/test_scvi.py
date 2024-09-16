@@ -505,9 +505,8 @@ def test_setting_adata_attr(n_latent: int = 5):
     adata3 = synthetic_iid()
     del adata3.obs["batch"]
     # validation catches no batch
-    model.adata = adata3
     with pytest.raises(KeyError):
-        model.get_latent_representation()
+        model.adata = adata3
 
 
 def assert_dict_is_subset(d1, d2):
