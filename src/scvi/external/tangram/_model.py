@@ -52,7 +52,7 @@ class Tangram(BaseModelClass):
     >>> from scvi.external import Tangram
     >>> ad_sc = anndata.read_h5ad(path_to_sc_anndata)
     >>> ad_sp = anndata.read_h5ad(path_to_sp_anndata)
-    >>> markers = pd.read_csv(path_to_markers, index_col=0) # genes to use for mapping
+    >>> markers = pd.read_csv(path_to_markers, index_col=0)  # genes to use for mapping
     >>> mdata = mudata.MuData(
             {
                 "sp_full": ad_sp,
