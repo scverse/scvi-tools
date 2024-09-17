@@ -176,8 +176,7 @@ select = [
     "C4",  # flake8-comprehensions
     "BLE",  # flake8-blind-except
     "UP",  # pyupgrade
-    #"RUF100",  # Report unused noqa directives
-    #"RUF",  # Report unused noqa directives
+    "RUF100",  # Report unused noqa directives
     "PT", # pytest style
     "NPY", # numpy formatting
     "TCH", # flake8-type-checking
@@ -185,7 +184,7 @@ select = [
 ]
 ignore = [
     # allow I, O, l as variable names -> I is the identity matrix
-    #"E741",
+    "E741",
     # Missing docstring in public package
     "D104",
     # Missing docstring in public module
@@ -194,8 +193,6 @@ ignore = [
     "D107",
     # Errors from function calls in argument defaults. These are fine when the result is immutable.
     "B008",
-    # __magic__ methods are are often self-explanatory, allow missing docstrings
-    #"D105",
     # first line should end with a period [Bug: doesn't work with single-line docstrings]
     "D400",
     # First line should be in imperative mood; try rephrasing
