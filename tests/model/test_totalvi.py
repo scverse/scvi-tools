@@ -279,7 +279,8 @@ def test_totalvi_model_library_size(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
+    assert hasattr(model.module, "library_log_means")
+    assert hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -301,16 +302,14 @@ def test_totalvi_size_factor():
 
     # Test size_factor_key overrides use_observed_lib_size.
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=True)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
@@ -532,7 +531,8 @@ def test_totalvi_model_library_size_mudata():
 
     n_latent = 10
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
+    assert hasattr(model.module, "library_log_means")
+    assert hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -561,16 +561,14 @@ def test_totalvi_size_factor_mudata():
 
     # Test size_factor_key overrides use_observed_lib_size.
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=True)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 

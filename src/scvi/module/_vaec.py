@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
-from torch.distributions import Distribution
 
 from scvi import REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, auto_move_data
+
+if TYPE_CHECKING:
+    import numpy as np
+    from torch.distributions import Distribution
 
 
 class VAEC(BaseModuleClass):

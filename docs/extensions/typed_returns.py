@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Generator, Iterable
 
-from sphinx.application import Sphinx
 from sphinx.ext.napoleon import NumpyDocstring
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sphinx.application import Sphinx
+    from collections.abc import Generator, Iterable
 
 
 def _process_return(lines: Iterable[str]) -> Generator[str, None, None]:

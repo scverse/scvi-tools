@@ -163,7 +163,8 @@ def test_scanvi():
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
     scvi_pxr = m.module.state_dict().get("px_r", None)
-    assert scanvi_pxr is not None and scvi_pxr is not None
+    assert scanvi_pxr is not None
+    assert scvi_pxr is not None
     assert scanvi_pxr is not scvi_pxr
     scanvi_model.train(1)
 
@@ -273,7 +274,8 @@ def test_scanvi_with_external_indices():
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
     scvi_pxr = m.module.state_dict().get("px_r", None)
-    assert scanvi_pxr is not None and scvi_pxr is not None
+    assert scanvi_pxr is not None
+    assert scvi_pxr is not None
     assert scanvi_pxr is not scvi_pxr
     scanvi_model.train(1)
 

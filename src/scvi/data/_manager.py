@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import sys
 from collections import defaultdict
-from collections.abc import Sequence
 from copy import deepcopy
 from dataclasses import dataclass
 from io import StringIO
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import numpy as np
-import pandas as pd
 import rich
 from mudata import MuData
 from rich import box
@@ -17,7 +15,6 @@ from rich.console import Console
 from torch.utils.data import Subset
 
 import scvi
-from scvi._types import AnnOrMuData
 from scvi.utils import attrdict
 
 from . import _constants
@@ -28,7 +25,16 @@ from ._utils import (
     _check_mudata_fully_paired,
     get_anndata_attribute,
 )
-from .fields import AnnDataField
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    import numpy as np
+    import pandas as pd
+
+    from scvi._types import AnnOrMuData
+
+    from .fields import AnnDataField
 
 
 @dataclass

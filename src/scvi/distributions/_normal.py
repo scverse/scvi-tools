@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-import torch
+from typing import TYPE_CHECKING
+
 from torch.distributions import Normal as NormalTorch
+
+if TYPE_CHECKING:
+    import torch
 
 
 class Normal(NormalTorch):
