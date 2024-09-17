@@ -4,7 +4,7 @@ from typing import Literal
 
 from rich.console import Console
 from rich.progress import track as track_base
-from tqdm import tqdm as tqdm_base
+from tqdm.auto import tqdm as tqdm_base
 
 from scvi import settings
 
@@ -50,7 +50,7 @@ def track(
         if hasattr(tqdm_base, "_instances"):
             for instance in list(tqdm_base._instances):
                 tqdm_base._decr_instances(instance)
-        return tqdm_base(sequence, leave=False, desc=description, file=sys.stdout, **kwargs)
+        return tqdm_base(sequence, desc=description, file=sys.stdout, **kwargs)
     else:
         in_colab = "google.colab" in sys.modules
         force_jupyter = None if not in_colab else True
