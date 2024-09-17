@@ -1,91 +1,56 @@
 import logging
 import os
-from pathlib import Path
+import urllib
+
+import numpy as np
+
+from scvi.utils import track
 
 logger = logging.getLogger(__name__)
 
 
-def _download_scanpy_style(url: str, path: Path):
-    try:
-        import ipywidgets  # noqa: F401
-        from tqdm.auto import tqdm
-    except ImportError:
-        from tqdm import tqdm
-
-    from urllib.error import URLError
-    from urllib.request import Request, urlopen
-
-    blocksize = 1024 * 8
-    blocknum = 0
-
-    try:
-        req = Request(url, headers={"User-agent": "scanpy-user"})
-
-        try:
-            open_url = urlopen(req)
-        except URLError:
-            logger.warning(
-                "Failed to open the url with default certificates, trying with certifi."
-            )
-
-            from ssl import create_default_context
-
-            from certifi import where
-
-            open_url = urlopen(req, context=create_default_context(cafile=where()))
-
-        with open_url as resp:
-            total = resp.info().get("content-length", None)
-            with (
-                tqdm(
-                    unit="B",
-                    unit_scale=True,
-                    miniters=1,
-                    unit_divisor=1024,
-                    total=total if total is None else int(total),
-                ) as t,
-                path.open("wb") as f,
-            ):
-                block = resp.read(blocksize)
-                while block:
-                    f.write(block)
-                    blocknum += 1
-                    t.update(len(block))
-                    block = resp.read(blocksize)
-
-    except (KeyboardInterrupt, Exception):
-        # Make sure file doesn’t exist half-downloaded
-        if path.is_file():
-            path.unlink()
-        raise
-
-
-def _check_datafile_present_and_download(path, backup_url=None):
-    """Check whether the file is present, otherwise download."""
-    path = Path(path)
-    if path.is_file():
-        return True
-    if backup_url is None:
-        return False
-    logger.info(
-        f"try downloading from url\n{backup_url}\n"
-        "... this may take a while but only happens once"
-    )
-    if not path.parent.is_dir():
-        logger.info(f"creating directory {path.parent}/ for saving data")
-        path.parent.mkdir(parents=True)
-
-    _download_scanpy_style(backup_url, path)
-    return True
-
-
 def _download(url: str | None, save_path: str, filename: str):
     """Writes data from url to file."""
-    path_filename = os.path.join(save_path, filename)
-    if os.path.exists(path_filename):
-        logger.info(f"File {path_filename} already downloaded")
+    if os.path.exists(os.path.join(save_path, filename)):
+        logger.info(f"File {os.path.join(save_path, filename)} already downloaded")
         return
     elif url is None:
-        logger.info(f"No backup URL provided for missing file {path_filename}")
+        logger.info(f"No backup URL provided for missing file {os.path.join(save_path, filename)}")
         return
-    _check_datafile_present_and_download(path_filename, url)
+    req = urllib.request.Request(url, headers={"User-Agent": "Magic Browser"})
+    try:
+        r = urllib.request.urlopen(req)
+        if r.getheader("Content-Length") is None:
+            raise FileNotFoundError(
+                f"Found file with no content at {url}. "
+                "This is possibly a directory rather than a file path."
+            )
+    except urllib.error.HTTPError as exc:
+        if exc.code == "404":
+            raise FileNotFoundError(f"Could not find file at {url}") from exc
+        raise exc
+    logger.info(f"Downloading file at {os.path.join(save_path, filename)}")
+
+    def read_iter(file, block_size=1000):
+        """Iterates through file.
+
+        Given a file 'file', returns an iterator that returns bytes of
+        size 'blocksize' from the file, using read().
+        """
+        while True:
+            block = file.read(block_size)
+            if not block:
+                break
+            yield block
+
+    # Create the path to save the data
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    block_size = 1000
+
+    filesize = int(r.getheader("Content-Length"))
+    filesize = np.rint(filesize / block_size)
+    with open(os.path.join(save_path, filename), "wb") as f:
+        iterator = read_iter(r, block_size=block_size)
+        for data in track(iterator, style="tqdm", total=filesize, description="Downloading..."):
+            f.write(data)
