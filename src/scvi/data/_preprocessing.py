@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import logging
 import tempfile
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-import anndata
 import numpy as np
 import pandas as pd
 import torch
@@ -13,6 +14,11 @@ from scvi.utils import dependencies, track
 from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _check_nonnegative_integers
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import anndata
 
 logger = logging.getLogger(__name__)
 

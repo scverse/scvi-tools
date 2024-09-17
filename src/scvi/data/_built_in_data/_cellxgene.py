@@ -1,9 +1,15 @@
+from __future__ import annotations
+
 import os
 import re
+from typing import TYPE_CHECKING
 
-from anndata import AnnData, read_h5ad
+from anndata import read_h5ad
 
 from scvi.utils import dependencies
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 def _parse_dataset_id(url: str):

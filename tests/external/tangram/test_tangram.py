@@ -21,7 +21,7 @@ def _get_mdata(sparse_format: str | None = None):
 
 
 @pytest.mark.parametrize(
-    "density_prior_key,constrained",
+    ("density_prior_key", "constrained"),
     [
         (None, False),
         ("rna_count_based_density", False),
@@ -61,10 +61,10 @@ def test_tangram_errors():
     with pytest.raises(ValueError):
         Tangram(mdata, constrained=True, target_count=None)
 
+    Tangram.setup_mudata(
+        mdata,
+        density_prior_key="bad_prior",
+        modalities=modalities,
+    )
     with pytest.raises(ValueError):
-        Tangram.setup_mudata(
-            mdata,
-            density_prior_key="bad_prior",
-            modalities=modalities,
-        )
         Tangram(mdata)

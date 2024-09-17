@@ -36,7 +36,8 @@ def track(
     --------
     >>> from scvi.utils import track
     >>> my_list = [1, 2, 3]
-    >>> for i in track(my_list): print(i)
+    >>> for i in track(my_list):
+    ...     print(i)
     """
     if style is None:
         style = settings.progress_bar_style

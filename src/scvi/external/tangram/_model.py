@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import flax
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import scipy
 from anndata import AnnData
-from jaxlib.xla_extension import Device
-from mudata import MuData
 
 from scvi.data import AnnDataManager, AnnDataManagerValidationCheck, fields
 from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
@@ -20,6 +17,13 @@ from scvi.model.base import BaseModelClass
 from scvi.train import JaxTrainingPlan
 from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    import jax.numpy as jnp
+    from jaxlib.xla_extension import Device
+    from mudata import MuData
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +56,7 @@ class Tangram(BaseModelClass):
     >>> from scvi.external import Tangram
     >>> ad_sc = anndata.read_h5ad(path_to_sc_anndata)
     >>> ad_sp = anndata.read_h5ad(path_to_sp_anndata)
-    >>> markers = pd.read_csv(path_to_markers, index_col=0) # genes to use for mapping
+    >>> markers = pd.read_csv(path_to_markers, index_col=0)  # genes to use for mapping
     >>> mdata = mudata.MuData(
             {
                 "sp_full": ad_sp,

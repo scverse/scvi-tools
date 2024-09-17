@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 from os.path import join
-from typing import Any, Literal
+from typing import TYPE_CHECKING
 
 from anndata import AnnData
-from lightning.pytorch import LightningDataModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
 from mudata import MuData
-from ray.tune import ResultGrid, Tuner
-from ray.tune.schedulers import TrialScheduler
-from ray.tune.search import SearchAlgorithm
+from ray.tune import Tuner
 
-from scvi._types import AnnOrMuData
-from scvi.model.base import BaseModelClass
+if TYPE_CHECKING:
+    from typing import Any, Literal
+
+    from lightning.pytorch import LightningDataModule
+    from ray.tune import ResultGrid
+    from ray.tune.schedulers import TrialScheduler
+    from ray.tune.search import SearchAlgorithm
+
+    from scvi._types import AnnOrMuData
+    from scvi.model.base import BaseModelClass
 
 _ASHA_DEFAULT_KWARGS = {
     "max_t": 100,
