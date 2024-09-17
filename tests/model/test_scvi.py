@@ -504,7 +504,7 @@ def test_setting_adata_attr(n_latent: int = 5):
 
     adata3 = synthetic_iid()
     del adata3.obs["batch"]
-    # validation catches no batch
+    # validation catches no batch column.
     with pytest.raises(KeyError):
         model.adata = adata3
 
