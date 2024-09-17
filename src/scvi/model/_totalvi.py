@@ -2,19 +2,15 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
-from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _check_nonnegative_integers
 from scvi.dataloaders import DataSplitter
@@ -31,6 +27,15 @@ from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    from anndata import AnnData
+    from mudata import MuData
+
+    from scvi._types import Number
 
 logger = logging.getLogger(__name__)
 

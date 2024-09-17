@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
-import numpy as np
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -15,6 +12,13 @@ from scvi.module import JaxVAE
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, JaxTrainingMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    import numpy as np
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 

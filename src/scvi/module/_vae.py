@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Callable
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch.distributions import Distribution
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS, settings
@@ -18,6 +16,12 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Literal
+
+    from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 

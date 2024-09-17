@@ -159,4 +159,4 @@ def set_seed(request):
     from scvi import settings
 
     settings.seed = int(request.config.getoption("--seed"))
-    yield
+    return None

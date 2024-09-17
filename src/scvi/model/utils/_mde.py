@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-import numpy as np
 import pandas as pd
 import torch
-from scipy.sparse import spmatrix
 
 from scvi import settings
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    import numpy as np
+    from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
 

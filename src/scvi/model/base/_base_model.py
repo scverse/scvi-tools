@@ -6,8 +6,8 @@ import os
 import sys
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Sequence
 from io import StringIO
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -20,7 +20,6 @@ from rich import box
 from rich.console import Console
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -51,6 +50,10 @@ from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
 from . import _constants
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
 
@@ -184,9 +187,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         --------
         >>> adata = scvi.data.synthetic_iid()
         >>> model = scvi.model.SCVI(adata)
-        >>> model.to_device('cpu')      # moves model to CPU
-        >>> model.to_device('cuda:0')   # moves model to GPU 0
-        >>> model.to_device(0)          # also moves model to GPU 0
+        >>> model.to_device("cpu")  # moves model to CPU
+        >>> model.to_device("cuda:0")  # moves model to GPU 0
+        >>> model.to_device(0)  # also moves model to GPU 0
         """
         my_device = torch.device(device)
         self.module.to(my_device)

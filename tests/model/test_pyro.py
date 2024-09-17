@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pyro
 import pyro.distributions as dist
 import torch
-from anndata import AnnData
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
@@ -26,6 +26,9 @@ from scvi.model.base import (
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 class BayesianRegressionPyroModel(PyroModule):

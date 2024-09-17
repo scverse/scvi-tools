@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import collections.abc
 import logging
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import pyro
 import torch
-from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -17,6 +16,11 @@ from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, PyroSviTrainMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 

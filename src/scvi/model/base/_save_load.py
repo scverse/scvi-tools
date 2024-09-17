@@ -3,21 +3,26 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import anndata
 import mudata
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import torch
 from anndata import AnnData, read_h5ad
 
 from scvi import settings
-from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.model.base._constants import SAVE_KEYS
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    import numpy.typing as npt
+
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
