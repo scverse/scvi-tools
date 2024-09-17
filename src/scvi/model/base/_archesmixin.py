@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import warnings
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import anndata
 import numpy as np
@@ -13,7 +14,6 @@ from mudata import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import settings
-from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
@@ -25,7 +25,10 @@ from scvi.model.base._save_load import (
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
-from ._base_model import BaseModelClass
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
+
+    from ._base_model import BaseModelClass
 
 logger = logging.getLogger(__name__)
 

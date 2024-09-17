@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
-import pandas as pd
 import rich
 import torch
 from anndata import AnnData
@@ -53,6 +52,8 @@ from . import _constants
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    import pandas as pd
 
     from scvi._types import AnnOrMuData, MinifiedDataType
 
