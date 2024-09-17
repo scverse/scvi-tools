@@ -1,30 +1,35 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Callable, Iterable
 from dataclasses import field
-from typing import Any
+from typing import TYPE_CHECKING
 
 import flax
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pyro
-import torch
 from flax.training import train_state
 from jax import random
-from jaxlib.xla_extension import Device
-from numpyro.distributions import Distribution
-from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from typing import Any
+
+    import jax.numpy as jnp
+    import torch
+    from jaxlib.xla_extension import Device
+    from numpyro.distributions import Distribution
+    from pyro.infer.predictive import Predictive
+
+    from scvi._types import LossRecord, MinifiedDataType, Tensor
 
 
 @flax.struct.dataclass

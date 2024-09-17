@@ -233,6 +233,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     # test view_anndata_setup with different anndata before transfer setup
     with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2)
+    with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2, hide_state_registries=True)
     # test get methods with different anndata
     model.get_elbo(adata2)
@@ -492,9 +493,9 @@ def test_setting_adata_attr(n_latent: int = 5):
     adata2 = synthetic_iid()
     model.adata = adata2
 
+    rep = model.get_latent_representation(adata)
+    rep2 = model.get_latent_representation()
     with pytest.raises(AssertionError):
-        rep = model.get_latent_representation(adata)
-        rep2 = model.get_latent_representation()
         np.testing.assert_array_equal(rep, rep2)
 
     orig_manager = model.get_anndata_manager(adata)
@@ -503,10 +504,9 @@ def test_setting_adata_attr(n_latent: int = 5):
 
     adata3 = synthetic_iid()
     del adata3.obs["batch"]
-    # validation catches no batch
+    # validation catches no batch column.
     with pytest.raises(KeyError):
         model.adata = adata3
-        model.get_latent_representation()
 
 
 def assert_dict_is_subset(d1, d2):
@@ -1065,14 +1065,11 @@ def test_scvi_library_size_update(save_path):
     SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(adata1, n_latent=n_latent, use_observed_lib_size=False)
 
-    assert (
-        getattr(model.module, "library_log_means", None) is not None
-        and model.module.library_log_means.shape == (1, 2)
-        and model.module.library_log_means.count_nonzero().item() == 2
-    )
-    assert getattr(
-        model.module, "library_log_vars", None
-    ) is not None and model.module.library_log_vars.shape == (
+    assert getattr(model.module, "library_log_means", None) is not None
+    assert model.module.library_log_means.shape == (1, 2)
+    assert model.module.library_log_means.count_nonzero().item() == 2
+    assert getattr(model.module, "library_log_vars", None) is not None
+    assert model.module.library_log_vars.shape == (
         1,
         2,
     )
@@ -1086,17 +1083,13 @@ def test_scvi_library_size_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
-    assert (
-        getattr(model2.module, "library_log_means", None) is not None
-        and model2.module.library_log_means.shape == (1, 4)
-        and model2.module.library_log_means[:, :2].equal(model.module.library_log_means)
-        and model2.module.library_log_means.count_nonzero().item() == 4
-    )
-    assert (
-        getattr(model2.module, "library_log_vars", None) is not None
-        and model2.module.library_log_vars.shape == (1, 4)
-        and model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
-    )
+    assert getattr(model2.module, "library_log_means", None) is not None
+    assert model2.module.library_log_means.shape == (1, 4)
+    assert model2.module.library_log_means[:, :2].equal(model.module.library_log_means)
+    assert model2.module.library_log_means.count_nonzero().item() == 4
+    assert getattr(model2.module, "library_log_vars", None) is not None
+    assert model2.module.library_log_vars.shape == (1, 4)
+    assert model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
 
 
 def test_set_seed(n_latent: int = 5, seed: int = 1):
