@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 import scvi
-from scvi.data import _constants
-from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
+from scvi import REGISTRY_KEYS
+from scvi.data import AnnDataManager, _constants
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (

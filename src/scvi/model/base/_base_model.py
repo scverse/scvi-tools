@@ -50,6 +50,7 @@ from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
 from . import _constants
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
