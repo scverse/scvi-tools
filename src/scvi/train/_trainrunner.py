@@ -1,6 +1,5 @@
 import logging
 import warnings
-from typing import Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -58,10 +57,10 @@ class TrainRunner:
         self,
         model: BaseModelClass,
         training_plan: pl.LightningModule,
-        data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
+        data_splitter: SemiSupervisedDataSplitter | DataSplitter,
         max_epochs: int,
         accelerator: str = "auto",
-        devices: Union[int, list[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
