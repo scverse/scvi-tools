@@ -4,7 +4,7 @@ from typing import Literal
 
 from rich.console import Console
 from rich.progress import track as track_base
-from tqdm import tqdm as tqdm_base
+from tqdm.auto import tqdm as tqdm_base
 
 from scvi import settings
 
