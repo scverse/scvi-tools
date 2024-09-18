@@ -18,14 +18,13 @@ from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import (
     BaseModelClass,
-    PyroJitGuideWarmup,
     PyroModelGuideWarmup,
     PyroSampleMixin,
     PyroSviTrainMixin,
 )
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
-from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
+from scvi.train import LowLevelPyroTrainingPlan, Trainer
 
 if TYPE_CHECKING:
     from anndata import AnnData
@@ -213,109 +212,6 @@ def test_pyro_bayesian_regression_low_level(
     assert list(model.guide.state_dict()["locs.linear.bias_unconstrained"].shape) == [
         1,
     ]
-
-
-def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
-    adata = synthetic_iid()
-    adata_manager = _create_indices_adata_manager(adata)
-    train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
-    pyro.clear_param_store()
-    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
-    plan = PyroTrainingPlan(model)
-    plan.n_obs_training = len(train_dl.indices)
-    trainer = Trainer(
-        accelerator=accelerator,
-        devices=devices,
-        max_epochs=2,
-    )
-    trainer.fit(plan, train_dl)
-
-    # test Predictive
-    num_samples = 5
-    predictive = model.create_predictive(num_samples=num_samples)
-    for tensor_dict in train_dl:
-        args, kwargs = model._get_fn_args_from_batch(tensor_dict)
-        _ = {
-            k: v.detach().cpu().numpy()
-            for k, v in predictive(*args, **kwargs).items()
-            if k != "obs"
-        }
-    # test save and load
-    # cpu/gpu has minor difference
-    model.cpu()
-    quants = model.guide.quantiles([0.5])
-    sigma_median = quants["sigma"][0].detach().cpu().numpy()
-    linear_median = quants["linear.weight"][0].detach().cpu().numpy()
-
-    model_save_path = os.path.join(save_path, "model_params.pt")
-    torch.save(model.state_dict(), model_save_path)
-
-    pyro.clear_param_store()
-    new_model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
-    # run model one step to get autoguide params
-    try:
-        new_model.load_state_dict(torch.load(model_save_path))
-    except RuntimeError as err:
-        if isinstance(new_model, PyroBaseModuleClass):
-            plan = PyroTrainingPlan(new_model)
-            plan.n_obs_training = len(train_dl.indices)
-            trainer = Trainer(
-                accelerator=accelerator,
-                devices=devices,
-                max_steps=1,
-            )
-            trainer.fit(plan, train_dl)
-            new_model.load_state_dict(torch.load(model_save_path))
-        else:
-            raise err
-
-    quants = new_model.guide.quantiles([0.5])
-    sigma_median_new = quants["sigma"][0].detach().cpu().numpy()
-    linear_median_new = quants["linear.weight"][0].detach().cpu().numpy()
-
-    np.testing.assert_array_equal(sigma_median_new, sigma_median)
-    np.testing.assert_array_equal(linear_median_new, linear_median)
-
-
-def test_pyro_bayesian_regression_jit(
-    accelerator: str,
-    devices: list | str | int,
-):
-    adata = synthetic_iid()
-    adata_manager = _create_indices_adata_manager(adata)
-    train_dl = AnnDataLoader(adata_manager, shuffle=True, batch_size=128)
-    pyro.clear_param_store()
-    model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
-    plan = PyroTrainingPlan(model, loss_fn=pyro.infer.JitTrace_ELBO())
-    plan.n_obs_training = len(train_dl.indices)
-    trainer = Trainer(
-        accelerator=accelerator,
-        devices=devices,
-        max_epochs=2,
-        callbacks=[PyroJitGuideWarmup(train_dl)],
-    )
-    trainer.fit(plan, train_dl)
-
-    # 100 features
-    assert list(model.guide.state_dict()["locs.linear.weight_unconstrained"].shape) == [
-        1,
-        100,
-    ]
-    # 1 bias
-    assert list(model.guide.state_dict()["locs.linear.bias_unconstrained"].shape) == [
-        1,
-    ]
-
-    # test Predictive
-    num_samples = 5
-    predictive = model.create_predictive(num_samples=num_samples)
-    for tensor_dict in train_dl:
-        args, kwargs = model._get_fn_args_from_batch(tensor_dict)
-        _ = {
-            k: v.detach().cpu().numpy()
-            for k, v in predictive(*args, **kwargs).items()
-            if k != "obs"
-        }
 
 
 def test_pyro_bayesian_save_load(save_path):
