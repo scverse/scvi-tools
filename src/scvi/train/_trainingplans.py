@@ -41,7 +41,8 @@ def _compute_kl_weight(
     n_steps_kl_warmup: int | None,
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
-) -> torch.tensor:
+    return_float: bool = False,
+) -> float | torch.Tensor:
     """Computes the kl weight for the current step or epoch.
 
     If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
@@ -62,6 +63,8 @@ def _compute_kl_weight(
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
         Minimum scaling factor on KL divergence during training.
+    return_float
+        For Jax Training we should return float and not a tensor (the default)
     """
     if min_kl_weight > max_kl_weight:
         raise ValueError(
@@ -71,11 +74,13 @@ def _compute_kl_weight(
     slope = max_kl_weight - min_kl_weight
     if n_epochs_kl_warmup:
         if epoch < n_epochs_kl_warmup:
-            return torch.tensor(slope * (epoch / n_epochs_kl_warmup) + min_kl_weight)
+            updated_kl_weight = slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+            return updated_kl_weight if return_float else torch.tensor(updated_kl_weight)
     elif n_steps_kl_warmup:
         if step < n_steps_kl_warmup:
-            return torch.tensor(slope * (step / n_steps_kl_warmup) + min_kl_weight)
-    return torch.tensor(max_kl_weight)
+            updated_kl_weight = slope * (step / n_steps_kl_warmup) + min_kl_weight
+            return updated_kl_weight if return_float else torch.tensor(updated_kl_weight)
+    return max_kl_weight if return_float else torch.tensor(max_kl_weight)
 
 
 class TrainingPlan(pl.LightningModule):
@@ -426,15 +431,26 @@ class TrainingPlan(pl.LightningModule):
 
     @property
     def kl_weight(self):
-        """Scaling factor on KL divergence during training."""
-        return _compute_kl_weight(
-            self.current_epoch,
-            self.global_step,
-            self.n_epochs_kl_warmup,
-            self.n_steps_kl_warmup,
-            self.max_kl_weight,
-            self.min_kl_weight,
-        ).to(self.device)
+        """Scaling factor on KL divergence during training. Consider Jax"""
+        if type(self).__name__ == "JaxTrainingPlan":
+            return _compute_kl_weight(
+                self.current_epoch,
+                self.global_step,
+                self.n_epochs_kl_warmup,
+                self.n_steps_kl_warmup,
+                self.max_kl_weight,
+                self.min_kl_weight,
+                True,
+            )
+        else:
+            return _compute_kl_weight(
+                self.current_epoch,
+                self.global_step,
+                self.n_epochs_kl_warmup,
+                self.n_steps_kl_warmup,
+                self.max_kl_weight,
+                self.min_kl_weight,
+            ).to(self.device)
 
 
 class AdversarialTrainingPlan(TrainingPlan):
