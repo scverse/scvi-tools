@@ -25,11 +25,11 @@ We separate $c$ here out from $x$ to make the counterfactual portion of the quer
 
 ## In-distribution vs. out-of-distribution
 
-Since we are working with statistical models rather than causal models, we have to careful when we can rely on counterfactual predictions. At a high level, if we assume the true function relating the features to the target is smooth, we can trust counterfactual predictions for queries that are similar to points in the training data.
+Since we are working with statistical models rather than causal models, we have to be careful when we can rely on counterfactual predictions. At a high level, if we assume the true function relating the features to the target is smooth, we can trust counterfactual predictions for queries that are similar to points in the training data.
 
-Say we have a counterfactual query $(x,c')$.
-If we have data points in the training set $(x',c')$ that are similar to $(x,c')$,
-we can reasonably trust the counterfactual prediction.
+Say we have a counterfactual query $(x,c')$, and we have data points in the training set $(x',c')$ (i.e., $\|x - x'\|$ is small).
+If our model predicts the $y$ for $(x', c')$ well,
+we can reasonably trust the counterfactual prediction for $(x,c')$.
 Otherwise, if $(x,c')$ is very different from any point in the training data
 with condition $c'$, we cannot make any guarantees about the accuracy of the counterfactual prediction.
 Dimensionality reduction techniques or harmonization methods may help create more overlap between the features $x$ across the conditions, setting the stage for more reliable counterfactual predictions.
