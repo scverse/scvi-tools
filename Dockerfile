@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.5.0-runtime-ubuntu22.04
+FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
 FROM python:3.12 AS base
 
 RUN pip install --no-cache-dir uv
