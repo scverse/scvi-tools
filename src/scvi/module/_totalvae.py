@@ -1,7 +1,7 @@
 """Main module."""
 
 from collections.abc import Iterable
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -120,7 +120,7 @@ class TOTALVAE(BaseModuleClass):
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label"] = "gene",
@@ -128,18 +128,18 @@ class TOTALVAE(BaseModuleClass):
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
+        protein_batch_mask: dict[str | int, np.ndarray] = None,
         encode_covariates: bool = True,
-        protein_background_prior_mean: Optional[np.ndarray] = None,
-        protein_background_prior_scale: Optional[np.ndarray] = None,
+        protein_background_prior_mean: np.ndarray | None = None,
+        protein_background_prior_scale: np.ndarray | None = None,
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -255,8 +255,8 @@ class TOTALVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        label: torch.Tensor | None = None,
         n_samples: int = 1,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Returns the tensors of dispersions for genes and proteins.
@@ -290,7 +290,7 @@ class TOTALVAE(BaseModuleClass):
         y: torch.Tensor,
         px_dict: dict[str, torch.Tensor],
         py_dict: dict[str, torch.Tensor],
-        pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
+        pro_batch_mask_minibatch: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss."""
         px_ = px_dict
@@ -379,8 +379,8 @@ class TOTALVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         size_factor=None,
-        transform_batch: Optional[int] = None,
-    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
+        transform_batch: int | None = None,
+    ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
         """Run the generative step."""
         if cont_covs is None:
             decoder_input = z
@@ -437,12 +437,12 @@ class TOTALVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        label: torch.Tensor | None = None,
         n_samples=1,
         cont_covs=None,
         cat_covs=None,
-    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
+    ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
         """Internal helper function to compute necessary inference quantities.
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.

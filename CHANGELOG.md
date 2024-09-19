@@ -10,6 +10,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add support for Python 3.12 {pr}`2966`.
+- Add support for categorial covariates in scArches in `scvi.model.archesmixin` {pr}`2936`.
 - Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
 - Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in

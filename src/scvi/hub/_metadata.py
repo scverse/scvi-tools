@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import asdict, dataclass, field
+from typing import TYPE_CHECKING
 
-import torch
 from huggingface_hub import ModelCard, ModelCardData
 
 from scvi.data import AnnDataManager
@@ -14,6 +14,9 @@ from scvi.model.base._save_load import _load_saved_files
 from ._constants import _SCVI_HUB
 from ._template import template
 from ._url import validate_url
+
+if TYPE_CHECKING:
+    import torch
 
 
 @dataclass

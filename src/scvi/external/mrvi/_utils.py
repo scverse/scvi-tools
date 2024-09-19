@@ -1,9 +1,16 @@
 from __future__ import annotations
 
-from jax import Array, jit
-from jax.typing import ArrayLike
+from typing import TYPE_CHECKING
 
-from scvi.external.mrvi._types import MRVIReduction, _ComputeLocalStatisticsRequirements
+from jax import jit
+
+from scvi.external.mrvi._types import _ComputeLocalStatisticsRequirements
+
+if TYPE_CHECKING:
+    from jax import Array
+    from jax.typing import ArrayLike
+
+    from scvi.external.mrvi._types import MRVIReduction
 
 
 def _parse_local_statistics_requirements(
