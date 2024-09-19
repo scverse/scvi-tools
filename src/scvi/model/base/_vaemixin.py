@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING
 
-import numpy.typing as npt
 import torch
-from anndata import AnnData
-from torch import Tensor
 
 from scvi.utils import unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
+    import numpy.typing as npt
+    from anndata import AnnData
+    from torch import Tensor
+    from torch.distributions import Distribution
+
 
 logger = logging.getLogger(__name__)
 
@@ -265,7 +271,7 @@ class VAEMixin:
         a tuple of arrays ``(n_obs, n_latent)`` with the mean and variance of the latent
         distribution.
         """
-        from torch.distributions import Distribution, Normal
+        from torch.distributions import Normal
         from torch.nn.functional import softmax
 
         from scvi.module._constants import MODULE_KEYS
