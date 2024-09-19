@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from torch.distributions.multinomial import Multinomial
 
 from scvi import REGISTRY_KEYS
@@ -22,6 +21,11 @@ from scvi.model.base import (
 from scvi.utils import setup_anndata_dsp, track
 
 from ._module import SCAR_VAE
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 

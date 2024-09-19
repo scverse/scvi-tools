@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -6,7 +9,8 @@ import scipy
 from anndata import AnnData
 from mudata import MuData
 
-from scvi._types import AnnOrMuData
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
