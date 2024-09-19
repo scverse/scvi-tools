@@ -224,13 +224,15 @@ def test_hub_model_large_training_adata(request, save_path):
 def test_hub_model_create_repo_hf(save_path: str):
     from huggingface_hub import delete_repo, repo_exists
 
-    if not repo_exists("scvi-tools/test-scvi-create"):
-        hub_model = prep_scvi_hub_model(save_path)
-        hub_model.push_to_huggingface_hub(
-            "scvi-tools/test-scvi-create",
-            os.environ["HF_API_TOKEN"],
-            repo_create=True,
-        )
+    if repo_exists("scvi-tools/test-scvi-create"):
+        delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
+
+    hub_model = prep_scvi_hub_model(save_path)
+    hub_model.push_to_huggingface_hub(
+        "scvi-tools/test-scvi-create",
+        os.environ["HF_API_TOKEN"],
+        repo_create=True,
+    )
     delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
 
 
