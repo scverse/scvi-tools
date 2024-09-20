@@ -57,7 +57,7 @@ dependencies = [
 
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
+tests = ["pytest", "pytest-pretty", "coverage>=3.6", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 
@@ -88,7 +88,7 @@ hub = ["huggingface_hub"]
 # scvi.model.utils.mde dependencies
 pymde = ["pymde"]
 # scvi.data.add_dna_sequence
-regseq = ["biopython>=1.81", "genomepy"]
+regseq = ["biopython>=1.81", "genomepy>=0.2.1"]
 # read loom
 loompy = ["loompy>=3.0.6"]
 # scvi.criticism and read 10x
