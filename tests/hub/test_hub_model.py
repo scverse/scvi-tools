@@ -222,7 +222,10 @@ def test_hub_model_large_training_adata(request, save_path):
 
 @pytest.mark.private
 def test_hub_model_create_repo_hf(save_path: str):
-    from huggingface_hub import delete_repo
+    from huggingface_hub import delete_repo, repo_exists
+
+    if repo_exists("scvi-tools/test-scvi-create"):
+        delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
 
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
