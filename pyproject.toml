@@ -109,6 +109,7 @@ tutorials = [
     "igraph",
     "scikit-misc",
     "scrublet",
+    "scib-metrics",
     "scvi-tools[optional]",
     "squidpy",
 ]
