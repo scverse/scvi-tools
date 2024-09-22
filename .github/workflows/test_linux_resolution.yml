@@ -37,8 +37,6 @@ jobs:
         install-flags:
           [
             "--prerelease if-necessary-or-explicit",
-            "--resolution lowest-direct",
-            "--resolution lowest",
           ]
 
     name: integration
