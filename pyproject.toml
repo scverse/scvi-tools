@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.1.6"
+version = "1.2.0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
