@@ -9,7 +9,6 @@ description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
-allow-direct-references = true
 authors = [
     {name = "The scvi-tools development team"},
 ]
@@ -94,6 +93,9 @@ regseq = ["biopython>=1.81", "genomepy"]
 loompy = ["loompy>=3.0.6"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.6"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 optional = [
     "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
