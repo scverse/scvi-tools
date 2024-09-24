@@ -98,7 +98,7 @@ optional = [
     "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
 ]
 tutorials = [
-    "https://github.com/BayraktarLab/cell2location.git",
+    {git="https://github.com/BayraktarLab/cell2location.git"},
     "gdown",
     "jupyter",
     "leidenalg",
