@@ -15,6 +15,9 @@ authors = [
 maintainers = [
     {name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il"},
 ]
+[tool.hatch.metadata]
+allow-direct-references = true
+
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
 urls.Home-page = "https://scvi-tools.org"
@@ -55,7 +58,6 @@ dependencies = [
     "xarray>=2023.2.0",
 ]
 
-
 [project.optional-dependencies]
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
@@ -93,9 +95,6 @@ regseq = ["biopython>=1.81", "genomepy"]
 loompy = ["loompy>=3.0.6"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.6"]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 optional = [
     "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
