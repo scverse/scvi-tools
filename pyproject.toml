@@ -9,6 +9,7 @@ description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
+allow-direct-references = true
 authors = [
     {name = "The scvi-tools development team"},
 ]
@@ -98,7 +99,7 @@ optional = [
     "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
 ]
 tutorials = [
-    "git+https://github.com/BayraktarLab/cell2location.git",
+    "cell2location@git+https://github.com/BayraktarLab/cell2location",
     "gdown",
     "jupyter",
     "leidenalg",
