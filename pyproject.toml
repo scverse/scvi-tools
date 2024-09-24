@@ -15,8 +15,6 @@ authors = [
 maintainers = [
     {name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il"},
 ]
-[tool.hatch.metadata]
-allow-direct-references = true
 
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
@@ -100,7 +98,7 @@ optional = [
     "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
 ]
 tutorials = [
-    "cell2location@git+https://github.com/BayraktarLab/cell2location",
+    {git="https://github.com/BayraktarLab/cell2location.git"},
     "gdown",
     "jupyter",
     "leidenalg",
