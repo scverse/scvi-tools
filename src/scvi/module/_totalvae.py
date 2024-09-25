@@ -744,10 +744,10 @@ class TOTALVAE(BaseModuleClass):
         manager = model.get_anndata_manager(model.adata)
         source_version = manager.registry[_constants._SCVI_VERSION_KEY]
         version_split = source_version.split(".")
-        if int(version_split[0]) >= 1 and int(version_split[1]) >= 2:
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 3:
             return
 
-        # pre 1.2 activation function
+        # pre 1.3 activation function
         manager.registry[_constants._SCVI_VERSION_KEY] = source_version
         model_kwargs = model.init_params_.get("model_kwargs", {})
         if model_kwargs.get("extra_decoder_kwargs", False):
