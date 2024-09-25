@@ -741,10 +741,10 @@ class TOTALVAE(BaseModuleClass):
         return log_lkl
 
     def on_load(self, model: BaseModelClass):
-        manager = model.get_anndata_manager(model.adata)
-        source_version = manager.registry[_constants._SCVI_VERSION_KEY]
+        manager = model.get_anndata_manager(model.adata, required=True)
+        source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
         version_split = source_version.split(".")
-        if int(version_split[0]) >= 1 and int(version_split[1]) >= 3:
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 2:
             return
 
         # pre 1.3 activation function
