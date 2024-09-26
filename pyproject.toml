@@ -138,7 +138,7 @@ markers = [
 src = ["src"]
 line-length = 99
 indent-width = 4
-target-version = "py310"
+target-version = "py312"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
