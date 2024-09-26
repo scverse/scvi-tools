@@ -21,6 +21,7 @@ from scvi.module.base import (
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Literal
+
     from jaxtyping import Array, Float, Int
     from torch import Tensor
     from torch.distributions import Distribution
