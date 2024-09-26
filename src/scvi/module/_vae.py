@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from jaxtyping import Array, Float, Int
-from torch import Tensor
 from torch.distributions import Distribution
 from torch.nn.functional import one_hot
 
@@ -23,7 +21,8 @@ from scvi.module.base import (
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Literal
-
+    from jaxtyping import Array, Float, Int
+    from torch import Tensor
     from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
