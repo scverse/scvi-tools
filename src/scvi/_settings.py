@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import logging
 import os
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import torch
 from lightning.pytorch import seed_everything
 from rich.console import Console
 from rich.logging import RichHandler
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 scvi_logger = logging.getLogger("scvi")
 
@@ -47,9 +52,10 @@ class ScviConfig:
         verbosity: int = logging.INFO,
         progress_bar_style: Literal["rich", "tqdm"] = "tqdm",
         batch_size: int = 128,
-        seed: Optional[int] = None,
+        seed: int | None = None,
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
+        dl_persistent_workers: bool = False,
         jax_preallocate_gpu_memory: bool = False,
         warnings_stacklevel: int = 2,
     ):
@@ -61,6 +67,7 @@ class ScviConfig:
         self.progress_bar_style = progress_bar_style
         self.logging_dir = logging_dir
         self.dl_num_workers = dl_num_workers
+        self.dl_persistent_workers = dl_persistent_workers
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
@@ -94,12 +101,22 @@ class ScviConfig:
         self._dl_num_workers = dl_num_workers
 
     @property
+    def dl_persistent_workers(self) -> bool:
+        """Whether to use persistent_workers in PyTorch data loaders (Default is False)."""
+        return self._dl_persistent_workers
+
+    @dl_persistent_workers.setter
+    def dl_persistent_workers(self, dl_persistent_workers: bool):
+        """Whether to use persistent_workers in PyTorch data loaders (Default is False)."""
+        self._dl_persistent_workers = dl_persistent_workers
+
+    @property
     def logging_dir(self) -> Path:
         """Directory for training logs (default `'./scvi_log/'`)."""
         return self._logging_dir
 
     @logging_dir.setter
-    def logging_dir(self, logging_dir: Union[str, Path]):
+    def logging_dir(self, logging_dir: str | Path):
         self._logging_dir = Path(logging_dir).resolve()
 
     @property
@@ -129,13 +146,18 @@ class ScviConfig:
         return self._seed
 
     @seed.setter
-    def seed(self, seed: Union[int, None] = None):
+    def seed(self, seed: int | None = None):
         """Random seed for torch and numpy."""
         if seed is None:
             self._seed = None
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+            # Ensure deterministic CUDA operations for Jax (see https://github.com/google/jax/issues/13672)
+            if "XLA_FLAGS" not in os.environ:
+                os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_ops=true"
+            else:
+                os.environ["XLA_FLAGS"] += " --xla_gpu_deterministic_ops=true"
             seed_everything(seed)
             self._seed = seed
 
@@ -145,7 +167,7 @@ class ScviConfig:
         return self._verbosity
 
     @verbosity.setter
-    def verbosity(self, level: Union[str, int]):
+    def verbosity(self, level: str | int):
         """Sets logging configuration for scvi based on chosen level of verbosity.
 
         If "scvi" logger has no StreamHandler, add one.
@@ -203,7 +225,7 @@ class ScviConfig:
         return self._jax_gpu
 
     @jax_preallocate_gpu_memory.setter
-    def jax_preallocate_gpu_memory(self, value: Union[float, bool]):
+    def jax_preallocate_gpu_memory(self, value: float | bool):
         # see https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html#gpu-memory-allocation
         if value is False:
             os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"

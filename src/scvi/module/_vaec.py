@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
-from torch.distributions import Distribution
 
 from scvi import REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, auto_move_data
+
+if TYPE_CHECKING:
+    import numpy as np
+    from torch.distributions import Distribution
 
 
 class VAEC(BaseModuleClass):
@@ -178,11 +182,15 @@ class VAEC(BaseModuleClass):
         library: torch.Tensor,
         y: torch.Tensor,
         batch_index: torch.Tensor | None = None,
+        transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution]:
         """Runs the generative model."""
         from scvi.distributions import NegativeBinomial
 
         decoder_input = [z, y]
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         if batch_index is not None:
             decoder_input.append(batch_index)
 

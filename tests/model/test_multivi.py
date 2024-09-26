@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import MULTIVI
@@ -67,3 +68,11 @@ def test_multivi():
     )
     assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
     vae.train(3)
+
+
+def test_multivi_single_batch():
+    data = synthetic_iid(n_batches=1)
+    MULTIVI.setup_anndata(data, batch_key="batch")
+    vae = MULTIVI(data, n_genes=50, n_regions=50)
+    with pytest.warns(UserWarning):
+        vae.train(3)

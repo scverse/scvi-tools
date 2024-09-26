@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -14,6 +14,9 @@ from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +64,7 @@ class PyroModelGuideWarmup(Callback):
     def setup(self, trainer, pl_module, stage=None):
         """Way to warmup Pyro Model and Guide in an automated way.
 
-        Setup occurs before any device movement, so params are iniitalized on CPU.
+        Setup occurs before any device movement, so params are initialized on CPU.
         """
         if stage == "fit":
             pyro_guide = pl_module.module.guide

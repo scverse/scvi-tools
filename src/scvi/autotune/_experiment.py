@@ -1,19 +1,24 @@
 from __future__ import annotations
 
 from os.path import join
-from typing import Any, Literal
+from typing import TYPE_CHECKING
 
 from anndata import AnnData
-from lightning.pytorch import LightningDataModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
 from mudata import MuData
-from ray.tune import ResultGrid, Tuner
-from ray.tune.schedulers import TrialScheduler
-from ray.tune.search import SearchAlgorithm
+from ray.tune import Tuner
 
-from scvi._types import AnnOrMuData
-from scvi.model.base import BaseModelClass
+if TYPE_CHECKING:
+    from typing import Any, Literal
+
+    from lightning.pytorch import LightningDataModule
+    from ray.tune import ResultGrid
+    from ray.tune.schedulers import TrialScheduler
+    from ray.tune.search import SearchAlgorithm
+
+    from scvi._types import AnnOrMuData
+    from scvi.model.base import BaseModelClass
 
 _ASHA_DEFAULT_KWARGS = {
     "max_t": 100,
@@ -160,7 +165,7 @@ class AutotuneExperiment:
             raise AttributeError("Cannot reassign `data`")
 
         self._data = value
-        if isinstance(value, (AnnData, MuData)):
+        if isinstance(value, AnnData | MuData):
             data_manager = self.model_cls._get_most_recent_anndata_manager(value, required=True)
             self._setup_method_name = data_manager._registry.get(
                 _SETUP_METHOD_NAME, "setup_anndata"
@@ -537,7 +542,7 @@ def _trainable(
     }
 
     settings.seed = experiment.seed
-    if isinstance(experiment.data, (AnnData, MuData)):
+    if isinstance(experiment.data, AnnData | MuData):
         getattr(experiment.model_cls, experiment.setup_method_name)(
             experiment.data,
             **experiment.setup_method_args,

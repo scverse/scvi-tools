@@ -1,8 +1,9 @@
+import warnings
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from functools import partial
 from inspect import signature
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, Literal
 
 import jax
 import jax.numpy as jnp
@@ -16,7 +17,7 @@ from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
@@ -36,8 +37,8 @@ TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer
 def _compute_kl_weight(
     epoch: int,
     step: int,
-    n_epochs_kl_warmup: Optional[int],
-    n_steps_kl_warmup: Optional[int],
+    n_epochs_kl_warmup: int | None,
+    n_steps_kl_warmup: int | None,
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
 ) -> float:
@@ -143,7 +144,7 @@ class TrainingPlan(pl.LightningModule):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[TorchOptimizerCreator] = None,
+        optimizer_creator: TorchOptimizerCreator | None = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
@@ -195,7 +196,7 @@ class TrainingPlan(pl.LightningModule):
         self.initialize_val_metrics()
 
     @staticmethod
-    def _create_elbo_metric_components(mode: str, n_total: Optional[int] = None):
+    def _create_elbo_metric_components(mode: str, n_total: int | None = None):
         """Initialize ELBO metric and the metric collection."""
         rec_loss = ElboMetric("reconstruction_loss", mode, "obs")
         kl_local = ElboMetric("kl_local", mode, "obs")
@@ -365,7 +366,7 @@ class TrainingPlan(pl.LightningModule):
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
-    def _optimizer_creator_fn(self, optimizer_cls: Union[torch.optim.Adam, torch.optim.AdamW]):
+    def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
         """Create optimizer for the model.
 
         This type of function can be passed as the `optimizer_creator`
@@ -480,7 +481,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         module: BaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[TorchOptimizerCreator] = None,
+        optimizer_creator: TorchOptimizerCreator | None = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         n_steps_kl_warmup: int = None,
@@ -493,8 +494,8 @@ class AdversarialTrainingPlan(TrainingPlan):
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
         lr_min: float = 0,
-        adversarial_classifier: Union[bool, Classifier] = False,
-        scale_adversarial_loss: Union[float, Literal["auto"]] = "auto",
+        adversarial_classifier: bool | Classifier = False,
+        scale_adversarial_loss: float | Literal["auto"] = "auto",
         **loss_kwargs,
     ):
         super().__init__(
@@ -514,14 +515,22 @@ class AdversarialTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         if adversarial_classifier is True:
-            self.n_output_classifier = self.module.n_batch
-            self.adversarial_classifier = Classifier(
-                n_input=self.module.n_latent,
-                n_hidden=32,
-                n_labels=self.n_output_classifier,
-                n_layers=2,
-                logits=True,
-            )
+            if self.module.n_batch == 1:
+                warnings.warn(
+                    "Disabling adversarial classifier.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+                self.adversarial_classifier = False
+            else:
+                self.n_output_classifier = self.module.n_batch
+                self.adversarial_classifier = Classifier(
+                    n_input=self.module.n_latent,
+                    n_hidden=32,
+                    n_labels=self.n_output_classifier,
+                    n_layers=2,
+                    logits=True,
+                )
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss
@@ -689,8 +698,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         classification_ratio: int = 50,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 400,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
         reduce_lr_on_plateau: bool = False,
         lr_factor: float = 0.6,
         lr_patience: int = 30,
@@ -732,7 +741,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             return
 
         classification_loss = loss_output.classification_loss
-        true_labels = loss_output.true_labels.squeeze()
+        true_labels = loss_output.true_labels.squeeze(-1)
         logits = loss_output.logits
         predicted_labels = torch.argmax(logits, dim=-1)
 
@@ -870,11 +879,11 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
     def __init__(
         self,
         pyro_module: PyroBaseModuleClass,
-        loss_fn: Optional[pyro.infer.ELBO] = None,
-        optim: Optional[torch.optim.Adam] = None,
-        optim_kwargs: Optional[dict] = None,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 400,
+        loss_fn: pyro.infer.ELBO | None = None,
+        optim: torch.optim.Adam | None = None,
+        optim_kwargs: dict | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
     ):
         super().__init__()
@@ -1003,11 +1012,11 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     def __init__(
         self,
         pyro_module: PyroBaseModuleClass,
-        loss_fn: Optional[pyro.infer.ELBO] = None,
-        optim: Optional[pyro.optim.PyroOptim] = None,
-        optim_kwargs: Optional[dict] = None,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 400,
+        loss_fn: pyro.infer.ELBO | None = None,
+        optim: pyro.optim.PyroOptim | None = None,
+        optim_kwargs: dict | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
     ):
         super().__init__(
@@ -1186,13 +1195,13 @@ class JaxTrainingPlan(TrainingPlan):
         module: JaxBaseModuleClass,
         *,
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-        optimizer_creator: Optional[JaxOptimizerCreator] = None,
+        optimizer_creator: JaxOptimizerCreator | None = None,
         lr: float = 1e-3,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
-        max_norm: Optional[float] = None,
-        n_steps_kl_warmup: Union[int, None] = None,
-        n_epochs_kl_warmup: Union[int, None] = 400,
+        max_norm: float | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
         **loss_kwargs,
     ):
         super().__init__(

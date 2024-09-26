@@ -10,6 +10,7 @@ from mudata import MuData
 from scvi import REGISTRY_KEYS
 from scvi.data import pbmcs_10x_cite_seq, synthetic_iid
 from scvi.model import TOTALVI
+from scvi.nn._utils import ExpActivation
 from scvi.utils import attrdict
 
 
@@ -277,7 +278,8 @@ def test_totalvi_model_library_size(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
+    assert hasattr(model.module, "library_log_means")
+    assert hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -299,16 +301,14 @@ def test_totalvi_size_factor():
 
     # Test size_factor_key overrides use_observed_lib_size.
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=True)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
@@ -530,7 +530,8 @@ def test_totalvi_model_library_size_mudata():
 
     n_latent = 10
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
+    assert hasattr(model.module, "library_log_means")
+    assert hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -559,16 +560,14 @@ def test_totalvi_size_factor_mudata():
 
     # Test size_factor_key overrides use_observed_lib_size.
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=True)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
@@ -769,3 +768,37 @@ def test_totalvi_save_load_mudata_format(save_path: str):
     with pytest.raises(ValueError):
         _ = TOTALVI.load(legacy_model_path, adata=invalid_mdata)
     model = TOTALVI.load(model_path, adata=mdata)
+
+
+def test_totalvi_logits_backwards_compat(save_path: str):
+    """
+    Check that we can replicate pre-fix behavior with
+    `extra_decoder_kwargs={"activation_function_bg": "exp"}`."""
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(adata, extra_decoder_kwargs={"activation_function_bg": "exp"})
+    model.train(1, check_val_every_n_epoch=1)
+    model_path = os.path.join(save_path, "totalvi_exp_activation")
+    model.save(model_path, overwrite=True)
+    model = TOTALVI.load(model_path, adata)
+    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+
+
+def test_totalvi_old_activation_load(save_path: str):
+    """See #2913. Check old model saves use the old behavior."""
+    model_path = "tests/test_data/exp_activation_totalvi"
+    model = TOTALVI.load(model_path)
+
+    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+    resave_model_path = os.path.join(save_path, "exp_activation_totalvi_re")
+    model.save(resave_model_path, overwrite=True)
+    adata = model.adata
+    del model
+
+    model = TOTALVI.load(resave_model_path, adata)
+    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)

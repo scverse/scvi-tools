@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
-    BaseAnnDataField,
     CategoricalJointObsField,
     CategoricalObsField,
     LayerField,
@@ -29,6 +26,16 @@ from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
+
+    from scvi._types import MinifiedDataType
+    from scvi.data.fields import (
+        BaseAnnDataField,
+    )
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"

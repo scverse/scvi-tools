@@ -1,10 +1,9 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Sequence
-from typing import Literal, Optional
+from typing import TYPE_CHECKING
 
 import jax.numpy as jnp
-import numpy as np
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -13,6 +12,13 @@ from scvi.module import JaxVAE
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, JaxTrainingMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    import numpy as np
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +88,8 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -105,11 +111,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         give_mean: bool = True,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 
