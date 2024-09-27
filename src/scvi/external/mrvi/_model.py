@@ -843,7 +843,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 if n_cov_values > n_samples / 2:
                     warnings.warn(
                         f"The covariate '{key}' does not seem to refer to a discrete key. "
-                        f"It has {len(n_cov_values)} unique values, which exceeds one half of the "
+                        f"It has {n_cov_values} unique values, which exceeds one half of the "
                         f"total samples ({n_samples}).",
                         UserWarning,
                         stacklevel=2,
