@@ -99,7 +99,6 @@ optional = [
 ]
 tutorials = [
     "cell2location",
-    "gdown",
     "jupyter",
     "leidenalg",
     "muon",
