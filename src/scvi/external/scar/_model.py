@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from torch.distributions.multinomial import Multinomial
 
 from scvi import REGISTRY_KEYS
@@ -20,6 +21,11 @@ from scvi.model.base import (
 from scvi.utils import setup_anndata_dsp, track
 
 from ._module import SCAR_VAE
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +87,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        ambient_profile: Union[str, np.ndarray, pd.DataFrame, torch.tensor] = None,
+        ambient_profile: str | np.ndarray | pd.DataFrame | torch.tensor | None = None,
         n_hidden: int = 150,
         n_latent: int = 15,
         n_layers: int = 2,
@@ -146,8 +152,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
+        layer: str | None = None,
+        size_factor_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -261,9 +267,9 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @torch.no_grad()
     def get_denoised_counts(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Generate observation samples from the posterior predictive distribution.
 

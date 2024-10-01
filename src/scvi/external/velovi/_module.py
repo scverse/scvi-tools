@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Literal
+from typing import TYPE_CHECKING
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn as nn
@@ -14,6 +12,12 @@ from scvi.external.velovi._constants import VELOVI_REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from typing import Literal
+
+    import numpy as np
 
 
 class DecoderVELOVI(nn.Module):

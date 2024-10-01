@@ -4,12 +4,13 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2 (unreleased)
+## Version 1.2
 
-### 1.2.0 (unreleased)
+### 1.2.0 (2024-09-26)
 
 #### Added
 
+- Add support for Python 3.12 {pr}`2966`.
 - Add support for categorial covariates in scArches in `scvi.model.archesmixin` {pr}`2936`.
 - Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
 - Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.

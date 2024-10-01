@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from os.path import join
 
+import pytest
 import torch
-from pytest import mark, raises
 
 from scvi.nn import Embedding
 
 
-@mark.parametrize("num_embeddings", [10])
-@mark.parametrize("embedding_dim", [5])
-@mark.parametrize("init", [2, [0, 1]])
-@mark.parametrize("freeze_prev", [True, False])
+@pytest.mark.parametrize("num_embeddings", [10])
+@pytest.mark.parametrize("embedding_dim", [5])
+@pytest.mark.parametrize("init", [2, [0, 1]])
+@pytest.mark.parametrize("freeze_prev", [True, False])
 def test_embedding_extend(
     num_embeddings: int,
     embedding_dim: int,
@@ -48,9 +48,9 @@ def test_embedding_extend(
 
 def test_embedding_extend_invalid_init(num_embeddings: int = 10, embedding_dim: int = 5):
     embedding = Embedding(num_embeddings, embedding_dim)
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         Embedding.extend(embedding, init=0)
-    with raises(TypeError):
+    with pytest.raises(TypeError):
         Embedding.extend(embedding, init="invalid")
 
 

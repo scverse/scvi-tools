@@ -24,7 +24,8 @@ def test_jax_scvi(n_latent=5):
     z1 = model.get_latent_representation(give_mean=True, n_samples=1)
     assert z1.ndim == 2
     z2 = model.get_latent_representation(give_mean=False, n_samples=15)
-    assert (z2.ndim == 3) and (z2.shape[0] == 15)
+    assert z2.ndim == 3
+    assert z2.shape[0] == 15
 
 
 def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
