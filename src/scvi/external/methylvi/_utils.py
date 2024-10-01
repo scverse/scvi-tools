@@ -1,5 +1,4 @@
 import logging
-from typing import Optional, Union
 
 import numpy as np
 
@@ -12,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 def scmc_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
     context: str = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.

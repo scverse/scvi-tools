@@ -1,7 +1,7 @@
 """PyTorch module for methylVI for single cell methylation data."""
 
 from collections.abc import Iterable
-from typing import Literal, Optional
+from typing import Literal
 
 import torch
 import torch.nn as nn
@@ -57,7 +57,7 @@ class METHYLVAE(BaseModuleClass):
         contexts: Iterable[str],
         num_features_per_context: Iterable[int],
         n_batch: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -89,7 +89,7 @@ class METHYLVAE(BaseModuleClass):
         )
 
         self.decoders = nn.ModuleDict()
-        for context, num_features in zip(contexts, num_features_per_context):
+        for context, num_features in zip(contexts, num_features_per_context, strict=False):
             self.decoders[context] = DecoderMETHYLVI(
                 n_latent,
                 num_features,
@@ -102,7 +102,9 @@ class METHYLVAE(BaseModuleClass):
             self.px_gamma = torch.nn.ParameterDict(
                 {
                     context: nn.Parameter(torch.randn(num_features))
-                    for (context, num_features) in zip(contexts, num_features_per_context)
+                    for (context, num_features) in zip(
+                        contexts, num_features_per_context, strict=False
+                    )
                 }
             )
 
