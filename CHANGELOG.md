@@ -11,6 +11,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 #### Fixed
+
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI` to correctly compute the maxmimum log-density across in-sample cells rather than the aggregated posterior log-density {pr}`3007`.
 
 #### Changed
