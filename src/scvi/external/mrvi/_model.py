@@ -765,7 +765,10 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
     ) -> Distribution:
-        """Compute the aggregated posterior over the ``u`` latent representations.
+        """Computes the aggregated posterior over the ``u`` latent representations.
+
+        For the specified samples, it computes the aggregated posterior over the ``u`` latent
+        representations. Returns a NumPyro MixtureSameFamily distribution.
 
         Parameters
         ----------
@@ -991,12 +994,13 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         admissibility_threshold: float = 0.0,
         batch_size: int = 256,
     ) -> xr.Dataset:
-        """Compute outlier cell-sample pairs.
+        """Compute admissibility scores for cell-sample pairs.
 
-        This function fits a GMM for each sample based on the latent representation of the cells in
-        the sample or computes an approximate aggregated posterior for each sample. Then, for every
-        cell, it computes the log-probability of the cell under the approximated posterior of each
-        sample as a measure of admissibility.
+        This function computes the posterior distribution for u for each cell. Then, for every
+        cell, it computes the log-probability of the cell under the posterior of each cell
+        each sample and takes the maximum value for a given sample as a measure of admissibility
+        for that sample. Additionally, it computes a threshold that determines if
+        a cell-sample pair is admissible based on the within-sample admissibility scores.
 
         Parameters
         ----------
@@ -1041,9 +1045,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                     jax.device_get(
                         ap.component_distribution.log_prob(
                             np.expand_dims(u_rep, ap.mixture_dim)
-                        )
-                        .sum(axis=1)
-                        .max(axis=1, keepdims=True)
+                        )  # (n_cells_batch, n_cells_ap, n_latent_dim)
+                        .sum(axis=1)  # (n_cells_batch, n_latent_dim)
+                        .max(axis=1, keepdims=True)  # (n_cells_batch, 1)
                     )
                 )
 
