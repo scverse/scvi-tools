@@ -3,19 +3,24 @@ from __future__ import annotations
 import logging
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    from anndata import AnnData
+    from mudata import MuData
+
+    from scvi._types import Number
 
 import numpy as np
 import pandas as pd
 import sparse
 import torch
-from anndata import AnnData
-from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager, fields
 from scvi.data._constants import _SETUP_ARGS_KEY
 from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
@@ -81,7 +86,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             else None
         )
 
-        self.contexts = self.get_anndata_manager(mdata).registry[_SETUP_ARGS_KEY][
+        self.contexts = self.get_anndata_manager(mdata, required=True).registry[_SETUP_ARGS_KEY][
             "methylation_contexts"
         ]
         self.num_features_per_context = [mdata[context].shape[1] for context in self.contexts]
