@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.1.6"
+version = "1.2.0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,7 @@ authors = [
 maintainers = [
     {name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il"},
 ]
+
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
 urls.Home-page = "https://scvi-tools.org"
@@ -54,7 +55,6 @@ dependencies = [
     "tqdm",
     "xarray>=2023.2.0",
 ]
-
 
 [project.optional-dependencies]
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
@@ -99,7 +99,6 @@ optional = [
 ]
 tutorials = [
     "cell2location",
-    "gdown",
     "jupyter",
     "leidenalg",
     "muon",
