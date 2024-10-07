@@ -69,6 +69,21 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`Martens2023`
 ```
 
+## BS-seq analysis
+
+```{eval-rst}
+.. list-table::
+   :widths: 15 100 25
+   :header-rows: 1
+
+   * - Model
+     - Tasks
+     - Reference
+   * - :doc:`/user_guide/models/methylvi`
+     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential methylation, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`Weinberger2023a`
+```
+
 ## Multimodal analysis
 
 ### CITE-seq
