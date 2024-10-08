@@ -2,8 +2,8 @@ fail_fast: false
 default_language_version:
   python: python3
 default_stages:
-  - Nonepre-commitNone
-  - Nonepre-pushNone
+  - commit
+  - push
 minimum_pre_commit_version: 2.16.0
 repos:
   - repo: https://github.com/asottile/blacken-docs
