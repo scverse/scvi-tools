@@ -1,6 +1,6 @@
 import logging
 import warnings
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -75,7 +75,7 @@ class ArrayLikeField(BaseArrayLikeField):
         registry_key: str,
         attr_key: str,
         field_type: Literal["obsm", "varm"] = None,
-        colnames_uns_key: Optional[str] = None,
+        colnames_uns_key: str | None = None,
         is_count_data: bool = False,
         correct_data_format: bool = True,
     ) -> None:
@@ -117,7 +117,7 @@ class ArrayLikeField(BaseArrayLikeField):
                 stacklevel=settings.warnings_stacklevel,
             )
 
-    def _setup_column_names(self, adata: AnnData) -> Union[list, np.ndarray]:
+    def _setup_column_names(self, adata: AnnData) -> list | np.ndarray:
         """Returns a list or ndarray of column names that will be used for the relevant .obsm data.
 
         If the ``colnames_uns_key`` was specified, then the columns stored in that
@@ -175,7 +175,7 @@ class ArrayLikeField(BaseArrayLikeField):
         n_array_cols = len(state_registry[self.COLUMN_NAMES_KEY])
         return {self.count_stat_key: n_array_cols}
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         return None
 
@@ -217,7 +217,7 @@ class BaseJointField(BaseArrayLikeField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[list[str]],
+        attr_keys: list[str] | None,
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key)
@@ -289,7 +289,7 @@ class NumericalJointField(BaseJointField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[list[str]],
+        attr_keys: list[str] | None,
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
@@ -317,7 +317,7 @@ class NumericalJointField(BaseJointField):
         n_keys = len(self.attr_keys)
         return {self.count_stat_key: n_keys}
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         if self.is_empty:
             return None
@@ -376,7 +376,7 @@ class CategoricalJointField(BaseJointField):
     def __init__(
         self,
         registry_key: str,
-        attr_keys: Optional[list[str]],
+        attr_keys: list[str] | None,
         field_type: Literal["obsm", "varm"] = None,
     ) -> None:
         super().__init__(registry_key, attr_keys, field_type=field_type)
@@ -390,7 +390,7 @@ class CategoricalJointField(BaseJointField):
         }
 
     def _make_array_categorical(
-        self, adata: AnnData, category_dict: Optional[dict[str, list[str]]] = None
+        self, adata: AnnData, category_dict: dict[str, list[str]] | None = None
     ) -> dict:
         """Make the .obsm categorical."""
         if self.attr_keys != getattr(adata, self.attr_name)[self.attr_key].columns.tolist():
@@ -458,7 +458,7 @@ class CategoricalJointField(BaseJointField):
             self.count_stat_key: n_keys,
         }
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View the state registry."""
         if self.is_empty:
             return None

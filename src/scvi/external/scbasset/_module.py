@@ -1,5 +1,6 @@
 import logging
-from typing import Callable, NamedTuple, Optional
+from collections.abc import Callable
+from typing import NamedTuple
 
 import numpy as np
 import torch
@@ -64,7 +65,7 @@ class _ConvBlock(nn.Module):
         pool_size: int = None,
         batch_norm: bool = True,
         dropout: float = 0.0,
-        activation_fn: Optional[Callable] = None,
+        activation_fn: Callable | None = None,
         ceil_mode: bool = False,
     ):
         super().__init__()
@@ -100,7 +101,7 @@ class _DenseBlock(nn.Module):
         out_features: int,
         batch_norm: bool = True,
         dropout: float = 0.2,
-        activation_fn: Optional[Callable] = None,
+        activation_fn: Callable | None = None,
     ):
         super().__init__()
         self.dense = _Linear(in_features, out_features, bias=not batch_norm)
@@ -223,7 +224,7 @@ class ScBassetModule(BaseModuleClass):
     def __init__(
         self,
         n_cells: int,
-        batch_ids: Optional[np.ndarray] = None,
+        batch_ids: np.ndarray | None = None,
         n_filters_init: int = 288,
         n_repeat_blocks_tower: int = 6,
         filters_mult: float = 1.122,

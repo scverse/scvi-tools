@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pytest
 from anndata import AnnData
 
@@ -14,12 +12,12 @@ class TestModelClass(BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[list[str]] = None,
-        continuous_covariate_keys: Optional[list[str]] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         setup_method_args = cls._get_setup_method_args(**locals())

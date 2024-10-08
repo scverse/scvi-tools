@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -18,6 +18,9 @@ from scvi.model.base import (
 from scvi.module import VAEC
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 

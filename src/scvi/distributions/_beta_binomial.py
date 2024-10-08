@@ -1,5 +1,3 @@
-from typing import Optional
-
 import torch
 from pyro.distributions import BetaBinomial as BetaBinomialDistribution
 from torch.distributions import constraints
@@ -71,10 +69,10 @@ class BetaBinomial(BetaBinomialDistribution):
     def __init__(
         self,
         total_count: torch.Tensor,
-        alpha: Optional[torch.Tensor] = None,
-        beta: Optional[torch.Tensor] = None,
-        mu: Optional[torch.Tensor] = None,
-        gamma: Optional[torch.Tensor] = None,
+        alpha: torch.Tensor | None = None,
+        beta: torch.Tensor | None = None,
+        mu: torch.Tensor | None = None,
+        gamma: torch.Tensor | None = None,
         validate_args: bool = False,
         eps: float = 1e-8,
     ):
