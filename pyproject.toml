@@ -37,6 +37,7 @@ dependencies = [
     "flax",
     "jax",
     "jaxlib",
+    "jaxtyping",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
@@ -199,6 +200,8 @@ ignore = [
     "D401",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
+    # Ignore for jaxtyping
+    "F722",
     # Raising ValueError is sufficient in tests.
     "PT011",
     # We support np.random functions.
