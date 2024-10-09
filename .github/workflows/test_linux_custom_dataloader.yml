@@ -66,7 +66,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config --global url."https://${GH_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-          git clone --single-branch --branch ebezzi/census-scvi-datamodule https://github.com/ori-kron-wis/cellxgene-census.git
+          git clone --single-branch --branch ebezzi/census-scvi-datamodule https://github.com/chanzuckerberg/cellxgene-census.git
+          git clone --single-branch --branch main https://github.com/jkobject/scDataLoader.git
 
       - name: Run specific custom dataloader pytest
         env:
@@ -75,7 +76,7 @@ jobs:
           DISPLAY: :42
           COLUMNS: 120
         run: |
-          coverage run -m pytest tests/dataloaders/test_custom_dataloader.py -v --color=yes --custom-dataloader-tests
+          coverage run -m pytest tests/dataloaders/test_czi_custom_dataloader.py -v --color=yes --custom-dataloader-tests
           coverage report
 
       - uses: codecov/codecov-action@v4

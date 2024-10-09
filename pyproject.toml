@@ -54,6 +54,7 @@ dependencies = [
     "torchmetrics>=0.11.0",
     "tqdm",
     "cellxgene-census",
+    "torchdata",
     "xarray>=2023.2.0",
 ]
 
