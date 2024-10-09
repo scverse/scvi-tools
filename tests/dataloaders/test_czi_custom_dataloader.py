@@ -2,20 +2,31 @@ from __future__ import annotations
 
 from pprint import pprint
 
-import cellxgene_census
 import numpy as np
 import pandas as pd
 import pytest
-import tiledbsoma as soma
-from cellxgene_census.experimental.ml import experiment_dataloader
-from cellxgene_census.experimental.ml.datamodule import CensusSCVIDataModule
 
 import scvi
 from scvi.data import synthetic_iid
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader(save_path="."):
+def test_czi_custom_dataloader(save_path):
+    # local bracnh with fix only for this test
+    import sys
+
+    # should be ready for importing the cloned branch on a remote machine that runs github action
+    sys.path.insert(
+        0,
+        "/home/runner/work/scvi-tools/scvi-tools/"
+        "cellxgene-census/api/python/cellxgene_census/src",
+    )
+    sys.path.insert(0, "src")
+    import cellxgene_census
+    import tiledbsoma as soma
+    from cellxgene_census.experimental.ml import experiment_dataloader
+    from cellxgene_census.experimental.ml.datamodule import CensusSCVIDataModule
+
     # this test checks the local custom dataloder made by CZI and run several tests with it
     census = cellxgene_census.open_soma(census_version="stable")
 
