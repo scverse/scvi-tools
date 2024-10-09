@@ -242,6 +242,7 @@ class SCVI(
     def setup_datamodule(
         cls,
         datamodule,  # TODO: what to put here?
+        source_registry=None,
         layer: str | None = None,
         batch_key: list[str] | None = None,
         labels_key: str | None = None,
@@ -262,6 +263,26 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
+        # TODO: from adata (czi)?
+        if datamodule.__class__.__name__ == "CensusSCVIDataModule":
+            # CZI
+            categorical_mapping = datamodule.datapipe.obs_encoders["batch"].classes_
+            column_names = list(
+                datamodule.datapipe.var_query.coords[0]
+                if datamodule.datapipe.var_query is not None
+                else range(datamodule.n_vars)
+            )
+            n_batch = datamodule.n_batch
+        else:
+            # Anndata -> CZI
+            # if we are here and datamodule is actually an AnnData object
+            # it means we init the custom dataloder model with anndata
+            categorical_mapping = source_registry["field_registries"]["batch"]["state_registry"][
+                "categorical_mapping"
+            ]
+            column_names = datamodule.var.soma_joinid.values
+            n_batch = source_registry["field_registries"]["batch"]["summary_stats"]["n_batch"]
+
         datamodule.registry = {
             "scvi_version": scvi.__version__,
             "model_name": "SCVI",
@@ -279,17 +300,17 @@ class SCVI(
                     "state_registry": {
                         "n_obs": datamodule.n_obs,
                         "n_vars": datamodule.n_vars,
-                        "column_names": [str(i) for i in datamodule.vars],
+                        "column_names": [str(i) for i in column_names],  # TODO: from adata (czi)?
                     },
                     "summary_stats": {"n_vars": datamodule.n_vars, "n_cells": datamodule.n_obs},
                 },
                 "batch": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
                     "state_registry": {
-                        "categorical_mapping": datamodule.datapipe.obs_encoders["batch"].classes_,
+                        "categorical_mapping": categorical_mapping,
                         "original_key": "batch",
                     },
-                    "summary_stats": {"n_batch": datamodule.n_batch},
+                    "summary_stats": {"n_batch": n_batch},
                 },
                 "labels": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
