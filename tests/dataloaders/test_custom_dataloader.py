@@ -258,11 +258,12 @@ def test_lamindb_custom_dataloader(save_path):
 
     # import bionty as bt
     # from scdataloader import utils
-    # from scdataloader.preprocess import (
-    #     LaminPreprocessor,
-    #     additional_postprocess,
-    #     additional_preprocess,
-    # )
+    from scdataloader.preprocess import (
+        LaminPreprocessor,
+        additional_postprocess,
+        additional_preprocess,
+    )
+
     # import numpy as np
     # import tiledbsoma as soma
     from scdataloader.utils import populate_my_ontology
@@ -278,7 +279,7 @@ def test_lamindb_custom_dataloader(save_path):
     )
 
     # preprocess datasets - do we need this part?
-    # DESCRIPTION = "preprocessed by scDataLoader"
+    DESCRIPTION = "preprocessed by scDataLoader"
 
     cx_dataset = (
         ln.Collection.using(instance="laminlabs/cellxgene")
@@ -287,16 +288,14 @@ def test_lamindb_custom_dataloader(save_path):
     )
     cx_dataset, len(cx_dataset.artifacts.all())
 
-    # do_preprocess = LaminPreprocessor(
-    #     additional_postprocess=additional_postprocess,
-    #     additional_preprocess=additional_preprocess,
-    #     skip_validate=True,
-    #     subset_hvg=0,
-    # )
+    do_preprocess = LaminPreprocessor(
+        additional_postprocess=additional_postprocess,
+        additional_preprocess=additional_preprocess,
+        skip_validate=True,
+        subset_hvg=0,
+    )
 
-    # preprocessed_dataset = do_preprocess(
-    #     cx_dataset, name=DESCRIPTION, description=DESCRIPTION, start_at=1, version="2"
-    # )
+    do_preprocess(cx_dataset, name=DESCRIPTION, description=DESCRIPTION, start_at=1, version="2")
 
     # create dataloaders
 
@@ -324,9 +323,7 @@ def test_lamindb_custom_dataloader(save_path):
     # Trainer(model, datamodule)
 
     # Read adata and create lamindb dataloader
-    adata_orig = sc.read_h5ad(
-        "/Users/orikr/PycharmProjects/scvi-tools/scDataLoader/tests/test.h5ad"
-    )
+    adata_orig = sc.read_h5ad("./scDataLoader/tests/test.h5ad")
     # preprocessor = Preprocessor(do_postp=False)
     # adata = preprocessor(adata_orig)
     adataset = SimpleAnnDataset(adata_orig, obs_to_output=["organism_ontology_term_id"])
