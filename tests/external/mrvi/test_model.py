@@ -155,7 +155,9 @@ def test_mrvi_da(model, sample_key, da_kwargs):
         },
     ],
 )
-def test_mrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
+def test_mrvi_model_kwargs(
+    adata: AnnData, model_kwargs: dict[str, Any], save_path: str
+):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
@@ -173,7 +175,9 @@ def test_mrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_pa
 def test_mrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
-    model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset)
+    model.differential_expression(
+        sample_cov_keys=sample_cov_keys, sample_subset=sample_subset
+    )
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
