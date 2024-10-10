@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from pprint import pprint
 
@@ -11,7 +13,7 @@ from scvi.data import synthetic_iid
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader(save_path="."):
+def test_czi_custom_dataloader(save_path):
     # local branch with fix only for this test
     import sys
 
@@ -235,7 +237,7 @@ def test_czi_custom_dataloader(save_path="."):
 
 
 @pytest.mark.custom_dataloader
-def test_lamindb_custom_dataloader(save_path="."):
+def test_lamindb_custom_dataloader(save_path):
     # initialize a local lamin database
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
     # os.system("lamin close")

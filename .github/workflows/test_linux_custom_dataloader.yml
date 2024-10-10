@@ -35,7 +35,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.11"]
+        python: ["3.10"]
 
     name: integration
 
@@ -60,6 +60,8 @@ jobs:
           python -m pip install s3fs
           python -m pip install torchdata
           python -m pip install psutil
+          python -m pip install cellxgene-census
+          python -m pip install lamindb
 
       - name: Install Specific Branch of Repository
         env:
