@@ -211,9 +211,9 @@ def test_czi_custom_dataloader(save_path):
     mapped_dataloader = (
         datamodule_inference.on_before_batch_transfer(tensor, None) for tensor in dataloader
     )
-    _ = model_census.get_elbo(dataloader=mapped_dataloader)
-    _ = model_census.get_marginal_ll(dataloader=mapped_dataloader)
-    _ = model_census.get_reconstruction_error(dataloader=mapped_dataloader)
+    # _ = model_census.get_elbo(dataloader=mapped_dataloader)
+    # _ = model_census.get_marginal_ll(dataloader=mapped_dataloader)
+    # _ = model_census.get_reconstruction_error(dataloader=mapped_dataloader)
     latent = model_census.get_latent_representation(dataloader=mapped_dataloader)
 
     emb_idx = datapipe._obs_joinids

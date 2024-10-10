@@ -56,13 +56,15 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
+          python -m pip install scdataloader
+          python -m pip install cellxgene-census
           python -m pip install tiledbsoma
           python -m pip install s3fs
           python -m pip install torchdata
           python -m pip install psutil
-          python -m pip install cellxgene-census
           python -m pip install lamindb
           python -m pip install bionty
+          python -m pip install biomart
 
       - name: Install Specific Branch of Repository
         env:
