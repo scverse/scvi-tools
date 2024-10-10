@@ -76,7 +76,7 @@ jobs:
           DISPLAY: :42
           COLUMNS: 120
         run: |
-          coverage run -m pytest tests/dataloaders/test_czi_custom_dataloader.py -v --color=yes --custom-dataloader-tests
+          coverage run -m pytest tests/dataloaders/test_custom_dataloader.py -v --color=yes --custom-dataloader-tests
           coverage report
 
       - uses: codecov/codecov-action@v4
