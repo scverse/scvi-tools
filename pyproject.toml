@@ -53,8 +53,6 @@ dependencies = [
     "torch",
     "torchmetrics>=0.11.0",
     "tqdm",
-    "cellxgene-census",
-    "torchdata",
     "xarray>=2023.2.0",
 ]
 
@@ -83,6 +81,8 @@ docsbuild = ["scvi-tools[docs,optional]"]
 autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
+# scvi.data.cellxgene
+census = ["cellxgene-census"]
 # scvi.hub dependencies
 hub = ["huggingface_hub"]
 # scvi.model.utils.mde dependencies
@@ -111,6 +111,9 @@ tutorials = [
     "scib-metrics",
     "scvi-tools[optional]",
     "squidpy",
+]
+dataloaders = [
+    "scdataloader"
 ]
 
 all = ["scvi-tools[dev,docs,tutorials]"]
