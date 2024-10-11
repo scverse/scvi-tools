@@ -111,7 +111,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         latent_distribution: Literal["normal", "ln"] = "normal",
         empirical_protein_background_prior: str | bool | None = None,
         override_missing_proteins: bool = False,
-        normalize_loss: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -141,18 +140,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if normalize_loss:
-            median_protein_library_size = np.median(self.adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).sum(1))
-            median_gene_library_size = np.median(np.array(self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY).sum(1)))
-        else:
-            median_protein_library_size = None
-            median_gene_library_size = None
-        
         if emp_prior:
-            if empirical_protein_background_prior=='change':
-                prior_mean, prior_scale = self._get_totalvi_protein_priors_change(adata)
-            else:
-                prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
+            prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
 
@@ -194,9 +183,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
-            normalize_loss=normalize_loss,
-            median_protein_library_size = median_protein_library_size,
-            median_gene_library_size = median_gene_library_size,
             n_panel=n_panel,
             panel_key=panel_key,
             **model_kwargs,
@@ -510,14 +496,14 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 else:
                     px_scale += generative_outputs["px_"]["scale"].cpu()[..., gene_mask]
 
-                py_ = generative_outputs["py_"]
+                py_norm_ = generative_outputs["py_norm_"]
                 # probability of background
-                protein_mixing = 1 / (1 + torch.exp(-py_["mixing"].cpu()))
+                protein_mixing = 1 / (1 + torch.exp(-py_norm_["mixing"].cpu()))
                 if sample_protein_mixing is True:
                     protein_mixing = torch.distributions.Bernoulli(protein_mixing).sample()
-                protein_val = py_["rate_fore"].cpu() * (1 - protein_mixing)
+                protein_val = py_norm_["rate_fore"].cpu() * (1 - protein_mixing)
                 if include_protein_background is True:
-                    protein_val += py_["rate_back"].cpu() * protein_mixing
+                    protein_val += py_norm_["rate_back"].cpu() * protein_mixing
 
                 if scale_protein is True:
                     protein_val = torch.nn.functional.normalize(protein_val, p=1, dim=-1)
@@ -695,7 +681,16 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
+        use_field=['rna', 'protein'],
     ):
+        if 'rna' in use_field:
+            gene_list = None
+        else:
+            gene_list = []
+        if 'protein' in use_field:
+            protein_list = None
+        else:
+            protein_list = []
         rna, protein = self.get_normalized_expression(
             adata=adata,
             indices=indices,
@@ -707,6 +702,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
+            gene_list=gene_list,
+            protein_list=protein_list,
         )
         protein += protein_prior_count
 
@@ -735,6 +732,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scale_protein: bool = False,
         sample_protein_mixing: bool = False,
         include_protein_background: bool = False,
+        use_field: list = ['rna', 'protein'],
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -767,6 +765,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             that determines if expression is from foreground/background.
         include_protein_background
             Include the protein background component as part of the protein expression
+        use_field
+            By default uses protein and RNA field disable here to perform only RNA or protein DE.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -783,13 +783,20 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             include_protein_background=include_protein_background,
             protein_prior_count=protein_prior_count,
             batch_size=batch_size,
+            use_field=use_field,
         )
-        col_names = np.concatenate(
-            [
-                np.asarray(_get_var_names_from_manager(adata_manager)),
-                self.protein_state_registry.column_names,
-            ]
+        all_stats_fn = partial(
+            cite_seq_raw_counts_properties,
+            use_field=use_field,
         )
+        
+        col_names = []
+        if 'rna' in use_field:
+            col_names.append(np.asarray(_get_var_names_from_manager(adata_manager)))
+        if 'protein' in use_field:
+            col_names.append([i + '_protein' for i in self.protein_state_registry.column_names])
+            
+        col_names = np.concatenate(col_names)
         result = _de_core(
             adata_manager,
             model_fn,
@@ -800,7 +807,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             idx1,
             idx2,
             all_stats,
-            cite_seq_raw_counts_properties,
+            all_stats_fn,
             col_names,
             mode,
             batchid1,
@@ -930,21 +937,21 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     compute_loss=False,
                 )
             px_ = generative_outputs["px_"]
-            py_ = generative_outputs["py_"]
+            py_norm_ = generative_outputs["py_norm_"]
             device = px_["r"].device
 
-            pi = 1 / (1 + torch.exp(-py_["mixing"]))
+            pi = 1 / (1 + torch.exp(-py_norm_["mixing"]))
             mixing_sample = torch.distributions.Bernoulli(pi).sample()
-            protein_rate = py_["rate_fore"]
+            protein_rate = py_norm_["rate_fore"]
             rate = torch.cat((rna_size_factor * px_["scale"], protein_rate), dim=-1)
             if len(px_["r"].size()) == 2:
                 px_dispersion = px_["r"]
             else:
                 px_dispersion = torch.ones_like(x).to(device) * px_["r"]
-            if len(py_["r"].size()) == 2:
-                py_dispersion = py_["r"]
+            if len(py_norm_["r"].size()) == 2:
+                py_dispersion = py_norm_["r"]
             else:
-                py_dispersion = torch.ones_like(y).to(device) * py_["r"]
+                py_dispersion = torch.ones_like(y).to(device) * py_norm_["r"]
 
             dispersion = torch.cat((px_dispersion, py_dispersion), dim=-1)
 
@@ -1097,75 +1104,6 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             raise ValueError("No protein data found, please setup or transfer anndata")
 
         return adata
-    
-    
-    def _get_totalvi_protein_priors_change(self, adata, n_cells=30000):
-        """Compute an empirical prior for protein background."""
-        from pomegranate.distributions import Poisson
-        from pomegranate.gmm import GeneralMixtureModel
-
-        with warnings.catch_warnings():
-            warnings.filterwarnings("error")
-            logger.info("Computing empirical prior initialization for protein background.")
-
-            adata = self._validate_anndata(adata)
-            adata_manager = self.get_anndata_manager(adata)
-            pro_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
-            pro_exp = pro_exp.to_numpy() if isinstance(pro_exp, pd.DataFrame) else pro_exp
-            batch_mask = adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).get(
-                fields.ProteinObsmField.PROTEIN_BATCH_MASK
-            )
-            if 'n_panel' in self.summary_stats:
-                batch = adata_manager.get_from_registry('panel').ravel()
-                cats = adata_manager.get_state_registry('panel')[
-                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
-                ]
-            else:
-                batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
-                cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
-                ]
-            codes = np.arange(len(cats))
-            batch_avg_mus = np.tile(0., (pro_exp.shape[1], len(cats)))
-            batch_avg_scales =  np.tile(0.3, (pro_exp.shape[1], len(cats)))
-            
-            for batch_index, b in enumerate(np.unique(codes)):
-                # can happen during online updates
-                # the values of these batches will not be used
-                num_in_batch = np.sum(batch == b)
-                if num_in_batch == 0:
-                    continue
-                batch_pro_exp = pro_exp[batch == b]
-                # a batch is missing because it's in the reference but not query data
-                # for scarches case, these values will be replaced by original state dict
-                if batch_pro_exp.shape[0] == 0:
-                    continue
-                
-                if batch_mask is not None:
-                    batch_mask_batch = batch_mask[str(b)]
-                else:
-                    batch_mask_batch = pro_exp.shape[1] * [True]
-
-                cells = np.random.choice(np.arange(batch_pro_exp.shape[0]), size=n_cells)
-                batch_pro_exp = batch_pro_exp[cells]
-                # fit per cell GeneralMixtureModel
-                for ind, protein in enumerate(batch_mask_batch):
-                    if protein:
-                        gmm = GeneralMixtureModel(
-                            [Poisson(torch.tensor([3.]), inertia=0.5), Poisson(torch.tensor([30.]), inertia=0.5)]).cuda()
-                        gmm_fit = gmm.fit(
-                            torch.tensor(batch_pro_exp[:, ind][..., np.newaxis]).cuda())
-                        params = list(gmm_fit.distributions.parameters())
-                        means = np.array([params[1].data.cpu(), params[3].data.cpu()]).squeeze()
-                        
-                        sorted_fg_bg = np.argsort(means)
-                        means = np.log(means[sorted_fg_bg].squeeze())
-                        batch_avg_mus[ind, batch_index] = means[0]
-                        # Empiric here. It both means are close together likely background should be similar.
-                        batch_avg_scales[ind, batch_index] = 0.1 * (means[1] - means[0]).squeeze()
-
-        return batch_avg_mus, batch_avg_scales
-    
 
     def _get_totalvi_protein_priors(self, adata, n_cells=100, change_mode=False):
         """Compute an empirical prior for protein background."""

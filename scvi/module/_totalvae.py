@@ -133,9 +133,6 @@ class TOTALVAE(BaseModuleClass):
         use_observed_lib_size: bool = True,
         library_log_means: Optional[np.ndarray] = None,
         library_log_vars: Optional[np.ndarray] = None,
-        normalize_loss: bool = False,
-        median_gene_library_size: Optional[float] = None,
-        median_protein_library_size: Optional[float] = None,
         n_panel: Optional[int] = None,
         panel_key: str = REGISTRY_KEYS.BATCH_KEY,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -225,11 +222,6 @@ class TOTALVAE(BaseModuleClass):
         else:  # protein-cell
             pass
         
-        self.normalize_loss = normalize_loss
-        if self.normalize_loss:
-            self.register_buffer("median_gene_library_size", torch.tensor(median_gene_library_size))
-            self.register_buffer("median_protein_library_size", torch.tensor(median_protein_library_size))
-
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
@@ -335,8 +327,8 @@ class TOTALVAE(BaseModuleClass):
             mu2 = py_["rate_fore"]
         
         py_conditional = NegativeBinomialMixture(
-            mu1=py_["rate_back"],
-            mu2=py_["rate_fore"],
+            mu1=mu1,
+            mu2=mu2,
             theta1=py_["r"],
             mixture_logits=py_["mixing"],
         )
@@ -407,6 +399,7 @@ class TOTALVAE(BaseModuleClass):
         cat_covs=None,
         size_factor=None,
         transform_batch: Optional[int] = None,
+        generate_counts: Optional[bool] = False,
     ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
         """Run the generative step."""
         if cont_covs is None:
@@ -417,12 +410,6 @@ class TOTALVAE(BaseModuleClass):
             )
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
-        
-        per_batch_efficiency = torch.exp(
-            F.linear(
-                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.log_per_batch_efficiency
-            )
-        )
 
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
@@ -431,6 +418,12 @@ class TOTALVAE(BaseModuleClass):
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
+            
+        per_batch_efficiency = torch.exp(
+            F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.log_per_batch_efficiency
+            )
+        )
 
         if not self.use_size_factor_key:
             size_factor = library_gene
@@ -456,12 +449,18 @@ class TOTALVAE(BaseModuleClass):
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
-
         px_["r"] = px_r
         py_["r"] = py_r
+        
+        py_norm_ = py_.copy()
+        if per_batch_efficiency is not None:
+            py_norm_["rate_back"] = per_batch_efficiency * py_["rate_back"]
+            py_norm_["rate_fore"] = per_batch_efficiency * py_["rate_fore"]
+
         return {
             "px_": px_,
             "py_": py_,
+            "py_norm_": py_norm_,
             "per_batch_efficiency": per_batch_efficiency,
             "log_pro_back_mean": log_pro_back_mean,
         }
@@ -674,12 +673,6 @@ class TOTALVAE(BaseModuleClass):
         else:
             kl_div_back_pro = kl_div_back_pro_full.sum(dim=1) + lkl_back_pro_full.sum(dim=1) + lkl_protein_expressed.sum(dim=1)
             
-        if self.normalize_loss:
-            weight_protein = self.median_protein_library_size / (0.01 * self.median_protein_library_size + y.sum(1))
-            weight_gene = self.median_gene_library_size / (0.01 * self.median_protein_library_size + x.sum(1))
-        else:
-            weight_protein = torch.ones_like(batch_index)
-            weight_gene = torch.ones_like(batch_index)
         loss = torch.mean(
             reconst_loss_gene
             + kl_weight * pro_recons_weight * reconst_loss_protein
@@ -715,14 +708,14 @@ class TOTALVAE(BaseModuleClass):
             )
 
         px_ = generative_outputs["px_"]
-        py_ = generative_outputs["py_"]
+        py_norm_ = generative_outputs["py_norm_"]
 
         rna_dist = NegativeBinomial(mu=px_["rate"], theta=px_["r"])
         protein_dist = NegativeBinomialMixture(
-            mu1=py_["rate_back"],
-            mu2=py_["rate_fore"],
-            theta1=py_["r"],
-            mixture_logits=py_["mixing"],
+            mu1=py_norm_["rate_back"],
+            mu2=py_norm_["rate_fore"],
+            theta1=py_norm_["r"],
+            mixture_logits=py_norm_["mixing"],
         )
         rna_sample = rna_dist.sample().cpu()
         protein_sample = protein_dist.sample().cpu()

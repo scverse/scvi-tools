@@ -307,8 +307,8 @@ class SCANVAE(VAE):
         scale = torch.ones_like(qz2.scale)
 
         kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=1)
-        loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
-        loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
+
+        
         if not self.use_observed_lib_size:
             ql = inference_outputs["ql"]
             (
@@ -322,32 +322,6 @@ class SCANVAE(VAE):
             ).sum(dim=1)
         else:
             kl_divergence_l = 0.0
-
-        if is_labelled:
-            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
-            kl_locals = {
-                "kl_divergence_z2": kl_divergence_z2,
-                "kl_divergence_l": kl_divergence_l,
-            }
-            if labelled_tensors is not None:
-                ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
-                loss += ce_loss * classification_ratio
-                return LossOutput(
-                    loss=loss,
-                    reconstruction_loss=reconst_loss,
-                    kl_local=kl_locals,
-                    classification_loss=ce_loss,
-                    true_labels=true_labels,
-                    logits=logits,
-                    extra_metrics={
-                        "n_labelled_tensors": labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
-                    },
-                )
-            return LossOutput(
-                loss=loss,
-                reconstruction_loss=reconst_loss,
-                kl_local=kl_locals,
-            )
 
         probs = self.classifier(z1)
         if self.classifier.logits:

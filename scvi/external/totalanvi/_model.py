@@ -22,6 +22,7 @@ from scvi.model._utils import (
     _init_library_size,
     get_max_epochs_heuristic,
 )
+from scvi.module import TOTALVAE
 from scvi.train import SemiSupervisedAdversarialTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
@@ -112,7 +113,6 @@ class TOTALANVI(TOTALVI):
         empirical_protein_background_prior: bool | None = None,
         override_missing_proteins: bool = False,
         linear_classifier: bool = False,
-        normalize_loss: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -138,13 +138,6 @@ class TOTALANVI(TOTALVI):
             batch_mask = None
             self._use_adversarial_classifier = False
             
-        if normalize_loss:
-            median_protein_library_size = np.median(self.adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).sum(1))
-            median_gene_library_size = np.median(np.array(self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY).sum(1)))
-        else:
-            median_protein_library_size = None
-            median_gene_library_size = None
-
         emp_prior = (
             empirical_protein_background_prior
             if empirical_protein_background_prior is not None
@@ -200,9 +193,6 @@ class TOTALANVI(TOTALVI):
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
-            normalize_loss=normalize_loss,
-            median_protein_library_size = median_protein_library_size,
-            median_gene_library_size = median_gene_library_size,
             n_panel=n_panel,
             panel_key=panel_key,
             linear_classifier=linear_classifier,
@@ -278,7 +268,7 @@ class TOTALANVI(TOTALVI):
         totalvi_setup_args = deepcopy(totalvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
         if labels_key is None :
             raise ValueError(
-                "A `labels_key` is necessary as the SCVI model was initialized without one."
+                "A `labels_key` is necessary as the TOTALVI model was initialized without one."
             )
         totalvi_setup_args.update({"labels_key": labels_key})
         cls.setup_anndata(
@@ -289,6 +279,10 @@ class TOTALANVI(TOTALVI):
         totalanvi_model = cls(adata, **non_kwargs, **kwargs, **totalanvi_kwargs)
         totalvi_state_dict = totalvi_model.module.state_dict()
         totalanvi_model.module.load_state_dict(totalvi_state_dict, strict=False)
+        logging.info("Sample level parameters are not optimized during supervised model. This helps with integration")
+        totalanvi_model.module.background_pro_alpha.requires_grad = False
+        totalanvi_model.module.background_pro_log_beta.requires_grad = False
+        totalanvi_model.module.log_per_batch_efficiency.requires_grad = False
         totalanvi_model.was_pretrained = True
 
         return totalanvi_model
@@ -403,6 +397,7 @@ class TOTALANVI(TOTALVI):
         batch_size: int = 256,
         check_val_every_n_epoch: int | None = None,
         adversarial_classifier: bool | None = None,
+        key_adversarial: str = REGISTRY_KEYS.BATCH_KEY,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **trainer_kwargs,
@@ -488,7 +483,7 @@ class TOTALANVI(TOTALVI):
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
-        training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
+        training_plan = self._training_plan_cls(self.module, self.n_labels, key_adversarial=key_adversarial, **plan_kwargs)
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] + [sampler_callback]
         else:
