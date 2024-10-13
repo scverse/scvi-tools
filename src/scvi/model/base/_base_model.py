@@ -299,23 +299,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             return self._adata_manager.get_from_registry(registry_key)
 
-    # def get_from_registry(self, registry_key: str) -> np.ndarray | pd.DataFrame:
-    #     """Returns the object in AnnData associated with the key in the data registry.
-    #
-    #     Parameters
-    #     ----------
-    #     registry_key
-    #         key of object to get from ``self.data_registry``
-    #
-    #     Returns
-    #     -------
-    #     The requested data.
-    #     """
-    #     if not self.adata:
-    #         raise ValueError("self.adata is None. Please registry AnnData object.")
-    #     else:
-    #         return self._adata_manager.get_from_registry(registry_key)
-
     def deregister_manager(self, adata: AnnData | None = None):
         """Deregisters the :class:`~scvi.data.AnnDataManager` instance associated with `adata`.
 

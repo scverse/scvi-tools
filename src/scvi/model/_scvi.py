@@ -7,7 +7,7 @@ import numpy as np
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.data import AnnDataManager, _constants
+from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
@@ -23,7 +23,7 @@ from scvi.model._utils import _init_library_size
 from scvi.model.base import EmbeddingMixin, UnsupervisedTrainingMixin
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import VAE
-from scvi.utils import attrdict, setup_anndata_dsp
+from scvi.utils import setup_anndata_dsp
 
 from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
 
@@ -229,19 +229,11 @@ class SCVI(
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @staticmethod
-    def _get_summary_stats_from_registry(registry: dict) -> attrdict:
-        summary_stats = {}
-        for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
-            field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
-            summary_stats.update(field_summary_stats)
-        return attrdict(summary_stats)
-
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_datamodule(
         cls,
-        datamodule,  # TODO: what to put here?
+        datamodule,
         source_registry=None,
         layer: str | None = None,
         batch_key: list[str] | None = None,
@@ -263,7 +255,6 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
-        # TODO: from adata (czi)?
         if datamodule.__class__.__name__ == "CensusSCVIDataModule":
             # CZI
             categorical_mapping = datamodule.datapipe.obs_encoders["batch"].classes_
@@ -300,7 +291,7 @@ class SCVI(
                     "state_registry": {
                         "n_obs": datamodule.n_obs,
                         "n_vars": datamodule.n_vars,
-                        "column_names": [str(i) for i in column_names],  # TODO: from adata (czi)?
+                        "column_names": [str(i) for i in column_names],
                     },
                     "summary_stats": {"n_vars": datamodule.n_vars, "n_cells": datamodule.n_obs},
                 },

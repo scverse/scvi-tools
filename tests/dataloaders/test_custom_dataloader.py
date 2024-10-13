@@ -81,7 +81,6 @@ def test_czi_custom_dataloader(save_path):
     model = scvi.model.SCVI(adata_orig, n_latent=10)
     model.train(max_epochs=1)
 
-    # TODO: do we need to apply those functions to any census model as is?
     dataloader = model._make_data_loader(adata_orig)
     _ = model.get_elbo(dataloader=dataloader)
     _ = model.get_marginal_ll(dataloader=dataloader)
