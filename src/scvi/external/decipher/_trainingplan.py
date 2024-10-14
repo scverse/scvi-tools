@@ -109,7 +109,7 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         elbo /= self.n_obs_validation
         nll /= self.n_obs_validation
         self.log("elbo_validation", elbo, prog_bar=True)
-        self.log("nll_validation", nll, prog_bar=True)
+        self.log("nll_validation", nll, prog_bar=False)
         self.validation_step_outputs.clear()
 
     def configure_optimizers(self):
