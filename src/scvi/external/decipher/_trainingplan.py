@@ -79,6 +79,16 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
                 if isinstance(module, torch.nn.BatchNorm1d):
                     module.eval()
 
+    def on_train_epoch_end(self):
+        """Training epoch end for Pyro training."""
+        outputs = self.training_step_outputs
+        elbo = 0
+        for out in outputs:
+            elbo += out["loss"]
+        elbo /= self.n_obs_training
+        self.log("elbo_train", elbo, prog_bar=True)
+        self.training_step_outputs.clear()
+
     def validation_step(self, batch, batch_idx):
         """Validation step for Pyro training."""
         out_dict = super().validation_step(batch, batch_idx)
@@ -93,13 +103,11 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         outputs = self.validation_step_outputs
         elbo = 0
         nll = 0
-        n = 0
         for out in outputs:
             elbo += out["loss"]
             nll += out["nll"]
-            n += 1
-        elbo /= n
-        nll /= n
+        elbo /= self.n_obs_validation
+        nll /= self.n_obs_validation
         self.log("elbo_validation", elbo, prog_bar=True)
         self.log("nll_validation", nll, prog_bar=True)
         self.validation_step_outputs.clear()
