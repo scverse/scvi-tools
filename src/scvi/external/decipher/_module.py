@@ -17,12 +17,27 @@ from ._components import ConditionalDenseNN
 
 
 class DecipherPyroModule(PyroBaseModuleClass):
-    """Decipher _decipher for single-cell data.
+    """Decipher PyroModule for single-cell data analysis.
+
+    This module implements the Decipher model for dimensionality reduction and
+    interpretable representation learning in single-cell RNA sequencing data.
 
     Parameters
     ----------
-    config : DecipherConfig or dict
-        Configuration for the decipher _decipher.
+    dim_genes : int
+        Number of genes (features) in the dataset.
+    dim_v : int, optional
+        Dimension of the interpretable latent space v. Default is 2.
+    dim_z : int, optional
+        Dimension of the intermediate latent space z. Default is 10.
+    layers_v_to_z : Sequence[int], optional
+        Hidden layer sizes for the v to z decoder network. Default is (64,).
+    layers_z_to_x : Sequence[int], optional
+        Hidden layer sizes for the z to x decoder network. Default is empty tuple.
+    beta : float, optional
+        Regularization parameter for the KL divergence. Default is 0.1.
+    prior : str, optional
+        Type of prior distribution to use. Default is "normal".
     """
 
     def __init__(
@@ -141,3 +156,46 @@ class DecipherPyroModule(PyroBaseModuleClass):
                     raise ValueError("Invalid prior, must be normal or gamma")
                 pyro.sample("v", posterior_v)
         return z_loc, v_loc, z_scale, v_scale
+
+    def predictive_log_likelihood(self, x: torch.Tensor, n_samples=5):
+        """
+        Calculate the predictive log-likelihood for a Decipher module.
+
+        This function performs multiple runs through the dataloader to obtain
+        an empirical estimate of the predictive log-likelihood. It calculates the
+        log-likelihood for each run and returns the average. The beta parameter
+        of the Decipher module is temporarily modified and restored even if an
+        exception occurs. Used by default as an early stopping criterion.
+
+        Parameters
+        ----------
+        decipher_module : PyroBaseModuleClass
+            The Decipher module to evaluate.
+        x : torch.Tensor
+            Batch of data to compute the log-likelihood for.
+        n_samples : int, optional
+            Number of passes through the dataloader (default is 5).
+
+        Returns
+        -------
+        float
+            The average estimated predictive log-likelihood across multiple runs.
+        """
+        log_weights = []
+        old_beta = self.beta
+        self.beta = 1.0
+        try:
+            for _ in range(n_samples):
+                guide_trace = poutine.trace(self.guide).get_trace(x)
+                model_trace = poutine.trace(
+                    poutine.replay(self.model, trace=guide_trace)
+                ).get_trace(x)
+                log_weights.append(
+                    model_trace.log_prob_sum() - guide_trace.log_prob_sum()
+                )
+
+        finally:
+            self.beta = old_beta
+
+        log_z = torch.logsumexp(torch.tensor(log_weights) - np.log(n_samples), 0)
+        return log_z.item()

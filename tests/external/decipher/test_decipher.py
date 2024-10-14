@@ -14,7 +14,7 @@ def test_decipher_train(adata):
     Decipher.setup_anndata(adata)
     model = Decipher(adata)
     model.train(
-        max_epochs=2,
+        max_epochs=3,
         check_val_every_n_epoch=1,
         train_size=0.5,
         early_stopping=True,
