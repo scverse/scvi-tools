@@ -1,7 +1,10 @@
 import logging
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pyro
+import torch
 from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
@@ -15,6 +18,8 @@ from ._module import DecipherPyroModule
 from ._trainingplan import DecipherTrainingPlan
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from anndata import AnnData
 
 logger = logging.getLogger(__name__)
@@ -92,3 +97,26 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             datasplitter_kwargs=datasplitter_kwargs,
             **trainer_kwargs,
         )
+
+    def get_latent_representation(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        give_z: bool = False,
+    ) -> np.ndarray:
+        self._check_if_trained(warn=False)
+        adata = self._validate_anndata(adata)
+
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        latent_locs = []
+        for tensors in scdl:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            x = torch.log1p(x)
+            z_loc, _ = self.module.encoder_x_to_z(x)
+            if give_z:
+                latent_locs.append(z_loc)
+            else:
+                v_loc, _ = self.module.encoder_zx_to_v(torch.cat([z_loc, x], dim=-1))
+                latent_locs.append(v_loc)
+        return torch.cat(latent_locs).detach().numpy()
