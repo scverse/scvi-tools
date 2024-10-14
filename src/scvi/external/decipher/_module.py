@@ -84,7 +84,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
         )
 
         with (
-            pyro.plate("batch", size=self.n_obs, subsample_size=x.shape[0]),
+            pyro.plate("batch", x.shape[0]),
             poutine.scale(scale=1.0),
         ):
             with poutine.scale(scale=self.beta):
@@ -119,7 +119,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
     def guide(self, x: torch.Tensor):
         pyro.module("decipher", self)
         with (
-            pyro.plate("batch", size=self.n_obs, subsample_size=x.shape[0]),
+            pyro.plate("batch", x.shape[0]),
             poutine.scale(scale=1.0),
         ):
             x = torch.log1p(x)
