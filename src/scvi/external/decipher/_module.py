@@ -57,17 +57,17 @@ class DecipherPyroModule(PyroBaseModuleClass):
 
         self._epsilon = 1e-5
 
+        self.n_obs = None  # Populated by PyroTrainingPlan
+
         # Hack: to allow auto_move_data to infer device.
-        self._dummy_param = nn.Parameter(torch.empty(0), requires_grad=False)
+        self._dummy_param = nn.Parameter(torch.empty(0))
 
     @property
     def device(self):
         return self._dummy_param.device
 
     @staticmethod
-    def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor]
-    ) -> Iterable | dict:
+    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         return (x,), {}
 
@@ -81,7 +81,10 @@ class DecipherPyroModule(PyroBaseModuleClass):
             constraint=constraints.positive,
         )
 
-        with pyro.plate("batch", len(x)), poutine.scale(scale=1.0):
+        with (
+            pyro.plate("batch", size=self.n_obs, subsample_size=x.shape[0]),
+            poutine.scale(scale=1.0),
+        ):
             with poutine.scale(scale=self.beta):
                 if self.prior == "normal":
                     prior = dist.Normal(0, x.new_ones(self.dim_v)).to_event(1)
@@ -105,15 +108,16 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 self.theta + self._epsilon
             )
             # noinspection PyUnresolvedReferences
-            x_dist = dist.NegativeBinomial(
-                total_count=self.theta + self._epsilon, logits=logit
-            )
+            x_dist = dist.NegativeBinomial(total_count=self.theta + self._epsilon, logits=logit)
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @auto_move_data
     def guide(self, x: torch.Tensor):
         pyro.module("decipher", self)
-        with pyro.plate("batch", len(x)), poutine.scale(scale=1.0):
+        with (
+            pyro.plate("batch", size=self.n_obs, subsample_size=x.shape[0]),
+            poutine.scale(scale=1.0),
+        ):
             x = torch.log1p(x)
 
             z_loc, z_scale = self.encoder_x_to_z(x)
