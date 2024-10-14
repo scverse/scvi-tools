@@ -1,24 +1,20 @@
-from collections.abc import Sequence
+import logging
 from typing import TYPE_CHECKING
 
-import logging
-
-from anndata import AnnData
 import pyro
+from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import LayerField, CategoricalJointObsField
-from scvi.utils import setup_anndata_dsp
-from scvi.train import PyroTrainingPlan
-
+from scvi.data.fields import LayerField
 from scvi.model.base import BaseModelClass, PyroSviTrainMixin
+from scvi.train import PyroTrainingPlan
+from scvi.utils import setup_anndata_dsp
 
 from ._module import DecipherPyroModule
+from ._trainingplan import DecipherTrainingPlan
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
-
     from anndata import AnnData
 
 logger = logging.getLogger(__name__)
@@ -26,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class Decipher(PyroSviTrainMixin, BaseModelClass):
     _module_cls = DecipherPyroModule
+    _training_plan_cls = DecipherTrainingPlan
 
     def __init__(self, adata: AnnData, **kwargs):
         pyro.clear_param_store()
@@ -56,14 +53,11 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         %(param_adata)s
         %(param_layer)s
         """
-
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -77,17 +71,13 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         shuffle_set_split: bool = True,
         batch_size: int = 128,
         early_stopping: bool = False,
-        lr: float | None = None,
         training_plan: PyroTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **trainer_kwargs,
     ):
-        optim_kwargs = trainer_kwargs.pop("optim_kwargs", {})
-        optim_kwargs.update({"lr": lr or 5e-3, "weight_decay": 1e-4})
-        optim = pyro.optim.ClippedAdam(optim_kwargs)
-        plan_kwargs = plan_kwargs or {}
-        plan_kwargs.update({"optim": optim})
+        if "early_stopping_monitor" not in trainer_kwargs:
+            trainer_kwargs["early_stopping_monitor"] = "nll_validation"
         super().train(
             max_epochs=max_epochs,
             accelerator=accelerator,
