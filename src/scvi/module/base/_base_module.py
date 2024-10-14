@@ -96,9 +96,7 @@ class LossOutput:
         object.__setattr__(self, "loss", self.dict_sum(self.loss))
 
         if self.n_obs_minibatch is None and self.reconstruction_loss is None:
-            raise ValueError(
-                "Must provide either n_obs_minibatch or reconstruction_loss"
-            )
+            raise ValueError("Must provide either n_obs_minibatch or reconstruction_loss")
 
         default = 0 * self.loss
         if self.reconstruction_loss is None:
@@ -108,9 +106,7 @@ class LossOutput:
         if self.kl_global is None:
             object.__setattr__(self, "kl_global", default)
 
-        object.__setattr__(
-            self, "reconstruction_loss", self._as_dict("reconstruction_loss")
-        )
+        object.__setattr__(self, "reconstruction_loss", self._as_dict("reconstruction_loss"))
         object.__setattr__(self, "kl_local", self._as_dict("kl_local"))
         object.__setattr__(self, "kl_global", self._as_dict("kl_global"))
         object.__setattr__(
@@ -123,16 +119,13 @@ class LossOutput:
 
         if self.reconstruction_loss is not None and self.n_obs_minibatch is None:
             rec_loss = self.reconstruction_loss
-            object.__setattr__(
-                self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0]
-            )
+            object.__setattr__(self, "n_obs_minibatch", list(rec_loss.values())[0].shape[0])
 
         if self.classification_loss is not None and (
             self.logits is None or self.true_labels is None
         ):
             raise ValueError(
-                "Must provide `logits` and `true_labels` if `classification_loss` is "
-                "provided."
+                "Must provide `logits` and `true_labels` if `classification_loss` is " "provided."
             )
 
     @staticmethod
@@ -191,10 +184,7 @@ class BaseModuleClass(nn.Module):
         generative_kwargs: dict | None = None,
         loss_kwargs: dict | None = None,
         compute_loss=True,
-    ) -> (
-        tuple[torch.Tensor, torch.Tensor]
-        | tuple[torch.Tensor, torch.Tensor, LossOutput]
-    ):
+    ) -> tuple[torch.Tensor, torch.Tensor] | tuple[torch.Tensor, torch.Tensor, LossOutput]:
         """Forward pass through the network.
 
         Parameters
@@ -358,9 +348,7 @@ class PyroBaseModuleClass(nn.Module):
 
     @staticmethod
     @abstractmethod
-    def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor]
-    ) -> Iterable | dict:
+    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
 
         In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
@@ -661,9 +649,7 @@ class JaxBaseModuleClass(flax.linen.Module):
             raise RuntimeError(
                 "Train state is not set. Train for one iteration prior to loading state dict."
             )
-        self.train_state = flax.serialization.from_state_dict(
-            self.train_state, state_dict
-        )
+        self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
 
     def to(self, device: Device):
         """Move module to device."""
@@ -691,9 +677,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         self,
         get_inference_input_kwargs: dict[str, Any] | None = None,
         inference_kwargs: dict[str, Any] | None = None,
-    ) -> Callable[
-        [dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]
-    ]:
+    ) -> Callable[[dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]]:
         """Create a method to run inference using the bound module.
 
         Parameters
@@ -760,18 +744,14 @@ def _generic_forward(
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
 
-    inference_inputs = module._get_inference_input(
-        tensors, **get_inference_input_kwargs
-    )
+    inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)
     inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
     generative_inputs = module._get_generative_input(
         tensors, inference_outputs, **get_generative_input_kwargs
     )
     generative_outputs = module.generative(**generative_inputs, **generative_kwargs)
     if compute_loss:
-        losses = module.loss(
-            tensors, inference_outputs, generative_outputs, **loss_kwargs
-        )
+        losses = module.loss(tensors, inference_outputs, generative_outputs, **loss_kwargs)
         return inference_outputs, generative_outputs, losses
     else:
         return inference_outputs, generative_outputs
