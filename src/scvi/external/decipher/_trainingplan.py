@@ -6,8 +6,6 @@ from scvi.module.base import (
 )
 from scvi.train import LowLevelPyroTrainingPlan
 
-from ._utils import predictive_log_likelihood
-
 
 class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
     """Lightning module task to train the Decipher Pyro module.
@@ -41,7 +39,9 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
             optim_kwargs.update({"lr": 5e-3, "weight_decay": 1e-4})
-        self.optim = pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
+        self.optim = (
+            pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
+        )
         # We let SVI take care of all optimization
         self.automatic_optimization = False
 
@@ -68,9 +68,9 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         self.training_step_outputs.append(out_dict)
         return out_dict
 
-    def on_train_epoch_start(self):
-        """Training epoch start for Pyro training."""
-        super().on_train_epoch_start()
+    def on_validation_model_train(self):
+        """Prepare the model for validation by switching to train mode."""
+        super().on_validation_model_train()
         if self.current_epoch > 0:
             # freeze the batch norm layers after the first epoch
             # 1) the batch norm layers helps with the initialization
@@ -93,7 +93,7 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         """Validation step for Pyro training."""
         out_dict = super().validation_step(batch, batch_idx)
         args, kwargs = self.module._get_fn_args_from_batch(batch)
-        nll = -predictive_log_likelihood(self.module, *args, **kwargs, n_samples=5)
+        nll = -self.module.predictive_log_likelihood(*args, **kwargs, n_samples=5)
         out_dict["nll"] = nll
         self.validation_step_outputs[-1].update(out_dict)
         return out_dict
