@@ -67,7 +67,9 @@ class DecipherPyroModule(PyroBaseModuleClass):
         return self._dummy_param.device
 
     @staticmethod
-    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
+    def _get_fn_args_from_batch(
+        tensor_dict: dict[str, torch.Tensor]
+    ) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         return (x,), {}
 
@@ -108,7 +110,9 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 self.theta + self._epsilon
             )
             # noinspection PyUnresolvedReferences
-            x_dist = dist.NegativeBinomial(total_count=self.theta + self._epsilon, logits=logit)
+            x_dist = dist.NegativeBinomial(
+                total_count=self.theta + self._epsilon, logits=logit
+            )
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @auto_move_data
@@ -137,12 +141,3 @@ class DecipherPyroModule(PyroBaseModuleClass):
                     raise ValueError("Invalid prior, must be normal or gamma")
                 pyro.sample("v", posterior_v)
         return z_loc, v_loc, z_scale, v_scale
-
-    def impute_gene_expression_numpy(self, x):
-        if type(x) == np.ndarray:
-            x = torch.tensor(x, dtype=torch.float32)
-        z_loc, _, _, _ = self.guide(x)
-        mu = self.decoder_z_to_x(z_loc)
-        mu = softmax(mu, dim=-1)
-        library_size = x.sum(axis=-1, keepdim=True)
-        return (library_size * mu).detach().numpy()
