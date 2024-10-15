@@ -41,7 +41,8 @@ def _compute_kl_weight(
     n_steps_kl_warmup: int | None,
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
-) -> float:
+    return_float: bool = False,
+) -> float | torch.Tensor:
     """Computes the kl weight for the current step or epoch.
 
     If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
@@ -62,6 +63,8 @@ def _compute_kl_weight(
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
         Minimum scaling factor on KL divergence during training.
+    return_float
+        For Jax Training we should return float and not a tensor (the default)
     """
     if min_kl_weight > max_kl_weight:
         raise ValueError(
@@ -71,11 +74,13 @@ def _compute_kl_weight(
     slope = max_kl_weight - min_kl_weight
     if n_epochs_kl_warmup:
         if epoch < n_epochs_kl_warmup:
-            return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+            updated_kl_weight = slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
+            return updated_kl_weight if return_float else torch.tensor(updated_kl_weight)
     elif n_steps_kl_warmup:
         if step < n_steps_kl_warmup:
-            return slope * (step / n_steps_kl_warmup) + min_kl_weight
-    return max_kl_weight
+            updated_kl_weight = slope * (step / n_steps_kl_warmup) + min_kl_weight
+            return updated_kl_weight if return_float else torch.tensor(updated_kl_weight)
+    return max_kl_weight if return_float else torch.tensor(max_kl_weight)
 
 
 class TrainingPlan(pl.LightningModule):
@@ -134,6 +139,8 @@ class TrainingPlan(pl.LightningModule):
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
         Minimum scaling factor on KL divergence during training.
+    compile
+        Whether to compile the model using torch.compile.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -160,10 +167,18 @@ class TrainingPlan(pl.LightningModule):
         lr_min: float = 0,
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
+        compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__()
-        self.module = module
+        if compile:
+            if compile_kwargs is None:
+                compile_kwargs = {}
+            compile_kwargs["dynamic"] = compile_kwargs.get("dynamic", False)
+            self.module = torch.compile(module, **compile_kwargs)
+        else:
+            self.module = module
         self.lr = lr
         self.weight_decay = weight_decay
         self.eps = eps
@@ -342,6 +357,7 @@ class TrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+
         self.log(
             "train_loss",
             scvi_loss.loss,
@@ -415,15 +431,26 @@ class TrainingPlan(pl.LightningModule):
 
     @property
     def kl_weight(self):
-        """Scaling factor on KL divergence during training."""
-        return _compute_kl_weight(
-            self.current_epoch,
-            self.global_step,
-            self.n_epochs_kl_warmup,
-            self.n_steps_kl_warmup,
-            self.max_kl_weight,
-            self.min_kl_weight,
-        )
+        """Scaling factor on KL divergence during training. Consider Jax"""
+        if type(self).__name__ == "JaxTrainingPlan":
+            return _compute_kl_weight(
+                self.current_epoch,
+                self.global_step,
+                self.n_epochs_kl_warmup,
+                self.n_steps_kl_warmup,
+                self.max_kl_weight,
+                self.min_kl_weight,
+                True,
+            )
+        else:
+            return _compute_kl_weight(
+                self.current_epoch,
+                self.global_step,
+                self.n_epochs_kl_warmup,
+                self.n_steps_kl_warmup,
+                self.max_kl_weight,
+                self.min_kl_weight,
+            ).to(self.device)
 
 
 class AdversarialTrainingPlan(TrainingPlan):
@@ -471,6 +498,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         Scaling factor on the adversarial components of the loss.
         By default, adversarial loss is scaled from 1 to 0 following opposite of
         kl warmup.
+    compile
+        Whether to compile the model for faster training
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -496,6 +525,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_min: float = 0,
         adversarial_classifier: bool | Classifier = False,
         scale_adversarial_loss: float | Literal["auto"] = "auto",
+        compile: bool = False,
         **loss_kwargs,
     ):
         super().__init__(
@@ -512,6 +542,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
+            compile=compile,
             **loss_kwargs,
         )
         if adversarial_classifier is True:
@@ -707,6 +738,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
+        compile: bool = False,
         **loss_kwargs,
     ):
         super().__init__(
@@ -720,6 +752,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_patience=lr_patience,
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
+            compile=compile,
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
