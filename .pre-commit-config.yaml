@@ -2,12 +2,12 @@ fail_fast: false
 default_language_version:
   python: python3
 default_stages:
-  - commit
-  - push
+  - pre-commit
+  - pre-push
 minimum_pre_commit_version: 2.16.0
 repos:
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.18.0
+    rev: 1.19.0
     hooks:
       - id: blacken-docs
 
@@ -18,7 +18,7 @@ repos:
         types: [yaml]
 
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.17
+    rev: 0.7.18
     hooks:
       - id: mdformat
         additional_dependencies:
