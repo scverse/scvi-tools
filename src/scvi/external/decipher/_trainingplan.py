@@ -41,9 +41,7 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
             optim_kwargs.update({"lr": 5e-3})
         if "weight_decay" not in optim_kwargs.keys():
             optim_kwargs.update({"weight_decay": 1e-4})
-        self.optim = (
-            pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
-        )
+        self.optim = pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
 
