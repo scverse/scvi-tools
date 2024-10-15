@@ -61,7 +61,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_topics: int = 20,
         n_hidden: int = 128,
         cell_topic_prior: float | Sequence[float] | None = None,
