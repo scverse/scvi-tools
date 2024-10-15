@@ -38,7 +38,9 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         )
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
-            optim_kwargs.update({"lr": 5e-3, "weight_decay": 1e-4})
+            optim_kwargs.update({"lr": 5e-3})
+        if "weight_decay" not in optim_kwargs.keys():
+            optim_kwargs.update({"weight_decay": 1e-4})
         self.optim = (
             pyro.optim.ClippedAdam(optim_args=optim_kwargs) if optim is None else optim
         )
@@ -54,20 +56,6 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         # See configure_optimizers for what this does
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
-    def training_step(self, batch, batch_idx):
-        """Training step for Pyro training."""
-        args, kwargs = self.module._get_fn_args_from_batch(batch)
-
-        # pytorch lightning requires a Tensor object for loss
-        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
-
-        _opt = self.optimizers()
-        _opt.step()
-
-        out_dict = {"loss": loss}
-        self.training_step_outputs.append(out_dict)
-        return out_dict
-
     def on_validation_model_train(self):
         """Prepare the model for validation by switching to train mode."""
         super().on_validation_model_train()
@@ -79,13 +67,30 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
                 if isinstance(module, torch.nn.BatchNorm1d):
                     module.eval()
 
+    def training_step(self, batch, batch_idx):
+        """Training step for Pyro training."""
+        args, kwargs = self.module._get_fn_args_from_batch(batch)
+
+        # pytorch lightning requires a Tensor object for loss
+        loss = torch.Tensor([self.svi.step(*args, **kwargs)])
+        n_obs = args[0].shape[0]
+
+        _opt = self.optimizers()
+        _opt.step()
+
+        out_dict = {"loss": loss, "n_obs": n_obs}
+        self.training_step_outputs.append(out_dict)
+        return out_dict
+
     def on_train_epoch_end(self):
         """Training epoch end for Pyro training."""
         outputs = self.training_step_outputs
         elbo = 0
+        n_obs = 0
         for out in outputs:
             elbo += out["loss"]
-        elbo /= self.n_obs_training
+            n_obs += out["n_obs"]
+        elbo /= n_obs
         self.log("elbo_train", elbo, prog_bar=True)
         self.training_step_outputs.clear()
 
@@ -95,6 +100,7 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         nll = -self.module.predictive_log_likelihood(*args, **kwargs, n_samples=5)
         out_dict["nll"] = nll
+        out_dict["n_obs"] = args[0].shape[0]
         self.validation_step_outputs[-1].update(out_dict)
         return out_dict
 
@@ -103,11 +109,13 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
         outputs = self.validation_step_outputs
         elbo = 0
         nll = 0
+        n_obs = 0
         for out in outputs:
             elbo += out["loss"]
             nll += out["nll"]
-        elbo /= self.n_obs_validation
-        nll /= self.n_obs_validation
+            n_obs += out["n_obs"]
+        elbo /= n_obs
+        nll /= n_obs
         self.log("elbo_validation", elbo, prog_bar=True)
         self.log("nll_validation", nll, prog_bar=False)
         self.validation_step_outputs.clear()

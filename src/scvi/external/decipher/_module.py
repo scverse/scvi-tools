@@ -169,8 +169,6 @@ class DecipherPyroModule(PyroBaseModuleClass):
 
         Parameters
         ----------
-        decipher_module : PyroBaseModuleClass
-            The Decipher module to evaluate.
         x : torch.Tensor
             Batch of data to compute the log-likelihood for.
         n_samples : int, optional

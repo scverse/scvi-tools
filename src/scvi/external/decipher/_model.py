@@ -85,6 +85,9 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
     ):
         if "early_stopping_monitor" not in trainer_kwargs:
             trainer_kwargs["early_stopping_monitor"] = "nll_validation"
+        datasplitter_kwargs = datasplitter_kwargs or {}
+        if "drop_last" not in datasplitter_kwargs:
+            datasplitter_kwargs["drop_last"] = True
         super().train(
             max_epochs=max_epochs,
             accelerator=accelerator,
