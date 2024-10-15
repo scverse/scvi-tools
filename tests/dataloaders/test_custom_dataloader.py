@@ -1,22 +1,23 @@
 from __future__ import annotations
 
 import os
+import sys
 from pprint import pprint
 
 import numpy as np
 import pandas as pd
 import pytest
 import scanpy as sc
+import tqdm
 
 import scvi
 from scvi.data import synthetic_iid
 
+# import numpy as np
+
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader(save_path):
-    # local branch with fix only for this test
-    import sys
-
+def test_czi_custom_dataloader_scvi(save_path="."):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
@@ -78,7 +79,7 @@ def test_czi_custom_dataloader(save_path):
     adata_orig = synthetic_iid()
     scvi.model.SCVI.setup_anndata(adata_orig, batch_key="batch")
 
-    model = scvi.model.SCVI(adata_orig, n_latent=10)
+    model = scvi.model.SCVI(adata_orig)
     model.train(max_epochs=1)
 
     dataloader = model._make_data_loader(adata_orig)
@@ -93,29 +94,20 @@ def test_czi_custom_dataloader(save_path):
     user_attributes = model._get_user_attributes()
     pprint(user_attributes)
 
-    n_layers = 1
-    n_latent = 50
-
     scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
     model_census = scvi.model.SCVI(
         registry=datamodule.registry,
-        n_layers=n_layers,
-        n_latent=n_latent,
         gene_likelihood="nb",
         encode_covariates=False,
     )
 
     pprint(datamodule.registry)
 
-    batch_size = 1024
-    train_size = 0.9
     max_epochs = 1
 
     model_census.train(
         datamodule=datamodule,
         max_epochs=max_epochs,
-        batch_size=batch_size,
-        train_size=train_size,
         early_stopping=False,
     )
 
@@ -137,8 +129,6 @@ def test_czi_custom_dataloader(save_path):
     model_census2.train(
         datamodule=datamodule,
         max_epochs=max_epochs,
-        batch_size=batch_size,
-        train_size=train_size,
         early_stopping=False,
     )
 
@@ -173,8 +163,6 @@ def test_czi_custom_dataloader(save_path):
     model_census3.train(
         datamodule=datamodule,
         max_epochs=max_epochs,
-        batch_size=batch_size,
-        train_size=train_size,
         early_stopping=False,
     )
 
@@ -236,14 +224,125 @@ def test_czi_custom_dataloader(save_path):
 
 
 @pytest.mark.custom_dataloader
-def test_lamindb_custom_dataloader(save_path):
+def test_czi_custom_dataloader_scanvi(save_path="."):
+    # should be ready for importing the cloned branch on a remote machine that runs github action
+    sys.path.insert(
+        0,
+        "/home/runner/work/scvi-tools/scvi-tools/"
+        "cellxgene-census/api/python/cellxgene_census/src",
+    )
+    sys.path.insert(0, "src")
+    import cellxgene_census
+    import tiledbsoma as soma
+    from cellxgene_census.experimental.ml.datamodule import CensusSCVIDataModule
+    # from cellxgene_census.experimental.pp import highly_variable_genes
+
+    # this test checks the local custom dataloder made by CZI and run several tests with it
+    census = cellxgene_census.open_soma(census_version="stable")
+
+    experiment_name = "mus_musculus"
+    obs_value_filter = (
+        'is_primary_data == True and tissue_general in ["kidney","liver"] and nnz >= 3000'
+    )
+
+    # This is under comments just to save time (selecting highly varkable genes):
+    # top_n_hvg = 8000
+    # hvg_batch = ["assay", "suspension_type"]
+    #
+    # # For HVG, we can use the `highly_variable_genes` function provided in the Census,
+    # # which can compute HVGs in constant memory:
+    #
+    # query = census["census_data"][experiment_name].axis_query(
+    #     measurement_name="RNA", obs_query=soma.AxisQuery(value_filter=obs_value_filter)
+    # )
+    # hvgs_df = highly_variable_genes(query, n_top_genes=top_n_hvg, batch_key=hvg_batch)
+    #
+    # hv = hvgs_df.highly_variable
+    # hv_idx = hv[hv].index
+
+    hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
+
+    # this is CZI part to be taken once all is ready
+    batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
+    label_keys = ["tissue_general"]
+    datamodule = CensusSCVIDataModule(
+        census["census_data"][experiment_name],
+        measurement_name="RNA",
+        X_name="raw",
+        obs_query=soma.AxisQuery(value_filter=obs_value_filter),
+        var_query=soma.AxisQuery(coords=(list(hv_idx),)),
+        batch_size=1024,
+        shuffle=True,
+        batch_keys=batch_keys,
+        label_keys=label_keys,
+        unlabeled_category="label_0",
+        dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
+    )
+
+    # table of genes should be filtered by soma_joinid - but we should keep the encoded indexes
+    # This is nice to have and might be uses in the downstream analysis
+    # var_df = census["census_data"][experiment_name].ms["RNA"].var.read().concat().to_pandas()
+    # var_df = var_df.loc[var_df.soma_joinid.isin(
+    #     list(datamodule.datapipe.var_query.coords[0] if datamodule.datapipe.var_query is not None
+    #          else range(datamodule.n_vars)))]
+
+    # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
+    # model_census = scvi.model.SCVI(
+    #     registry=datamodule.registry,
+    #     gene_likelihood="nb",
+    #     encode_covariates=False,
+    # )
+    #
+    # pprint(datamodule.registry)
+    #
+    max_epochs = 1
+    #
+    # model_census.train(
+    #     datamodule=datamodule,
+    #     max_epochs=max_epochs,
+    #     early_stopping=False,
+    # )
+
+    scvi.model.SCANVI.setup_datamodule(datamodule)
+    pprint(datamodule.registry)
+    model = scvi.model.SCANVI(registry=datamodule.registry, datamodule=datamodule)
+    model.view_anndata_setup(datamodule)
+    adata_manager = model.adata_manager
+    pprint(adata_manager.registry)
+    model.train(
+        datamodule=datamodule, max_epochs=max_epochs, train_size=0.5, check_val_every_n_epoch=1
+    )
+    # logged_keys = model.history.keys()
+    # assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    # assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
+    # assert "elbo_validation" in logged_keys
+    # assert "reconstruction_loss_validation" in logged_keys
+    # assert "kl_local_validation" in logged_keys
+    # assert "elbo_train" in logged_keys
+    # assert "reconstruction_loss_train" in logged_keys
+    # assert "kl_local_train" in logged_keys
+    # assert "validation_classification_loss" in logged_keys
+    # assert "validation_accuracy" in logged_keys
+    # assert "validation_f1_score" in logged_keys
+    # assert "validation_calibration_error" in logged_keys
+    # adata2 = synthetic_iid()
+    # predictions = model.predict(adata2, indices=[1, 2, 3])
+    # assert len(predictions) == 3
+    # model.predict()
+    # df = model.predict(adata2, soft=True)
+    # assert isinstance(df, pd.DataFrame)
+    # model.predict(adata2, soft=True, indices=[1, 2, 3])
+    # model.get_normalized_expression(adata2)
+    # model.differential_expression(groupby="labels", group1="label_1")
+    # model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+
+@pytest.mark.custom_dataloader
+def test_scdataloader_custom_dataloader_scvi(save_path="."):
     # initialize a local lamin database
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
     # os.system("lamin close")
     # os.system("lamin load scdataloader")
-
-    # local branch with fix only for this test
-    import sys
 
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
@@ -252,7 +351,6 @@ def test_lamindb_custom_dataloader(save_path):
     )
     sys.path.insert(0, "src")
     import lamindb as ln
-    import tqdm
     from scdataloader import Collator, DataModule, SimpleAnnDataset
 
     # import bionty as bt
@@ -263,7 +361,6 @@ def test_lamindb_custom_dataloader(save_path):
         additional_preprocess,
     )
 
-    # import numpy as np
     # import tiledbsoma as soma
     from scdataloader.utils import populate_my_ontology
     from torch.utils.data import DataLoader
@@ -340,13 +437,6 @@ def test_lamindb_custom_dataloader(save_path):
     )
 
     # We will now create the SCVI model object:
-    # Its parameters:
-    # n_layers = 1
-    # n_latent = 10
-    # batch_size = 1024
-    # train_size = 0.9
-    # max_epochs = 1
-
     # def on_before_batch_transfer(
     #     batch: tuple[torch.Tensor, torch.Tensor],
     # ) -> dict[str, torch.Tensor | None]:
@@ -360,12 +450,13 @@ def test_lamindb_custom_dataloader(save_path):
     #         BATCH_KEY: obs,
     #         LABELS_KEY: None,
     #     }
+    max_epochs = 1
 
     # Try the lamindb dataloder on a trained scvi-model with adata
     # adata = adata.copy()
     scvi.model.SCVI.setup_anndata(adata_orig, batch_key="cell_type_ontology_term_id")
-    model = scvi.model.SCVI(adata_orig, n_latent=10)
-    model.train(max_epochs=1)
+    model = scvi.model.SCVI(adata_orig)
+    model.train(max_epochs=max_epochs)
     # dataloader2 = experiment_dataloader(dataloader, num_workers=0, persistent_workers=False)
     # mapped_dataloader = (
     #     on_before_batch_transfer(tensor, None) for tensor in dataloader2
@@ -379,8 +470,6 @@ def test_lamindb_custom_dataloader(save_path):
     # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
     # model_lamindb = scvi.model.SCVI(
     #     registry=datamodule.registry,
-    #     n_layers=n_layers,
-    #     n_latent=n_latent,
     #     gene_likelihood="nb",
     #     encode_covariates=False,
     # )
@@ -390,10 +479,14 @@ def test_lamindb_custom_dataloader(save_path):
     # model_lamindb.train(
     #     datamodule=datamodule,
     #     max_epochs=max_epochs,
-    #     batch_size=batch_size,
-    #     train_size=train_size,
     #     early_stopping=False,
     # )
     # We have to create a registry without setup_anndata that contains the same elements
     # The other way will be to fill the model ,LIKE IN CELLXGENE NOTEBOOK
     # need to pass here new object of registry taht contains everything we will need
+
+
+@pytest.mark.custom_dataloader
+def test_lamindb_custom_dataloader_scvi(save_path="."):
+    # a test for mapped collection
+    return

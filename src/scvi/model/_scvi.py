@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+    from lightning import LightningDataModule
 
     from scvi._types import MinifiedDataType
     from scvi.data.fields import (
@@ -127,6 +128,7 @@ class SCVI(
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
+        datamodule: LightningDataModule | None = None,
         **kwargs,
     ):
         super().__init__(adata, registry)
@@ -233,7 +235,7 @@ class SCVI(
     @setup_anndata_dsp.dedent
     def setup_datamodule(
         cls,
-        datamodule,
+        datamodule: LightningDataModule | None = None,
         source_registry=None,
         layer: str | None = None,
         batch_key: list[str] | None = None,
@@ -247,7 +249,8 @@ class SCVI(
 
         Parameters
         ----------
-        %(param_adata)s
+        %(param_datamodule)s
+        %(param_source_registry)s
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
