@@ -53,6 +53,8 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
             optim=self.optim,
             loss=self.loss_fn,
         )
+        self.validation_step_outputs = []
+
         # See configure_optimizers for what this does
         self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
@@ -96,12 +98,16 @@ class DecipherTrainingPlan(LowLevelPyroTrainingPlan):
 
     def validation_step(self, batch, batch_idx):
         """Validation step for Pyro training."""
-        out_dict = super().validation_step(batch, batch_idx)
         args, kwargs = self.module._get_fn_args_from_batch(batch)
+        loss = self.differentiable_loss_fn(
+            self.scale_fn(self.module.model),
+            self.scale_fn(self.module.guide),
+            *args,
+            **kwargs,
+        )
         nll = -self.module.predictive_log_likelihood(*args, **kwargs, n_samples=5)
-        out_dict["nll"] = nll
-        out_dict["n_obs"] = args[0].shape[0]
-        self.validation_step_outputs[-1].update(out_dict)
+        out_dict = {"loss": loss, "nll": nll, "n_obs": args[0].shape[0]}
+        self.validation_step_outputs.append(out_dict)
         return out_dict
 
     def on_validation_epoch_end(self):
