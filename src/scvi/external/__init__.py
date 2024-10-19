@@ -1,6 +1,7 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .gimvi import GIMVI
+from .methylvi import METHYLVI
 from .mrvi import MRVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
@@ -25,4 +26,5 @@ __all__ = [
     "SysVI",
     "VELOVI",
     "MRVI",
+    "METHYLVI",
 ]

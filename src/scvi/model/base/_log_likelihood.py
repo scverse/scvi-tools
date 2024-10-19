@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
-from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 import torch
-from torch import Tensor
 
-from scvi.module.base import LossOutput
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+    from typing import Any
+
+    from torch import Tensor
+
+    from scvi.module.base import LossOutput
 
 
 def compute_elbo(

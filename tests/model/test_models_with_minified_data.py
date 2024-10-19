@@ -169,10 +169,10 @@ def test_scanvi_from_scvi(save_path):
     model.save(save_path, overwrite=True)
     loaded_model = SCVI.load(save_path, adata=adata_before_setup)
 
+    adata2 = synthetic_iid()
+    # just add this to pretend the data is minified
+    adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     with pytest.raises(ValueError) as e:
-        adata2 = synthetic_iid()
-        # just add this to pretend the data is minified
-        adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
         scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0", adata=adata2)
     assert str(e.value) == "Please provide a non-minified `adata` to initialize scanvi."
 
