@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import Literal, Tuple
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -118,7 +118,7 @@ class SysVI(TrainingCustom, BaseModelClass):
         give_mean: bool = True,
         batch_size: int | None = None,
         return_dist: bool = False,
-    ) -> np.ndarray | Tuple[np.ndarray, np.ndarray]:
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """Return the latent representation for each cell.
 
         Parameters
@@ -300,7 +300,9 @@ class SysVI(TrainingCustom, BaseModelClass):
             )
 
         # Make one-hot embedding with specified order
-        systems_dict = dict(zip(batch_order, ([float(i) for i in range(0, len(batch_order))])))
+        systems_dict = dict(
+            zip(batch_order, ([float(i) for i in range(0, len(batch_order))]), strict=False)
+        )
         adata.uns["batch_order"] = batch_order
         system_cat = pd.Series(
             pd.Categorical(values=adata.obs[batch_key], categories=batch_order, ordered=True),

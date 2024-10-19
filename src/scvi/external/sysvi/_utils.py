@@ -140,7 +140,7 @@ def prepare_metadata(
         cov_embed_data = []
         for cov_cat_embed_key in cov_cat_embed_keys:
             cat_order = categ_orders[cov_cat_embed_key]
-            cat_map = dict(zip(cat_order, range(len(cat_order))))
+            cat_map = dict(zip(cat_order, range(len(cat_order)), strict=False))
             cov_embed_data.append(meta_data[cov_cat_embed_key].map(cat_map))
         cov_embed_data = pd.concat(cov_embed_data, axis=1)
     else:

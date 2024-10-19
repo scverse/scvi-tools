@@ -197,7 +197,9 @@ class Layers(Module):
                             Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))
+                    for i, (n_in, n_out) in enumerate(
+                        zip(layers_dim[:-1], layers_dim[1:], strict=False)
+                    )
                 ]
             )
         )

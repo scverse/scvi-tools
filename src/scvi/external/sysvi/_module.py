@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
-from typing_extensions import Literal
 
 from scvi import REGISTRY_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
