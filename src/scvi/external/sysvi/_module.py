@@ -77,7 +77,6 @@ class SysVAE(BaseModuleClass):
         out_var_mode: Literal["sample_feature", "feature"] = "feature",
         enc_dec_kwargs: dict | None = None,
         embedding_kwargs: dict | None = None,
-
     ):
         super().__init__()
 
@@ -127,7 +126,9 @@ class SysVAE(BaseModuleClass):
         if prior == "standard_normal":
             self.prior = StandardPrior()
         elif prior == "vamp":
-            assert pseudoinput_data is not None, 'Pseudoinput data must be specified if using VampPrior'
+            assert (
+                pseudoinput_data is not None
+            ), "Pseudoinput data must be specified if using VampPrior"
             pseudoinput_data = self._get_inference_input(pseudoinput_data)
             self.prior = VampPrior(
                 n_components=n_prior_components,
@@ -153,8 +154,8 @@ class SysVAE(BaseModuleClass):
         input_dict = {
             "expr": tensors[REGISTRY_KEYS.X_KEY],
             "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-            "cat": cov['cat'],
-            "cont": cov['cont']
+            "cat": cov["cat"],
+            "cont": cov["cont"],
         }
         return input_dict
 
@@ -166,8 +167,8 @@ class SysVAE(BaseModuleClass):
         input_dict = {
             "expr": generative_outputs["y_m"],
             "batch": selected_batch,
-            "cat": cov['cat'],
-            "cont": cov['cont']
+            "cat": cov["cat"],
+            "cont": cov["cont"],
         }
         return input_dict
 
@@ -176,26 +177,26 @@ class SysVAE(BaseModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor],
         selected_batch: torch.Tensor,
-        **kwargs
+        **kwargs,
     ) -> dict[str, torch.Tensor | dict[str, torch.Tensor | list[torch.Tensor] | None]]:
         """Parse the input tensors, inference inputs, and cycle batch to get generative inputs"""
         z = inference_outputs["z"]
 
         cov = self._get_cov(tensors=tensors)
         cov_mock = self._mock_cov(cov)
-        cat = {'x': cov['cat'], 'y': cov_mock['cat']}
-        cont = {'x': cov['cont'], 'y': cov_mock['cont']}
+        cat = {"x": cov["cat"], "y": cov_mock["cat"]}
+        cont = {"x": cov["cont"], "y": cov_mock["cont"]}
 
         batch = {"x": tensors["batch"], "y": selected_batch}
 
-        input_dict = {"z": z, "batch": batch, 'cat': cat, 'cont': cont}
+        input_dict = {"z": z, "batch": batch, "cat": cat, "cont": cont}
         return input_dict
 
     @auto_move_data  # TODO remove?
-    def _get_cov(self, tensors: dict[str, torch.Tensor]
-                 ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
+    def _get_cov(
+        self, tensors: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
         """Process all covariates into continuous and categorical components for cVAE"""
-
         cat_parts = []
         cont_parts = []
         if REGISTRY_KEYS.CONT_COVS_KEY in tensors:
@@ -204,14 +205,12 @@ class SysVAE(BaseModuleClass):
             cat = torch.split(tensors[REGISTRY_KEYS.CAT_COVS_KEY], 1, dim=1)
             if self.embed_cat:
                 for idx, tensor in enumerate(cat):
-                    cont_parts.append(
-                        self.compute_embedding(tensor, self._cov_idx_name(idx))
-                    )
+                    cont_parts.append(self.compute_embedding(tensor, self._cov_idx_name(idx)))
             else:
                 cat_parts.extend(cat)
         cov = {
-            'cat': cat_parts,
-            'cont': torch.concat(cont_parts, dim=1) if len(cont_parts) > 0 else None
+            "cat": cat_parts,
+            "cont": torch.concat(cont_parts, dim=1) if len(cont_parts) > 0 else None,
         }
         return cov
 
@@ -223,18 +222,19 @@ class SysVAE(BaseModuleClass):
     def _mock_cov(cov: dict[str, list[torch.Tensor], torch.Tensor, None]) -> torch.Tensor | None:
         """Make mock (all 0) covariates for cycle"""
         mock = {
-            'cat': [torch.zeros_like(cat) for cat in cov['cat']],
-            'cont': torch.zeros_like(cov['cont']) if cov['cont'] is not None else None,
+            "cat": [torch.zeros_like(cat) for cat in cov["cat"]],
+            "cont": torch.zeros_like(cov["cont"]) if cov["cont"] is not None else None,
         }
         return mock
 
     @auto_move_data
-    def inference(self,
-                  expr: torch.Tensor,
-                  batch: torch.Tensor,
-                  cat: list[torch.Tensor],
-                  cont: torch.Tensor | None,
-                  ) -> dict:
+    def inference(
+        self,
+        expr: torch.Tensor,
+        batch: torch.Tensor,
+        cat: list[torch.Tensor],
+        cont: torch.Tensor | None,
+    ) -> dict:
         """
         expression & cov -> latent representation
 
@@ -287,14 +287,20 @@ class SysVAE(BaseModuleClass):
             cont: torch.Tensor | None,
         ):
             if compute:
-                res_sub = self.decoder(x=x, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont)
+                res_sub = self.decoder(
+                    x=x, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont
+                )
                 res[name] = res_sub["y"]
                 res[name + "_m"] = res_sub["y_m"]
                 res[name + "_v"] = res_sub["y_v"]
 
         res = {}
-        outputs(compute=x_x, name="x", res=res, x=z, batch=batch['x'], cat=cat['x'], cont=cont['x'])
-        outputs(compute=x_y, name="y", res=res, x=z, batch=batch['y'], cat=cat['y'], cont=cont['y'])
+        outputs(
+            compute=x_x, name="x", res=res, x=z, batch=batch["x"], cat=cat["x"], cont=cont["x"]
+        )
+        outputs(
+            compute=x_y, name="y", res=res, x=z, batch=batch["y"], cat=cat["y"], cont=cont["y"]
+        )
         return res
 
     @auto_move_data
@@ -394,7 +400,6 @@ class SysVAE(BaseModuleClass):
         reconstruction_weight: float = 1.0,
         z_distance_cycle_weight: float = 2.0,
     ) -> LossOutput:
-
         # Reconstruction loss
         x_true = tensors[REGISTRY_KEYS.X_KEY]
         reconst_loss_x = torch.nn.GaussianNLLLoss(reduction="none")(
@@ -428,8 +433,8 @@ class SysVAE(BaseModuleClass):
             )
 
         z_distance_cyc = z_dist(z_x_m=inference_outputs["z_m"], z_y_m=inference_outputs["z_cyc_m"])
-        if 'batch_weights' in tensors.keys():
-            z_distance_cyc *= tensors['batch_weights'].flatten()
+        if "batch_weights" in tensors.keys():
+            z_distance_cyc *= tensors["batch_weights"].flatten()
 
         loss = (
             reconst_loss * reconstruction_weight
@@ -441,7 +446,7 @@ class SysVAE(BaseModuleClass):
             loss=loss.mean(),
             reconstruction_loss=reconst_loss,
             kl_local=kl_divergence_z,
-            extra_metrics={'cycle_loss':z_distance_cyc.mean()},
+            extra_metrics={"cycle_loss": z_distance_cyc.mean()},
         )
 
     def random_select_batch(self, batch: torch.Tensor) -> torch.Tensor:

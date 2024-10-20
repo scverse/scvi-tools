@@ -6,15 +6,17 @@ from collections.abc import Sequence
 from typing import Literal
 
 import numpy as np
-import pandas as pd
 import torch
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
     LayerField,
-    ObsmField, CategoricalObsField, CategoricalJointObsField, NumericalJointObsField, NumericalObsField,
+    NumericalJointObsField,
+    NumericalObsField,
 )
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
@@ -105,19 +107,18 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         **kwargs,
     ):
         plan_kwargs = plan_kwargs or {}
-        kl_weight_defaults = {
-            'n_epochs_kl_warmup': 0,
-            'n_steps_kl_warmup': 0
-        }
+        kl_weight_defaults = {"n_epochs_kl_warmup": 0, "n_steps_kl_warmup": 0}
         if any([v != plan_kwargs.get(k, v) for k, v in kl_weight_defaults.items()]):
-            warnings.warn('The use of KL weight warmup is not recommended in SysVI. ' +
-                          'The n_epochs_kl_warmup and n_steps_kl_warmup will be reset to 0.')
+            warnings.warn(
+                "The use of KL weight warmup is not recommended in SysVI. "
+                + "The n_epochs_kl_warmup and n_steps_kl_warmup will be reset to 0."
+            )
         # Overwrite plan kwargs with kl weight defaults
         plan_kwargs = {**plan_kwargs, **kl_weight_defaults}
 
         # Pass to parent
         kwargs = kwargs or {}
-        kwargs['plan_kwargs'] = plan_kwargs
+        kwargs["plan_kwargs"] = plan_kwargs
         super().train(*args, **kwargs)
 
     @torch.inference_mode()
@@ -231,10 +232,11 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         if weight_batches:
-            warnings.warn('The use of inverse batch proportion weights is experimental.')
-            batch_weights_key = 'batch_weights'
-            adata.obs[batch_weights_key] = adata.obs[batch_key].map({
-                cat: 1 / n for cat, n in adata.obs[batch_key].value_counts().items()})
+            warnings.warn("The use of inverse batch proportion weights is experimental.")
+            batch_weights_key = "batch_weights"
+            adata.obs[batch_weights_key] = adata.obs[batch_key].map(
+                {cat: 1 / n for cat, n in adata.obs[batch_key].value_counts().items()}
+            )
             anndata_fields.append(NumericalObsField(batch_weights_key, batch_weights_key))
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
