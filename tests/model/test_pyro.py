@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pytest
 import torch
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
@@ -215,6 +216,7 @@ def test_pyro_bayesian_regression_low_level(
     ]
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
@@ -277,6 +279,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression_jit(
     accelerator: str,
     devices: list | str | int,
