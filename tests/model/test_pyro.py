@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pytest
 import torch
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
