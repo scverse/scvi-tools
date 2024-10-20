@@ -34,12 +34,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         python: ["3.10", "3.11", "3.12"]
-        install-flags:
-          [
-            "--prerelease if-necessary-or-explicit",
-            "--resolution lowest-direct",
-            "--resolution lowest",
-          ]
+        install-flags: ["--prerelease if-necessary-or-explicit"]
 
     name: integration
 

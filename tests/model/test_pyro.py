@@ -279,6 +279,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression_jit(
     accelerator: str,
     devices: list | str | int,

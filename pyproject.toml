@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.1.6"
+version = "1.2.0"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,6 +15,7 @@ authors = [
 maintainers = [
     {name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il"},
 ]
+
 urls.Documentation = "https://scvi-tools.org"
 urls.Source = "https://github.com/scverse/scvi-tools"
 urls.Home-page = "https://scvi-tools.org"
@@ -55,11 +56,11 @@ dependencies = [
     "xarray>=2023.2.0",
 ]
 
-
 [project.optional-dependencies]
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
+test = ["scvi-tools[tests]"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -99,7 +100,6 @@ optional = [
 ]
 tutorials = [
     "cell2location",
-    "gdown",
     "jupyter",
     "leidenalg",
     "muon",
@@ -109,6 +109,7 @@ tutorials = [
     "igraph",
     "scikit-misc",
     "scrublet",
+    "scib-metrics",
     "scvi-tools[optional]",
     "squidpy",
 ]
@@ -137,7 +138,7 @@ markers = [
 src = ["src"]
 line-length = 99
 indent-width = 4
-target-version = "py310"
+target-version = "py312"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
