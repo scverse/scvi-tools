@@ -1,9 +1,14 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+import collections
+import warnings
+from collections.abc import Iterable
 from typing import Literal
 
+import numpy as np
+
 import torch
+from torch import nn
 from torch.distributions import Normal
 from torch.nn import (
     BatchNorm1d,
@@ -15,39 +20,6 @@ from torch.nn import (
     ReLU,
     Sequential,
 )
-
-
-class Embedding(Module):
-    """Module for obtaining embedding of categorical covariates
-
-    Parameters
-    ----------
-    size
-        N categories
-    cov_embed_dims
-        Dimensions of embedding
-    normalize
-        Apply layer normalization
-    """
-
-    def __init__(self, size: int, cov_embed_dims: int = 10, normalize: bool = True):
-        super().__init__()
-
-        self.normalize = normalize
-
-        self.embedding = torch.nn.Embedding(size, cov_embed_dims)
-
-        if self.normalize:
-            # TODO this could probably be implemented more efficiently as embed gives same result for every sample in
-            #  a give class. However, if we have many balanced classes there wont be many repetitions within minibatch
-            self.layer_norm = torch.nn.LayerNorm(cov_embed_dims, elementwise_affine=False)
-
-    def forward(self, x):
-        x = self.embedding(x)
-        if self.normalize:
-            x = self.layer_norm(x)
-
-        return x
 
 
 class EncoderDecoder(Module):
@@ -83,7 +55,8 @@ class EncoderDecoder(Module):
         self,
         n_input: int,
         n_output: int,
-        n_cov: int,
+        n_cat_list: list[int],
+        n_cont: int,
         n_hidden: int = 256,
         n_layers: int = 3,
         var_mode: Literal["sample_feature", "feature"] = "feature",
@@ -93,9 +66,10 @@ class EncoderDecoder(Module):
         super().__init__()
         self.sample = sample
 
-        self.decoder_y = Layers(
+        self.decoder_y = FCLayers(
             n_in=n_input,
-            n_cov=n_cov,
+            n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_out=n_hidden,
             n_hidden=n_hidden,
             n_layers=n_layers,
@@ -105,10 +79,18 @@ class EncoderDecoder(Module):
         self.mean_encoder = Linear(n_hidden, n_output)
         self.var_encoder = VarEncoder(n_hidden, n_output, mode=var_mode)
 
-    def forward(self, x: torch.Tensor, cov: torch.Tensor | None = None):
-        y = self.decoder_y(x=x, cov=cov)
-        # TODO better handling of inappropriate edge-case values than nan_to_num or at least warn
-        y_m = torch.nan_to_num(self.mean_encoder(y))
+    def forward(
+        self,
+        x: torch.Tensor,
+        cont: torch.Tensor | None = None,
+        cat_list: list | None = None,
+    ) -> dict[str, torch.Tensor]:
+
+        y = self.decoder_y(x=x, cont=cont, cat_list=cat_list)
+        y_m = self.mean_encoder(y)
+        if y_m.isnan().any() or y_m.isinf().any():
+            warnings.warn('Predicted mean contains nan or inf values. Setting to numerical.')
+            y_m = torch.nan_to_num(y_m)
         y_v = self.var_encoder(y)
 
         outputs = {"y_m": y_m, "y_v": y_v}
@@ -120,21 +102,29 @@ class EncoderDecoder(Module):
         return outputs
 
 
-class Layers(Module):
-    """A helper class to build fully-connected layers for a neural network.
+class FCLayers(nn.Module):
+    """FCLayers class of scvi-tools adapted to also inject continous covariates.
 
-    Adapted from scVI FCLayers to use covariates more flexibly
+    The only adaptation is addition of `n_cont` parameter in init and `cont` in forward,
+    with the associated handling of the two.
+    The forward method signature is changed to account for optional `cont`.
+
+    A helper class to build fully-connected layers for a neural network.
 
     Parameters
     ----------
     n_in
-        The dimensionality of the main input
+        The dimensionality of the input
     n_out
         The dimensionality of the output
-    n_cov
-        Dimensionality of covariates.
-        If there are no cov this should be set to None -
-        in this case cov will not be used.
+    n_cat_list
+        The number of categorical covariates and
+        the number of category levels.
+        A list containing, for each covariate of interest,
+        the number of categories. Each covariate will be
+        included using a one-hot encoding.
+    n_cont
+        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -150,7 +140,7 @@ class Layers(Module):
     bias
         Whether to learn bias in linear layers or not
     inject_covariates
-        Whether to inject covariates in each layer, or just the first.
+        Whether to inject covariates in each layer, or just the first (default).
     activation_fn
         Which activation function to use
     """
@@ -159,7 +149,8 @@ class Layers(Module):
         self,
         n_in: int,
         n_out: int,
-        n_cov: int | None = None,
+        n_cat_list: Iterable[int] = None,
+        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -168,38 +159,45 @@ class Layers(Module):
         use_activation: bool = True,
         bias: bool = True,
         inject_covariates: bool = True,
-        activation_fn: Module = ReLU,
+        activation_fn: nn.Module = nn.ReLU,
     ):
         super().__init__()
-
         self.inject_covariates = inject_covariates
-        self.n_cov = n_cov if n_cov is not None else 0
-
         layers_dim = [n_in] + (n_layers - 1) * [n_hidden] + [n_out]
 
-        self.fc_layers = Sequential(
-            OrderedDict(
+        if n_cat_list is not None:
+            # n_cat = 1 will be ignored
+            self.n_cat_list = [n_cat if n_cat > 1 else 0 for n_cat in n_cat_list]
+        else:
+            self.n_cat_list = []
+
+        self.n_cov = sum(self.n_cat_list) + n_cont
+        self.fc_layers = nn.Sequential(
+            collections.OrderedDict(
                 [
                     (
                         f"Layer {i}",
-                        Sequential(
-                            Linear(
+                        nn.Sequential(
+                            nn.Linear(
                                 n_in + self.n_cov * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
                             ),
-                            # non-default params come from defaults in original Tensorflow implementation
-                            BatchNorm1d(n_out, momentum=0.01, eps=0.001)
+                            # non-default params come from defaults in original Tensorflow
+                            # implementation
+                            nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
                             else None,
-                            LayerNorm(n_out, elementwise_affine=False) if use_layer_norm else None,
+                            nn.LayerNorm(n_out, elementwise_affine=False)
+                            if use_layer_norm
+                            else None,
                             activation_fn() if use_activation else None,
-                            Dropout(p=dropout_rate) if dropout_rate > 0 else None,
+                            nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:], strict=False)
-                    )
+                    zip(layers_dim[:-1], layers_dim[1:], strict=True)
+                )
                 ]
             )
         )
@@ -210,12 +208,13 @@ class Layers(Module):
         return user_cond
 
     def set_online_update_hooks(self, hook_first_layer=True):
+        """Set online update hooks."""
         self.hooks = []
 
         def _hook_fn_weight(grad):
             new_grad = torch.zeros_like(grad)
             if self.n_cov > 0:
-                new_grad[:, -self.n_cov :] = grad[:, -self.n_cov :]
+                new_grad[:, -self.n_cov:] = grad[:, -self.n_cov:]
             return new_grad
 
         def _hook_fn_zero_out(grad):
@@ -225,7 +224,7 @@ class Layers(Module):
             for layer in layers:
                 if i == 0 and not hook_first_layer:
                     continue
-                if isinstance(layer, Linear):
+                if isinstance(layer, nn.Linear):
                     if self.inject_into_layer(i):
                         w = layer.weight.register_hook(_hook_fn_weight)
                     else:
@@ -234,39 +233,62 @@ class Layers(Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, cov: torch.Tensor | None = None):
-        """
-        Forward computation on ``x``.
+    def forward(
+        self,
+        x: torch.Tensor,
+        cont: torch.Tensor | None = None,
+        cat_list: list | None = None
+    ) -> torch.Tensor:
+        """Forward computation on ``x``.
 
         Parameters
         ----------
         x
             tensor of values with shape ``(n_in,)``
-        cov
-            tensor of covariate values with shape ``(n_cov,)`` or None
+        cont
+            continuous covariates for this sample,
+            tensor of values with shape ``(n_cont,)``
+        cat_list
+            list of category membership(s) for this sample
 
         Returns
         -------
-        py:class:`torch.Tensor`
+        :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
-
         """
+        one_hot_cat_list = []  # for generality in this list many indices useless.
+        cont_list = [cont] if cont is not None else []
+        cat_list = cat_list or []
+
+        if len(self.n_cat_list) > len(cat_list):
+            raise ValueError("nb. categorical args provided doesn't match init. params.")
+        for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
+            if n_cat and cat is None:
+                raise ValueError("cat not provided while n_cat != 0 in init. params.")
+            if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
+                if cat.size(1) != n_cat:
+                    one_hot_cat = nn.functional.one_hot(cat.squeeze(-1), n_cat)
+                else:
+                    one_hot_cat = cat  # cat has already been one_hot encoded
+                one_hot_cat_list += [one_hot_cat]
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
-                    if isinstance(layer, BatchNorm1d):
+                    if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
                             x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
                         else:
                             x = layer(x)
                     else:
-                        # Injection of covariates
-                        if (
-                            self.n_cov > 0
-                            and isinstance(layer, Linear)
-                            and self.inject_into_layer(i)
-                        ):
-                            x = torch.cat((x, cov), dim=-1)
+                        if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
+                            if x.dim() == 3:
+                                cov_list_layer = [
+                                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
+                                    for o in one_hot_cat_list
+                                ]
+                            else:
+                                cov_list_layer = one_hot_cat_list
+                            x = torch.cat((x, *cov_list_layer, *cont_list), dim=-1)
                         x = layer(x)
         return x
 
@@ -294,7 +316,7 @@ class VarEncoder(Module):
     ):
         super().__init__()
 
-        self.eps = 1e-4
+        self.clip_exp = np.log(torch.finfo(torch.get_default_dtype()).max) - 1e-4
         self.mode = mode
         if self.mode == "sample_feature":
             self.encoder = Linear(n_input, n_output)
@@ -316,11 +338,17 @@ class VarEncoder(Module):
         -------
         Predicted var
         """
-        # Force to be non nan - TODO come up with better way to do so
         if self.mode == "sample_feature":
             v = self.encoder(x)
-            v = self.activation(v) + self.eps  # Ensure that var is strictly positive
         elif self.mode == "feature":
             v = self.var_param.expand(x.shape[0], -1)  # Broadcast to input size
-            v = self.activation(v) + self.eps  # Ensure that var is strictly positive
+
+        # Ensure that var is strictly positive via exp - Bring back to non-log scale
+        # Clip to range that will not be inf after exp
+        v = torch.clip(v, min=-self.clip_exp, max=self.clip_exp)
+        v = self.activation(v)
+        if v.isnan().any():
+            warnings.warn('Predicted variance contains nan values. Setting to 0.')
+            v = torch.nan_to_num(v)
+
         return v

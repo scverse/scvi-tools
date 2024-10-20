@@ -1,5 +1,5 @@
 import math
-
+import pytest
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -44,46 +44,48 @@ def mock_adata():
     )
     adata.obs["covariate_cont"] = list(range(200))
     adata.obs["covariate_cat"] = ["a"] * 50 + ["b"] * 50 + ["c"] * 50 + ["d"] * 50
-    adata.obs["covariate_cat_emb"] = ["a"] * 50 + ["b"] * 50 + ["c"] * 50 + ["d"] * 50
-    adata.obs["system"] = ["a"] * 100 + ["b"] * 50 + ["c"] * 50
+    adata.obs["batch"] = ["a"] * 100 + ["b"] * 50 + ["c"] * 50
 
     return adata
 
 
-def test_model():
-    adata0 = mock_adata()
+@pytest.mark.parametrize(
+    (
+        "categorical_covariate_keys",
+        "continuous_covariate_keys",
+        "pseudoinputs_data_indices",
+        "embed_cat",
+        "weight_batches"
+    ),
+    [
+        # Check different covariate combinations
+        (["covariate_cat"], ["covariate_cont"], None, False, False),
+        (["covariate_cat"], ["covariate_cont"], None, True, False),
+        (["covariate_cat"], None, None, False, False),
+        (["covariate_cat"], None, None, True, False),
+        (None, ["covariate_cont"], None, False, False),
+        # Check pre-specifying pseudoinputs
+        (None, None, np.array(list(range(5))), False, False),
 
-    # Run adata setup with all covariates
-    SysVI.setup_anndata(
-        adata0,
-        batch_key="system",
-        categorical_covariate_keys=["covariate_cat"],
-        categorical_covariate_embed_keys=["covariate_cat_emb"],
-        continuous_covariate_keys=["covariate_cont"],
-    )
-
-    # Run adata setup transfer
-    # TODO ensure this is actually done correctly, not just that it runs through
+    ],
+)
+def test_model(
+    categorical_covariate_keys,
+    continuous_covariate_keys,
+    pseudoinputs_data_indices,
+    embed_cat,
+    weight_batches
+):
     adata = mock_adata()
+
+    # Run adata setup
     SysVI.setup_anndata(
         adata,
-        batch_key="system",
-        categorical_covariate_keys=["covariate_cat"],
-        categorical_covariate_embed_keys=["covariate_cat_emb"],
-        continuous_covariate_keys=["covariate_cont"],
-        covariate_categ_orders=adata0.uns["covariate_categ_orders"],
-        covariate_key_orders=adata0.uns["covariate_key_orders"],
-        batch_order=adata0.uns["batch_order"],
+        batch_key="batch",
+        categorical_covariate_keys=categorical_covariate_keys,
+        continuous_covariate_keys=continuous_covariate_keys,
+        weight_batches=weight_batches,
     )
-
-    # Check that setup of adata without covariates works
-    adata_no_cov = mock_adata()
-    SysVI.setup_anndata(
-        adata_no_cov,
-        batch_key="system",
-    )
-    assert "covariates" not in adata_no_cov.obsm
-    assert "covariates_embed" not in adata_no_cov.obsm
 
     # Model
 
@@ -91,42 +93,14 @@ def test_model():
     model = SysVI(adata=adata, prior="standard_normal")
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
-    # Check that mode runs through without covariates
-    model = SysVI(adata=adata_no_cov)
-    model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
-
-    # Check pre-specifying pseudoinput indices for vamp prior
-    _ = SysVI(
+    # Check that model runs through with vamp prior
+    model = SysVI(
         adata=adata,
         prior="vamp",
-        pseudoinputs_data_indices=np.array(list(range(5))),
-        n_prior_components=5,
+        pseudoinputs_data_indices=pseudoinputs_data_indices,
+        n_prior_components=5
     )
-
-    # Check that model runs through with vamp prior without specifying pseudoinput indices,
-    # all covariates, and weight scaling
-    model = SysVI(adata=adata, prior="vamp")
-    model.train(
-        max_epochs=2,
-        batch_size=math.ceil(adata.n_obs / 2.0),
-        log_every_n_steps=1,
-        check_val_every_n_epoch=1,
-        val_check_interval=1,
-        plan_kwargs={
-            "log_on_epoch": False,
-            "log_on_step": True,
-            "loss_weights": {
-                "kl_weight": 2,
-                "z_distance_cycle_weight": {
-                    "weight_start": 1,
-                    "weight_end": 3,
-                    "point_start": 1,
-                    "point_end": 3,
-                    "update_on": "step",
-                },
-            },
-        },
-    )
+    model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Embedding
 
@@ -138,13 +112,21 @@ def test_model():
         == adata.shape[0]
     )
 
-    # Ensure that embedding with another adata properly checks if it was setu up correctly
-    _ = model.get_latent_representation(adata=adata0)
-    with assert_raises(KeyError):
-        # TODO could add more check for each property separately
-        _ = model.get_latent_representation(adata=adata_no_cov)
 
-    # Check that indices in embedding works
+def test_latent_representation():
+    # Train model
+    adata = mock_adata()
+    SysVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        categorical_covariate_keys=None,
+        continuous_covariate_keys=None,
+        weight_batches=False,
+    )
+    model = SysVI(adata=adata, prior="standard_normal")
+    model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
+
+    # Check that specifying indices in embedding works
     idx = [1, 2, 3]
     embed = model.get_latent_representation(
         adata=adata,
@@ -153,7 +135,7 @@ def test_model():
     )
     assert embed.shape[0] == 3
 
-    # Check predicting mean/sample
+    # Check predicting mean vs sample
     np.testing.assert_allclose(
         embed,
         model.get_latent_representation(
@@ -171,3 +153,45 @@ def test_model():
                 give_mean=False,
             ),
         )
+
+    # Test returning distn
+    mean, var = model.get_latent_representation(
+        adata=adata,
+        indices=idx,
+        return_dist=True,
+    )
+    np.testing.assert_allclose(embed, mean)
+
+
+def test_warnings():
+    # Train model
+    adata = mock_adata()
+    SysVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        categorical_covariate_keys=None,
+        continuous_covariate_keys=None,
+        weight_batches=False,
+    )
+    model = SysVI(adata=adata, prior="standard_normal")
+
+    # Assert that warning is printed if kl warmup is used
+    # Step warmup
+    with pytest.warns(Warning) as record:
+        model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0),
+                plan_kwargs={'n_steps_kl_warmup': 1})
+    assert any([
+        "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
+        for rec in record])
+    # Epoch warmup
+    with pytest.warns(Warning) as record:
+        model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0),
+                plan_kwargs={'n_epochs_kl_warmup': 1})
+    assert any([
+        "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
+        for rec in record])
+
+    # Asert that sampling is disabled
+    with pytest.raises(NotImplementedError):
+        model.module.sample()
+

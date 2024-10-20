@@ -28,10 +28,6 @@ class VampPrior(Prior):
     ----------
     n_components
         Prior components
-    n_input
-        Model input dimensions
-    n_cov
-        Model input covariate dimensions
     encoder
         The encoder
     data
@@ -44,32 +40,44 @@ class VampPrior(Prior):
 
     def __init__(
         self,
-        n_components,
-        n_input,
-        n_cov,
-        encoder,
-        data: tuple[torch.tensor, torch.tensor] | None = None,
-        trainable_priors=True,
+        n_components: int,
+        encoder: torch.nn.Module,
+        data_x: torch.tensor,
+        n_cat_list: list[int],
+        data_cat: list[torch.tensor],
+        data_cont: torch.tensor|None=None,
+        trainable_priors: bool = True,
     ):
         super().__init__()
 
         self.encoder = encoder
 
-        # Get pseudoinputs
-        if data is None:
-            u = torch.rand(n_components, n_input)  # K * I
-            u_cov = torch.zeros(n_components, n_cov)  # K * C
+        # Make pseudoinputs into parameters
+        # X
+        assert n_components == data_x.shape[0]
+        self.u = torch.nn.Parameter(data_x, requires_grad=trainable_priors)  # K x I
+        # Cat
+        assert all([cat.shape[0] == n_components for cat in data_cat])
+        # For categorical covariates, since scvi-tools one-hot encodes
+        # them in the layers, we need to create a multinomial distn
+        # from which we can sample categories for layers input
+        # Initialise the multinomial distn weights based on
+        # one-hot encoding of pseudoinput categories
+        self.u_cat = torch.nn.ParameterList([
+            torch.nn.Parameter(
+                torch.nn.functional.one_hot(cat.squeeze(-1), n).float(),  # K x C_cat_onehot
+                requires_grad=trainable_priors)
+            for cat, n in zip(data_cat, n_cat_list)  # K x C_cat
+        ])
+        # Cont
+        if data_cont is None:
+            self.u_cont = None
         else:
-            u = data[0]
-            u_cov = data[1]
-            assert n_components == data[0].shape[0] == data[1].shape[0]
-            assert n_input == data[0].shape[1]
-            assert n_cov == data[1].shape[1]
-        self.u = torch.nn.Parameter(u, requires_grad=trainable_priors)
-        self.u_cov = torch.nn.Parameter(u_cov, requires_grad=trainable_priors)
+            assert n_components == data_cont.shape[0]
+            self.u_cont = torch.nn.Parameter(data_cont, requires_grad=trainable_priors)  # K x C_cont
 
         # mixing weights
-        self.w = torch.nn.Parameter(torch.zeros(self.u.shape[0], 1, 1))  # K x 1 x 1
+        self.w = torch.nn.Parameter(torch.zeros(n_components, 1, 1))  # K x 1 x 1
 
     def get_params(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
@@ -82,7 +90,9 @@ class VampPrior(Prior):
         # u, u_cov -> encoder -> mean, var
         original_mode = self.encoder.training
         self.encoder.train(False)
-        z = self.encoder(x=self.u, cov=self.u_cov)
+        # Convert category weights to categories
+        cat_list = [torch.multinomial(cat, num_samples=1) for cat in self.u_cat]
+        z = self.encoder(x=self.u, cat_list=cat_list, cont=self.u_cont)
         self.encoder.train(original_mode)
         return z["y_m"], z["y_v"]  # (K x L), (K x L)
 
