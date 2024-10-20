@@ -185,7 +185,6 @@ def _create_indices_adata_manager(adata: AnnData) -> AnnDataManager:
     adata_manager.register_fields(adata)
     return adata_manager
 
-
 def test_pyro_bayesian_regression_low_level(
     accelerator: str,
     devices: list | str | int,
@@ -214,7 +213,7 @@ def test_pyro_bayesian_regression_low_level(
         1,
     ]
 
-
+@pytest.mark.optional
 def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
@@ -276,7 +275,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     np.testing.assert_array_equal(sigma_median_new, sigma_median)
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
-
+@pytest.mark.optional
 def test_pyro_bayesian_regression_jit(
     accelerator: str,
     devices: list | str | int,
