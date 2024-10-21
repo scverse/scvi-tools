@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import anndata
 import numpy as np
@@ -11,12 +14,10 @@ from mudata import MuData
 from scipy.sparse import csr_matrix
 
 from scvi import settings
-from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.model.base._save_load import (
-    _get_var_names,
     _initialize_model,
     _load_saved_files,
     _validate_var_names,
@@ -24,7 +25,10 @@ from scvi.model.base._save_load import (
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
-from ._base_model import BaseModelClass
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
+
+    from ._base_model import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +42,9 @@ class ArchesMixin:
     @devices_dsp.dedent
     def load_query_data(
         cls,
-        adata: AnnOrMuData,
-        reference_model: str | BaseModelClass,
+        adata: AnnOrMuData = None,
+        reference_model: str | BaseModelClass = None,
+        registry: dict = None,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
         device: int | str = "auto",
@@ -82,6 +87,11 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
+        if reference_model is None:
+            raise ValueError("Please provide a reference model as string or loaded model.")
+        if adata is None and registry is None:
+            raise ValueError("Please provide either an AnnData or a registry dictionary.")
+
         _, _, device = parse_device_args(
             accelerator=accelerator,
             devices=device,
@@ -89,49 +99,52 @@ class ArchesMixin:
             validate_single_device=True,
         )
 
-        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
+        attr_dict, var_names, load_state_dict = _get_loaded_data(
+            reference_model, device=device, adata=adata
+        )
 
-        if isinstance(adata, MuData):
-            for modality in adata.mod:
+        if adata is not None:
+            if isinstance(adata, MuData):
+                for modality in adata.mod:
+                    if inplace_subset_query_vars:
+                        logger.debug(f"Subsetting {modality} query vars to reference vars.")
+                        adata[modality]._inplace_subset_var(var_names[modality])
+                    _validate_var_names(adata[modality], var_names[modality])
+
+            else:
                 if inplace_subset_query_vars:
-                    logger.debug(f"Subsetting {modality} query vars to reference vars.")
-                    adata[modality]._inplace_subset_var(var_names[modality])
-                _validate_var_names(adata[modality], var_names[modality])
+                    logger.debug("Subsetting query vars to reference vars.")
+                    adata._inplace_subset_var(var_names)
+                _validate_var_names(adata, var_names)
 
-        else:
             if inplace_subset_query_vars:
                 logger.debug("Subsetting query vars to reference vars.")
                 adata._inplace_subset_var(var_names)
             _validate_var_names(adata, var_names)
 
-        if inplace_subset_query_vars:
-            logger.debug("Subsetting query vars to reference vars.")
-            adata._inplace_subset_var(var_names)
-        _validate_var_names(adata, var_names)
+            registry = attr_dict.pop("registry_")
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+                raise ValueError("It appears you are loading a model from a different class.")
 
-        registry = attr_dict.pop("registry_")
-        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-            raise ValueError("It appears you are loading a model from a different class.")
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
 
-        if _SETUP_ARGS_KEY not in registry:
-            raise ValueError(
-                "Saved model does not contain original setup inputs. "
-                "Cannot load the original setup."
+            setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+            setup_method(
+                adata,
+                source_registry=registry,
+                extend_categories=True,
+                allow_missing_labels=True,
+                **registry[_SETUP_ARGS_KEY],
             )
 
-        setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
-        setup_method(
-            adata,
-            source_registry=registry,
-            extend_categories=True,
-            allow_missing_labels=True,
-            **registry[_SETUP_ARGS_KEY],
-        )
+        model = _initialize_model(cls, adata, registry, attr_dict)
 
-        model = _initialize_model(cls, adata, attr_dict)
-        adata_manager = model.get_anndata_manager(adata, required=True)
+        version_split = model.registry[_constants._SCVI_VERSION_KEY].split(".")
 
-        version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
                 "Query integration should be performed using models trained with "
@@ -202,7 +215,7 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+        _, var_names, _ = _get_loaded_data(reference_model, device="cpu", adata=adata)
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
@@ -350,7 +363,7 @@ def _set_params_online_update(
             par.requires_grad = False
 
 
-def _get_loaded_data(reference_model, device=None):
+def _get_loaded_data(reference_model, device=None, adata=None):
     if isinstance(reference_model, str):
         attr_dict, var_names, load_state_dict, _ = _load_saved_files(
             reference_model, load_adata=False, map_location=device
@@ -358,7 +371,7 @@ def _get_loaded_data(reference_model, device=None):
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        var_names = _get_var_names(reference_model.adata)
+        var_names = reference_model.get_var_names()
         load_state_dict = deepcopy(reference_model.module.state_dict())
 
     return attr_dict, var_names, load_state_dict
