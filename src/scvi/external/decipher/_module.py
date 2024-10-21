@@ -24,20 +24,20 @@ class DecipherPyroModule(PyroBaseModuleClass):
 
     Parameters
     ----------
-    dim_genes : int
+    dim_genes
         Number of genes (features) in the dataset.
-    dim_v : int, optional
-        Dimension of the interpretable latent space v. Default is 2.
-    dim_z : int, optional
-        Dimension of the intermediate latent space z. Default is 10.
-    layers_v_to_z : Sequence[int], optional
-        Hidden layer sizes for the v to z decoder network. Default is (64,).
-    layers_z_to_x : Sequence[int], optional
-        Hidden layer sizes for the z to x decoder network. Default is empty tuple.
-    beta : float, optional
-        Regularization parameter for the KL divergence. Default is 0.1.
-    prior : str, optional
-        Type of prior distribution to use. Default is "normal".
+    dim_v
+        Dimension of the interpretable latent space v.
+    dim_z
+        Dimension of the intermediate latent space z.
+    layers_v_to_z
+        Hidden layer sizes for the v to z decoder network.
+    layers_z_to_x
+        Hidden layer sizes for the z to x decoder network.
+    beta
+        Regularization parameter for the KL divergence.
+    prior
+        Type of prior distribution to use.
     """
 
     def __init__(

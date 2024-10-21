@@ -1,6 +1,5 @@
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pyro
@@ -21,6 +20,27 @@ logger = logging.getLogger(__name__)
 
 
 class Decipher(PyroSviTrainMixin, BaseModelClass):
+    """Decipher model for single-cell data analysis :cite:p:`Nazaret2023`.
+
+    Parameters
+    ----------
+    adata
+        AnnData object that has been registered via
+        :meth:`~scvi.model.Decipher.setup_anndata`.
+    dim_v
+        Dimension of the interpretable latent space v.
+    dim_z
+        Dimension of the intermediate latent space z.
+    layers_v_to_z
+        Hidden layer sizes for the v to z decoder network.
+    layers_z_to_x
+        Hidden layer sizes for the z to x decoder network.
+    beta
+        Regularization parameter for the KL divergence.
+    prior
+        Type of prior distribution to use.
+    """
+
     _module_cls = DecipherPyroModule
     _training_plan_cls = DecipherTrainingPlan
 
@@ -105,6 +125,20 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         batch_size: int | None = None,
         give_z: bool = False,
     ) -> np.ndarray:
+        """Get the latent representation of the data.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with the data to get the latent representation of.
+        indices
+            Indices of the data to get the latent representation of.
+        batch_size
+            Batch size to use for the data loader.
+        give_z
+            Whether to return the intermediate latent space z or the top-level
+            latent space v.
+        """
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
