@@ -110,10 +110,11 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             x = torch.log1p(x)
+            x = x.to(self.module.device)
             z_loc, _ = self.module.encoder_x_to_z(x)
             if give_z:
                 latent_locs.append(z_loc)
             else:
                 v_loc, _ = self.module.encoder_zx_to_v(torch.cat([z_loc, x], dim=-1))
                 latent_locs.append(v_loc)
-        return torch.cat(latent_locs).detach().numpy()
+        return torch.cat(latent_locs).detach().cpu().numpy()
