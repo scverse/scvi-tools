@@ -77,9 +77,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -142,17 +140,16 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent_locs = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             x = torch.log1p(x)
+            x = x.to(self.module.device)
             z_loc, _ = self.module.encoder_x_to_z(x)
             if give_z:
                 latent_locs.append(z_loc)
             else:
                 v_loc, _ = self.module.encoder_zx_to_v(torch.cat([z_loc, x], dim=-1))
                 latent_locs.append(v_loc)
-        return torch.cat(latent_locs).detach().numpy()
+        return torch.cat(latent_locs).detach().cpu().numpy()
