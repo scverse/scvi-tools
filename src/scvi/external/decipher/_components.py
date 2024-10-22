@@ -12,22 +12,19 @@ class ConditionalDenseNN(nn.Module):
 
     Parameters
     ----------
-    input_dim : int
+    input_dim
         Dimension of the input
-    hidden_dims : sequence of ints
+    hidden_dims
         Dimensions of the hidden layers (excluding the output layer)
-    output_dims : sequence of ints (optional)
+    output_dims
         Dimensions of each output layer
-        Default: (1,)
-    context_dim : int (optional)
+    context_dim
         Dimension of the context input.
-        Default: 0. No context input.
-    deep_context_injection : bool (optional)
+    deep_context_injection
         If True, inject the context into every hidden layer.
         If False, only inject the context into the first hidden layer
         (concatenated with the input).
-        Default: False.
-    activation : torch.nn.Module (optional)
+    activation
         Activation function to use between hidden layers (not applied to the outputs).
         Default: torch.nn.ReLU()
     """
