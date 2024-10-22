@@ -62,6 +62,7 @@ import scvi
    external.VELOVI
    external.MRVI
    external.METHYLVI
+   external.Decipher
 ```
 
 ## Data loading
