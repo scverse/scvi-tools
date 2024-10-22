@@ -8,6 +8,7 @@ from .scar import SCAR
 from .scbasset import SCBASSET
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
+from .sysvi import SysVI
 from .tangram import Tangram
 from .velovi import VELOVI
 
@@ -22,6 +23,7 @@ __all__ = [
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
+    "SysVI",
     "VELOVI",
     "MRVI",
     "METHYLVI",
