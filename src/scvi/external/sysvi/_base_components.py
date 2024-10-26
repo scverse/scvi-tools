@@ -301,11 +301,14 @@ class VarEncoder(Module):
     n_input
         Number of input dimensions, used if mode is sample_feature
     n_output
-        Number of variances to predict
+        Number of variances to predict, matching the desired number of features
+        (e.g. latent dimensions for variational encoding or output features
+        for variational decoding)
     mode
-        How to compute var
-        'sample_feature' - learn per sample and feature
-        'feature' - learn per feature, constant across samples
+        How to compute variance.
+        One of the following:
+        * ```'sample_feature'``` - learn variance per sample and feature
+        * ```'feature'``` - learn variance per feature, constant across samples
     """
 
     def __init__(
@@ -332,7 +335,7 @@ class VarEncoder(Module):
         Parameters
         ----------
         x
-            Used to encode var if mode is sample_feature; dim = n_samples x n_input
+            Used to encode variance if mode is sample_feature; dim = n_samples x n_input
 
         Returns
         -------
