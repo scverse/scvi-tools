@@ -6,19 +6,13 @@ from collections.abc import Iterable
 from typing import Literal
 
 import numpy as np
-
 import torch
 from torch import nn
 from torch.distributions import Normal
 from torch.nn import (
-    BatchNorm1d,
-    Dropout,
-    LayerNorm,
     Linear,
     Module,
     Parameter,
-    ReLU,
-    Sequential,
 )
 
 
@@ -85,11 +79,10 @@ class EncoderDecoder(Module):
         cont: torch.Tensor | None = None,
         cat_list: list | None = None,
     ) -> dict[str, torch.Tensor]:
-
         y = self.decoder_y(x=x, cont=cont, cat_list=cat_list)
         y_m = self.mean_encoder(y)
         if y_m.isnan().any() or y_m.isinf().any():
-            warnings.warn('Predicted mean contains nan or inf values. Setting to numerical.')
+            warnings.warn("Predicted mean contains nan or inf values. Setting to numerical.")
             y_m = torch.nan_to_num(y_m)
         y_v = self.var_encoder(y)
 
@@ -196,8 +189,8 @@ class FCLayers(nn.Module):
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
-                    zip(layers_dim[:-1], layers_dim[1:], strict=True)
-                )
+                        zip(layers_dim[:-1], layers_dim[1:], strict=True)
+                    )
                 ]
             )
         )
@@ -214,7 +207,7 @@ class FCLayers(nn.Module):
         def _hook_fn_weight(grad):
             new_grad = torch.zeros_like(grad)
             if self.n_cov > 0:
-                new_grad[:, -self.n_cov:] = grad[:, -self.n_cov:]
+                new_grad[:, -self.n_cov :] = grad[:, -self.n_cov :]
             return new_grad
 
         def _hook_fn_zero_out(grad):
@@ -234,10 +227,7 @@ class FCLayers(nn.Module):
                     self.hooks.append(b)
 
     def forward(
-        self,
-        x: torch.Tensor,
-        cont: torch.Tensor | None = None,
-        cat_list: list | None = None
+        self, x: torch.Tensor, cont: torch.Tensor | None = None, cat_list: list | None = None
     ) -> torch.Tensor:
         """Forward computation on ``x``.
 
@@ -351,7 +341,7 @@ class VarEncoder(Module):
         v = torch.clip(v, min=-self.clip_exp, max=self.clip_exp)
         v = self.activation(v)
         if v.isnan().any():
-            warnings.warn('Predicted variance contains nan values. Setting to 0.')
+            warnings.warn("Predicted variance contains nan values. Setting to 0.")
             v = torch.nan_to_num(v)
 
         return v

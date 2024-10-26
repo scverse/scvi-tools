@@ -1,7 +1,8 @@
 import math
-import pytest
+
 import numpy as np
 import pandas as pd
+import pytest
 from anndata import AnnData
 from numpy.testing import assert_raises
 from scipy import sparse
@@ -55,7 +56,7 @@ def mock_adata():
         "continuous_covariate_keys",
         "pseudoinputs_data_indices",
         "embed_cat",
-        "weight_batches"
+        "weight_batches",
     ),
     [
         # Check different covariate combinations
@@ -66,7 +67,6 @@ def mock_adata():
         (None, ["covariate_cont"], None, False, False),
         # Check pre-specifying pseudoinputs
         (None, None, np.array(list(range(5))), False, False),
-
     ],
 )
 def test_model(
@@ -74,7 +74,7 @@ def test_model(
     continuous_covariate_keys,
     pseudoinputs_data_indices,
     embed_cat,
-    weight_batches
+    weight_batches,
 ):
     adata = mock_adata()
 
@@ -98,7 +98,7 @@ def test_model(
         adata=adata,
         prior="vamp",
         pseudoinputs_data_indices=pseudoinputs_data_indices,
-        n_prior_components=5
+        n_prior_components=5,
     )
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
@@ -178,20 +178,31 @@ def test_warnings():
     # Assert that warning is printed if kl warmup is used
     # Step warmup
     with pytest.warns(Warning) as record:
-        model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0),
-                plan_kwargs={'n_steps_kl_warmup': 1})
-    assert any([
-        "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
-        for rec in record])
+        model.train(
+            max_epochs=2,
+            batch_size=math.ceil(adata.n_obs / 2.0),
+            plan_kwargs={"n_steps_kl_warmup": 1},
+        )
+    assert any(
+        [
+            "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
+            for rec in record
+        ]
+    )
     # Epoch warmup
     with pytest.warns(Warning) as record:
-        model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0),
-                plan_kwargs={'n_epochs_kl_warmup': 1})
-    assert any([
-        "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
-        for rec in record])
+        model.train(
+            max_epochs=2,
+            batch_size=math.ceil(adata.n_obs / 2.0),
+            plan_kwargs={"n_epochs_kl_warmup": 1},
+        )
+    assert any(
+        [
+            "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
+            for rec in record
+        ]
+    )
 
     # Asert that sampling is disabled
     with pytest.raises(NotImplementedError):
         model.module.sample()
-

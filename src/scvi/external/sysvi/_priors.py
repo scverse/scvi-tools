@@ -45,7 +45,7 @@ class VampPrior(Prior):
         data_x: torch.tensor,
         n_cat_list: list[int],
         data_cat: list[torch.tensor],
-        data_cont: torch.tensor|None=None,
+        data_cont: torch.tensor | None = None,
         trainable_priors: bool = True,
     ):
         super().__init__()
@@ -63,18 +63,23 @@ class VampPrior(Prior):
         # from which we can sample categories for layers input
         # Initialise the multinomial distn weights based on
         # one-hot encoding of pseudoinput categories
-        self.u_cat = torch.nn.ParameterList([
-            torch.nn.Parameter(
-                torch.nn.functional.one_hot(cat.squeeze(-1), n).float(),  # K x C_cat_onehot
-                requires_grad=trainable_priors)
-            for cat, n in zip(data_cat, n_cat_list)  # K x C_cat
-        ])
+        self.u_cat = torch.nn.ParameterList(
+            [
+                torch.nn.Parameter(
+                    torch.nn.functional.one_hot(cat.squeeze(-1), n).float(),  # K x C_cat_onehot
+                    requires_grad=trainable_priors,
+                )
+                for cat, n in zip(data_cat, n_cat_list, strict=False)  # K x C_cat
+            ]
+        )
         # Cont
         if data_cont is None:
             self.u_cont = None
         else:
             assert n_components == data_cont.shape[0]
-            self.u_cont = torch.nn.Parameter(data_cont, requires_grad=trainable_priors)  # K x C_cont
+            self.u_cont = torch.nn.Parameter(
+                data_cont, requires_grad=trainable_priors
+            )  # K x C_cont
 
         # mixing weights
         self.w = torch.nn.Parameter(torch.zeros(n_components, 1, 1))  # K x 1 x 1
