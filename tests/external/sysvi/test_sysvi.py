@@ -11,7 +11,7 @@ from scvi.external import SysVI
 
 
 def mock_adata():
-    """Mock data for testing."""
+    """Mock adata for testing."""
     adata = AnnData(
         sparse.csr_matrix(
             np.exp(
@@ -187,10 +187,8 @@ def test_sysvi_warnings():
             plan_kwargs={"n_steps_kl_warmup": 1},
         )
     assert any(
-        [
-            "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
-            for rec in record
-        ]
+        "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
+        for rec in record
     )
     # Epoch warmup
     with pytest.warns(Warning) as record:
@@ -200,10 +198,8 @@ def test_sysvi_warnings():
             plan_kwargs={"n_epochs_kl_warmup": 1},
         )
     assert any(
-        [
-            "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
-            for rec in record
-        ]
+        "The use of KL weight warmup is not recommended in SysVI." in str(rec.message)
+        for rec in record
     )
 
     # Asert that sampling is disabled
