@@ -81,7 +81,6 @@ class METHYLVAE(BaseModuleClass):
             n_input * 2,  # Methylated counts and coverage for each feature --> x2
             n_latent,
             n_cat_list=cat_list,
-            n_cont=self.n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,

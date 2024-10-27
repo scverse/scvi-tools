@@ -838,7 +838,6 @@ class LDVAE(VAE):
             n_latent,
             n_input,
             n_cat_list=[n_batch],
-            n_cont=self.n_continuous_cov,
             use_batch_norm=use_batch_norm,
             use_layer_norm=False,
             bias=bias,

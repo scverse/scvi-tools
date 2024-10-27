@@ -46,7 +46,7 @@ class DecoderMETHYLVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = None,
+        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         inject_covariates: bool = True,
