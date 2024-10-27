@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections
 import warnings
 from collections.abc import Iterable
-from typing import Literal
+from typing import Literal, Callable
 
 import numpy as np
 import torch
@@ -54,6 +54,7 @@ class EncoderDecoder(Module):
         n_hidden: int = 256,
         n_layers: int = 3,
         var_mode: Literal["sample_feature", "feature"] = "feature",
+        var_activation: Callable | None = None,
         sample: bool = False,
         **kwargs,
     ):
@@ -71,7 +72,7 @@ class EncoderDecoder(Module):
         )
 
         self.mean_encoder = Linear(n_hidden, n_output)
-        self.var_encoder = VarEncoder(n_hidden, n_output, mode=var_mode)
+        self.var_encoder = VarEncoder(n_hidden, n_output, mode=var_mode, activation=var_activation)
 
     def forward(
         self,
@@ -189,8 +190,8 @@ class FCLayers(nn.Module):
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
-                        zip(layers_dim[:-1], layers_dim[1:], strict=True)
-                    )
+                    zip(layers_dim[:-1], layers_dim[1:], strict=True)
+                )
                 ]
             )
         )
@@ -207,7 +208,7 @@ class FCLayers(nn.Module):
         def _hook_fn_weight(grad):
             new_grad = torch.zeros_like(grad)
             if self.n_cov > 0:
-                new_grad[:, -self.n_cov :] = grad[:, -self.n_cov :]
+                new_grad[:, -self.n_cov:] = grad[:, -self.n_cov:]
             return new_grad
 
         def _hook_fn_zero_out(grad):
@@ -306,6 +307,7 @@ class VarEncoder(Module):
         n_input: int,
         n_output: int,
         mode: Literal["sample_feature", "feature", "linear"],
+        activation: Callable | None = None,
     ):
         super().__init__()
 
@@ -317,7 +319,7 @@ class VarEncoder(Module):
             self.var_param = Parameter(torch.zeros(1, n_output))
         else:
             raise ValueError("Mode not recognised.")
-        self.activation = torch.exp
+        self.activation = torch.exp if activation is None else activation
 
     def forward(self, x: torch.Tensor):
         """Forward pass through model
