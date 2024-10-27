@@ -194,6 +194,7 @@ class SysVAE(BaseModuleClass):
                          If absent returns empty list.
             * ``'cont'``: All covariates that are already continous.
                           Includes continous and embedded categorical covariates.
+                          Single tensor of dim = n_samples * n_concatenated_cov_features.
                           If absent returns None.
         """
         cov = self._get_cov(tensors=tensors)
@@ -236,6 +237,7 @@ class SysVAE(BaseModuleClass):
                      If absent returns empty list.
         * ``'cont'``: All covariates that are already continous.
                       Includes continous and embedded categorical covariates.
+                      Single tensor of dim = n_samples * n_concatenated_cov_features.
                       If absent returns None.
 
         Note: cycle covariates differ from the original publication.
@@ -284,6 +286,7 @@ class SysVAE(BaseModuleClass):
                      If absent returns empty list.
         * ``'cont'``: All covariates that are already continous.
                       Includes continous and embedded categorical covariates.
+                      Single tensor of dim = n_samples * n_concatenated_cov_features.
                       If absent returns None.
 
         Note: cycle covariates differ from the original publication.
@@ -299,9 +302,29 @@ class SysVAE(BaseModuleClass):
 
     @auto_move_data  # TODO remove?
     def _get_cov(
-        self, tensors: dict[str, torch.Tensor]
+        self,
+        tensors: dict[str, torch.Tensor],
     ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
-        """Process all covariates into continuous and categorical components for cVAE"""
+        """Process all covariates into continuous and categorical components for cVAE.
+
+        Parameters
+        ----------
+        tensors
+            Input tensors.
+
+        Returns
+        -------
+        Covariates that can be used for decoder and encoder.
+        Keys:
+        * ``'cat'``: All covariates that require one-hot encoding.
+                     List of tensors with dim = n_samples * 1.
+                     If absent returns empty list.
+        * ``'cont'``: All covariates that are already continous.
+                      Includes continous and embedded categorical covariates.
+                      Single tensor of dim = n_samples * n_concatenated_cov_features.
+                      If absent returns None.
+
+        """
         cat_parts = []
         cont_parts = []
         if REGISTRY_KEYS.CONT_COVS_KEY in tensors:
@@ -320,7 +343,26 @@ class SysVAE(BaseModuleClass):
         return cov
 
     @staticmethod
-    def _merge_batch_cov(cat: list[torch.Tensor], batch: torch.Tensor) -> list[torch.Tensor]:
+    def _merge_batch_cov(
+        cat: list[torch.Tensor],
+        batch: torch.Tensor,
+    ) -> list[torch.Tensor]:
+        """Merge batch and continuous covariates for input into encoder and decoder.
+
+        Parameters
+        ----------
+        cat
+            Categorical covariates.
+            List of tensors with dim = n_samples * 1.
+        batch
+            Batch covariate.
+            dim = n_samples * 1
+
+        Returns
+        -------
+        Single list with batch and categorical covariates.
+
+        """
         return [batch] + cat
 
     @auto_move_data
@@ -330,96 +372,133 @@ class SysVAE(BaseModuleClass):
         batch: torch.Tensor,
         cat: list[torch.Tensor],
         cont: torch.Tensor | None,
-    ) -> dict:
-        """
-        expression & cov -> latent representation
+    ) -> dict[str, torch.Tensor]:
+        """Inference: expression & cov -> latent representation.
 
         Parameters
         ----------
         expr
-            Expression data
-        cov
-            Full covariate data (categorical, categorical embedded, and continuous
+            Expression data.
         batch
-            System representation
+            Batch covariate.
+        cat
+            All covariates that require one-hot encoding.
+        cont
+            All covariates that are already continous.
+            Includes continous and embedded categorical covariates.
 
         Returns
         -------
-        Posterior parameters and sample
+        Predicted mean (``'z_m'``) and variance (``'z_v'``) of the latent distribution
+        as wll as a sample (``'z'``) from it.
+
         """
         z = self.encoder(x=expr, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont)
         return {"z": z["y"], "z_m": z["y_m"], "z_v": z["y_v"]}
 
     @auto_move_data
-    def generative(self, z, batch, cat, cont, x_x: bool = True, x_y: bool = True) -> dict:
-        """
-        latent representation & cov -> expression
+    def generative(
+        self,
+        z: torch.Tensor,
+        batch: dict[str, torch.Tensor],
+        cat: list[torch.Tensor],
+        cont: torch.Tensor | None,
+        x_x: bool = True,
+        x_y: bool = True
+    ) -> dict[str, torch.Tensor]:
+        """Generation: latent representation & cov -> expression.
 
         Parameters
         ----------
         z
-            Latent embedding
-        cov
-            Full covariate data (categorical, categorical embedded, and continuous
+            Latent representation.
         batch
-            System representation
+            Batch covariate for normal (``'x'``) and cycle (``'y'``) generation.
+        cat
+            All covariates that require one-hot encoding.
+        cont
+            All covariates that are already continous.
+            Includes continous and embedded categorical covariates.
         x_x
-            Decode to original batch
+            Decode to original batch.
         x_y
-            Decode to replacement batch
+            Decode to cycle batch.
 
         Returns
         -------
-        Decoded distribution parameters and sample
+        Predicted mean (``'x_m'``) and variance (``'x_v'``) of the expression distribution
+        as wll as a sample (``'expr'``) from it. Same outputs are returned for the cycle generation
+        with ``'expr'`` in keys being replaced by ``'y'``.
         """
 
         def outputs(
-            compute: bool,
             name: str,
             res: dict,
-            x: torch.Tensor,
+            expr: torch.Tensor,
             batch: torch.Tensor,
             cat: list[torch.Tensor],
             cont: torch.Tensor | None,
         ):
-            if compute:
-                res_sub = self.decoder(
-                    x=x, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont
-                )
-                res[name] = res_sub["y"]
-                res[name + "_m"] = res_sub["y_m"]
-                res[name + "_v"] = res_sub["y_v"]
+            """Helper to compute generative outputs for normal and cycle pass.
+
+            Adds generative outputs directly to the ``res`` dict.
+
+            Parameters
+            ----------
+            name
+                Name prepended to the keys added to the ``res`` dict.
+            res
+                Dict to store generative outputs in.
+                Mean is stored in ``'name_m'``, variance to ``'name_v'``
+                and sample to ``'name'``.
+            expr
+                Expression data.
+            batch
+                Batch covariate.
+            cat
+                All covariates that require one-hot encoding.
+            cont
+                All covariates that are already continous.
+                Includes continous and embedded categorical covariates.
+            """
+            res_sub = self.decoder(
+                x=expr, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont
+            )
+            res[name] = res_sub["y"]
+            res[name + "_m"] = res_sub["y_m"]
+            res[name + "_v"] = res_sub["y_v"]
 
         res = {}
-        outputs(
-            compute=x_x, name="x", res=res, x=z, batch=batch["x"], cat=cat, cont=cont
-        )
-        outputs(
-            compute=x_y, name="y", res=res, x=z, batch=batch["y"], cat=cat, cont=cont
-        )
+        if x_x:
+            outputs(
+                name="expr", res=res, expr=z, batch=batch["expr"], cat=cat, cont=cont
+            )
+        if x_y:
+            outputs(
+                name="y", res=res, expr=z, batch=batch["y"], cat=cat, cont=cont
+            )
         return res
 
     @auto_move_data
     def forward(
         self,
-        tensors,
+        tensors: dict[str, torch.Tensor],
         get_inference_input_kwargs: dict | None = None,
         get_generative_input_kwargs: dict | None = None,
         inference_kwargs: dict | None = None,
         generative_kwargs: dict | None = None,
         loss_kwargs: dict | None = None,
-        compute_loss=True,
+        compute_loss: bool = True,
     ) -> (
         tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]
         | tuple[dict[str, torch.Tensor], dict[str, torch.Tensor], LossOutput]
     ):
-        """
-        Forward pass through the network.
+        """Forward pass through the network.
 
         Parameters
         ----------
         tensors
-            tensors to pass through
+            Input tensors.
         get_inference_input_kwargs
             Keyword args for ``_get_inference_input()``
         get_generative_input_kwargs
@@ -431,13 +510,17 @@ class SysVAE(BaseModuleClass):
         loss_kwargs
             Keyword args for ``loss()``
         compute_loss
-            Whether to compute loss on forward pass. This adds
-            another return value.
-        """
-        """Core of the forward call shared by PyTorch- and Jax-based modules."""
+            Whether to compute loss on forward pass.
 
-        # TODO currently some forward paths are computed despite potentially having loss weight=0 -
-        #  don't compute if not needed
+        Returns
+        -------
+        Inference outputs, generative outputs of the normal pass, and optionally loss components.
+        Inference normal and cycle outputs are combined into a single dict.
+        Thus, the keys of cycle inference outputs are modified by replacing ``'z'`` with ``'z_cyc'``.
+        """
+
+        # TODO could disable computation of cycle if cycle loss will not be used (weight = 0).
+        #  Cycle loss is not expected to be disabled in practice for typical use cases.
 
         # Parse kwargs
         inference_kwargs = inference_kwargs or {}
@@ -492,13 +575,35 @@ class SysVAE(BaseModuleClass):
 
     def loss(
         self,
-        tensors,
-        inference_outputs,
-        generative_outputs,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor],
+        generative_outputs: dict[str, torch.Tensor],
         kl_weight: float = 1.0,
         reconstruction_weight: float = 1.0,
         z_distance_cycle_weight: float = 2.0,
     ) -> LossOutput:
+        """Compute loss of forward pass.
+
+        Parameters
+        ----------
+        tensors
+            Input tensors.
+        inference_outputs
+            Outputs of normal and cycle inference pass.
+        generative_outputs
+            Outputs of the normal generative pass.
+        kl_weight
+            Weight for KL loss.
+        reconstruction_weight
+            Weight for reconstruction loss.
+        z_distance_cycle_weight
+            Weight for cycle loss.
+
+        Returns
+        -------
+        Loss components:
+        Cycle loss is added to extra metrics as ``'cycle_loss'``.
+        """
         # Reconstruction loss
         x_true = tensors[REGISTRY_KEYS.X_KEY]
         reconst_loss_x = torch.nn.GaussianNLLLoss(reduction="none")(
@@ -513,23 +618,52 @@ class SysVAE(BaseModuleClass):
             z=inference_outputs["z"],
         )
 
-        def z_dist(z_x_m: torch.Tensor, z_y_m: torch.Tensor):
-            """MSE loss between standardised inputs with standardizer fitted on concatenation of both inputs
+        def z_dist(
+            z_x_m: torch.Tensor,
+            z_y_m: torch.Tensor,
+        ) -> torch.Tensor:
+            """MSE loss between standardised inputs.
 
-            MSE loss should be computed on standardized latent values as else model can learn to cheat the MSE
-            loss by putting latent parameters to even smaller numbers.
+            MSE loss should be computed on standardized latent representations
+            as else model can learn to cheat the MSE loss
+            by setting the latent representations to smaller numbers.
+            Standardizer is fitted on concatenation of both inputs.
+
+            Parameters
+            ----------
+            z_x_m
+                First input.
+            z_y_m
+                Second input.
+
+            Returns
+            -------
+            The loss.
+            dim = n_samples * 1
             """
             # Standardise data (jointly both z-s) before MSE calculation
             z = torch.concat([z_x_m, z_y_m])
             means = z.mean(dim=0, keepdim=True)
             stds = z.std(dim=0, keepdim=True)
 
-            def standardize(x):
+            def standardize(x: torch.Tensor) -> torch.Tensor:
+                """Helper function to standardize a tensor.
+
+                Mean and variance from the outer scope are used for standardization.
+
+                Parameters
+                ----------
+                x
+                    Input tensor.
+
+                Returns
+                -------
+                Standardized tensor.
+                """
                 return (x - means) / stds
 
-            return torch.nn.MSELoss(reduction="none")(standardize(z_x_m), standardize(z_y_m)).sum(
-                dim=1
-            )
+            return torch.nn.MSELoss(reduction="none")(
+                standardize(z_x_m), standardize(z_y_m)).sum(dim=1)
 
         z_distance_cyc = z_dist(z_x_m=inference_outputs["z_m"], z_y_m=inference_outputs["z_cyc_m"])
         if "batch_weights" in tensors.keys():
@@ -554,18 +688,18 @@ class SysVAE(BaseModuleClass):
         Parameters
         ----------
         batch
-            Real batch information for each cell
+            Real batch information for each cell.
 
         Returns
         -------
-        Newly selected batch for each cell
-
+        Newly selected batch for each cell.
         """
         # Get available batches -
         # those that are zero will become nonzero and vice versa
         batch = torch.nn.functional.one_hot(batch.squeeze(-1), self.n_batch)
         available_batches = 1 - batch
-        # Get nonzero indices for each cell
+        # Get nonzero indices for each cell - batches that differ from the real batch
+        # and are thus available
         row_indices, col_indices = torch.nonzero(available_batches, as_tuple=True)
         col_pairs = col_indices.view(-1, batch.shape[1] - 1)
         # Select batch for every cell from available batches
@@ -584,4 +718,12 @@ class SysVAE(BaseModuleClass):
 
     @torch.inference_mode()
     def sample(self, *args, **kwargs):
+        """Generate expression samples from the posterior generative distribution.
+
+        Not implemented as the use of decoded expression is not recommended for SysVI.
+
+        Raises
+        ------
+        NotImplementedError
+        """
         raise NotImplementedError("The use of decoded expression is not recommended for SysVI.")
