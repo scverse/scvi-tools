@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import collections
 import warnings
-from collections.abc import Iterable
-from typing import Literal, Callable
+from collections.abc import Callable, Iterable
+from typing import Literal
 
 import numpy as np
 import torch
@@ -215,8 +215,8 @@ class FCLayers(nn.Module):
                         ),
                     )
                     for i, (n_in, n_out) in enumerate(
-                    zip(layers_dim[:-1], layers_dim[1:], strict=True)
-                )
+                        zip(layers_dim[:-1], layers_dim[1:], strict=True)
+                    )
                 ]
             )
         )
@@ -233,7 +233,7 @@ class FCLayers(nn.Module):
         def _hook_fn_weight(grad):
             new_grad = torch.zeros_like(grad)
             if self.n_cov > 0:
-                new_grad[:, -self.n_cov:] = grad[:, -self.n_cov:]
+                new_grad[:, -self.n_cov :] = grad[:, -self.n_cov :]
             return new_grad
 
         def _hook_fn_zero_out(grad):
