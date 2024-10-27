@@ -11,7 +11,7 @@ from scvi.external import SysVI
 
 
 def mock_adata():
-    # Make random data
+    """Mock data for testing."""
     adata = AnnData(
         sparse.csr_matrix(
             np.exp(
@@ -76,6 +76,7 @@ def test_model(
     embed_cat,
     weight_batches,
 ):
+    """Test model with different input and parameters settings."""
     adata = mock_adata()
 
     # Run adata setup
@@ -114,6 +115,7 @@ def test_model(
 
 
 def test_latent_representation():
+    """Test different parameters for computing later representation."""
     # Train model
     adata = mock_adata()
     SysVI.setup_anndata(
@@ -164,6 +166,7 @@ def test_latent_representation():
 
 
 def test_warnings():
+    """Test that the most important warnings and exceptions are raised."""
     # Train model
     adata = mock_adata()
     SysVI.setup_anndata(
