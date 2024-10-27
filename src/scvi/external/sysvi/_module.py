@@ -434,7 +434,7 @@ class SysVAE(BaseModuleClass):
         def outputs(
             name: str,
             res: dict,
-            expr: torch.Tensor,
+            x: torch.Tensor,
             batch: torch.Tensor,
             cat: list[torch.Tensor],
             cont: torch.Tensor | None,
@@ -451,8 +451,8 @@ class SysVAE(BaseModuleClass):
                 Dict to store generative outputs in.
                 Mean is stored in ``'name_m'``, variance to ``'name_v'``
                 and sample to ``'name'``.
-            expr
-                Expression data.
+            x
+                Latent representation.
             batch
                 Batch covariate.
             cat
@@ -462,7 +462,7 @@ class SysVAE(BaseModuleClass):
                 Includes continous and embedded categorical covariates.
             """
             res_sub = self.decoder(
-                x=expr, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont
+                x=x, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont
             )
             res[name] = res_sub["y"]
             res[name + "_m"] = res_sub["y_m"]
@@ -471,11 +471,11 @@ class SysVAE(BaseModuleClass):
         res = {}
         if x_x:
             outputs(
-                name="expr", res=res, expr=z, batch=batch["expr"], cat=cat, cont=cont
+                name="x", res=res, x=z, batch=batch["x"], cat=cat, cont=cont
             )
         if x_y:
             outputs(
-                name="y", res=res, expr=z, batch=batch["y"], cat=cat, cont=cont
+                name="y", res=res, x=z, batch=batch["y"], cat=cat, cont=cont
             )
         return res
 
