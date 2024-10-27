@@ -238,8 +238,11 @@ class SysVAE(BaseModuleClass):
                       Includes continous and embedded categorical covariates.
                       If absent returns None.
 
+        Note: cycle covariates differ from the original publication.
+        Instead of mock covariates the real input covaiates are used in cycle.
+
         """
-        cov = self._mock_cov(self._get_cov(tensors=tensors))
+        cov = self._get_cov(tensors=tensors)
         input_dict = {
             "expr": generative_outputs["y_m"],
             "batch": selected_batch,
@@ -277,24 +280,21 @@ class SysVAE(BaseModuleClass):
         * ``'batch'``: Batch covariates.
                        Dict with keys ``'x'`` for normal and ``'y'`` for cycle pass.
         * ``'cat'``: All covariates that require one-hot encoding.
-                     Dict with keys ``'x'`` for normal and ``'y'`` for cycle pass.
                      List of tensors with dim = n_samples * 1.
                      If absent returns empty list.
         * ``'cont'``: All covariates that are already continous.
                       Includes continous and embedded categorical covariates.
                       If absent returns None.
 
+        Note: cycle covariates differ from the original publication.
+        Instead of mock covariates the real input covaiates are used in cycle.
+
         """
         z = inference_outputs["z"]
-
         cov = self._get_cov(tensors=tensors)
-        cov_mock = self._mock_cov(cov)
-        cat = {"x": cov["cat"], "y": cov_mock["cat"]}
-        cont = {"x": cov["cont"], "y": cov_mock["cont"]}
-
         batch = {"x": tensors["batch"], "y": selected_batch}
 
-        input_dict = {"z": z, "batch": batch, "cat": cat, "cont": cont}
+        input_dict = {"z": z, "batch": batch, "cat": cov["cat"], "cont": cov["cont"]}
         return input_dict
 
     @auto_move_data  # TODO remove?
@@ -322,22 +322,6 @@ class SysVAE(BaseModuleClass):
     @staticmethod
     def _merge_batch_cov(cat: list[torch.Tensor], batch: torch.Tensor) -> list[torch.Tensor]:
         return [batch] + cat
-
-    @staticmethod
-    def _mock_cov(cov: dict[str, list[torch.Tensor], torch.Tensor, None]) -> torch.Tensor | None:
-        """Make mock covariates for cycle.
-
-        In the cycle pass mock covariates are used due to the following assumption: The encoder
-        and decoder could have trouble learning how covariates from the input system would behave
-        in the output/predicted (cycle) system if these covariats are not also present in the real
-        data of the output system (and usually they are not).
-        However, I did not test passing real input covariates instead of mock covariates in the cycle.
-        """
-        mock = {
-            "cat": [torch.zeros_like(cat) for cat in cov["cat"]],
-            "cont": torch.zeros_like(cov["cont"]) if cov["cont"] is not None else None,
-        }
-        return mock
 
     @auto_move_data
     def inference(
@@ -408,10 +392,10 @@ class SysVAE(BaseModuleClass):
 
         res = {}
         outputs(
-            compute=x_x, name="x", res=res, x=z, batch=batch["x"], cat=cat["x"], cont=cont["x"]
+            compute=x_x, name="x", res=res, x=z, batch=batch["x"], cat=cat, cont=cont
         )
         outputs(
-            compute=x_y, name="y", res=res, x=z, batch=batch["y"], cat=cat["y"], cont=cont["y"]
+            compute=x_y, name="y", res=res, x=z, batch=batch["y"], cat=cat, cont=cont
         )
         return res
 
