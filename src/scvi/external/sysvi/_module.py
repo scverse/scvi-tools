@@ -469,13 +469,9 @@ class SysVAE(BaseModuleClass):
 
         res = {}
         if x_x:
-            outputs(
-                name="x", res=res, x=z, batch=batch["x"], cat=cat, cont=cont
-            )
+            outputs(name="x", res=res, x=z, batch=batch["x"], cat=cat, cont=cont)
         if x_y:
-            outputs(
-                name="y", res=res, x=z, batch=batch["y"], cat=cat, cont=cont
-            )
+            outputs(name="y", res=res, x=z, batch=batch["y"], cat=cat, cont=cont)
         return res
 
     @auto_move_data
