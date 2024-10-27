@@ -158,6 +158,7 @@ class JVAE(BaseModuleClass):
             n_layers_conditioned=n_layers_decoder_individual,
             n_layers_shared=n_layers_decoder_shared,
             n_cat_list=[self.n_batch],
+            n_cont=self.n_continuous_cov,
             dropout_rate=dropout_rate_decoder,
         )
 

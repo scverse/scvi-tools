@@ -21,6 +21,8 @@ class DecoderMETHYLVI(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
+    n_cont
+        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -44,6 +46,7 @@ class DecoderMETHYLVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = None,
         n_layers: int = 1,
         n_hidden: int = 128,
         inject_covariates: bool = True,
@@ -56,6 +59,7 @@ class DecoderMETHYLVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,

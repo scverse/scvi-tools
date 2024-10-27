@@ -26,6 +26,8 @@ class Decoder(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
+    n_cont
+        The number of continuous covariates
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -48,6 +50,7 @@ class Decoder(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = None,
         n_layers: int = 2,
         n_hidden: int = 128,
         use_batch_norm: bool = False,
@@ -60,6 +63,7 @@ class Decoder(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
@@ -185,6 +189,7 @@ class PEAKVAE(BaseModuleClass):
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
@@ -201,6 +206,7 @@ class PEAKVAE(BaseModuleClass):
             n_output=n_input_regions,
             n_hidden=self.n_hidden,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
@@ -216,6 +222,7 @@ class PEAKVAE(BaseModuleClass):
                 n_output=1,
                 n_hidden=self.n_hidden,
                 n_cat_list=encoder_cat_list,
+                n_cont=n_continuous_cov,
                 n_layers=self.n_layers_encoder,
                 **_extra_decoder_kwargs,
             )
