@@ -38,12 +38,7 @@ class Prior(torch.nn.Module, abc.ABC):
 class StandardPrior(Prior):
     """Standard prior distribution."""
 
-    def kl(
-        self,
-        m_q: torch.Tensor,
-        v_q: torch.Tensor,
-        z: None = None
-    ) -> torch.Tensor:
+    def kl(self, m_q: torch.Tensor, v_q: torch.Tensor, z: None = None) -> torch.Tensor:
         """Compute KL divergence between standard normal prior and the posterior distribution.
 
         Parameters
@@ -189,12 +184,7 @@ class VampPrior(Prior):
 
         return log_prob  # N x L
 
-    def kl(
-        self,
-        m_q: torch.Tensor,
-        v_q: torch.Tensor,
-        z: torch.Tensor
-    ) -> torch.Tensor:
+    def kl(self, m_q: torch.Tensor, v_q: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Compute KL divergence between VampPrior and the posterior distribution.
 
         Parameters
