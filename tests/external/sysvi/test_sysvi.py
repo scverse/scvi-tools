@@ -69,7 +69,7 @@ def mock_adata():
         (None, None, np.array(list(range(5))), False, False),
     ],
 )
-def test_model(
+def test_sysvi_model(
     categorical_covariate_keys,
     continuous_covariate_keys,
     pseudoinputs_data_indices,
@@ -114,7 +114,7 @@ def test_model(
     )
 
 
-def test_latent_representation():
+def test_sysvi_latent_representation():
     """Test different parameters for computing later representation."""
     # Train model
     adata = mock_adata()
@@ -165,7 +165,7 @@ def test_latent_representation():
     np.testing.assert_allclose(embed, mean)
 
 
-def test_warnings():
+def test_sysvi_warnings():
     """Test that the most important warnings and exceptions are raised."""
     # Train model
     adata = mock_adata()
