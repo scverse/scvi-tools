@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
-from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from anndata import AnnData
 
 import numpy as np
 import torch
-from anndata import AnnData
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -27,14 +31,16 @@ logger = logging.getLogger(__name__)
 
 
 class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
-    """Integration model based on cVAE with optional VampPrior and latent cycle-consistency loss.
+    """Integration with cVAE & optional VampPrior and latent cycle-consistency.
 
-     Described in `Hrovatin et al. (2023) <https://doi.org/10.1101/2023.11.03.565463>`_.
+     Described in
+     `Hrovatin et al. (2023) <https://doi.org/10.1101/2023.11.03.565463>`_.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.external.SysVI.setup_anndata`.
+        AnnData object that has been registered via
+        :meth:`~scvi.external.SysVI.setup_anndata`.
     prior
         The prior distribution to be used.
         You can choose between ``"standard_normal"`` and ``"vamp"``.
@@ -43,7 +49,8 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
     pseudoinputs_data_indices
         By default, VampPrior pseudoinputs are randomly selected from data.
         Alternatively, one can specify pseudoinput indices using this parameter.
-        The number of specified indices in the input 1D array should match ``n_prior_components``.
+        The number of specified indices in the input 1D array should match
+        ``n_prior_components``.
     **model_kwargs
         Keyword args for :class:`~scvi.external.sysvi.SysVAE`
     """
@@ -96,7 +103,7 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         )
 
         self._model_summary_string = (
-            "SysVI - cVAE model with optional VampPrior and latent cycle-consistency loss."
+            "SysVI - cVAE model with optional VampPrior " + "and latent cycle-consistency loss."
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -110,10 +117,11 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
     ):
         """Train the models.
 
-        Overwrites the ``train`` method of class:`~scvi.model.base.UnsupervisedTrainingMixin`
+        Overwrites the ``train`` method of
+        class:`~scvi.model.base.UnsupervisedTrainingMixin`
         to prevent the use of KL loss warmup (specified in ``plan_kwargs``).
-        This is disabled as our experiments showed poor integration in the cycle model
-        when using KL loss warmup.
+        This is disabled as our experiments showed poor integration in the
+        cycle model when using KL loss warmup.
 
         Parameters
         ----------
@@ -126,10 +134,12 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         """
         plan_kwargs = plan_kwargs or {}
         kl_weight_defaults = {"n_epochs_kl_warmup": 0, "n_steps_kl_warmup": 0}
-        if any([v != plan_kwargs.get(k, v) for k, v in kl_weight_defaults.items()]):
+        if any(v != plan_kwargs.get(k, v) for k, v in kl_weight_defaults.items()):
             warnings.warn(
                 "The use of KL weight warmup is not recommended in SysVI. "
-                + "The n_epochs_kl_warmup and n_steps_kl_warmup will be reset to 0."
+                + "The n_epochs_kl_warmup and n_steps_kl_warmup "
+                + "will be reset to 0.",
+                stacklevel=settings.warnings_stacklevel,
             )
         # Overwrite plan kwargs with kl weight defaults
         plan_kwargs = {**plan_kwargs, **kl_weight_defaults}
@@ -157,18 +167,22 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         indices
             Data indices to embed. If None embedd all samples.
         give_mean
-            Return the posterior latent distribution mean instead of a sample from it.
+            Return the posterior latent distribution mean
+            instead of a sample from it.
             Ignored if `return_dist` is ``True``.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into model.
+            Defaults to `scvi.settings.batch_size`.
         return_dist
-            If ``True``, returns the mean and variance of the posterior latent distribution.
+            If ``True``, returns the mean and variance of the posterior
+            latent distribution.
             Otherwise, returns its mean or a sample from it.
 
         Returns
         -------
         Latent representation of a cell.
-        If ``return_dist`` is ``True``, returns the mean and variance of the posterior latent distribution.
+        If ``return_dist`` is ``True``, returns the mean and variance
+        of the posterior latent distribution.
         Else, returns the mean or a sample, depending on ``give_mean``.
         """
         self._check_if_trained(warn=False)
@@ -214,16 +228,23 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
     ):
         """Prepare adata for input to SysVI model.
 
-        Setup distinguishes between two main types of covariates that can be corrected for:
-        - batch (referred to as "system" in the original publication Hrovatin, et al., 2023):
-        Single categorical covariate that will be corrected via cycle consistency loss.
-        It will be also used as a condition in cVAE.
-        This covariate is expected to correspond to stronger batch effects, such as between datasets from
-        different sequencing technology or model systems (animal species, in-vitro models and tissue, etc.).
-        - covariate (includes both continous and categorical covariates): Additional covariates to be used only
-        as a condition in cVAE, but not corrected via cycle loss.
-        These covariates are expected to correspond to weaker batch effects, such as between datasets from the
-        same sequencing technology and system (animal, in-vitro, etc.) or between samples within a dataset.
+        Setup distinguishes between two main types of covariates that can be
+        corrected for:
+
+        - batch - referred to as "system" in the original publication
+          Hrovatin, et al., 2023):
+          Single categorical covariate that will be corrected via cycle
+          consistency loss.
+          It will be also used as a condition in cVAE.
+          This covariate is expected to correspond to stronger batch effects,
+          such as between datasets from different sequencing technology or
+          model systems (animal species, in-vitro models and tissue, etc.).
+        - covariate (includes both continous and categorical covariates):
+          Additional covariates to be used only
+          as a condition in cVAE, but not corrected via cycle loss.
+          These covariates are expected to correspond to weaker batch effects,
+          such as between datasets from the same sequencing technology and
+          system (animal, in-vitro, etc.) or between samples within a dataset.
 
         Parameters
         ----------
@@ -231,16 +252,20 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
             Adata object - will be modified in place.
         batch_key
             Name of the obs column with the substantial batch effect covariate,
-            referred to as batch in the original publication (Hrovatin, et al., 2023).
+            referred to as batch in the original publication
+            (Hrovatin, et al., 2023).
             Should be categorical.
         layer
             AnnData layer to use, default is X.
             Should contain normalized and log+1 transformed expression.
         categorical_covariate_keys
-            Name of obs columns with additional categorical covariate information.
-            Will be one hot encoded or embedded, as later defined in the ``SysVI`` model.
+            Name of obs columns with additional categorical
+            covariate information.
+            Will be one hot encoded or embedded, as later defined in the
+            ``SysVI`` model.
         continuous_covariate_keys
-            Name of obs columns with additional continuous covariate information.
+            Name of obs columns with additional continuous
+            covariate information.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
@@ -251,7 +276,10 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         if weight_batches:
-            warnings.warn("The use of inverse batch proportion weights is experimental.")
+            warnings.warn(
+                "The use of inverse batch proportion weights " + "is experimental.",
+                stacklevel=settings.warnings_stacklevel,
+            )
             batch_weights_key = "batch_weights"
             adata.obs[batch_weights_key] = adata.obs[batch_key].map(
                 {cat: 1 / n for cat, n in adata.obs[batch_key].value_counts().items()}

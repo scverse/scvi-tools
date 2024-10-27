@@ -39,7 +39,7 @@ class StandardPrior(Prior):
     """Standard prior distribution."""
 
     def kl(self, m_q: torch.Tensor, v_q: torch.Tensor, z: None = None) -> torch.Tensor:
-        """Compute KL divergence between standard normal prior and the posterior distribution.
+        """Compute KL div between std. normal prior and the posterior distn.
 
         Parameters
         ----------
@@ -64,7 +64,8 @@ class VampPrior(Prior):
     """VampPrior.
 
     Adapted from  a
-    `blog post <https://github.com/jmtomczak/intro_dgm/blob/main/vaes/vae_priors_example.ipynb>`_
+    `blog post
+    <https://github.com/jmtomczak/intro_dgm/blob/main/vaes/vae_priors_example.ipynb>`_
     of the original VampPrior author.
 
     Parameters
@@ -111,7 +112,7 @@ class VampPrior(Prior):
         assert n_components == data_x.shape[0]
         self.u = torch.nn.Parameter(data_x, requires_grad=trainable_priors)  # K x I
         # Cat
-        assert all([cat.shape[0] == n_components for cat in data_cat])
+        assert all(cat.shape[0] == n_components for cat in data_cat)
         # For categorical covariates, since scvi-tools one-hot encodes
         # them in the layers, we need to create a multinomial distn
         # from which we can sample categories for layers input
@@ -120,10 +121,12 @@ class VampPrior(Prior):
         self.u_cat = torch.nn.ParameterList(
             [
                 torch.nn.Parameter(
-                    torch.nn.functional.one_hot(cat.squeeze(-1), n).float(),  # K x C_cat_onehot
+                    torch.nn.functional.one_hot(cat.squeeze(-1), n).float(),
+                    # K x C_cat_onehot
                     requires_grad=trainable_priors,
                 )
-                for cat, n in zip(data_cat, n_cat_list, strict=False)  # K x C_cat
+                for cat, n in zip(data_cat, n_cat_list, strict=False)
+                # K x C_cat
             ]
         )
         # Cont
@@ -185,7 +188,7 @@ class VampPrior(Prior):
         return log_prob  # N x L
 
     def kl(self, m_q: torch.Tensor, v_q: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
-        """Compute KL divergence between VampPrior and the posterior distribution.
+        """Compute KL div. between VampPrior and the posterior distribution.
 
         Parameters
         ----------

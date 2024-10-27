@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 import torch
 
@@ -16,7 +19,8 @@ torch.backends.cudnn.benchmark = True
 class SysVAE(BaseModuleClass):
     """CVAE with optional VampPrior and latent cycle consistency loss.
 
-    Described in `Hrovatin et al. (2023) <https://doi.org/10.1101/2023.11.03.565463>`_.
+    Described in
+    `Hrovatin et al. (2023) <https://doi.org/10.1101/2023.11.03.565463>`_.
 
     Parameters
     ----------
@@ -27,7 +31,8 @@ class SysVAE(BaseModuleClass):
     n_continuous_cov
         Number of continuous covariates.
     n_cats_per_cov
-        A list of integers containing the number of categories for each categorical covariate.
+        A list of integers containing the number of categories
+        for each categorical covariate.
     embed_cat
         If ``True`` embeds categorical covariates and batches
         into continuously-valued vectors instead of using one-hot encoding.
@@ -51,20 +56,24 @@ class SysVAE(BaseModuleClass):
     dropout_rate
         Dropout rate for encoder and decoder.
     out_var_mode
-        How variance is predicted in decoder, see :class:`~scvi.external.sysvi.nn.VarEncoder`.
+        How variance is predicted in decoder,
+        see :class:`~scvi.external.sysvi.nn.VarEncoder`.
         One of the following:
         * ``'sample_feature'`` - learn variance per sample and feature.
         * ``'feature'`` - learn variance per feature, constant across samples.
     enc_dec_kwargs
         Additional kwargs passed to encoder and decoder.
-        For both encoder and decoder :class:`~scvi.external.sysvi.nn.EncoderDecoder` is used.
+        For both encoder and decoder
+        :class:`~scvi.external.sysvi.nn.EncoderDecoder` is used.
     embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding`
         if ``embed_cat`` is set to ``True``.
     """
 
-    # TODO could disable computation of cycle if predefined that cycle loss will not be used.
-    #  Cycle loss is not expected to be disabled in practice for typical use cases.
+    # TODO could disable computation of cycle if predefined
+    #  that cycle loss will not be used.
+    #  Cycle loss is not expected to be disabled in practice
+    #  for typical use cases.
     #  As the use of cycle is currently only based on loss kwargs,
     #  which are specified only later, it can not be inferred here.
 
@@ -191,8 +200,10 @@ class SysVAE(BaseModuleClass):
                          List of tensors with dim = n_samples * 1.
                          If absent returns empty list.
             * ``'cont'``: All covariates that are already continous.
-                          Includes continous and embedded categorical covariates.
-                          Single tensor of dim = n_samples * n_concatenated_cov_features.
+                          Includes continous and embedded
+                          categorical covariates.
+                          Single tensor of
+                          dim = n_samples * n_concatenated_cov_features.
                           If absent returns None.
         """
         cov = self._get_cov(tensors=tensors)
@@ -211,7 +222,7 @@ class SysVAE(BaseModuleClass):
         selected_batch: torch.Tensor,
         **kwargs,
     ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
-        """Parse the input tensors, generative outputs, and cycle batch info to get cycle inference inputs.
+        """In. tensors, gen. outputs, and cycle batch -> cycle inference inputs.
 
         Parameters
         ----------
@@ -236,7 +247,8 @@ class SysVAE(BaseModuleClass):
                      If absent returns empty list.
         * ``'cont'``: All covariates that are already continous.
                       Includes continous and embedded categorical covariates.
-                      Single tensor of dim = n_samples * n_concatenated_cov_features.
+                      Single tensor of
+                      dim = n_samples * n_concatenated_cov_features.
                       If absent returns None.
 
         Note: cycle covariates differ from the original publication.
@@ -259,7 +271,7 @@ class SysVAE(BaseModuleClass):
         selected_batch: torch.Tensor,
         **kwargs,
     ) -> dict[str, torch.Tensor | dict[str, torch.Tensor | list[torch.Tensor] | None]]:
-        """Parse the input tensors, inference outputs, and cycle batch info to get generative inputs.
+        """In. tensors, inf. outputs, and cycle batch info -> generative inputs.
 
         Parameters
         ----------
@@ -279,13 +291,15 @@ class SysVAE(BaseModuleClass):
         Keys:
         * ``'z'``: Latent representation.
         * ``'batch'``: Batch covariates.
-                       Dict with keys ``'x'`` for normal and ``'y'`` for cycle pass.
+                       Dict with keys ``'x'`` for normal and
+                       ``'y'`` for cycle pass.
         * ``'cat'``: All covariates that require one-hot encoding.
                      List of tensors with dim = n_samples * 1.
                      If absent returns empty list.
         * ``'cont'``: All covariates that are already continous.
                       Includes continous and embedded categorical covariates.
-                      Single tensor of dim = n_samples * n_concatenated_cov_features.
+                      Single tensor of
+                      dim = n_samples * n_concatenated_cov_features.
                       If absent returns None.
 
         Note: cycle covariates differ from the original publication.
@@ -304,7 +318,7 @@ class SysVAE(BaseModuleClass):
         self,
         tensors: dict[str, torch.Tensor],
     ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
-        """Process all covariates into continuous and categorical components for cVAE.
+        """Process all covs into continuous and categorical components for cVAE.
 
         Parameters
         ----------
@@ -320,7 +334,8 @@ class SysVAE(BaseModuleClass):
                      If absent returns empty list.
         * ``'cont'``: All covariates that are already continous.
                       Includes continous and embedded categorical covariates.
-                      Single tensor of dim = n_samples * n_concatenated_cov_features.
+                      Single tensor of
+                      dim = n_samples * n_concatenated_cov_features.
                       If absent returns None.
 
         """
@@ -346,7 +361,7 @@ class SysVAE(BaseModuleClass):
         cat: list[torch.Tensor],
         batch: torch.Tensor,
     ) -> list[torch.Tensor]:
-        """Merge batch and continuous covariates for input into encoder and decoder.
+        """Merge batch and continuous covs for input into encoder and decoder.
 
         Parameters
         ----------
@@ -388,8 +403,8 @@ class SysVAE(BaseModuleClass):
 
         Returns
         -------
-        Predicted mean (``'z_m'``) and variance (``'z_v'``) of the latent distribution
-        as wll as a sample (``'z'``) from it.
+        Predicted mean (``'z_m'``) and variance (``'z_v'``)
+        of the latent distribution as wll as a sample (``'z'``) from it.
 
         """
         z = self.encoder(x=expr, cat_list=self._merge_batch_cov(cat=cat, batch=batch), cont=cont)
@@ -425,9 +440,10 @@ class SysVAE(BaseModuleClass):
 
         Returns
         -------
-        Predicted mean (``'x_m'``) and variance (``'x_v'``) of the expression distribution
-        as wll as a sample (``'expr'``) from it. Same outputs are returned for the cycle generation
-        with ``'expr'`` in keys being replaced by ``'y'``.
+        Predicted mean (``'x_m'``) and variance (``'x_v'``)
+        of the expression distribution as wll as a sample (``'x'``) from it.
+        Same outputs are returned for the cycle generation with ``'x'``
+        in keys being replaced by ``'y'``.
         """
 
         def outputs(
@@ -509,12 +525,16 @@ class SysVAE(BaseModuleClass):
 
         Returns
         -------
-        Inference outputs, generative outputs of the normal pass, and optionally loss components.
+        Inference outputs, generative outputs of the normal pass,
+        and optionally loss components.
         Inference normal and cycle outputs are combined into a single dict.
-        Thus, the keys of cycle inference outputs are modified by replacing ``'z'`` with ``'z_cyc'``.
+        Thus, the keys of cycle inference outputs are modified by replacing
+        ``'z'`` with ``'z_cyc'``.
         """
-        # TODO could disable computation of cycle if cycle loss will not be used (weight = 0).
-        #  Cycle loss is not expected to be disabled in practice for typical use cases.
+        # TODO could disable computation of cycle if cycle loss
+        #  will not be used (weight = 0).
+        #  Cycle loss is not expected to be disabled in practice
+        #  for typical use cases.
 
         # Parse kwargs
         inference_kwargs = inference_kwargs or {}
@@ -546,9 +566,11 @@ class SysVAE(BaseModuleClass):
         )
         inference_cycle_outputs = self.inference(**inference_cycle_inputs, **inference_kwargs)
 
-        # Combine outputs of all forward pass components (first and cycle pass) into a single dict,
+        # Combine outputs of all forward pass components
+        # (first and cycle pass) into a single dict,
         # separately for inference and generative outputs
-        # Rename keys in outputs of cycle pass to be distinguishable from the first pass
+        # Rename keys in outputs of cycle pass
+        # to be distinguishable from the first pass
         # for the merging into a single dict
         inference_outputs_merged = dict(**inference_outputs)
         inference_outputs_merged.update(
@@ -678,7 +700,7 @@ class SysVAE(BaseModuleClass):
         )
 
     def random_select_batch(self, batch: torch.Tensor) -> torch.Tensor:
-        """For every cell randomly selects a new batch that is different from the real batch.
+        """For each cell randomly selects new batch different from the real one.
 
         Parameters
         ----------
@@ -693,8 +715,8 @@ class SysVAE(BaseModuleClass):
         # those that are zero will become nonzero and vice versa
         batch = torch.nn.functional.one_hot(batch.squeeze(-1), self.n_batch)
         available_batches = 1 - batch
-        # Get nonzero indices for each cell - batches that differ from the real batch
-        # and are thus available
+        # Get nonzero indices for each cell -
+        # batches that differ from the real batch and are thus available
         row_indices, col_indices = torch.nonzero(available_batches, as_tuple=True)
         col_pairs = col_indices.view(-1, batch.shape[1] - 1)
         # Select batch for every cell from available batches
@@ -713,9 +735,10 @@ class SysVAE(BaseModuleClass):
 
     @torch.inference_mode()
     def sample(self, *args, **kwargs):
-        """Generate expression samples from the posterior generative distribution.
+        """Generate expression samples from posterior generative distribution.
 
-        Not implemented as the use of decoded expression is not recommended for SysVI.
+        Not implemented as the use of decoded expression
+        is not recommended for SysVI.
 
         Raises
         ------

@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import collections
 import warnings
-from collections.abc import Callable, Iterable
-from typing import Literal
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from typing import Literal
 
 import numpy as np
 import torch
@@ -14,6 +17,8 @@ from torch.nn import (
     Module,
     Parameter,
 )
+
+from scvi import settings
 
 
 class EncoderDecoder(Module):
@@ -36,7 +41,8 @@ class EncoderDecoder(Module):
     n_layers
         The number of hidden layers.
     var_mode
-        How to compute variance from model outputs, see :class:`~scvi.external.sysvi.VarEncoder`.
+        How to compute variance from model outputs,
+        see :class:`~scvi.external.sysvi.VarEncoder`.
         One of the following:
         * ```'sample_feature'``` - learn variance per sample and feature.
         * ```'feature'``` - learn variance per feature, constant across samples.
@@ -89,7 +95,8 @@ class EncoderDecoder(Module):
         Parameters
         ----------
         x
-            Main input (i.e. expression for encoder or latent embedding for decoder.).
+            Main input (i.e. expression for encoder or
+            latent embedding for decoder.).
             dim = n_samples * n_input
         cont
             Optional continuous covariates.
@@ -108,7 +115,10 @@ class EncoderDecoder(Module):
         y = self.decoder_y(x=x, cont=cont, cat_list=cat_list)
         y_m = self.mean_encoder(y)
         if y_m.isnan().any() or y_m.isinf().any():
-            warnings.warn("Predicted mean contains nan or inf values. Setting to numerical.")
+            warnings.warn(
+                "Predicted mean contains nan or inf values. " + "Setting to numerical.",
+                stacklevel=settings.warnings_stacklevel,
+            )
             y_m = torch.nan_to_num(y_m)
         y_v = self.var_encoder(y)
 
@@ -126,8 +136,8 @@ class FCLayers(nn.Module):
 
     FCLayers class of scvi-tools adapted to also inject continous covariates.
 
-    The only adaptation is addition of `n_cont` parameter in init and `cont` in forward,
-    with the associated handling of the two.
+    The only adaptation is addition of `n_cont` parameter in init
+    and `cont` in forward, with the associated handling of the two.
     The forward method signature is changed to account for optional `cont`.
 
     Parameters
@@ -202,7 +212,8 @@ class FCLayers(nn.Module):
                                 n_out,
                                 bias=bias,
                             ),
-                            # non-default params come from defaults in original Tensorflow
+                            # non-default params come from defaults
+                            # in original Tensorflow
                             # implementation
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
@@ -272,7 +283,7 @@ class FCLayers(nn.Module):
         :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
         """
-        one_hot_cat_list = []  # for generality in this list many indices useless.
+        one_hot_cat_list = []  # for generality in this list many idxs useless.
         cont_list = [cont] if cont is not None else []
         cat_list = cat_list or []
 
@@ -281,7 +292,7 @@ class FCLayers(nn.Module):
         for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
-            if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
+            if n_cat > 1:  # n_cat = 1 will be ignored - no additional info
                 if cat.size(1) != n_cat:
                     one_hot_cat = nn.functional.one_hot(cat.squeeze(-1), n_cat)
                 else:
@@ -370,12 +381,16 @@ class VarEncoder(Module):
         elif self.mode == "feature":
             v = self.var_param.expand(x.shape[0], -1)  # Broadcast to input size
 
-        # Ensure that var is strictly positive via exp - Bring back to non-log scale
+        # Ensure that var is strictly positive via exp -
+        # Bring back to non-log scale
         # Clip to range that will not be inf after exp
         v = torch.clip(v, min=-self.clip_exp, max=self.clip_exp)
         v = self.activation(v)
         if v.isnan().any():
-            warnings.warn("Predicted variance contains nan values. Setting to 0.")
+            warnings.warn(
+                "Predicted variance contains nan values. Setting to 0.",
+                stacklevel=settings.warnings_stacklevel,
+            )
             v = torch.nan_to_num(v)
 
         return v
