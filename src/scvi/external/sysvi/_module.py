@@ -170,9 +170,7 @@ class SysVAE(BaseModuleClass):
         return "cov" + str(cov)
 
     def _get_inference_input(
-        self,
-        tensors: dict[str, torch.Tensor],
-        **kwargs
+        self, tensors: dict[str, torch.Tensor], **kwargs
     ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
         """Parse the input tensors to get inference inputs.
 
@@ -210,7 +208,8 @@ class SysVAE(BaseModuleClass):
         self,
         tensors: dict[str, torch.Tensor],
         generative_outputs: dict[str, torch.Tensor],
-        selected_batch: torch.Tensor, **kwargs
+        selected_batch: torch.Tensor,
+        **kwargs,
     ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
         """Parse the input tensors, generative outputs, and cycle batch info to get cycle inference inputs.
 
@@ -404,7 +403,7 @@ class SysVAE(BaseModuleClass):
         cat: list[torch.Tensor],
         cont: torch.Tensor | None,
         x_x: bool = True,
-        x_y: bool = True
+        x_y: bool = True,
     ) -> dict[str, torch.Tensor]:
         """Generation: latent representation & cov -> expression.
 
@@ -518,7 +517,6 @@ class SysVAE(BaseModuleClass):
         Inference normal and cycle outputs are combined into a single dict.
         Thus, the keys of cycle inference outputs are modified by replacing ``'z'`` with ``'z_cyc'``.
         """
-
         # TODO could disable computation of cycle if cycle loss will not be used (weight = 0).
         #  Cycle loss is not expected to be disabled in practice for typical use cases.
 
@@ -662,8 +660,9 @@ class SysVAE(BaseModuleClass):
                 """
                 return (x - means) / stds
 
-            return torch.nn.MSELoss(reduction="none")(
-                standardize(z_x_m), standardize(z_y_m)).sum(dim=1)
+            return torch.nn.MSELoss(reduction="none")(standardize(z_x_m), standardize(z_y_m)).sum(
+                dim=1
+            )
 
         z_distance_cyc = z_dist(z_x_m=inference_outputs["z_m"], z_y_m=inference_outputs["z_cyc_m"])
         if "batch_weights" in tensors.keys():
