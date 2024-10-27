@@ -17,32 +17,36 @@ from torch.nn import (
 
 
 class EncoderDecoder(Module):
-    """Module that can be used as probabilistic encoder or decoder
+    """Module that can be used as probabilistic encoder or decoder.
 
-    Based on inputs and optional covariates predicts output mean and var
+    Based on inputs and optional covariates predicts output mean and variance.
 
     Parameters
     ----------
     n_input
-        The dimensionality of the main input
+        The dimensionality of the main input.
     n_output
-        The dimensionality of the output
-    n_cov
-        Dimensionality of covariates.
-        If there are no cov this should be set to None -
-        in this case cov will not be used.
+        The dimensionality of the output.
+    n_cat_list
+        A list containing the number of categories for each covariate.
+    n_cont
+        The dimensionality of the continuous covariates.
     n_hidden
-        The number of fully-connected hidden layers
+        The number of nodes per hidden layer.
     n_layers
-        Number of hidden layers
+        The number of hidden layers.
     var_mode
-        How to compute variance from model outputs, see :class:`~scvi.external.sysvi.VarEncoder`
-        'sample_feature' - learn per sample and feature
-        'feature' - learn per feature, constant across samples
+        How to compute variance from model outputs, see :class:`~scvi.external.sysvi.VarEncoder`.
+        One of the following:
+        * ```'sample_feature'``` - learn variance per sample and feature.
+        * ```'feature'``` - learn variance per feature, constant across samples.
+    var_activation
+        Function used to ensure positivity of the variance.
+        Defaults to :meth:`torch.exp`.
     sample
-        Return samples from predicted distribution
+        Return samples from predicted distribution.
     kwargs
-        Passed to :class:`~scvi.external.sysvi.Layers`
+         Passed to :class:`~scvi.external.sysvi.Layers`.
     """
 
     def __init__(
@@ -78,8 +82,29 @@ class EncoderDecoder(Module):
         self,
         x: torch.Tensor,
         cont: torch.Tensor | None = None,
-        cat_list: list | None = None,
+        cat_list: list[torch.Tensor] | None = None,
     ) -> dict[str, torch.Tensor]:
+        """Forward pass.
+
+        Parameters
+        ----------
+        x
+            Main input (i.e. expression for encoder or latent embedding for decoder.).
+            dim = n_samples * n_input
+        cont
+            Optional continuous covariates.
+            dim = n_samples * n_cont
+        cat_list
+            List of optional categorical covariates.
+            Will be one hot encoded in `~scvi.nn.FCLayers`.
+            Each list entry is of dim = n_samples * 1
+
+        Returns
+        -------
+        Predicted mean (``'y_m'``) and variance (``'y_v'``) and
+        optionally samples (``'y'``) from normal distribution
+        parametrized with the predicted parameters.
+        """
         y = self.decoder_y(x=x, cont=cont, cat_list=cat_list)
         y_m = self.mean_encoder(y)
         if y_m.isnan().any() or y_m.isinf().any():
@@ -97,13 +122,13 @@ class EncoderDecoder(Module):
 
 
 class FCLayers(nn.Module):
-    """FCLayers class of scvi-tools adapted to also inject continous covariates.
+    """A helper class to build fully-connected layers for a neural network.
+
+    FCLayers class of scvi-tools adapted to also inject continous covariates.
 
     The only adaptation is addition of `n_cont` parameter in init and `cont` in forward,
     with the associated handling of the two.
     The forward method signature is changed to account for optional `cont`.
-
-    A helper class to build fully-connected layers for a neural network.
 
     Parameters
     ----------
@@ -290,16 +315,18 @@ class VarEncoder(Module):
     Parameters
     ----------
     n_input
-        Number of input dimensions, used if mode is sample_feature
+        Number of input dimensions.
+        Used if mode is ``'sample_feature'`` to construct a network predicting
+        variance from input features.
     n_output
         Number of variances to predict, matching the desired number of features
         (e.g. latent dimensions for variational encoding or output features
-        for variational decoding)
+        for variational decoding).
     mode
         How to compute variance.
         One of the following:
-        * ```'sample_feature'``` - learn variance per sample and feature
-        * ```'feature'``` - learn variance per feature, constant across samples
+        * ``'sample_feature'`` - learn variance per sample and feature.
+        * ``'feature'`` - learn variance per feature, constant across samples.
     """
 
     def __init__(
@@ -321,17 +348,22 @@ class VarEncoder(Module):
             raise ValueError("Mode not recognised.")
         self.activation = torch.exp if activation is None else activation
 
-    def forward(self, x: torch.Tensor):
-        """Forward pass through model
+    def forward(
+        self,
+        x: torch.Tensor,
+    ) -> torch.Tensor:
+        """Forward pass through model.
 
         Parameters
         ----------
         x
-            Used to encode variance if mode is sample_feature; dim = n_samples x n_input
+            Used to encode variance if mode is ``'sample_feature'``.
+            dim = n_samples x n_input
 
         Returns
         -------
-        Predicted var
+        Predicted variance
+        dim = n_samples * 1
         """
         if self.mode == "sample_feature":
             v = self.encoder(x)

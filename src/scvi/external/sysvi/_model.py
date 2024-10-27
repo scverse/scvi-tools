@@ -95,7 +95,6 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         self._model_summary_string = (
             "SysVI - cVAE model with optional VampPrior and latent cycle-consistency loss."
         )
-        # necessary line to get params that will be used for saving/loading
         self.init_params_ = self._get_init_params(locals())
 
         logger.info("The model has been initialized")
@@ -151,7 +150,6 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         -------
         Latent Embedding
         """
-        # Check model and adata
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -163,7 +161,6 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
         predicted_m = []
         predicted_v = []
         for tensors in tensors_fwd:
-            # Inference
             inference_inputs = self.module._get_inference_input(tensors)
             inference_outputs = self.module.inference(**inference_inputs)
             if give_mean or return_dist:
