@@ -92,6 +92,11 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
     linear_classifier
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
+    deeply_inject_covariates
+        Whether to deeply inject covariates into all layers. If False (default),
+        covariates will only be included in the input layer.
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder.
     **model_kwargs
         Keyword args for :class:`~scvi.module.SCANVAE`
 

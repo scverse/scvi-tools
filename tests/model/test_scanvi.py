@@ -338,7 +338,7 @@ def test_multiple_covariates_scanvi():
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    m = SCANVI(adata)
+    m = SCANVI(adata, encode_covariates=False, deeply_inject_covariates=False)
     m.train(1)
     m.get_latent_representation()
     m.get_elbo()
@@ -382,7 +382,38 @@ def test_multiple_encoded_covariates_scanvi():
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    m = SCANVI(adata, encode_covariates=True)
+    m = SCANVI(
+        adata,
+        n_layers_encoder=2,
+        n_layers_decoder=2,
+        encode_covariates=True,
+        deeply_inject_covariates=False,
+    )
+    m.train(1)
+
+
+def test_deeply_injected_covariates_scanvi():
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "Unknown",
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCANVI(
+        adata,
+        n_layers_encoder=2,
+        n_layers_decoder=2,
+        encode_covariates=False,
+        deeply_inject_covariates=True,
+    )
     m.train(1)
 
 

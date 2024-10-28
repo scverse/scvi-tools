@@ -88,6 +88,11 @@ class SCVI(
 
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    deeply_inject_covariates
+        Whether to deeply inject covariates into all layers. If False (default),
+        covariates will only be included in the input layer.
+    encode_covariates
+        Whether to concatenate covariates to expression in encoder.
     **kwargs
         Additional keyword arguments for :class:`~scvi.module.VAE`.
 

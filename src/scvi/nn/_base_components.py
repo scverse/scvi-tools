@@ -15,13 +15,7 @@ def _identity(x):
 
 
 class FCLayers(nn.Module):
-    """FCLayers class of scvi-tools adapted to also inject continous covariates.
-
-    The only adaptation is addition of `n_cont` parameter in init and `cont` in forward,
-    with the associated handling of the two.
-    The forward method signature is changed to account for optional `cont`.
-
-    A helper class to build fully-connected layers for a neural network.
+    """A helper class to build fully-connected layers for a neural network.
 
     Parameters
     ----------
@@ -83,7 +77,7 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        self.n_cov = sum(self.n_cat_list) + n_cont
+        self.n_cov = sum(self.n_cat_list) + n_cont * self.inject_covariates
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
@@ -145,20 +139,18 @@ class FCLayers(nn.Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(
-        self, x: torch.Tensor, cat_list: list | None = None, cont: torch.Tensor | None = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
         """Forward computation on ``x``.
 
         Parameters
         ----------
         x
             tensor of values with shape ``(n_in,)``
+        cat_list
+            list of category membership(s) for this sample
         cont
             continuous covariates for this sample,
             tensor of values with shape ``(n_cont,)``
-        cat_list
-            list of category membership(s) for this sample
 
         Returns
         -------
@@ -219,11 +211,13 @@ class Encoder(nn.Module):
         for each category of interest. Each category will be
         included using a one-hot encoding
     n_cont
-        The number of continuous covariates
+        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
         The number of nodes per hidden layer
+    inject_covariates
+        Whether to inject covariates in each layer, or just the first (default).
     dropout_rate
         Dropout rate to apply to each of the hidden layers
     distribution
@@ -248,6 +242,7 @@ class Encoder(nn.Module):
         n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
+        inject_covariates: bool = False,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
@@ -267,6 +262,7 @@ class Encoder(nn.Module):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            inject_covariates=inject_covariates,
             **kwargs,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
@@ -279,7 +275,7 @@ class Encoder(nn.Module):
             self.z_transformation = _identity
         self.var_activation = torch.exp if var_activation is None else var_activation
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont=None):
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
         r"""The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
@@ -294,7 +290,8 @@ class Encoder(nn.Module):
         cat_list
             list of category membership(s) for this sample
         cont
-            continuous covariates for this sample
+            continuous covariates for this sample,
+            tensor of values with shape ``(n_cont,)``
 
         Returns
         -------
@@ -330,7 +327,7 @@ class DecoderSCVI(nn.Module):
         for each category of interest. Each category will be
         included using a one-hot encoding
     n_cont
-        The number of continuous covariates
+        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -357,7 +354,7 @@ class DecoderSCVI(nn.Module):
         n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
-        inject_covariates: bool = True,
+        inject_covariates: bool = False,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
@@ -395,7 +392,11 @@ class DecoderSCVI(nn.Module):
         self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
 
     def forward(
-        self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int, cont=None
+        self,
+        dispersion: str,
+        z: torch.Tensor,
+        library: torch.Tensor,
+        *cat_list: int,
     ):
         """The forward computation for a single sample.
 
@@ -414,12 +415,10 @@ class DecoderSCVI(nn.Module):
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
         z :
             tensor with shape ``(n_input,)``
-        library
-            library
+        library_size
+            library size
         cat_list
             list of category membership(s) for this sample
-        cont
-            continuous covariates for this sample
 
         Returns
         -------
@@ -428,7 +427,7 @@ class DecoderSCVI(nn.Module):
 
         """
         # The decoder returns values for the parameters of the ZINB distribution
-        px = self.px_decoder(z, *cat_list, cont)
+        px = self.px_decoder(z, *cat_list)
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
@@ -445,7 +444,6 @@ class LinearDecoderSCVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         bias: bool = False,
@@ -458,7 +456,6 @@ class LinearDecoderSCVI(nn.Module):
             n_in=n_input,
             n_out=n_output,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
@@ -473,7 +470,6 @@ class LinearDecoderSCVI(nn.Module):
             n_in=n_input,
             n_out=n_output,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=1,
             use_activation=False,
             use_batch_norm=use_batch_norm,
@@ -483,12 +479,10 @@ class LinearDecoderSCVI(nn.Module):
             **kwargs,
         )
 
-    def forward(
-        self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int, cont=None
-    ):
+    def forward(self, dispersion: str, z: torch.Tensor, library: torch.Tensor, *cat_list: int):
         """Forward pass."""
         # The decoder returns values for the parameters of the ZINB distribution
-        raw_px_scale = self.factor_regressor(z, *cat_list, cont)
+        raw_px_scale = self.factor_regressor(z, *cat_list)
         px_scale = torch.softmax(raw_px_scale, dim=-1)
         px_dropout = self.px_dropout_decoder(z, *cat_list)
         px_rate = torch.exp(library) * px_scale
@@ -516,7 +510,7 @@ class Decoder(nn.Module):
         for each category of interest. Each category will be
         included using a one-hot encoding
     n_cont
-        The number of continuous covariates
+        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -552,7 +546,7 @@ class Decoder(nn.Module):
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont=None):
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
         """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
@@ -565,7 +559,8 @@ class Decoder(nn.Module):
         cat_list
             list of category membership(s) for this sample
         cont
-            continuous covariates for this sample
+            continuous covariates for this sample,
+            tensor of values with shape ``(n_cont,)``
 
         Returns
         -------
@@ -592,7 +587,6 @@ class MultiEncoder(nn.Module):
         n_layers_individual: int = 1,
         n_layers_shared: int = 2,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         dropout_rate: float = 0.1,
         return_dist: bool = False,
         **kwargs,
@@ -605,7 +599,6 @@ class MultiEncoder(nn.Module):
                     n_in=n_input_list[i],
                     n_out=n_hidden,
                     n_cat_list=n_cat_list,
-                    n_cont=n_cont,
                     n_layers=n_layers_individual,
                     n_hidden=n_hidden,
                     dropout_rate=dropout_rate,
@@ -620,7 +613,6 @@ class MultiEncoder(nn.Module):
             n_in=n_hidden,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers_shared,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -631,10 +623,10 @@ class MultiEncoder(nn.Module):
         self.var_encoder = nn.Linear(n_hidden, n_output)
         self.return_dist = return_dist
 
-    def forward(self, x: torch.Tensor, head_id: int, *cat_list: int, cont=None):
+    def forward(self, x: torch.Tensor, head_id: int, *cat_list: int):
         """Forward pass."""
-        q = self.encoders[head_id](x, *cat_list, cont)
-        q = self.encoder_shared(q, *cat_list, cont)
+        q = self.encoders[head_id](x, *cat_list)
+        q = self.encoder_shared(q, *cat_list)
 
         q_m = self.mean_encoder(q)
         q_v = torch.exp(self.var_encoder(q))
@@ -657,7 +649,6 @@ class MultiDecoder(nn.Module):
         n_layers_conditioned: int = 1,
         n_layers_shared: int = 1,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         dropout_rate: float = 0.2,
         **kwargs,
     ):
@@ -669,7 +660,6 @@ class MultiDecoder(nn.Module):
                 n_in=n_input,
                 n_out=n_out,
                 n_cat_list=n_cat_list,
-                n_cont=n_cont,
                 n_layers=n_layers_conditioned,
                 n_hidden=n_hidden_conditioned,
                 dropout_rate=dropout_rate,
@@ -686,7 +676,6 @@ class MultiDecoder(nn.Module):
                 n_in=n_in,
                 n_out=n_hidden_shared,
                 n_cat_list=[],
-                n_cont=0,
                 n_layers=n_layers_shared,
                 n_hidden=n_hidden_shared,
                 dropout_rate=dropout_rate,
@@ -708,14 +697,13 @@ class MultiDecoder(nn.Module):
         library: torch.Tensor,
         dispersion: str,
         *cat_list: int,
-        cont=None,
     ):
         """Forward pass."""
         px = z
         if self.px_decoder_conditioned:
-            px = self.px_decoder_conditioned(px, *cat_list, cont)
+            px = self.px_decoder_conditioned(px, *cat_list)
         if self.px_decoder_final:
-            px = self.px_decoder_final(px, *cat_list, cont)
+            px = self.px_decoder_final(px, *cat_list)
 
         px_scale = self.px_scale_decoder(px)
         px_dropout = self.px_dropout_decoder(px)
@@ -742,8 +730,6 @@ class DecoderTOTALVI(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_cont
-        The number of continuous covariates
     use_batch_norm
         Whether to use batch norm in layers
     use_layer_norm
@@ -758,7 +744,6 @@ class DecoderTOTALVI(nn.Module):
         n_output_genes: int,
         n_output_proteins: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 256,
         dropout_rate: float = 0,
@@ -787,7 +772,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -800,7 +784,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             **linear_args,
         )
         if scale_activation == "softmax":
@@ -813,7 +796,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -825,14 +807,12 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             **linear_args,
         )
         self.py_back_mean_log_beta = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             **linear_args,
         )
 
@@ -841,7 +821,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -853,7 +832,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=1,
             use_activation=True,
             use_batch_norm=False,
@@ -867,7 +845,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -878,7 +855,6 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_genes,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             **linear_args,
         )
 
@@ -886,11 +862,10 @@ class DecoderTOTALVI(nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             **linear_args,
         )
 
-    def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int, cont=None):
+    def forward(self, z: torch.Tensor, library_gene: torch.Tensor, *cat_list: int):
         """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
@@ -916,8 +891,6 @@ class DecoderTOTALVI(nn.Module):
             library size
         cat_list
             list of category membership(s) for this sample
-        cont
-            continuous covariates for this sample
 
         Returns
         -------
@@ -928,38 +901,38 @@ class DecoderTOTALVI(nn.Module):
         px_ = {}
         py_ = {}
 
-        px = self.px_decoder(z, *cat_list, cont)
+        px = self.px_decoder(z, *cat_list)
         px_cat_z = torch.cat([px, z], dim=-1)
-        unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list, cont)
+        unnorm_px_scale = self.px_scale_decoder(px_cat_z, *cat_list)
         px_["scale"] = self.px_scale_activation(unnorm_px_scale)
         px_["rate"] = library_gene * px_["scale"]
 
-        py_back = self.py_back_decoder(z, *cat_list, cont)
+        py_back = self.py_back_decoder(z, *cat_list)
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
-        py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list, cont)
+        py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
         py_["back_beta"] = self.activation_function_bg(
-            self.py_back_mean_log_beta(py_back_cat_z, *cat_list, cont)
+            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
         )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
-        py_fore = self.py_fore_decoder(z, *cat_list), cont
+        py_fore = self.py_fore_decoder(z, *cat_list)
         py_fore_cat_z = torch.cat([py_fore, z], dim=-1)
-        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z, *cat_list, cont) + 1 + 1e-8
+        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
         py_["rate_fore"] = py_["rate_back"] * py_["fore_scale"]
 
-        p_mixing = self.sigmoid_decoder(z, *cat_list, cont)
+        p_mixing = self.sigmoid_decoder(z, *cat_list)
         p_mixing_cat_z = torch.cat([p_mixing, z], dim=-1)
-        px_["dropout"] = self.px_dropout_decoder_gene(p_mixing_cat_z, *cat_list, cont)
-        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, *cat_list, cont)
+        px_["dropout"] = self.px_dropout_decoder_gene(p_mixing_cat_z, *cat_list)
+        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, *cat_list)
 
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
         py_["scale"] = torch.nn.functional.normalize(
             (1 - protein_mixing) * py_["rate_fore"], p=1, dim=-1
         )
 
-        return px_, py_, log_pro_back_mean
+        return (px_, py_, log_pro_back_mean)
 
 
 # Encoder
@@ -978,8 +951,6 @@ class EncoderTOTALVI(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_cont
-        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -1002,7 +973,6 @@ class EncoderTOTALVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 2,
         n_hidden: int = 256,
         dropout_rate: float = 0.1,
@@ -1016,7 +986,6 @@ class EncoderTOTALVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -1030,7 +999,6 @@ class EncoderTOTALVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=1,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -1055,7 +1023,7 @@ class EncoderTOTALVI(nn.Module):
         z = self.z_transformation(untran_z)
         return z, untran_z
 
-    def forward(self, data: torch.Tensor, *cat_list: int, cont=None):
+    def forward(self, data: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
@@ -1074,8 +1042,6 @@ class EncoderTOTALVI(nn.Module):
             tensor with shape ``(n_input,)``
         cat_list
             list of category membership(s) for this sample
-        cont
-            continuous covariates for this sample
 
         Returns
         -------
@@ -1084,14 +1050,14 @@ class EncoderTOTALVI(nn.Module):
 
         """
         # Parameters for latent distribution
-        q = self.encoder(data, *cat_list, cont)
+        q = self.encoder(data, *cat_list)
         qz_m = self.z_mean_encoder(q)
         qz_v = torch.exp(self.z_var_encoder(q)) + 1e-4
         q_z = Normal(qz_m, qz_v.sqrt())
         untran_z = q_z.rsample()
         z = self.z_transformation(untran_z)
 
-        ql_gene = self.l_gene_encoder(data, *cat_list, cont)
+        ql_gene = self.l_gene_encoder(data, *cat_list)
         ql_m = self.l_gene_mean_encoder(ql_gene)
         ql_v = torch.exp(self.l_gene_var_encoder(ql_gene)) + 1e-4
         q_l = Normal(ql_m, ql_v.sqrt())

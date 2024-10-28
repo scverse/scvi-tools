@@ -250,8 +250,8 @@ def test_peakvi_covariates(save_path):
     )
     model = PEAKVI(
         adata,
-        n_layers_encoder=3,
-        n_layers_decoder=3,
+        n_layers_encoder=2,
+        n_layers_decoder=2,
         encode_covariates=True,
         deeply_inject_covariates=True,
     )
