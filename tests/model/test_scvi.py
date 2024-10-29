@@ -622,7 +622,9 @@ def test_backed_anndata_scvi(save_path):
     model.get_elbo()
 
 
-def test_multiple_covariates_scvi():
+@pytest.mark.parametrize("encode_covariates", [False])
+@pytest.mark.parametrize("deeply_inject_covariates", [True])
+def test_multiple_covariates_scvi(encode_covariates: bool, deeply_inject_covariates: bool):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -636,7 +638,12 @@ def test_multiple_covariates_scvi():
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    m = SCVI(adata, encode_covariates=False, deeply_inject_covariates=False)
+    m = SCVI(
+        adata,
+        n_layers=2,
+        encode_covariates=encode_covariates,
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
     m.train(1)
     m.get_latent_representation()
     m.get_elbo()
@@ -644,54 +651,6 @@ def test_multiple_covariates_scvi():
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)
-
-
-def test_multiple_encoded_covariates_scvi():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCVI(
-        adata,
-        n_layers_encoder=2,
-        n_layers_decoder=2,
-        encode_covariates=True,
-        deeply_inject_covariates=False,
-    )
-    m.train(1)
-
-
-def test_deeply_injected_covariates_scvi():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCVI(
-        adata,
-        n_layers_encoder=2,
-        n_layers_decoder=2,
-        encode_covariates=False,
-        deeply_inject_covariates=True,
-    )
-    m.train(1)
 
 
 def test_early_stopping():

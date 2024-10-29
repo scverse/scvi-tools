@@ -323,7 +323,9 @@ def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
     model.train(max_epochs=1)
 
 
-def test_multiple_covariates_scanvi():
+@pytest.mark.parametrize("encode_covariates", [False, True])
+@pytest.mark.parametrize("deeply_inject_covariates", [False, True])
+def test_multiple_covariates_scanvi(encode_covariates: bool, deeply_inject_covariates: bool):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -338,7 +340,12 @@ def test_multiple_covariates_scanvi():
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    m = SCANVI(adata, encode_covariates=False, deeply_inject_covariates=False)
+    m = SCANVI(
+        adata,
+        n_layers=2,
+        encode_covariates=encode_covariates,
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
     m.train(1)
     m.get_latent_representation()
     m.get_elbo()
@@ -365,56 +372,6 @@ def test_multiple_covariates_scanvi():
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)
-
-
-def test_multiple_encoded_covariates_scanvi():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "Unknown",
-        batch_key="batch",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCANVI(
-        adata,
-        n_layers_encoder=2,
-        n_layers_decoder=2,
-        encode_covariates=True,
-        deeply_inject_covariates=False,
-    )
-    m.train(1)
-
-
-def test_deeply_injected_covariates_scanvi():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCANVI.setup_anndata(
-        adata,
-        "labels",
-        "Unknown",
-        batch_key="batch",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCANVI(
-        adata,
-        n_layers_encoder=2,
-        n_layers_decoder=2,
-        encode_covariates=False,
-        deeply_inject_covariates=True,
-    )
-    m.train(1)
 
 
 def test_scanvi_online_update(save_path):

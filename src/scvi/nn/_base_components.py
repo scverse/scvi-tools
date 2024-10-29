@@ -24,13 +24,9 @@ class FCLayers(nn.Module):
     n_out
         The dimensionality of the output
     n_cat_list
-        The number of categorical covariates and
-        the number of category levels.
-        A list containing, for each covariate of interest,
-        the number of categories. Each covariate will be
+        A list containing, for each category of interest,
+        the number of categories. Each category will be
         included using a one-hot encoding.
-    n_cont
-        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -56,7 +52,6 @@ class FCLayers(nn.Module):
         n_in: int,
         n_out: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -77,7 +72,7 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        self.n_cov = sum(self.n_cat_list) + n_cont * self.inject_covariates
+        cat_dim = sum(self.n_cat_list)
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
@@ -85,7 +80,7 @@ class FCLayers(nn.Module):
                         f"Layer {i}",
                         nn.Sequential(
                             nn.Linear(
-                                n_in + self.n_cov * self.inject_into_layer(i),
+                                n_in + cat_dim * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
                             ),
@@ -118,9 +113,10 @@ class FCLayers(nn.Module):
         self.hooks = []
 
         def _hook_fn_weight(grad):
+            categorical_dims = sum(self.n_cat_list)
             new_grad = torch.zeros_like(grad)
-            if self.n_cov > 0:
-                new_grad[:, -self.n_cov :] = grad[:, -self.n_cov :]
+            if categorical_dims > 0:
+                new_grad[:, -categorical_dims:] = grad[:, -categorical_dims:]
             return new_grad
 
         def _hook_fn_zero_out(grad):
@@ -139,7 +135,7 @@ class FCLayers(nn.Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, *cat_list: int):
         """Forward computation on ``x``.
 
         Parameters
@@ -148,9 +144,6 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
-        cont
-            continuous covariates for this sample,
-            tensor of values with shape ``(n_cont,)``
 
         Returns
         -------
@@ -158,8 +151,6 @@ class FCLayers(nn.Module):
             tensor of shape ``(n_out,)``
         """
         one_hot_cat_list = []  # for generality in this list many indices useless.
-        cont_list = [cont] if cont is not None else []
-        cat_list = cat_list or []
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
@@ -183,13 +174,13 @@ class FCLayers(nn.Module):
                     else:
                         if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
-                                cov_list_layer = [
+                                one_hot_cat_list_layer = [
                                     o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
                                     for o in one_hot_cat_list
                                 ]
                             else:
-                                cov_list_layer = one_hot_cat_list
-                            x = torch.cat((x, *cov_list_layer, *cont_list), dim=-1)
+                                one_hot_cat_list_layer = one_hot_cat_list
+                            x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
                         x = layer(x)
         return x
 
@@ -210,14 +201,10 @@ class Encoder(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_cont
-        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
         The number of nodes per hidden layer
-    inject_covariates
-        Whether to inject covariates in each layer, or just the first (default).
     dropout_rate
         Dropout rate to apply to each of the hidden layers
     distribution
@@ -239,10 +226,8 @@ class Encoder(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
-        inject_covariates: bool = False,
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
@@ -258,11 +243,9 @@ class Encoder(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            inject_covariates=inject_covariates,
             **kwargs,
         )
         self.mean_encoder = nn.Linear(n_hidden, n_output)
@@ -275,7 +258,7 @@ class Encoder(nn.Module):
             self.z_transformation = _identity
         self.var_activation = torch.exp if var_activation is None else var_activation
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, *cat_list: int):
         r"""The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
@@ -289,9 +272,6 @@ class Encoder(nn.Module):
             tensor with shape (n_input,)
         cat_list
             list of category membership(s) for this sample
-        cont
-            continuous covariates for this sample,
-            tensor of values with shape ``(n_cont,)``
 
         Returns
         -------
@@ -300,7 +280,7 @@ class Encoder(nn.Module):
 
         """
         # Parameters for latent distribution
-        q = self.encoder(x, *cat_list, cont)
+        q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
         q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
         dist = Normal(q_m, q_v.sqrt())
@@ -326,8 +306,6 @@ class DecoderSCVI(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_cont
-        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -351,10 +329,9 @@ class DecoderSCVI(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
-        inject_covariates: bool = False,
+        inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
@@ -365,7 +342,6 @@ class DecoderSCVI(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
@@ -509,8 +485,6 @@ class Decoder(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
-    n_cont
-        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -526,7 +500,6 @@ class Decoder(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         **kwargs,
@@ -536,7 +509,6 @@ class Decoder(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
-            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
@@ -546,7 +518,7 @@ class Decoder(nn.Module):
         self.mean_decoder = nn.Linear(n_hidden, n_output)
         self.var_decoder = nn.Linear(n_hidden, n_output)
 
-    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, *cat_list: int):
         """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
@@ -558,9 +530,6 @@ class Decoder(nn.Module):
             tensor with shape ``(n_input,)``
         cat_list
             list of category membership(s) for this sample
-        cont
-            continuous covariates for this sample,
-            tensor of values with shape ``(n_cont,)``
 
         Returns
         -------
@@ -569,7 +538,7 @@ class Decoder(nn.Module):
 
         """
         # Parameters for latent distribution
-        p = self.decoder(x, *cat_list, cont)
+        p = self.decoder(x, *cat_list)
         p_m = self.mean_decoder(p)
         p_v = torch.exp(self.var_decoder(p))
         return p_m, p_v
