@@ -155,9 +155,13 @@ class SCANVAE(VAE):
             n_latent,
             n_latent,
             n_cat_list=[self.n_labels],
+            n_cont=n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            encode_covariates=self.encode_covariates,
+            batch_representation=self.batch_representation,
+            inject_covariates=self.deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
             return_dist=True,
@@ -167,8 +171,12 @@ class SCANVAE(VAE):
             n_latent,
             n_latent,
             n_cat_list=[self.n_labels],
+            n_cont=n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
+            encode_covariates=self.encode_covariates,
+            batch_representation=self.batch_representation,
+            inject_covariates=self.deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
         )
@@ -236,7 +244,7 @@ class SCANVAE(VAE):
         if self.log_variational:
             x = torch.log1p(x)
 
-        if cont_covs is not None and self.encode_covariates:
+        if cont_covs is not None:
             encoder_input = torch.cat((x, cont_covs), dim=-1)
         else:
             encoder_input = x
@@ -245,7 +253,13 @@ class SCANVAE(VAE):
         else:
             categorical_input = ()
 
-        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        if self.batch_representation == "embedding" and self.encode_covariates:
+            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+            encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
+            qz, z = self.z_encoder(encoder_input, cont_covs, *categorical_input)
+        else:
+            qz, z = self.z_encoder(encoder_input, cont_covs, batch_index, *categorical_input)
+
         z = qz.loc if use_posterior_mean else z
 
         if self.use_labels_groups:
@@ -298,10 +312,19 @@ class SCANVAE(VAE):
         z1: torch.Tensor = inference_outputs["z"]
         x: torch.Tensor = tensors[REGISTRY_KEYS.X_KEY]
         batch_index: torch.Tensor = tensors[REGISTRY_KEYS.BATCH_KEY]
+        if "extra_continuous_covs" in tensors.keys():
+            cont_covs: torch.Tensor = tensors[REGISTRY_KEYS.CONT_COVS_KEY]
+            cont_covs = broadcast_labels(cont_covs, n_broadcast=self.n_labels)[1]
+        else:
+            cont_covs = None
 
         ys, z1s = broadcast_labels(z1, n_broadcast=self.n_labels)
-        qz2, z2 = self.encoder_z2_z1(z1s, ys)
-        pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
+        qz2, z2 = self.encoder_z2_z1(
+            torch.cat((z1s, cont_covs), dim=-1) if cont_covs is not None else z1s, cont_covs, ys
+        )
+        pz1_m, pz1_v = self.decoder_z1_z2(
+            torch.cat((z2, cont_covs), dim=-1) if cont_covs is not None else z2, cont_covs, ys
+        )
         reconst_loss = -px.log_prob(x).sum(-1)
 
         # KL Divergence
@@ -309,7 +332,11 @@ class SCANVAE(VAE):
         scale = torch.ones_like(qz2.scale)
 
         kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=-1)
-        loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
+        loss_z1_unweight = -(
+            Normal(pz1_m, torch.sqrt(pz1_v))
+            .log_prob(broadcast_labels(z1, n_broadcast=self.n_labels)[1])
+            .sum(dim=-1)
+        )
         loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
 
         probs = self.classifier(z1)

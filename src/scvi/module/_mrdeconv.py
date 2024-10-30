@@ -227,7 +227,7 @@ class MRDeconv(BaseModuleClass):
         enum_label = (
             torch.arange(0, self.n_labels).repeat(m).view((-1, 1))
         )  # minibatch_size * n_labels, 1
-        h = self.decoder(gamma_reshape, enum_label.to(x.device))
+        h = self.decoder(gamma_reshape, None, enum_label.to(x.device))
         px_rate = self.px_decoder(h).reshape(
             (m, self.n_labels, -1)
         )  # (minibatch, n_labels, n_genes)
@@ -394,7 +394,7 @@ class MRDeconv(BaseModuleClass):
         gamma_select = gamma_ind[
             :, y_torch, torch.arange(ind_x.shape[0])
         ].T  # minibatch_size, n_latent
-        h = self.decoder(gamma_select, y_torch.unsqueeze(1))
+        h = self.decoder(gamma_select, None, y_torch.unsqueeze(1))
         px_scale = self.px_decoder(h)  # (minibatch, n_genes)
         px_ct = torch.exp(self.px_o).unsqueeze(0) * beta.unsqueeze(0) * px_scale
         return px_ct  # shape (minibatch, genes)

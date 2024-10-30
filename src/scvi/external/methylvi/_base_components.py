@@ -78,6 +78,7 @@ class DecoderMETHYLVI(nn.Module):
         self,
         dispersion: str,
         z: torch.Tensor,
+        cont_covs: torch.Tensor | None = None,
         *cat_list: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """The forward computation for a single sample.
@@ -99,6 +100,9 @@ class DecoderMETHYLVI(nn.Module):
             library size
         cat_list
             list of category membership(s) for this sample
+        cont_covs
+            continuous covariates for this sample,
+            tensor of values with shape ``(n_cont,)``
 
         Returns
         -------
@@ -106,7 +110,7 @@ class DecoderMETHYLVI(nn.Module):
             parameters for the Beta distribution of mean methylation values
 
         """
-        px = self.px_decoder(z, *cat_list)
+        px = self.px_decoder(z, cont_covs, *cat_list)
         px_mu = self.px_mu_decoder(px)
         px_gamma = self.px_gamma_decoder(px) if dispersion == "region-cell" else None
 

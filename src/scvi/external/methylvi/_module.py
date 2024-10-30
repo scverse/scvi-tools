@@ -163,7 +163,7 @@ class METHYLVAE(BaseModuleClass):
         else:
             categorical_input = ()
 
-        qz, z = self.z_encoder(methylation_input, batch_index, *categorical_input)
+        qz, z = self.z_encoder(methylation_input, None, batch_index, *categorical_input)
         if n_samples > 1:
             z = qz.sample((n_samples,))
 
@@ -182,7 +182,7 @@ class METHYLVAE(BaseModuleClass):
 
         for context in self.contexts:
             px_mu[context], px_gamma[context] = self.decoders[context](
-                self.dispersion, z, batch_index, *categorical_input
+                self.dispersion, z, None, batch_index, *categorical_input
             )
 
         pz = Normal(torch.zeros_like(z), torch.ones_like(z))

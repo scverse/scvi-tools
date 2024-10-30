@@ -622,7 +622,12 @@ def test_backed_anndata_scvi(save_path):
     model.get_elbo()
 
 
-def test_multiple_covariates_scvi():
+@pytest.mark.parametrize("encode_covariates", [False, True])
+@pytest.mark.parametrize("deeply_inject_covariates", [False, True])
+@pytest.mark.parametrize("batch_representation", ["one-hot", "embedding"])
+def test_multiple_covariates_scvi(
+    encode_covariates: bool, deeply_inject_covariates: bool, batch_representation: str
+):
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -633,35 +638,69 @@ def test_multiple_covariates_scvi():
         adata,
         batch_key="batch",
         labels_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = SCVI(
+        adata,
+        n_layers=2,
+        batch_representation=batch_representation,
+        encode_covariates=encode_covariates,
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
+    m.train(1)
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+    m = SCVI(
+        adata,
+        n_layers=2,
+        batch_representation=batch_representation,
+        encode_covariates=encode_covariates,
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
+    m.train(1)
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1"],
+        categorical_covariate_keys=["cat1"],
+    )
+    m = SCVI(
+        adata,
+        batch_representation=batch_representation,
+        encode_covariates=encode_covariates,
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
+    m.train(1)
+
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    m = SCVI(adata)
+    m = SCVI(
+        adata,
+        n_layers=2,
+        batch_representation=batch_representation,
+        encode_covariates=encode_covariates,
+        deeply_inject_covariates=deeply_inject_covariates,
+    )
     m.train(1)
     m.get_latent_representation()
     m.get_elbo()
     m.get_marginal_ll(n_mc_samples=3)
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
-    m.get_normalized_expression(n_samples=2)
-
-
-def test_multiple_encoded_covariates_scvi():
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = SCVI(adata, encode_covariates=True)
-    m.train(1)
+    if not deeply_inject_covariates and batch_representation == "one-hot":
+        m.get_normalized_expression(n_samples=2)
 
 
 def test_early_stopping():

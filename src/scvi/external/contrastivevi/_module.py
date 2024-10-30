@@ -255,12 +255,12 @@ class ContrastiveVAE(BaseModuleClass):
             library = torch.log(x.sum(1)).unsqueeze(1)
         x_ = torch.log(1 + x_)
 
-        qz_m, qz_v, z = self.z_encoder(x_, batch_index)
-        qs_m, qs_v, s = self.s_encoder(x_, batch_index)
+        qz_m, qz_v, z = self.z_encoder(x_, None, batch_index)
+        qs_m, qs_v, s = self.s_encoder(x_, None, batch_index)
 
         ql_m, ql_v = None, None
         if not self.use_observed_lib_size:
-            ql_m, ql_v, library_encoded = self.l_encoder(x_, batch_index)
+            ql_m, ql_v, library_encoded = self.l_encoder(x_, None, batch_index)
             library = library_encoded
 
         if n_samples > 1:
@@ -333,6 +333,7 @@ class ContrastiveVAE(BaseModuleClass):
             self.dispersion,
             latent,
             library,
+            None,
             batch_index,
         )
         px_r = torch.exp(self.px_r)
