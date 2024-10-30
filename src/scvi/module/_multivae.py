@@ -28,6 +28,7 @@ class LibrarySizeEncoder(torch.nn.Module):
         self,
         n_input: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = 0,
         n_layers: int = 2,
         n_hidden: int = 128,
         use_batch_norm: bool = False,
@@ -40,6 +41,7 @@ class LibrarySizeEncoder(torch.nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
@@ -51,9 +53,9 @@ class LibrarySizeEncoder(torch.nn.Module):
         )
         self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, 1), torch.nn.LeakyReLU())
 
-    def forward(self, x: torch.Tensor, *cat_list: int):
+    def forward(self, x: torch.Tensor, cont_covs: torch.Tensor | None = None, *cat_list: int):
         """Forward pass."""
-        return self.output(self.px_decoder(x, *cat_list))
+        return self.output(self.px_decoder(x, cont_covs, *cat_list))
 
 
 class DecoderADT(torch.nn.Module):
@@ -64,6 +66,7 @@ class DecoderADT(torch.nn.Module):
         n_input: int,
         n_output_proteins: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = 0,
         n_layers: int = 2,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -86,6 +89,7 @@ class DecoderADT(torch.nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -96,6 +100,7 @@ class DecoderADT(torch.nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=1,
             use_activation=True,
             use_batch_norm=False,
@@ -108,6 +113,7 @@ class DecoderADT(torch.nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             **linear_args,
         )
 
@@ -116,6 +122,7 @@ class DecoderADT(torch.nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -128,12 +135,15 @@ class DecoderADT(torch.nn.Module):
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
+            inject_covariates=deep_inject_covariates,
             **linear_args,
         )
         self.py_back_mean_log_beta = FCLayers(
             n_in=n_hidden + n_input,
             n_out=n_output_proteins,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             **linear_args,
         )
 
@@ -142,6 +152,7 @@ class DecoderADT(torch.nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -149,27 +160,31 @@ class DecoderADT(torch.nn.Module):
             use_layer_norm=use_layer_norm,
         )
 
-    def forward(self, z: torch.Tensor, *cat_list: int):
+    def forward(self, z: torch.Tensor, cont_covs: torch.Tensor | None = None, *cat_list: int):
         """Forward pass."""
         # z is the latent repr
         py_ = {}
 
-        py_back = self.py_back_decoder(z, *cat_list)
+        py_back = self.py_back_decoder(z, cont_covs, *cat_list)
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
-        py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+        py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, cont_covs, *cat_list)
+        py_["back_beta"] = torch.exp(
+            self.py_back_mean_log_beta(py_back_cat_z, cont_covs, *cat_list)
+        )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
-        py_fore = self.py_fore_decoder(z, *cat_list)
+        py_fore = self.py_fore_decoder(z, cont_covs, *cat_list)
         py_fore_cat_z = torch.cat([py_fore, z], dim=-1)
-        py_["fore_scale"] = self.py_fore_scale_decoder(py_fore_cat_z, *cat_list) + 1 + 1e-8
+        py_["fore_scale"] = (
+            self.py_fore_scale_decoder(py_fore_cat_z, cont_covs, *cat_list) + 1 + 1e-8
+        )
         py_["rate_fore"] = py_["rate_back"] * py_["fore_scale"]
 
-        p_mixing = self.sigmoid_decoder(z, *cat_list)
+        p_mixing = self.sigmoid_decoder(z, cont_covs, *cat_list)
         p_mixing_cat_z = torch.cat([p_mixing, z], dim=-1)
-        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, *cat_list)
+        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, cont_covs, *cat_list)
 
         protein_mixing = 1 / (1 + torch.exp(-py_["mixing"]))
         py_["scale"] = torch.nn.functional.normalize(
@@ -356,6 +371,7 @@ class MULTIVAE(BaseModuleClass):
             n_input=n_input_encoder_exp,
             n_output=self.n_latent,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_encoder,
             n_hidden=self.n_hidden,
             dropout_rate=self.dropout_rate,
@@ -372,6 +388,7 @@ class MULTIVAE(BaseModuleClass):
         self.l_encoder_expression = LibrarySizeEncoder(
             n_input_encoder_exp,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_encoder,
             n_hidden=self.n_hidden,
             use_batch_norm=self.use_batch_norm_encoder,
@@ -385,6 +402,7 @@ class MULTIVAE(BaseModuleClass):
             n_input_decoder,
             n_input_genes,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_layers=n_layers_decoder,
             n_hidden=self.n_hidden,
             inject_covariates=self.deeply_inject_covariates,
@@ -406,6 +424,7 @@ class MULTIVAE(BaseModuleClass):
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
@@ -426,6 +445,7 @@ class MULTIVAE(BaseModuleClass):
             n_output=n_input_regions,
             n_hidden=self.n_hidden,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
@@ -438,6 +458,7 @@ class MULTIVAE(BaseModuleClass):
             n_output=1,
             n_hidden=self.n_hidden,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_encoder,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
@@ -486,6 +507,7 @@ class MULTIVAE(BaseModuleClass):
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
@@ -501,6 +523,7 @@ class MULTIVAE(BaseModuleClass):
             n_output_proteins=n_input_proteins,
             n_hidden=self.n_hidden,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
@@ -581,7 +604,7 @@ class MULTIVAE(BaseModuleClass):
         mask_acc = x_chr.sum(dim=1) > 0
         mask_pro = y.sum(dim=1) > 0
 
-        if cont_covs is not None and self.encode_covariates:
+        if cont_covs is not None:
             encoder_input_expression = torch.cat((x_rna, cont_covs), dim=-1)
             encoder_input_accessibility = torch.cat((x_chr, cont_covs), dim=-1)
             encoder_input_protein = torch.cat((y, cont_covs), dim=-1)
@@ -597,21 +620,21 @@ class MULTIVAE(BaseModuleClass):
 
         # Z Encoders
         qzm_acc, qzv_acc, z_acc = self.z_encoder_accessibility(
-            encoder_input_accessibility, batch_index, *categorical_input
+            encoder_input_accessibility, None, batch_index, *categorical_input
         )
         qzm_expr, qzv_expr, z_expr = self.z_encoder_expression(
-            encoder_input_expression, batch_index, *categorical_input
+            encoder_input_expression, None, batch_index, *categorical_input
         )
         qzm_pro, qzv_pro, z_pro = self.z_encoder_protein(
-            encoder_input_protein, batch_index, *categorical_input
+            encoder_input_protein, None, batch_index, *categorical_input
         )
 
         # L encoders
         libsize_expr = self.l_encoder_expression(
-            encoder_input_expression, batch_index, *categorical_input
+            encoder_input_expression, None, batch_index, *categorical_input
         )
         libsize_acc = self.l_encoder_accessibility(
-            encoder_input_accessibility, batch_index, *categorical_input
+            encoder_input_accessibility, None, batch_index, *categorical_input
         )
 
         # mix representations
@@ -733,7 +756,7 @@ class MULTIVAE(BaseModuleClass):
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
         # Accessibility Decoder
-        p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
+        p = self.z_decoder_accessibility(decoder_input, None, batch_index, *categorical_input)
 
         # Expression Decoder
         if not self.use_size_factor_key:
@@ -742,6 +765,7 @@ class MULTIVAE(BaseModuleClass):
             self.gene_dispersion,
             decoder_input,
             size_factor,
+            None,
             batch_index,
             *categorical_input,
             label,
@@ -758,7 +782,9 @@ class MULTIVAE(BaseModuleClass):
         px_r = torch.exp(px_r)
 
         # Protein Decoder
-        py_, log_pro_back_mean = self.z_decoder_pro(decoder_input, batch_index, *categorical_input)
+        py_, log_pro_back_mean = self.z_decoder_pro(
+            decoder_input, None, batch_index, *categorical_input
+        )
         # Protein Dispersion
         if self.protein_dispersion == "protein-label":
             # py_r gets transposed - last dimension is n_proteins

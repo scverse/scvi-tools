@@ -26,6 +26,8 @@ class Decoder(nn.Module):
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
+    n_cont
+        The number of continuous covariates.
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -48,6 +50,7 @@ class Decoder(nn.Module):
         n_input: int,
         n_output: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = 0,
         n_layers: int = 2,
         n_hidden: int = 128,
         use_batch_norm: bool = False,
@@ -60,6 +63,7 @@ class Decoder(nn.Module):
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
+            n_cont=n_cont,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=0,
@@ -71,9 +75,9 @@ class Decoder(nn.Module):
         )
         self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid())
 
-    def forward(self, z: torch.Tensor, *cat_list: int):
+    def forward(self, z: torch.Tensor, cont_covs: torch.Tensor | None = None, *cat_list: int):
         """Forward pass."""
-        x = self.output(self.px_decoder(z, *cat_list))
+        x = self.output(self.px_decoder(z, cont_covs, *cat_list))
         return x
 
 
@@ -176,7 +180,7 @@ class PEAKVAE(BaseModuleClass):
 
         cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
 
-        n_input_encoder = self.n_input_regions + n_continuous_cov * encode_covariates
+        n_input_encoder = self.n_input_regions
         encoder_cat_list = cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
@@ -185,6 +189,7 @@ class PEAKVAE(BaseModuleClass):
             n_output=self.n_latent,
             n_hidden=self.n_hidden,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             dropout_rate=self.dropout_rate,
             activation_fn=torch.nn.LeakyReLU,
             distribution=self.latent_distribution,
@@ -197,10 +202,11 @@ class PEAKVAE(BaseModuleClass):
 
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.z_decoder = Decoder(
-            n_input=self.n_latent + self.n_continuous_cov,
+            n_input=self.n_latent,
             n_output=n_input_regions,
             n_hidden=self.n_hidden,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
@@ -216,6 +222,7 @@ class PEAKVAE(BaseModuleClass):
                 n_output=1,
                 n_hidden=self.n_hidden,
                 n_cat_list=encoder_cat_list,
+                n_cont=n_continuous_cov,
                 n_layers=self.n_layers_encoder,
                 **_extra_decoder_kwargs,
             )
@@ -274,15 +281,15 @@ class PEAKVAE(BaseModuleClass):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
-        if cont_covs is not None and self.encode_covariates:
+        if cont_covs is not None:
             encoder_input = torch.cat([x, cont_covs], dim=-1)
         else:
             encoder_input = x
         # if encode_covariates is False, cat_list to init encoder is None, so
         # batch_index is not used (or categorical_input, but it's empty)
-        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        qz, z = self.z_encoder(encoder_input, cont_covs, batch_index, *categorical_input)
         d = (
-            self.d_encoder(encoder_input, batch_index, *categorical_input)
+            self.d_encoder(encoder_input, cont_covs, batch_index, *categorical_input)
             if self.model_depth
             else 1
         )
@@ -320,7 +327,7 @@ class PEAKVAE(BaseModuleClass):
         else:
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
-        p = self.z_decoder(decoder_input, batch_index, *categorical_input)
+        p = self.z_decoder(decoder_input, cont_covs, batch_index, *categorical_input)
 
         return {"p": p}
 

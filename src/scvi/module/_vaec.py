@@ -55,6 +55,7 @@ class VAEC(BaseModuleClass):
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
+        n_continuous_cov: int = 0,
         log_variational: bool = True,
         ct_weight: np.ndarray | None = None,
         dropout_rate: float = 0.05,
@@ -85,6 +86,7 @@ class VAEC(BaseModuleClass):
             n_input,
             n_latent,
             n_cat_list=[n_labels] + ([n_batch] if n_batch > 0 and encode_covariates else []),
+            n_cont=n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -99,6 +101,7 @@ class VAEC(BaseModuleClass):
             n_in=n_latent,
             n_out=n_hidden,
             n_cat_list=[n_labels] + ([n_batch] if n_batch > 0 else []),
+            n_cont=n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -158,11 +161,10 @@ class VAEC(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log1p(x_)
 
-        encoder_input = [x, y]
         if batch_index is not None and self.encode_covariates:
-            encoder_input.append(batch_index)
-
-        qz, z = self.z_encoder(*encoder_input)
+            qz, z = self.z_encoder(x, None, y, batch_index)
+        else:
+            qz, z = self.z_encoder(x, None, y)
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
@@ -187,14 +189,14 @@ class VAEC(BaseModuleClass):
         """Runs the generative model."""
         from scvi.distributions import NegativeBinomial
 
-        decoder_input = [z, y]
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
         if batch_index is not None:
-            decoder_input.append(batch_index)
+            h = self.decoder(z, None, y, batch_index)
+        else:
+            h = self.decoder(z, None, y)
 
-        h = self.decoder(*decoder_input)
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
         return {MODULE_KEYS.PX_KEY: NegativeBinomial(px_rate, logits=self.px_r)}

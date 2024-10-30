@@ -183,6 +183,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.n_labels = n_labels
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
+        self.deeply_inject_covariates = deeply_inject_covariates
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
 
@@ -221,7 +222,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         use_layer_norm_encoder = use_layer_norm == "encoder" or use_layer_norm == "both"
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
-        n_input_encoder = n_input + n_continuous_cov * encode_covariates
+        n_input_encoder = n_input
         if self.batch_representation == "embedding":
             n_input_encoder += batch_dim * encode_covariates
             cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
@@ -234,10 +235,13 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             n_input_encoder,
             n_latent,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
             distribution=latent_distribution,
+            encode_covariates=encode_covariates,
+            batch_representation=batch_representation,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
@@ -251,8 +255,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             1,
             n_layers=1,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
+            encode_covariates=encode_covariates,
+            batch_representation=batch_representation,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
@@ -260,7 +267,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             return_dist=True,
             **_extra_encoder_kwargs,
         )
-        n_input_decoder = n_latent + n_continuous_cov
+        n_input_decoder = n_latent
         if self.batch_representation == "embedding":
             n_input_decoder += batch_dim
 
@@ -269,8 +276,11 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             n_input_decoder,
             n_input,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_layers=n_layers,
             n_hidden=n_hidden,
+            encode_covariates=encode_covariates,
+            batch_representation=batch_representation,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
@@ -360,7 +370,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.log_variational:
             x_ = torch.log1p(x_)
 
-        if cont_covs is not None and self.encode_covariates:
+        if cont_covs is not None:
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
@@ -372,17 +382,17 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.batch_representation == "embedding" and self.encode_covariates:
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
-            qz, z = self.z_encoder(encoder_input, *categorical_input)
+            qz, z = self.z_encoder(encoder_input, cont_covs, *categorical_input)
         else:
-            qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+            qz, z = self.z_encoder(encoder_input, cont_covs, batch_index, *categorical_input)
 
         ql = None
         if not self.use_observed_lib_size:
             if self.batch_representation == "embedding":
-                ql, library_encoded = self.l_encoder(encoder_input, *categorical_input)
+                ql, library_encoded = self.l_encoder(encoder_input, cont_covs, *categorical_input)
             else:
                 ql, library_encoded = self.l_encoder(
-                    encoder_input, batch_index, *categorical_input
+                    encoder_input, batch_index, cont_covs, *categorical_input
                 )
             library = library_encoded
 
@@ -486,6 +496,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 self.dispersion,
                 decoder_input,
                 size_factor,
+                cont_covs,
                 *categorical_input,
                 y,
             )
@@ -494,6 +505,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 self.dispersion,
                 decoder_input,
                 size_factor,
+                cont_covs,
                 batch_index,
                 *categorical_input,
                 y,
@@ -835,6 +847,7 @@ class LDVAE(VAE):
             n_latent,
             n_input,
             n_cat_list=[n_batch],
+            n_cont=0,
             use_batch_norm=use_batch_norm,
             use_layer_norm=False,
             bias=bias,

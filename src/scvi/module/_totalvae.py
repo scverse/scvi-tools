@@ -220,7 +220,7 @@ class TOTALVAE(BaseModuleClass):
         # z encoder goes from the n_input-dimensional data to an n_latent-d
         # latent space representation
         n_input = n_input_genes + self.n_input_proteins
-        n_input_encoder = n_input + n_continuous_cov * encode_covariates
+        n_input_encoder = n_input
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
         encoder_cat_list = cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
@@ -229,6 +229,7 @@ class TOTALVAE(BaseModuleClass):
             n_latent,
             n_layers=n_layers_encoder,
             n_cat_list=encoder_cat_list,
+            n_cont=n_continuous_cov,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_encoder,
             distribution=latent_distribution,
@@ -238,11 +239,12 @@ class TOTALVAE(BaseModuleClass):
         )
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
         self.decoder = DecoderTOTALVI(
-            n_latent + n_continuous_cov,
+            n_latent,
             n_input_genes,
             self.n_input_proteins,
             n_layers=n_layers_decoder,
             n_cat_list=cat_list,
+            n_cont=n_continuous_cov,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate_decoder,
             use_batch_norm=use_batch_norm_decoder,
@@ -403,7 +405,7 @@ class TOTALVAE(BaseModuleClass):
             size_factor = library_gene
 
         px_, py_, log_pro_back_mean = self.decoder(
-            decoder_input, size_factor, batch_index, *categorical_input
+            decoder_input, size_factor, cont_covs, batch_index, *categorical_input
         )
 
         if self.gene_dispersion == "gene-label":
@@ -485,7 +487,7 @@ class TOTALVAE(BaseModuleClass):
             x_ = torch.log(1 + x_)
             y_ = torch.log(1 + y_)
 
-        if cont_covs is not None and self.encode_covariates is True:
+        if cont_covs is not None:
             encoder_input = torch.cat((x_, y_, cont_covs), dim=-1)
         else:
             encoder_input = torch.cat((x_, y_), dim=-1)
@@ -494,7 +496,7 @@ class TOTALVAE(BaseModuleClass):
         else:
             categorical_input = ()
         qz, ql, latent, untran_latent = self.encoder(
-            encoder_input, batch_index, *categorical_input
+            encoder_input, cont_covs, batch_index, *categorical_input
         )
 
         z = latent["z"]

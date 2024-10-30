@@ -234,7 +234,7 @@ def test_peakvi_online_update(save_path):
     assert np.count_nonzero(grad[:, :-4]) != 0
 
 
-def test_peakvi_covariates(save_path):
+def test_peakvi_covariates():
     # here we would like to check the usage of encode_covariates/deeply_inject_covariates
     adata = synthetic_iid()
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
@@ -256,6 +256,3 @@ def test_peakvi_covariates(save_path):
         deeply_inject_covariates=True,
     )
     model.train(1, check_val_every_n_epoch=1, save_best=False)
-    # model.module.z_encoder.encoder.fc_layers
-    dir_path = os.path.join(save_path, "saved_model/")
-    model.save(dir_path, overwrite=True)
