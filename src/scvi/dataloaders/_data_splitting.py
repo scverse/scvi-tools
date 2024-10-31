@@ -40,8 +40,8 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
 
     if n_train % settings.batch_size < 3 and n_train % settings.batch_size > 0:
         warnings.warn(
-            f"Last batch will have a small size of {n_train % settings.batch_size}"
-            f"samples. Consider changing settings.batch_size or batch_size in model.train"
+            f"Last batch will have a small size of {n_train % settings.batch_size} "
+            f"samples. Consider changing settings.batch_size or batch_size in model.train "
             f"currently {settings.batch_size} to avoid errors during model training.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
@@ -59,9 +59,20 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
     if n_train == 0:
         raise ValueError(
             f"With n_samples={n_samples}, train_size={train_size} and "
-            f"validation_size={validation_size}, the resulting train set will be empty. Adjust"
+            f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
             "any of the aforementioned parameters."
         )
+
+    if n_train % settings.batch_size == 1 and n_val > 2:
+        #a final batch of size == 1
+        warnings.warn(
+            f"Last batch will have exactly size of 1 sample and will cause error during "
+            f"training. 1 sample was moved from validation to training in order for it to run.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+        n_train += 1
+        n_val -= 1
 
     return n_train, n_val
 
@@ -131,6 +142,15 @@ def validate_data_split_with_external_indexing(
 
     n_train = len(external_indexing[0])
     n_val = len(external_indexing[1])
+
+    if n_train % settings.batch_size < 3 and n_train % settings.batch_size > 0:
+        warnings.warn(
+            f"Last batch will have a small size of {n_train % settings.batch_size} "
+            f"samples. Consider changing settings.batch_size or batch_size in model.train "
+            f"currently {settings.batch_size} to avoid errors during model training.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
     return n_train, n_val
 
