@@ -64,10 +64,10 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
         )
 
     if n_train % settings.batch_size == 1 and n_val > 2:
-        #a final batch of size == 1
+        # a final batch of size == 1
         warnings.warn(
-            f"Last batch will have exactly size of 1 sample and will cause error during "
-            f"training. 1 sample was moved from validation to training in order for it to run.",
+            "Last batch will have exactly size of 1 sample and will cause error during "
+            "training. 1 sample was moved from validation to training in order for it to run.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
