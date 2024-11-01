@@ -91,7 +91,7 @@ def test_sysvi_model(
     # Model
 
     # Check that model runs through with standard normal prior
-    model = SysVI(adata=adata, prior="standard_normal")
+    model = SysVI(adata=adata, prior="standard_normal", embed_cat=embed_cat)
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check that model runs through with vamp prior
@@ -100,6 +100,7 @@ def test_sysvi_model(
         prior="vamp",
         pseudoinputs_data_indices=pseudoinputs_data_indices,
         n_prior_components=5,
+        embed_cat=embed_cat,
     )
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
