@@ -8,7 +8,7 @@ if TYPE_CHECKING:
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
 
 from ._base_components import EncoderDecoder
 from ._priors import StandardPrior, VampPrior
@@ -16,7 +16,7 @@ from ._priors import StandardPrior, VampPrior
 torch.backends.cudnn.benchmark = True
 
 
-class SysVAE(BaseModuleClass):
+class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
     """CVAE with optional VampPrior and latent cycle consistency loss.
 
     Described in
@@ -347,7 +347,7 @@ class SysVAE(BaseModuleClass):
             cat = torch.split(tensors[REGISTRY_KEYS.CAT_COVS_KEY], 1, dim=1)
             if self.embed_cat:
                 for idx, tensor in enumerate(cat):
-                    cont_parts.append(self.compute_embedding(tensor, self._cov_idx_name(idx)))
+                    cont_parts.append(self.compute_embedding(self._cov_idx_name(idx), tensor))
             else:
                 cat_parts.extend(cat)
         cov = {
