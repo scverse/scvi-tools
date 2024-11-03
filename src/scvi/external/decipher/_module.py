@@ -36,8 +36,6 @@ class DecipherPyroModule(PyroBaseModuleClass):
         Hidden layer sizes for the z to x decoder network.
     beta
         Regularization parameter for the KL divergence.
-    prior
-        Type of prior distribution to use.
     """
 
     def __init__(
@@ -48,7 +46,6 @@ class DecipherPyroModule(PyroBaseModuleClass):
         layers_v_to_z: Sequence[int] = (64,),
         layers_z_to_x: Sequence[int] = (),
         beta: float = 0.1,
-        prior: str = "normal",
     ):
         super().__init__()
         self.dim_v = dim_v
@@ -57,7 +54,6 @@ class DecipherPyroModule(PyroBaseModuleClass):
         self.layers_v_to_z = layers_v_to_z
         self.layers_z_to_x = layers_z_to_x
         self.beta = beta
-        self.prior = prior
 
         self.decoder_v_to_z = ConditionalDenseNN(dim_v, layers_v_to_z, [dim_z] * 2)
         self.decoder_z_to_x = ConditionalDenseNN(dim_z, layers_z_to_x, [dim_genes])
@@ -82,7 +78,9 @@ class DecipherPyroModule(PyroBaseModuleClass):
         return self._dummy_param.device
 
     @staticmethod
-    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
+    def _get_fn_args_from_batch(
+        tensor_dict: dict[str, torch.Tensor]
+    ) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         return (x,), {}
 
@@ -101,12 +99,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
             poutine.scale(scale=1.0),
         ):
             with poutine.scale(scale=self.beta):
-                if self.prior == "normal":
-                    prior = dist.Normal(0, x.new_ones(self.dim_v)).to_event(1)
-                elif self.prior == "gamma":
-                    prior = dist.Gamma(0.3, x.new_ones(self.dim_v) * 0.8).to_event(1)
-                else:
-                    raise ValueError("Invalid prior, must be normal or gamma")
+                prior = dist.Normal(0, x.new_ones(self.dim_v)).to_event(1)
                 v = pyro.sample("v", prior)
 
             z_loc, z_scale = self.decoder_v_to_z(v)
@@ -123,7 +116,9 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 self.theta + self._epsilon
             )
             # noinspection PyUnresolvedReferences
-            x_dist = dist.NegativeBinomial(total_count=self.theta + self._epsilon, logits=logit)
+            x_dist = dist.NegativeBinomial(
+                total_count=self.theta + self._epsilon, logits=logit
+            )
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @auto_move_data
@@ -144,12 +139,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
             v_loc, v_scale = self.encoder_zx_to_v(zx)
             v_scale = softplus(v_scale)
             with poutine.scale(scale=self.beta):
-                if self.prior == "gamma":
-                    posterior_v = dist.Gamma(softplus(v_loc), v_scale).to_event(1)
-                elif self.prior == "normal" or self.prior == "student-normal":
-                    posterior_v = dist.Normal(v_loc, v_scale).to_event(1)
-                else:
-                    raise ValueError("Invalid prior, must be normal or gamma")
+                posterior_v = dist.Normal(v_loc, v_scale).to_event(1)
                 pyro.sample("v", posterior_v)
         return z_loc, v_loc, z_scale, v_scale
 
@@ -184,7 +174,9 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 model_trace = poutine.trace(
                     poutine.replay(self.model, trace=guide_trace)
                 ).get_trace(x)
-                log_weights.append(model_trace.log_prob_sum() - guide_trace.log_prob_sum())
+                log_weights.append(
+                    model_trace.log_prob_sum() - guide_trace.log_prob_sum()
+                )
 
         finally:
             self.beta = old_beta
