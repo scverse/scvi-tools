@@ -163,8 +163,8 @@ def validate_data_split_with_external_indexing(
         if n_train % batch_size < 3 and n_train % batch_size > 0:
             warnings.warn(
                 f"Last batch will have a small size of {n_train % batch_size} "
-                f"samples. Consider changing settings.batch_size or batch_size in model.train from "
-                f"currently {settings.batch_size} to avoid errors during model training "
+                f"samples. Consider changing settings.batch_size or batch_size in model.train "
+                f"from currently {settings.batch_size} to avoid errors during model training "
                 f"or change the given external indices accordingly",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
