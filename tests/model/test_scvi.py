@@ -487,7 +487,7 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     with pytest.warns(UserWarning):
-        model.train(1, train_size=0.9) #np.ceil(n_cells * 0.9) % 128 == 1
+        model.train(1, train_size=0.9)  # np.ceil(n_cells * 0.9) % 128 == 1
 
     assert model.is_trained is True
 

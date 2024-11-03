@@ -21,8 +21,13 @@ from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
 
 
-def validate_data_split(n_samples: int, train_size: float, validation_size: float | None = None,
-                        batch_size: int | None = None, drop_last: bool | int = False):
+def validate_data_split(
+    n_samples: int,
+    train_size: float,
+    validation_size: float | None = None,
+    batch_size: int | None = None,
+    drop_last: bool | int = False,
+):
     """Check data splitting parameters and return n_train and n_val.
 
     Parameters
@@ -74,18 +79,19 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
             if n_val > 0:
                 n_val += num_of_cells
                 warnings.warn(
-                    f" {num_of_cells} cells moved from training set to "
-                    f"validation set",
+                    f" {num_of_cells} cells moved from training set to " f"validation set",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
-            )
+                )
 
     return n_train, n_val
 
 
-def validate_data_split_with_external_indexing(n_samples: int,
+def validate_data_split_with_external_indexing(
+    n_samples: int,
     external_indexing: list[np.array, np.array, np.array] | None = None,
-    batch_size: int | None = None, drop_last: bool | int = False
+    batch_size: int | None = None,
+    drop_last: bool | int = False,
 ):
     """Check data splitting parameters and return n_train and n_val.
 
@@ -235,14 +241,19 @@ class DataSplitter(pl.LightningDataModule):
 
         if self.external_indexing is not None:
             self.n_train, self.n_val = validate_data_split_with_external_indexing(
-                self.adata_manager.adata.n_obs, self.external_indexing,
-                self.data_loader_kwargs["batch_size"], self.drop_last
+                self.adata_manager.adata.n_obs,
+                self.external_indexing,
+                self.data_loader_kwargs["batch_size"],
+                self.drop_last,
             )
         else:
-            self.n_train, self.n_val = validate_data_split(self.adata_manager.adata.n_obs,
-                 self.train_size, self.validation_size, self.data_loader_kwargs["batch_size"],
-                                                           self.drop_last
-                                                           )
+            self.n_train, self.n_val = validate_data_split(
+                self.adata_manager.adata.n_obs,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs["batch_size"],
+                self.drop_last,
+            )
 
     def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
@@ -412,12 +423,16 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
                     n_labeled_idx,
                     [labeled_idx_train, labeled_idx_val, labeled_idx_test],
-                    self.data_loader_kwargs["batch_size"], self.drop_last
+                    self.data_loader_kwargs["batch_size"],
+                    self.drop_last,
                 )
             else:
-                n_labeled_train, n_labeled_val = validate_data_split(n_labeled_idx,
-                    self.train_size, self.validation_size, self.data_loader_kwargs["batch_size"],
-                                                                     self.drop_last
+                n_labeled_train, n_labeled_val = validate_data_split(
+                    n_labeled_idx,
+                    self.train_size,
+                    self.validation_size,
+                    self.data_loader_kwargs["batch_size"],
+                    self.drop_last,
                 )
 
                 labeled_permutation = self._labeled_indices
@@ -448,12 +463,16 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
                     n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
-                    self.data_loader_kwargs["batch_size"], self.drop_last
+                    self.data_loader_kwargs["batch_size"],
+                    self.drop_last,
                 )
             else:
-                n_unlabeled_train, n_unlabeled_val = validate_data_split(n_unlabeled_idx,
-                    self.train_size, self.validation_size, self.data_loader_kwargs["batch_size"],
-                                                                         self.drop_last
+                n_unlabeled_train, n_unlabeled_val = validate_data_split(
+                    n_unlabeled_idx,
+                    self.train_size,
+                    self.validation_size,
+                    self.data_loader_kwargs["batch_size"],
+                    self.drop_last,
                 )
 
                 unlabeled_permutation = self._unlabeled_indices
