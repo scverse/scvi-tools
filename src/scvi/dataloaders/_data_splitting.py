@@ -64,8 +64,8 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
             num_of_cells = n_train % batch_size
             warnings.warn(
                 f"Last batch will have a small size of {num_of_cells} "
-                f"samples. Consider changing settings.batch_size or batch_size in model.train from"
-                f" currently {batch_size} to avoid errors during model training. Those cells "
+                f"samples. Consider changing settings.batch_size or batch_size in model.train "
+                f"from currently {batch_size} to avoid errors during model training. Those cells "
                 f"will be removed from the training set automatically",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
