@@ -17,7 +17,7 @@ from ._components import ConditionalDenseNN
 
 
 class DecipherPyroModule(PyroBaseModuleClass):
-    """Decipher PyroModule for single-cell data analysis.
+    """Pyro Module for the Decipher model.
 
     This module implements the Decipher model for dimensionality reduction and
     interpretable representation learning in single-cell RNA sequencing data.

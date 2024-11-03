@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class Decipher(PyroSviTrainMixin, BaseModelClass):
-    """Decipher model for single-cell data analysis :cite:p:`Nazaret2023`.
+    """Decipher model for single-cell data analysis :cite:p:`Nazaret23`.
 
     Parameters
     ----------
