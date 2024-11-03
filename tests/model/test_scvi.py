@@ -475,12 +475,20 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     adata = adata[0:129].copy()
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
-    with pytest.raises(ValueError):
+    with pytest.warns(UserWarning):
         model.train(1, train_size=1.0)
     with pytest.warns(UserWarning):
         # Warning is emitted if last batch less than 3 cells.
         model.train(1, train_size=1.0, batch_size=127)
     model.train(1, train_size=1.0, datasplitter_kwargs={"drop_last": True})
+
+    adata = synthetic_iid()
+    adata = adata[0:143].copy()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.warns(UserWarning):
+        model.train(1, train_size=0.9) #np.ceil(n_cells * 0.9) % 128 == 1
+
     assert model.is_trained is True
 
 
