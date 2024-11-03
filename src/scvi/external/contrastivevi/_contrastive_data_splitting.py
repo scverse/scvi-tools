@@ -78,12 +78,18 @@ class ContrastiveDataSplitter(DataSplitter):
         self.n_target = len(target_indices)
         if external_indexing is None:
             self.n_background_train, self.n_background_val = validate_data_split(
-                self.n_background, self.train_size, self.validation_size,
-                self.data_loader_kwargs["batch_size"], self.drop_last
+                self.n_background,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs["batch_size"],
+                self.drop_last,
             )
             self.n_target_train, self.n_target_val = validate_data_split(
-                self.n_target, self.train_size, self.validation_size,
-                self.data_loader_kwargs["batch_size"], self.drop_last
+                self.n_target,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs["batch_size"],
+                self.drop_last,
             )
         else:
             # we need to intersect the external indexing given with the bg/target indices
@@ -95,7 +101,8 @@ class ContrastiveDataSplitter(DataSplitter):
                 validate_data_split_with_external_indexing(
                     self.n_background,
                     [self.background_train_idx, self.background_val_idx, self.background_test_idx],
-                    self.data_loader_kwargs["batch_size"], self.drop_last
+                    self.data_loader_kwargs["batch_size"],
+                    self.drop_last,
                 )
             )
             self.background_train_idx, self.background_val_idx, self.background_test_idx = (
@@ -110,7 +117,8 @@ class ContrastiveDataSplitter(DataSplitter):
             self.n_target_train, self.n_target_val = validate_data_split_with_external_indexing(
                 self.n_target,
                 [self.target_train_idx, self.target_val_idx, self.target_test_idx],
-                self.data_loader_kwargs["batch_size"], self.drop_last
+                self.data_loader_kwargs["batch_size"],
+                self.drop_last,
             )
             self.target_train_idx, self.target_val_idx, self.target_test_idx = (
                 self.target_train_idx.tolist(),
