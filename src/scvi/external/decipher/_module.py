@@ -78,9 +78,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
         return self._dummy_param.device
 
     @staticmethod
-    def _get_fn_args_from_batch(
-        tensor_dict: dict[str, torch.Tensor]
-    ) -> Iterable | dict:
+    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         return (x,), {}
 
@@ -116,9 +114,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 self.theta + self._epsilon
             )
             # noinspection PyUnresolvedReferences
-            x_dist = dist.NegativeBinomial(
-                total_count=self.theta + self._epsilon, logits=logit
-            )
+            x_dist = dist.NegativeBinomial(total_count=self.theta + self._epsilon, logits=logit)
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @auto_move_data
@@ -174,9 +170,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 model_trace = poutine.trace(
                     poutine.replay(self.model, trace=guide_trace)
                 ).get_trace(x)
-                log_weights.append(
-                    model_trace.log_prob_sum() - guide_trace.log_prob_sum()
-                )
+                log_weights.append(model_trace.log_prob_sum() - guide_trace.log_prob_sum())
 
         finally:
             self.beta = old_beta
