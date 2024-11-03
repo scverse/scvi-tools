@@ -10,7 +10,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
-from scvi.data._utils import _get_adata_minify_type, get_anndata_attribute
+from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.model.base import (
     BaseModelClass,
@@ -81,7 +81,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
         n_vars = self.summary_stats.n_vars
-        if 'n_fine_labels' in self.summary_stats:
+        if "n_fine_labels" in self.summary_stats:
             self.n_fine_labels = self.summary_stats.n_fine_labels
         else:
             self.n_fine_labels = None
@@ -153,19 +153,16 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         if self.module.prior == "mog":
             results = {
                 "mean_vprior": self.module.prior_means,
-                "var_vprior": torch.exp(self.module.prior_log_std)**2,
-                "weights_vprior": torch.nn.functional.softmax(self.module.prior_logits, dim=-1)
+                "var_vprior": torch.exp(self.module.prior_log_std) ** 2,
+                "weights_vprior": torch.nn.functional.softmax(self.module.prior_logits, dim=-1),
             }
         else:
-
             # Extracting latent representation of adata including variances.
             mean_vprior = np.zeros((self.summary_stats.n_labels, p, self.module.n_latent))
             var_vprior = np.ones((self.summary_stats.n_labels, p, self.module.n_latent))
             mp_vprior = np.zeros((self.summary_stats.n_labels, p))
 
-            labels_state_registry = self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.LABELS_KEY
-            )
+            labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
             key = labels_state_registry.original_key
             mapping = labels_state_registry.categorical_mapping
 
@@ -217,16 +214,16 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             results = {
                 "mean_vprior": mean_vprior,
                 "var_vprior": var_vprior,
-                "weights_vprior": mp_vprior
+                "weights_vprior": mp_vprior,
             }
 
         return results
-    
+
     @torch.inference_mode()
     def predict(
         self,
         adata: AnnData | None = None,
-        indices: Sequence[int] | None = None,
+        indices: list[int] | None = None,
         soft: bool = False,
         batch_size: int | None = None,
         use_posterior_mean: bool = True,
@@ -261,7 +258,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         y_pred = []
         for _, tensors in enumerate(scdl):
             inference_input = self.module._get_inference_input(tensors)
-            qz = self.module.inference(**inference_input)['qz']
+            qz = self.module.inference(**inference_input)["qz"]
             if use_posterior_mean:
                 z = qz.loc
             else:
@@ -291,8 +288,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
                 index=adata.obs_names[indices],
             )
             return pred
-    
-    @torch.inference_mode()    
+
+    @torch.inference_mode()
     def confusion_coarse_celltypes(
         self,
         adata: AnnData | None = None,
@@ -327,15 +324,15 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             batch_size=batch_size,
         )
         # Iterate once over the data and computes the reconstruction error
-        keys = list(self._label_mapping) + ['original']
+        keys = list(self._label_mapping) + ["original"]
         log_lkl = {key: [] for key in keys}
         for tensors in scdl:
             loss_kwargs = {"kl_weight": 1}
             _, _, losses = self.module(tensors, loss_kwargs=loss_kwargs)
-            log_lkl['original'] += [losses.reconstruction_loss]
+            log_lkl["original"] += [losses.reconstruction_loss]
             for i in range(self.module.n_labels):
                 tensors_ = tensors
-                tensors_['y'] = torch.full_like(tensors['y'], i)
+                tensors_["y"] = torch.full_like(tensors["y"], i)
                 _, _, losses = self.module(tensors_, loss_kwargs=loss_kwargs)
                 log_lkl[keys[i]] += [losses.reconstruction_loss]
         for key in keys:
@@ -406,19 +403,15 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             plan_kwargs=plan_kwargs,
             **kwargs,
         )
-        
+
     def _set_indices_and_labels(self, adata: AnnData):
         """Set indices for labeled and unlabeled cells."""
-        labels_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         self.original_label_key = labels_state_registry.original_key
         self._label_mapping = labels_state_registry.categorical_mapping
         self._code_to_label = dict(enumerate(self._label_mapping))
         if self.n_fine_labels is not None:
-            fine_labels_state_registry = self.adata_manager.get_state_registry(
-                'fine_labels'
-            )
+            fine_labels_state_registry = self.adata_manager.get_state_registry("fine_labels")
             self.original_fine_label_key = fine_labels_state_registry.original_key
             self._fine_label_mapping = fine_labels_state_registry.categorical_mapping
             self._code_to_fine_label = dict(enumerate(self._fine_label_mapping))
@@ -456,15 +449,13 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         ]
         if fine_labels_key is not None:
             anndata_fields.append(
-                LabelsWithUnlabeledObsField('fine_labels', fine_labels_key, unlabeled_category),
+                LabelsWithUnlabeledObsField("fine_labels", fine_labels_key, unlabeled_category),
             )
 
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:
             anndata_fields += cls._get_fields_for_adata_minification(cls, adata_minify_type)
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

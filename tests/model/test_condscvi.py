@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 import pytest
 
@@ -26,6 +27,18 @@ def test_condscvi_batch_key(
     model.save(model_path, overwrite=True, save_anndata=False)
     model = CondSCVI.load(model_path, adata=adata)
 
+def test_condscvi_fine_celltype(
+    save_path: str,
+):
+    adata = synthetic_iid(n_batches=5, n_labels=5)
+    adata.obs['fine_labels'] = [i+str(np.random.randint(2)) for i in adata.obs['labels']]
+    CondSCVI.setup_anndata(adata, batch_key="batch", labels_key="labels", fine_labels_key="fine_labels")
+    model = CondSCVI(adata, encode_covariates=True)
+
+    model.train(max_epochs=1)
+    model.predict()
+    model.predict(adata=adata)
+    model.predict(adata, soft=True, use_posterior_mean=False)
 
 def test_condscvi_batch_key_compat_load(save_path: str):
     adata = synthetic_iid()
