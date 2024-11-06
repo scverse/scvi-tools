@@ -41,11 +41,6 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from scvi._types import MinifiedDataType
-    from scvi.data.fields import (
-        BaseAnnDataField,
-    )
-
     from ._scvi import SCVI
 
 _SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
