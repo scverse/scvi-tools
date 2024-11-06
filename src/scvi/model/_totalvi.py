@@ -1275,7 +1275,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         --------
         >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
         >>> scvi.model.TOTALVI.setup_mudata(
-                mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"}
+                mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
             )
         >>> vae = scvi.model.TOTALVI(mdata)
         """

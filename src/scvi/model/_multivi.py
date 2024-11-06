@@ -13,7 +13,7 @@ from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
+from scvi.data import AnnDataManager, fields
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+    from mudata import MuData
 
     from scvi._types import Number
 
@@ -1117,3 +1118,104 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         if (adata is not None) and (self.module.modality_weights == "cell"):
             raise RuntimeError("Held out data not permitted when using per cell weights")
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_mudata(
+        cls,
+        mdata: MuData,
+        rna_layer: str | None = None,
+        protein_layer: str | None = None,
+        batch_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        idx_layer: str | None = None,
+        modalities: dict[str, str] | None = None,
+        **kwargs,
+    ):
+        """%(summary_mdata)s.
+
+        Parameters
+        ----------
+        %(param_mdata)s
+        rna_layer
+            RNA layer key. If `None`, will use `.X` of specified modality key.
+        protein_layer
+            ATAC layer key. If `None`, will use `.X` of specified modality key.
+        %(param_batch_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(idx_layer)s
+        %(param_modalities)s
+
+        Examples
+        --------
+        >>> mdata = muon.read_10x_h5("filtered_feature_bc_matrix.h5")
+        >>> scvi.model.MULTIVI.setup_mudata(
+                mdata, modalities={"rna_layer": "rna", "protein_layer": "atac"}
+            )
+        >>> vae = scvi.model.MULTIVI(mdata)
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+
+        if modalities is None:
+            raise ValueError("Modalities cannot be None.")
+        modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+        mdata.obs["_indices"] = np.arange(mdata.n_obs)
+
+        batch_field = fields.MuDataCategoricalObsField(
+            REGISTRY_KEYS.BATCH_KEY,
+            batch_key,
+            mod_key=modalities.batch_key,
+        )
+        mudata_fields = [
+            fields.MuDataLayerField(
+                REGISTRY_KEYS.X_KEY,
+                rna_layer,
+                mod_key=modalities.rna_layer,
+                is_count_data=True,
+                mod_required=True,
+            ),
+            batch_field,
+            fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.LABELS_KEY,
+                None,
+                mod_key=None,
+            ),
+            fields.MuDataNumericalObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY,
+                size_factor_key,
+                mod_key=modalities.size_factor_key,
+                required=False,
+            ),
+            fields.MuDataCategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY,
+                categorical_covariate_keys,
+                mod_key=modalities.categorical_covariate_keys,
+            ),
+            fields.MuDataNumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY,
+                continuous_covariate_keys,
+                mod_key=modalities.continuous_covariate_keys,
+            ),
+            fields.MuDataNumericalObsField(
+                REGISTRY_KEYS.INDICES_KEY,
+                "_indices",
+                mod_key=modalities.idx_layer,
+                required=False,
+            ),
+            fields.MuDataProteinLayerField(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                protein_layer,
+                mod_key=modalities.protein_layer,
+                use_batch_mask=True,
+                batch_field=batch_field,
+                is_count_data=True,
+                mod_required=True,
+            ),
+        ]
+        adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
+        adata_manager.register_fields(mdata, **kwargs)
+        cls.register_manager(adata_manager)
