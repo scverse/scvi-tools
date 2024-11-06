@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
-from typing import TYPE_CHECKING
 
 import scvi
 from scvi.data import synthetic_iid

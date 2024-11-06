@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from anndata import AnnData
 from scipy.sparse import csr_matrix
-from typing import TYPE_CHECKING
 
 from scvi import REGISTRY_KEYS
 
 if TYPE_CHECKING:
     from scvi.data import AnnDataManager
+
 
 def get_minified_adata_scrna(
     adata_manager: AnnDataManager,
