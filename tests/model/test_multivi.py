@@ -82,8 +82,10 @@ def test_multivi_single_batch():
 
 def test_multivi_mudata():
     # optional data - big one
-    url = ("https://cf.10xgenomics.com/samples/cell-arc/2.0.0/10k_PBMC_Multiome_nextgem_Chromium_X"
-           "/10k_PBMC_Multiome_nextgem_Chromium_X_filtered_feature_bc_matrix.h5")
+    url = (
+        "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/10k_PBMC_Multiome_nextgem_Chromium_X"
+        "/10k_PBMC_Multiome_nextgem_Chromium_X_filtered_feature_bc_matrix.h5"
+    )
     mdata = muon.read_10x_h5("data/multiome10k.h5mu", backup_url=url)
     mdata
     MULTIVI.setup_mudata(mdata, modalities={"rna_layer": "rna", "protein_layer": "atac"})
