@@ -9,6 +9,7 @@ to [Semantic Versioning]. Full commit history is available in the
 ### 1.2.1 (2024-XX-XX)
 
 #### Added
+
 - Experimental MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`30xx`.
 

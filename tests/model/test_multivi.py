@@ -1,10 +1,11 @@
+import muon
 import numpy as np
 import pytest
+from mudata import MuData
 
 from scvi.data import synthetic_iid
 from scvi.model import MULTIVI
-from mudata import MuData
-import muon
+
 
 def test_multivi():
     data = synthetic_iid()
@@ -67,7 +68,7 @@ def test_multivi():
         n_regions=50,
         modality_weights="cell",
     )
-    #assert vae.n_regions == data.obsm["protein_expression"].shape[1]
+    # assert vae.n_regions == data.obsm["protein_expression"].shape[1]
     vae.train(3)
 
 
@@ -80,7 +81,7 @@ def test_multivi_single_batch():
 
 
 def test_multivi_mudata():
-    #optional data - big one
+    # optional data - big one
     url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/10k_PBMC_Multiome_nextgem_Chromium_X/10k_PBMC_Multiome_nextgem_Chromium_X_filtered_feature_bc_matrix.h5"
     mdata = muon.read_10x_h5("data/multiome10k.h5mu", backup_url=url)
     mdata
@@ -97,7 +98,7 @@ def test_multivi_mudata():
     )
 
     n_obs = mdata.n_obs
-    n_genes = np.min([adata.n_vars,protein_adata.n_vars])
+    n_genes = np.min([adata.n_vars, protein_adata.n_vars])
     n_regions = protein_adata.X.shape[1]
     n_latent = 10
 
@@ -107,17 +108,17 @@ def test_multivi_mudata():
     z = model.get_latent_representation()
     assert z.shape == (n_obs, n_latent)
     model.get_elbo()
-    #model.get_marginal_ll(n_mc_samples=3)
+    # model.get_marginal_ll(n_mc_samples=3)
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
-    #model.get_latent_library_size()
-    #model.get_protein_foreground_probability()
-    #model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
-    #post_pred = model.posterior_predictive_sample(n_samples=2)
-    #assert post_pred.shape == (n_obs, n_genes + n_regions, 2)
-    #post_pred = model.posterior_predictive_sample(n_samples=1)
-    #assert post_pred.shape == (n_obs, n_genes + n_regions)
+    # model.get_latent_library_size()
+    # model.get_protein_foreground_probability()
+    # model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
+    # post_pred = model.posterior_predictive_sample(n_samples=2)
+    # assert post_pred.shape == (n_obs, n_genes + n_regions, 2)
+    # post_pred = model.posterior_predictive_sample(n_samples=1)
+    # assert post_pred.shape == (n_obs, n_genes + n_regions)
     # feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     # feature_correlation_matrix1 = model.get_feature_correlation_matrix(
     #     correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -133,7 +134,7 @@ def test_multivi_mudata():
     # )
 
     model.get_elbo(indices=model.validation_indices)
-    #model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
+    # model.get_marginal_ll(indices=model.validation_indices, n_mc_samples=3)
     model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
@@ -168,4 +169,4 @@ def test_multivi_mudata():
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
-    #model.get_elbo(mdata2[:10])
+    # model.get_elbo(mdata2[:10])
