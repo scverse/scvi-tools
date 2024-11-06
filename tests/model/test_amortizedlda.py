@@ -69,22 +69,18 @@ def test_lda_model(n_topics: int = 5):
     adata_gbt = mod.get_feature_by_topic().to_numpy()
     assert np.allclose(adata_gbt.sum(axis=0), 1)
     adata_lda = mod.get_latent_representation(adata).to_numpy()
-    assert (
-        adata_lda.shape == (adata.n_obs, n_topics)
-        and np.all((adata_lda <= 1) & (adata_lda >= 0))
-        and np.allclose(adata_lda.sum(axis=1), 1)
-    )
+    assert adata_lda.shape == (adata.n_obs, n_topics)
+    assert np.all((adata_lda <= 1) & (adata_lda >= 0))
+    assert np.allclose(adata_lda.sum(axis=1), 1)
     mod.get_elbo()
     mod.get_perplexity()
 
     adata2 = synthetic_iid()
     AmortizedLDA.setup_anndata(adata2)
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
-    assert (
-        adata2_lda.shape == (adata2.n_obs, n_topics)
-        and np.all((adata2_lda <= 1) & (adata2_lda >= 0))
-        and np.allclose(adata2_lda.sum(axis=1), 1)
-    )
+    assert adata2_lda.shape == (adata2.n_obs, n_topics)
+    assert np.all((adata2_lda <= 1) & (adata2_lda >= 0))
+    assert np.allclose(adata2_lda.sum(axis=1), 1)
     mod.get_elbo(adata2)
     mod.get_perplexity(adata2)
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pytest
 import torch
-from anndata import AnnData
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
@@ -26,6 +27,9 @@ from scvi.model.base import (
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 class BayesianRegressionPyroModel(PyroModule):
@@ -212,6 +216,7 @@ def test_pyro_bayesian_regression_low_level(
     ]
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
@@ -274,6 +279,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression_jit(
     accelerator: str,
     devices: list | str | int,

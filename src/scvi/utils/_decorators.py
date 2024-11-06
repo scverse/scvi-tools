@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 
 def unsupported_if_adata_minified(fn: Callable) -> Callable:

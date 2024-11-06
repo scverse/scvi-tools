@@ -1,7 +1,7 @@
 import shutil
-from distutils.dir_util import copy_tree
 
 import pytest
+from distutils.dir_util import copy_tree
 
 import scvi
 from tests.data.utils import generic_setup_adata_manager
@@ -144,4 +144,4 @@ def set_seed(request):
     from scvi import settings
 
     settings.seed = int(request.config.getoption("--seed"))
-    yield
+    return None

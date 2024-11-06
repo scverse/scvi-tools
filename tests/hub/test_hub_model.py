@@ -186,9 +186,11 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
     card_path = os.path.join(model_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
-    assert os.path.exists(card_path) and os.path.isfile(card_path)
+    assert os.path.exists(card_path)
+    assert os.path.isfile(card_path)
     metadata_path = os.path.join(model_path, _SCVI_HUB.METADATA_FILE_NAME)
-    assert os.path.exists(metadata_path) and os.path.isfile(metadata_path)
+    assert os.path.exists(metadata_path)
+    assert os.path.isfile(metadata_path)
 
     with pytest.raises(FileExistsError):
         hub_model.save(overwrite=False)
@@ -220,7 +222,10 @@ def test_hub_model_large_training_adata(request, save_path):
 
 @pytest.mark.private
 def test_hub_model_create_repo_hf(save_path: str):
-    from huggingface_hub import delete_repo
+    from huggingface_hub import delete_repo, repo_exists
+
+    if repo_exists("scvi-tools/test-scvi-create"):
+        delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
 
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(

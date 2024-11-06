@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from copy import deepcopy
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -34,6 +32,25 @@ from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+from .base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from anndata import AnnData
+
+    from scvi._types import MinifiedDataType
+    from scvi.data.fields import (
+        BaseAnnDataField,
+    )
+
+    from ._scvi import SCVI
+
+_SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
+_SCANVI_LATENT_QZV = "_scanvi_latent_qzv"
+_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
