@@ -81,9 +81,10 @@ def test_multivi_single_batch():
 
 def test_multivi_mudata():
     #optional data - big one
-    url = "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/10k_PBMC_Multiome_nextgem_Chromium_X/10k_PBMC_Multiome_nextgem_Chromium_X_filtered_feature_bc_matrix.h5"
+    url = ("https://cf.10xgenomics.com/samples/cell-arc/2.0.0/10k_PBMC_Multiome_nextgem_Chromium_X"
+           "/10k_PBMC_Multiome_nextgem_Chromium_X_filtered_feature_bc_matrix.h5")
     mdata = muon.read_10x_h5("data/multiome10k.h5mu", backup_url=url)
-    mdata
+    #mdata
     MULTIVI.setup_mudata(mdata, modalities={"rna_layer": "rna", "protein_layer": "atac"})
     vae = MULTIVI(mdata, n_genes=50, n_regions=50)
 
@@ -118,11 +119,13 @@ def test_multivi_mudata():
     #assert post_pred.shape == (n_obs, n_genes + n_regions, 2)
     #post_pred = model.posterior_predictive_sample(n_samples=1)
     #assert post_pred.shape == (n_obs, n_genes + n_regions)
-    # feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
+    # feature_correlation_matrix1 = (model.get_feature_correlation_matrix
+    #                                (correlation_type="spearman"))
     # feature_correlation_matrix1 = model.get_feature_correlation_matrix(
     #     correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
     # )
-    # feature_correlation_matrix2 = model.get_feature_correlation_matrix(correlation_type="pearson")
+    # feature_correlation_matrix2 = (model.get_feature_correlation_matrix
+    #                                (correlation_type="pearson"))
     # assert feature_correlation_matrix1.shape == (
     #     n_genes + n_regions,
     #     n_genes + n_regions,

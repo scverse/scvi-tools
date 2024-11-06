@@ -88,6 +88,8 @@ census = ["cellxgene-census"]
 hub = ["huggingface_hub"]
 # scvi.model.utils.mde dependencies
 pymde = ["pymde"]
+# mudata dependencies
+muon = ["muon"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # read loom
@@ -96,13 +98,12 @@ loompy = ["loompy>=3.0.6"]
 scanpy = ["scanpy>=1.6"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,loompy,muon,pymde,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
     "jupyter",
     "leidenalg",
-    "muon",
     "plotnine",
     "pooch",
     "pynndescent",
