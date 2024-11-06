@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
-import numpy.typing as npt
 import pytest
-from anndata import AnnData
+from typing import TYPE_CHECKING
 
 import scvi
 from scvi.data import synthetic_iid
@@ -11,6 +10,10 @@ from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
 from scvi.model import SCANVI, SCVI
 from scvi.model.base import BaseMinifiedModeModelClass
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+    from anndata import AnnData
 
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"

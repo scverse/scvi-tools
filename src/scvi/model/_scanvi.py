@@ -24,9 +24,7 @@ from scvi.data.fields import (
     NumericalObsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
-from scvi.model._scvi import SCVI
 from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
-from scvi.model.base import ArchesMixin, BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
