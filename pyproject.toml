@@ -90,6 +90,8 @@ hub = ["huggingface_hub"]
 pymde = ["pymde"]
 # mudata dependencies
 muon = ["muon"]
+# mudata dependencies
+scikit-misc = ["scikit-misc"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # read loom
