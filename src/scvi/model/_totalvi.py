@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import Number, AnnOrMuData
+    from scvi._types import AnnOrMuData, Number
 
 logger = logging.getLogger(__name__)
 
