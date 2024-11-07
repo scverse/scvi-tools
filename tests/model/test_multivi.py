@@ -272,11 +272,6 @@ def test_multivi_incorrect_mapping_mudata():
     adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_0", "batch_10"])
     with pytest.raises(ValueError):
         model.get_elbo(mdata2)
-        model.get_accessibility_estimates()
-        model.get_accessibility_estimates(normalize_cells=True)
-        model.get_accessibility_estimates(normalize_regions=True)
-        model.get_library_size_factors()
-        model.get_region_factors()
 
 
 def test_multivi_reordered_mapping_mudata():
