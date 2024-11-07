@@ -90,17 +90,15 @@ hub = ["huggingface_hub"]
 pymde = ["pymde"]
 # mudata dependencies
 muon = ["muon"]
-# scanpy dependencies
-scikit-misc = ["scikit-misc"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # read loom
 loompy = ["loompy>=3.0.6"]
 # scvi.criticism and read 10x
-scanpy = ["scanpy>=1.6"]
+scanpy = ["scanpy>=1.6","scikit-misc"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,loompy,muon,scikit-misc,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,loompy,muon,pymde,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
