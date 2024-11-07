@@ -1,14 +1,16 @@
+import os
+
+import anndata as ad
 import muon
 import numpy as np
 import pytest
-from mudata import MuData
 import scanpy as sc
-import anndata as ad
+from mudata import MuData
+
 import scvi
-import os
+from scvi import REGISTRY_KEYS
 from scvi.data import synthetic_iid
 from scvi.model import MULTIVI
-from scvi import REGISTRY_KEYS
 from scvi.utils import attrdict
 
 
@@ -145,13 +147,15 @@ def test_multivi_mudata_rna_atac_external():
         n_top_genes=4000,
         flavor="seurat_v3",
     )
-    mdata.mod["atac_subset"] = (mdata.mod["atac"][:, mdata.mod["atac"].var["highly_variable"]].
-                                copy())
+    mdata.mod["atac_subset"] = mdata.mod["atac"][
+        :, mdata.mod["atac"].var["highly_variable"]
+    ].copy()
     mdata.update()
     # mdata
     # mdata.mod
-    MULTIVI.setup_mudata(mdata, modalities={"rna_layer": "rna_subset",
-                                            "atac_layer": "atac_subset"})
+    MULTIVI.setup_mudata(
+        mdata, modalities={"rna_layer": "rna_subset", "atac_layer": "atac_subset"}
+    )
     model = MULTIVI(mdata, n_genes=50, n_regions=50)
     model.train(1, train_size=0.9)
 
@@ -178,8 +182,11 @@ def test_multivi_mudata():
     MULTIVI.setup_mudata(
         mdata,
         batch_key="batch",
-        modalities={"rna_layer": "rna", "protein_layer": "protein_expression",
-                    "atac_layer": "accessibility"},
+        modalities={
+            "rna_layer": "rna",
+            "protein_layer": "protein_expression",
+            "atac_layer": "accessibility",
+        },
     )
     n_obs = mdata.n_obs
     # n_genes = np.min([mdata.n_vars, mdata["protein_expression"].n_vars])
@@ -349,7 +356,7 @@ def test_multivi_size_factor_mudata():
     model.train(1, train_size=0.5)
 
 
-def test_multivi_saving_and_loading_mudata(save_path: str="."):
+def test_multivi_saving_and_loading_mudata(save_path: str = "."):
     adata = synthetic_iid()
     protein_adata = synthetic_iid(n_genes=50)
     mdata = MuData({"rna": adata, "protein": protein_adata})
@@ -410,7 +417,7 @@ def test_multivi_saving_and_loading_mudata(save_path: str="."):
     )
 
 
-def test_scarches_mudata_prep_layer(save_path: str="."):
+def test_scarches_mudata_prep_layer(save_path: str = "."):
     n_latent = 5
     mdata1 = synthetic_iid(return_mudata=True)
 
@@ -458,7 +465,7 @@ def test_scarches_mudata_prep_layer(save_path: str="."):
     MULTIVI.load_query_data(mdata2, dir_path)
 
 
-def test_multivi_save_load_mudata_format(save_path: str="."):
+def test_multivi_save_load_mudata_format(save_path: str = "."):
     mdata = synthetic_iid(return_mudata=True, protein_expression_key="protein")
     invalid_mdata = mdata.copy()
     invalid_mdata.mod["protein"] = invalid_mdata.mod["protein"][:, :10].copy()

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -46,7 +45,7 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import Number, AnnOrMuData
+    from scvi._types import AnnOrMuData, Number
 
 logger = logging.getLogger(__name__)
 
@@ -590,8 +589,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             return pd.DataFrame(
                 imputed,
                 index=adata.obs_names[indices],
-                columns=adata["rna"].var_names[self.n_genes :][region_mask] if
-                type(adata).__name__ == "MuData" else adata.var_names[self.n_genes :][region_mask],
+                columns=adata["rna"].var_names[self.n_genes :][region_mask]
+                if type(adata).__name__ == "MuData"
+                else adata.var_names[self.n_genes :][region_mask],
             )
 
     @torch.inference_mode()
@@ -1089,7 +1089,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                     mod_key=modalities.rna_layer,
                     is_count_data=True,
                     mod_required=True,
-                ))
+                )
+            )
         if modalities.atac_layer is not None:
             mudata_fields.append(
                 fields.MuDataLayerField(
@@ -1098,7 +1099,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                     mod_key=modalities.atac_layer,
                     is_count_data=True,
                     mod_required=True,
-                ))
+                )
+            )
         if modalities.protein_layer is not None:
             mudata_fields.append(
                 fields.MuDataProteinLayerField(
@@ -1109,7 +1111,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                     batch_field=batch_field,
                     is_count_data=True,
                     mod_required=True,
-                ))
+                )
+            )
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
