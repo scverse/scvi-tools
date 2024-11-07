@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import Number
+    from scvi._types import Number, AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`.
+        AnnData/MuData object that has been registered via
+        :meth:`~scvi.model.TOTALVI.setup_anndata` or :meth:`~scvi.model.TOTALVI.setup_mudata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -108,7 +109,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         n_latent: int = 20,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
