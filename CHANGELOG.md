@@ -10,6 +10,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add MuData Minification option to {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.TOTALVI` {pr}`30XX`.
 - Experimental MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 

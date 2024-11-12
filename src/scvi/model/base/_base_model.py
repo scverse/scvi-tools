@@ -944,3 +944,63 @@ class BaseMinifiedModeModelClass(BaseModelClass):
             hasattr(self, "minified_data_type") and self.minified_data_type is not None
         )
         return summary_string
+
+
+class BaseMudataMinifiedModeModelClass(BaseModelClass):
+    """Abstract base class for scvi-tools models that can handle minified data."""
+
+    @property
+    def minified_data_type(self) -> MinifiedDataType | None:
+        """The type of minified data associated with this model, if applicable."""
+        return (
+            self.adata_manager.get_from_registry(REGISTRY_KEYS.MINIFY_TYPE_KEY)
+            if REGISTRY_KEYS.MINIFY_TYPE_KEY in self.adata_manager.data_registry
+            else None
+        )
+
+    @abstractmethod
+    def minify_mudata(
+        self,
+        *args,
+        **kwargs,
+    ):
+        """Minifies the model's mudata.
+
+        Minifies the mudata, and registers new mudata fields as required (can be model-specific).
+        This also sets the appropriate property on the module to indicate that the adata is
+        minified.
+
+        Notes
+        -----
+        The modification is not done inplace -- instead the model is assigned a new (minified)
+        version of the adata.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def _get_fields_for_mudata_minification(minified_data_type: MinifiedDataType):
+        """Return the mudata fields required for adata minification of the given type."""
+
+    def _update_mudata_and_manager_post_minification(
+        self, minified_adata: AnnOrMuData, minified_data_type: MinifiedDataType
+    ):
+        """Update the mudata and manager inplace after creating a minified adata."""
+        # Register this new adata with the model, creating a new manager in the cache
+        self._validate_anndata(minified_adata)
+        new_adata_manager = self.get_anndata_manager(minified_adata, required=True)
+        # This inplace edits the manager
+        new_adata_manager.register_new_fields(
+            self._get_fields_for_mudata_minification(minified_data_type)
+        )
+        # We set the adata attribute of the model as this will update self.registry_
+        # and self.adata_manager with the new adata manager
+        self.adata = minified_adata
+
+    @property
+    def summary_string(self):
+        """Summary string of the model."""
+        summary_string = super().summary_string
+        summary_string += "\nModel's adata is minified?: {}".format(
+            hasattr(self, "minified_data_type") and self.minified_data_type is not None
+        )
+        return summary_string

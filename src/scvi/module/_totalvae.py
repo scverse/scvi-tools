@@ -18,7 +18,7 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi.model.base import BaseModelClass
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
 from scvi.nn._utils import ExpActivation
 
@@ -26,7 +26,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(BaseModuleClass):
+class TOTALVAE(BaseMinifiedModeModuleClass):
     """Total variational inference for CITE-seq data.
 
     Implements the totalVI model of :cite:p:`GayosoSteier21`.
@@ -325,6 +325,9 @@ class TOTALVAE(BaseModuleClass):
         return reconst_loss_gene, reconst_loss_protein
 
     def _get_inference_input(self, tensors):
+        # from scvi.data._constants import ADATA_MINIFY_TYPE
+        # TODO: ADD MINIFICATION CONSIDERATION
+
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]

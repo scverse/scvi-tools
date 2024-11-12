@@ -15,7 +15,7 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi.module._peakvae import Decoder as DecoderPeakVI
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, FCLayers
 
 from ._utils import masked_softmax
@@ -179,7 +179,7 @@ class DecoderADT(torch.nn.Module):
         return py_, log_pro_back_mean
 
 
-class MULTIVAE(BaseModuleClass):
+class MULTIVAE(BaseMinifiedModeModuleClass):
     """Variational auto-encoder model for joint paired + unpaired RNA-seq and ATAC-seq data.
 
     Parameters
@@ -533,6 +533,9 @@ class MULTIVAE(BaseModuleClass):
 
     def _get_inference_input(self, tensors):
         """Get input tensors for the inference model."""
+        # from scvi.data._constants import ADATA_MINIFY_TYPE
+        # TODO: ADD MINIFICATION CONSIDERATION
+
         x = tensors[REGISTRY_KEYS.X_KEY]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)

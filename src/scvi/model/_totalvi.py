@@ -12,7 +12,9 @@ import torch
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._utils import _check_nonnegative_integers
+from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
+from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
+from scvi.data.fields import NumericalObsField, ObsmField, StringUnsField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -22,11 +24,12 @@ from scvi.model._utils import (
     get_max_epochs_heuristic,
 )
 from scvi.model.base._de_core import _de_core
+from scvi.model.utils import get_minified_mudata
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import ArchesMixin, BaseMudataMinifiedModeModelClass, RNASeqMixin, VAEMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -35,12 +38,19 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import AnnOrMuData, Number
+    from scvi._types import AnnOrMuData, MinifiedDataType, Number
+    from scvi.data.fields import (
+        BaseAnnDataField,
+    )
+
+_TOTALVI_LATENT_QZM = "_totalvi_latent_qzm"
+_TOTALVI_LATENT_QZV = "_totalvi_latent_qzv"
+_TOTALVI_OBSERVED_LIB_SIZE = "_totalvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMudataMinifiedModeModelClass):
     """total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
@@ -162,7 +172,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        # TODO: ADD MINIFICATION CONSIDERATION
+        if not use_size_factor_key and self.minified_data_type is None:
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -184,6 +195,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             library_log_vars=library_log_vars,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalVI Model with the following params: \nn_latent: {n_latent}, "
             f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, "
@@ -1331,6 +1343,87 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 mod_required=True,
             ),
         ]
+        # TODO: register new fields if the mudata is minified
+        mdata_minify_type = _get_adata_minify_type(mdata)
+        if mdata_minify_type is not None:
+            mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @staticmethod
+    def _get_fields_for_mudata_minification(
+        minified_data_type: MinifiedDataType,
+    ) -> list[BaseAnnDataField]:
+        """Return the fields required for mudata minification of the given minified_data_type."""
+        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            fields = [
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZM_KEY,
+                    _TOTALVI_LATENT_QZM,
+                ),
+                ObsmField(
+                    REGISTRY_KEYS.LATENT_QZV_KEY,
+                    _TOTALVI_LATENT_QZV,
+                ),
+                NumericalObsField(
+                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
+                    _TOTALVI_OBSERVED_LIB_SIZE,
+                ),
+            ]
+        else:
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
+        fields.append(
+            StringUnsField(
+                REGISTRY_KEYS.MINIFY_TYPE_KEY,
+                _ADATA_MINIFY_TYPE_UNS_KEY,
+            ),
+        )
+        return fields
+
+    def minify_mudata(
+        self,
+        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ) -> None:
+        """Minifies the model's mudata.
+
+        Minifies the mudata, and registers new mudata fields: latent qzm, latent qzv, adata uns
+        containing minified-adata type, and library size.
+        This also sets the appropriate property on the module to indicate that the mudata is
+        minified.
+
+        Parameters
+        ----------
+        minified_data_type
+            How to minify the data. Currently only supports `latent_posterior_parameters`.
+            If minified_data_type == `latent_posterior_parameters`:
+
+            * the original count data is removed (`adata.X`, adata.raw, and any layers)
+            * the parameters of the latent representation of the original data is stored
+            * everything else is left untouched
+        use_latent_qzm_key
+            Key to use in `adata.obsm` where the latent qzm params are stored
+        use_latent_qzv_key
+            Key to use in `adata.obsm` where the latent qzv params are stored
+
+        Notes
+        -----
+        The modification is not done inplace -- instead the model is assigned a new (minified)
+        version of the adata.
+        """
+        # without removing the original counts.
+        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
+
+        if self.module.use_observed_lib_size is False:
+            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
+
+        minified_adata = get_minified_mudata(self.adata, minified_data_type)
+        minified_adata.obsm[_TOTALVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
+        minified_adata.obsm[_TOTALVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
+        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+        minified_adata.obs[_TOTALVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
+        self._update_mudata_and_manager_post_minification(minified_adata, minified_data_type)
+        self.module.minified_data_type = minified_data_type
