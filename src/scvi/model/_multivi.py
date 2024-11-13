@@ -6,6 +6,7 @@ from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import TYPE_CHECKING
 
+from mudata import MuData
 import numpy as np
 import pandas as pd
 import torch
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
-    from mudata import MuData
 
     from scvi._types import AnnOrMuData, Number
 
