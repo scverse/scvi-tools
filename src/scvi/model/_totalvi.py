@@ -1215,6 +1215,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         -------
         %(returns)s
         """
+        warnings.warn(
+            "TOTALVI is suppose to work with MuData. the use of anndata is "
+            "deprecated and will be remove in scvi-tools 1.4. Please use setup_mudata",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         setup_method_args = cls._get_setup_method_args(**locals())
         batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
