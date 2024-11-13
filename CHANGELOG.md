@@ -11,7 +11,8 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Added adaptive handling for last training minibatch of 1-2 cells in case of
-    `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into validation set, if available.
+    `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
+    validation set, if available.
     {pr}`3036`.
 
 #### Fixed
