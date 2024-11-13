@@ -15,6 +15,8 @@ from scvi.module.base import PyroBaseModuleClass, auto_move_data
 
 from ._components import ConditionalDenseNN
 
+TEST_BETA = 1.0
+
 
 class DecipherPyroModule(PyroBaseModuleClass):
     """Pyro Module for the Decipher model.
@@ -61,7 +63,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
         self.encoder_zx_to_v = ConditionalDenseNN(
             dim_genes + dim_z,
             [128],
-            [dim_v, dim_v],
+            [dim_v] * 2,
         )
 
         self.theta = None
@@ -78,12 +80,14 @@ class DecipherPyroModule(PyroBaseModuleClass):
         return self._dummy_param.device
 
     @staticmethod
-    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
+    def _get_fn_args_from_batch(
+        tensor_dict: dict[str, torch.Tensor]
+    ) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         return (x,), {}
 
     @auto_move_data
-    def model(self, x: torch.Tensor):
+    def model(self, x: torch.Tensor, beta: float | None = None):
         pyro.module("decipher", self)
 
         self.theta = pyro.param(
@@ -96,7 +100,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
             pyro.plate("batch", x.shape[0]),
             poutine.scale(scale=1.0),
         ):
-            with poutine.scale(scale=self.beta):
+            with poutine.scale(scale=beta or self.beta):
                 prior = dist.Normal(0, x.new_ones(self.dim_v)).to_event(1)
                 v = pyro.sample("v", prior)
 
@@ -114,11 +118,13 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 self.theta + self._epsilon
             )
             # noinspection PyUnresolvedReferences
-            x_dist = dist.NegativeBinomial(total_count=self.theta + self._epsilon, logits=logit)
+            x_dist = dist.NegativeBinomial(
+                total_count=self.theta + self._epsilon, logits=logit
+            )
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @auto_move_data
-    def guide(self, x: torch.Tensor):
+    def guide(self, x: torch.Tensor, beta: float | None = None):
         pyro.module("decipher", self)
         with (
             pyro.plate("batch", x.shape[0]),
@@ -134,7 +140,7 @@ class DecipherPyroModule(PyroBaseModuleClass):
             zx = torch.cat([z, x], dim=-1)
             v_loc, v_scale = self.encoder_zx_to_v(zx)
             v_scale = softplus(v_scale)
-            with poutine.scale(scale=self.beta):
+            with poutine.scale(scale=beta or self.beta):
                 posterior_v = dist.Normal(v_loc, v_scale).to_event(1)
                 pyro.sample("v", posterior_v)
         return z_loc, v_loc, z_scale, v_scale
@@ -162,18 +168,12 @@ class DecipherPyroModule(PyroBaseModuleClass):
             The average estimated predictive log-likelihood across multiple runs.
         """
         log_weights = []
-        old_beta = self.beta
-        self.beta = 1.0
-        try:
-            for _ in range(n_samples):
-                guide_trace = poutine.trace(self.guide).get_trace(x)
-                model_trace = poutine.trace(
-                    poutine.replay(self.model, trace=guide_trace)
-                ).get_trace(x)
-                log_weights.append(model_trace.log_prob_sum() - guide_trace.log_prob_sum())
-
-        finally:
-            self.beta = old_beta
+        for _ in range(n_samples):
+            guide_trace = poutine.trace(self.guide).get_trace(x, beta=TEST_BETA)
+            model_trace = poutine.trace(
+                poutine.replay(self.model, trace=guide_trace)
+            ).get_trace(x, beta=TEST_BETA)
+            log_weights.append(model_trace.log_prob_sum() - guide_trace.log_prob_sum())
 
         log_z = torch.logsumexp(torch.tensor(log_weights) - np.log(n_samples), 0)
         return log_z.item()

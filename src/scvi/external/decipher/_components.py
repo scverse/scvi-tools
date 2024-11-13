@@ -50,7 +50,9 @@ class ConditionalDenseNN(nn.Module):
 
         # The multiple outputs are computed as a single output layer, and then split
         indices = np.concatenate(([0], np.cumsum(self.output_dims)))
-        self.output_slices = [slice(s, e) for s, e in zip(indices[:-1], indices[1:], strict=False)]
+        self.output_slices = [
+            slice(s, e) for s, e in zip(indices[:-1], indices[1:], strict=False)
+        ]
 
         # Create masked layers
         deep_context_dim = self.context_dim if self.deep_context_injection else 0
@@ -61,19 +63,25 @@ class ConditionalDenseNN(nn.Module):
             batch_norms.append(nn.BatchNorm1d(hidden_dims[0]))
             for i in range(1, len(hidden_dims)):
                 layers.append(
-                    torch.nn.Linear(hidden_dims[i - 1] + deep_context_dim, hidden_dims[i])
+                    torch.nn.Linear(
+                        hidden_dims[i - 1] + deep_context_dim, hidden_dims[i]
+                    )
                 )
                 batch_norms.append(nn.BatchNorm1d(hidden_dims[i]))
 
             layers.append(
-                torch.nn.Linear(hidden_dims[-1] + deep_context_dim, self.output_total_dim)
+                torch.nn.Linear(
+                    hidden_dims[-1] + deep_context_dim, self.output_total_dim
+                )
             )
         else:
-            layers.append(torch.nn.Linear(input_dim + context_dim, self.output_total_dim))
+            layers.append(
+                torch.nn.Linear(input_dim + context_dim, self.output_total_dim)
+            )
 
         self.layers = torch.nn.ModuleList(layers)
 
-        self.f = activation
+        self.activation_fn = activation
         self.batch_norms = torch.nn.ModuleList(batch_norms)
 
     def forward(self, x, context=None):
@@ -88,15 +96,10 @@ class ConditionalDenseNN(nn.Module):
             h = layer(h)
             if i < len(self.layers) - 1:
                 h = self.batch_norms[i](h)
-                h = self.f(h)
+                h = self.activation_fn(h)
 
         if self.n_output_layers == 1:
             return h
-        else:
-            h = h.reshape(list(x.size()[:-1]) + [self.output_total_dim])
 
-            if self.n_output_layers == 1:
-                return h
-
-            else:
-                return tuple([h[..., s] for s in self.output_slices])
+        h = h.reshape(list(x.size()[:-1]) + [self.output_total_dim])
+        return tuple([h[..., s] for s in self.output_slices])
