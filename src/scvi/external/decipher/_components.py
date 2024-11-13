@@ -50,9 +50,7 @@ class ConditionalDenseNN(nn.Module):
 
         # The multiple outputs are computed as a single output layer, and then split
         indices = np.concatenate(([0], np.cumsum(self.output_dims)))
-        self.output_slices = [
-            slice(s, e) for s, e in zip(indices[:-1], indices[1:], strict=False)
-        ]
+        self.output_slices = [slice(s, e) for s, e in zip(indices[:-1], indices[1:], strict=False)]
 
         # Create masked layers
         deep_context_dim = self.context_dim if self.deep_context_injection else 0
@@ -63,21 +61,15 @@ class ConditionalDenseNN(nn.Module):
             batch_norms.append(nn.BatchNorm1d(hidden_dims[0]))
             for i in range(1, len(hidden_dims)):
                 layers.append(
-                    torch.nn.Linear(
-                        hidden_dims[i - 1] + deep_context_dim, hidden_dims[i]
-                    )
+                    torch.nn.Linear(hidden_dims[i - 1] + deep_context_dim, hidden_dims[i])
                 )
                 batch_norms.append(nn.BatchNorm1d(hidden_dims[i]))
 
             layers.append(
-                torch.nn.Linear(
-                    hidden_dims[-1] + deep_context_dim, self.output_total_dim
-                )
+                torch.nn.Linear(hidden_dims[-1] + deep_context_dim, self.output_total_dim)
             )
         else:
-            layers.append(
-                torch.nn.Linear(input_dim + context_dim, self.output_total_dim)
-            )
+            layers.append(torch.nn.Linear(input_dim + context_dim, self.output_total_dim))
 
         self.layers = torch.nn.ModuleList(layers)
 
