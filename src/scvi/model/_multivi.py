@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from mudata import MuData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
@@ -49,7 +50,6 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
-    from mudata import MuData
 
     from scvi._types import AnnOrMuData, MinifiedDataType, Number
     from scvi.data.fields import (
@@ -130,13 +130,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
     --------
     >>> adata_rna = anndata.read_h5ad(path_to_rna_anndata)
     >>> adata_atac = scvi.data.read_10x_atac(path_to_atac_anndata)
-    >>> adata_multi = scvi.data.read_10x_multiome(path_to_multiomic_anndata)
-    >>> adata_mvi = scvi.data.organize_multiome_anndatas(adata_multi, adata_rna, adata_atac)
-    >>> scvi.model.MULTIVI.setup_anndata(adata_mvi, batch_key="modality")
-    >>> vae = scvi.model.MULTIVI(adata_mvi)
+    >>> adata_protein = anndata.read_h5ad(path_to_protein_anndata)
+    >>> mdata = MuData({"rna": adata_rna, "protein": adata_protein, "atac": adata_atac})
+    >>> scvi.model.MULTIVI.setup_mudata(mdata, batch_key="batch",
+    >>> modalities={"rna_layer": "rna", "protein_layer": "protein", "batch_key": "rna",
+    >>>             "atac_layer": "atac"})
+    >>> vae = scvi.model.MULTIVI(mdata)
     >>> vae.train()
 
-    Notes
+    Notes (for using setup_anndata)
     -----
     * The model assumes that the features are organized so that all expression features are
        consecutive, followed by all accessibility features. For example, if the data has 100 genes
@@ -378,7 +380,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
     @torch.inference_mode()
     def get_library_size_factors(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
     ) -> dict[str, np.ndarray]:
@@ -387,8 +389,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If `None`, defaults
+            to the AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
@@ -427,7 +429,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         modality: Literal["joint", "expression", "accessibility"] = "joint",
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
@@ -439,8 +441,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If `None`, defaults
+            to the AnnOrMuData object used to initialize the model.
         modality
             Return modality specific or joint latent representation.
         indices
@@ -512,7 +514,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
     @torch.inference_mode()
     def get_accessibility_estimates(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] = None,
         n_samples_overall: int | None = None,
         region_list: Sequence[str] | None = None,
@@ -533,8 +535,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object that has been registered with scvi. If `None`, defaults to the
+            AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples_overall
@@ -623,14 +625,14 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
                 imputed,
                 index=adata.obs_names[indices],
                 columns=adata["rna"].var_names[self.n_genes :][region_mask]
-                if type(adata).__name__ == "MuData"
+                if isinstance(adata, MuData)
                 else adata.var_names[self.n_genes :][region_mask],
             )
 
     @torch.inference_mode()
     def get_normalized_expression(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         n_samples_overall: int | None = None,
         transform_batch: Sequence[Number | str] | None = None,
@@ -648,8 +650,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If `None`, defaults
+            to the AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples_overall
@@ -964,7 +966,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
     @torch.no_grad()
     def get_protein_foreground_probability(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         transform_batch: Sequence[Number | str] | None = None,
         protein_list: Sequence[str] | None = None,
@@ -981,8 +983,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to
-            the AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If ``None``, defaults
+            to the AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         transform_batch
@@ -1116,6 +1118,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
             `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
             sequential names to proteins.
         """
+        warnings.warn(
+            "MULTIVI is suppose to work with MuData. the use of anndata is "
+            "deprecated and will be remove in scvi-tools 1.4. Please use setup_mudata",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         setup_method_args = cls._get_setup_method_args(**locals())
         adata.obs["_indices"] = np.arange(adata.n_obs)
         batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
