@@ -6,10 +6,10 @@ from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import TYPE_CHECKING
 
-from mudata import MuData
 import numpy as np
 import pandas as pd
 import torch
+from mudata import MuData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
