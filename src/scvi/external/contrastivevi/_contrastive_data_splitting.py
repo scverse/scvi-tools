@@ -83,7 +83,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.validation_size,
                 self.data_loader_kwargs.pop("batch_size", settings.batch_size),
                 self.drop_last,
-                self.train_size_is_none
+                self.train_size_is_none,
             )
             self.n_target_train, self.n_target_val = validate_data_split(
                 self.n_target,
@@ -91,7 +91,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.validation_size,
                 self.data_loader_kwargs.pop("batch_size", settings.batch_size),
                 self.drop_last,
-                self.train_size_is_none
+                self.train_size_is_none,
             )
         else:
             # we need to intersect the external indexing given with the bg/target indices

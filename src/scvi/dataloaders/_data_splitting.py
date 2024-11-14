@@ -69,8 +69,9 @@ def validate_data_split(
 
     if batch_size is not None:
         num_of_cells = n_train % batch_size
-        if ((num_of_cells < 3 and num_of_cells > 0) and
-            not (num_of_cells == 1 and drop_last is True)):
+        if (num_of_cells < 3 and num_of_cells > 0) and not (
+            num_of_cells == 1 and drop_last is True
+        ):
             warnings.warn(
                 f"Last batch will have a small size of {num_of_cells} "
                 f"samples. Consider changing settings.batch_size or batch_size in model.train "
@@ -166,8 +167,9 @@ def validate_data_split_with_external_indexing(
 
     if batch_size is not None:
         num_of_cells = n_train % batch_size
-        if ((num_of_cells < 3 and num_of_cells > 0)
-            and not (num_of_cells == 1 and drop_last is True)):
+        if (num_of_cells < 3 and num_of_cells > 0) and not (
+            num_of_cells == 1 and drop_last is True
+        ):
             warnings.warn(
                 f"Last batch will have a small size of {num_of_cells} "
                 f"samples. Consider changing settings.batch_size or batch_size in model.train "
@@ -263,7 +265,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.validation_size,
                 self.data_loader_kwargs.pop("batch_size", settings.batch_size),
                 self.drop_last,
-                self.train_size_is_none
+                self.train_size_is_none,
             )
 
     def setup(self, stage: str | None = None):
@@ -446,7 +448,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     self.validation_size,
                     self.data_loader_kwargs.pop("batch_size", settings.batch_size),
                     self.drop_last,
-                    self.train_size_is_none
+                    self.train_size_is_none,
                 )
 
                 labeled_permutation = self._labeled_indices
@@ -487,7 +489,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     self.validation_size,
                     self.data_loader_kwargs.pop("batch_size", settings.batch_size),
                     self.drop_last,
-                    self.train_size_is_none
+                    self.train_size_is_none,
                 )
 
                 unlabeled_permutation = self._unlabeled_indices
