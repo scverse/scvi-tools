@@ -1119,8 +1119,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
             sequential names to proteins.
         """
         warnings.warn(
-            "MULTIVI is suppose to work with MuData. the use of anndata is "
-            "deprecated and will be remove in scvi-tools 1.4. Please use setup_mudata",
+            "MULTIVI is supposed to work with MuData. the use of anndata is "
+            "deprecated and will be removed in scvi-tools 1.4. Please use setup_mudata",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )

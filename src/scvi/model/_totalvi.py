@@ -1228,8 +1228,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMudataMinifiedModeModelCla
         %(returns)s
         """
         warnings.warn(
-            "TOTALVI is suppose to work with MuData. the use of anndata is "
-            "deprecated and will be remove in scvi-tools 1.4. Please use setup_mudata",
+            "TOTALVI is supposed to work with MuData.",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
