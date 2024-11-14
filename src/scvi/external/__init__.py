@@ -1,5 +1,6 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
+from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLVI
 from .mrvi import MRVI
@@ -15,6 +16,7 @@ __all__ = [
     "SCAR",
     "SOLO",
     "GIMVI",
+    "Decipher",
     "RNAStereoscope",
     "SpatialStereoscope",
     "CellAssign",
