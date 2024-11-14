@@ -223,7 +223,7 @@ def linkcode_resolve(domain, info):
         return None
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    return f"{repository_url}/blob/{git_ref}/scvi/{path}"
+    return f"{repository_url}/blob/{git_ref}/src/scvi/{path}"
 
 
 # -- Config for hoverxref -------------------------------------------
