@@ -1,0 +1,65 @@
+name: build image (latest)
+
+on:
+  push:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dependencies: ["", "dev", "tutorials"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set build inputs
+        id: build
+        run: |
+          INPUT_DEPENDENCIES=${{ matrix.dependencies }}
+          DEPENDENCIES=${INPUT_DEPENDENCIES:-"runtime"}
+          echo "dependencies=${DEPENDENCIES}" >> $GITHUB_OUTPUT
+
+          INPUT_REF=${{ github.ref_name }}
+          if [[ $INPUT_REF == "main" ]]; then
+            VERSION="latest"
+          else
+            VERSION=${INPUT_REF}
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
+          cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
+          target: build
+          tags: ghcr.io/scverse/scvi-tools:py3.12-cu12-${{ steps.build.outputs.version }}-${{ steps.build.outputs.dependencies }}
+          build-args: |
+            DEPENDENCIES=${{ matrix.dependencies }}

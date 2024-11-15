@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -89,8 +89,8 @@ class MRDeconv(BaseModuleClass):
         l1_reg: float = 0.0,
         beta_reg: float = 5.0,
         eta_reg: float = 1e-4,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.n_spots = n_spots

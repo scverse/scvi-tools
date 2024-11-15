@@ -82,7 +82,8 @@ def test_differential_computation(save_path):
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
     res = dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False)
-    assert (res["delta"] == 0.5) and (res["pseudocounts"] == 0.0)
+    assert res["delta"] == 0.5
+    assert res["pseudocounts"] == 0.0
     res = dc.get_bayes_factors(
         cell_idx1, cell_idx2, mode="change", use_permutation=False, delta=None
     )

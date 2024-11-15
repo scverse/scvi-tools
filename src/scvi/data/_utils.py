@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import h5py
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
@@ -25,14 +24,21 @@ try:
 except ImportError:
     from anndata._io.specs import read_elem
 
+from typing import TYPE_CHECKING
+
 from mudata import MuData
-from pandas.api.types import CategoricalDtype
-from torch import Tensor, as_tensor, sparse_csc_tensor, sparse_csr_tensor
+from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
 
 from . import _constants
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+    from pandas.api.types import CategoricalDtype
+    from torch import Tensor
+
+    from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
 

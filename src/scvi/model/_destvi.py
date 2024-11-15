@@ -1,22 +1,27 @@
 from __future__ import annotations
 
 import logging
-from collections import OrderedDict
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import LayerField, NumericalObsField
-from scvi.model import CondSCVI
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections import OrderedDict
+    from collections.abc import Sequence
+
+    from anndata import AnnData
+
+    from scvi.model import CondSCVI
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Literal
 
 from rich.console import Console
 from rich.progress import track as track_base
-from tqdm import tqdm as tqdm_base
+from tqdm.auto import tqdm as tqdm_base
 
 from scvi import settings
 
@@ -36,7 +36,8 @@ def track(
     --------
     >>> from scvi.utils import track
     >>> my_list = [1, 2, 3]
-    >>> for i in track(my_list): print(i)
+    >>> for i in track(my_list):
+    ...     print(i)
     """
     if style is None:
         style = settings.progress_bar_style
