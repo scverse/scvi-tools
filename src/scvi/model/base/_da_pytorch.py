@@ -22,12 +22,13 @@ def get_aggregated_posterior(
     sample: str | int | None = None,
     indices: Sequence[int] | None = None,
     batch_size: int | None = None,
+    df: float = 3.
 ) -> dist.Distribution:
     self._check_if_trained(warn=False)
 
     if locs is not None and scales is not None:
-        qu_loc = torch.from_numpy(locs).T
-        qu_scale = torch.from_numpy(scales).T
+        qu_loc = torch.tensor(locs, device='cuda').T
+        qu_scale = torch.tensor(scales, device='cuda').T
     else:
         # TODO: If latent reps aren't passed in, I think I need to modify for if model is MrVI
         # since it's jax not pytorch, would use get_jit_inference_fn not inference
@@ -58,9 +59,10 @@ def get_aggregated_posterior(
         # transpose because we need num cells to be rightmost dimension for mixture
         qu_loc = torch.cat(qu_locs, 0).T
         qu_scale = torch.cat(qu_scales, 0).T
-
+    print(df)
     return dist.MixtureSameFamily(
-        dist.Categorical(torch.ones(qu_loc.shape[1])), dist.Normal(qu_loc, qu_scale)
+        dist.Categorical(logits=torch.ones(qu_loc.shape[1], device='cuda')), #dist.Normal(qu_loc, qu_scale))
+        dist.studentT.StudentT(df, qu_loc, qu_scale)
     )
 
 
@@ -68,53 +70,63 @@ def get_aggregated_posterior(
 def differential_abundance(
     self,
     adata: AnnData | None = None,
-    # Below allows user to pass in latent representations directly instead
-    # of using adata. Useful for simulation
-    # TODO: change datatypes of below params?
-    locs: np.ndarray | None = None,
+    locs: np.ndarray | None = None, # Replace this with using minified mode. No need to pass in locs and scales.
     scales: np.ndarray | None = None,
-    sample_id: np.ndarray | None = None,  # sample ids of each latent rep above.
-    sample_cov_keys: list[str] | None = None,
+    sample_key: str | None = None,
+    sample_cov_keys: list[str] | None = None, # not necessary
     sample_subset: list[str] | None = None,
     compute_log_enrichment: bool = False,
     batch_size: int = 128,
+    downsample_cells: int | None = None,
+    df: float = 3.,
 ) -> pd.DataFrame:
     adata = self._validate_anndata(adata)
+
+    #if sample_id is not None:
+     #   self.sample_key = sample_key
 
     if locs is not None and scales is not None:  # if user passes in latent reps directly
         us = locs
         variances = scales
-        unique_samples = np.unique(sample_id)
+        
     else:
         # return dist so that we can also get the vars, and don't have redundantly get the latent
         # reps again in get_aggregated_posterior
-        us, variances = self.get_latent_representation(
+
+        #TODO: mrvi has use_mean but scvi has give_mean. Make PR to reflect this
+        #TODO: also, return_dist won't work for mrvi, but does for scvi. Need to do PR for this feature
+        # also removed give_z since obviously it doesn't apply for scvi, only mrvi.
+
+        """us, variances = self.get_latent_representation(
             adata, use_mean=True, give_z=False, batch_size=batch_size, return_dist=True
+        )"""
+
+        us, variances = self.get_latent_representation(
+            adata, give_mean=True, batch_size=batch_size, return_dist=True
         )
 
-        unique_samples = adata.obs[self.sample_key].unique()
-
+    us = torch.tensor(us, device='cuda')
+    if sample_subset is not None:
+        unique_samples = sample_subset
+    else:
+        unique_samples = adata.obs[sample_key].unique()
+    dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
     log_probs = []
     for sample_name in tqdm(unique_samples):
-        # ap = self.get_aggregated_posterior(
-        # adata=adata, sample=sample_name, batch_size=batch_size)
-
-        # below code to prevent getting latent reps twice.
-        if locs is not None and scales is not None:
-            indices = np.where(sample_id == sample_name)
-        else:
-            indices = np.where(adata.obs[self.sample_key] == sample_name)[0]
+        indices = np.where(adata.obs[sample_key] == sample_name)[0]
+        if downsample_cells is not None:
+            indices = np.random.choice(indices, downsample_cells, replace=False)
 
         locs_per_sample = us[indices]
         scales_per_sample = variances[indices]
-        ap = get_aggregated_posterior(self, locs=locs_per_sample, scales=scales_per_sample)
 
+        # below need to pass sample name AND batch size
+        # also need to fix to just use minified model then call get_latent, rather than passing in
+        ap = get_aggregated_posterior(self, locs=locs_per_sample, scales=scales_per_sample, df=df)
         log_probs_ = []
-        n_splits = max(adata.n_obs // batch_size, 1)
-        for u_rep in np.array_split(us, n_splits):
-            log_probs_.append(ap.log_prob(torch.tensor(u_rep)).sum(-1, keepdims=True).cpu())
-
-        log_probs.append(np.concatenate(log_probs_, axis=0))
+        for u_rep in dataloader:
+            log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True))
+        log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
     log_probs = np.concatenate(log_probs, 1)
 
