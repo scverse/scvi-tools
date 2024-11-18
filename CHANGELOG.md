@@ -1593,7 +1593,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 #### Enhancements
 
-##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method  <!-- markdownlint-disable -->
+##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
 It is now possible to iteratively update these models with new samples, without altering the model
 for the "reference" population. Here we use the
@@ -1655,7 +1655,7 @@ use scvi-tools is with our documentation and tutorials.
 - New high-level API and data loading, please see tutorials and examples for usage.
 - `GeneExpressionDataset` and associated classes have been removed.
 - Built-in datasets now return `AnnData` objects.
-- `scvi-tools` now relies entirely on the \[AnnData\] format.
+- `scvi-tools` now relies entirely on the [AnnData] format.
 - `scvi.models` has been moved to `scvi.core.module`.
 - `Posterior` classes have been reduced to wrappers on `DataLoaders`
 - `scvi.inference` has been split to `scvi.core.data_loaders` for `AnnDataLoader` classes and
