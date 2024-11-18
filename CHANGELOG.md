@@ -27,12 +27,14 @@ to [Semantic Versioning]. Full commit history is available in the
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
     validation set, if available.
     {pr}`3036`.
+- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
 
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
+- Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
 
 #### Changed
 
