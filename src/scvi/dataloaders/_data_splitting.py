@@ -72,15 +72,16 @@ def validate_data_split(
         if (num_of_cells < 3 and num_of_cells > 0) and not (
             num_of_cells == 1 and drop_last is True
         ):
-            warnings.warn(
-                f"Last batch will have a small size of {num_of_cells} "
-                f"samples. Consider changing settings.batch_size or batch_size in model.train "
-                f"from currently {batch_size} to avoid errors during model training, "
-                f"or use drop_last parameter if there is 1 cell left",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-            if train_size_is_none:
+            if not train_size_is_none:
+                warnings.warn(
+                    f"Last batch will have a small size of {num_of_cells} "
+                    f"samples. Consider changing settings.batch_size or batch_size in model.train "
+                    f"from currently {batch_size} to avoid errors during model training, "
+                    f"or use drop_last parameter if there is 1 cell left",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            else:
                 n_train -= num_of_cells
                 if n_val > 0:
                     n_val += num_of_cells
@@ -402,7 +403,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         super().__init__()
         self.adata_manager = adata_manager
         self.train_size_is_none = not bool(train_size)
-        self.train_size = 0.9 if train_size is None else float(train_size)
+        self.train_size = 0.9 if self.train_size_is_none else float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.drop_last = kwargs.pop("drop_last", False)
