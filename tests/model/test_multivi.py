@@ -1,7 +1,6 @@
 import os
 
 import anndata as ad
-import muon
 import numpy as np
 import pytest
 import scanpy as sc
@@ -126,11 +125,7 @@ def test_multivi_mudata_rna_prot_external():
 
 def test_multivi_mudata_rna_atac_external():
     # optional data - mudata RNA/ATAC
-    url = (
-        "https://cf.10xgenomics.com/samples/cell-arc/2.0.0/10k_PBMC_Multiome_nextgem_Chromium_X"
-        "/10k_PBMC_Multiome_nextgem_Chromium_X_filtered_feature_bc_matrix.h5"
-    )
-    mdata = muon.read_10x_h5("data/multiome10k.h5mu", backup_url=url)
+    mdata = synthetic_iid(return_mudata=True)
     # Preprocessing
     sc.pp.normalize_total(mdata.mod["rna"])
     sc.pp.log1p(mdata.mod["rna"])
@@ -140,15 +135,15 @@ def test_multivi_mudata_rna_atac_external():
         flavor="seurat_v3",
     )
     mdata.mod["rna_subset"] = mdata.mod["rna"][:, mdata.mod["rna"].var["highly_variable"]].copy()
-    sc.pp.normalize_total(mdata.mod["atac"])
-    sc.pp.log1p(mdata.mod["atac"])
+    sc.pp.normalize_total(mdata.mod["accessibility"])
+    sc.pp.log1p(mdata.mod["accessibility"])
     sc.pp.highly_variable_genes(
-        mdata.mod["atac"],
+        mdata.mod["accessibility"],
         n_top_genes=4000,
         flavor="seurat_v3",
     )
-    mdata.mod["atac_subset"] = mdata.mod["atac"][
-        :, mdata.mod["atac"].var["highly_variable"]
+    mdata.mod["atac_subset"] = mdata.mod["accessibility"][
+        :, mdata.mod["accessibility"].var["highly_variable"]
     ].copy()
     mdata.update()
     # mdata
@@ -163,21 +158,6 @@ def test_multivi_mudata_rna_atac_external():
 def test_multivi_mudata():
     # use of syntetic data of rna/proteins/atac for speed
 
-    # adata = synthetic_iid()
-    # protein_adata = synthetic_iid()
-    # atac_adata = synthetic_iid()
-    # mdata = MuData({"rna": adata, "protein": protein_adata, "atac": atac_adata})
-    # MULTIVI.setup_mudata(
-    #     mdata,
-    #     batch_key="batch",
-    #     modalities={"rna_layer": "rna", "protein_layer": "protein", "batch_key": "rna",
-    #                 "atac_layer": "atac"},
-    # )
-    # n_obs = mdata.n_obs
-    # n_genes = np.min([adata.n_vars, protein_adata.n_vars])
-    # n_regions = protein_adata.X.shape[1]
-    # n_latent = 10
-
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
         mdata,
@@ -189,8 +169,6 @@ def test_multivi_mudata():
         },
     )
     n_obs = mdata.n_obs
-    # n_genes = np.min([mdata.n_vars, mdata["protein_expression"].n_vars])
-    # n_regions = mdata["protein_expression"].X.shape[1]
     n_latent = 10
 
     model = MULTIVI(mdata, n_latent=n_latent, n_genes=50, n_regions=50)
@@ -216,9 +194,6 @@ def test_multivi_mudata():
     model.get_library_size_factors()
     model.get_region_factors()
 
-    # adata2 = synthetic_iid()
-    # protein_adata2 = synthetic_iid(n_genes=50)
-    # mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
     mdata2 = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
         mdata2,

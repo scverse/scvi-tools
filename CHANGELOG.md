@@ -4,7 +4,7 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2
+## Version 1.3
 
 ### 1.3.0 (2024-XX-XX)
 
@@ -19,11 +19,13 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`.
 
+## Version 1.2
+
 ### 1.2.1 (2024-XX-XX)
 
 #### Added
 
-- Experimental MuData support for {class}`~scvi.model.MULTIVI` via the method
+- MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 
 #### Fixed
