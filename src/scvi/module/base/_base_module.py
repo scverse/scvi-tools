@@ -13,7 +13,6 @@ from jax import random
 from torch import nn
 
 from scvi import settings
-from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
@@ -303,10 +302,7 @@ class BaseMinifiedModeModuleClass(BaseModuleClass):
         Branches off to regular or cached inference depending on whether we have a minified adata
         that contains the latent posterior parameters.
         """
-        if (
-            self.minified_data_type is not None
-            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
-        ):
+        if "qzm" in kwargs.keys() and "qzv" in kwargs.keys():
             return self._cached_inference(*args, **kwargs)
         else:
             return self._regular_inference(*args, **kwargs)
@@ -743,6 +739,8 @@ def _generic_forward(
     loss_kwargs = _get_dict_if_none(loss_kwargs)
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
+    if not ("qzm" in tensors.keys() and "qzv" in tensors.keys()):
+        get_inference_input_kwargs.pop("full_forward_pass", None)
 
     inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)
     inference_outputs = module.inference(**inference_inputs, **inference_kwargs)

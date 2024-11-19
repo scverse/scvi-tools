@@ -160,7 +160,9 @@ def test_scanvi_from_scvi(save_path):
         scvi.model.SCANVI.from_scvi_model(model, "label_0")
 
     msg = (
-        "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
+        "We cannot use the given scVI model to initialize scANVI because it has minified adata. "
+        "Keep counts when minifying model using minified_data_type= "
+        "'latent_posterior_parameters_with_counts'."
     )
     assert str(e.value) == msg
 
@@ -173,7 +175,7 @@ def test_scanvi_from_scvi(save_path):
     adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     with pytest.raises(ValueError) as e:
         scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0", adata=adata2)
-    assert str(e.value) == "Please provide a non-minified `adata` to initialize scanvi."
+    assert str(e.value) == "Please provide a non-minified `adata` to initialize scANVI."
 
     scanvi_model = scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0")
     scanvi_model.train(1)
@@ -261,6 +263,39 @@ def test_validate_unsupported_if_minified():
     with pytest.raises(ValueError) as e:
         model.get_latent_library_size()
     assert str(e.value) == common_err_msg.format("RNASeqMixin.get_latent_library_size")
+
+    with pytest.raises(ValueError) as e:
+        model.train()
+    assert str(e.value) == common_err_msg.format("VAE.loss")
+
+
+def test_validate_supported_if_minified_keep_count():
+    model, _, _, _ = prep_model()
+    model2, _, _, _ = prep_model()
+
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+
+    model.minify_adata(minified_data_type="latent_posterior_parameters_with_counts")
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
+    assert model2.minified_data_type is None
+
+    assert np.allclose(model2.get_elbo(), model.get_elbo(), rtol=1e-2)
+    assert np.allclose(
+        model2.get_reconstruction_error()['reconstruction_loss'],
+        model.get_reconstruction_error()['reconstruction_loss'], rtol=1e-2
+    )
+    assert np.allclose(model2.get_marginal_ll(), model.get_marginal_ll(), rtol=1e-2)
+
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5,
+                plan_kwargs={"update_only_decoder": True})
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        model, labels_key="labels", unlabeled_category="unknown")
+    scanvi_model.train()
+    scanvi_model.train(1, check_val_every_n_epoch=1, train_size=0.5,
+                       plan_kwargs={"update_only_decoder": True})
 
 
 def test_scvi_with_minified_adata_save_then_load(save_path):

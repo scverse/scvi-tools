@@ -984,8 +984,6 @@ class BaseMinifiedModeModelClass(BaseModelClass):
             fields.NumericalObsField(REGISTRY_KEYS.OBSERVED_LIB_SIZE, cls._OBSERVED_LIB_SIZE_KEY),
             fields.StringUnsField(REGISTRY_KEYS.MINIFY_TYPE_KEY, _ADATA_MINIFY_TYPE_UNS_KEY),
         ]
-        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS:
-            mini_fields.append(fields.LayerField(REGISTRY_KEYS.X_KEY, None, is_count_data=True))
 
         return mini_fields
 
