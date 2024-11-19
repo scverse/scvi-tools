@@ -34,6 +34,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import (
     ArchesMixin,
+    BaseMinifiedModeModelClass,
     BaseMudataMinifiedModeModelClass,
     UnsupervisedTrainingMixin,
     VAEMixin,
@@ -63,7 +64,13 @@ _MULTIVI_OBSERVED_LIB_SIZE = "_multivi_observed_lib_size"
 logger = logging.getLogger(__name__)
 
 
-class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifiedModeModelClass):
+class MULTIVI(
+    VAEMixin,
+    UnsupervisedTrainingMixin,
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+):
     """Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
@@ -637,6 +644,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         n_samples_overall: int | None = None,
         transform_batch: Sequence[Number | str] | None = None,
         gene_list: Sequence[str] | None = None,
+        library_size: float | Literal["latent"] | None = 1,
         use_z_mean: bool = True,
         n_samples: int = 1,
         batch_size: int | None = None,
@@ -666,6 +674,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
             of interest.
+        library_size
+            Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude.
         use_z_mean
             If True, use the mean of the latent distribution, otherwise sample from it
         n_samples
@@ -713,7 +725,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
                     generative_kwargs={"use_z_mean": use_z_mean},
                     compute_loss=False,
                 )
-                output = generative_outputs["px_scale"]
+                if library_size == "latent":
+                    output = generative_outputs["px_rate"]
+                else:
+                    output = generative_outputs["px_scale"]
                 output = output[..., gene_mask]
                 output = output.cpu().numpy()
                 per_batch_exprs.append(output)

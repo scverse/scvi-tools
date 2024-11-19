@@ -29,7 +29,13 @@ from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseMudataMinifiedModeModelClass, RNASeqMixin, VAEMixin
+from .base import (
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+    RNASeqMixin,
+    VAEMixin,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -50,7 +56,13 @@ _TOTALVI_OBSERVED_LIB_SIZE = "_totalvi_observed_lib_size"
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMudataMinifiedModeModelClass):
+class TOTALVI(
+    RNASeqMixin,
+    VAEMixin,
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+):
     """total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters

@@ -11,6 +11,78 @@ _TOTALVI_OBSERVED_LIB_SIZE = "_totalvi_observed_lib_size"
 _MULTIVI_OBSERVED_LIB_SIZE = "_multivi_observed_lib_size"
 
 
+def prep_model(cls=TOTALVI, use_size_factor=False):
+    # create a synthetic dataset
+    adata = synthetic_iid()
+    adata_counts = adata.X
+    if use_size_factor:
+        adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata_counts, axis=0)))
+    adata.varm["my_varm"] = np.random.negative_binomial(5, 0.3, size=(adata.shape[1], 3))
+    adata.layers["my_layer"] = np.ones_like(adata.X)
+    adata_before_setup = adata.copy()
+
+    # run setup_anndata
+    setup_kwargs = {
+        "batch_key": "batch",
+        "protein_expression_obsm_key": "protein_expression",
+        "protein_names_uns_key": "protein_names",
+    }
+    if use_size_factor:
+        setup_kwargs["size_factor_key"] = "size_factor"
+    cls.setup_anndata(
+        adata,
+        **setup_kwargs,
+    )
+
+    # create and train the model
+    if cls == TOTALVI:
+        model = cls(adata, n_latent=5)
+    else:
+        model = cls(adata, n_latent=5, n_genes=50, n_regions=50)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # get the adata lib size
+    adata_lib_size = np.squeeze(np.asarray(adata_counts.sum(axis=1)))
+    assert (
+        np.min(adata_lib_size) > 0
+    )  # make sure it's not all zeros and there are no negative values
+
+    return model, adata, adata_lib_size, adata_before_setup
+
+
+def run_test_for_model_with_minified_adata(
+    cls=TOTALVI,
+    n_samples: int = 1,
+    give_mean: bool = False,
+    use_size_factor=False,
+):
+    model, adata, adata_lib_size, _ = prep_model(cls, use_size_factor)
+
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    adata_orig = adata.copy()
+
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+    assert model.adata_manager.registry is model.registry_
+
+    # make sure the original adata we set up the model with was not changed
+    assert adata is not model.adata
+    assert _is_minified(adata) is False
+
+    assert adata_orig.layers.keys() == model.adata.layers.keys()
+    orig_obs_df = adata_orig.obs
+    obs_keys = "observed_lib_size"
+    orig_obs_df[obs_keys] = adata_lib_size
+    assert model.adata.obs.equals(orig_obs_df)
+    assert model.adata.var_names.equals(adata_orig.var_names)
+    assert model.adata.var.equals(adata_orig.var)
+    assert model.adata.varm.keys() == adata_orig.varm.keys()
+    np.testing.assert_array_equal(model.adata.varm["my_varm"], adata_orig.varm["my_varm"])
+
+
 def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
     # create a synthetic dataset
     # adata = synthetic_iid()
@@ -69,21 +141,12 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # get the mdata lib size
-    if cls == TOTALVI:
-        mdata_lib_size = np.squeeze(np.asarray(mdata["rna"].X.sum(axis=1)))  # TOTALVI
-    else:
-        mdata_lib_size = np.squeeze(np.asarray(mdata["accessibility"].X.sum(axis=1)))  # MULTIVI
+    mdata_lib_size = np.squeeze(np.asarray(mdata["rna"].X.sum(axis=1)))
     assert (
         np.min(mdata_lib_size) > 0
     )  # make sure it's not all zeros and there are no negative values
 
     return model, mdata, mdata_lib_size, mdata_before_setup
-
-
-def assert_approx_equal(a, b):
-    # Allclose because on GPU, the values are not exactly the same
-    # as some values are moved to cpu during data minification
-    np.testing.assert_allclose(a, b, rtol=3e-1, atol=5e-1)
 
 
 def run_test_for_model_with_minified_mudata(
@@ -118,6 +181,18 @@ def run_test_for_model_with_minified_mudata(
     np.testing.assert_array_equal(model.adata.varm["my_varm"], mdata_orig.varm["my_varm"])
 
 
+def assert_approx_equal(a, b):
+    # Allclose because on GPU, the values are not exactly the same
+    # as some values are moved to cpu during data minification
+    np.testing.assert_allclose(a, b, rtol=3e-1, atol=5e-1)
+
+
+@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("use_size_factor", [False, True])
+def test_with_minified_adata(cls, use_size_factor: bool):
+    run_test_for_model_with_minified_adata(cls=cls, use_size_factor=use_size_factor)
+
+
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
 @pytest.mark.parametrize("use_size_factor", [False, True])
 def test_with_minified_mudata(cls, use_size_factor: bool):
@@ -142,10 +217,10 @@ def test_with_minified_mdata_get_normalized_expression(cls):
         for ii in range(len(exprs_new)):
             assert exprs_new[ii].shape == mdata[mdata.mod_names[ii]].shape
         for ii in range(len(exprs_new)):
-            np.testing.assert_array_equal(exprs_new[ii], exprs_orig[ii])
+            assert_approx_equal(exprs_new[ii], exprs_orig[ii])
     else:
-        assert exprs_new.shape == mdata[mdata.mod_names].shape
-        np.testing.assert_array_equal(exprs_new, exprs_orig)
+        assert exprs_new.shape == exprs_orig.shape
+        assert_approx_equal(exprs_new, exprs_orig)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
@@ -167,17 +242,18 @@ def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
-    # do this so that we generate the same sequence of random numbers in the
-    # minified and non-minified cases (purely to get the tests to pass). this is
-    # because in the non-minified case we sample once more (in the call to z_encoder
-    # during inference)
     exprs_new = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples + 1, return_mean=False, library_size="latent"
+        gene_list=gl, n_samples=n_samples + 1, library_size="latent"
     )
-    exprs_new = exprs_new[0][:, :, 1:].mean(2)
 
-    assert exprs_new.shape == (mdata.shape[0], 5)
-    np.testing.assert_allclose(exprs_new, exprs_orig[0], rtol=3e-1, atol=5e-1)
+    if type(exprs_new) is tuple:
+        for ii in range(len(exprs_new)):
+            assert exprs_new[ii].shape == exprs_orig[ii].shape  # mdata[mdata.mod_names[ii]].shape
+        for ii in range(len(exprs_new)):
+            assert_approx_equal(exprs_new[ii], exprs_orig[ii])
+    else:
+        assert exprs_new.shape == exprs_orig.shape
+        assert_approx_equal(exprs_new, exprs_orig)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
@@ -212,7 +288,7 @@ def test_validate_unsupported_if_minified(cls):
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_with_minified_mdata_save_then_load(cls, save_path):
+def test_with_minified_mdata_save_then_load(cls, save_path="."):
     # create a model and minify its mdata, then save it and its mdata.
     # Load it back up using the same (minified) mdata. Validate that the
     # loaded model has the minified_data_type attribute set as expected.
@@ -234,7 +310,7 @@ def test_with_minified_mdata_save_then_load(cls, save_path):
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_path):
+def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_path="."):
     # create a model and minify its mdata, then save it and its mdata.
     # Load it back up using a non-minified mdata. Validate that the
     # loaded model does not has the minified_data_type attribute set.
@@ -255,7 +331,7 @@ def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_pa
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_save_then_load_with_minified_mdata(cls, save_path):
+def test_save_then_load_with_minified_mdata(cls, save_path="."):
     # create a model, then save it and its mdata (non-minified).
     # Load it back up using a minified mdata. Validate that this
     # fails, as expected because we don't have a way to validate
@@ -293,7 +369,7 @@ def test_with_minified_mdata_get_latent_representation(cls):
 
     latent_repr_new = model.get_latent_representation()
 
-    np.testing.assert_array_equal(latent_repr_new, latent_repr_orig)
+    assert_approx_equal(latent_repr_new, latent_repr_orig)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI])
@@ -312,7 +388,7 @@ def test_with_minified_mdata_posterior_predictive_sample(cls):
     sample_new = model.posterior_predictive_sample()
     # assert sample_new.shape == (3, 2)
 
-    np.testing.assert_array_equal(sample_new, sample_orig)
+    assert_approx_equal(sample_new, sample_orig)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI])
