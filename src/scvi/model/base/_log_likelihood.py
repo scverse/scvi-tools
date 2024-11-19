@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from inspect import signature
 from typing import TYPE_CHECKING
 
 import torch
@@ -48,8 +49,13 @@ def compute_elbo(
     The evidence lower bound (ELBO) of the data.
     """
     elbo = []
+    if "full_forward_pass" in signature(module._get_inference_input).parameters:
+        get_inference_input_kwargs = {"full_forward_pass": True}
+    else:
+        get_inference_input_kwargs = {}
     for tensors in dataloader:
-        _, _, losses = module(tensors, **kwargs)
+        _, _, losses = module(tensors, **kwargs,
+                              get_inference_input_kwargs=get_inference_input_kwargs)
         if isinstance(losses.reconstruction_loss, dict):
             reconstruction_loss = torch.stack(list(losses.reconstruction_loss.values())).sum(dim=0)
         else:
@@ -99,9 +105,14 @@ def compute_reconstruction_error(
     A dictionary of the reconstruction error of the data.
     """
     # Iterate once over the data and computes the reconstruction error
+    if "full_forward_pass" in signature(module._get_inference_input).parameters:
+        get_inference_input_kwargs = {"full_forward_pass": True}
+    else:
+        get_inference_input_kwargs = {}
     log_lkl = {}
     for tensors in dataloader:
-        _, _, loss_output = module(tensors, loss_kwargs={"kl_weight": 1}, **kwargs)
+        _, _, loss_output = module(tensors, loss_kwargs={"kl_weight": 1}, **kwargs,
+                                   get_inference_input_kwargs=get_inference_input_kwargs)
         if not isinstance(loss_output.reconstruction_loss, dict):
             rec_loss_dict = {"reconstruction_loss": loss_output.reconstruction_loss}
         else:

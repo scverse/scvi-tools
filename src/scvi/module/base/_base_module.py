@@ -739,7 +739,7 @@ def _generic_forward(
     loss_kwargs = _get_dict_if_none(loss_kwargs)
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
-    if not ("qzm" in tensors.keys() and "qzv" in tensors.keys()):
+    if not ("latent_qzm" in tensors.keys() and "latent_qzv" in tensors.keys()):
         get_inference_input_kwargs.pop("full_forward_pass", None)
 
     inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)

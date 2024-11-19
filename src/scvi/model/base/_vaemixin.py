@@ -29,7 +29,7 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
         **kwargs,
     ) -> float:
