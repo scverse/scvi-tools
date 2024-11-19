@@ -345,7 +345,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         max_epochs: int | None = None,
         n_samples_per_label: float | None = None,
         check_val_every_n_epoch: int | None = None,
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
