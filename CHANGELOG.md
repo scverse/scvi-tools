@@ -10,6 +10,11 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Added adaptive handling for last training minibatch of 1-2 cells in case of
+    `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
+    validation set, if available.
+    {pr}`3036`.
+
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
