@@ -283,19 +283,23 @@ def test_validate_supported_if_minified_keep_count():
 
     assert np.allclose(model2.get_elbo(), model.get_elbo(), rtol=1e-2)
     assert np.allclose(
-        model2.get_reconstruction_error()['reconstruction_loss'],
-        model.get_reconstruction_error()['reconstruction_loss'], rtol=1e-2
+        model2.get_reconstruction_error()["reconstruction_loss"],
+        model.get_reconstruction_error()["reconstruction_loss"],
+        rtol=1e-2,
     )
     assert np.allclose(model2.get_marginal_ll(), model.get_marginal_ll(), rtol=1e-2)
 
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
-    model.train(1, check_val_every_n_epoch=1, train_size=0.5,
-                plan_kwargs={"update_only_decoder": True})
+    model.train(
+        1, check_val_every_n_epoch=1, train_size=0.5, plan_kwargs={"update_only_decoder": True}
+    )
     scanvi_model = scvi.model.SCANVI.from_scvi_model(
-        model, labels_key="labels", unlabeled_category="unknown")
+        model, labels_key="labels", unlabeled_category="unknown"
+    )
     scanvi_model.train()
-    scanvi_model.train(1, check_val_every_n_epoch=1, train_size=0.5,
-                       plan_kwargs={"update_only_decoder": True})
+    scanvi_model.train(
+        1, check_val_every_n_epoch=1, train_size=0.5, plan_kwargs={"update_only_decoder": True}
+    )
 
 
 def test_scvi_with_minified_adata_save_then_load(save_path):

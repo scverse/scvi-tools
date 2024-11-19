@@ -289,7 +289,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if full_forward_pass or self.minified_data_type is None:
             loader = "full_data"
         elif self.minified_data_type in [
-            ADATA_MINIFY_TYPE.LATENT_POSTERIOR, ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS,
         ]:
             loader = "minified_data"
         else:

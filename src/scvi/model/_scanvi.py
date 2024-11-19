@@ -211,7 +211,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 )
                 del scanvi_kwargs[k]
 
-        if scvi_model.minified_data_type==ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if scvi_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise ValueError(
                 "We cannot use the given scVI model to initialize scANVI because it has "
                 "minified adata. Keep counts when minifying model using "

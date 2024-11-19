@@ -280,7 +280,7 @@ class TrainingPlan(pl.LightningModule):
         return self.module(
             *args,
             **kwargs,
-            get_inference_input_kwargs={'full_forward_pass': not self.update_only_decoder},
+            get_inference_input_kwargs={"full_forward_pass": not self.update_only_decoder},
         )
 
     @torch.inference_mode()
