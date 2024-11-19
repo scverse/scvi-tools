@@ -166,9 +166,7 @@ def validate_data_split_with_external_indexing(
 
     if batch_size is not None:
         num_of_cells = n_train % batch_size
-        if (num_of_cells < 3 and num_of_cells > 0) and not (
-            num_of_cells == 1 and drop_last is True
-        ):
+        if (num_of_cells < 3 and num_of_cells > 0) and drop_last is False:
             warnings.warn(
                 f"Last batch will have a small size of {num_of_cells} "
                 f"samples. Consider changing settings.batch_size or batch_size in model.train "
