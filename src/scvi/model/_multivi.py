@@ -1153,10 +1153,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         %(param_mdata)s
         rna_layer
             RNA layer key. If `None`, will use `.X` of specified modality key.
-        protein_layer
-            Protein layer key. If `None`, will use `.X` of specified modality key.
         atac_layer
             ATAC layer key. If `None`, will use `.X` of specified modality key.
+        protein_layer
+            Protein layer key. If `None`, will use `.X` of specified modality key.
         %(param_batch_key)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
@@ -1227,7 +1227,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if modalities.atac_layer is not None:
             mudata_fields.append(
                 fields.MuDataLayerField(
-                    REGISTRY_KEYS.X_KEY,
+                    REGISTRY_KEYS.ATAC_X_KEY,
                     atac_layer,
                     mod_key=modalities.atac_layer,
                     is_count_data=True,

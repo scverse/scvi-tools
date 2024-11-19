@@ -331,7 +331,7 @@ def test_multivi_size_factor_mudata():
     model.train(1, train_size=0.5)
 
 
-def test_multivi_saving_and_loading_mudata(save_path: str = "."):
+def test_multivi_saving_and_loading_mudata(save_path: str):
     adata = synthetic_iid()
     protein_adata = synthetic_iid(n_genes=50)
     mdata = MuData({"rna": adata, "protein": protein_adata})
@@ -392,7 +392,7 @@ def test_multivi_saving_and_loading_mudata(save_path: str = "."):
     )
 
 
-def test_scarches_mudata_prep_layer(save_path: str = "."):
+def test_scarches_mudata_prep_layer(save_path: str):
     n_latent = 5
     mdata1 = synthetic_iid(return_mudata=True)
 
@@ -440,7 +440,7 @@ def test_scarches_mudata_prep_layer(save_path: str = "."):
     MULTIVI.load_query_data(mdata2, dir_path)
 
 
-def test_multivi_save_load_mudata_format(save_path: str = "."):
+def test_multivi_save_load_mudata_format(save_path: str):
     mdata = synthetic_iid(return_mudata=True, protein_expression_key="protein")
     invalid_mdata = mdata.copy()
     invalid_mdata.mod["protein"] = invalid_mdata.mod["protein"][:, :10].copy()
