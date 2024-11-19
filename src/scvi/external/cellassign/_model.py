@@ -143,7 +143,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         lr: float = 3e-3,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 1024,
