@@ -69,15 +69,12 @@ def validate_data_split(
 
     if batch_size is not None:
         num_of_cells = n_train % batch_size
-        if (num_of_cells < 3 and num_of_cells > 0) and not (
-            num_of_cells == 1 and drop_last is True
-        ):
+        if (num_of_cells < 3 and num_of_cells > 0) and drop_last is False:
             if not train_size_is_none:
                 warnings.warn(
                     f"Last batch will have a small size of {num_of_cells} "
                     f"samples. Consider changing settings.batch_size or batch_size in model.train "
-                    f"from currently {batch_size} to avoid errors during model training, "
-                    f"or use drop_last parameter if there is 1 cell left",
+                    f"from currently {batch_size} to avoid errors during model training.",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
@@ -86,7 +83,8 @@ def validate_data_split(
                 if n_val > 0:
                     n_val += num_of_cells
                     warnings.warn(
-                        f"{num_of_cells} cells moved from training set to validation set",
+                        f"{num_of_cells} cells moved from training set to validation set."
+                        f" if you want to avoid it please use train_size parameter during train.",
                         UserWarning,
                         stacklevel=settings.warnings_stacklevel,
                     )
@@ -175,8 +173,7 @@ def validate_data_split_with_external_indexing(
                 f"Last batch will have a small size of {num_of_cells} "
                 f"samples. Consider changing settings.batch_size or batch_size in model.train "
                 f"from currently {settings.batch_size} to avoid errors during model training "
-                f"or change the given external indices accordingly or use drop_last parameter if "
-                f"there is 1 cell left",
+                f"or change the given external indices accordingly.",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
