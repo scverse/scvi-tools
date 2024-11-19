@@ -338,6 +338,12 @@ class VarEncoder(Module):
         One of the following:
         * ``'sample_feature'`` - learn variance per sample and feature.
         * ``'feature'`` - learn variance per feature, constant across samples.
+    activation
+        Activation function. If empty it is set to softplus.
+    exp_clip
+        Perform clipping before activation to prevent inf values in e**x.
+        This should be useful for any activation function using e**x,
+        such as exp, softplus, etc.
     """
 
     def __init__(
@@ -346,10 +352,12 @@ class VarEncoder(Module):
         n_output: int,
         mode: Literal["sample_feature", "feature", "linear"],
         activation: Callable | None = None,
+        exp_clip: bool = True,
     ):
         super().__init__()
 
-        self.clip_exp = np.log(torch.finfo(torch.get_default_dtype()).max) - 1e-4
+        self.clip_exp_thr = np.log(torch.finfo(torch.get_default_dtype()).max) - 1e-4
+        self.exp_clip = exp_clip
         self.mode = mode
         if self.mode == "sample_feature":
             self.encoder = Linear(n_input, n_output)
@@ -357,7 +365,7 @@ class VarEncoder(Module):
             self.var_param = Parameter(torch.zeros(1, n_output))
         else:
             raise ValueError("Mode not recognised.")
-        self.activation = torch.exp if activation is None else activation
+        self.activation = torch.nn.Softplus() if activation is None else activation
 
     def forward(
         self,
@@ -384,7 +392,10 @@ class VarEncoder(Module):
         # Ensure that var is strictly positive via exp -
         # Bring back to non-log scale
         # Clip to range that will not be inf after exp
-        v = torch.clip(v, min=-self.clip_exp, max=self.clip_exp)
+        # This should be useful for any activation that uses e**x
+        # such as exp, softplus, etc.
+        if self.exp_clip:
+            v = torch.clip(v, min=-self.clip_exp_thr, max=self.clip_exp_thr)
         v = self.activation(v)
         if v.isnan().any():
             warnings.warn(
