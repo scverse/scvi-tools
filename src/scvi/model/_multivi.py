@@ -1259,7 +1259,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseMudataMinifi
         if modalities.atac_layer is not None:
             mudata_fields.append(
                 fields.MuDataLayerField(
-                    REGISTRY_KEYS.X_KEY,
+                    REGISTRY_KEYS.ATAC_X_KEY,
                     atac_layer,
                     mod_key=modalities.atac_layer,
                     is_count_data=True,
