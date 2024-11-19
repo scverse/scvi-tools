@@ -674,8 +674,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         for _ in range(n_passes):
             # Distribution parameters and sampled variables
             inference_outputs, _, losses = self.forward(
-                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass},
-                get_inference_input_kwargs = {"full_forward_pass": True}
+                tensors,
+                inference_kwargs={"n_samples": n_mc_samples_per_pass},
+                get_inference_input_kwargs={"full_forward_pass": True},
             )
             qz = inference_outputs[MODULE_KEYS.QZ_KEY]
             ql = inference_outputs[MODULE_KEYS.QL_KEY]
