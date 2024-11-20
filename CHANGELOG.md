@@ -25,9 +25,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Added adaptive handling for last training minibatch of 1-2 cells in case of
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
-    validation set, if available.
-    {pr}`3036`.
+    validation set, if available. {pr}`3036`.
 - Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
+- Implemented variance of ZINB distribution. {pr}`3044`.
 
 #### Fixed
 
