@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.module.base import EmbeddingModuleMixin
+
+if TYPE_CHECKING:
+    import numpy as np
+    from anndata import AnnData
 
 
 class EmbeddingMixin:

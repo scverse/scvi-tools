@@ -33,13 +33,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.9", "3.10", "3.11", "3.12"]
-        install-flags:
-          [
-            "--prerelease if-necessary-or-explicit",
-            "--resolution lowest-direct",
-            "--resolution lowest",
-          ]
+        python: ["3.10", "3.11", "3.12"]
+        install-flags: ["--prerelease if-necessary-or-explicit"]
 
     name: integration
 
@@ -66,6 +61,7 @@ jobs:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
+          COLUMNS: 120
         run: |
           coverage run -m pytest -v --color=yes
           coverage report

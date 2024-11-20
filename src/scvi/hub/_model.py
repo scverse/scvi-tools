@@ -8,10 +8,10 @@ import tempfile
 import warnings
 from dataclasses import asdict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import anndata
 import rich
-from anndata import AnnData
 from huggingface_hub import ModelCard, snapshot_download
 from rich.markdown import Markdown
 
@@ -19,10 +19,14 @@ from scvi import settings
 from scvi.data import cellxgene
 from scvi.data._download import _download
 from scvi.hub._metadata import HubMetadata, HubModelCardHelper
-from scvi.model.base import BaseModelClass
 from scvi.utils import dependencies
 
 from ._constants import _SCVI_HUB
+
+if TYPE_CHECKING:
+    from anndata import AnnData
+
+    from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,8 @@
 name: test (cuda)
 
 on:
+  push:
+    branches: [main, "[0-9]+.[0-9]+.x"] #this is new
   pull_request:
     branches: [main, "[0-9]+.[0-9]+.x"]
     types: [labeled, synchronize, opened]
@@ -29,14 +31,9 @@ jobs:
       run:
         shell: bash -e {0} # -e to fail on error
 
-    strategy:
-      fail-fast: false
-      matrix:
-        python: ["3.11"]
-        cuda: ["11", "12"]
-
     container:
-      image: scverse/scvi-tools:py${{ matrix.python }}-cu${{ matrix.cuda }}-base
+      image: ghcr.io/scverse/scvi-tools:py3.12-cu12-base
+      #image: ghcr.io/scverse/scvi-tools:py3.12-cu12-${{ env.BRANCH_NAME }}-base
       options: --user root --gpus all
 
     name: integration
@@ -46,17 +43,31 @@ jobs:
       PYTHON: ${{ matrix.python }}
 
     steps:
+      #- name: Get the current branch name
+      #  id: vars
+      #  run: echo "BRANCH_NAME=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> $GITHUB_ENV
+
       - uses: actions/checkout@v4
 
-      - run: |
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install dependencies
+        run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
+          python -m pip install jax[cuda]
+          python -m pip install nvidia-nccl-cu12
 
       - name: Run pytest
         env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
+          COLUMNS: 120
         run: |
           coverage run -m pytest -v --color=yes --accelerator cuda --devices auto
           coverage report

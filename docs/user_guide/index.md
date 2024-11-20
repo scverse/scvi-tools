@@ -42,6 +42,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/contrastivevi`
      - scVI tasks with contrastive analysis
      - :cite:p:`Weinberger23`
+   * - :doc:`/user_guide/models/mrvi`
+     - Characterization of sample-level heterogeneity
+     - :cite:p:`Boyeau24`
 
 ```
 
@@ -64,6 +67,21 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/poissonvi`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`Martens2023`
+```
+
+## BS-seq analysis
+
+```{eval-rst}
+.. list-table::
+   :widths: 15 100 25
+   :header-rows: 1
+
+   * - Model
+     - Tasks
+     - Reference
+   * - :doc:`/user_guide/models/methylvi`
+     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential methylation, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`Weinberger2023a`
 ```
 
 ## Multimodal analysis
@@ -141,11 +159,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ## Background
 
--   {doc}`/user_guide/background/variational_inference`
--   {doc}`/user_guide/background/differential_expression`
--   {doc}`/user_guide/background/counterfactual_prediction`
--   {doc}`/user_guide/background/transfer_learning`
--   {doc}`/user_guide/background/codebase_overview`
+- {doc}`/user_guide/background/variational_inference`
+- {doc}`/user_guide/background/differential_expression`
+- {doc}`/user_guide/background/counterfactual_prediction`
+- {doc}`/user_guide/background/transfer_learning`
+- {doc}`/user_guide/background/codebase_overview`
 
 ## Glossary
 
@@ -166,7 +184,7 @@ A module is the lower-level object that defines a generative model and inference
 either inherit {class}`~scvi.module.base.BaseModuleClass` or {class}`~scvi.module.base.PyroBaseModuleClass`.
 Consequently, a module can either be implemented with PyTorch alone, or Pyro. In the PyTorch only case, the
 generative process and inference scheme are implemented respectively in the `generative` and `inference` methods,
-while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
+while the `loss` method computes the loss, e.g, ELBO in the case of variational inference.
 :::
 ::::
 

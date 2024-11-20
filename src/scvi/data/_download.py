@@ -1,7 +1,6 @@
 import logging
 import os
 import urllib
-from typing import Optional
 
 import numpy as np
 
@@ -10,7 +9,7 @@ from scvi.utils import track
 logger = logging.getLogger(__name__)
 
 
-def _download(url: Optional[str], save_path: str, filename: str):
+def _download(url: str | None, save_path: str, filename: str):
     """Writes data from url to file."""
     if os.path.exists(os.path.join(save_path, filename)):
         logger.info(f"File {os.path.join(save_path, filename)} already downloaded")
@@ -30,7 +29,7 @@ def _download(url: Optional[str], save_path: str, filename: str):
         if exc.code == "404":
             raise FileNotFoundError(f"Could not find file at {url}") from exc
         raise exc
-    logger.info("Downloading file at %s" % os.path.join(save_path, filename))
+    logger.info(f"Downloading file at {os.path.join(save_path, filename)}")
 
     def read_iter(file, block_size=1000):
         """Iterates through file.

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import logging
 import os
 import warnings
-from typing import Literal, Optional
+from typing import TYPE_CHECKING
 
 import anndata
 import mudata
@@ -15,6 +17,13 @@ from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.model.base._constants import SAVE_KEYS
 
+if TYPE_CHECKING:
+    from typing import Literal
+
+    import numpy.typing as npt
+
+    from scvi._types import AnnOrMuData
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +31,7 @@ def _load_legacy_saved_files(
     dir_path: str,
     file_name_prefix: str,
     load_adata: bool,
-) -> tuple[dict, np.ndarray, dict, Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, dict, AnnData | None]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_MODEL_FNAME}")
     var_names_path = os.path.join(
         dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_VAR_NAMES_FNAME}"
@@ -53,9 +62,9 @@ def _load_legacy_saved_files(
 def _load_saved_files(
     dir_path: str,
     load_adata: bool,
-    prefix: Optional[str] = None,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-    backup_url: Optional[str] = None,
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
 ) -> tuple[dict, np.ndarray, dict, AnnData]:
     """Helper to load saved files."""
     file_name_prefix = prefix or ""
@@ -131,13 +140,76 @@ def _initialize_model(cls, adata, attr_dict):
     return model
 
 
-def _validate_var_names(adata, source_var_names):
-    user_var_names = adata.var_names.astype(str)
-    if not np.array_equal(source_var_names, user_var_names):
+def _get_var_names(
+    adata: AnnOrMuData,
+    legacy_mudata_format: bool = False,
+) -> npt.NDArray | dict[str, npt.NDArray]:
+    """Get variable names from an :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+
+    Parameters
+    ----------
+    adata
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+    legacy_mudata_format
+        If ``True``, returns variable names for :class:`~mudata.MuData` objects in the legacy
+        format, _i.e._, a flat array with variable names across all modalities concatenated
+        together. Otherwise, returns a dictionary with keys corresponding to the modality names
+        and values corresponding to the variable names for each modality.
+
+    Returns
+    -------
+    - An array of variable names if ``adata`` is an :class:`~anndata.AnnData` object
+    - An array of concatenated modality variable names if ``adata`` is a :class:`~mudata.MuData`
+        and ``legacy_mudata_format`` is ``True``
+    - A dictionary with keys corresponding to the modality names and values corresponding to the
+        variable names for each modality if ``adata`` is a :class:`~mudata.MuData` and
+        ``legacy_mudata_format`` is ``False``
+    """
+    if isinstance(adata, AnnData) or legacy_mudata_format:
+        return adata.var_names.astype(str).to_numpy()
+    elif isinstance(adata, mudata.MuData):
+        return {
+            mod_key: adata.mod[mod_key].var_names.astype(str).to_numpy()
+            for mod_key in adata.mod.keys()
+        }
+    else:
+        raise TypeError("`adata` must be an AnnData or MuData object.")
+
+
+def _validate_var_names(
+    adata: AnnOrMuData, source_var_names: npt.NDArray | dict[str, npt.NDArray]
+) -> None:
+    """Validate that source and loaded variable names match.
+
+    Parameters
+    ----------
+    adata
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` object.
+    source_var_names
+        Variable names from a saved model file corresponding to the variable names used during
+        training.
+    """
+    from numpy import array_equal
+
+    is_anndata = isinstance(adata, AnnData)
+    source_per_mod_var_names = isinstance(source_var_names, dict)
+    load_var_names = _get_var_names(
+        adata,
+        legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
+    )
+
+    if source_per_mod_var_names:
+        valid_load_var_names = all(
+            array_equal(source_var_names.get(mod_key), load_var_names.get(mod_key))
+            for mod_key in source_var_names
+        )
+    else:
+        valid_load_var_names = array_equal(source_var_names, load_var_names)
+
+    if not valid_load_var_names:
         warnings.warn(
-            "var_names for adata passed in does not match var_names of adata used to "
-            "train the model. For valid results, the vars need to be the same and in "
-            "the same order as the adata used to train the model.",
+            "`var_names` for the loaded `adata` does not match those of the `adata` used to "
+            "train the model. For valid results, the former should match the latter.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )

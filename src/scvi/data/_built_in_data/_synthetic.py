@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -7,7 +9,8 @@ import scipy
 from anndata import AnnData
 from mudata import MuData
 
-from scvi._types import AnnOrMuData
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +24,18 @@ def _generate_synthetic(
     n_batches: int,
     n_labels: int,
     dropout_ratio: float,
-    sparse_format: Optional[str],
+    sparse_format: str | None,
     generate_coordinates: bool,
     return_mudata: bool,
     batch_key: str = "batch",
     labels_key: str = "labels",
     rna_key: str = "rna",
+    gene_names_prefix: str = "gene",
     protein_expression_key: str = "protein_expression",
     protein_names_key: str = "protein_names",
+    protein_names_prefix: str = "protein",
     accessibility_key: str = "accessibility",
+    region_names_prefix: str = "region",
     coordinates_key: str = "coordinates",
 ) -> AnnOrMuData:
     n_obs = batch_size * n_batches
@@ -43,17 +49,19 @@ def _generate_synthetic(
     mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_genes))
     rna = rna * mask
     rna = sparsify_data(rna)
+    gene_names = np.array([f"{gene_names_prefix}_{i}" for i in range(n_genes)])
 
     if n_proteins > 0:
         protein = np.random.negative_binomial(5, 0.3, size=(n_obs, n_proteins))
-        protein_names = np.arange(n_proteins).astype(str)
         protein = sparsify_data(protein)
+        protein_names = np.array([f"{protein_names_prefix}_{i}" for i in range(n_proteins)])
 
     if n_regions > 0:
         accessibility = np.random.negative_binomial(5, 0.3, size=(n_obs, n_regions))
         mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_regions))
         accessibility = accessibility * mask
         accessibility = sparsify_data(accessibility)
+        region_names = np.array([f"{region_names_prefix}_{i}" for i in range(n_regions)])
 
     batch = []
     for i in range(n_batches):
@@ -67,6 +75,7 @@ def _generate_synthetic(
         coords = np.random.normal(size=(n_obs, 2))
 
     adata = AnnData(rna)
+    adata.var_names = gene_names
     if return_mudata:
         mod_dict = {rna_key: adata}
 
@@ -75,7 +84,9 @@ def _generate_synthetic(
             protein_adata.var_names = protein_names
             mod_dict[protein_expression_key] = protein_adata
         if n_regions > 0:
-            mod_dict[accessibility_key] = AnnData(accessibility)
+            accessibility_adata = AnnData(accessibility)
+            accessibility_adata.var_names = region_names
+            mod_dict[accessibility_key] = accessibility_adata
 
         adata = MuData(mod_dict)
     else:

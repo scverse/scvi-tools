@@ -5,7 +5,7 @@ import logging
 import os
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
@@ -15,7 +15,6 @@ from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
 from scvi.data import AnnDataManager
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
@@ -36,6 +35,11 @@ from scvi.model.base._save_load import (
 )
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
 
@@ -145,9 +149,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         --------
         >>> adata = scvi.data.synthetic_iid()
         >>> model = scvi.model.SCVI(adata)
-        >>> model.to_device('cpu')      # moves model to CPU
-        >>> model.to_device('cuda:0')   # moves model to GPU 0
-        >>> model.to_device(0)          # also moves model to GPU 0
+        >>> model.to_device("cpu")  # moves model to CPU
+        >>> model.to_device("cuda:0")  # moves model to GPU 0
+        >>> model.to_device(0)  # also moves model to GPU 0
         """
         my_device = torch.device(device)
         self.module.to(my_device)
@@ -434,6 +438,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         if "num_workers" not in data_loader_kwargs:
             data_loader_kwargs.update({"num_workers": settings.dl_num_workers})
+        if "persistent_workers" not in data_loader_kwargs:
+            data_loader_kwargs.update({"persistent_workers": settings.dl_persistent_workers})
 
         dl = data_loader_class(
             adata_manager,
@@ -563,6 +569,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         overwrite: bool = False,
         save_anndata: bool = False,
         save_kwargs: dict | None = None,
+        legacy_mudata_format: bool = False,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -584,9 +591,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             If True, also saves the anndata
         save_kwargs
             Keyword arguments passed into :func:`~torch.save`.
+        legacy_mudata_format
+            If ``True``, saves the model ``var_names`` in the legacy format if the model was
+            trained with a :class:`~mudata.MuData` object. The legacy format is a flat array with
+            variable names across all modalities concatenated, while the new format is a dictionary
+            with keys corresponding to the modality names and values corresponding to the variable
+            names for each modality.
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
+        from scvi.model.base._save_load import _get_var_names
+
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -613,8 +628,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = self.adata.var_names.astype(str)
-        var_names = var_names.to_numpy()
+        var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()

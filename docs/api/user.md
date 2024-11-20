@@ -60,7 +60,9 @@ import scvi
    external.ContrastiveVI
    external.POISSONVI
    external.VELOVI
-
+   external.MRVI
+   external.METHYLVI
+   external.Decipher
 ```
 
 ## Data loading

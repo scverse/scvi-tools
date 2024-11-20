@@ -75,8 +75,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
-   dataloaders.ContrastiveDataLoader
-   dataloaders.ContrastiveDataSplitter
 
 ```
 
@@ -180,6 +178,9 @@ Module classes in the external API with respective generative and inference proc
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
+   external.mrvi.MRVAE
+   external.methylvi.METHYLVAE
+   external.decipher.DecipherPyroModule
 
 ```
 
@@ -277,5 +278,3 @@ Utility functions used by scvi-tools.
    utils.attrdict
    model.get_max_epochs_heuristic
 ```
-
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html

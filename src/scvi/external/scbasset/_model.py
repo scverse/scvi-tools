@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi.data import AnnDataManager
 from scvi.data._download import _download
@@ -19,6 +18,11 @@ from scvi.model.base import BaseModelClass
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils import dependencies, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +52,7 @@ class SCBASSET(BaseModelClass):
     --------
     >>> adata = anndata.read_h5ad(path_to_sc_anndata)
     >>> scvi.data.add_dna_sequence(adata)
-    >>> adata = adata.transpose() # regions by cells
+    >>> adata = adata.transpose()  # regions by cells
     >>> scvi.external.SCBASSET.setup_anndata(adata, dna_code_key="dna_code")
     >>> model = scvi.external.SCBASSET(adata)
     >>> model.train()
@@ -102,7 +106,7 @@ class SCBASSET(BaseModelClass):
         lr: float = 0.01,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,

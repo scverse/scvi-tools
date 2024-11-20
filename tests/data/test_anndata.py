@@ -438,7 +438,7 @@ def test_anntorchdataset_numpy(adata):
     adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_anntorchdataset_numpy_sparse(adata):
@@ -447,7 +447,7 @@ def test_anntorchdataset_numpy_sparse(adata):
     adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_anntorchdataset_getitem_numpy_sparse(adata):
@@ -458,7 +458,7 @@ def test_anntorchdataset_getitem_numpy_sparse(adata):
     )
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_anntorchdataset_getitem_pro_exp(adata):
@@ -471,7 +471,7 @@ def test_anntorchdataset_getitem_pro_exp(adata):
     )
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_view_registry(adata):

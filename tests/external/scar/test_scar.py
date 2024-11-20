@@ -7,8 +7,11 @@ from scvi.external import SCAR
 def test_scar():
     n_latent = 5
     adata = synthetic_iid()
+
+    adata.obs["batch"] = adata.obs["batch"].cat.rename_categories(["batch_2", "batch_3"])
+
     adata.X = scipy.sparse.csr_matrix(adata.X)
-    SCAR.setup_anndata(adata)
+    SCAR.setup_anndata(adata, batch_key="batch", labels_key="labels")
 
     _ = SCAR.get_ambient_profile(adata, adata, prob=0.0, iterations=1, sample=100)
     model = SCAR(adata, ambient_profile=None, n_latent=n_latent)

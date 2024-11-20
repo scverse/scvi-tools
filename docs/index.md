@@ -65,6 +65,7 @@ Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the late
 
 installation
 tutorials/index
+faq
 user_guide/index
 api/index
 developer/index

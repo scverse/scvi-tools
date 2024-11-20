@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        python: ["3.9", "3.10", "3.11"]
+        python: ["3.10", "3.11", "3.12"]
 
     name: integration
 
@@ -61,6 +61,7 @@ jobs:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
+          COLUMNS: 120
         run: |
           coverage run -m pytest -v --color=yes
           coverage report

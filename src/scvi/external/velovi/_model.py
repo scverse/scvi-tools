@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
-from anndata import AnnData
 from joblib import Parallel, delayed
 from scipy.stats import ttest_ind
 
@@ -22,6 +20,12 @@ from scvi.external.velovi._module import VELOVAE
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +129,13 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         weight_decay: float = 1e-2,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         batch_size: int = 256,
         early_stopping: bool = True,
         gradient_clip_val: float = 10,
         plan_kwargs: dict | None = None,
+        external_indexing: list[np.ndarray] = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -161,6 +166,9 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             this method will overwrite values present in ``plan_kwargs``, when appropriate.
+        external_indexing
+            A list of data split indices in the order of training, validation, and test sets.
+            Validation and test set are not required and can be left empty.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -177,6 +185,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             train_size=train_size,
             validation_size=validation_size,
             batch_size=batch_size,
+            external_indexing=external_indexing,
         )
         training_plan = TrainingPlan(self.module, **plan_kwargs)
 

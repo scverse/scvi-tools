@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -129,9 +129,7 @@ class AutoZIVAE(VAE):
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
-    def get_alphas_betas(
-        self, as_numpy: bool = True
-    ) -> dict[str, Union[torch.Tensor, np.ndarray]]:
+    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str, torch.Tensor | np.ndarray]:
         """Get the parameters of the Bernoulli beta prior and posterior distributions."""
         # Return parameters of Bernoulli Beta distributions in a dictionary
         outputs = {}
@@ -181,8 +179,8 @@ class AutoZIVAE(VAE):
     def reshape_bernoulli(
         self,
         bernoulli_params: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
@@ -214,8 +212,8 @@ class AutoZIVAE(VAE):
 
     def sample_bernoulli_params(
         self,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
         n_samples: int = 1,
     ) -> torch.Tensor:
         """Sample Bernoulli parameters from the posterior distribution."""
@@ -261,8 +259,8 @@ class AutoZIVAE(VAE):
         self,
         z,
         library,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
         size_factor=None,
         cont_covs=None,
         cat_covs=None,
@@ -367,7 +365,7 @@ class AutoZIVAE(VAE):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         # KL divergence wrt Bernoulli parameters
         kl_divergence_bernoulli = self.compute_global_kl_divergence()

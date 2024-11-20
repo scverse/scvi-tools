@@ -4,12 +4,57 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2 (unreleased)
+## Version 1.2
 
-### 1.2.0 (unreleased)
+### 1.3.0 (2024-XX-XX)
 
 #### Added
 
+#### Fixed
+
+#### Changed
+
+#### Removed
+
+- Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
+    representation learning in single-cell RNA sequencing data {pr}`3015`.
+
+### 1.2.1 (2024-XX-XX)
+
+#### Added
+
+- Added adaptive handling for last training minibatch of 1-2 cells in case of
+    `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
+    validation set, if available. {pr}`3036`.
+- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
+- Implemented variance of ZINB distribution. {pr}`3044`.
+
+#### Fixed
+
+- Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
+    to correctly compute the maxmimum log-density across in-sample cells rather than the
+    aggregated posterior log-density {pr}`3007`.
+- Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+
+#### Changed
+
+#### Removed
+
+### 1.2.0 (2024-09-26)
+
+#### Added
+
+- Add support for Python 3.12 {pr}`2966`.
+- Add support for categorial covariates in scArches in `scvi.model.archesmixin` {pr}`2936`.
+- Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
+- Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
+- {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
+    {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
+- Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
+    by passing `external_indexing=list[train_idx,valid_idx,test_idx]` as well as in all models
+    available {pr}`2902`.
+- Add warning if creating data splits in `scvi.dataloaders` that create last batch with less than 3
+    cells {pr}`2916`.
 - Add new experimental functional API for hyperparameter tuning with
     {func}`scvi.autotune.run_autotune` and {class}`scvi.autotune.AutotuneExperiment` to replace
     {class}`scvi.autotune.ModelTuner`, {class}`scvi.autotune.TunerManager`, and
@@ -29,10 +74,27 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add `unsigned` argument to {meth}`scvi.hub.HubModel.pull_from_s3` to allow for unsigned
     downloads of models from AWS S3 {pr}`2615`.
 - Add support for `batch_key` in {meth}`scvi.model.CondSCVI.setup_anndata` {pr}`2626`.
+- Add support for {meth}`scvi.model.base.RNASeqMixin` in {class}`scvi.model.CondSCVI` {pr}`2915`.
 - Add `load_best_on_end` argument to {class}`scvi.train.SaveCheckpoint` to load the best model
     state at the end of training {pr}`2672`.
 - Add experimental class {class}`scvi.distributions.BetaBinomial` implementing the Beta-Binomial
-    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data {pr}`2692`.
+    distribution with mean-dispersion parameterization for modeling scBS-seq methylation data
+    {pr}`2692`.
+- Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
+    the `dataloader` argument {pr}`2748`.
+- Add option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
+    passing in `gene_likelihood="normal"` {pr}`2780`.
+- Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
+    data {pr}`2756`.
+- Add support for reference mapping with {class}`mudata.MuData` models to
+    {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
+- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
+    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
+- Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
+    and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
+    without averaging across cells {pr}`2362`.
+- Add support for setting `weights="importance"` in
+    {meth}`scvi.model.SCANVI.differential_expression` {pr}`2362`.
 
 #### Changed
 
@@ -60,6 +122,31 @@ to [Semantic Versioning]. Full commit history is available in the
     {func}`scvi.model.base._de_core._de_core` {pr}`2731`.
 - Move {func}`scvi.model.base._utils._fdr_de_prediction` to
     {func}`scvi.model.base._de_core_._fdr_de_prediction` {pr}`2731`.
+- {func}`scvi.data.synthetic_iid` now generates unique variable names for protein and
+    accessibility data {pr}`2739`.
+- The `data_module` argument in {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` has been
+    renamed to `datamodule` for consistency {pr}`2749`.
+- Change the default saving method of variable names for {class}`mudata.MuData` based models
+    (_e.g._ {class}`scvi.model.TOTALVI`) to a dictionary of per-mod variable names instead of a
+    concatenated array of all variable names. Users may replicate the previous behavior by
+    passing in `legacy_mudata_format=True` to {meth}`scvi.model.base.BaseModelClass.save`
+    {pr}`2769`.
+- Changed internal activation function in {class}`scvi.nn.DecoderTOTALVI` to Softplus to
+    increase numerical stability. This is the new default for new models. Previously trained models
+    will be loaded with exponential activation function {pr}`2913`.
+
+#### Fixed
+
+- Fix logging of accuracy for cases with 1 sample per class in scANVI {pr}`2938`.
+- Disable adversarial classifier if training with a single batch.
+    Previously this raised a None error {pr}`2914`.
+- {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
+    Negative Binomial with latent_library_size {pr}`2915`.
+- Fix {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
+- {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
+- Enable option to drop_last minibatch during training by `datasplitter_kwargs={"drop_last": True}`
+    {pr}`2926`.
+- Fix JAX to be deterministic on CUDA when seed is manually set {pr}`2923`.
 
 #### Removed
 
@@ -73,12 +160,31 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.1
 
-### 1.1.3 (unreleased)
+### 1.1.6 (2024-08-19)
+
+#### Fixed
+
+- Breaking change: In `scvi.autotune._manager` we changed the parameter in RunConfig from
+    `local_dir` to `storage_path` see issue `2908` {pr}`2689`.
+
+### 1.1.5 (2024-06-30)
+
+### 1.1.4 (2024-06-30)
+
+#### Added
+
+- Add argument `return_logits` to {meth}`scvi.external.SOLO.predict` that allows returning logits
+    instead of probabilities when passing in `soft=True` to replicate the buggy behavior previous
+    to v1.1.3 {pr}`2870`.
+
+### 1.1.3 (2024-06-26)
 
 #### Fixed
 
 - Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
     instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
+- Breaking change: Fix {class}`scvi.dataloaders.SemiSupervisedDataSplitter` to properly sample
+    unlabeled observations without replacement {pr}`2816`.
 
 ### 1.1.2 (2024-03-01)
 
@@ -470,7 +576,6 @@ to [Semantic Versioning]. Full commit history is available in the
     parameters are. We provide utility functions and methods to dynamically convert a model to
     latent mode.
 - Added {class}`~scvi.external.SCAR` as an external model for ambient RNA removal [#1683].
-- Add weight support to {class}`~scvi.model.MULTIVI` [#1697].
 
 #### Minor changes
 
@@ -486,7 +591,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Breaking changes
 
-None
+- Add weight support to {class}`~scvi.model.MULTIVI` [#1697]. Old models can't be loaded anymore.
 
 #### Bug Fixes
 
@@ -1495,7 +1600,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 #### Enhancements
 
-##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method  <!-- markdownlint-disable -->
+##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
 It is now possible to iteratively update these models with new samples, without altering the model
 for the "reference" population. Here we use the
@@ -1557,7 +1662,7 @@ use scvi-tools is with our documentation and tutorials.
 - New high-level API and data loading, please see tutorials and examples for usage.
 - `GeneExpressionDataset` and associated classes have been removed.
 - Built-in datasets now return `AnnData` objects.
-- `scvi-tools` now relies entirely on the \[AnnData\] format.
+- `scvi-tools` now relies entirely on the [AnnData] format.
 - `scvi.models` has been moved to `scvi.core.module`.
 - `Posterior` classes have been reduced to wrappers on `DataLoaders`
 - `scvi.inference` has been split to `scvi.core.data_loaders` for `AnnDataLoader` classes and

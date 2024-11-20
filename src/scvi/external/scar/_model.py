@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import logging
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from torch.distributions.multinomial import Multinomial
 
 from scvi import REGISTRY_KEYS
@@ -21,6 +22,11 @@ from scvi.utils import setup_anndata_dsp, track
 
 from ._module import SCAR_VAE
 
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,7 +40,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi_external.SCAR.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.SCAR.setup_anndata`.
     ambient_profile
         The probability of occurrence of each ambient transcript.\
             If None, averaging cells to estimate the ambient profile, by default None.
@@ -64,15 +70,15 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         the sparsity should be low; on the other hand, it should be set high
         in the case of unflitered genes.
     **model_kwargs
-        Keyword args for :class:`~scvi_external.SCAR`
+        Keyword args for :class:`~scvi.external.SCAR`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> raw_adata = anndata.read_h5ad(path_to_raw_anndata)
-    >>> scvi_external.SCAR.setup_anndata(adata, batch_key="batch")
-    >>> scvi_external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
-    >>> vae = scvi_external.SCAR(adata)
+    >>> scvi.external.SCAR.setup_anndata(adata, batch_key="batch")
+    >>> scvi.external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
+    >>> vae = scvi.external.SCAR(adata)
     >>> vae.train()
     >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
     >>> adata.layers['denoised'] = vae.get_denoised_counts()
@@ -81,7 +87,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def __init__(
         self,
         adata: AnnData,
-        ambient_profile: Union[str, np.ndarray, pd.DataFrame, torch.tensor] = None,
+        ambient_profile: str | np.ndarray | pd.DataFrame | torch.tensor | None = None,
         n_hidden: int = 150,
         n_latent: int = 15,
         n_layers: int = 2,
@@ -146,8 +152,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        size_factor_key: Optional[str] = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
+        size_factor_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -155,14 +163,16 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
         %(param_layer)s
         %(param_size_factor_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, None),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
@@ -231,7 +241,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
             for b in range(n_batch):
                 try:
-                    count_batch = raw_adata[batch_idx == b].X.astype(int).A
+                    count_batch = raw_adata[batch_idx == b].X.astype(int).toarray()
                 except MemoryError as err:
                     raise MemoryError("use more batches by setting a higher n_batch") from err
                 log_prob_batch = Multinomial(
@@ -261,9 +271,9 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     @torch.no_grad()
     def get_denoised_counts(
         self,
-        adata: Optional[AnnData] = None,
+        adata: AnnData | None = None,
         n_samples: int = 1,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> np.ndarray:
         r"""Generate observation samples from the posterior predictive distribution.
 
