@@ -115,8 +115,8 @@ def compute_reconstruction_error(
         _, _, loss_output = module(
             tensors,
             loss_kwargs={"kl_weight": 1},
-            **kwargs,
             get_inference_input_kwargs=get_inference_input_kwargs,
+            **kwargs,
         )
         if not isinstance(loss_output.reconstruction_loss, dict):
             rec_loss_dict = {"reconstruction_loss": loss_output.reconstruction_loss}
