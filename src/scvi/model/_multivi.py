@@ -1159,7 +1159,7 @@ class MULTIVI(
             batch_field,
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
@@ -1253,7 +1253,7 @@ class MULTIVI(
                 None,
                 mod_key=None,
             ),
-            fields.MuDataNumericalJointObsField(
+            fields.MuDataNumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY,
                 size_factor_key,
                 mod_key=None,
@@ -1382,8 +1382,8 @@ class MULTIVI(
         if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
-        if self.module.use_size_factor is False:
-            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
+        if self.module.use_size_factor_key is False:
+            raise ValueError("Cannot minify the data if `use_size_factor_key` is False")
 
         minified_adata = get_minified_mudata(self.adata, minified_data_type)
         minified_adata.obsm[_MULTIVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
