@@ -1067,6 +1067,7 @@ class BaseMudataMinifiedModeModelClass(BaseModelClass):
         new_adata_manager.register_new_fields(
             self._get_fields_for_mudata_minification(minified_data_type)
         )
+        new_adata_manager.registry["setup_method_name"] = "setup_mudata"
         # We set the adata attribute of the model as this will update self.registry_
         # and self.adata_manager with the new adata manager
         self.adata = minified_adata

@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 # from mudata import MuData
+import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
@@ -203,16 +204,20 @@ def test_with_minified_mudata(cls, use_size_factor: bool):
 def test_with_minified_mdata_get_normalized_expression(cls):
     model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
+    scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
 
+    scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression()
 
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
+    scvi.settings.seed = 1
     exprs_new = model.get_normalized_expression()
+
     if type(exprs_new) is tuple:
         for ii in range(len(exprs_new)):
             assert exprs_new[ii].shape == mdata[mdata.mod_names[ii]].shape
@@ -231,19 +236,22 @@ def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls
     gl = mdata.var_names[:5].to_list()
     n_samples = 10
 
+    scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
 
+    scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples, library_size="latent"
+        gene_list=gl, n_samples=n_samples, library_size="latent", return_mean=False
     )
 
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
+    scvi.settings.seed = 1
     exprs_new = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples + 1, library_size="latent"
+        gene_list=gl, n_samples=n_samples, library_size="latent", return_mean=False
     )
 
     if type(exprs_new) is tuple:
@@ -301,12 +309,12 @@ def test_with_minified_mdata_save_then_load(cls, save_path):
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
-    model.save(save_path, overwrite=True, save_anndata=True, legacy_mudata_format=True)
+    model.save(save_path, overwrite=True, save_anndata=True)
     model.view_setup_args(save_path)
     # load saved model with saved (minified) mdata
     loaded_model = cls.load(save_path, adata=mdata)
 
-    assert loaded_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+    assert loaded_model.minified_data_type is None
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
@@ -376,15 +384,18 @@ def test_with_minified_mdata_get_latent_representation(cls):
 def test_with_minified_mdata_posterior_predictive_sample(cls):
     model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
+    scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
     model.adata.obsm["X_latent_qzv"] = qzv
 
+    scvi.settings.seed = 1
     sample_orig = model.posterior_predictive_sample()
 
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
+    scvi.settings.seed = 1
     sample_new = model.posterior_predictive_sample()
     # assert sample_new.shape == (3, 2)
 
