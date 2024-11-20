@@ -554,7 +554,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if region_list is None:
             region_mask = slice(None)
         else:
-            region_mask = [region in region_list for region in adata.var_names[:self.n_regions]]
+            region_mask = [region in region_list for region in adata.var_names[: self.n_regions]]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -600,15 +600,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 return pd.DataFrame.sparse.from_spmatrix(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[:self.n_regions][region_mask] if
-                    isinstance(adata, MuData) else adata.var_names[:self.n_regions][region_mask],
+                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    if isinstance(adata, MuData)
+                    else adata.var_names[: self.n_regions][region_mask],
                 )
             else:
                 return pd.DataFrame(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[:self.n_regions][region_mask] if
-                    isinstance(adata, MuData) else adata.var_names[:self.n_regions][region_mask],
+                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    if isinstance(adata, MuData)
+                    else adata.var_names[: self.n_regions][region_mask],
                 )
 
     @torch.inference_mode()
@@ -796,7 +798,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        col_names = adata.var_names[:self.n_genes]
+        col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
@@ -817,7 +819,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
-            var_idx=np.arange(adata.shape[1])[:self.n_genes],
+            var_idx=np.arange(adata.shape[1])[: self.n_genes],
         )
 
         result = _de_core(
