@@ -164,8 +164,8 @@ class MULTIVI(
     def __init__(
         self,
         adata: AnnOrMuData,
-        n_genes: int,
-        n_regions: int,
+        n_genes: int | None = None,
+        n_regions: int | None = None,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
         n_hidden: int | None = None,
@@ -187,6 +187,11 @@ class MULTIVI(
     ):
         super().__init__(adata)
 
+        if n_genes is None or n_regions is None:
+            assert isinstance(adata, MuData), "n_genes and n_regions must be provided if using AnnData"
+            n_genes = self.summary_stats.get("n_vars", 0)
+            n_regions = self.summary_stats.get("n_atac", 0)
+
         prior_mean, prior_scale = None, None
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
@@ -195,10 +200,6 @@ class MULTIVI(
         )
 
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-
-        # TODO: ADD MINIFICATION CONSIDERATION HERE?
-        # if not use_size_factor_key and self.minified_data_type is None:
-        #     library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         if "n_proteins" in self.summary_stats:
             n_proteins = self.summary_stats.n_proteins
@@ -618,7 +619,9 @@ class MULTIVI(
             imputed = vstack(imputed, format="csr")
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
-
+        print('SDSDSD', imputed.shape)
+        print(adata["rna"].var_names[self.n_genes :][region_mask].shape)
+        print(adata.obs_names[indices].shape)
         if return_numpy:
             return imputed
         elif threshold:
@@ -1147,7 +1150,7 @@ class MULTIVI(
             batch_field,
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
@@ -1205,11 +1208,15 @@ class MULTIVI(
         protein_layer
             Protein layer key. If `None`, will use `.X` of specified modality key.
         %(param_batch_key)s
-        %(param_size_factor_key)s
+        size_factor_key
+            Key in `mdata.obsm` for size factors. The first column corresponds to RNA size factors,
+            the second to ATAC size factors.
+            The second column need to be normalized and between 0 and 1.
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         %(idx_layer)s
         %(param_modalities)s
+
 
         Examples
         --------
@@ -1238,10 +1245,10 @@ class MULTIVI(
                 None,
                 mod_key=None,
             ),
-            fields.MuDataNumericalObsField(
+            fields.MuDataNumericalJointObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY,
                 size_factor_key,
-                mod_key=modalities.size_factor_key,
+                mod_key=None,
                 required=False,
             ),
             fields.MuDataCategoricalJointObsField(
@@ -1367,8 +1374,8 @@ class MULTIVI(
         if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
-        # if self.module.use_observed_lib_size is False:
-        #     raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
+        if self.module.use_size_factor is False:
+            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
 
         minified_adata = get_minified_mudata(self.adata, minified_data_type)
         minified_adata.obsm[_MULTIVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]

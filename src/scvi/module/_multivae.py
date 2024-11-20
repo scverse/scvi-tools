@@ -259,8 +259,6 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         RNA distribution.
     """
 
-    # TODO: replace n_input_regions and n_input_genes with a gene/region mask (we don't dictate
-    # which comes first or that they're even contiguous)
     def __init__(
         self,
         n_input_regions: int = 0,
@@ -301,7 +299,7 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
             if n_input_regions == 0:
                 self.n_hidden = np.min([128, int(np.sqrt(self.n_input_genes))])
             else:
-                self.n_hidden = int(np.sqrt(self.n_input_regions))
+                self.n_hidden = np.min([128, int(np.sqrt(self.n_input_regions))])
         else:
             self.n_hidden = n_hidden
         self.n_batch = n_batch
@@ -536,7 +534,12 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         # from scvi.data._constants import ADATA_MINIFY_TYPE
         # TODO: ADD MINIFICATION CONSIDERATION
 
-        x = tensors[REGISTRY_KEYS.X_KEY]
+        x = tensors.get(REGISTRY_KEYS.X_KEY, None)
+        x_atac = tensors.get(REGISTRY_KEYS.ATAC_X_KEY, None)
+        if x is not None and x_atac is not None:
+            x = torch.cat((x, x_atac), dim=-1)
+        elif x is None:
+            x = x_atac
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
@@ -546,6 +549,7 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
         label = tensors[REGISTRY_KEYS.LABELS_KEY]
+        size_factor = tensors.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
         input_dict = {
             "x": x,
             "y": y,
@@ -554,6 +558,7 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
             "cat_covs": cat_covs,
             "label": label,
             "cell_idx": cell_idx,
+            "size_factor": size_factor,
         }
         return input_dict
 
@@ -567,6 +572,7 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         cat_covs,
         label,
         cell_idx,
+        size_factor,
         n_samples=1,
     ) -> dict[str, torch.Tensor]:
         """Run the inference model."""
@@ -576,21 +582,21 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         else:
             x_rna = x[:, : self.n_input_genes]
         if self.n_input_regions == 0:
-            x_chr = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
+            x_atac = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
-            x_chr = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
+            x_atac = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
 
         mask_expr = x_rna.sum(dim=1) > 0
-        mask_acc = x_chr.sum(dim=1) > 0
+        mask_acc = x_atac.sum(dim=1) > 0
         mask_pro = y.sum(dim=1) > 0
 
         if cont_covs is not None and self.encode_covariates:
             encoder_input_expression = torch.cat((x_rna, cont_covs), dim=-1)
-            encoder_input_accessibility = torch.cat((x_chr, cont_covs), dim=-1)
+            encoder_input_accessibility = torch.cat((x_atac, cont_covs), dim=-1)
             encoder_input_protein = torch.cat((y, cont_covs), dim=-1)
         else:
             encoder_input_expression = x_rna
-            encoder_input_accessibility = x_chr
+            encoder_input_accessibility = x_atac
             encoder_input_protein = y
 
         if cat_covs is not None and self.encode_covariates:
@@ -610,12 +616,16 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         )
 
         # L encoders
-        libsize_expr = self.l_encoder_expression(
-            encoder_input_expression, batch_index, *categorical_input
-        )
-        libsize_acc = self.l_encoder_accessibility(
-            encoder_input_accessibility, batch_index, *categorical_input
-        )
+        if self.use_size_factor_key:
+            libsize_expr = torch.log(size_factor[:, [0]] + 1e-6)
+            libsize_acc = size_factor[:, [1]]
+        else:
+            libsize_expr = self.l_encoder_expression(
+                encoder_input_expression, batch_index, *categorical_input
+            )
+            libsize_acc = self.l_encoder_accessibility(
+                encoder_input_accessibility, batch_index, *categorical_input
+            )
 
         # mix representations
         if self.modality_weights == "cell":
@@ -654,6 +664,7 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         z = self.z_encoder_accessibility.z_transformation(untran_z)
 
         outputs = {
+            "x": x,
             "z": z,
             "qz_m": qz_m,
             "qz_v": qz_v,
@@ -677,11 +688,6 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
 
-        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            torch.log(tensors[size_factor_key]) if size_factor_key in tensors.keys() else None
-        )
-
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
@@ -701,7 +707,6 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
             "cont_covs": cont_covs,
             "cat_covs": cat_covs,
             "libsize_expr": libsize_expr,
-            "size_factor": size_factor,
             "label": label,
         }
         return input_dict
@@ -715,7 +720,6 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         cont_covs=None,
         cat_covs=None,
         libsize_expr=None,
-        size_factor=None,
         use_z_mean=False,
         label: torch.Tensor = None,
     ):
@@ -739,12 +743,10 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
 
         # Expression Decoder
-        if not self.use_size_factor_key:
-            size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
             self.gene_dispersion,
             decoder_input,
-            size_factor,
+            libsize_expr,
             batch_index,
             *categorical_input,
             label,
@@ -786,24 +788,23 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
     def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
         """Computes the loss function for the model."""
         # Get the data
-        x = tensors[REGISTRY_KEYS.X_KEY]
+        x = inference_outputs["x"]
 
-        # TODO: CHECK IF THIS FAILS IN ONLY RNA DATA
         x_rna = x[:, : self.n_input_genes]
-        x_chr = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
+        x_atac = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
         mask_expr = x_rna.sum(dim=1) > 0
-        mask_acc = x_chr.sum(dim=1) > 0
+        mask_acc = x_atac.sum(dim=1) > 0
         mask_pro = y.sum(dim=1) > 0
 
         # Compute Accessibility loss
         p = generative_outputs["p"]
         libsize_acc = inference_outputs["libsize_acc"]
-        rl_accessibility = self.get_reconstruction_loss_accessibility(x_chr, p, libsize_acc)
+        rl_accessibility = self.get_reconstruction_loss_accessibility(x_atac, p, libsize_acc)
 
         # Compute Expression loss
         px_rate = generative_outputs["px_rate"]
@@ -822,7 +823,6 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
             rl_protein = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
 
         # calling without weights makes this act like a masked sum
-        # TODO : CHECK MIXING HERE
         recon_loss_expression = rl_expression * mask_expr
         recon_loss_accessibility = rl_accessibility * mask_acc
         recon_loss_protein = rl_protein * mask_pro

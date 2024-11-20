@@ -212,6 +212,8 @@ class BaseJointField(BaseArrayLikeField):
         Sequence of keys to combine to form the obsm or varm field.
     field_type
         Type of field. Can be either 'obsm' or 'varm'.
+    required
+        If True, the field must be present in the AnnData object
     """
 
     def __init__(
@@ -219,6 +221,7 @@ class BaseJointField(BaseArrayLikeField):
         registry_key: str,
         attr_keys: list[str] | None,
         field_type: Literal["obsm", "varm"] = None,
+        required: bool = True,
     ) -> None:
         super().__init__(registry_key)
         if field_type == "obsm":
@@ -232,6 +235,7 @@ class BaseJointField(BaseArrayLikeField):
         self._attr_key = f"_scvi_{registry_key}"
         self._attr_keys = attr_keys if attr_keys is not None else []
         self._is_empty = len(self.attr_keys) == 0
+        self._required = required
 
     def validate_field(self, adata: AnnData) -> None:
         """Validate the field."""
@@ -266,6 +270,10 @@ class BaseJointField(BaseArrayLikeField):
     @property
     def is_empty(self) -> bool:
         return self._is_empty
+    
+    @property
+    def required(self) -> bool:
+        return self._required
 
 
 class NumericalJointField(BaseJointField):
@@ -282,6 +290,8 @@ class NumericalJointField(BaseJointField):
         Sequence of keys to combine to form the obsm or varm field.
     field_type
         Type of field. Can be either 'obsm' or 'varm'.
+    required
+        If True, the field must be present in the AnnData object
     """
 
     COLUMNS_KEY = "columns"
@@ -291,8 +301,9 @@ class NumericalJointField(BaseJointField):
         registry_key: str,
         attr_keys: list[str] | None,
         field_type: Literal["obsm", "varm"] = None,
+        required: bool = True,
     ) -> None:
-        super().__init__(registry_key, attr_keys, field_type=field_type)
+        super().__init__(registry_key, attr_keys, field_type=field_type, required=required)
 
         self.count_stat_key = f"n_{self.registry_key}"
 
