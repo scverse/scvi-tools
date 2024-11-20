@@ -26,11 +26,6 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-
-_SCVI_LATENT_QZM = "_scvi_latent_qzm"
-_SCVI_LATENT_QZV = "_scvi_latent_qzv"
-_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
-
 logger = logging.getLogger(__name__)
 
 
@@ -105,6 +100,8 @@ class SCVI(
     """
 
     _module_cls = VAE
+    _SCVI_LATENT_QZM = "scvi_latent_qzm"
+    _SCVI_LATENT_QZV = "scvi_latent_qzv"
 
     def __init__(
         self,

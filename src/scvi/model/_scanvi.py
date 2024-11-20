@@ -13,6 +13,7 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
     _SETUP_ARGS_KEY,
+    ADATA_MINIFY_TYPE,
 )
 from scvi.data._utils import _get_adata_minify_type, _is_minified, get_anndata_attribute
 from scvi.data.fields import (
@@ -40,10 +41,6 @@ if TYPE_CHECKING:
     from anndata import AnnData
 
     from ._scvi import SCVI
-
-_SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
-_SCANVI_LATENT_QZV = "_scanvi_latent_qzv"
-_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +101,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     _module_cls = SCANVAE
     _training_plan_cls = SemiSupervisedTrainingPlan
+    _LATENT_QZM = "scanvi_latent_qzm"
+    _LATENT_QZV = "scanvi_latent_qzv"
 
     def __init__(
         self,
@@ -212,17 +211,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 )
                 del scanvi_kwargs[k]
 
-        if scvi_model.minified_data_type is not None:
+        if scvi_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise ValueError(
-                "We cannot use the given scvi model to initialize scanvi because it has a "
-                "minified adata."
+                "We cannot use the given scVI model to initialize scANVI because it has "
+                "minified adata. Keep counts when minifying model using "
+                "minified_data_type='latent_posterior_parameters_with_counts'."
             )
 
         if adata is None:
             adata = scvi_model.adata
         else:
             if _is_minified(adata):
-                raise ValueError("Please provide a non-minified `adata` to initialize scanvi.")
+                raise ValueError("Please provide a non-minified `adata` to initialize scANVI.")
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
@@ -230,7 +230,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
             raise ValueError(
-                "A `labels_key` is necessary as the SCVI model was initialized without one."
+                "A `labels_key` is necessary as the scVI model was initialized without one."
             )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})

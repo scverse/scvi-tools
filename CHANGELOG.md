@@ -28,6 +28,10 @@ to [Semantic Versioning]. Full commit history is available in the
     validation set, if available.
     {pr}`3036`.
 - Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
+- Support for minified mode while retaining counts to skip the encoder.
+- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+    the encoder.
+- Refactored code for minified models.
 - Add MuData Minification option to {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.TOTALVI` {pr}`3039`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
