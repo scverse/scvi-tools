@@ -181,7 +181,9 @@ def test_multivi_mudata_trimodal_external():
     model.get_region_factors()
 
 
-def test_multivi_mudata():
+@pytest.mark.parametrize("n_genes", [25, 50, 100])
+@pytest.mark.parametrize("n_regions", [25, 50, 100])
+def test_multivi_mudata(n_genes: int, n_regions: int):
     # use of syntetic data of rna/proteins/atac for speed
 
     mdata = synthetic_iid(return_mudata=True)
@@ -197,7 +199,7 @@ def test_multivi_mudata():
     n_obs = mdata.n_obs
     n_latent = 10
 
-    model = MULTIVI(mdata, n_latent=n_latent)
+    model = MULTIVI(mdata, n_latent=n_latent, n_genes=n_genes, n_regions=n_regions)
     model.train(1, train_size=0.9)
     assert model.is_trained is True
     z = model.get_latent_representation()
@@ -227,7 +229,7 @@ def test_multivi_mudata():
         modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
     )
     norm_exp = model.get_normalized_expression(mdata2, indices=[1, 2, 3])
-    assert norm_exp.shape == (3, 50)
+    assert norm_exp.shape == (3, n_genes)
 
     # test transfer_anndata_setup + view
     mdata3 = synthetic_iid(return_mudata=True)
