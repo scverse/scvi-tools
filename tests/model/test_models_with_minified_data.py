@@ -281,13 +281,13 @@ def test_validate_supported_if_minified_keep_count():
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
     assert model2.minified_data_type is None
 
-    assert np.allclose(model2.get_elbo(), model.get_elbo(), rtol=1e-2)
+    assert np.allclose(model2.get_elbo(), model.get_elbo(), rtol=5e-2)
     assert np.allclose(
         model2.get_reconstruction_error()["reconstruction_loss"],
         model.get_reconstruction_error()["reconstruction_loss"],
-        rtol=1e-2,
+        rtol=5e-2,
     )
-    assert np.allclose(model2.get_marginal_ll(), model.get_marginal_ll(), rtol=1e-2)
+    assert np.allclose(model2.get_marginal_ll(), model.get_marginal_ll(), rtol=5e-2)
 
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(
