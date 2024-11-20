@@ -1,20 +1,18 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
 from collections.abc import Iterable as IterableClass
 from functools import partial
-from typing import Literal
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -43,6 +41,12 @@ from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from ._module import POISSONMULTIVAE
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+    from anndata import AnnData
+    from scvi._types import Number
 
 logger = logging.getLogger(__name__)
 
