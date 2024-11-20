@@ -2,9 +2,9 @@ from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .decipher import Decipher
 from .gimvi import GIMVI
-from .poissonmultivi import POISSONMULTIVI
 from .methylvi import METHYLVI
 from .mrvi import MRVI
+from .poissonmultivi import POISSONMULTIVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
 from .scbasset import SCBASSET

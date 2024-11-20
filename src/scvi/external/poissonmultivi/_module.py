@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -275,7 +275,7 @@ class POISSONMULTIVAE(BaseModuleClass):
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
@@ -284,8 +284,8 @@ class POISSONMULTIVAE(BaseModuleClass):
         encode_covariates: bool = False,
         use_size_factor_key_expr: bool = False,
         use_size_factor_key_acc: bool = False,
-        protein_background_prior_mean: Optional[np.ndarray] = None,
-        protein_background_prior_scale: Optional[np.ndarray] = None,
+        protein_background_prior_mean: np.ndarray | None = None,
+        protein_background_prior_scale: np.ndarray | None = None,
         protein_dispersion: str = "protein",
     ):
         super().__init__()
