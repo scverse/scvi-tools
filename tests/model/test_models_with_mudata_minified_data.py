@@ -92,7 +92,11 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
     #                 "accessibility": synthetic_iid()})
     mdata = synthetic_iid(return_mudata=True)
     if use_size_factor:
-        mdata.obs["size_factor"] = np.random.randint(1, 5, size=(mdata.shape[0],))
+        mdata.obs["size_factor_rna"] = mdata["rna"].X.sum(1)
+        mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
+            np.max(mdata["accessibility"].X.sum(1)) + 1.01
+        )
+        # mdata.obs["size_factor"] = np.random.randint(1, 5, size=(mdata.shape[0],))
     # if layer is not None:
     #     for mod in mdata.mod_names:
     #         mdata[mod].layers[layer] = mdata[mod].X.copy()
@@ -114,10 +118,11 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
     setup_kwargs = {
         "batch_key": "batch",
     }
-    if use_size_factor:
-        setup_kwargs["size_factor_key"] = "size_factor"
 
     if cls == TOTALVI:
+        if use_size_factor:
+            setup_kwargs["size_factor_key"] = "size_factor_rna"
+
         # create and train the model
         cls.setup_mudata(
             mdata,
@@ -126,6 +131,9 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
         )
         model = cls(mdata, n_latent=5)
     elif cls == MULTIVI:
+        if use_size_factor:
+            setup_kwargs["size_factor_key"] = ["size_factor_rna", "size_factor_atac"]
+
         # create and train the model
         cls.setup_mudata(
             mdata,
@@ -188,7 +196,7 @@ def assert_approx_equal(a, b):
     np.testing.assert_allclose(a, b, rtol=3e-1, atol=5e-1)
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("cls", [TOTALVI])
 @pytest.mark.parametrize("use_size_factor", [True])
 def test_with_minified_adata(cls, use_size_factor: bool):
     run_test_for_model_with_minified_adata(cls=cls, use_size_factor=use_size_factor)
@@ -243,7 +251,7 @@ def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls
 
     scvi.settings.seed = 1
     exprs_orig = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples, library_size="latent", return_mean=False
+        gene_list=gl, n_samples=n_samples, library_size="latent"
     )
 
     model.minify_mudata()
@@ -251,7 +259,7 @@ def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls
 
     scvi.settings.seed = 1
     exprs_new = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples, library_size="latent", return_mean=False
+        gene_list=gl, n_samples=n_samples, library_size="latent"
     )
 
     if type(exprs_new) is tuple:

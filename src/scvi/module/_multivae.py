@@ -618,7 +618,7 @@ class MULTIVAE(BaseModuleClass):
         # L encoders
         if self.use_size_factor_key:
             libsize_expr = torch.log(size_factor[:, [0]] + 1e-6)
-            libsize_acc = torch.log(size_factor[:, [0]] + 1e-6)
+            libsize_acc = size_factor[:, [1]]
         else:
             libsize_expr = self.l_encoder_expression(
                 encoder_input_expression, batch_index, *categorical_input
@@ -688,11 +688,6 @@ class MULTIVAE(BaseModuleClass):
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
 
-        size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY
-        size_factor = (
-            torch.log(tensors[size_factor_key]) if size_factor_key in tensors.keys() else None
-        )
-
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
@@ -712,7 +707,6 @@ class MULTIVAE(BaseModuleClass):
             "cont_covs": cont_covs,
             "cat_covs": cat_covs,
             "libsize_expr": libsize_expr,
-            "size_factor": size_factor,
             "label": label,
         }
         return input_dict
@@ -726,7 +720,6 @@ class MULTIVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         libsize_expr=None,
-        size_factor=None,
         use_z_mean=False,
         label: torch.Tensor = None,
     ):
@@ -750,12 +743,10 @@ class MULTIVAE(BaseModuleClass):
         p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
 
         # Expression Decoder
-        if not self.use_size_factor_key:
-            size_factor = libsize_expr
         px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
             self.gene_dispersion,
             decoder_input,
-            size_factor,
+            libsize_expr,
             batch_index,
             *categorical_input,
             label,
