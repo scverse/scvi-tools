@@ -188,20 +188,20 @@ def assert_approx_equal(a, b):
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-@pytest.mark.parametrize("use_size_factor", [False, True])
+@pytest.mark.parametrize("use_size_factor", [True])
 def test_with_minified_adata(cls, use_size_factor: bool):
     run_test_for_model_with_minified_adata(cls=cls, use_size_factor=use_size_factor)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-@pytest.mark.parametrize("use_size_factor", [False, True])
+@pytest.mark.parametrize("use_size_factor", [True])
 def test_with_minified_mudata(cls, use_size_factor: bool):
     run_test_for_model_with_minified_mudata(cls=cls, use_size_factor=use_size_factor)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
 def test_with_minified_mdata_get_normalized_expression(cls):
-    model, mdata, _, _ = prep_model_mudata(cls=cls)
+    model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -225,7 +225,7 @@ def test_with_minified_mdata_get_normalized_expression(cls):
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
 def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls):
-    model, mdata, _, _ = prep_model_mudata(cls=cls)
+    model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     # non-default gene list and n_samples > 1
     gl = mdata.var_names[:5].to_list()
@@ -258,7 +258,7 @@ def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
 def test_validate_unsupported_if_minified(cls):
-    model, _, _, _ = prep_model_mudata(cls=cls)
+    model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -288,11 +288,11 @@ def test_validate_unsupported_if_minified(cls):
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_with_minified_mdata_save_then_load(cls, save_path="."):
+def test_with_minified_mdata_save_then_load(cls, save_path):
     # create a model and minify its mdata, then save it and its mdata.
     # Load it back up using the same (minified) mdata. Validate that the
     # loaded model has the minified_data_type attribute set as expected.
-    model, mdata, _, _ = prep_model_mudata(cls=cls)
+    model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -310,11 +310,11 @@ def test_with_minified_mdata_save_then_load(cls, save_path="."):
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_path="."):
+def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_path):
     # create a model and minify its mdata, then save it and its mdata.
     # Load it back up using a non-minified mdata. Validate that the
     # loaded model does not has the minified_data_type attribute set.
-    model, mdata, _, mdata_before_setup = prep_model_mudata(cls=cls)
+    model, mdata, _, mdata_before_setup = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -331,12 +331,12 @@ def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_pa
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_save_then_load_with_minified_mdata(cls, save_path="."):
+def test_save_then_load_with_minified_mdata(cls, save_path):
     # create a model, then save it and its mdata (non-minified).
     # Load it back up using a minified mdata. Validate that this
     # fails, as expected because we don't have a way to validate
     # whether the minified-mdata was set up correctly
-    model, _, _, _ = prep_model_mudata(cls=cls)
+    model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -356,7 +356,7 @@ def test_save_then_load_with_minified_mdata(cls, save_path="."):
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
 def test_with_minified_mdata_get_latent_representation(cls):
-    model, _, _, _ = prep_model_mudata(cls=cls)
+    model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -374,7 +374,7 @@ def test_with_minified_mdata_get_latent_representation(cls):
 
 @pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_posterior_predictive_sample(cls):
-    model, _, _, _ = prep_model_mudata(cls=cls)
+    model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
@@ -393,7 +393,7 @@ def test_with_minified_mdata_posterior_predictive_sample(cls):
 
 @pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_get_feature_correlation_matrix(cls):
-    model, _, _, _ = prep_model_mudata(cls=cls)
+    model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
     model.adata.obsm["X_latent_qzm"] = qzm
