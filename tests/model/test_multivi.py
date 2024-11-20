@@ -42,7 +42,7 @@ def test_multivi():
     # Test with size factor
     data = synthetic_iid()
     data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
-    MULTIVI.setup_anndata(data, batch_key="batch", size_factor_key="size_factor")
+    MULTIVI.setup_anndata(data, batch_key="batch")
     vae = MULTIVI(
         data,
         n_genes=50,
@@ -87,11 +87,9 @@ def test_multivi_single_batch():
 
 
 def test_multivi_mudata_rna_prot_external():
-    # Example on how to download protein adata to mudata (from multivi tutotial) - mudata RNA/PROT
+    # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
     adata = scvi.data.pbmcs_10x_cite_seq()
     adata.layers["counts"] = adata.X.copy()
-    sc.pp.normalize_total(adata)
-    sc.pp.log1p(adata)
     adata.obs_names_make_unique()
     protein_adata = ad.AnnData(adata.obsm["protein_expression"])
     protein_adata.obs_names = adata.obs_names
@@ -119,24 +117,19 @@ def test_multivi_mudata_rna_prot_external():
             "batch_key": "rna_subset",
         },
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     model.train(1, train_size=0.9)
 
 
 def test_multivi_mudata_rna_atac_external():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
-    # Preprocessing
-    sc.pp.normalize_total(mdata.mod["rna"])
-    sc.pp.log1p(mdata.mod["rna"])
     sc.pp.highly_variable_genes(
         mdata.mod["rna"],
         n_top_genes=4000,
         flavor="seurat_v3",
     )
     mdata.mod["rna_subset"] = mdata.mod["rna"][:, mdata.mod["rna"].var["highly_variable"]].copy()
-    sc.pp.normalize_total(mdata.mod["accessibility"])
-    sc.pp.log1p(mdata.mod["accessibility"])
     sc.pp.highly_variable_genes(
         mdata.mod["accessibility"],
         n_top_genes=4000,
@@ -146,13 +139,46 @@ def test_multivi_mudata_rna_atac_external():
         :, mdata.mod["accessibility"].var["highly_variable"]
     ].copy()
     mdata.update()
-    # mdata
-    # mdata.mod
     MULTIVI.setup_mudata(
-        mdata, modalities={"rna_layer": "rna_subset", "atac_layer": "atac_subset"}
+        mdata,
+        modalities={"rna_layer": "rna_subset", "atac_layer": "atac_subset"},
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     model.train(1, train_size=0.9)
+
+
+def test_multivi_mudata_trimodal_external():
+    # optional data - mudata RNA/ATAC
+    mdata = synthetic_iid(return_mudata=True)
+    MULTIVI.setup_mudata(
+        mdata,
+        modalities={
+            "rna_layer": "rna",
+            "atac_layer": "accessibility",
+            "protein_layer": "protein_expression",
+        },
+    )
+    model = MULTIVI(mdata)
+    model.train(1, train_size=0.9)
+    model.train(1, train_size=0.9)
+    assert model.is_trained is True
+    model.get_latent_representation()
+    model.get_elbo()
+    model.get_reconstruction_error()
+    model.get_normalized_expression()
+    model.get_accessibility_estimates()
+    model.get_accessibility_estimates(normalize_cells=True)
+    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_library_size_factors()
+    model.get_region_factors()
+
+    model.get_elbo(indices=model.validation_indices)
+    model.get_reconstruction_error(indices=model.validation_indices)
+    model.get_accessibility_estimates()
+    model.get_accessibility_estimates(normalize_cells=True)
+    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_library_size_factors()
+    model.get_region_factors()
 
 
 def test_multivi_mudata():
@@ -171,7 +197,7 @@ def test_multivi_mudata():
     n_obs = mdata.n_obs
     n_latent = 10
 
-    model = MULTIVI(mdata, n_latent=n_latent, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata, n_latent=n_latent)
     model.train(1, train_size=0.9)
     assert model.is_trained is True
     z = model.get_latent_representation()
@@ -224,7 +250,7 @@ def test_multivi_auto_transfer_mudata():
         batch_key="batch",
         modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
@@ -247,7 +273,7 @@ def test_multivi_incorrect_mapping_mudata():
         batch_key="batch",
         modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
@@ -266,7 +292,7 @@ def test_multivi_reordered_mapping_mudata():
         batch_key="batch",
         modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     adata2 = synthetic_iid()
     protein_adata2 = synthetic_iid(n_genes=50)
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
@@ -291,7 +317,7 @@ def test_multivi_model_library_size_mudata():
     )
 
     n_latent = 10
-    model = MULTIVI(mdata, n_latent=n_latent, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata, n_latent=n_latent)
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -303,30 +329,25 @@ def test_multivi_model_library_size_mudata():
 
 
 def test_multivi_size_factor_mudata():
-    adata = synthetic_iid()
-    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
-    protein_adata = synthetic_iid(n_genes=50)
-    mdata = MuData({"rna": adata, "protein": protein_adata})
+    mdata = synthetic_iid(return_mudata=True)
+    mdata.obs["size_factor_rna"] = mdata["rna"].X.sum(1)
+    mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
+        np.max(mdata["accessibility"].X.sum(1)) + 1.01
+    )
     MULTIVI.setup_mudata(
         mdata,
-        batch_key="batch",
-        size_factor_key="size_factor",
-        modalities={
-            "rna_layer": "rna",
-            "batch_key": "rna",
-            "protein_layer": "protein",
-            "size_factor_key": "rna",
-        },
+        modalities={"rna_layer": "rna", "atac_layer": "accessibility"},
+        size_factor_key=["size_factor_rna", "size_factor_atac"],
     )
 
     n_latent = 10
 
     # Test size_factor_key overrides use_observed_lib_size.
-    model = MULTIVI(mdata, n_latent=n_latent, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata, n_latent=n_latent)
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
-    model = MULTIVI(mdata, n_latent=n_latent, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata, n_latent=n_latent)
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
@@ -340,7 +361,7 @@ def test_multivi_saving_and_loading_mudata(save_path: str):
         batch_key="batch",
         modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     model.train(1, train_size=0.2)
     z1 = model.get_latent_representation(mdata)
     test_idx1 = model.validation_indices
@@ -402,7 +423,7 @@ def test_scarches_mudata_prep_layer(save_path: str):
         batch_key="batch",
         modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
     )
-    model = MULTIVI(mdata1, n_latent=n_latent, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata1, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
@@ -448,7 +469,7 @@ def test_multivi_save_load_mudata_format(save_path: str):
         mdata,
         modalities={"rna_layer": "rna", "protein_layer": "protein"},
     )
-    model = MULTIVI(mdata, n_genes=50, n_regions=50)
+    model = MULTIVI(mdata)
     model.train(max_epochs=1)
 
     legacy_model_path = os.path.join(save_path, "legacy_model")
