@@ -161,7 +161,7 @@ def test_scanvi_from_scvi(save_path):
 
     msg = (
         "We cannot use the given scVI model to initialize scANVI because it has minified adata. "
-        "Keep counts when minifying model using minified_data_type= "
+        "Keep counts when minifying model using minified_data_type="
         "'latent_posterior_parameters_with_counts'."
     )
     assert str(e.value) == msg
