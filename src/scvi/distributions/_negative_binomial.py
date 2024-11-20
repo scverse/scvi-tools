@@ -502,7 +502,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
 
     @property
     def variance(self) -> None:
-        raise NotImplementedError
+        pi = self.zi_probs
+        return (1 - pi) * self.mu * (self.mu + self.theta + pi * self.mu * self.theta) / self.theta
 
     @lazy_property
     def zi_logits(self) -> torch.Tensor:
