@@ -188,7 +188,9 @@ class MULTIVI(
         super().__init__(adata)
 
         if n_genes is None or n_regions is None:
-            assert isinstance(adata, MuData), "n_genes and n_regions must be provided if using AnnData"
+            assert isinstance(
+                adata, MuData
+            ), "n_genes and n_regions must be provided if using AnnData"
             n_genes = self.summary_stats.get("n_vars", 0)
             n_regions = self.summary_stats.get("n_atac", 0)
 
@@ -619,7 +621,7 @@ class MULTIVI(
             imputed = vstack(imputed, format="csr")
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
-        print('SDSDSD', imputed.shape)
+        print("SDSDSD", imputed.shape)
         print(adata["rna"].var_names[self.n_genes :][region_mask].shape)
         print(adata.obs_names[indices].shape)
         if return_numpy:

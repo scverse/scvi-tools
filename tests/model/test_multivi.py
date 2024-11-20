@@ -155,7 +155,7 @@ def test_multivi_mudata_trimodal_external():
         modalities={
             "rna_layer": "rna",
             "atac_layer": "accessibility",
-            "protein_layer": "protein_expression"
+            "protein_layer": "protein_expression",
         },
     )
     model = MULTIVI(mdata)
@@ -330,9 +330,10 @@ def test_multivi_model_library_size_mudata():
 
 def test_multivi_size_factor_mudata():
     mdata = synthetic_iid(return_mudata=True)
-    mdata.obs['size_factor_rna'] = mdata["rna"].X.sum(1)
-    mdata.obs['size_factor_atac'] = (
-        mdata["accessibility"].X.sum(1) + 1) / (np.max(mdata["accessibility"].X.sum(1)) + 1.01)
+    mdata.obs["size_factor_rna"] = mdata["rna"].X.sum(1)
+    mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
+        np.max(mdata["accessibility"].X.sum(1)) + 1.01
+    )
     MULTIVI.setup_mudata(
         mdata,
         modalities={"rna_layer": "rna", "atac_layer": "accessibility"},

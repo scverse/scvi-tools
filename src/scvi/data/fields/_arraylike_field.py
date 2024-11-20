@@ -270,7 +270,7 @@ class BaseJointField(BaseArrayLikeField):
     @property
     def is_empty(self) -> bool:
         return self._is_empty
-    
+
     @property
     def required(self) -> bool:
         return self._required
