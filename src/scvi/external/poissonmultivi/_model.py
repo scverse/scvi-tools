@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -45,7 +44,9 @@ from ._module import POISSONMULTIVAE
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from typing import Literal
+
     from anndata import AnnData
+
     from scvi._types import Number
 
 logger = logging.getLogger(__name__)
