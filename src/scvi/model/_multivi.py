@@ -621,9 +621,11 @@ class MULTIVI(
             imputed = vstack(imputed, format="csr")
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
+
         print("SDSDSD", imputed.shape)
         print(adata["rna"].var_names[self.n_genes :][region_mask].shape)
         print(adata.obs_names[indices].shape)
+
         if return_numpy:
             return imputed
         elif threshold:
@@ -1218,7 +1220,6 @@ class MULTIVI(
         %(param_cont_cov_keys)s
         %(idx_layer)s
         %(param_modalities)s
-
 
         Examples
         --------
