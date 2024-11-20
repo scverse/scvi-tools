@@ -54,8 +54,9 @@ def compute_elbo(
     else:
         get_inference_input_kwargs = {}
     for tensors in dataloader:
-        _, _, losses = module(tensors, **kwargs,
-                              get_inference_input_kwargs=get_inference_input_kwargs)
+        _, _, losses = module(
+            tensors, **kwargs, get_inference_input_kwargs=get_inference_input_kwargs
+        )
         if isinstance(losses.reconstruction_loss, dict):
             reconstruction_loss = torch.stack(list(losses.reconstruction_loss.values())).sum(dim=0)
         else:
@@ -111,8 +112,12 @@ def compute_reconstruction_error(
         get_inference_input_kwargs = {}
     log_lkl = {}
     for tensors in dataloader:
-        _, _, loss_output = module(tensors, loss_kwargs={"kl_weight": 1}, **kwargs,
-                                   get_inference_input_kwargs=get_inference_input_kwargs)
+        _, _, loss_output = module(
+            tensors,
+            loss_kwargs={"kl_weight": 1},
+            **kwargs,
+            get_inference_input_kwargs=get_inference_input_kwargs,
+        )
         if not isinstance(loss_output.reconstruction_loss, dict):
             rec_loss_dict = {"reconstruction_loss": loss_output.reconstruction_loss}
         else:
