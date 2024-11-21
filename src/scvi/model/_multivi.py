@@ -194,15 +194,11 @@ class MULTIVI(
             n_genes = self.summary_stats.get("n_vars", 0)
             n_regions = self.summary_stats.get("n_atac", 0)
         if isinstance(adata, MuData):
-            assert (
-                n_genes == self.summary_stats.get("n_vars", 0)
-            ), "n_genes must match MuData"
-            assert (
-                n_regions == self.summary_stats.get("n_atac", 0)
-            ), "n_regions must match MuData"
+            assert n_genes == self.summary_stats.get("n_vars", 0), "n_genes must match MuData"
+            assert n_regions == self.summary_stats.get("n_atac", 0), "n_regions must match MuData"
         if modality_weights == "cell":
             assert (
-                self.registry_['setup_args']['index_key'] is not None
+                self.registry_["setup_args"]["index_key"] is not None
             ), "index_key must be set if using cell modality weights"
         prior_mean, prior_scale = None, None
         n_cats_per_cov = (
@@ -265,7 +261,9 @@ class MULTIVI(
         self.n_proteins = n_proteins
         self.module.minified_data_type = self.minified_data_type
         if isinstance(adata, MuData):
-            self.modality_keys = self.get_anndata_manager(adata).registry['setup_args']['modalities']
+            self.modality_keys = self.get_anndata_manager(adata).registry["setup_args"][
+                "modalities"
+            ]
         else:
             self.modality_keys = None
 
@@ -644,9 +642,9 @@ class MULTIVI(
             )
         else:
             if isinstance(adata, MuData):
-                peak_names = adata[self.modality_keys['atac_layer']].var_names[region_mask]
+                peak_names = adata[self.modality_keys["atac_layer"]].var_names[region_mask]
             else:
-                peak_names = adata.var_names[self.n_regions:][region_mask]
+                peak_names = adata.var_names[self.n_regions :][region_mask]
             if return_numpy:
                 return imputed
             elif threshold:
@@ -775,9 +773,9 @@ class MULTIVI(
             return exprs
         else:
             if isinstance(adata, MuData):
-                gene_names = adata[self.modality_keys['rna_layer']].var_names[gene_mask]
+                gene_names = adata[self.modality_keys["rna_layer"]].var_names[gene_mask]
             else:
-                gene_names = adata.var_names[:self.n_genes][gene_mask]
+                gene_names = adata.var_names[: self.n_genes][gene_mask]
 
             return pd.DataFrame(
                 exprs,

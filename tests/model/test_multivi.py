@@ -71,7 +71,7 @@ def test_multivi():
         batch_key="batch",
         protein_expression_obsm_key="protein_expression",
         protein_names_uns_key="protein_names",
-        index_key="_indices"
+        index_key="_indices",
     )
     vae = MULTIVI(
         data,
