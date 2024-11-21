@@ -102,7 +102,7 @@ def _load_saved_files(
     return attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict):
+def _initialize_model(cls, adata, registry, attr_dict):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -133,7 +133,10 @@ def _initialize_model(cls, adata, attr_dict):
     if "pretrained_model" in non_kwargs.keys():
         non_kwargs.pop("pretrained_model")
 
-    model = cls(adata, **non_kwargs, **kwargs)
+    if not adata:
+        adata = None
+
+    model = cls(adata, registry=registry, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
 
