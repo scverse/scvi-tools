@@ -545,7 +545,9 @@ class MULTIVAE(BaseModuleClass):
         else:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        cell_idx = tensors.get(REGISTRY_KEYS.INDICES_KEY).long().ravel()
+        cell_idx = tensors.get(REGISTRY_KEYS.INDICES_KEY)
+        if cell_idx is not None:
+            cell_idx = cell_idx.long().ravel()
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
         label = tensors[REGISTRY_KEYS.LABELS_KEY]
@@ -620,18 +622,18 @@ class MULTIVAE(BaseModuleClass):
             libsize_expr = torch.log(size_factor[:, [0]] + 1e-6)
             libsize_acc = size_factor[:, [1]]
         else:
-            libsize_expr = self.l_encoder_expression(
-                encoder_input_expression, batch_index, *categorical_input
-            )
             libsize_acc = self.l_encoder_accessibility(
                 encoder_input_accessibility, batch_index, *categorical_input
             )
+        libsize_expr = self.l_encoder_expression(
+            encoder_input_expression, batch_index, *categorical_input
+        )
 
         # mix representations
         if self.modality_weights == "cell":
             weights = self.mod_weights[cell_idx, :]
         else:
-            weights = self.mod_weights.unsqueeze(0).expand(len(cell_idx), -1)
+            weights = self.mod_weights.unsqueeze(0).expand(x.shape[0], -1)
 
         qz_m = mix_modalities(
             (qzm_expr, qzm_acc, qzm_pro), (mask_expr, mask_acc, mask_pro), weights

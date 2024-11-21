@@ -193,7 +193,17 @@ class MULTIVI(
             ), "n_genes and n_regions must be provided if using AnnData"
             n_genes = self.summary_stats.get("n_vars", 0)
             n_regions = self.summary_stats.get("n_atac", 0)
-
+        if isinstance(adata, MuData):
+            assert (
+                n_genes == self.summary_stats.get("n_vars", 0)
+            ), "n_genes must match MuData"
+            assert (
+                n_regions == self.summary_stats.get("n_atac", 0)
+            ), "n_regions must match MuData"
+        if modality_weights == "cell":
+            assert (
+                self.registry_['setup_args']['index_key'] is not None
+            ), "index_key must be set if using cell modality weights"
         prior_mean, prior_scale = None, None
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
@@ -254,6 +264,10 @@ class MULTIVI(
         self.n_regions = n_regions
         self.n_proteins = n_proteins
         self.module.minified_data_type = self.minified_data_type
+        if isinstance(adata, MuData):
+            self.modality_keys = self.get_anndata_manager(adata).registry['setup_args']['modalities']
+        else:
+            self.modality_keys = None
 
     @devices_dsp.dedent
     def train(
@@ -525,7 +539,7 @@ class MULTIVI(
     def get_accessibility_estimates(
         self,
         adata: AnnOrMuData | None = None,
-        indices: Sequence[int] = None,
+        indices: Sequence[int] | None = None,
         n_samples_overall: int | None = None,
         region_list: Sequence[str] | None = None,
         transform_batch: str | int | None = None,
@@ -629,23 +643,23 @@ class MULTIVI(
                 columns=[],
             )
         else:
+            if isinstance(adata, MuData):
+                peak_names = adata[self.modality_keys['atac_layer']].var_names[region_mask]
+            else:
+                peak_names = adata.var_names[self.n_regions:][region_mask]
             if return_numpy:
                 return imputed
             elif threshold:
                 return pd.DataFrame.sparse.from_spmatrix(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
-                    if isinstance(adata, MuData)
-                    else adata.var_names[: self.n_regions][region_mask],
+                    columns=peak_names,
                 )
             else:
                 return pd.DataFrame(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
-                    if isinstance(adata, MuData)
-                    else adata.var_names[: self.n_regions][region_mask],
+                    columns=peak_names,
                 )
 
     @torch.inference_mode()
@@ -760,9 +774,14 @@ class MULTIVI(
         if return_numpy:
             return exprs
         else:
+            if isinstance(adata, MuData):
+                gene_names = adata[self.modality_keys['rna_layer']].var_names[gene_mask]
+            else:
+                gene_names = adata.var_names[:self.n_genes][gene_mask]
+
             return pd.DataFrame(
                 exprs,
-                columns=adata.var_names[: self.n_genes][gene_mask],
+                columns=gene_names,
                 index=adata.obs_names[indices],
             )
 
@@ -1126,6 +1145,7 @@ class MULTIVI(
         continuous_covariate_keys: list[str] | None = None,
         protein_expression_obsm_key: str | None = None,
         protein_names_uns_key: str | None = None,
+        index_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -1144,6 +1164,8 @@ class MULTIVI(
             key in `adata.uns` for protein names. If None, will use the column names of
             `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
             sequential names to proteins.
+        use_cell_indices
+            If True, will use the indices of the cells in the AnnData object.
         """
         warnings.warn(
             "MULTIVI is supposed to work with MuData. the use of anndata is "
@@ -1152,8 +1174,10 @@ class MULTIVI(
             stacklevel=settings.warnings_stacklevel,
         )
         setup_method_args = cls._get_setup_method_args(**locals())
-        adata.obs["_indices"] = np.arange(adata.n_obs)
         batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+        if index_key is not None:
+            if index_key not in adata.obs:
+                adata.obs[index_key] = np.arange(adata.n_obs)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             batch_field,
@@ -1162,7 +1186,7 @@ class MULTIVI(
             NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, index_key, required=False),
         ]
         if protein_expression_obsm_key is not None:
             anndata_fields.append(
@@ -1201,7 +1225,7 @@ class MULTIVI(
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
-        idx_layer: str | None = None,
+        index_key: str | None = None,
         modalities: dict[str, str] | None = None,
         **kwargs,
     ):
@@ -1223,7 +1247,8 @@ class MULTIVI(
             The second column need to be normalized and between 0 and 1.
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(idx_layer)s
+        index_key
+            Key in `mdata.obs` for cell indices. If `None`, will skip using indices.
         %(param_modalities)s
 
         Examples
@@ -1239,7 +1264,15 @@ class MULTIVI(
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
-        mdata.obs["_indices"] = np.arange(mdata.n_obs)
+        if index_key is not None:
+            if modalities.index_key is not None:
+                index_layer = mdata[modalities.index_key]
+            else:
+                index_layer = mdata
+            if "_indices" not in index_layer.obs:
+                index_layer.obs["_indices"] = np.arange(mdata.n_obs)
+        else:
+            index_key = None
 
         batch_field = fields.MuDataCategoricalObsField(
             REGISTRY_KEYS.BATCH_KEY,
@@ -1271,8 +1304,8 @@ class MULTIVI(
             ),
             fields.MuDataNumericalObsField(
                 REGISTRY_KEYS.INDICES_KEY,
-                "_indices",
-                mod_key=modalities.idx_layer,
+                index_key,
+                mod_key=modalities.index_key,
                 required=False,
             ),
         ]
