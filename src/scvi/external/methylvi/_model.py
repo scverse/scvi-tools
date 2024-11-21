@@ -374,36 +374,36 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                 compute_loss=False,
             )
 
-            for context in self.contexts:
-                exp_ = generative_outputs["px_mu"][context]
+            for ctxt in self.contexts:
+                exp_ = generative_outputs["px_mu"][ctxt]
                 exp_ = exp_[..., region_mask]
-                exprs[context].append(exp_.cpu())
+                exprs[ctxt].append(exp_.cpu())
 
         cell_axis = 1 if n_samples > 1 else 0
 
-        for context in self.contexts:
-            exprs[context] = np.concatenate(exprs[context], axis=cell_axis)
+        for ctxt in self.contexts:
+            exprs[ctxt] = np.concatenate(exprs[ctxt], axis=cell_axis)
 
         if n_samples_overall is not None:
             # Converts the 3d tensor to a 2d tensor
-            for context in self.contexts:
-                exprs[context] = exprs[context].reshape(-1, exprs[context].shape[-1])
-                n_samples_ = exprs[context].shape[0]
+            for ctxt in self.contexts:
+                exprs[ctxt] = exprs[ctxt].reshape(-1, exprs[ctxt].shape[-1])
+                n_samples_ = exprs[ctxt].shape[0]
                 ind_ = np.random.choice(n_samples_, n_samples_overall, replace=True)
-                exprs[context] = exprs[context][ind_]
+                exprs[ctxt] = exprs[ctxt][ind_]
                 return_numpy = True
 
         elif n_samples > 1 and return_mean:
-            for context in self.contexts:
-                exprs[context] = exprs[context].mean(0)
+            for ctxt in self.contexts:
+                exprs[ctxt] = exprs[ctxt].mean(0)
 
         if return_numpy is None or return_numpy is False:
             exprs_dfs = {}
-            for context in self.contexts:
-                exprs_dfs[context] = pd.DataFrame(
-                    exprs[context],
-                    columns=mdata[context].var_names[region_mask],
-                    index=mdata[context].obs_names[indices],
+            for ctxt in self.contexts:
+                exprs_dfs[ctxt] = pd.DataFrame(
+                    exprs[ctxt],
+                    columns=mdata[ctxt].var_names[region_mask],
+                    index=mdata[ctxt].obs_names[indices],
                 )
             exprs_ = exprs_dfs
         else:
