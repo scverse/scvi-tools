@@ -287,6 +287,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        context: str | None = None,
         **importance_weighting_kwargs,
     ) -> (np.ndarray | pd.DataFrame) | dict[str, np.ndarray | pd.DataFrame]:
         r"""Returns the normalized (decoded) methylation.
@@ -316,6 +317,10 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`.
             DataFrame includes region names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
+        context
+            If not `None`, returns normalized methylation levels for the specified
+            methylation context. Otherwise, a dictionary with contexts as keys and normalized
+            methylation levels as values is returned.
 
         Returns
         -------
@@ -332,6 +337,12 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         described above.
         """
         mdata = self._validate_anndata(mdata)
+
+        if context is not None and context not in self.contexts:
+            raise ValueError(
+                f"{context} is not a valid methylation context for this model. "
+                f"Valid contexts are {self.contexts}."
+            )
 
         if indices is None:
             indices = np.arange(mdata.n_obs)
@@ -394,9 +405,14 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
                     columns=mdata[context].var_names[region_mask],
                     index=mdata[context].obs_names[indices],
                 )
-            return exprs_dfs
+            exprs_ = exprs_dfs
         else:
-            return exprs
+            exprs_ = exprs
+
+        if context is not None:
+            return exprs_[context]
+        else:
+            return exprs_
 
     @torch.inference_mode()
     def get_specific_normalized_methylation(
