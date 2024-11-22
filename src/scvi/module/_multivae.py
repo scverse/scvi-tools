@@ -51,9 +51,9 @@ class LibrarySizeEncoder(torch.nn.Module):
             inject_covariates=inject_covariates,
             **kwargs,
         )
-        if output_fn=="LeakyReLU":
+        if output_fn == "LeakyReLU":
             output_fn = nn.LeakyReLU()
-        elif output_fn=="sigmoid":
+        elif output_fn == "sigmoid":
             output_fn = nn.Sigmoid()
         else:
             output_fn = nn.Identity()
@@ -167,8 +167,8 @@ class DecoderADT(torch.nn.Module):
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
         py_["back_beta"] = (
-            torch.nn.functional.softplus(self.py_back_mean_log_beta(py_back_cat_z, *cat_list)) +
-            1e-8
+            torch.nn.functional.softplus(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+            + 1e-8
         )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
@@ -311,7 +311,7 @@ class MULTIVAE(BaseModuleClass):
         n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         region_factors: bool = True,
-        scale_region_factors: float = 100.,
+        scale_region_factors: float = 100.0,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
@@ -472,7 +472,7 @@ class MULTIVAE(BaseModuleClass):
             self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
 
         # accessibility decoder
-        if self.atac_likelihood == 'bernoulli':
+        if self.atac_likelihood == "bernoulli":
             atac_decoder_fn = DecoderPeakVI
             decoder_atac_kwargs = {}
             atac_library_kwargs = {"output_fn": "sigmoid"}
@@ -492,7 +492,7 @@ class MULTIVAE(BaseModuleClass):
             inject_covariates=self.deeply_inject_covariates,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            **decoder_atac_kwargs
+            **decoder_atac_kwargs,
         )
 
         # accessibility library size encoder
@@ -504,7 +504,7 @@ class MULTIVAE(BaseModuleClass):
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
             inject_covariates=self.deeply_inject_covariates,
-            **atac_library_kwargs
+            **atac_library_kwargs,
         )
 
         # protein
@@ -705,16 +705,14 @@ class MULTIVAE(BaseModuleClass):
 
         if self.mix_modality == "moe":
             qz_m = mixture_of_expert(
-                (qzm_expr, qzm_acc, qzm_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights
+                (qzm_expr, qzm_acc, qzm_pro), (mask_expr, mask_acc, mask_pro), weights
             )
             qz_v = mixture_of_expert(
                 (qzv_expr, qzv_acc, qzv_pro),
                 (mask_expr, mask_acc, mask_pro),
                 weights,
             )
-            print('FFFFFF', qz_v.mean(), (qzv_expr.mean(), qzv_acc.mean()))
+            print("FFFFFF", qz_v.mean(), (qzv_expr.mean(), qzv_acc.mean()))
         else:
             qz_m, qz_v = product_of_expert(
                 (qzm_expr, qzm_acc, qzm_pro),
@@ -825,11 +823,12 @@ class MULTIVAE(BaseModuleClass):
         # Accessibility Decoder
         region_factor = (
             torch.sigmoid(self.scale_region_factors * self.region_factors)
-            if self.region_factors is not None else 1.
+            if self.region_factors is not None
+            else 1.0
         )
         if self.atac_likelihood == "bernoulli":
             p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
-            px_atac = {'px_rate': libsize_acc * region_factor * p, 'px_scale': p}
+            px_atac = {"px_rate": libsize_acc * region_factor * p, "px_scale": p}
         else:
             # ATAC Decoder
             px_scale_atac, px_r_atac, px_rate_atac, px_dropout_atac = self.z_decoder_accessibility(
@@ -849,8 +848,8 @@ class MULTIVAE(BaseModuleClass):
                 )  # px_r gets transposed - last dimension is nb genes
             elif self.atac_dispersion == "peak-batch":
                 px_r_atac = F.linear(
-                    F.one_hot(batch_index.squeeze(-1), self.n_batch).float(),
-                    self.px_r_atac)
+                    F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r_atac
+                )
             elif self.atac_dispersion == "peak":
                 px_r_atac = self.px_r_atac
             px_r_atac = torch.exp(px_r_atac)
@@ -928,7 +927,7 @@ class MULTIVAE(BaseModuleClass):
         x = inference_outputs["x"]
 
         x_rna = x[:, : self.n_input_genes]
-        x_atac = x[:, self.n_input_genes:]
+        x_atac = x[:, self.n_input_genes :]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
@@ -941,13 +940,12 @@ class MULTIVAE(BaseModuleClass):
         # Compute Accessibility loss
         px_atac = generative_outputs["px_atac"]
         if self.atac_likelihood == "bernoulli":
-            rl_accessibility = self._get_reconstruction_loss_bernoulli(
-                x_atac, px_atac["px_rate"])
+            rl_accessibility = self._get_reconstruction_loss_bernoulli(x_atac, px_atac["px_rate"])
         else:
-            rl_accessibility = - px_atac.log_prob(x_atac).sum(-1)
+            rl_accessibility = -px_atac.log_prob(x_atac).sum(-1)
 
         # Compute Expression loss
-        rl_expression = - generative_outputs["px"].log_prob(x_rna).sum(-1)
+        rl_expression = -generative_outputs["px"].log_prob(x_rna).sum(-1)
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         if mask_pro.sum().gt(0):

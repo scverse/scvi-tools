@@ -441,7 +441,7 @@ class MULTIVI(
     @torch.inference_mode()
     def get_region_factors(self, return_numpy=True) -> np.ndarray:
         """Return region-specific factors."""
-        if self.n_regions == 0 :
+        if self.n_regions == 0:
             return np.zeros(1)
         else:
             if self.module.region_factors is None:
@@ -871,9 +871,11 @@ class MULTIVI(
             return a - b
 
         if two_sided:
+
             def m1_domain_fn(samples):
                 return np.abs(samples) >= delta
         else:
+
             def m1_domain_fn(samples):
                 return samples >= delta
 
