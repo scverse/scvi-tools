@@ -52,7 +52,7 @@ class Decoder(nn.Module):
         n_hidden: int = 128,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
-        deep_inject_covariates: bool = False,
+        inject_covariates: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -66,7 +66,7 @@ class Decoder(nn.Module):
             activation_fn=torch.nn.LeakyReLU,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            inject_covariates=deep_inject_covariates,
+            inject_covariates=inject_covariates,
             **kwargs,
         )
         self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, n_output), torch.nn.Sigmoid())
@@ -204,7 +204,7 @@ class PEAKVAE(BaseModuleClass):
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            deep_inject_covariates=self.deeply_inject_covariates,
+            inject_covariates=self.deeply_inject_covariates,
             **_extra_decoder_kwargs,
         )
 

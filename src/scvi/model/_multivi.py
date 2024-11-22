@@ -439,14 +439,18 @@ class MULTIVI(
         }
 
     @torch.inference_mode()
-    def get_region_factors(self) -> np.ndarray:
+    def get_region_factors(self, return_numpy=True) -> np.ndarray:
         """Return region-specific factors."""
-        if self.n_regions == 0:
+        if self.n_regions == 0 :
             return np.zeros(1)
         else:
             if self.module.region_factors is None:
                 raise RuntimeError("region factors were not included in this model")
-            return torch.sigmoid(self.module.region_factors).cpu().numpy()
+            region_factors = torch.sigmoid(self.scale_region_factor * self.module.region_factors)
+        if return_numpy:
+            return region_factors.cpu().numpy()
+        else:
+            return region_factors
 
     @torch.inference_mode()
     def get_latent_representation(
@@ -621,7 +625,7 @@ class MULTIVI(
             if normalize_cells:
                 p *= inference_outputs["libsize_acc"].cpu()
             if normalize_regions:
-                p *= torch.sigmoid(self.module.region_factors).cpu()
+                p *= self.get_region_factors(return_numpy=False).cpu()
             if threshold:
                 p[p < threshold] = 0
                 p = csr_matrix(p.numpy())
@@ -750,9 +754,9 @@ class MULTIVI(
                     compute_loss=False,
                 )
                 if library_size == "latent":
-                    output = generative_outputs["px_rate"]
+                    output = generative_outputs["px"].get_normalized("px_rate")
                 else:
-                    output = generative_outputs["px_scale"]
+                    output = generative_outputs["px"].get_normalized("px_scale")
                 output = output[..., gene_mask]
                 output = output.cpu().numpy()
                 per_batch_exprs.append(output)
@@ -858,22 +862,18 @@ class MULTIVI(
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        col_names = adata.var_names[: self.n_genes]
+        col_names = adata.var_names[self.n_genes :]
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
 
-        # TODO check if change_fn in kwargs and raise error if so
         def change_fn(a, b):
             return a - b
 
         if two_sided:
-
             def m1_domain_fn(samples):
                 return np.abs(samples) >= delta
-
         else:
-
             def m1_domain_fn(samples):
                 return samples >= delta
 

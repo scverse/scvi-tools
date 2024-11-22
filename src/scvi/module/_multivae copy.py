@@ -34,7 +34,6 @@ class LibrarySizeEncoder(torch.nn.Module):
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
         inject_covariates: bool = False,
-        output_fn: str | None = "LeakyReLU",
         **kwargs,
     ):
         super().__init__()
@@ -51,13 +50,7 @@ class LibrarySizeEncoder(torch.nn.Module):
             inject_covariates=inject_covariates,
             **kwargs,
         )
-        if output_fn=="LeakyReLU":
-            output_fn = nn.LeakyReLU()
-        elif output_fn=="sigmoid":
-            output_fn = nn.Sigmoid()
-        else:
-            output_fn = nn.Identity()
-        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, 1), output_fn)
+        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, 1), torch.nn.LeakyReLU())
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         """Forward pass."""
@@ -211,10 +204,6 @@ class MULTIVAE(BaseModuleClass):
         * ``"Jeffreys"``: Jeffreys penalty to align modalities
         * ``"MMD"``: MMD penalty to align modalities
         * ``"None"``: No penalty
-    mix_modality
-        How are modalities latent parameters combined. One of the following:
-        * ``"moe"``: Mixture of experts
-        * ``"poe"``: Product of experts
     n_batch
         Number of batches, if 0, no batch correction is performed.
     gene_likelihood
@@ -228,18 +217,6 @@ class MULTIVAE(BaseModuleClass):
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    atac_likelihood
-        The distribution to use for ATAC-seq data. One of the following
-        * ``'zinb'`` - Zero-Inflated Negative Binomial
-        * ``'nb'`` - Negative Binomial
-        * ``'poisson'`` - Poisson
-        * ``'bernoulli'`` - Bernoulli
-    atac_dispersion
-        One of the following:
-        * ``'peak'`` - dispersion parameter of NB is constant per peak across cells
-        * ``'peak-batch'`` - dispersion can differ between different batches
-        * ``'peak-label'`` - dispersion can differ between different labels
-        * ``'peak-cell'`` - dispersion can differ for every peak in every cell
     protein_dispersion
         One of the following:
 
@@ -295,7 +272,6 @@ class MULTIVAE(BaseModuleClass):
         n_input_proteins: int = 0,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
-        mix_modality: Literal["moe", "poe"] = "moe",
         n_batch: int = 0,
         n_obs: int = 0,
         n_labels: int = 0,
@@ -311,7 +287,7 @@ class MULTIVAE(BaseModuleClass):
         n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         region_factors: bool = True,
-        scale_region_factors: float = 100.,
+        scale_region_factors: float = 1.,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
@@ -408,7 +384,6 @@ class MULTIVAE(BaseModuleClass):
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
             inject_covariates=self.deeply_inject_covariates,
-            output_fn="none",
         )
 
         # expression decoder
@@ -475,13 +450,11 @@ class MULTIVAE(BaseModuleClass):
         if self.atac_likelihood == 'bernoulli':
             atac_decoder_fn = DecoderPeakVI
             decoder_atac_kwargs = {}
-            atac_library_kwargs = {"output_fn": "sigmoid"}
         else:
             atac_decoder_fn = DecoderSCVI
             decoder_atac_kwargs = {
                 "scale_activation": "softplus" if use_size_factor_key else "softmax"
             }
-            atac_library_kwargs = {"output_fn": "none"}
 
         self.z_decoder_accessibility = atac_decoder_fn(
             n_input_decoder,
@@ -504,7 +477,6 @@ class MULTIVAE(BaseModuleClass):
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
             inject_covariates=self.deeply_inject_covariates,
-            **atac_library_kwargs
         )
 
         # protein
@@ -592,8 +564,6 @@ class MULTIVAE(BaseModuleClass):
             self.mod_weights = torch.nn.Parameter(torch.ones(max_n_modalities))
         else:  # cell-specific weights
             self.mod_weights = torch.nn.Parameter(torch.ones(n_obs, max_n_modalities))
-        self.mix_modality = mix_modality
-        assert mix_modality in ["moe", "poe"], "mix_modality must be one of ['moe', 'poe']"
 
     def _get_inference_input(self, tensors):
         """Get input tensors for the inference model."""
@@ -693,6 +663,8 @@ class MULTIVAE(BaseModuleClass):
             libsize_acc = self.l_encoder_accessibility(
                 encoder_input_accessibility, batch_index, *categorical_input
             )
+            if self.atac_likelihood == "bernoulli":
+                libsize_acc = torch.sigmoid(libsize_acc)
             libsize_expr = self.l_encoder_expression(
                 encoder_input_expression, batch_index, *categorical_input
             )
@@ -703,25 +675,15 @@ class MULTIVAE(BaseModuleClass):
         else:
             weights = self.mod_weights.unsqueeze(0).expand(x.shape[0], -1)
 
-        if self.mix_modality == "moe":
-            qz_m = mixture_of_expert(
-                (qzm_expr, qzm_acc, qzm_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights
-            )
-            qz_v = mixture_of_expert(
-                (qzv_expr, qzv_acc, qzv_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights,
-            )
-            print('FFFFFF', qz_v.mean(), (qzv_expr.mean(), qzv_acc.mean()))
-        else:
-            qz_m, qz_v = product_of_expert(
-                (qzm_expr, qzm_acc, qzm_pro),
-                (qzv_expr, qzv_acc, qzv_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights,
-            )
+        qz_m = mix_modalities(
+            (qzm_expr, qzm_acc, qzm_pro), (mask_expr, mask_acc, mask_pro), weights
+        )
+        qz_v = mix_modalities(
+            (qzv_expr, qzv_acc, qzv_pro),
+            (mask_expr, mask_acc, mask_pro),
+            weights,
+            torch.sqrt,
+        )
 
         # sample
         if n_samples > 1:
@@ -1082,7 +1044,7 @@ class MULTIVAE(BaseModuleClass):
 
 
 @auto_move_data
-def mixture_of_expert(Xs, masks, weights):
+def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
     """Compute the weighted mean of the Xs while masking unmeasured modality values.
 
     Parameters
@@ -1094,6 +1056,8 @@ def mixture_of_expert(Xs, masks, weights):
         should be included in the mix or not (N)
     weights
         Weights for each modality (either K or N x K)
+    weight_transform
+        Transformation to apply to the weights before using them
     """
     # (batch_size x latent) -> (batch_size x modalities x latent)
     Xs = torch.stack(Xs, dim=1)
@@ -1103,42 +1067,11 @@ def mixture_of_expert(Xs, masks, weights):
 
     # (batch_size x modalities) -> (batch_size x modalities x latent)
     weights = weights.unsqueeze(-1)
+    if weight_transform is not None:
+        weights = weight_transform(weights)
+
     # sum over modalities, so output is (batch_size x latent)
     return (weights * Xs).sum(1)
-
-
-@auto_move_data
-def product_of_expert(mus, vars, masks, weights):
-    """Compute the weighted mean of the Xs while masking unmeasured modality values.
-
-    Parameters
-    ----------
-    mus
-        Sequence of mus to mix, each should be (N x D)
-    vars
-        Sequence of vars to mix, each should be (N x D)
-    masks
-        Sequence of masks corresponding to the Xs, indicating whether the values
-        should be included in the mix or not (N)
-    weights
-        Weights for each modality (either K or N x K)
-    """
-    mus = torch.stack(mus, dim=1)
-    vars = torch.stack(vars, dim=1)
-    masks = torch.stack(masks, dim=1).float()
-    weights = masked_softmax(weights, masks, dim=-1).unsqueeze(-1)
-
-    # Compute precision (inverse variance) for each expert
-    precisions = masks.unsqueeze(-1) / vars  # (N, K, D)
-    weighted_precisions = precisions * weights  # (N, K, D)
-    joint_precision = weighted_precisions.sum(dim=1)  # Sum across modalities (K -> joint expert)
-    joint_variance = 1.0 / joint_precision  # Joint variance (N, D)
-
-    # Joint mean
-    weighted_mean = (mus * weighted_precisions).sum(dim=1)  # Sum weighted means
-    joint_mean = weighted_mean * joint_variance  # Scale by joint variance
-
-    return joint_mean, joint_variance
 
 
 @auto_move_data
