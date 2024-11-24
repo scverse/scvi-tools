@@ -201,7 +201,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         max_epochs: int | None = None,
         accelerator: str | None = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         batch_size: int = 128,
         early_stopping: bool = False,

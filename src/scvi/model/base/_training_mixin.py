@@ -24,7 +24,7 @@ class UnsupervisedTrainingMixin:
         max_epochs: int | None = None,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
