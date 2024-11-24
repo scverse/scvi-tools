@@ -283,9 +283,8 @@ class MULTIVAE(BaseModuleClass):
         covariates will only be included in the input layer.
     encode_covariates
         If True, include covariates in the input to the encoder.
-    use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
-        RNA distribution.
+    use_observed_lib_size
+        If True, use observed library size to scale the reconstruction
     """
 
     def __init__(
@@ -295,6 +294,7 @@ class MULTIVAE(BaseModuleClass):
         n_input_proteins: int = 0,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
+        mmd_kernel: str = "norm",
         mix_modality: Literal["moe", "poe"] = "moe",
         n_batch: int = 0,
         n_obs: int = 0,
@@ -317,7 +317,8 @@ class MULTIVAE(BaseModuleClass):
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
-        use_size_factor_key: bool = False,
+        use_observed_lib_size_rna: bool = False,
+        use_observed_lib_size_atac: bool = False,
         protein_background_prior_mean: np.ndarray | None = None,
         protein_background_prior_scale: np.ndarray | None = None,
         protein_dispersion: str = "protein",
@@ -353,8 +354,6 @@ class MULTIVAE(BaseModuleClass):
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.encode_covariates = encode_covariates
         self.deeply_inject_covariates = deeply_inject_covariates
-        self.use_size_factor_key = use_size_factor_key
-
         cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
         encoder_cat_list = cat_list if encode_covariates else None
 
@@ -362,6 +361,7 @@ class MULTIVAE(BaseModuleClass):
         # expression dispersion parameters
         self.gene_likelihood = gene_likelihood
         self.gene_dispersion = gene_dispersion
+        self.use_observed_lib_size_rna = use_observed_lib_size_rna
         if self.gene_dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
         elif self.gene_dispersion == "gene-batch":
@@ -422,13 +422,20 @@ class MULTIVAE(BaseModuleClass):
             inject_covariates=self.deeply_inject_covariates,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            scale_activation="softplus" if use_size_factor_key else "softmax",
+            scale_activation="softmax", # MultiVI performs bad with softplus activation
         )
 
         # accessibility
         # atac dispersion parameters
         self.atac_likelihood = atac_likelihood
         self.atac_dispersion = atac_dispersion
+        self.use_observed_lib_size_atac = use_observed_lib_size_atac
+        if self.use_observed_lib_size_atac:
+            self.scaling_libsize = torch.nn.Parameter(torch.tensor(0.))
+            self.shift_libsize = torch.nn.Parameter(- torch.tensor(0.))
+        else:
+            self.scaling_libsize = None
+            self.shift_libsize = None
         if self.atac_dispersion == "peak":
             self.px_r_atac = torch.nn.Parameter(2 * torch.rand(self.n_input_regions))
         elif self.atac_dispersion == "peak-batch":
@@ -479,7 +486,7 @@ class MULTIVAE(BaseModuleClass):
         else:
             atac_decoder_fn = DecoderSCVI
             decoder_atac_kwargs = {
-                "scale_activation": "softplus" if use_size_factor_key else "softmax"
+                "scale_activation": "softmax"
             }
             atac_library_kwargs = {"output_fn": "none"}
 
@@ -583,6 +590,7 @@ class MULTIVAE(BaseModuleClass):
         self.n_obs = n_obs
         self.modality_weights = modality_weights
         self.modality_penalty = modality_penalty
+        self.mmd_kernel = mmd_kernel
         self.n_modalities = int(n_input_genes > 0) + int(n_input_regions > 0)
         max_n_modalities = 3
         if modality_weights == "equal":
@@ -684,17 +692,24 @@ class MULTIVAE(BaseModuleClass):
         )
 
         # L encoders
-        if self.use_size_factor_key:
-            libsize_expr = torch.log(size_factor[:, [0]] + 1e-6)
-            libsize_acc = size_factor[:, [1]]
+        if self.use_observed_lib_size_rna:
+            libsize_expr = torch.log(x_rna.sum(1) + 1e-6).unsqueeze(1)
+        else:
+            libsize_expr = self.l_encoder_expression(
+                encoder_input_expression, batch_index, *categorical_input
+            )
+        if self.use_observed_lib_size_atac:
             if self.atac_likelihood != "bernoulli":
+                libsize_acc = x_atac.sum(1).unsqueeze(1)
                 libsize_acc = torch.log(libsize_acc + 1e-6)
+            elif self.atac_likelihood == "bernoulli":
+                libsize_acc = x_atac.mean(1).unsqueeze(1) + 1e-3
+                # Scale by 1000. to increase train speed.
+                libsize_acc = torch.sigmoid(
+                    libsize_acc / torch.exp(1000. * self.scaling_libsize) - 1000. * self.shift_libsize)
         else:
             libsize_acc = self.l_encoder_accessibility(
                 encoder_input_accessibility, batch_index, *categorical_input
-            )
-            libsize_expr = self.l_encoder_expression(
-                encoder_input_expression, batch_index, *categorical_input
             )
 
         # mix representations
@@ -704,17 +719,12 @@ class MULTIVAE(BaseModuleClass):
             weights = self.mod_weights.unsqueeze(0).expand(x.shape[0], -1)
 
         if self.mix_modality == "moe":
-            qz_m = mixture_of_expert(
+            qz_m, qz_v = mixture_of_expert(
                 (qzm_expr, qzm_acc, qzm_pro),
+                (qzv_expr, qzv_acc, qzv_pro),
                 (mask_expr, mask_acc, mask_pro),
                 weights
             )
-            qz_v = mixture_of_expert(
-                (qzv_expr, qzv_acc, qzv_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights,
-            )
-            print('FFFFFF', qz_v.mean(), (qzv_expr.mean(), qzv_acc.mean()))
         else:
             qz_m, qz_v = product_of_expert(
                 (qzm_expr, qzm_acc, qzm_pro),
@@ -922,7 +932,7 @@ class MULTIVAE(BaseModuleClass):
             "log_pro_back_mean": log_pro_back_mean,
         }
 
-    def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
+    def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0, weighting_integration: float = 1.):
         """Computes the loss function for the model."""
         # Get the data
         x = inference_outputs["x"]
@@ -971,7 +981,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        kl_div_paired = self._compute_mod_penalty(
+        kl_div_paired = weighting_integration * self._compute_mod_penalty(
             (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
             (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
             (inference_outputs["qzm_pro"], inference_outputs["qzv_pro"]),
@@ -1056,39 +1066,163 @@ class MULTIVAE(BaseModuleClass):
                 pair_penalty = pair_penalty + penalty23
 
         elif self.modality_penalty == "MMD":
+            def mmd(mod_params_1, mod_params_2, mask):
+                if self.mmd_kernel == 'norm':
+                   penalty = torch.linalg.norm(mod_params_1[0] - mod_params_2[0], dim=1)
+                elif self.mmd_kernel == 'imq':
+                    penalty = imq_kernel(mod_params_1[0], mod_params_2[0], beta=0.5)
+                elif self.mmd_kernel == 'rbf':
+                    penalty = rbf_kernel(mod_params_1[0], mod_params_2[0])
+                return torch.where(mask, penalty.T, torch.zeros_like(penalty).T).sum(dim=0)
+
             pair_penalty = torch.zeros(mask1.shape[0], device=mask1.device, requires_grad=True)
             if mask12.sum().gt(0):
-                penalty12 = torch.linalg.norm(mod_params1[0] - mod_params2[0], dim=1)
-                penalty12 = torch.where(mask12, penalty12.T, torch.zeros_like(penalty12).T).sum(
-                    dim=0
-                )
-                pair_penalty = pair_penalty + penalty12
+                pair_penalty = pair_penalty + mmd(mod_params1, mod_params2, mask12)
+
             if mask13.sum().gt(0):
-                penalty13 = torch.linalg.norm(mod_params1[0] - mod_params3[0], dim=1)
-                penalty13 = torch.where(mask13, penalty13.T, torch.zeros_like(penalty13).T).sum(
-                    dim=0
-                )
-                pair_penalty = pair_penalty + penalty13
+                pair_penalty = pair_penalty + mmd(mod_params1, mod_params3, mask13)
             if mask23.sum().gt(0):
-                penalty23 = torch.linalg.norm(mod_params2[0] - mod_params3[0], dim=1)
-                penalty23 = torch.where(mask23, penalty23.T, torch.zeros_like(penalty23).T).sum(
-                    dim=0
-                )
-                pair_penalty = pair_penalty + penalty23
+                pair_penalty = pair_penalty + mmd(mod_params2, mod_params3, mask23)
         else:
             raise ValueError("modality penalty not supported")
 
         return pair_penalty
 
 
+def imq_kernel(x, y, gammas=None, beta=0.5):
+    """
+    Compute the IMQ kernel between two tensors.
+
+    Parameters:
+    ----------
+    x : torch.Tensor
+        Input tensor of shape (N, D).
+    y : torch.Tensor
+        Input tensor of shape (M, D).
+    gammas : list of float or None
+        List of gamma values to compute the kernel with.
+    beta : float
+        The beta parameter controlling the sharpness of the kernel.
+
+    Returns:
+    -------
+    kernel_sum : torch.Tensor
+        Tensor of shape (N, M), the sum of IMQ kernels over all gamma values.
+    """
+    if gammas is None:
+        gammas = [
+            1e-6,
+            1e-5,
+            1e-4,
+            1e-3,
+            1e-2,
+            1e-1,
+            1,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30,
+            35,
+            100,
+            1e3,
+            1e4,
+            1e5,
+            1e6,
+        ]
+    pairwise_sq_dist = torch.cdist(x, y).pow(2)
+
+    kernel_sum = torch.zeros_like(pairwise_sq_dist)
+    for gamma in gammas:
+        c2 = gamma  # Scaling factor as c^2
+        kernel_sum += (c2 + pairwise_sq_dist).pow(-beta)
+
+    return kernel_sum / len(gammas)
+
+
 @auto_move_data
-def mixture_of_expert(Xs, masks, weights):
+def rbf_kernel(x, y, gammas=None):
+    """
+    Compute the RBF kernel between two tensors.
+
+    Parameters:
+    ----------
+    x : torch.Tensor
+        Input tensor of shape (N, D).
+    y : torch.Tensor
+        Input tensor of shape (M, D).
+    gammas : list of float or None
+        List of gamma values to compute the kernel with.
+
+    Returns:
+    -------
+    kernel_sum : torch.Tensor
+        Tensor of shape (N, M), the sum of RBF kernels over all gamma values.
+    """
+    if gammas is None:
+        gammas = [
+            1e-6,
+            1e-5,
+            1e-4,
+            1e-3,
+            1e-2,
+            1e-1,
+            1,
+            5,
+            10,
+            15,
+            20,
+            25,
+            30,
+            35,
+            100,
+            1e3,
+            1e4,
+            1e5,
+            1e6,
+        ]
+    # Compute pairwise squared distances ||x - y||^2
+    pairwise_sq_dist = torch.cdist(x, y).pow(2)
+
+    kernel_sum = torch.zeros_like(pairwise_sq_dist)
+    for gamma in gammas:
+        kernel_sum += torch.exp(-gamma * pairwise_sq_dist)
+
+    return kernel_sum / len(gammas)
+
+
+@auto_move_data
+def modality_penalty_IMQ(mask1, mask12, mask13, mask23, mod_params1, mod_params2, mod_params3):
+    """
+    Compute the IMQ kernel-based modality penalty.
+
+    Parameters:
+    ----------
+    mask1, mask12, mask13, mask23 : torch.Tensor
+        Masks for the modalities and their interactions.
+    mod_params1, mod_params2, mod_params3 : list of torch.Tensor
+        Parameter tensors for the modalities.
+
+    Returns:
+    -------
+    pair_penalty : torch.Tensor
+        Tensor of penalties based on IMQ kernel discrepancies.
+    """
+
+
+
+
+@auto_move_data
+def mixture_of_expert(mus, vars, masks, weights):
     """Compute the weighted mean of the Xs while masking unmeasured modality values.
 
     Parameters
     ----------
-    Xs
-        Sequence of Xs to mix, each should be (N x D)
+    mus
+        Sequence of mus to mix, each should be (N x D)
+    vars
+        Sequence of mus to mix, each should be (N x D)
     masks
         Sequence of masks corresponding to the Xs, indicating whether the values
         should be included in the mix or not (N)
@@ -1096,7 +1230,8 @@ def mixture_of_expert(Xs, masks, weights):
         Weights for each modality (either K or N x K)
     """
     # (batch_size x latent) -> (batch_size x modalities x latent)
-    Xs = torch.stack(Xs, dim=1)
+    mus = torch.stack(mus, dim=1)
+    vars = torch.stack(vars, dim=1)
     # (batch_size) -> (batch_size x modalities)
     masks = torch.stack(masks, dim=1).float()
     weights = masked_softmax(weights, masks, dim=-1)
@@ -1104,7 +1239,7 @@ def mixture_of_expert(Xs, masks, weights):
     # (batch_size x modalities) -> (batch_size x modalities x latent)
     weights = weights.unsqueeze(-1)
     # sum over modalities, so output is (batch_size x latent)
-    return (weights * Xs).sum(1)
+    return (weights * mus).sum(1), (weights**2 * vars).sum(1)
 
 
 @auto_move_data

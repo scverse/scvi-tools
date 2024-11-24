@@ -43,7 +43,7 @@ from scvi.model.base._de_core import _de_core
 from scvi.model.utils import get_minified_mudata
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
-from scvi.train._callbacks import SaveBestState
+from scvi.train._callbacks import SaveCheckpoint
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
@@ -125,6 +125,9 @@ class MULTIVI(
         One of
         * ``'normal'`` - Normal distribution
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+    use_observed_lib_size
+        Whether to use observed library size for normalization. Can be a dictionary with keys
+        RNA and ATAC. Default is false.
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False,
         covariates will only be included in the input layer.
@@ -179,6 +182,8 @@ class MULTIVI(
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
+        use_observed_lib_size_rna: bool = False,
+        use_observed_lib_size_atac: bool = False,
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
         fully_paired: bool = False,
@@ -207,8 +212,6 @@ class MULTIVI(
             else []
         )
 
-        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-
         if "n_proteins" in self.summary_stats:
             n_proteins = self.summary_stats.n_proteins
         else:
@@ -234,7 +237,8 @@ class MULTIVI(
             gene_dispersion=dispersion,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            use_size_factor_key=use_size_factor_key,
+            use_observed_lib_size_rna=use_observed_lib_size_rna,
+            use_observed_lib_size_atac=use_observed_lib_size_atac,
             latent_distribution=latent_distribution,
             deeply_inject_covariates=deeply_inject_covariates,
             encode_covariates=encode_covariates,
@@ -281,7 +285,7 @@ class MULTIVI(
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
-        save_best: bool = True,
+        enable_checkpointing: bool = True,
         check_val_every_n_epoch: int | None = None,
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 50,
@@ -317,8 +321,8 @@ class MULTIVI(
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
-        save_best
-            ``DEPRECATED`` Save the best model state with respect to the validation loss, or use
+        enable_checkpointing
+            Save the best model state with respect to the validation loss, or use
             the final state in the training procedure.
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping`
@@ -340,11 +344,6 @@ class MULTIVI(
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
-
-        Notes
-        -----
-        ``save_best`` is deprecated in v1.2 and will be removed in v1.3. Please use
-        ``enable_checkpointing`` instead.
         """
         update_dict = {
             "lr": lr,
@@ -363,17 +362,10 @@ class MULTIVI(
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 
-        if save_best:
-            warnings.warn(
-                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpointing` instead. See "
-                "https://github.com/scverse/scvi-tools/issues/2568 for more details.",
-                DeprecationWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
+        if enable_checkpointing:
             if "callbacks" not in kwargs.keys():
                 kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
+            kwargs["callbacks"].append(SaveCheckpoint(monitor="reconstruction_loss_validation"))
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
@@ -1138,7 +1130,6 @@ class MULTIVI(
         adata: AnnData,
         layer: str | None = None,
         batch_key: str | None = None,
-        size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
         protein_expression_obsm_key: str | None = None,
@@ -1153,7 +1144,6 @@ class MULTIVI(
         %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
-        %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         protein_expression_obsm_key
@@ -1181,7 +1171,6 @@ class MULTIVI(
             batch_field,
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, index_key, required=False),
@@ -1220,7 +1209,6 @@ class MULTIVI(
         atac_layer: str | None = None,
         protein_layer: str | None = None,
         batch_key: str | None = None,
-        size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
         index_key: str | None = None,
@@ -1239,10 +1227,6 @@ class MULTIVI(
         protein_layer
             Protein layer key. If `None`, will use `.X` of specified modality key.
         %(param_batch_key)s
-        size_factor_key
-            Key in `mdata.obsm` for size factors. The first column corresponds to RNA size factors,
-            the second to ATAC size factors.
-            The second column need to be normalized and between 0 and 1.
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         index_key
@@ -1283,12 +1267,6 @@ class MULTIVI(
                 REGISTRY_KEYS.LABELS_KEY,
                 None,
                 mod_key=None,
-            ),
-            fields.MuDataNumericalJointObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY,
-                size_factor_key,
-                mod_key=None,
-                required=False,
             ),
             fields.MuDataCategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY,
@@ -1413,8 +1391,11 @@ class MULTIVI(
         if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
 
-        if self.module.use_size_factor_key is False:
-            raise ValueError("Cannot minify the data if `use_size_factor_key` is False")
+        if (
+            self.module.use_observed_lib_size_rna is False or
+            self.module.use_observed_lib_size_atac is False
+        ):
+            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
 
         minified_adata = get_minified_mudata(self.adata, minified_data_type)
         minified_adata.obsm[_MULTIVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
