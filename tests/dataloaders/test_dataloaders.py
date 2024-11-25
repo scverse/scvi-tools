@@ -1,11 +1,14 @@
+import os
+
 import numpy as np
 import pytest
 import torch
 from tests.data.utils import generic_setup_adata_manager
-import os
+
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.model import SCANVI
+
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
     def __init__(self, *args, **kwargs):
@@ -107,7 +110,7 @@ def multiprocessing_worker(
     return
 
 
-#@pytest.mark.optional
+# @pytest.mark.optional
 @pytest.mark.parametrize("num_processes", [1, 2])
 def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
     adata = scvi.data.synthetic_iid()
@@ -124,7 +127,8 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
         join=True,
     )
 
-#@pytest.mark.optional
+
+# @pytest.mark.optional
 @pytest.mark.parametrize("num_processes", [1, 2])
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     if torch.cuda.is_available():
@@ -140,11 +144,11 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
         if os.path.exists(file_path):  # Check if the file exists
             os.remove(file_path)
         datasplitter_kwargs = {}
-        datasplitter_kwargs['distributed_sampler'] = True
-        if num_processes==1:
-            datasplitter_kwargs['distributed_sampler'] = False
-        datasplitter_kwargs['save_path'] = save_path
-        datasplitter_kwargs['num_processes'] = num_processes
+        datasplitter_kwargs["distributed_sampler"] = True
+        if num_processes == 1:
+            datasplitter_kwargs["distributed_sampler"] = False
+        datasplitter_kwargs["save_path"] = save_path
+        datasplitter_kwargs["num_processes"] = num_processes
         model = SCANVI(adata, n_latent=10)
 
         torch.multiprocessing.spawn(
@@ -155,4 +159,3 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
         )
 
         model.train(1, datasplitter_kwargs=datasplitter_kwargs)
-

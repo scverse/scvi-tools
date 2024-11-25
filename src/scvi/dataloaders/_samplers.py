@@ -1,5 +1,6 @@
-from torch.utils.data import Dataset, DistributedSampler
 import torch
+from torch.utils.data import Dataset, DistributedSampler
+
 
 class BatchDistributedSampler(DistributedSampler):
     """``EXPERIMENTAL`` Sampler that restricts to loading from a subset of the dataset.
@@ -36,17 +37,22 @@ class BatchDistributedSampler(DistributedSampler):
         drop_dataset_tail: bool = False,
         **kwargs,
     ):
-
         if not torch.distributed.is_initialized():
             # initializes the distributed backend that takes care of synchronizing processes
             torch.distributed.init_process_group(
                 "gloo",  # backend that works on all systems
-                init_method="file://"+kwargs["save_path"]+"/dist_file",
+                init_method="file://" + kwargs["save_path"] + "/dist_file",
                 rank=0,
                 world_size=kwargs["num_processes"],
             )
 
-        for redundant_key in ["save_path","pin_memory","num_processes","num_workers","persistent_workers"]:
+        for redundant_key in [
+            "save_path",
+            "pin_memory",
+            "num_processes",
+            "num_workers",
+            "persistent_workers",
+        ]:
             if redundant_key in kwargs:
                 kwargs.pop(redundant_key)
 
