@@ -118,12 +118,17 @@ class AnnDataLoader(DataLoader):
                     drop_last=drop_last,
                 )
             else:
+                if "save_path" not in kwargs:
+                    kwargs["save_path"] = "/."
+                if "num_processes" not in kwargs:
+                    kwargs["num_processes"] = 1
                 sampler = BatchDistributedSampler(
                     self.dataset,
                     batch_size=batch_size,
                     drop_last=drop_last,
                     drop_dataset_tail=drop_dataset_tail,
                     shuffle=shuffle,
+                    **kwargs
                 )
             # do not touch batch size here, sampler gives batched indices
             # This disables PyTorch automatic batching, which is necessary
@@ -135,4 +140,7 @@ class AnnDataLoader(DataLoader):
         if iter_ndarray:
             self.kwargs.update({"collate_fn": lambda x: x})
 
+        for redundant_key in ["save_path","num_processes"]:
+            if redundant_key in self.kwargs:
+                self.kwargs.pop(redundant_key)
         super().__init__(self.dataset, **self.kwargs)
