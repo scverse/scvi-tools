@@ -35,7 +35,9 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add MuData Minification option to {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.TOTALVI` {pr}`3039`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
-
+- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
+    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
+  
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
@@ -95,8 +97,6 @@ to [Semantic Versioning]. Full commit history is available in the
     data {pr}`2756`.
 - Add support for reference mapping with {class}`mudata.MuData` models to
     {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
-- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
-    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 - Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
     and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
     without averaging across cells {pr}`2362`.
