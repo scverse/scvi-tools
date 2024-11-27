@@ -1,3 +1,4 @@
+import pytest
 from mudata import MuData
 
 from scvi.data import synthetic_iid
@@ -28,6 +29,9 @@ def test_methylvi():
     )
     vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
-    vae.get_normalized_methylation()
+    vae.get_normalized_methylation()  # Retrieve methylation for all contexts
+    vae.get_normalized_methylation(context="mod1")  # Retrieve for specific context
+    with pytest.raises(ValueError):  # Should fail when invalid context selected
+        vae.get_normalized_methylation(context="mod3")
     vae.get_latent_representation()
     vae.differential_methylation(groupby="mod1:labels", group1="label_1")
