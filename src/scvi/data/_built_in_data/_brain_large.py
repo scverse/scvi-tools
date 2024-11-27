@@ -92,8 +92,8 @@ def _load_brainlarge_file(
             logger.info(
                 f"loaded {i * loading_batch_size + n_cells_batch} / {n_cells_to_keep} cells"
             )
-    logger.info("%d cells subsampled" % matrix.shape[0])
-    logger.info("%d genes subsampled" % matrix.shape[1])
+    logger.info(f"{matrix.shape[0]} cells subsampled")
+    logger.info(f"{matrix.shape[1]} genes subsampled")
     adata = anndata.AnnData(matrix)
     adata.obs["labels"] = np.zeros(matrix.shape[0])
     adata.obs["batch"] = np.zeros(matrix.shape[0])
