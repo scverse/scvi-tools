@@ -37,7 +37,7 @@ to [Semantic Versioning]. Full commit history is available in the
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
-  
+
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
