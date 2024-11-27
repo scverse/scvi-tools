@@ -311,9 +311,11 @@ def _get_adata_minify_type(adata: AnnData) -> MinifiedDataType | None:
     return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
 
 
-def _is_minified(adata: AnnData | str) -> bool:
+def _is_minified(adata: AnnOrMuData | str) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
+        return adata.uns.get(uns_key, None) is not None
+    elif isinstance(adata, MuData):
         return adata.uns.get(uns_key, None) is not None
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:

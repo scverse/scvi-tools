@@ -9,6 +9,7 @@ import torch
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     BaseMinifiedModeModuleClass,
@@ -16,6 +17,7 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
+from scvi.utils import unsupported_if_adata_minified
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -281,25 +283,32 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     def _get_inference_input(
         self,
         tensors: dict[str, torch.Tensor | None],
+        full_forward_pass: bool = False,
     ) -> dict[str, torch.Tensor | None]:
         """Get input tensors for the inference process."""
-        from scvi.data._constants import ADATA_MINIFY_TYPE
+        if full_forward_pass or self.minified_data_type is None:
+            loader = "full_data"
+        elif self.minified_data_type in [
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS,
+        ]:
+            loader = "minified_data"
+        else:
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
-        if self.minified_data_type is None:
+        if loader == "full_data":
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
                 MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
             }
-        elif self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        else:
             return {
                 MODULE_KEYS.QZM_KEY: tensors[REGISTRY_KEYS.LATENT_QZM_KEY],
                 MODULE_KEYS.QZV_KEY: tensors[REGISTRY_KEYS.LATENT_QZV_KEY],
                 REGISTRY_KEYS.OBSERVED_LIB_SIZE: tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE],
             }
-        else:
-            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
     def _get_generative_input(
         self,
@@ -414,14 +423,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         """Run the cached inference process."""
         from torch.distributions import Normal
 
-        from scvi.data._constants import ADATA_MINIFY_TYPE
-
-        if self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
-
-        dist = Normal(qzm, qzv.sqrt())
+        qz = Normal(qzm, qzv.sqrt())
         # use dist.sample() rather than rsample because we aren't optimizing the z here
-        untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
+        untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
         z = self.z_encoder.z_transformation(untran_z)
         library = torch.log(observed_lib_size)
         if n_samples > 1:
@@ -429,8 +433,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         return {
             MODULE_KEYS.Z_KEY: z,
-            MODULE_KEYS.QZM_KEY: qzm,
-            MODULE_KEYS.QZV_KEY: qzv,
+            MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.QL_KEY: None,
             MODULE_KEYS.LIBRARY_KEY: library,
         }
@@ -541,6 +544,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             MODULE_KEYS.PZ_KEY: pz,
         }
 
+    @unsupported_if_adata_minified
     def loss(
         self,
         tensors: dict[str, torch.Tensor],
@@ -670,7 +674,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         for _ in range(n_passes):
             # Distribution parameters and sampled variables
             inference_outputs, _, losses = self.forward(
-                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
+                tensors,
+                inference_kwargs={"n_samples": n_mc_samples_per_pass},
+                get_inference_input_kwargs={"full_forward_pass": True},
             )
             qz = inference_outputs[MODULE_KEYS.QZ_KEY]
             ql = inference_outputs[MODULE_KEYS.QL_KEY]
