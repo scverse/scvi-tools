@@ -1,7 +1,7 @@
-import os
 from math import ceil, floor
 
 import numpy as np
+import os
 import pytest
 from tests.data.utils import generic_setup_adata_manager
 
@@ -33,7 +33,7 @@ def test_batchdistributedsampler_init(
         drop_last=True,
         drop_dataset_tail=True,
         num_processes=num_processes,
-        save_path=save_path,
+        save_path=save_path
     )
     assert sampler.batch_size == batch_size
     assert sampler.rank == 0
@@ -128,7 +128,7 @@ def test_batchdistributedsampler_drop_last(
                 drop_last=drop_last,
                 drop_dataset_tail=drop_dataset_tail,
                 num_processes=num_processes,
-                save_path=save_path,
+                save_path=save_path
             )
             for i in range(num_replicas)
         ]
@@ -158,7 +158,7 @@ def test_batchdistributedsampler_indices(
             rank=i,
             batch_size=batch_size,
             num_processes=num_processes,
-            save_path=save_path,
+            save_path=save_path
         )
         for i in range(num_replicas)
     ]

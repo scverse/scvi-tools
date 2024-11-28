@@ -53,6 +53,8 @@ class ConcatDataLoader(DataLoader):
         self._shuffle = shuffle
         self._batch_size = batch_size
         self._drop_last = drop_last
+        self._drop_dataset_tail = self.dataloader_kwargs["drop_dataset_tail"] \
+            if "drop_dataset_tail" in self.dataloader_kwargs.keys() else False
 
         self.dataloaders = []
         for indices in indices_list:
@@ -70,10 +72,10 @@ class ConcatDataLoader(DataLoader):
             )
         lens = [len(dl) for dl in self.dataloaders]
         self.largest_dl = self.dataloaders[np.argmax(lens)]
-        for redundant_key in ["save_path", "num_processes"]:
+        for redundant_key in ["save_path", "num_processes","drop_dataset_tail"]:
             if redundant_key in data_loader_kwargs:
                 data_loader_kwargs.pop(redundant_key)
-        super().__init__(self.largest_dl, **data_loader_kwargs)
+        super().__init__(self.largest_dl, drop_last=self._drop_dataset_tail, **data_loader_kwargs)
 
     def __len__(self):
         return len(self.largest_dl)

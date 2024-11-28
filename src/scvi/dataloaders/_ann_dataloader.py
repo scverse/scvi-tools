@@ -117,6 +117,10 @@ class AnnDataLoader(DataLoader):
                     batch_size=batch_size,
                     drop_last=drop_last,
                 )
+                # do not touch batch size here, sampler gives batched indices
+                # This disables PyTorch automatic batching, which is necessary
+                # for fast access to sparse matrices
+                self.kwargs.update({"batch_size": None, "shuffle": False})
             else:
                 if "save_path" not in kwargs:
                     kwargs["save_path"] = "/."
@@ -130,10 +134,6 @@ class AnnDataLoader(DataLoader):
                     shuffle=shuffle,
                     **kwargs,
                 )
-            # do not touch batch size here, sampler gives batched indices
-            # This disables PyTorch automatic batching, which is necessary
-            # for fast access to sparse matrices
-            self.kwargs.update({"batch_size": None, "shuffle": False})
 
         self.kwargs.update({"sampler": sampler})
 
@@ -143,4 +143,4 @@ class AnnDataLoader(DataLoader):
         for redundant_key in ["save_path", "num_processes"]:
             if redundant_key in self.kwargs:
                 self.kwargs.pop(redundant_key)
-        super().__init__(self.dataset, **self.kwargs)
+        super().__init__(self.dataset, drop_last=drop_dataset_tail, **self.kwargs)

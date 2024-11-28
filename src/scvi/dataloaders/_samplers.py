@@ -40,10 +40,11 @@ class BatchDistributedSampler(DistributedSampler):
         if not torch.distributed.is_initialized():
             # initializes the distributed backend that takes care of synchronizing processes
             torch.distributed.init_process_group(
-                "gloo",  # backend that works on all systems
+                "nccl",  # backend that works on all systems
                 init_method="file://" + kwargs["save_path"] + "/dist_file",
                 rank=0,
                 world_size=kwargs["num_processes"],
+                store=None
             )
 
         for redundant_key in [

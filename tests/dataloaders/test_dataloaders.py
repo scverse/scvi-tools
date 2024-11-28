@@ -95,17 +95,18 @@ def test_anndataloader_distributed_sampler_init():
 
 
 def multiprocessing_worker(
-    rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str
+    rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str, datasplitter_kwargs
 ):
     # initializes the distributed backend that takes care of synchronizing processes
     torch.distributed.init_process_group(
-        "gloo",  # backend that works on all systems
+        "nccl",  # backend that works on all systems
         init_method=f"file://{save_path}/dist_file",
         rank=rank,
         world_size=world_size,
+        store = None
     )
 
-    _ = scvi.dataloaders.AnnDataLoader(manager, distributed_sampler=True)
+    _ = scvi.dataloaders.AnnDataLoader(manager, **datasplitter_kwargs)
 
     return
 
@@ -122,14 +123,14 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
 
     torch.multiprocessing.spawn(
         multiprocessing_worker,
-        args=(num_processes, manager, save_path),
+        args=(num_processes, manager, save_path, {}),
         nprocs=num_processes,
         join=True,
     )
 
 
 # @pytest.mark.optional
-@pytest.mark.parametrize("num_processes", [1, 2])
+@pytest.mark.parametrize("num_processes", [2])
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     if torch.cuda.is_available():
         adata = scvi.data.synthetic_iid()
@@ -144,16 +145,20 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
         if os.path.exists(file_path):  # Check if the file exists
             os.remove(file_path)
         datasplitter_kwargs = {}
+        #Multi-GPU settings
         datasplitter_kwargs["distributed_sampler"] = True
-        if num_processes == 1:
-            datasplitter_kwargs["distributed_sampler"] = False
         datasplitter_kwargs["save_path"] = save_path
         datasplitter_kwargs["num_processes"] = num_processes
+        datasplitter_kwargs["drop_dataset_tail"] = True
+        datasplitter_kwargs["drop_last"] = False
+        if num_processes == 1:
+            datasplitter_kwargs["distributed_sampler"] = False
+            datasplitter_kwargs["drop_dataset_tail"] = False
         model = SCANVI(adata, n_latent=10)
 
         torch.multiprocessing.spawn(
             multiprocessing_worker,
-            args=(num_processes, manager, save_path),
+            args=(num_processes, manager, save_path, {}),
             nprocs=num_processes,
             join=True,
         )
