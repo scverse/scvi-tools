@@ -1,6 +1,7 @@
 from math import ceil, floor
 
 import numpy as np
+import os
 import pytest
 from tests.data.utils import generic_setup_adata_manager
 
@@ -8,13 +9,20 @@ import scvi
 from scvi.dataloaders import BatchDistributedSampler
 
 
+@pytest.mark.parametrize("num_processes", [1, 2])
 def test_batchdistributedsampler_init(
+    num_processes: int,
+    save_path: str,
     batch_size: int = 128,
     n_batches: int = 2,
 ):
     adata = scvi.data.synthetic_iid(batch_size=batch_size, n_batches=n_batches)
     manager = generic_setup_adata_manager(adata)
     dataset = manager.create_torch_dataset()
+
+    file_path = save_path + "/dist_file"
+    if os.path.exists(file_path):  # Check if the file exists
+        os.remove(file_path)
 
     sampler = BatchDistributedSampler(
         dataset,
@@ -24,6 +32,8 @@ def test_batchdistributedsampler_init(
         shuffle=True,
         drop_last=True,
         drop_dataset_tail=True,
+        num_processes=num_processes,
+        save_path=save_path
     )
     assert sampler.batch_size == batch_size
     assert sampler.rank == 0
@@ -35,9 +45,12 @@ def test_batchdistributedsampler_init(
 
 @pytest.mark.parametrize("drop_last", [True, False])
 @pytest.mark.parametrize("drop_dataset_tail", [True, False])
+@pytest.mark.parametrize("num_processes", [1, 2])
 def test_batchdistributedsampler_drop_last(
+    num_processes: int,
     drop_last: bool,
     drop_dataset_tail: bool,
+    save_path: str,
     batch_size: int = 128,
     n_batches: int = 3,
     num_replicas: int = 2,
@@ -101,6 +114,10 @@ def test_batchdistributedsampler_drop_last(
             assert len(all_indices) == effective_n_obs_per_sampler
             assert [len(indices) for indices in batch_indices] == batch_sizes
 
+    file_path = save_path + "/dist_file"
+    if os.path.exists(file_path):  # Check if the file exists
+        os.remove(file_path)
+
     for sampler_batch_size in [batch_size, batch_size - 1, batch_size + 1]:
         samplers = [
             BatchDistributedSampler(
@@ -110,13 +127,18 @@ def test_batchdistributedsampler_drop_last(
                 batch_size=sampler_batch_size,
                 drop_last=drop_last,
                 drop_dataset_tail=drop_dataset_tail,
+                num_processes=num_processes,
+                save_path=save_path
             )
             for i in range(num_replicas)
         ]
         check_samplers(samplers, sampler_batch_size)
 
 
+@pytest.mark.parametrize("num_processes", [1, 2])
 def test_batchdistributedsampler_indices(
+    num_processes: int,
+    save_path: str,
     batch_size: int = 128,
     n_batches: int = 3,
     num_replicas: int = 2,
@@ -125,12 +147,18 @@ def test_batchdistributedsampler_indices(
     manager = generic_setup_adata_manager(adata)
     dataset = manager.create_torch_dataset()
 
+    file_path = save_path + "/dist_file"
+    if os.path.exists(file_path):  # Check if the file exists
+        os.remove(file_path)
+
     samplers = [
         BatchDistributedSampler(
             dataset,
             num_replicas=num_replicas,
             rank=i,
             batch_size=batch_size,
+            num_processes=num_processes,
+            save_path=save_path
         )
         for i in range(num_replicas)
     ]
