@@ -95,7 +95,11 @@ def test_anndataloader_distributed_sampler_init():
 
 
 def multiprocessing_worker(
-    rank: int, world_size: int, manager: scvi.data.AnnDataManager, save_path: str, datasplitter_kwargs
+    rank: int,
+    world_size: int,
+    manager: scvi.data.AnnDataManager,
+    save_path: str,
+    datasplitter_kwargs,
 ):
     # initializes the distributed backend that takes care of synchronizing processes
     torch.distributed.init_process_group(
@@ -103,7 +107,7 @@ def multiprocessing_worker(
         init_method=f"file://{save_path}/dist_file",
         rank=rank,
         world_size=world_size,
-        store = None
+        store=None,
     )
 
     _ = scvi.dataloaders.AnnDataLoader(manager, **datasplitter_kwargs)
@@ -145,7 +149,7 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
         if os.path.exists(file_path):  # Check if the file exists
             os.remove(file_path)
         datasplitter_kwargs = {}
-        #Multi-GPU settings
+        # Multi-GPU settings
         datasplitter_kwargs["distributed_sampler"] = True
         datasplitter_kwargs["save_path"] = save_path
         datasplitter_kwargs["num_processes"] = num_processes

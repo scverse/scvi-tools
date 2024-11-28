@@ -175,8 +175,11 @@ class FCLayers(nn.Module):
                         if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
                                 one_hot_cat_list_layer = [
-                                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1))) if o.dim()==2
-                                    else o[0].unsqueeze(0).expand((x.size(1), o.size(1), o.size(2)))
+                                    o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
+                                    if o.dim() == 2
+                                    else o[0]
+                                    .unsqueeze(0)
+                                    .expand((x.size(1), o.size(1), o.size(2)))
                                     for o in one_hot_cat_list
                                 ]
                             else:

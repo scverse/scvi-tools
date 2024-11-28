@@ -44,7 +44,7 @@ class BatchDistributedSampler(DistributedSampler):
                 init_method="file://" + kwargs["save_path"] + "/dist_file",
                 rank=0,
                 world_size=kwargs["num_processes"],
-                store=None
+                store=None,
             )
 
         for redundant_key in [
