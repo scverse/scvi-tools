@@ -30,7 +30,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Implemented variance of ZINB distribution. {pr}`3044`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
-  
+
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
