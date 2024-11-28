@@ -15,6 +15,8 @@ to [Semantic Versioning]. Full commit history is available in the
     validation set, if available. {pr}`3036`.
 - Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
+- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
+    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
 #### Fixed
 
@@ -1585,7 +1587,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 #### Enhancements
 
-##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method  <!-- markdownlint-disable -->
+##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
 It is now possible to iteratively update these models with new samples, without altering the model
 for the "reference" population. Here we use the
@@ -1647,7 +1649,7 @@ use scvi-tools is with our documentation and tutorials.
 - New high-level API and data loading, please see tutorials and examples for usage.
 - `GeneExpressionDataset` and associated classes have been removed.
 - Built-in datasets now return `AnnData` objects.
-- `scvi-tools` now relies entirely on the \[AnnData\] format.
+- `scvi-tools` now relies entirely on the [AnnData] format.
 - `scvi.models` has been moved to `scvi.core.module`.
 - `Posterior` classes have been reduced to wrappers on `DataLoaders`
 - `scvi.inference` has been split to `scvi.core.data_loaders` for `AnnDataLoader` classes and
