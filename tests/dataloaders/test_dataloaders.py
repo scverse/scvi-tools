@@ -134,7 +134,7 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
 
 
 # @pytest.mark.optional
-@pytest.mark.parametrize("num_processes", [1,2])
+@pytest.mark.parametrize("num_processes", [1, 2])
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     if torch.cuda.is_available():
         adata = scvi.data.synthetic_iid()
