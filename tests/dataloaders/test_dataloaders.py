@@ -115,25 +115,24 @@ def multiprocessing_worker(
     return
 
 
-# @pytest.mark.optional
 @pytest.mark.parametrize("num_processes", [1, 2])
 def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
-    adata = scvi.data.synthetic_iid()
-    manager = generic_setup_adata_manager(adata)
+    if torch.cuda.is_available():
+        adata = scvi.data.synthetic_iid()
+        manager = generic_setup_adata_manager(adata)
 
-    file_path = save_path + "/dist_file"
-    if os.path.exists(file_path):  # Check if the file exists
-        os.remove(file_path)
+        file_path = save_path + "/dist_file"
+        if os.path.exists(file_path):  # Check if the file exists
+            os.remove(file_path)
 
-    torch.multiprocessing.spawn(
-        multiprocessing_worker,
-        args=(num_processes, manager, save_path, {}),
-        nprocs=num_processes,
-        join=True,
-    )
+        torch.multiprocessing.spawn(
+            multiprocessing_worker,
+            args=(num_processes, manager, save_path, {}),
+            nprocs=num_processes,
+            join=True,
+        )
 
 
-# @pytest.mark.optional
 @pytest.mark.parametrize("num_processes", [1, 2])
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     if torch.cuda.is_available():

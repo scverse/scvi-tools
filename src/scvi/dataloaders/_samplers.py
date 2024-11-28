@@ -37,7 +37,7 @@ class BatchDistributedSampler(DistributedSampler):
         drop_dataset_tail: bool = False,
         **kwargs,
     ):
-        if not torch.distributed.is_initialized():
+        if not torch.distributed.is_initialized() and torch.cuda.is_available():
             # initializes the distributed backend that takes care of synchronizing processes
             torch.distributed.init_process_group(
                 "nccl",  # backend that works on all systems
