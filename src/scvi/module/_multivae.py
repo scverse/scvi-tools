@@ -297,6 +297,7 @@ class MULTIVAE(BaseModuleClass):
         mmd_kernel: str = "norm",
         mix_modality: Literal["moe", "poe"] = "moe",
         n_batch: int = 0,
+        n_assay: int = 0,
         n_obs: int = 0,
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
@@ -337,6 +338,7 @@ class MULTIVAE(BaseModuleClass):
         else:
             self.n_hidden = n_hidden
         self.n_batch = n_batch
+        self.n_assay = n_assay
 
         self.gene_likelihood = gene_likelihood
         self.latent_distribution = latent_distribution
@@ -932,7 +934,8 @@ class MULTIVAE(BaseModuleClass):
             "log_pro_back_mean": log_pro_back_mean,
         }
 
-    def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0, weighting_integration: float = 1.):
+    def loss(self, tensors, inference_outputs, generative_outputs,
+        kl_weight: float = 1.0, weighting_integration: float = 1.):
         """Computes the loss function for the model."""
         # Get the data
         x = inference_outputs["x"]
@@ -981,7 +984,7 @@ class MULTIVAE(BaseModuleClass):
         ).sum(dim=1)
 
         # Compute KLD between distributions for paired data
-        kl_div_paired = weighting_integration * self._compute_mod_penalty(
+        kl_div_paired = self._compute_mod_penalty(
             (inference_outputs["qzm_expr"], inference_outputs["qzv_expr"]),
             (inference_outputs["qzm_acc"], inference_outputs["qzv_acc"]),
             (inference_outputs["qzm_pro"], inference_outputs["qzv_pro"]),
@@ -990,9 +993,27 @@ class MULTIVAE(BaseModuleClass):
             mask_pro,
         )
 
+        assay_index = tensors.get("assay", None)
+        if assay_index is not None:
+            kl_div_assays = self._compute_assay_penalty(
+                inference_outputs["qzm_expr"],
+                inference_outputs["qzm_acc"],
+                inference_outputs["qzm_pro"],
+                mask_expr,
+                mask_acc,
+                mask_pro,
+                assay=assay_index
+            )
+        else:
+            kl_div_assays = torch.tensor(0., device=x.device)
+
         # KL WARMUP
         kl_local_for_warmup = kl_div_z
-        weighted_kl_local = kl_weight * kl_local_for_warmup + kl_div_paired
+        weighted_kl_local = (
+            kl_weight * kl_local_for_warmup +
+            kl_div_paired +
+            weighting_integration * kl_div_assays
+        )
 
         # TOTAL LOSS
         loss = torch.mean(recon_loss + weighted_kl_local)
@@ -1005,6 +1026,7 @@ class MULTIVAE(BaseModuleClass):
         kl_local = {
             "kl_divergence_z": kl_div_z,
             "kl_divergence_paired": kl_div_paired,
+            "kl_divergence_assays": kl_div_assays,
         }
         return LossOutput(loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local)
 
@@ -1013,7 +1035,8 @@ class MULTIVAE(BaseModuleClass):
         # Scaling improves convergence speed. Otherwise region_factors takes long to train.
         return torch.nn.BCELoss(reduction="none")(p, (x > 0).float()).sum(dim=-1)
 
-    def _compute_mod_penalty(self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3):
+    def _compute_mod_penalty(
+            self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3, assay=None):
         """Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD).
 
         Parameters
@@ -1066,34 +1089,57 @@ class MULTIVAE(BaseModuleClass):
                 pair_penalty = pair_penalty + penalty23
 
         elif self.modality_penalty == "MMD":
-            def mmd(mod_params_1, mod_params_2, mask):
-                if self.mmd_kernel == 'norm':
-                   penalty = torch.linalg.norm(mod_params_1[0] - mod_params_2[0], dim=1)
-                elif self.mmd_kernel == 'imq':
-                    penalty = imq_kernel(mod_params_1[0], mod_params_2[0], beta=0.5)
-                elif self.mmd_kernel == 'rbf':
-                    penalty = rbf_kernel(mod_params_1[0], mod_params_2[0])
-                return torch.where(mask, penalty.T, torch.zeros_like(penalty).T).sum(dim=0)
-
             pair_penalty = torch.zeros(mask1.shape[0], device=mask1.device, requires_grad=True)
             if mask12.sum().gt(0):
-                pair_penalty = pair_penalty + mmd(mod_params1, mod_params2, mask12)
-
+                pair_penalty = pair_penalty + self.mmd(mod_params1, mod_params2, mask12)
             if mask13.sum().gt(0):
-                pair_penalty = pair_penalty + mmd(mod_params1, mod_params3, mask13)
+                pair_penalty = pair_penalty + self.mmd(mod_params1, mod_params3, mask13)
             if mask23.sum().gt(0):
-                pair_penalty = pair_penalty + mmd(mod_params2, mod_params3, mask23)
+                pair_penalty = pair_penalty + self.mmd(mod_params2, mod_params3, mask23)
         else:
             raise ValueError("modality penalty not supported")
 
         return pair_penalty
 
+    def _compute_assay_penalty(
+            self, mod_param1, mod_param2, mod_param3, mask1, mask2, mask3, assay):
+        assay = assay.ravel().long()
+        unique = torch.unique(assay)
+        pair_penalty = torch.tensor(0., device=assay.device)
+        if len(unique) > 1:
+            for mask, params in zip(
+                [mask1, mask2, mask3],
+                [mod_param1, mod_param2, mod_param3], strict=True):
+
+                par = [params[(assay == i) & (mask)] for i in unique]
+                for i in range(len(par)):
+                    for j in range(i + 1, len(par)):
+                        if len(par[i]) > 1 and len(par[j]) > 1:
+                            pp = self.mmd([par[i]], [par[j]])
+                            pair_penalty += pp
+
+        return pair_penalty
+
+    def mmd(self, mod_params_1, mod_params_2, mask=None):
+        if mask is not None:
+            mod_1 = mod_params_1[0][mask]
+            mod_2 = mod_params_2[0][mask]
+        else:
+            mod_1 = mod_params_1[0]
+            mod_2 = mod_params_2[0]
+        if self.mmd_kernel == 'imq':
+            penalty = imq_kernel(mod_1, mod_2, beta=0.5)
+        elif self.mmd_kernel == 'rbf':
+            penalty = rbf_kernel(mod_1, mod_2)
+        else:
+            penalty = torch.linalg.norm(mod_1 - mod_2, dim=1).mean()
+        return penalty
 
 def imq_kernel(x, y, gammas=None, beta=0.5):
     """
     Compute the IMQ kernel between two tensors.
 
-    Parameters:
+    Parameters
     ----------
     x : torch.Tensor
         Input tensor of shape (N, D).
@@ -1104,16 +1150,13 @@ def imq_kernel(x, y, gammas=None, beta=0.5):
     beta : float
         The beta parameter controlling the sharpness of the kernel.
 
-    Returns:
+    Returns
     -------
     kernel_sum : torch.Tensor
         Tensor of shape (N, M), the sum of IMQ kernels over all gamma values.
     """
     if gammas is None:
         gammas = [
-            1e-6,
-            1e-5,
-            1e-4,
             1e-3,
             1e-2,
             1e-1,
@@ -1126,27 +1169,32 @@ def imq_kernel(x, y, gammas=None, beta=0.5):
             30,
             35,
             100,
-            1e3,
-            1e4,
+            1000,
             1e5,
             1e6,
+            1e8,
         ]
-    pairwise_sq_dist = torch.cdist(x, y).pow(2)
+    kxy = torch.cdist(x, y).pow(2)
+    kxx = torch.cdist(x, x).pow(2)
+    kyy = torch.cdist(y, y).pow(2)
 
-    kernel_sum = torch.zeros_like(pairwise_sq_dist)
+    kernel_sum_xy = torch.tensor(0.0, device=x.device)
+    kernel_sum_xx = torch.tensor(0.0, device=x.device)
+    kernel_sum_yy = torch.tensor(0.0, device=x.device)
     for gamma in gammas:
         c2 = gamma  # Scaling factor as c^2
-        kernel_sum += (c2 + pairwise_sq_dist).pow(-beta)
+        kernel_sum_xy += (c2 + kxy).pow(-beta).mean()
+        kernel_sum_xx += (c2 + kxx).pow(-beta).mean()
+        kernel_sum_yy += (c2 + kyy).pow(-beta).mean()
 
-    return kernel_sum / len(gammas)
-
+    return (kernel_sum_xx + kernel_sum_yy - 2 * kernel_sum_xy) / len(gammas)
 
 @auto_move_data
 def rbf_kernel(x, y, gammas=None):
     """
     Compute the RBF kernel between two tensors.
 
-    Parameters:
+    Parameters
     ----------
     x : torch.Tensor
         Input tensor of shape (N, D).
@@ -1155,7 +1203,7 @@ def rbf_kernel(x, y, gammas=None):
     gammas : list of float or None
         List of gamma values to compute the kernel with.
 
-    Returns:
+    Returns
     -------
     kernel_sum : torch.Tensor
         Tensor of shape (N, M), the sum of RBF kernels over all gamma values.
@@ -1183,13 +1231,21 @@ def rbf_kernel(x, y, gammas=None):
             1e6,
         ]
     # Compute pairwise squared distances ||x - y||^2
-    pairwise_sq_dist = torch.cdist(x, y).pow(2)
+    if len(x) == 1 or len(y) == 1:
+        return torch.tensor(0.0)
+    kxy = torch.cdist(x, y).pow(2)
+    kxx = torch.cdist(x, x).pow(2)
+    kyy = torch.cdist(y, y).pow(2)
 
-    kernel_sum = torch.zeros_like(pairwise_sq_dist)
+    kernel_sum_xy = torch.tensor(0.0, device=x.device)
+    kernel_sum_xx = torch.tensor(0.0, device=x.device)
+    kernel_sum_yy = torch.tensor(0.0, device=x.device)
     for gamma in gammas:
-        kernel_sum += torch.exp(-gamma * pairwise_sq_dist)
+        kernel_sum_xy += torch.exp(-gamma * kxy).mean()
+        kernel_sum_xx += torch.exp(-gamma * kxx).mean()
+        kernel_sum_yy += torch.exp(-gamma * kyy).mean()
 
-    return kernel_sum / len(gammas)
+    return (kernel_sum_xx + kernel_sum_yy - 2 * kernel_sum_xy) / len(gammas)
 
 
 @auto_move_data
@@ -1197,14 +1253,14 @@ def modality_penalty_IMQ(mask1, mask12, mask13, mask23, mod_params1, mod_params2
     """
     Compute the IMQ kernel-based modality penalty.
 
-    Parameters:
+    Parameters
     ----------
     mask1, mask12, mask13, mask23 : torch.Tensor
         Masks for the modalities and their interactions.
     mod_params1, mod_params2, mod_params3 : list of torch.Tensor
         Parameter tensors for the modalities.
 
-    Returns:
+    Returns
     -------
     pair_penalty : torch.Tensor
         Tensor of penalties based on IMQ kernel discrepancies.
@@ -1261,7 +1317,8 @@ def product_of_expert(mus, vars, masks, weights):
     mus = torch.stack(mus, dim=1)
     vars = torch.stack(vars, dim=1)
     masks = torch.stack(masks, dim=1).float()
-    weights = masked_softmax(weights, masks, dim=-1).unsqueeze(-1)
+    # Weights should add up to n_samples for precision.
+    weights = len(mus) * masked_softmax(weights, masks, dim=-1).unsqueeze(-1)
 
     # Compute precision (inverse variance) for each expert
     precisions = masks.unsqueeze(-1) / vars  # (N, K, D)

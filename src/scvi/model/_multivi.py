@@ -216,6 +216,10 @@ class MULTIVI(
             n_proteins = self.summary_stats.n_proteins
         else:
             n_proteins = 0
+        if "n_assay" in self.summary_stats:
+            n_assay = self.summary_stats.n_assay
+        else:
+            n_assay = 0
 
         self.module = self._module_cls(
             n_input_genes=n_genes,
@@ -224,6 +228,7 @@ class MULTIVI(
             modality_weights=modality_weights,
             modality_penalty=modality_penalty,
             n_batch=self.summary_stats.n_batch,
+            n_assay=n_assay,
             n_obs=adata.n_obs,
             n_hidden=n_hidden,
             n_latent=n_latent,
@@ -290,6 +295,8 @@ class MULTIVI(
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 50,
         adversarial_mixing: bool = True,
+        scale_adversarial_loss: float = 1.0,
+        key_adversarial: str = REGISTRY_KEYS.BATCH_KEY,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **kwargs,
@@ -353,7 +360,8 @@ class MULTIVI(
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
             "n_steps_kl_warmup": n_steps_kl_warmup,
             "optimizer": "AdamW",
-            "scale_adversarial_loss": 1,
+            "scale_adversarial_loss": scale_adversarial_loss,
+            "key_adversarial": key_adversarial,
         }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
@@ -1209,6 +1217,8 @@ class MULTIVI(
         atac_layer: str | None = None,
         protein_layer: str | None = None,
         batch_key: str | None = None,
+        label_key: str | None = None,
+        assay_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
         index_key: str | None = None,
@@ -1227,6 +1237,9 @@ class MULTIVI(
         protein_layer
             Protein layer key. If `None`, will use `.X` of specified modality key.
         %(param_batch_key)s
+        %(param_label_key)s
+        assay_key
+            Key in `mdata.obs` for assay type. Increases integration by MMD loss on this assay.
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         index_key
@@ -1265,8 +1278,8 @@ class MULTIVI(
             batch_field,
             fields.MuDataCategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY,
-                None,
-                mod_key=None,
+                label_key,
+                mod_key=modalities.batch_key,
             ),
             fields.MuDataCategoricalJointObsField(
                 REGISTRY_KEYS.CAT_COVS_KEY,
@@ -1283,6 +1296,11 @@ class MULTIVI(
                 index_key,
                 mod_key=modalities.index_key,
                 required=False,
+            ),
+            fields.MuDataCategoricalObsField(
+                "assay",
+                assay_key,
+                mod_key=modalities.index_key,
             ),
         ]
         if modalities.rna_layer is not None:

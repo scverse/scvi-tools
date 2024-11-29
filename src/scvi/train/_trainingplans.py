@@ -502,6 +502,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_min: float = 0,
         adversarial_classifier: bool | Classifier = False,
         scale_adversarial_loss: float | Literal["auto"] = "auto",
+        key_adversarial: str = REGISTRY_KEYS.BATCH_KEY,
         **loss_kwargs,
     ):
         super().__init__(
@@ -521,7 +522,9 @@ class AdversarialTrainingPlan(TrainingPlan):
             **loss_kwargs,
         )
         if adversarial_classifier is True:
-            if self.module.n_batch == 1:
+            self.key_adversarial = key_adversarial
+            self.n_adversarial = getattr(module, f'n_{key_adversarial}')
+            if self.n_adversarial == 1:
                 warnings.warn(
                     "Disabling adversarial classifier.",
                     UserWarning,
@@ -529,7 +532,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 )
                 self.adversarial_classifier = False
             else:
-                self.n_output_classifier = self.module.n_batch
+                self.n_output_classifier = self.n_adversarial
                 self.adversarial_classifier = Classifier(
                     n_input=self.module.n_latent,
                     n_hidden=32,
@@ -569,7 +572,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             if self.scale_adversarial_loss == "auto"
             else self.scale_adversarial_loss
         )
-        batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
+        batch_tensor = batch[self.key_adversarial].ravel().long()
 
         opts = self.optimizers()
         if not isinstance(opts, list):
