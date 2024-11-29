@@ -313,9 +313,11 @@ class GIMVI(VAEMixin, BaseModelClass):
                     self.module.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
                     )
+                    .cpu()
+                    .detach()
                 )
 
-            latent = torch.cat(latent).cpu().detach().numpy()
+            latent = torch.cat(latent).numpy()
             latents.append(latent)
 
         return latents
@@ -372,6 +374,8 @@ class GIMVI(VAEMixin, BaseModelClass):
                             deterministic=deterministic,
                             decode_mode=decode_mode,
                         )
+                        .cpu()
+                        .detach()
                     )
                 else:
                     imputed_value.append(
@@ -383,9 +387,11 @@ class GIMVI(VAEMixin, BaseModelClass):
                             deterministic=deterministic,
                             decode_mode=decode_mode,
                         )
+                        .cpu()
+                        .detach()
                     )
 
-            imputed_value = torch.cat(imputed_value).cpu().detach().numpy()
+            imputed_value = torch.cat(imputed_value).numpy()
             imputed_values.append(imputed_value)
 
         return imputed_values

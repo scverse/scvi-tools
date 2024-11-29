@@ -41,6 +41,8 @@ to [Semantic Versioning]. Full commit history is available in the
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`30XX`.
+-
 
 #### Changed
 
