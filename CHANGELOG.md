@@ -15,6 +15,10 @@ to [Semantic Versioning]. Full commit history is available in the
     validation set, if available. {pr}`3036`.
 - Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
+- Support for minified mode while retaining counts to skip the encoder.
+- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+    the encoder.
+- Refactored code for minified models.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
