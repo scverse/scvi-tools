@@ -163,7 +163,6 @@ def run_test_for_model_with_minified_mudata(
     orig_obs_df = mdata_orig.obs
     obs_keys = OBSERVED_LIB_SIZE
     orig_obs_df[obs_keys] = mdata_lib_size
-    print('FFFF', orig_obs_df.columns, model.adata.obs.columns)
     assert model.adata.obs.equals(orig_obs_df)
     assert model.adata.var_names.equals(mdata_orig.var_names)
     assert model.adata.var.equals(mdata_orig.var)
@@ -244,7 +243,6 @@ def test_totalvi_downstream_with_minified_mdata():
     fore = model.get_protein_foreground_probability()
     assert fore.shape == (mdata.n_obs, mdata["protein_expression"].n_vars)
     de = model.differential_expression(groupby='labels')
-    print('FFFFF', de, de.shape)
 
 def test_totalvi_downstream_with_minified_mdata_keep_counts():
     model, mdata, _, _ = prep_model_mudata(cls=TOTALVI, use_size_factor=True)
@@ -269,12 +267,10 @@ def test_totalvi_downstream_with_minified_mdata_keep_counts():
     sample = model.posterior_predictive_sample()
     assert sample.shape == mdata.shape
     corr = model.get_feature_correlation_matrix()
-    print('TTTT', mdata.n_vars, corr.shape)
     assert corr.shape == (mdata.n_vars, mdata.n_vars)
     fore = model.get_protein_foreground_probability()
     assert fore.shape == (mdata.n_obs, mdata["protein_expression"].n_vars)
-    de = model.differential_expression(groupby='labels')
-    print('FFFFF', de, de.shape)
+    model.differential_expression(groupby='labels')
 
 
 @pytest.mark.parametrize("cls", [TOTALVI])
