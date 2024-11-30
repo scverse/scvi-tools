@@ -84,7 +84,10 @@ def _de_core(
     **kwargs,
 ):
     """Internal function for DE interface."""
-    if adata_manager.adata.uns.get(_ADATA_MINIFY_TYPE_UNS_KEY, None) == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+    if (
+        adata_manager.adata.uns.get(_ADATA_MINIFY_TYPE_UNS_KEY, None)
+        == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+    ):
         warnings.warn(
             "Count statistics make no sense for minified model. Consider disabling all_stats.",
             UserWarning,
