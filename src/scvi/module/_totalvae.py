@@ -481,7 +481,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             MODULE_KEYS.Z_KEY: z,
             MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.QL_KEY: None,
-           "library_gene": observed_lib_size,
+            "library_gene": observed_lib_size,
         }
 
     @auto_move_data
