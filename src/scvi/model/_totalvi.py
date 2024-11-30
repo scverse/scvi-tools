@@ -53,7 +53,7 @@ class TOTALVI(
     ArchesMixin,
     BaseMinifiedModeModelClass,
     BaseMudataMinifiedModeModelClass,
-    ):
+):
     """total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
@@ -160,7 +160,7 @@ class TOTALVI(
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if emp_prior and self.minified_data_type!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if emp_prior and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -176,7 +176,10 @@ class TOTALVI(
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key and self.minified_data_type!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(

@@ -1068,7 +1068,7 @@ class BaseMudataMinifiedModeModelClass(BaseModelClass):
         The modification is not done inplace -- instead the model is assigned a new (minified)
         version of the :class:`~mudata.MuData`.
         """
-        if self.adata_manager._registry['setup_method_name'] != "setup_mudata":
+        if self.adata_manager._registry["setup_method_name"] != "setup_mudata":
             raise ValueError(
                 f"MuData must be registered with {self.__name__}.setup_mudata to use this method."
             )
