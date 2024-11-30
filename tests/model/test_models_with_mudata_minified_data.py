@@ -183,12 +183,6 @@ def test_with_minified_adata(cls, use_size_factor: bool):
 
 
 @pytest.mark.parametrize("cls", [TOTALVI])
-@pytest.mark.parametrize("use_size_factor", [True])
-def test_with_minified_mudata(cls, use_size_factor: bool):
-    run_test_for_model_with_minified_mudata(cls=cls, use_size_factor=use_size_factor)
-
-
-@pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_get_normalized_expression(cls):
     model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
