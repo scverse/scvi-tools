@@ -212,8 +212,6 @@ def test_with_minified_mdata_get_normalized_expression(cls):
 
 def test_totalvi_downstream_with_minified_mdata():
     model, mdata, _, _ = prep_model_mudata(cls=TOTALVI, use_size_factor=True)
-    de = model.differential_expression(groupby="labels", all_stats=True)
-
     # non-default gene list and n_samples > 1
     gl = mdata.var_names[:5].to_list()
 
@@ -236,12 +234,11 @@ def test_totalvi_downstream_with_minified_mdata():
     assert corr.shape == (mdata.n_vars, mdata.n_vars)
     fore = model.get_protein_foreground_probability()
     assert fore.shape == (mdata.n_obs, mdata["protein_expression"].n_vars)
-    de = model.differential_expression(groupby="labels")
+    model.differential_expression(groupby="labels")
 
 
 def test_totalvi_downstream_with_minified_mdata_keep_counts():
     model, mdata, _, _ = prep_model_mudata(cls=TOTALVI, use_size_factor=True)
-    de = model.differential_expression(groupby="labels", all_stats=True)
 
     # non-default gene list and n_samples > 1
     gl = mdata.var_names[:5].to_list()

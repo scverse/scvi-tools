@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from anndata import AnnData
 from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
 
 if TYPE_CHECKING:
+    from anndata import AnnData
     from mudata import MuData
 
     from scvi.data import AnnDataManager
