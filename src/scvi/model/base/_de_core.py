@@ -1,10 +1,13 @@
 import logging
+import warnings
 from collections.abc import Iterable as IterableClass
 
 import anndata
 import numpy as np
 import pandas as pd
 
+from scvi import settings
+from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -81,6 +84,12 @@ def _de_core(
     **kwargs,
 ):
     """Internal function for DE interface."""
+    if adata_manager.adata.uns[_ADATA_MINIFY_TYPE_UNS_KEY]==ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        warnings.warn(
+            "Count statistics make no sense for minified model. Consider disabling all_stats.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
     adata = adata_manager.adata
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].astype("category").cat.categories.tolist()

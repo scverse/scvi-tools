@@ -8,6 +8,8 @@ from scipy.sparse import csr_matrix
 from scvi import REGISTRY_KEYS
 
 if TYPE_CHECKING:
+    from mudata import MuData
+
     from scvi.data import AnnDataManager
 
 
@@ -15,22 +17,50 @@ def get_minified_adata_scrna(
     adata_manager: AnnDataManager,
     keep_count_data: bool = False,
 ) -> AnnData:
-    """Get a minified version of an :class:`~anndata.AnnData` or :class:`~mudata.MuData` object."""
+    """Returns a minified AnnData.
+
+    Parameters
+    ----------
+    adata_manager
+        Manager with original AnnData, of which we want to create a minified version.
+    keep_count_data
+        If True, the count data is kept in the minified data. If False, the count data is removed.
+    """
+    adata = adata_manager.adata.copy()
     if keep_count_data:
-        return adata_manager.adata.copy()
+        pass
     else:
+        adata = adata_manager.adata.copy()
         counts = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         all_zeros = csr_matrix(counts.shape)
         X = all_zeros
         layers = {layer: all_zeros.copy() for layer in adata_manager.adata.layers}
-        return AnnData(
-            X=X,
-            layers=layers,
-            obs=adata_manager.adata.obs.copy(),
-            var=adata_manager.adata.var.copy(),
-            uns=adata_manager.adata.uns.copy(),
-            obsm=adata_manager.adata.obsm.copy(),
-            varm=adata_manager.adata.varm.copy(),
-            obsp=adata_manager.adata.obsp.copy(),
-            varp=adata_manager.adata.varp.copy(),
-        )
+        adata.X = X
+        adata.layers = layers
+    return adata
+
+
+def get_minified_mudata(
+    adata_manager: AnnDataManager,
+    keep_count_data: bool = False,
+) -> MuData:
+    """Returns a minified MuData that works for most multi modality models (MULTIVI, TOTALVI).
+
+    Parameters
+    ----------
+    adata_manager
+        Manager with original MuData, of which we want to create a minified version.
+    keep_count_data
+        If True, the count data is kept in the minified data. If False, the count data is removed.
+    """
+    mdata = adata_manager.adata.copy()
+    if keep_count_data:
+        pass
+    else:
+        for modality in mdata.mod_names:
+            all_zeros = csr_matrix(mdata[modality].X.shape)
+            mdata[modality].X = all_zeros
+            if len(mdata[modality].layers) > 0:
+                layers = {layer: all_zeros for layer in mdata[modality].layers}
+                mdata[modality].layers = layers
+    return mdata

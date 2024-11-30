@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -100,8 +101,8 @@ class SCVI(
     """
 
     _module_cls = VAE
-    _SCVI_LATENT_QZM = "scvi_latent_qzm"
-    _SCVI_LATENT_QZV = "scvi_latent_qzv"
+    _LATENT_QZM_KEY = "scvi_latent_qzm"
+    _LATENT_QZV_KEY = "scvi_latent_qzv"
 
     def __init__(
         self,
@@ -151,7 +152,7 @@ class SCVI(
             n_batch = self.summary_stats.n_batch
             use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
             library_log_means, library_log_vars = None, None
-            if not use_size_factor_key and self.minified_data_type is None:
+            if not use_size_factor_key and self.minified_data_type!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
                 library_log_means, library_log_vars = _init_library_size(
                     self.adata_manager, n_batch
                 )

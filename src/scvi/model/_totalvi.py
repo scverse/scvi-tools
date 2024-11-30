@@ -12,7 +12,8 @@ import torch
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._utils import _check_nonnegative_integers
+from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -26,7 +27,13 @@ from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import (
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+    RNASeqMixin,
+    VAEMixin,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -35,12 +42,18 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import Number
+    from scvi._types import AnnOrMuData, Number
 
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class TOTALVI(
+    RNASeqMixin,
+    VAEMixin,
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+    ):
     """total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
@@ -102,13 +115,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
 
     _module_cls = TOTALVAE
+    _LATENT_QZM_KEY = "totalvi_latent_qzm"
+    _LATENT_QZV_KEY = "totalvi_latent_qzv"
     _data_splitter_cls = DataSplitter
     _training_plan_cls = AdversarialTrainingPlan
     _train_runner_cls = TrainRunner
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         n_latent: int = 20,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
@@ -129,10 +144,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = self.protein_state_registry.protein_batch_mask
             msg = (
                 "Some proteins have all 0 counts in some batches. "
-                + "These proteins will be treated as missing measurements; however, "
-                + "this can occur due to experimental design/biology. "
-                + "Reinitialize the model with `override_missing_proteins=True`,"
-                + "to override this behavior."
+                "These proteins will be treated as missing measurements; however, "
+                "this can occur due to experimental design/biology. "
+                "Reinitialize the model with `override_missing_proteins=True`,"
+                "to override this behavior."
             )
             warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             self._use_adversarial_classifier = True
@@ -145,7 +160,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if emp_prior:
+        if emp_prior and self.minified_data_type!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -161,7 +176,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if not use_size_factor_key and self.minified_data_type!=ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -1004,6 +1019,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 batch_size=batch_size,
                 rna_size_factor=rna_size_factor,
                 transform_batch=b,
+                indices=indices,
             )
             flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
             for i in range(n_samples):
@@ -1275,7 +1291,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         --------
         >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
         >>> scvi.model.TOTALVI.setup_mudata(
-                mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"}
+                mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
             )
         >>> vae = scvi.model.TOTALVI(mdata)
         """
@@ -1330,6 +1346,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 mod_required=True,
             ),
         ]
+        mdata_minify_type = _get_adata_minify_type(mdata)
+        if mdata_minify_type is not None:
+            mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)

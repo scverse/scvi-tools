@@ -18,6 +18,8 @@ __pycache__/
 /.pytest_cache/
 /.cache/
 /data/
+/eval_multivi/
+/scvi-tutorials
 
 # docs
 /docs/generated/
