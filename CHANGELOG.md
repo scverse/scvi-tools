@@ -30,6 +30,10 @@ to [Semantic Versioning]. Full commit history is available in the
 - Implemented variance of ZINB distribution. {pr}`3044`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
+- Support for minified mode while retaining counts to skip the encoder.
+- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+    the encoder.
+- Refactored code for minified models.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
@@ -39,6 +43,8 @@ to [Semantic Versioning]. Full commit history is available in the
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
+-
 
 #### Changed
 
