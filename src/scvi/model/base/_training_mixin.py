@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from lightning import LightningDataModule
+from typing import TYPE_CHECKING
 
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from lightning import LightningDataModule
 
 
 class UnsupervisedTrainingMixin:
@@ -21,7 +24,7 @@ class UnsupervisedTrainingMixin:
         max_epochs: int | None = None,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,

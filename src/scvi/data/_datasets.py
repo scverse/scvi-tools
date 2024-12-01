@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import warnings
-
-import anndata
+from typing import TYPE_CHECKING
 
 from scvi import settings
-from scvi._types import AnnOrMuData
 
 from ._built_in_data._brain_large import _load_brainlarge_dataset
 from ._built_in_data._cellxgene import _load_cellxgene_dataset
@@ -27,6 +25,11 @@ from ._built_in_data._loom import (
 from ._built_in_data._pbmc import _load_pbmc_dataset, _load_purified_pbmc_dataset
 from ._built_in_data._smfish import _load_smfish
 from ._built_in_data._synthetic import _generate_synthetic
+
+if TYPE_CHECKING:
+    import anndata
+
+    from scvi._types import AnnOrMuData
 
 
 def pbmc_dataset(

@@ -1,7 +1,6 @@
 import logging
 import warnings
 from copy import deepcopy
-from typing import Optional, Union
 
 import anndata
 import numpy as np
@@ -11,7 +10,7 @@ from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csr_matrix
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import settings
 from scvi._types import AnnOrMuData
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
@@ -40,10 +39,10 @@ class ArchesMixin:
     def load_query_data(
         cls,
         adata: AnnOrMuData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
-        device: Union[int, str] = "auto",
+        device: int | str = "auto",
         unfrozen: bool = False,
         freeze_dropout: bool = False,
         freeze_expression: bool = True,
@@ -132,11 +131,6 @@ class ArchesMixin:
         model = _initialize_model(cls, adata, attr_dict)
         adata_manager = model.get_anndata_manager(adata, required=True)
 
-        if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
-            raise NotImplementedError(
-                "scArches currently does not support models with extra categorical covariates."
-            )
-
         version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
@@ -180,10 +174,10 @@ class ArchesMixin:
     @staticmethod
     def prepare_query_anndata(
         adata: AnnData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[AnnData, pd.Index]]:
+    ) -> AnnData | pd.Index | None:
         """Prepare data for query integration.
 
         This function will return a new AnnData object with padded zeros
@@ -219,10 +213,10 @@ class ArchesMixin:
     @staticmethod
     def prepare_query_mudata(
         mdata: MuData,
-        reference_model: Union[str, BaseModelClass],
+        reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-    ) -> Optional[Union[MuData, dict[str, pd.Index]]]:
+    ) -> MuData | dict[str, pd.Index] | None:
         """Prepare multimodal dataset for query integration.
 
         This function will return a new MuData object such that the

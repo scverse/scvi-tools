@@ -191,6 +191,19 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     )
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    assert model.get_elbo().ndim == 0
+    assert model.get_elbo(return_mean=False).shape == (adata.n_obs,)
+    assert model.get_marginal_ll(n_mc_samples=3).ndim == 0
+    assert model.get_marginal_ll(n_mc_samples=3, return_mean=False).shape == (adata.n_obs,)
+    assert model.get_reconstruction_error()["reconstruction_loss"].ndim == 0
+    assert model.get_reconstruction_error(return_mean=False)["reconstruction_loss"].shape == (
+        adata.n_obs,
+    )
+    assert model.get_normalized_expression(transform_batch="batch_1").shape == (
+        adata.n_obs,
+        adata.n_vars,
+    )
+    assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
     # Test without observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
@@ -208,8 +221,11 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     assert z.shape == (adata.shape[0], n_latent)
     assert len(model.history["elbo_train"]) == 2
     model.get_elbo()
+    model.get_elbo(return_mean=False)
     model.get_marginal_ll(n_mc_samples=3)
+    model.get_marginal_ll(n_mc_samples=3, return_mean=False)
     model.get_reconstruction_error()
+    model.get_reconstruction_error(return_mean=False)
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
 
@@ -217,6 +233,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     # test view_anndata_setup with different anndata before transfer setup
     with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2)
+    with pytest.raises(ValueError):
         model.view_anndata_setup(adata=adata2, hide_state_registries=True)
     # test get methods with different anndata
     model.get_elbo(adata2)
@@ -453,6 +470,31 @@ def test_scvi_sparse(n_latent: int = 5):
     model.differential_expression(groupby="labels", group1="label_1")
 
 
+def test_scvi_n_obs_error(n_latent: int = 5):
+    adata = synthetic_iid()
+    adata = adata[0:129].copy()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0)
+    with pytest.raises(ValueError):
+        # Warning is emitted if last batch less than 3 cells + failure.
+        model.train(1, train_size=1.0, batch_size=127)
+    model.train(1, train_size=1.0, datasplitter_kwargs={"drop_last": True})
+
+    adata = synthetic_iid()
+    adata = adata[0:143].copy()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=0.9)  # np.ceil(n_cells * 0.9) % 128 == 1
+    model.train(
+        1, train_size=0.9, datasplitter_kwargs={"drop_last": True}
+    )  # np.ceil(n_cells * 0.9) % 128 == 1
+    model.train(1)
+    assert model.is_trained is True
+
+
 def test_setting_adata_attr(n_latent: int = 5):
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch")
@@ -462,9 +504,9 @@ def test_setting_adata_attr(n_latent: int = 5):
     adata2 = synthetic_iid()
     model.adata = adata2
 
+    rep = model.get_latent_representation(adata)
+    rep2 = model.get_latent_representation()
     with pytest.raises(AssertionError):
-        rep = model.get_latent_representation(adata)
-        rep2 = model.get_latent_representation()
         np.testing.assert_array_equal(rep, rep2)
 
     orig_manager = model.get_anndata_manager(adata)
@@ -473,10 +515,9 @@ def test_setting_adata_attr(n_latent: int = 5):
 
     adata3 = synthetic_iid()
     del adata3.obs["batch"]
-    # validation catches no batch
+    # validation catches no batch column.
     with pytest.raises(KeyError):
         model.adata = adata3
-        model.get_latent_representation()
 
 
 def assert_dict_is_subset(d1, d2):
@@ -707,6 +748,190 @@ def test_scarches_data_prep(save_path):
     SCVI.load_query_data(adata5, dir_path)
 
 
+def test_scarches_data_prep_with_categorial_covariates(save_path):
+    n_latent = 5
+    num_categ_orig = 5
+    adata1 = synthetic_iid()
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cat1"] = np.random.randint(0, num_categ_orig, size=(adata1.shape[0],))
+    SCVI.setup_anndata(
+        adata1,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1"],
+        categorical_covariate_keys=["cat1"],
+    )
+    model = SCVI(adata1, n_latent=n_latent)
+    model.train(1, check_val_every_n_epoch=1)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata2 has more genes and a perfect subset of adata1, buא missing the categ cov
+    adata2 = synthetic_iid(n_genes=110)
+    adata2.layers["counts"] = adata2.X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + adata2.var_names[10:].to_list()
+    adata2.var_names = new_var_names
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    # adata2 has more genes and missing 10 genes from adata1
+    SCVI.prepare_query_anndata(adata2, dir_path)  # see here how those extra genes were removed
+    with pytest.raises(KeyError):
+        SCVI.load_query_data(adata2, dir_path)
+    # model2 = SCVI(adata2, n_latent=n_latent)
+    # model2.train(1, check_val_every_n_epoch=1)
+
+    adata3 = SCVI.prepare_query_anndata(adata2, dir_path, inplace=False)
+    with pytest.raises(KeyError):
+        SCVI.load_query_data(adata3, dir_path)
+    # model3 = SCVI(adata3, n_latent=n_latent)
+    # model3.train(1, check_val_every_n_epoch=1)
+
+    # try the opposite - with a the categ covariate - raise the error
+    # adata4 has more genes and a perfect subset of adata1
+    adata4 = synthetic_iid(n_genes=110)
+    adata4.obs["batch"] = adata4.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata4.obs["cont1"] = np.random.normal(size=(adata4.shape[0],))
+    adata4.obs["cat1"] = np.random.randint(0, num_categ_orig, size=(adata4.shape[0],))
+    SCVI.prepare_query_anndata(adata4, dir_path)
+    SCVI.load_query_data(adata4, dir_path)
+    model4 = SCVI(adata4, n_latent=n_latent)
+    model4.train(1, check_val_every_n_epoch=1)
+    model4.get_latent_representation()
+    model4.get_elbo()
+
+    adata5 = SCVI.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVI.load_query_data(adata5, dir_path)
+    model5 = SCVI(adata5, n_latent=n_latent)
+    model5.train(1, check_val_every_n_epoch=1)
+    model5.get_latent_representation()
+    model5.get_elbo()
+
+    # try also different categ - it expects cat1
+    adata6 = synthetic_iid(n_genes=110)
+    adata6.obs["batch"] = adata6.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata6.obs["cont2"] = np.random.normal(size=(adata6.shape[0],))
+    adata6.obs["cat2"] = np.random.randint(0, num_categ_orig, size=(adata6.shape[0],))
+    SCVI.prepare_query_anndata(adata6, dir_path)
+    with pytest.raises(KeyError):
+        SCVI.load_query_data(adata6, dir_path)
+    # model6 = SCVI(adata6, n_latent=n_latent)
+    # model6.train(1, check_val_every_n_epoch=1)
+
+    # try only cont - missing the categ cov
+    adata7 = synthetic_iid(n_genes=110)
+    adata7.obs["batch"] = adata7.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata7.obs["cont2"] = np.random.normal(size=(adata7.shape[0],))
+    SCVI.prepare_query_anndata(adata7, dir_path)
+    with pytest.raises(KeyError):
+        SCVI.load_query_data(adata7, dir_path)
+    # model7 = SCVI(adata7, n_latent=n_latent)
+    # model7.train(1, check_val_every_n_epoch=1)
+
+    # try also additional categ cov - it expects cont1
+    adata8 = synthetic_iid(n_genes=110)
+    adata8.obs["batch"] = adata8.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata8.obs["cont2"] = np.random.normal(size=(adata8.shape[0],))
+    adata8.obs["cat1"] = np.random.randint(0, num_categ_orig, size=(adata8.shape[0],))
+    adata8.obs["cat2"] = np.random.randint(0, num_categ_orig, size=(adata8.shape[0],))
+    SCVI.prepare_query_anndata(adata8, dir_path)
+    with pytest.raises(KeyError):
+        SCVI.load_query_data(adata8, dir_path)
+    # model8 = SCVI(adata8, n_latent=n_latent)
+    # model8.train(1, check_val_every_n_epoch=1)
+
+    # try also additional categ cov - it  works
+    adata9 = synthetic_iid(n_genes=110)
+    adata9.obs["batch"] = adata9.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata9.obs["cont1"] = np.random.normal(size=(adata9.shape[0],))
+    adata9.obs["cat1"] = np.random.randint(0, num_categ_orig, size=(adata9.shape[0],))
+    adata9.obs["cat2"] = np.random.randint(0, num_categ_orig, size=(adata9.shape[0],))
+    SCVI.prepare_query_anndata(adata9, dir_path)
+    SCVI.load_query_data(adata9, dir_path)
+    model9 = SCVI(adata9, n_latent=n_latent)
+    model9.train(1, check_val_every_n_epoch=1)
+    model9.get_latent_representation()
+    model9.get_elbo()
+
+    # try also additional cont/categ cov - it works
+    adata10 = synthetic_iid(n_genes=110)
+    adata10.obs["batch"] = adata10.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata10.obs["cont1"] = np.random.normal(size=(adata10.shape[0],))
+    adata10.obs["cont2"] = np.random.normal(size=(adata10.shape[0],))
+    adata10.obs["cat1"] = np.random.randint(0, num_categ_orig, size=(adata10.shape[0],))
+    adata10.obs["cat2"] = np.random.randint(0, num_categ_orig, size=(adata10.shape[0],))
+    SCVI.prepare_query_anndata(adata10, dir_path)
+    SCVI.load_query_data(adata10, dir_path)
+    model10 = SCVI(adata10, n_latent=n_latent)
+    model10.train(1, check_val_every_n_epoch=1)
+    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model10)
+    registry = attr_dict.pop("registry_")
+    # we validate only relevant covariates were passed - cat2 and cont2 are not used
+    assert (
+        len(registry["field_registries"]["extra_categorical_covs"]["state_registry"]["field_keys"])
+        == 1
+    )
+    assert (
+        len(registry["field_registries"]["extra_continuous_covs"]["state_registry"]["columns"])
+        == 1
+    )
+    assert (
+        registry["field_registries"]["extra_categorical_covs"]["state_registry"]["field_keys"][0]
+        == "cat1"
+    )
+    assert (
+        registry["field_registries"]["extra_continuous_covs"]["state_registry"]["columns"][0]
+        == "cont1"
+    )
+    model10.get_latent_representation()
+    model10.get_elbo()
+
+    # try also runing with less categories than needed
+    num_categ = 4
+    adata11 = synthetic_iid(n_genes=110)
+    adata11.obs["batch"] = adata11.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata11.obs["cont1"] = np.random.normal(size=(adata11.shape[0],))
+    adata11.obs["cat1"] = np.random.randint(0, num_categ, size=(adata11.shape[0],))
+    SCVI.prepare_query_anndata(adata11, dir_path)
+    SCVI.load_query_data(adata11, dir_path)
+    model11 = SCVI(adata11, n_latent=n_latent)
+    model11.train(1, check_val_every_n_epoch=1)
+    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model11)
+    registry = attr_dict.pop("registry_")
+    assert (
+        registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
+            0
+        ]
+        == num_categ
+        if num_categ > num_categ_orig
+        else num_categ_orig
+    )
+    model11.get_latent_representation()
+    model11.get_elbo()
+
+    # try also runing with more categories than needed
+    num_categ = 6
+    adata12 = synthetic_iid(n_genes=110)
+    adata12.obs["batch"] = adata12.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    adata12.obs["cont1"] = np.random.normal(size=(adata12.shape[0],))
+    adata12.obs["cat1"] = np.random.randint(0, num_categ, size=(adata12.shape[0],))
+    SCVI.prepare_query_anndata(adata12, dir_path)
+    SCVI.load_query_data(adata12, dir_path)
+    model12 = SCVI(adata12, n_latent=n_latent)
+    model12.train(1, check_val_every_n_epoch=1)
+    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model12)
+    registry = attr_dict.pop("registry_")
+    assert (
+        registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
+            0
+        ]
+        == num_categ
+        if num_categ > num_categ_orig
+        else num_categ_orig
+    )
+    model12.get_latent_representation()
+    model12.get_elbo()
+
+
 def test_scarches_data_prep_layer(save_path):
     n_latent = 5
     adata1 = synthetic_iid()
@@ -851,14 +1076,11 @@ def test_scvi_library_size_update(save_path):
     SCVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = SCVI(adata1, n_latent=n_latent, use_observed_lib_size=False)
 
-    assert (
-        getattr(model.module, "library_log_means", None) is not None
-        and model.module.library_log_means.shape == (1, 2)
-        and model.module.library_log_means.count_nonzero().item() == 2
-    )
-    assert getattr(
-        model.module, "library_log_vars", None
-    ) is not None and model.module.library_log_vars.shape == (
+    assert getattr(model.module, "library_log_means", None) is not None
+    assert model.module.library_log_means.shape == (1, 2)
+    assert model.module.library_log_means.count_nonzero().item() == 2
+    assert getattr(model.module, "library_log_vars", None) is not None
+    assert model.module.library_log_vars.shape == (
         1,
         2,
     )
@@ -872,17 +1094,13 @@ def test_scvi_library_size_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = SCVI.load_query_data(adata2, dir_path, inplace_subset_query_vars=True)
-    assert (
-        getattr(model2.module, "library_log_means", None) is not None
-        and model2.module.library_log_means.shape == (1, 4)
-        and model2.module.library_log_means[:, :2].equal(model.module.library_log_means)
-        and model2.module.library_log_means.count_nonzero().item() == 4
-    )
-    assert (
-        getattr(model2.module, "library_log_vars", None) is not None
-        and model2.module.library_log_vars.shape == (1, 4)
-        and model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
-    )
+    assert getattr(model2.module, "library_log_means", None) is not None
+    assert model2.module.library_log_means.shape == (1, 4)
+    assert model2.module.library_log_means[:, :2].equal(model.module.library_log_means)
+    assert model2.module.library_log_means.count_nonzero().item() == 4
+    assert getattr(model2.module, "library_log_vars", None) is not None
+    assert model2.module.library_log_vars.shape == (1, 4)
+    assert model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
 
 
 def test_set_seed(n_latent: int = 5, seed: int = 1):
@@ -908,6 +1126,54 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     manager = SCVI._get_most_recent_anndata_manager(adata)
 
     datamodule = DataSplitter(manager)
+    datamodule.n_vars = adata.n_vars
+    datamodule.n_batch = n_batches
+
+    model = SCVI(n_latent=5)
+    assert model._module_init_on_train
+    assert model.module is None
+
+    # cannot infer default max_epochs without n_obs set in datamodule
+    with pytest.raises(ValueError):
+        model.train(datamodule=datamodule)
+
+    # must pass in datamodule if not initialized with adata
+    with pytest.raises(ValueError):
+        model.train()
+
+    model.train(max_epochs=1, datamodule=datamodule)
+
+    # must set n_obs for defaulting max_epochs
+    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
+    model.train(datamodule=datamodule)
+
+    model = SCVI(adata, n_latent=5)
+    assert not model._module_init_on_train
+    assert model.module is not None
+    assert hasattr(model, "adata")
+
+    # initialized with adata, cannot pass in datamodule
+    with pytest.raises(ValueError):
+        model.train(datamodule=datamodule)
+
+
+def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
+    from scvi.dataloaders import DataSplitter
+
+    adata = synthetic_iid(n_batches=n_batches)
+    SCVI.setup_anndata(adata, batch_key="batch")
+    manager = SCVI._get_most_recent_anndata_manager(adata)
+
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.25, stratify=adata.obs.batch
+    )
+
+    datamodule = DataSplitter(
+        manager, external_indexing=[np.array(train_ind), np.array(valid_ind), None]
+    )
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
@@ -1011,3 +1277,23 @@ def test_scvi_normal_likelihood():
 
     model = SCVI(adata, gene_likelihood="normal")
     model.train(max_epochs=1)
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
+
+
+def test_scvi_num_workers():
+    adata = synthetic_iid()
+    scvi.settings.dl_num_workers = 7
+    scvi.settings.dl_persistent_workers = True
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata)
+    model.train(max_epochs=1, accelerator="cpu")
+    model.get_elbo()
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_reconstruction_error()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)

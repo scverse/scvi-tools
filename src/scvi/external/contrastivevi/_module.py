@@ -1,7 +1,5 @@
 """PyTorch module for Contrastive VI for single cell expression data."""
 
-from typing import Optional
-
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -61,8 +59,8 @@ class ContrastiveVAE(BaseModuleClass):
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         use_observed_lib_size: bool = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
         wasserstein_penalty: float = 0,
     ) -> None:
         super().__init__()

@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING
 
-import numpy.typing as npt
 import torch
-from anndata import AnnData
-from torch import Tensor
 
 from scvi.utils import unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
+    import numpy.typing as npt
+    from anndata import AnnData
+    from torch import Tensor
+    from torch.distributions import Distribution
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +29,9 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        return_mean: bool = True,
+        **kwargs,
     ) -> float:
         """Compute the evidence lower bound (ELBO) on the data.
 
@@ -49,6 +57,8 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        return_mean
+            Whether to return the mean of the ELBO or the ELBO for each observation.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -70,7 +80,7 @@ class VAEMixin:
                 adata=adata, indices=indices, batch_size=batch_size
             )
 
-        return -compute_elbo(self.module, dataloader)
+        return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
 
     @torch.inference_mode()
     @unsupported_if_adata_minified
@@ -157,7 +167,8 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        return_mean: bool = True,
         **kwargs,
     ) -> dict[str, float]:
         r"""Compute the reconstruction error on the data.
@@ -183,6 +194,9 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        return_mean
+            Whether to return the mean reconstruction loss or the reconstruction loss
+            for each observation.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -205,7 +219,9 @@ class VAEMixin:
                 adata=adata, indices=indices, batch_size=batch_size
             )
 
-        return compute_reconstruction_error(self.module, dataloader, **kwargs)
+        return compute_reconstruction_error(
+            self.module, dataloader, return_mean=return_mean, **kwargs
+        )
 
     @torch.inference_mode()
     def get_latent_representation(
@@ -255,7 +271,7 @@ class VAEMixin:
         a tuple of arrays ``(n_obs, n_latent)`` with the mean and variance of the latent
         distribution.
         """
-        from torch.distributions import Distribution, Normal
+        from torch.distributions import Normal
         from torch.nn.functional import softmax
 
         from scvi.module._constants import MODULE_KEYS

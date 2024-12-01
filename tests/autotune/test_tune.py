@@ -18,10 +18,10 @@ def test_run_autotune_scvi_basic(save_path: str):
         metrics=["elbo_validation"],
         mode="min",
         search_space={
-            "model_args": {
+            "model_params": {
                 "n_hidden": tune.choice([1, 2]),
             },
-            "train_args": {
+            "train_params": {
                 "max_epochs": 1,
             },
         },
@@ -53,10 +53,10 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
         metrics=["elbo_validation"],
         mode="min",
         search_space={
-            "model_args": {
+            "model_params": {
                 "n_hidden": tune.choice([1, 2]),
             },
-            "train_args": {
+            "train_params": {
                 "max_epochs": 1,
             },
         },

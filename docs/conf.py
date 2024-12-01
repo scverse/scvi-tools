@@ -5,9 +5,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 from importlib.metadata import metadata
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
@@ -141,7 +144,7 @@ html_theme_options = {
     "repository_url": repository_url,
     "use_repository_button": True,
     "logo_only": True,
-    "show_toc_level": 4,
+    "show_toc_level": 1,
     "launch_buttons": {"colab_url": "https://colab.research.google.com"},
     "path_to_docs": "docs/",
     "repository_branch": version,
@@ -220,7 +223,7 @@ def linkcode_resolve(domain, info):
         return None
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    return f"{repository_url}/blob/{git_ref}/scvi/{path}"
+    return f"{repository_url}/blob/{git_ref}/src/scvi/{path}"
 
 
 # -- Config for hoverxref -------------------------------------------

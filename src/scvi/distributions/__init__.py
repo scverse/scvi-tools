@@ -6,6 +6,7 @@ from ._negative_binomial import (
     Poisson,
     ZeroInflatedNegativeBinomial,
 )
+from ._normal import Normal
 
 __all__ = [
     "NegativeBinomial",
@@ -14,4 +15,5 @@ __all__ = [
     "JaxNegativeBinomialMeanDisp",
     "Poisson",
     "BetaBinomial",
+    "Normal",
 ]

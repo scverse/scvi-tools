@@ -1,30 +1,34 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 import flax
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pyro
-import torch
 from flax.training import train_state
 from jax import random
-from jaxlib.xla_extension import Device
-from numpyro.distributions import Distribution
-from pyro.infer.predictive import Predictive
 from torch import nn
 
 from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor
-from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from typing import Any
+
+    import jax.numpy as jnp
+    import torch
+    from jaxlib.xla_extension import Device
+    from numpyro.distributions import Distribution
+    from pyro.infer.predictive import Predictive
+
+    from scvi._types import LossRecord, MinifiedDataType, Tensor
 
 
 @flax.struct.dataclass
@@ -298,10 +302,7 @@ class BaseMinifiedModeModuleClass(BaseModuleClass):
         Branches off to regular or cached inference depending on whether we have a minified adata
         that contains the latent posterior parameters.
         """
-        if (
-            self.minified_data_type is not None
-            and self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
-        ):
+        if "qzm" in kwargs.keys() and "qzv" in kwargs.keys():
             return self._cached_inference(*args, **kwargs)
         else:
             return self._regular_inference(*args, **kwargs)
@@ -738,6 +739,9 @@ def _generic_forward(
     loss_kwargs = _get_dict_if_none(loss_kwargs)
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
+    if not ("latent_qzm" in tensors.keys() and "latent_qzv" in tensors.keys()):
+        # Remove full_forward_pass if not minified model
+        get_inference_input_kwargs.pop("full_forward_pass", None)
 
     inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)
     inference_outputs = module.inference(**inference_inputs, **inference_kwargs)

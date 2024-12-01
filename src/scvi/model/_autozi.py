@@ -1,10 +1,10 @@
+from __future__ import annotations
+
 import logging
-from collections.abc import Sequence
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from anndata import AnnData
 from torch import logsumexp
 from torch.distributions import Beta
 
@@ -17,6 +17,12 @@ from scvi.module import AutoZIVAE
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, VAEMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +111,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        alpha_prior: Optional[float] = 0.5,
-        beta_prior: Optional[float] = 0.5,
+        alpha_prior: float | None = 0.5,
+        beta_prior: float | None = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: str = "gene",
         use_observed_lib_size: bool = True,
@@ -146,19 +152,17 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def get_alphas_betas(
-        self, as_numpy: bool = True
-    ) -> dict[str, Union[torch.Tensor, np.ndarray]]:
+    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str, torch.Tensor | np.ndarray]:
         """Return parameters of Bernoulli Beta distributions in a dictionary."""
         return self.module.get_alphas_betas(as_numpy=as_numpy)
 
     @torch.inference_mode()
     def get_marginal_ll(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         n_mc_samples: int = 1000,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
     ) -> float:
         """Return the marginal LL for the data.
 
@@ -261,9 +265,9 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        layer: Optional[str] = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.

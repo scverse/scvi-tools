@@ -2,24 +2,29 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import jax
 import jax.numpy as jnp
 import numpy as np
-import numpy.typing as npt
 import xarray as xr
-from anndata import AnnData
-from numpyro.distributions import Distribution
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
+from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    import numpy.typing as npt
+    from anndata import AnnData
+    from numpyro.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +201,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         max_epochs: int | None = None,
         accelerator: str | None = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         batch_size: int = 128,
         early_stopping: bool = False,
@@ -741,7 +746,10 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
     ) -> Distribution:
-        """Compute the aggregated posterior over the ``u`` latent representations.
+        """Computes the aggregated posterior over the ``u`` latent representations.
+
+        For the specified samples, it computes the aggregated posterior over the ``u`` latent
+        representations. Returns a NumPyro MixtureSameFamily distribution.
 
         Parameters
         ----------
@@ -839,7 +847,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 if n_cov_values > n_samples / 2:
                     warnings.warn(
                         f"The covariate '{key}' does not seem to refer to a discrete key. "
-                        f"It has {len(n_cov_values)} unique values, which exceeds one half of the "
+                        f"It has {n_cov_values} unique values, which exceeds one half of the "
                         f"total samples ({n_samples}).",
                         UserWarning,
                         stacklevel=2,
@@ -955,12 +963,13 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         admissibility_threshold: float = 0.0,
         batch_size: int = 256,
     ) -> xr.Dataset:
-        """Compute outlier cell-sample pairs.
+        """Compute admissibility scores for cell-sample pairs.
 
-        This function fits a GMM for each sample based on the latent representation of the cells in
-        the sample or computes an approximate aggregated posterior for each sample. Then, for every
-        cell, it computes the log-probability of the cell under the approximated posterior of each
-        sample as a measure of admissibility.
+        This function computes the posterior distribution for u for each cell. Then, for every
+        cell, it computes the log-probability of the cell under the posterior of each cell
+        each sample and takes the maximum value for a given sample as a measure of admissibility
+        for that sample. Additionally, it computes a threshold that determines if
+        a cell-sample pair is admissible based on the within-sample admissibility scores.
 
         Parameters
         ----------
@@ -991,21 +1000,34 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             adata_s = adata[sample_idxs]
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
-            log_probs_s = jnp.quantile(
-                ap.log_prob(adata_s.obsm["U"]).sum(axis=1), q=quantile_threshold
-            )
-            n_splits = adata.n_obs // batch_size
+            in_max_comp_log_probs = ap.component_distribution.log_prob(
+                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)
+            ).sum(axis=1)
+            log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
+
             log_probs_ = []
+            n_splits = adata.n_obs // batch_size
             for u_rep in np.array_split(adata.obsm["U"], n_splits):
-                log_probs_.append(jax.device_get(ap.log_prob(u_rep).sum(-1, keepdims=True)))
+                log_probs_.append(
+                    jax.device_get(
+                        ap.component_distribution.log_prob(
+                            np.expand_dims(u_rep, ap.mixture_dim)
+                        )  # (n_cells_batch, n_cells_ap, n_latent_dim)
+                        .sum(axis=1)  # (n_cells_batch, n_latent_dim)
+                        .max(axis=1, keepdims=True)  # (n_cells_batch, 1)
+                    )
+                )
 
             log_probs_ = np.concatenate(log_probs_, axis=0)  # (n_cells, 1)
 
             threshs.append(np.array(log_probs_s))
             log_probs.append(np.array(log_probs_))
 
+        threshs_all = np.concatenate(threshs)
+        global_thresh = np.quantile(threshs_all, q=quantile_threshold)
+        threshs = np.array(len(log_probs) * [global_thresh])
+
         log_probs = np.concatenate(log_probs, 1)
-        threshs = np.array(threshs)
         log_ratios = log_probs - threshs
 
         coords = {

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import Callable, Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch.distributions import Distribution
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     BaseMinifiedModeModuleClass,
@@ -17,6 +17,13 @@ from scvi.module.base import (
     LossOutput,
     auto_move_data,
 )
+from scvi.utils import unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Literal
+
+    from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -276,25 +283,32 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     def _get_inference_input(
         self,
         tensors: dict[str, torch.Tensor | None],
+        full_forward_pass: bool = False,
     ) -> dict[str, torch.Tensor | None]:
         """Get input tensors for the inference process."""
-        from scvi.data._constants import ADATA_MINIFY_TYPE
+        if full_forward_pass or self.minified_data_type is None:
+            loader = "full_data"
+        elif self.minified_data_type in [
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS,
+        ]:
+            loader = "minified_data"
+        else:
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
-        if self.minified_data_type is None:
+        if loader == "full_data":
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
                 MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
             }
-        elif self.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
+        else:
             return {
                 MODULE_KEYS.QZM_KEY: tensors[REGISTRY_KEYS.LATENT_QZM_KEY],
                 MODULE_KEYS.QZV_KEY: tensors[REGISTRY_KEYS.LATENT_QZV_KEY],
                 REGISTRY_KEYS.OBSERVED_LIB_SIZE: tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE],
             }
-        else:
-            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
     def _get_generative_input(
         self,
@@ -409,14 +423,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         """Run the cached inference process."""
         from torch.distributions import Normal
 
-        from scvi.data._constants import ADATA_MINIFY_TYPE
-
-        if self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
-
-        dist = Normal(qzm, qzv.sqrt())
+        qz = Normal(qzm, qzv.sqrt())
         # use dist.sample() rather than rsample because we aren't optimizing the z here
-        untran_z = dist.sample() if n_samples == 1 else dist.sample((n_samples,))
+        untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
         z = self.z_encoder.z_transformation(untran_z)
         library = torch.log(observed_lib_size)
         if n_samples > 1:
@@ -424,8 +433,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         return {
             MODULE_KEYS.Z_KEY: z,
-            MODULE_KEYS.QZM_KEY: qzm,
-            MODULE_KEYS.QZV_KEY: qzv,
+            MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.QL_KEY: None,
             MODULE_KEYS.LIBRARY_KEY: library,
         }
@@ -443,10 +451,14 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution | None]:
         """Run the generative process."""
-        from torch.distributions import Normal
         from torch.nn.functional import linear
 
-        from scvi.distributions import NegativeBinomial, Poisson, ZeroInflatedNegativeBinomial
+        from scvi.distributions import (
+            NegativeBinomial,
+            Normal,
+            Poisson,
+            ZeroInflatedNegativeBinomial,
+        )
 
         # TODO: refactor forward function to not rely on y
         # Likelihood distribution
@@ -511,9 +523,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         elif self.gene_likelihood == "nb":
             px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
         elif self.gene_likelihood == "poisson":
-            px = Poisson(px_rate, scale=px_scale)
+            px = Poisson(rate=px_rate, scale=px_scale)
         elif self.gene_likelihood == "normal":
-            px = Normal(px_rate, px_r)
+            px = Normal(px_rate, px_r, normal_mu=px_scale)
 
         # Priors
         if self.use_observed_lib_size:
@@ -532,6 +544,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             MODULE_KEYS.PZ_KEY: pz,
         }
 
+    @unsupported_if_adata_minified
     def loss(
         self,
         tensors: dict[str, torch.Tensor],
@@ -551,7 +564,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 inference_outputs[MODULE_KEYS.QL_KEY], generative_outputs[MODULE_KEYS.PL_KEY]
             ).sum(dim=1)
         else:
-            kl_divergence_l = torch.tensor(0.0, device=x.device)
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
@@ -661,7 +674,9 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         for _ in range(n_passes):
             # Distribution parameters and sampled variables
             inference_outputs, _, losses = self.forward(
-                tensors, inference_kwargs={"n_samples": n_mc_samples_per_pass}
+                tensors,
+                inference_kwargs={"n_samples": n_mc_samples_per_pass},
+                get_inference_input_kwargs={"full_forward_pass": True},
             )
             qz = inference_outputs[MODULE_KEYS.QZ_KEY]
             ql = inference_outputs[MODULE_KEYS.QL_KEY]
@@ -693,6 +708,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 q_l_x = ql.log_prob(library).sum(dim=-1)
 
                 log_prob_sum += p_l - q_l_x
+            if n_mc_samples_per_pass == 1:
+                log_prob_sum = log_prob_sum.unsqueeze(0)
 
             to_sum.append(log_prob_sum)
         to_sum = torch.cat(to_sum, dim=0)

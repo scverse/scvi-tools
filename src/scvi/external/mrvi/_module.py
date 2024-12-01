@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 import flax.linen as nn
 import jax
@@ -12,6 +12,10 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
 
 DEFAULT_PX_KWARGS = {
     "n_hidden": 32,
