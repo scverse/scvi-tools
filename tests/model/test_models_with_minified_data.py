@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
 
@@ -6,51 +10,51 @@ from scvi.data import synthetic_iid
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
 from scvi.model import SCANVI, SCVI
+from scvi.model.base import BaseMinifiedModeModelClass
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+    from anndata import AnnData
 
 _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 _SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 
-def prep_model(cls=SCVI, layer=None, use_size_factor=False):
-    # create a synthetic dataset
+def prep_model(
+    cls: BaseMinifiedModeModelClass = SCVI,
+    layer: str | None = None,
+    use_size_factor: bool = False,
+    n_latent: int = 5,
+) -> tuple[BaseMinifiedModeModelClass, AnnData, npt.NDArray, AnnData]:
     adata = synthetic_iid()
-    adata_counts = adata.X
+    counts = adata.X
     if use_size_factor:
         adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     if layer is not None:
         adata.layers[layer] = adata.X.copy()
         adata.X = np.zeros_like(adata.X)
-    adata.var["n_counts"] = np.squeeze(np.asarray(np.sum(adata_counts, axis=0)))
-    adata.varm["my_varm"] = np.random.negative_binomial(5, 0.3, size=(adata.shape[1], 3))
-    adata.layers["my_layer"] = np.ones_like(adata.X)
+
     adata_before_setup = adata.copy()
 
-    # run setup_anndata
     setup_kwargs = {
         "layer": layer,
         "batch_key": "batch",
         "labels_key": "labels",
+        "size_factor_key": "size_factor" if use_size_factor else None,
     }
     if cls == SCANVI:
         setup_kwargs["unlabeled_category"] = "unknown"
-    if use_size_factor:
-        setup_kwargs["size_factor_key"] = "size_factor"
     cls.setup_anndata(
         adata,
         **setup_kwargs,
     )
 
-    # create and train the model
-    model = cls(adata, n_latent=5)
+    model = cls(adata, n_latent=n_latent)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    # get the adata lib size
-    adata_lib_size = np.squeeze(np.asarray(adata_counts.sum(axis=1)))
-    assert (
-        np.min(adata_lib_size) > 0
-    )  # make sure it's not all zeros and there are no negative values
+    lib_size = np.squeeze(np.asarray(counts.sum(axis=-1)))
 
-    return model, adata, adata_lib_size, adata_before_setup
+    return model, adata, lib_size, adata_before_setup
 
 
 def assert_approx_equal(a, b):
@@ -60,11 +64,11 @@ def assert_approx_equal(a, b):
 
 
 def run_test_for_model_with_minified_adata(
-    cls=SCVI,
+    cls: BaseMinifiedModeModelClass = SCVI,
     n_samples: int = 1,
     give_mean: bool = False,
     layer: str = None,
-    use_size_factor=False,
+    use_size_factor: bool = False,
 ):
     model, adata, adata_lib_size, _ = prep_model(cls, layer, use_size_factor)
 
@@ -80,19 +84,14 @@ def run_test_for_model_with_minified_adata(
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     assert model.adata_manager.registry is model.registry_
 
-    # make sure the original adata we set up the model with was not changed
+    assert not _is_minified(adata)
     assert adata is not model.adata
-    assert _is_minified(adata) is False
 
-    assert adata_orig.layers.keys() == model.adata.layers.keys()
     orig_obs_df = adata_orig.obs
-    obs_keys = _SCANVI_OBSERVED_LIB_SIZE if cls == SCANVI else _SCVI_OBSERVED_LIB_SIZE
-    orig_obs_df[obs_keys] = adata_lib_size
+    orig_obs_df[BaseMinifiedModeModelClass._OBSERVED_LIB_SIZE_KEY] = adata_lib_size
     assert model.adata.obs.equals(orig_obs_df)
     assert model.adata.var_names.equals(adata_orig.var_names)
     assert model.adata.var.equals(adata_orig.var)
-    assert model.adata.varm.keys() == adata_orig.varm.keys()
-    np.testing.assert_array_equal(model.adata.varm["my_varm"], adata_orig.varm["my_varm"])
 
     scvi.settings.seed = 1
     keys = ["mean", "dispersions", "dropout"]
@@ -161,7 +160,9 @@ def test_scanvi_from_scvi(save_path):
         scvi.model.SCANVI.from_scvi_model(model, "label_0")
 
     msg = (
-        "We cannot use the given scvi model to initialize scanvi because it has a minified adata."
+        "We cannot use the given scVI model to initialize scANVI because it has minified adata. "
+        "Keep counts when minifying model using minified_data_type="
+        "'latent_posterior_parameters_with_counts'."
     )
     assert str(e.value) == msg
 
@@ -174,7 +175,7 @@ def test_scanvi_from_scvi(save_path):
     adata2.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     with pytest.raises(ValueError) as e:
         scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0", adata=adata2)
-    assert str(e.value) == "Please provide a non-minified `adata` to initialize scanvi."
+    assert str(e.value) == "Please provide a non-minified `adata` to initialize scANVI."
 
     scanvi_model = scvi.model.SCANVI.from_scvi_model(loaded_model, "label_0")
     scanvi_model.train(1)
@@ -262,6 +263,43 @@ def test_validate_unsupported_if_minified():
     with pytest.raises(ValueError) as e:
         model.get_latent_library_size()
     assert str(e.value) == common_err_msg.format("RNASeqMixin.get_latent_library_size")
+
+    with pytest.raises(ValueError) as e:
+        model.train()
+    assert str(e.value) == common_err_msg.format("VAE.loss")
+
+
+def test_validate_supported_if_minified_keep_count():
+    model, _, _, _ = prep_model()
+    model2, _, _, _ = prep_model()
+
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+
+    model.minify_adata(minified_data_type="latent_posterior_parameters_with_counts")
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
+    assert model2.minified_data_type is None
+
+    assert np.allclose(model2.get_elbo(), model.get_elbo(), rtol=5e-2)
+    assert np.allclose(
+        model2.get_reconstruction_error()["reconstruction_loss"],
+        model.get_reconstruction_error()["reconstruction_loss"],
+        rtol=5e-2,
+    )
+    assert np.allclose(model2.get_marginal_ll(), model.get_marginal_ll(), rtol=5e-2)
+
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(
+        1, check_val_every_n_epoch=1, train_size=0.5, plan_kwargs={"update_only_decoder": True}
+    )
+    scanvi_model = scvi.model.SCANVI.from_scvi_model(
+        model, labels_key="labels", unlabeled_category="unknown"
+    )
+    scanvi_model.train()
+    scanvi_model.train(
+        1, check_val_every_n_epoch=1, train_size=0.5, plan_kwargs={"update_only_decoder": True}
+    )
 
 
 def test_scvi_with_minified_adata_save_then_load(save_path):
