@@ -1,6 +1,7 @@
 import inspect
 import os
 import pickle
+import subprocess
 import tarfile
 from unittest import mock
 
@@ -11,7 +12,6 @@ import torch
 from lightning.pytorch.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
 from torch.nn import Softplus
-import subprocess
 
 import scvi
 from scvi.data import _constants, synthetic_iid
@@ -1340,8 +1340,8 @@ assert model.is_trained
             # Command to run the script via torchrun
             command = [
                 "torchrun",
-                "--nproc_per_node="+str(world_size),  # Specify the number of GPUs
-                temp_file_path  # Your original script
+                "--nproc_per_node=" + str(world_size),  # Specify the number of GPUs
+                temp_file_path,  # Your original script
             ]
             # Use subprocess to run the command
             try:
@@ -1349,9 +1349,7 @@ assert model.is_trained
                 subprocess.run(command, check=True)
             except subprocess.CalledProcessError as e:
                 os.remove(temp_file_path)
-                raise ValueError(
-                    f"Error occurred while running the DDP training: {e}"
-                )
+                raise ValueError(f"Error occurred while running the DDP training: {e}")
             finally:
                 os.remove(temp_file_path)
 

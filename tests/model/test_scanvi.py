@@ -1,11 +1,11 @@
 import os
 import pickle
+import subprocess
 
 import numpy as np
 import pandas as pd
 import pytest
 import torch
-import subprocess
 
 from scvi.data import synthetic_iid
 from scvi.model import SCANVI, SCVI
@@ -612,7 +612,6 @@ assert model.is_trained
 """
 
     if torch.cuda.is_available():
-
         # Get the current working directory (CWD)
         cwd = os.getcwd()
 
@@ -628,8 +627,8 @@ assert model.is_trained
             # Command to run the script via torchrun
             command = [
                 "torchrun",
-                "--nproc_per_node="+str(world_size),  # Specify the number of GPUs
-                temp_file_path  # Your original script
+                "--nproc_per_node=" + str(world_size),  # Specify the number of GPUs
+                temp_file_path,  # Your original script
             ]
             # Use subprocess to run the command
             try:
@@ -637,9 +636,7 @@ assert model.is_trained
                 subprocess.run(command, check=True)
             except subprocess.CalledProcessError as e:
                 os.remove(temp_file_path)
-                raise ValueError(
-                    f"Error occurred while running the DDP training: {e}"
-                )
+                raise ValueError(f"Error occurred while running the DDP training: {e}")
             finally:
                 os.remove(temp_file_path)
 

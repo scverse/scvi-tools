@@ -1,4 +1,3 @@
-import torch
 from torch.utils.data import Dataset, DistributedSampler
 
 
@@ -37,7 +36,6 @@ class BatchDistributedSampler(DistributedSampler):
         drop_dataset_tail: bool = False,
         **kwargs,
     ):
-
         for redundant_key in [
             "pin_memory",
             "num_workers",
