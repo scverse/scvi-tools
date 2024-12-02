@@ -1,5 +1,4 @@
 import os
-import sys
 
 import numpy as np
 import pytest
@@ -8,6 +7,7 @@ from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi import REGISTRY_KEYS
+
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
     def __init__(self, *args, **kwargs):
