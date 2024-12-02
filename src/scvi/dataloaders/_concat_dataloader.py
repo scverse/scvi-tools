@@ -75,9 +75,6 @@ class ConcatDataLoader(DataLoader):
             )
         lens = [len(dl) for dl in self.dataloaders]
         self.largest_dl = self.dataloaders[np.argmax(lens)]
-        for redundant_key in ["save_path", "num_processes", "drop_dataset_tail"]:
-            if redundant_key in data_loader_kwargs:
-                data_loader_kwargs.pop(redundant_key)
         super().__init__(self.largest_dl, drop_last=self._drop_dataset_tail, **data_loader_kwargs)
 
     def __len__(self):

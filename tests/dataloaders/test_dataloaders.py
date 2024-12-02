@@ -7,8 +7,12 @@ from tests.data.utils import generic_setup_adata_manager
 
 import scvi
 from scvi import REGISTRY_KEYS
-from scvi.model import SCANVI
+from scvi.model import SCANVI, SCVI
 
+import sys
+
+if __name__ == "__main__" and "pytest" in sys.modules:
+    sys.argv = sys.argv[:1]  # Remove pytest arguments
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
     def __init__(self, *args, **kwargs):
@@ -131,39 +135,3 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
             nprocs=num_processes,
             join=True,
         )
-
-
-@pytest.mark.parametrize("num_processes", [1, 2])
-def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
-    if torch.cuda.is_available():
-        adata = scvi.data.synthetic_iid()
-        manager = generic_setup_adata_manager(adata)
-        SCANVI.setup_anndata(
-            adata,
-            "labels",
-            "label_0",
-            batch_key="batch",
-        )
-        file_path = save_path + "/dist_file"
-        if os.path.exists(file_path):  # Check if the file exists
-            os.remove(file_path)
-        datasplitter_kwargs = {}
-        # Multi-GPU settings
-        datasplitter_kwargs["distributed_sampler"] = True
-        datasplitter_kwargs["save_path"] = save_path
-        datasplitter_kwargs["num_processes"] = num_processes
-        datasplitter_kwargs["drop_dataset_tail"] = True
-        datasplitter_kwargs["drop_last"] = False
-        if num_processes == 1:
-            datasplitter_kwargs["distributed_sampler"] = False
-            datasplitter_kwargs["drop_dataset_tail"] = False
-        model = SCANVI(adata, n_latent=10)
-
-        torch.multiprocessing.spawn(
-            multiprocessing_worker,
-            args=(num_processes, manager, save_path, {}),
-            nprocs=num_processes,
-            join=True,
-        )
-
-        model.train(1, datasplitter_kwargs=datasplitter_kwargs)

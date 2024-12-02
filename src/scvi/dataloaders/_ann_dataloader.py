@@ -122,10 +122,6 @@ class AnnDataLoader(DataLoader):
                 # for fast access to sparse matrices
                 self.kwargs.update({"batch_size": None, "shuffle": False})
             else:
-                if "save_path" not in kwargs:
-                    kwargs["save_path"] = "/."
-                if "num_processes" not in kwargs:
-                    kwargs["num_processes"] = 1
                 sampler = BatchDistributedSampler(
                     self.dataset,
                     batch_size=batch_size,
@@ -140,7 +136,4 @@ class AnnDataLoader(DataLoader):
         if iter_ndarray:
             self.kwargs.update({"collate_fn": lambda x: x})
 
-        for redundant_key in ["save_path", "num_processes"]:
-            if redundant_key in self.kwargs:
-                self.kwargs.pop(redundant_key)
         super().__init__(self.dataset, drop_last=drop_dataset_tail, **self.kwargs)
