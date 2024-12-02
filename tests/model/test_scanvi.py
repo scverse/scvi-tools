@@ -636,7 +636,8 @@ assert model.is_trained
                 subprocess.run(command, check=True)
             except subprocess.CalledProcessError as e:
                 os.remove(temp_file_path)
-                raise ValueError(f"Error occurred while running the DDP training: {e}")
+                print(f"Error occurred while running the DDP training: {e}")
+                raise
             finally:
                 os.remove(temp_file_path)
 
