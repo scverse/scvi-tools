@@ -9,10 +9,6 @@ from tests.data.utils import generic_setup_adata_manager
 import scvi
 from scvi import REGISTRY_KEYS
 
-if __name__ == "__main__" and "pytest" in sys.modules:
-    sys.argv = sys.argv[:1]  # Remove pytest arguments
-
-
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
     def __init__(self, *args, **kwargs):
         self.n_samples_per_label = kwargs.pop("n_samples_per_label")
