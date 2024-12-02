@@ -25,7 +25,7 @@ from scvi.data.fields import (
     NumericalObsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
-from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
+from scvi.model._utils import _init_library_size, get_max_epochs_heuristic, use_distributed_sampler
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
@@ -411,6 +411,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             shuffle_set_split=shuffle_set_split,
             n_samples_per_label=n_samples_per_label,
             batch_size=batch_size,
+            #distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
