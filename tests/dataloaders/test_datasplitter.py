@@ -17,7 +17,10 @@ class TestDataSplitters:
 
         with pytest.raises(ValueError) as excinfo:
             scvi.dataloaders.DataSplitter(
-                manager, train_size=1.5, validation_size=0.3, shuffle_set_split=False,
+                manager,
+                train_size=1.5,
+                validation_size=0.3,
+                shuffle_set_split=False,
             )
         assert str(excinfo.value) == "Invalid train_size. Must be: 0 < train_size <= 1"
 
@@ -192,16 +195,25 @@ class TestDataSplitters:
         adata = scvi.data.synthetic_iid()
         manager = generic_setup_adata_manager(adata)
         datasplitter_kwargs = {}
-        datasplitter_kwargs['distributed_sampler'] = True
+        datasplitter_kwargs["distributed_sampler"] = True
 
-        scvi.dataloaders.DataSplitter(manager, **datasplitter_kwargs,)
+        scvi.dataloaders.DataSplitter(
+            manager,
+            **datasplitter_kwargs,
+        )
 
     def test_semisupervised_datasplitter_distributed_sampler(self):
         adata = scvi.data.synthetic_iid()
-        manager = scanvi_setup_adata_manager(adata, labels_key="labels",unlabeled_category="label_0")
+        manager = scanvi_setup_adata_manager(
+            adata, labels_key="labels", unlabeled_category="label_0"
+        )
         datasplitter_kwargs = {}
-        datasplitter_kwargs['distributed_sampler'] = True
-        scvi.dataloaders.SemiSupervisedDataSplitter(adata_manager=manager, **datasplitter_kwargs,)
+        datasplitter_kwargs["distributed_sampler"] = True
+        scvi.dataloaders.SemiSupervisedDataSplitter(
+            adata_manager=manager,
+            **datasplitter_kwargs,
+        )
+
 
 @pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix"])
 def test_datasplitter_load_sparse_tensor(
