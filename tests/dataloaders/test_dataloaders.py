@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pytest
 import torch
-from tests.data.utils import generic_setup_adata_manager
+from tests.data.utils import generic_setup_adata_manager, scanvi_setup_adata_manager
 
 import scvi
 from scvi import REGISTRY_KEYS
@@ -137,7 +137,7 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     if torch.cuda.is_available():
         adata = scvi.data.synthetic_iid()
-        # manager = scanvi_setup_adata_manager(adata)
+        manager = scanvi_setup_adata_manager(adata)
         SCANVI.setup_anndata(
             adata,
             "labels",
