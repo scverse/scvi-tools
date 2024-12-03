@@ -1300,7 +1300,7 @@ def test_scvi_num_workers():
     model.get_normalized_expression(n_samples=2)
 
 
-def test_scvi_train_ddp():
+def test_scvi_train_ddp(save_path: str):
     training_code = """
 import torch
 import scvi
@@ -1325,11 +1325,8 @@ assert model.is_trained
 """
 
     if torch.cuda.is_available():
-        # Get the current working directory (CWD)
-        cwd = os.getcwd()
-
         # Define the file path for the temporary script in the current working directory
-        temp_file_path = os.path.join(cwd, "train_scvi_ddp_temp.py")
+        temp_file_path = os.path.join(save_path, "train_scvi_ddp_temp.py")
 
         # Write the training code to the file in the current working directory
         with open(temp_file_path, "w") as temp_file:
