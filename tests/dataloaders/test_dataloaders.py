@@ -4,10 +4,10 @@ import numpy as np
 import pytest
 import torch
 from tests.data.utils import generic_setup_adata_manager
-from scvi.model import SCANVI
 
 import scvi
 from scvi import REGISTRY_KEYS
+from scvi.model import SCANVI
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
