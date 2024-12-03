@@ -28,6 +28,12 @@ to [Semantic Versioning]. Full commit history is available in the
     validation set, if available. {pr}`3036`.
 - Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
+- Support for minified mode while retaining counts to skip the encoder.
+- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+    the encoder.
+- Refactored code for minified models.
+- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
+    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
 #### Fixed
 
@@ -35,6 +41,8 @@ to [Semantic Versioning]. Full commit history is available in the
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
+-
 
 #### Changed
 
@@ -88,8 +96,6 @@ to [Semantic Versioning]. Full commit history is available in the
     data {pr}`2756`.
 - Add support for reference mapping with {class}`mudata.MuData` models to
     {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
-- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
-    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 - Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
     and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
     without averaging across cells {pr}`2362`.

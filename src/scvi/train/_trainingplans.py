@@ -153,6 +153,7 @@ class TrainingPlan(pl.LightningModule):
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: TorchOptimizerCreator | None = None,
         lr: float = 1e-3,
+        update_only_decoder: bool = False,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
         n_steps_kl_warmup: int = None,
@@ -195,6 +196,7 @@ class TrainingPlan(pl.LightningModule):
         self.min_kl_weight = min_kl_weight
         self.max_kl_weight = max_kl_weight
         self.optimizer_creator = optimizer_creator
+        self.update_only_decoder = update_only_decoder
 
         if self.optimizer_name == "Custom" and self.optimizer_creator is None:
             raise ValueError("If optimizer is 'Custom', `optimizer_creator` must be provided.")
@@ -290,7 +292,11 @@ class TrainingPlan(pl.LightningModule):
 
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward method."""
-        return self.module(*args, **kwargs)
+        return self.module(
+            *args,
+            **kwargs,
+            get_inference_input_kwargs={"full_forward_pass": not self.update_only_decoder},
+        )
 
     @torch.inference_mode()
     def compute_and_log_metrics(
