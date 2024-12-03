@@ -1322,7 +1322,7 @@ def test_scvi_num_workers():
 #
 # assert model.is_trained
 # """
-#
+#     import subprocess
 #     if torch.cuda.is_available():
 #         # Define the file path for the temporary script in the current working directory
 #         temp_file_path = os.path.join(save_path, "train_scvi_ddp_temp.py")
