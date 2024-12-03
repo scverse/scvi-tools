@@ -1300,7 +1300,7 @@ def test_scvi_num_workers():
     model.get_normalized_expression(n_samples=2)
 
 
-def test_scvi_train_ddp(save_path: str = "."):
+def test_scvi_train_ddp(save_path: str):
     training_code = """
 import torch
 import scvi
