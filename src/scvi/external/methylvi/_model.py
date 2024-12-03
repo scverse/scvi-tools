@@ -633,14 +633,14 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
 
 
 class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
-    """Single-cell annotation using variational inference :cite:p:`Xu21`.
+    """Methylation annotation using variational inference :cite:p:`Weinberger23`.
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
 
     Parameters
     ----------
-    adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+    mdata
+        MuData object registered via :meth:`~scvi.external.methylvi.METHYLVI.setup_mudata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -649,19 +649,14 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for neural networks.
+    likelihood
+        One of
+        * ``'betabinomial'`` - BetaBinomial distribution
+        * ``'binomial'`` - Binomial distribution
     dispersion
-        One of the following:
-
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    gene_likelihood
-        One of:
-
-        * ``'nb'`` - Negative binomial distribution
-        * ``'zinb'`` - Zero-inflated negative binomial distribution
-        * ``'poisson'`` - Poisson distribution
+        One of the following
+        * ``'region'`` - dispersion parameter of BetaBinomial is constant per region across cells
+        * ``'region-cell'`` - dispersion can differ for every region in every cell
     linear_classifier
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
@@ -670,20 +665,15 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
 
     Examples
     --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.SCANVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
-    >>> vae = scvi.model.SCANVI(adata, "Unknown")
+    >>> mdata = mudata.read_h5mu(path_to_mudata)
+    >>> scvi.external.methylvi.METHYLANVI.setup_mudata(
+    ...     mdata, labels_key="labels", unlabeled_category="Unknown"
+    ... )
+    >>> vae = scvi.external.methylvi.METHYLANVI(mdata)
     >>> vae.train()
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obs["pred_label"] = vae.predict()
+    >>> mdata.obsm["X_scVI"] = vae.get_latent_representation()
+    >>> mdata.obs["pred_label"] = vae.predict()
 
-    Notes
-    -----
-    See further usage examples in the following tutorials:
-
-    1. :doc:`/tutorials/notebooks/scrna/harmonization`
-    2. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
-    3. :doc:`/tutorials/notebooks/scrna/seed_labeling`
     """
 
     _module_cls = METHYLANVAE
@@ -697,7 +687,7 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         likelihood: Literal["betabinomial", "binomial"] = "betabinomial",
-        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "region",
+        dispersion: Literal["region", "region-cell"] = "region",
         linear_classifier: bool = False,
         **model_kwargs,
     ):
@@ -706,7 +696,7 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
 
         self._set_indices_and_labels()
 
-        # ignores unlabeled catgegory
+        # ignores unlabeled category
         n_labels = self.summary_stats.n_labels - 1
         n_cats_per_cov = (
             self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
@@ -744,7 +734,7 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
         self.semisupervised_history_ = None
 
         self._model_summary_string = (
-            f"MethylanVI Model with the following params: \nunlabeled_category: "
+            f"MethylANVI Model with the following params: \nunlabeled_category: "
             f"{self.unlabeled_category_}, n_hidden: {n_hidden}, n_latent: {n_latent}"
             f", n_layers: {n_layers}, dropout_rate: {dropout_rate}, dispersion: "
             f"{dispersion}, likelihood: {likelihood}"
@@ -773,7 +763,7 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
 
     def predict(
         self,
-        adata: AnnData | None = None,
+        mdata: MuData | None = None,
         indices: Sequence[int] | None = None,
         soft: bool = False,
         batch_size: int | None = None,
@@ -783,8 +773,8 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
 
         Parameters
         ----------
-        adata
-            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+        mdata
+            MuData object registered via :meth:`~scvi.external.methylvi.MethylANVI.setup_mudata`.
         indices
             Return probabilities for each class label.
         soft
@@ -796,13 +786,13 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
             labels. Otherwise, uses a sample from the posterior distribution - this
             means that the predictions will be stochastic.
         """
-        adata = self._validate_anndata(adata)
+        mdata = self._validate_anndata(mdata)
 
         if indices is None:
-            indices = np.arange(adata.n_obs)
+            indices = np.arange(mdata.n_obs)
 
         scdl = self._make_data_loader(
-            adata=adata,
+            adata=mdata,
             indices=indices,
             batch_size=batch_size,
         )
@@ -835,7 +825,7 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
             pred = pd.DataFrame(
                 y_pred,
                 columns=self._label_mapping[:n_labels],
-                index=adata.obs_names[indices],
+                index=mdata.obs_names[indices],
             )
             return pred
 

@@ -526,8 +526,8 @@ class METHYLANVAE(METHYLVAE):
     def classification_loss(self, labelled_dataset):
         """Computes scANVI-style classification loss."""
         inference_inputs = self._get_inference_input(labelled_dataset)  # (n_obs, n_vars)
-        mc = inference_inputs["mc"]
-        cov = inference_inputs["cov"]
+        mc = inference_inputs[METHYLVI_REGISTRY_KEYS.MC_KEY]
+        cov = inference_inputs[METHYLVI_REGISTRY_KEYS.COV_KEY]
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cat_covs = inference_inputs["cat_covs"]
