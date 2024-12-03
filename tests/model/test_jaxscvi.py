@@ -10,6 +10,7 @@ from scvi.model import JaxSCVI
 from scvi.utils import attrdict
 
 
+@pytest.mark.private
 def test_jax_scvi(n_latent=5):
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
 
@@ -31,6 +32,7 @@ def test_jax_scvi(n_latent=5):
     assert z2.shape[0] == 15
 
 
+@pytest.mark.private
 def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
     adata = synthetic_iid()
@@ -56,6 +58,7 @@ def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
         )
 
 
+@pytest.mark.private
 def test_jax_scvi_save_load(save_path: str, n_latent: int = 5):
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
     adata = synthetic_iid()
