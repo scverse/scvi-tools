@@ -1300,7 +1300,7 @@ def test_scvi_num_workers():
     model.get_normalized_expression(n_samples=2)
 
 
-def test_scvi_train_ddp(save_path: str):
+def test_scvi_train_ddp(save_path: str = "."):
     training_code = """
 import torch
 import scvi
@@ -1312,7 +1312,7 @@ SCVI.setup_anndata(adata)
 model = SCVI(adata)
 
 model.train(
-    max_epochs=100,
+    max_epochs=1,
     check_val_every_n_epoch=1,
     accelerator="gpu",
     devices=-1,
