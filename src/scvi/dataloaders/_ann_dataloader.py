@@ -136,4 +136,4 @@ class AnnDataLoader(DataLoader):
         if iter_ndarray:
             self.kwargs.update({"collate_fn": lambda x: x})
 
-        super().__init__(self.dataset, drop_last=drop_dataset_tail, **self.kwargs)
+        super().__init__(self.dataset, **self.kwargs)

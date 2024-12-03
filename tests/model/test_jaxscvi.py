@@ -2,8 +2,6 @@ from unittest import mock
 
 import numpy as np
 import pytest
-
-# import torch
 from flax import linen as nn
 
 from scvi.data import synthetic_iid
