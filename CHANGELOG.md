@@ -19,19 +19,19 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`.
 
-### 1.2.1 (2024-XX-XX)
+### 1.2.1 (2024-12-04)
 
 #### Added
 
 - Added adaptive handling for last training minibatch of 1-2 cells in case of
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
     validation set, if available. {pr}`3036`.
-- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
+- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
 - Support for minified mode while retaining counts to skip the encoder.
 - New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
     the encoder.
-- Refactored code for minified models.
+- Refactored code for minified models. {pr}`2883`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
@@ -42,7 +42,6 @@ to [Semantic Versioning]. Full commit history is available in the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
 - Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
--
 
 #### Changed
 
