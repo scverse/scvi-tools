@@ -15,7 +15,7 @@ The limitations of methylVI include:
 
 ```{topic} Tutorials:
 
--   Work in progress.
+-   {doc}`/tutorials/notebooks/scbs/MethylVI_batch`
 ```
 
 ## Preliminaries
