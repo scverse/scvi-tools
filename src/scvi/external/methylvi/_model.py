@@ -7,6 +7,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 from scvi.data._utils import get_anndata_attribute
+from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -798,7 +799,10 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
         )
         y_pred = []
         for _, tensors in enumerate(scdl):
-            mc, cov = self.module._get_methylation_features(tensors)  # (n_obs, n_vars)
+            inference_inputs = self.module._get_inference_input(tensors)  # (n_obs, n_vars)
+
+            mc = inference_inputs[METHYLVI_REGISTRY_KEYS.MC_KEY]
+            cov = inference_inputs[METHYLVI_REGISTRY_KEYS.COV_KEY]
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]
 
             pred = self.module.classify(
