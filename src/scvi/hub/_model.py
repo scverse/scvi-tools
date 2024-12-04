@@ -120,10 +120,11 @@ class HubModel:
     def push_to_huggingface_hub(
         self,
         repo_name: str,
-        repo_token: str,
+        repo_token: str | None = None,
         repo_create: bool = False,
         push_anndata: bool = True,
         repo_create_kwargs: dict | None = None,
+        collection_name: str | None = None,
         **kwargs,
     ):
         """Push this model to huggingface.
@@ -137,7 +138,7 @@ class HubModel:
         repo_name
             ID of the huggingface repo where this model needs to be uploaded
         repo_token
-            huggingface API token with write permissions
+            huggingface API token with write permissions if None uses token in HfFolder.get_token()
         repo_create
             Whether to create the repo
         push_anndata
@@ -145,10 +146,12 @@ class HubModel:
         repo_create_kwargs
             Keyword arguments passed into :meth:`~huggingface_hub.create_repo` if
             ``repo_create=True``.
+        collection_name
+            The name of the collection to which the model belongs.
         **kwargs
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
-        from huggingface_hub import HfApi, create_repo
+        from huggingface_hub import HfApi, HfFolder, add_collection_item, create_repo
 
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
@@ -157,7 +160,9 @@ class HubModel:
                 "Dataset is too large to upload to the Model. \
                 Please refer to scvi-tools tutorials for how to handle this case."
             )
-        if os.path.isfile(repo_token):
+        if repo_token is None:
+            repo_token = HfFolder.get_token()
+        elif os.path.isfile(repo_token):
             repo_token = Path(repo_token).read_text()
         if repo_create:
             repo_create_kwargs = repo_create_kwargs or {}
@@ -190,6 +195,33 @@ class HubModel:
             token=repo_token,
             **kwargs,
         )
+        if collection_name=="test":
+            collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"
+        elif "SCANVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/scanvi-673c3a4aabddf849496e9079"
+        elif "SCVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/scvi-673c2c0f2bf4163ef14d018d"
+        elif "TOTALVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/totalvi-673c3d67e2882005a1d180c1"
+        elif "CondSCVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/destvi-673c3dbf537347953810a215"
+        elif "Stereoscope" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/stereoscope-673c3ddcf1f9f7542b8819d6"
+        else:
+            warnings.warn(
+                f"No collection found for this model. Please request a new collection for {self.metadata.model_cls_name}.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            collection_slug = None
+
+        if collection_slug is not None:
+             add_collection_item(
+                collection_slug=collection_slug,
+                item_id=repo_name,
+                item_type="model",
+                exists_ok=True,
+            )
 
     @classmethod
     def pull_from_huggingface_hub(

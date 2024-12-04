@@ -253,7 +253,7 @@ class PosteriorPredictiveCheck:
     @dependencies("scanpy")
     def differential_expression(
         self,
-        de_groupby: str,
+        de_groupby: str | None = None,
         de_method: str = "t-test",
         n_samples: int = 1,
         cell_scale_factor: float = 1e4,
@@ -296,6 +296,11 @@ class PosteriorPredictiveCheck:
         )
         sc.pp.normalize_total(adata_de, target_sum=cell_scale_factor)
         sc.pp.log1p(adata_de)
+        if de_groupby is None:
+            sc.tl.pca(adata_de)
+            sc.pp.neighbors(adata_de)
+            sc.tl.leiden(adata_de, key_added='leiden_scvi_criticism')
+            de_groupby = "leiden_scvi_criticism"
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
             sc.tl.rank_genes_groups(
@@ -342,11 +347,12 @@ class PosteriorPredictiveCheck:
                         key_added=key_added,
                     )
 
-        groups = self.adata.obs[de_groupby].astype("category").cat.categories
+        groups = adata_de.obs[de_groupby].astype("category").cat.categories
+        cell_counts = adata_de.obs[de_groupby].value_counts()
         df = pd.DataFrame(
             index=np.arange(len(groups) * len(models)),
             columns=[
-                "gene_overlap_f1",
+                "gene_f1",
                 "lfc_mae",
                 "lfc_pearson",
                 "lfc_spearman",
@@ -354,77 +360,72 @@ class PosteriorPredictiveCheck:
                 "pr_auc",
                 "group",
                 "model",
+                "n_cells"
             ],
         )
-        i = 0
-        self.metrics[METRIC_DIFF_EXP] = {}
-        self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"] = {}
-        for g in groups:
-            raw_group_data = sc.get.rank_genes_groups_df(adata_de, group=g, key=UNS_NAME_RGG_RAW)
+        # Initialize storage for metrics
+        self.metrics[METRIC_DIFF_EXP] = {"lfc_per_model_per_group": {}}
+
+        for i, group in enumerate(groups):
+            raw_group_data = sc.get.rank_genes_groups_df(
+                adata_de, group=group, key=UNS_NAME_RGG_RAW)
             raw_group_data.set_index("names", inplace=True)
-            for model in de_keys.keys():
-                gene_overlap_f1s = []
-                rgds = []
-                sgds = []
-                lfc_maes = []
-                lfc_pearsons = []
-                lfc_spearmans = []
-                roc_aucs = []
-                pr_aucs = []
-                # Now over potential samples
-                for de_key in de_keys[model]:
+
+            for model, model_keys in de_keys.items():
+                # Storage for metrics across samples
+                gene_overlap_f1s, lfc_maes, lfc_pearsons, lfc_spearmans = [], [], [], []
+                roc_aucs, pr_aucs, rgds, sgds = [], [], [], []
+                for de_key in model_keys:
                     sample_group_data = sc.get.rank_genes_groups_df(
-                        adata_approx, group=g, key=de_key
-                    )
+                        adata_approx, group=group, key=de_key)
                     sample_group_data.set_index("names", inplace=True)
-                    # compute gene overlaps
-                    all_genes = raw_group_data.index  # order doesn't matter here
+
+                    # Gene Overlap F1
+                    all_genes = raw_group_data.index
                     top_genes_raw = raw_group_data[:n_top_genes_fallback].index
                     top_genes_sample = sample_group_data[:n_top_genes_fallback].index
-                    true_genes = np.array([0 if g not in top_genes_raw else 1 for g in all_genes])
-                    pred_genes = np.array(
-                        [0 if g not in top_genes_sample else 1 for g in all_genes]
-                    )
+                    true_genes = np.isin(all_genes, top_genes_raw).astype(int)
+                    pred_genes = np.isin(all_genes, top_genes_sample).astype(int)
                     gene_overlap_f1s.append(_get_precision_recall_f1(true_genes, pred_genes)[2])
-                    # compute lfc correlations
-                    sample_group_data = sample_group_data.loc[raw_group_data.index]
-                    rgd, sgd = (
-                        raw_group_data["logfoldchanges"],
-                        sample_group_data["logfoldchanges"],
-                    )
+
+                    # Log-fold change (LFC) metrics
+                    sample_group_data = sample_group_data.reindex(raw_group_data.index)
+                    rgd, sgd = raw_group_data["logfoldchanges"], sample_group_data["logfoldchanges"]
                     rgds.append(rgd)
                     sgds.append(sgd)
                     lfc_maes.append(np.mean(np.abs(rgd - sgd)))
                     lfc_pearsons.append(pearsonr(rgd, sgd)[0])
                     lfc_spearmans.append(spearmanr(rgd, sgd)[0])
-                    # compute auPRC and auROC
+
+                    # ROC and PR metrics
                     raw_adj_p_vals = raw_group_data["pvals_adj"]
                     true = raw_adj_p_vals < p_val_thresh
                     pred = sample_group_data["scores"]
+
+                    # Fallback for no true DE genes
                     if true.sum() == 0:
-                        # if there are no true DE genes, just use the top n genes
                         true = np.zeros_like(pred)
                         true[np.argsort(raw_adj_p_vals)[:n_top_genes_fallback]] = 1
+
                     roc_aucs.append(roc_auc_score(true, pred))
                     pr_aucs.append(average_precision_score(true, pred))
-                # Mean here is over sampled datasets
+
+                # Compute means over samples
                 df.loc[i, "model"] = model
-                df.loc[i, "group"] = g
-                df.loc[i, "gene_overlap_f1"] = np.mean(gene_overlap_f1s)
+                df.loc[i, "group"] = group
+                df.loc[i, "gene_f1"] = np.mean(gene_overlap_f1s)
                 df.loc[i, "lfc_mae"] = np.mean(lfc_maes)
                 df.loc[i, "lfc_pearson"] = np.mean(lfc_pearsons)
                 df.loc[i, "lfc_spearman"] = np.mean(lfc_spearmans)
                 df.loc[i, "roc_auc"] = np.mean(roc_aucs)
                 df.loc[i, "pr_auc"] = np.mean(pr_aucs)
-                rgd, sgd = (
-                    pd.DataFrame(rgds).mean(axis=0),
-                    pd.DataFrame(sgds).mean(axis=0),
-                )
-                if model not in self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].keys():
-                    self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model] = {}
-                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][g] = pd.DataFrame(
-                    [rgd, sgd], index=["raw", "approx"]
+                df.loc[i, "n_cells"] = cell_counts[group]
+
+                # Store LFCs for raw vs approx
+                rgd_avg, sgd_avg = pd.DataFrame(rgds).mean(axis=0), pd.DataFrame(sgds).mean(axis=0)
+                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].setdefault(model, {})
+                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][group] = pd.DataFrame(
+                    [rgd_avg, sgd_avg], index=["raw", "approx"]
                 ).T
-                i += 1
 
         self.metrics[METRIC_DIFF_EXP]["summary"] = df
