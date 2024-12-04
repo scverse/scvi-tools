@@ -164,11 +164,15 @@ class SemisupervisedTrainingMixin:
         self.original_label_key = labels_state_registry.original_key
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
+        if hasattr(self.adata_manager.data_registry.labels, "mod_key"):
+            mod_key = labels_state_registry.data_registry.labels.mod_key
+        else:
+            mod_key = None
         labels = get_anndata_attribute(
             self.adata,
             self.adata_manager.data_registry.labels.attr_name,
             self.original_label_key,
-            mod_key=self.adata_manager.data_registry.labels.mod_key,
+            mod_key=mod_key,
         ).ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 

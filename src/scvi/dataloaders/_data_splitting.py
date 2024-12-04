@@ -406,11 +406,15 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.n_samples_per_label = n_samples_per_label
 
         labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        if hasattr(self.adata_manager.data_registry.labels, "mod_key"):
+            mod_key = labels_state_registry.data_registry.labels.mod_key
+        else:
+            mod_key = None
         labels = get_anndata_attribute(
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
-            mod_key=adata_manager.data_registry.labels.mod_key,
+            mod_key=mod_key,
         ).ravel()
         self.unlabeled_category = labels_state_registry.unlabeled_category
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
