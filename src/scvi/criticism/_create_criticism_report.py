@@ -1,7 +1,6 @@
 import json
 import os
 
-import pandas as pd
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_absolute_error as mae
 from sklearn.metrics import r2_score
@@ -14,6 +13,7 @@ METRIC_CV_CELL = "cv_cell"
 METRIC_CV_GENE = "cv_gene"
 METRIC_DIFF_EXP = "diff_exp"
 
+
 def _dataframe_to_markdown(df):
     # Create the header
     header = "| Index | " + " | ".join(df.columns) + " |"
@@ -21,10 +21,12 @@ def _dataframe_to_markdown(df):
 
     # Format values and create rows, including the index
     rows = "\n".join(
-        "| " + " | ".join(
-            [str(index)] +
-            [f"{value:.2f}" if not isinstance(value, int) else f"{value}" for value in row]
-        ) + " |"
+        "| "
+        + " | ".join(
+            [str(index)]
+            + [f"{value:.2f}" if not isinstance(value, int) else f"{value}" for value in row]
+        )
+        + " |"
         for index, row in zip(df.index, df.values, strict=True)
     )
 
@@ -39,7 +41,7 @@ def create_criticism_report(
     n_samples: int = 5,
     label_key: str | None = None,
     save_folder: str | None = None,
-    ) -> dict:
+) -> dict:
     """
     Helper function to compute and store criticism metrics for a model.
 
@@ -78,18 +80,18 @@ def create_criticism_report(
     # run diff_exp
     if METRIC_DIFF_EXP not in skip_metrics:
         labels_state_registry = model.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
-        if label_key is None and labels_state_registry.original_key!='_scvi_labels':
+        if label_key is None and labels_state_registry.original_key != "_scvi_labels":
             label_key = labels_state_registry.original_key
         ppc.differential_expression(de_groupby=label_key, p_val_thresh=0.2)
-        summary_df = ppc.metrics["diff_exp"]["summary"].set_index('group')
-        summary_df = summary_df.drop(columns=['model'])
-        summary_df = summary_df.sort_values(by='n_cells', ascending=False)
+        summary_df = ppc.metrics["diff_exp"]["summary"].set_index("group")
+        summary_df = summary_df.drop(columns=["model"])
+        summary_df = summary_df.sort_values(by="n_cells", ascending=False)
         md_de = _dataframe_to_markdown(summary_df)
 
     markdown_dict = {
         "cell_wise_cv": md_cell_wise_cv,
         "gene_wise_cv": md_gene_wise_cv,
-        "diff_exp": md_de
+        "diff_exp": md_de,
     }
 
     save_path = os.path.join(save_folder, "metrics.json")
@@ -125,19 +127,19 @@ def _cv_metrics(ppc, model, cell_wise: bool = True):
 
         mae_values = [
             mae(model_metric[indices[0]], raw_metric[indices[0]]),
-            mae(model_metric[indices[1]], raw_metric[indices[1]])
+            mae(model_metric[indices[1]], raw_metric[indices[1]]),
         ]
         pearsonr_values = [
             pearsonr(model_metric[indices[0]], raw_metric[indices[0]])[0],
-            pearsonr(model_metric[indices[1]], raw_metric[indices[1]])[0]
+            pearsonr(model_metric[indices[1]], raw_metric[indices[1]])[0],
         ]
         spearmanr_values = [
             spearmanr(model_metric[indices[0]], raw_metric[indices[0]])[0],
-            spearmanr(model_metric[indices[1]], raw_metric[indices[1]])[0]
+            spearmanr(model_metric[indices[1]], raw_metric[indices[1]])[0],
         ]
         r2_score_values = [
             r2_score(model_metric[indices[0]], raw_metric[indices[0]]),
-            r2_score(model_metric[indices[1]], raw_metric[indices[1]])
+            r2_score(model_metric[indices[1]], raw_metric[indices[1]]),
         ]
         metric_table = (
             "| Metric                  | Training Value | Validation Value |\n"

@@ -299,7 +299,7 @@ class PosteriorPredictiveCheck:
         if de_groupby is None:
             sc.tl.pca(adata_de)
             sc.pp.neighbors(adata_de)
-            sc.tl.leiden(adata_de, key_added='leiden_scvi_criticism')
+            sc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
             de_groupby = "leiden_scvi_criticism"
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
@@ -360,7 +360,7 @@ class PosteriorPredictiveCheck:
                 "pr_auc",
                 "group",
                 "model",
-                "n_cells"
+                "n_cells",
             ],
         )
         # Initialize storage for metrics
@@ -368,7 +368,8 @@ class PosteriorPredictiveCheck:
 
         for i, group in enumerate(groups):
             raw_group_data = sc.get.rank_genes_groups_df(
-                adata_de, group=group, key=UNS_NAME_RGG_RAW)
+                adata_de, group=group, key=UNS_NAME_RGG_RAW
+            )
             raw_group_data.set_index("names", inplace=True)
 
             for model, model_keys in de_keys.items():
@@ -377,7 +378,8 @@ class PosteriorPredictiveCheck:
                 roc_aucs, pr_aucs, rgds, sgds = [], [], [], []
                 for de_key in model_keys:
                     sample_group_data = sc.get.rank_genes_groups_df(
-                        adata_approx, group=group, key=de_key)
+                        adata_approx, group=group, key=de_key
+                    )
                     sample_group_data.set_index("names", inplace=True)
 
                     # Gene Overlap F1
@@ -390,7 +392,10 @@ class PosteriorPredictiveCheck:
 
                     # Log-fold change (LFC) metrics
                     sample_group_data = sample_group_data.reindex(raw_group_data.index)
-                    rgd, sgd = raw_group_data["logfoldchanges"], sample_group_data["logfoldchanges"]
+                    rgd, sgd = (
+                        raw_group_data["logfoldchanges"],
+                        sample_group_data["logfoldchanges"],
+                    )
                     rgds.append(rgd)
                     sgds.append(sgd)
                     lfc_maes.append(np.mean(np.abs(rgd - sgd)))
@@ -424,8 +429,8 @@ class PosteriorPredictiveCheck:
                 # Store LFCs for raw vs approx
                 rgd_avg, sgd_avg = pd.DataFrame(rgds).mean(axis=0), pd.DataFrame(sgds).mean(axis=0)
                 self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].setdefault(model, {})
-                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][group] = pd.DataFrame(
-                    [rgd_avg, sgd_avg], index=["raw", "approx"]
-                ).T
+                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][group] = (
+                    pd.DataFrame([rgd_avg, sgd_avg], index=["raw", "approx"]).T
+                )
 
         self.metrics[METRIC_DIFF_EXP]["summary"] = df

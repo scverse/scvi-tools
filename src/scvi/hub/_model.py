@@ -195,7 +195,7 @@ class HubModel:
             token=repo_token,
             **kwargs,
         )
-        if collection_name=="test":
+        if collection_name == "test":
             collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"
         elif "SCANVI" in self.metadata.model_cls_name:
             collection_slug = "scvi-tools/scanvi-673c3a4aabddf849496e9079"
@@ -216,7 +216,7 @@ class HubModel:
             collection_slug = None
 
         if collection_slug is not None:
-             add_collection_item(
+            add_collection_item(
                 collection_slug=collection_slug,
                 item_id=repo_name,
                 item_type="model",
