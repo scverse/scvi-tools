@@ -1234,10 +1234,10 @@ class TOTALVI(
         %(returns)s
         """
         warnings.warn(
-             "We recommend using setup_mudata for multi-modal data."
-             "It does not influence model performance",
-             DeprecationWarning,
-             stacklevel=settings.warnings_stacklevel,
+            "We recommend using setup_mudata for multi-modal data."
+            "It does not influence model performance",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
         setup_method_args = cls._get_setup_method_args(**locals())
         batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
