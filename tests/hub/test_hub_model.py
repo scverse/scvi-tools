@@ -200,6 +200,10 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
 
+def test_prep_scvi_hub_model(save_path: str) -> HubModel:
+    prep_scvi_hub_model(save_path)
+
+
 @pytest.mark.private
 def test_hub_model_large_training_adata(request, save_path):
     training_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"

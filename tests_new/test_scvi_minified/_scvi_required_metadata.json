@@ -1,7 +1,0 @@
-{
-    "scvi_version": "1.2.0",
-    "anndata_version": "0.11.1",
-    "model_cls_name": "SCVI",
-    "training_data_url": null,
-    "model_parent_module": "scvi.model"
-}
