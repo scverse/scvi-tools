@@ -59,7 +59,8 @@ class TOTALVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`.
+        AnnOrMuData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`
+        or :meth:`~scvi.model.TOTALVI.setup_mudata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -97,13 +98,12 @@ class TOTALVI(
 
     Examples
     --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.TOTALVI.setup_anndata(
-            adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-        )
-    >>> vae = scvi.model.TOTALVI(adata)
+    >>> mdata = mudata.read_h5mu(path_to_mudata)
+    >>> scvi.model.TOTALVI.setup_mudata(
+            mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
+    >>> vae = scvi.model.TOTALVI(mdata)
     >>> vae.train()
-    >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
+    >>> mdata.obsm["X_totalVI"] = vae.get_latent_representation()
 
     Notes
     -----
@@ -1233,6 +1233,12 @@ class TOTALVI(
         -------
         %(returns)s
         """
+        warnings.warn(
+             "We recommend using setup_mudata for multi-modal data."
+             "It does not influence model performance",
+             DeprecationWarning,
+             stacklevel=settings.warnings_stacklevel,
+        )
         setup_method_args = cls._get_setup_method_args(**locals())
         batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [

@@ -30,7 +30,7 @@ def get_minified_adata_scrna(
     if keep_count_data:
         pass
     else:
-        adata = adata_manager.adata.copy()
+        del adata.raw
         counts = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         all_zeros = csr_matrix(counts.shape)
         X = all_zeros
@@ -58,9 +58,10 @@ def get_minified_mudata(
         pass
     else:
         for modality in mdata.mod_names:
+            del mdata[modality].raw
             all_zeros = csr_matrix(mdata[modality].X.shape)
-            mdata[modality].X = all_zeros
+            mdata[modality].X = all_zeros.copy()
             if len(mdata[modality].layers) > 0:
-                layers = {layer: all_zeros for layer in mdata[modality].layers}
+                layers = {layer: all_zeros.copy() for layer in mdata[modality].layers}
                 mdata[modality].layers = layers
     return mdata
