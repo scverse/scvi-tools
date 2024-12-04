@@ -2,8 +2,36 @@ from collections.abc import Iterable
 
 import torch
 from torch import nn
+from torch.distributions import Binomial
 
+from scvi.distributions import BetaBinomial
+from scvi.external.methylvi._utils import METHYLVI_REGISTRY_KEYS
 from scvi.nn import FCLayers
+
+
+class BSSeqVAEMixin:
+    """Shared methods for BS-seq VAE models."""
+
+    def _compute_minibatch_reconstruction_loss(self, minibatch_size, tensors, generative_outputs):
+        reconst_loss = torch.zeros(minibatch_size).to(self.device)
+
+        for context in self.contexts:
+            px_mu = generative_outputs["px_mu"][context]
+            px_gamma = generative_outputs["px_gamma"][context]
+            mc = tensors[f"{context}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"]
+            cov = tensors[f"{context}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"]
+
+            if self.dispersion == "region":
+                px_gamma = torch.sigmoid(self.px_gamma[context])
+
+            if self.likelihood == "binomial":
+                dist = Binomial(probs=px_mu, total_count=cov)
+            elif self.likelihood == "betabinomial":
+                dist = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
+
+            reconst_loss += -dist.log_prob(mc).sum(dim=-1)
+
+        return reconst_loss
 
 
 class DecoderMETHYLVI(nn.Module):
