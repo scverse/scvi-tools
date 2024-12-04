@@ -754,6 +754,7 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
             self.adata,
             self.adata_manager.data_registry.labels.attr_name,
             self.original_label_key,
+            mod_key=self.adata_manager.data_registry.labels.mod_key,
         ).ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 
@@ -1020,8 +1021,12 @@ class METHYLANVI(VAEMixin, ArchesMixin, BaseModelClass):
             categorical_covariate_keys,
             mod_key=modalities_.categorical_covariate_keys,
         )
-        cell_type_field = fields.LabelsWithUnlabeledObsField(
-            REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+
+        cell_type_field = fields.MuDataLabelsWithUnlabeledObsField(
+            REGISTRY_KEYS.LABELS_KEY,
+            labels_key,
+            unlabeled_category,
+            mod_key=modalities_.labels_key,
         )
 
         mc_fields = []
