@@ -12,6 +12,7 @@ from lightning.pytorch.strategies import DDPStrategy, Strategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
+from scipy.sparse import issparse
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
@@ -244,6 +245,8 @@ def cite_seq_raw_counts_properties(
 
     nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    if issparse(protein_exp):
+        protein_exp = protein_exp.toarray()
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
