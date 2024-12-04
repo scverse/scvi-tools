@@ -1,4 +1,4 @@
-# scBS
+# scBS-seq
 
 ```{toctree}
 :maxdepth: 1
