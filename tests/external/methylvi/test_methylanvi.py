@@ -23,7 +23,7 @@ def test_methylanvi():
         unlabeled_category="unknown",
         methylation_contexts=["mod1", "mod2"],
         batch_key="batch",
-        modalities={"batch_key": "mod1"},
+        modalities={"batch_key": "mod1", "labels_key": "mod1"},
     )
     vae = METHYLANVI(
         mdata,
