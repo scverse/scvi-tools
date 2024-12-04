@@ -13,7 +13,7 @@ from torch.nn import functional as F
 from scvi import REGISTRY_KEYS
 from scvi.distributions import BetaBinomial
 from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS, DecoderMETHYLVI
-from scvi.external.methylvi._base_components import BSSeqVAEMixin
+from scvi.external.methylvi._base_components import BSSeqModuleMixin
 from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.module._classifier import Classifier
 from scvi.module._utils import broadcast_labels
@@ -23,7 +23,7 @@ from scvi.nn import Decoder, Encoder
 TensorDict = dict[str, torch.Tensor]
 
 
-class METHYLVAE(BaseModuleClass, BSSeqVAEMixin):
+class METHYLVAE(BaseModuleClass, BSSeqModuleMixin):
     """PyTorch module for methylVI.
 
     Parameters
@@ -283,7 +283,7 @@ class METHYLVAE(BaseModuleClass, BSSeqVAEMixin):
         return exprs
 
 
-class METHYLANVAE(METHYLVAE, BSSeqVAEMixin):
+class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
     """Single-cell annotation using variational inference.
 
     This is an implementation of the scANVI model described in :cite:p:`Xu21`,
