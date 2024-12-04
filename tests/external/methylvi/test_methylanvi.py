@@ -19,7 +19,7 @@ def test_methylanvi():
         mdata,
         mc_layer="mc",
         cov_layer="cov",
-        labels_key="mod1:labels",
+        labels_key="labels",
         unlabeled_category="unknown",
         methylation_contexts=["mod1", "mod2"],
         batch_key="batch",
