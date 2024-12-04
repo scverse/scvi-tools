@@ -164,3 +164,5 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
         )
 
         model.train(1, datasplitter_kwargs=datasplitter_kwargs)
+
+        torch.distributed.destroy_process_group()

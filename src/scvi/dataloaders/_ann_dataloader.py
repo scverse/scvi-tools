@@ -124,7 +124,7 @@ class AnnDataLoader(DataLoader):
                     drop_last=drop_last,
                     drop_dataset_tail=drop_dataset_tail,
                     shuffle=shuffle,
-                    **kwargs,
+                    # **kwargs,
                 )
             # do not touch batch size here, sampler gives batched indices
             # This disables PyTorch automatic batching, which is necessary

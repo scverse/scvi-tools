@@ -580,7 +580,7 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
     check_no_logits_and_softmax(model)
 
 
-# def test_scanvi_train_ddp():
+# def test_scanvi_train_ddp(save_path: str):
 #     training_code = """
 # import torch
 # import scvi
@@ -609,13 +609,10 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 #
 # assert model.is_trained
 # """
-#
+#     import subprocess
 #     if torch.cuda.is_available():
-#         # Get the current working directory (CWD)
-#         cwd = os.getcwd()
-#
 #         # Define the file path for the temporary script in the current working directory
-#         temp_file_path = os.path.join(cwd, "train_scanvi_ddp_temp.py")
+#         temp_file_path = os.path.join(save_path, "train_scanvi_ddp_temp.py")
 #
 #         # Write the training code to the file in the current working directory
 #         with open(temp_file_path, "w") as temp_file:
