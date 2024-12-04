@@ -29,7 +29,7 @@ from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.model.base import (
     ArchesMixin,
     BaseModelClass,
-    SemiSupervisedMixin,
+    SemisupervisedTrainingMixin,
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
@@ -627,7 +627,7 @@ class METHYLVI(VAEMixin, UnsupervisedTrainingMixin, ArchesMixin, BaseModelClass)
         return result
 
 
-class METHYLANVI(VAEMixin, SemiSupervisedMixin, ArchesMixin, BaseModelClass):
+class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, ArchesMixin, BaseModelClass):
     """Methylation annotation using variational inference :cite:p:`Weinberger23`.
 
     Inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
