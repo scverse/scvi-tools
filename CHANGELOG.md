@@ -34,6 +34,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Refactored code for minified models. {pr}`2883`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
+- Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
 
 #### Fixed
 
