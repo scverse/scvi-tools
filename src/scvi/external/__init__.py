@@ -4,6 +4,7 @@ from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLVI
 from .mrvi import MRVI
+from .poissonmultivi import POISSONMULTIVI
 from .poissonvi import POISSONVI
 from .scar import SCAR
 from .scbasset import SCBASSET
@@ -23,6 +24,7 @@ __all__ = [
     "Tangram",
     "SCBASSET",
     "POISSONVI",
+    "POISSONMULTIVI",
     "ContrastiveVI",
     "VELOVI",
     "MRVI",
