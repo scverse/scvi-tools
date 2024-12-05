@@ -60,6 +60,8 @@ dependencies = [
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
+test = ["scvi-tools[tests]"]
+cuda = ["torchvision","torchaudio","jax[cuda]"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -113,7 +115,7 @@ tutorials = [
     "squidpy",
 ]
 
-all = ["scvi-tools[dev,docs,tutorials]"]
+all = ["scvi-tools[cuda,dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/scvi']
