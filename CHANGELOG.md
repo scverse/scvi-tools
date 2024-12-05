@@ -6,7 +6,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.2
 
-### 1.3.0 (2024-XX-XX)
+### 1.3.0 (2025-XX-XX)
 
 #### Added
 
@@ -18,6 +18,18 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`.
+
+### 1.2.2 (2024-XX-XX)
+
+#### Added
+
+- Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
 
 ### 1.2.1 (2024-12-04)
 
@@ -34,7 +46,6 @@ to [Semantic Versioning]. Full commit history is available in the
 - Refactored code for minified models. {pr}`2883`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
-- Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
 
 #### Fixed
 
