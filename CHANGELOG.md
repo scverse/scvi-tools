@@ -27,7 +27,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fix models trained with pandas<2.0 can be loaded in pandas>2.0. {pr}`3079`.
+- Fix models trained with pandas\<2.0 can be loaded in pandas>2.0. {pr}`3079`.
 
 #### Changed
 
