@@ -636,6 +636,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
 
         # change indices to categorical, for compatibility across Pandas versions.
+        if self.history is None:
+            self.history = {}
         for key in self.history:
             self.history[key].index = self.history[key].index.astype("category")
         # get all the user attributes
