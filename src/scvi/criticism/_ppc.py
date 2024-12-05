@@ -152,14 +152,14 @@ class PosteriorPredictiveCheck:
             samples_dict[m] = DataArray(
                 data=pp_counts,
                 coords={
-                    "cells": self.adata.obs_names,
-                    "features": model.adata.var_names,
+                    "cells": list(self.adata.obs_names),
+                    "features": list(self.adata.var_names),
                     "samples": np.arange(self.n_samples),
                 },
             )
         samples_dict[DATA_VAR_RAW] = DataArray(
             data=self.raw_counts,
-            coords={"cells": self.adata.obs_names, "features": self.adata.var_names},
+            coords={"cells": list(self.adata.obs_names), "features": list(self.adata.var_names)},
         )
         self.samples_dataset = Dataset(samples_dict)
 

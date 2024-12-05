@@ -209,7 +209,8 @@ class HubModel:
             collection_slug = "scvi-tools/stereoscope-673c3ddcf1f9f7542b8819d6"
         else:
             warnings.warn(
-                f"No collection found for this model. Please request a new collection for {self.metadata.model_cls_name}.",
+                "No collection found for this model."
+                f"Please request a new collection for {self.metadata.model_cls_name}.",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )

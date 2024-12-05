@@ -122,7 +122,7 @@ def _cv_metrics(ppc, model, cell_wise: bool = True):
     raw_metric = ppc.metrics[metric]["Raw"].values
 
     # log mae, pearson corr, spearman corr, R^2
-    if cell_wise:
+    if cell_wise and len(model.train_indices) > 0 and len(model.validation_indices) > 0:
         indices = [model.train_indices, model.validation_indices]
 
         mae_values = [
