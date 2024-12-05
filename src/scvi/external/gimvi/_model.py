@@ -452,6 +452,8 @@ class GIMVI(VAEMixin, BaseModelClass):
         seq_var_names = seq_adata.var_names.astype(str).to_numpy()
         spatial_var_names = spatial_adata.var_names.astype(str).to_numpy()
 
+        if self.history is None:
+            self.history = {}
         # change indices to categorical, for compatibility across Pandas versions.
         for key in self.history:
             self.history[key].index = self.history[key].index.astype("category")

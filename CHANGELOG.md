@@ -19,6 +19,18 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`.
 
+### 1.2.2 (XXX)
+
+#### Added
+
+#### Fixed
+
+- Fix models trained with pandas<2.0 can be loaded in pandas>2.0. {pr}`3079`.
+
+#### Changed
+
+#### Removed
+
 ### 1.2.1 (2024-12-04)
 
 #### Added
