@@ -94,7 +94,7 @@ regseq = ["biopython>=1.81", "genomepy"]
 # read loom
 loompy = ["loompy>=3.0.6"]
 # scvi.criticism and read 10x
-scanpy = ["scanpy>=1.6"]
+scanpy = ["scanpy>=1.6","scikit-misc"]
 
 optional = [
     "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
@@ -108,7 +108,6 @@ tutorials = [
     "pooch",
     "pynndescent",
     "igraph",
-    "scikit-misc",
     "scrublet",
     "scib-metrics",
     "scvi-tools[optional]",
