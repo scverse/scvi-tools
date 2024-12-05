@@ -12,13 +12,15 @@ from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
 from scvi.data import _constants
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
 from scvi.model.base import BaseModelClass
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module._constants import MODULE_KEYS
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
 from scvi.nn._utils import ExpActivation
 
@@ -26,7 +28,7 @@ torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(BaseModuleClass):
+class TOTALVAE(BaseMinifiedModeModuleClass):
     """Total variational inference for CITE-seq data.
 
     Implements the totalVI model of :cite:p:`GayosoSteier21`.
@@ -324,25 +326,37 @@ class TOTALVAE(BaseModuleClass):
 
         return reconst_loss_gene, reconst_loss_protein
 
-    def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+    def _get_inference_input(
+        self,
+        tensors,
+        full_forward_pass: bool = False,
+    ) -> dict[str, torch.Tensor | None]:
+        """Get input tensors for the inference process."""
+        if full_forward_pass or self.minified_data_type is None:
+            loader = "full_data"
+        elif self.minified_data_type in [
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS,
+        ]:
+            loader = "minified_data"
+        else:
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-        input_dict = {
-            "x": x,
-            "y": y,
-            "batch_index": batch_index,
-            "cat_covs": cat_covs,
-            "cont_covs": cont_covs,
-        }
-        return input_dict
+        if loader == "full_data":
+            return {
+                MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
+                MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY],
+                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+                MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
+                MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
+            }
+        else:
+            return {
+                MODULE_KEYS.QZM_KEY: tensors[REGISTRY_KEYS.LATENT_QZM_KEY],
+                MODULE_KEYS.QZV_KEY: tensors[REGISTRY_KEYS.LATENT_QZV_KEY],
+                REGISTRY_KEYS.OBSERVED_LIB_SIZE: tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE],
+                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+            }
 
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
@@ -433,7 +447,45 @@ class TOTALVAE(BaseModuleClass):
         }
 
     @auto_move_data
-    def inference(
+    def _cached_inference(
+        self,
+        qzm: torch.Tensor,
+        qzv: torch.Tensor,
+        batch_index: torch.Tensor,
+        observed_lib_size: torch.Tensor,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
+        """Run the cached inference process."""
+        library = observed_lib_size
+        qz = Normal(qzm, qzv)
+        untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
+        z = self.encoder.z_transformation(untran_z)
+        library = torch.log(observed_lib_size)
+        if n_samples > 1:
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
+
+        if self.n_batch > 0:
+            py_back_alpha_prior = F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
+            )
+            py_back_beta_prior = F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                torch.exp(self.background_pro_log_beta),
+            )
+        else:
+            py_back_alpha_prior = self.background_pro_alpha
+            py_back_beta_prior = torch.exp(self.background_pro_log_beta)
+        self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
+
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.QL_KEY: None,
+            "library_gene": observed_lib_size,
+        }
+
+    @auto_move_data
+    def _regular_inference(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
@@ -515,24 +567,6 @@ class TOTALVAE(BaseModuleClass):
             else:
                 library_gene = self.encoder.l_transformation(untran_l)
 
-        # Background regularization
-        if self.gene_dispersion == "gene-label":
-            # px_r gets transposed - last dimension is nb genes
-            px_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r)
-        elif self.gene_dispersion == "gene-batch":
-            px_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r)
-        elif self.gene_dispersion == "gene":
-            px_r = self.px_r
-        px_r = torch.exp(px_r)
-
-        if self.protein_dispersion == "protein-label":
-            # py_r gets transposed - last dimension is n_proteins
-            py_r = F.linear(one_hot(label.squeeze(-1), self.n_labels).float(), self.py_r)
-        elif self.protein_dispersion == "protein-batch":
-            py_r = F.linear(one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.py_r)
-        elif self.protein_dispersion == "protein":
-            py_r = self.py_r
-        py_r = torch.exp(py_r)
         if self.n_batch > 0:
             py_back_alpha_prior = F.linear(
                 one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
@@ -547,10 +581,9 @@ class TOTALVAE(BaseModuleClass):
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
         return {
-            "qz": qz,
-            "z": z,
-            "untran_z": untran_z,
-            "ql": ql,
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.QL_KEY: ql,
             "library_gene": library_gene,
             "untran_l": untran_l,
         }
@@ -656,7 +689,7 @@ class TOTALVAE(BaseModuleClass):
         inference_kwargs = {"n_samples": n_samples}
         with torch.inference_mode():
             (
-                inference_outputs,
+                _,
                 generative_outputs,
             ) = self.forward(
                 tensors,
@@ -691,12 +724,11 @@ class TOTALVAE(BaseModuleClass):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
             # outputs = self.module.inference(x, y, batch_index, labels)
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
+            qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+            ql = inference_outputs[MODULE_KEYS.QL_KEY]
+            z = inference_outputs[MODULE_KEYS.Z_KEY]
             py_ = generative_outputs["py_"]
-            log_library = inference_outputs["untran_l"]
             # really need not softmax transformed random variable
-            z = inference_outputs["untran_z"]
             log_pro_back_mean = generative_outputs["log_pro_back_mean"]
 
             # Reconstruction Loss
@@ -708,6 +740,7 @@ class TOTALVAE(BaseModuleClass):
             log_prob_sum = torch.zeros(qz.loc.shape[0]).to(self.device)
 
             if not self.use_observed_lib_size:
+                log_library = inference_outputs["untran_l"]
                 n_batch = self.library_log_means.shape[1]
                 local_library_log_means = F.linear(
                     one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
