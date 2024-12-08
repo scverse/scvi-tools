@@ -103,7 +103,7 @@ def multiprocessing_worker(
 ):
     # initializes the distributed backend that takes care of synchronizing processes
     torch.distributed.init_process_group(
-        "nccl",  # backend that works on all systems
+        "nccl",
         init_method=f"file://{save_path}/dist_file",
         rank=rank,
         world_size=world_size,
