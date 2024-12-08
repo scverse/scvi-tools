@@ -91,7 +91,7 @@ def test_download_seurat_v4_pbmc(save_path: str):
 
 @pytest.mark.internet
 def test_download_cellxgene(save_path: str):
-    url = "https://cellxgene.cziscience.com/e/8d73847b-33e7-48f0-837f-e3e6579bf12d.cxg/"
+    url = "https://cellxgene.cziscience.com/e/de985818-285f-4f59-9dbd-d74968fddba3.cxg/"
     filename = "cellxgene.h5ad"
     scvi.data.cellxgene(url, save_path=save_path, filename=filename)
     anndata.read_h5ad(os.path.join(save_path, filename))

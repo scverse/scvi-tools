@@ -56,22 +56,31 @@ def pytest_collection_modifyitems(config, items):
     """Docstring for pytest_collection_modifyitems."""
     run_internet = config.getoption("--internet-tests")
     skip_internet = pytest.mark.skip(reason="need --internet-tests option to run")
+    skip_non_internet = pytest.mark.skip(reason="test not having a pytest.mark.internet decorator")
     for item in items:
         # All tests marked with `pytest.mark.internet` get skipped unless
         # `--internet-tests` passed
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
+        # Skip all tests not marked with `pytest.mark.internet` if `--internet` passed
+        elif run_internet and ("internet" not in item.keywords):
+            item.add_marker(skip_non_internet)
 
     run_optional = config.getoption("--optional")
     skip_optional = pytest.mark.skip(reason="need --optional option to run")
+    skip_non_optional = pytest.mark.skip(reason="test not having a pytest.mark.optional decorator")
     for item in items:
         # All tests marked with `pytest.mark.optional` get skipped unless
         # `--optional` passed
         if not run_optional and ("optional" in item.keywords):
             item.add_marker(skip_optional)
+        # Skip all tests not marked with `pytest.mark.optional` if `--optional` passed
+        elif run_optional and ("optional" not in item.keywords):
+            item.add_marker(skip_non_optional)
 
     run_private = config.getoption("--private")
     skip_private = pytest.mark.skip(reason="need --private option to run")
+    skip_non_private = pytest.mark.skip(reason="test not having a pytest.mark.private decorator")
     for item in items:
         # All tests marked with `pytest.mark.private` get skipped unless
         # `--private` passed
@@ -79,7 +88,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_private)
         # Skip all tests not marked with `pytest.mark.private` if `--private` passed
         elif run_private and ("private" not in item.keywords):
-            item.add_marker(skip_private)
+            item.add_marker(skip_non_private)
 
 
 @pytest.fixture(scope="session")
