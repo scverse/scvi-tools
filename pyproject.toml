@@ -97,7 +97,7 @@ loompy = ["loompy>=3.0.6"]
 scanpy = ["scanpy>=1.6"]
 
 optional = [
-    "scvi-tools[autotune,aws,census,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
