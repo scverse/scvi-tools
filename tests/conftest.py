@@ -113,7 +113,7 @@ def save_path(tmp_path_factory):
     """Docstring for save_path."""
     dir = tmp_path_factory.mktemp("temp_data", numbered=False)
     path = str(dir)
-    shutil.copy_tree("tests/test_data", path)
+    shutil.copytree("tests/test_data", path)
     yield path + "/"
     shutil.rmtree(str(tmp_path_factory.getbasetemp()))
 
