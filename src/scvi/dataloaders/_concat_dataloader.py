@@ -54,11 +54,6 @@ class ConcatDataLoader(DataLoader):
         self._batch_size = batch_size
         self._drop_last = drop_last
         self._distributed_sampler = distributed_sampler
-        # self._drop_dataset_tail = (
-        #     self.dataloader_kwargs["drop_dataset_tail"]
-        #     if "drop_dataset_tail" in self.dataloader_kwargs.keys()
-        #     else False
-        # )
 
         self.dataloaders = []
         for indices in indices_list:

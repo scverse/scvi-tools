@@ -36,14 +36,6 @@ class BatchDistributedSampler(DistributedSampler):
         drop_dataset_tail: bool = False,
         **kwargs,
     ):
-        # for redundant_key in [
-        #     "pin_memory",
-        #     "num_workers",
-        #     "persistent_workers",
-        # ]:
-        #     if redundant_key in kwargs:
-        #         kwargs.pop(redundant_key)
-
         super().__init__(dataset, drop_last=drop_dataset_tail, **kwargs)
         self.batch_size = batch_size
         self.drop_last_batch = drop_last  # drop_last already defined in parent

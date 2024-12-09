@@ -1,7 +1,6 @@
 import shutil
 
 import pytest
-from distutils.dir_util import copy_tree
 
 import scvi
 from tests.data.utils import generic_setup_adata_manager
@@ -14,6 +13,12 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Run tests that retrieve stuff from the internet. This increases test time.",
+    )
+    parser.addoption(
+        "--multigpu-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that are desinged for multiGPU.",
     )
     parser.addoption(
         "--optional",
@@ -62,7 +67,7 @@ def pytest_collection_modifyitems(config, items):
         # `--internet-tests` passed
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
-        # Skip all tests not marked with `pytest.mark.internet` if `--internet` passed
+        # Skip all tests not marked with `pytest.mark.internet` if `--internet-tests` passed
         elif run_internet and ("internet" not in item.keywords):
             item.add_marker(skip_non_internet)
 
@@ -90,13 +95,25 @@ def pytest_collection_modifyitems(config, items):
         elif run_private and ("private" not in item.keywords):
             item.add_marker(skip_non_private)
 
+    run_multigpu = config.getoption("--multigpu-tests")
+    skip_multigpu = pytest.mark.skip(reason="need --multigpu-tests option to run")
+    skip_non_multigpu = pytest.mark.skip(reason="test not having a pytest.mark.multigpu decorator")
+    for item in items:
+        # All tests marked with `pytest.mark.multigpu` get skipped unless
+        # `--multigpu-tests` passed
+        if not run_multigpu and ("multigpu" in item.keywords):
+            item.add_marker(skip_multigpu)
+        # Skip all tests not marked with `pytest.mark.multigpu` if `--multigpu-tests` passed
+        elif run_multigpu and ("multigpu" not in item.keywords):
+            item.add_marker(skip_non_multigpu)
+
 
 @pytest.fixture(scope="session")
 def save_path(tmp_path_factory):
     """Docstring for save_path."""
     dir = tmp_path_factory.mktemp("temp_data", numbered=False)
     path = str(dir)
-    copy_tree("tests/test_data", path)
+    shutil.copy_tree("tests/test_data", path)
     yield path + "/"
     shutil.rmtree(str(tmp_path_factory.getbasetemp()))
 
