@@ -35,7 +35,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Updated the CI workflow with internet, private and optional tests {pr}`3082`.
 - Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
-    instances from {class}`anndata.abc` and {class}`anndata.io` {pr}`30XX`.
+    instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
 
 #### Removed
 
