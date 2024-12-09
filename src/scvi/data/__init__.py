@@ -1,4 +1,5 @@
-from anndata import read_csv, read_h5ad, read_loom, read_text
+from anndata import read_h5ad
+from anndata.io import read_csv, read_loom, read_text
 
 from ._anntorchdataset import AnnTorchDataset
 from ._datasets import (

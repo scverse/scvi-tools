@@ -40,7 +40,7 @@ def _load_csv(
     first_column_names: bool = None,
 ):
     logger.info(f"Loading dataset from {path_to_file}")
-    adata = anndata.read_csv(
+    adata = anndata.io.read_csv(
         path_to_file, delimiter=delimiter, first_column_names=first_column_names
     )
     if gene_by_cell:
