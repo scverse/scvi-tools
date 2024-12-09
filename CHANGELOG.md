@@ -16,6 +16,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Updated the CI workflow with internet, private and optional tests {pr}`3082`.
+
 #### Removed
 
 ### 1.2.1 (2024-12-04)
