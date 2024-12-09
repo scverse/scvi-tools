@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 
 try:
-    # anndata >= 0.10
-    from anndata.experimental import CSCDataset, CSRDataset
+    # anndata >= 0.11
+    from anndata.abc import CSCDataset, CSRDataset
 
     SparseDataset = (CSRDataset, CSCDataset)
 except ImportError:
