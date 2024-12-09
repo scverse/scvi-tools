@@ -27,7 +27,11 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Fixed bug in distributed `scvi.dataloaders._concat_dataloader` {pr}`3053`.
+
 #### Changed
+
+- Updated the CI workflow with internet, private, optional and multiGPU tests {pr}`3082`.
 
 #### Removed
 
