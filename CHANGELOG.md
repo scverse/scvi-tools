@@ -6,15 +6,60 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.2
 
-### 1.2.1 (2024-XX-XX)
+### 1.3.0 (2025-XX-XX)
 
 #### Added
+
+- Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
+    representation learning in single-cell RNA sequencing data {pr}`3015`.
+
+#### Fixed
+
+- Fixed bug in distributed `scvi.dataloaders._concat_dataloader` {pr}`3053`.
+
+#### Changed
+
+- Updated the CI workflow with multiGPU tests {pr}`3053`.
+
+#### Removed
+
+### 1.2.2 (2024-XX-XX)
+
+#### Added
+
+- Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+
+#### Fixed
+
+#### Changed
+
+- Updated the CI workflow with internet, private and optional tests {pr}`3082`.
+
+#### Removed
+
+### 1.2.1 (2024-12-04)
+
+#### Added
+
+- Added adaptive handling for last training minibatch of 1-2 cells in case of
+    `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
+    validation set, if available. {pr}`3036`.
+- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
+- Implemented variance of ZINB distribution. {pr}`3044`.
+- Support for minified mode while retaining counts to skip the encoder.
+- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+    the encoder.
+- Refactored code for minified models. {pr}`2883`.
+- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
+    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
+- Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
 
 #### Changed
 
@@ -68,8 +113,6 @@ to [Semantic Versioning]. Full commit history is available in the
     data {pr}`2756`.
 - Add support for reference mapping with {class}`mudata.MuData` models to
     {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
-- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
-    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 - Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
     and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
     without averaging across cells {pr}`2362`.
@@ -1580,7 +1623,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 #### Enhancements
 
-##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method  <!-- markdownlint-disable -->
+##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
 It is now possible to iteratively update these models with new samples, without altering the model
 for the "reference" population. Here we use the
@@ -1642,7 +1685,7 @@ use scvi-tools is with our documentation and tutorials.
 - New high-level API and data loading, please see tutorials and examples for usage.
 - `GeneExpressionDataset` and associated classes have been removed.
 - Built-in datasets now return `AnnData` objects.
-- `scvi-tools` now relies entirely on the \[AnnData\] format.
+- `scvi-tools` now relies entirely on the [AnnData] format.
 - `scvi.models` has been moved to `scvi.core.module`.
 - `Posterior` classes have been reduced to wrappers on `DataLoaders`
 - `scvi.inference` has been split to `scvi.core.data_loaders` for `AnnDataLoader` classes and
