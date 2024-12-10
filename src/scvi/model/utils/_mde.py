@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
 import torch
 
@@ -11,7 +13,6 @@ from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
-    import numpy as np
     from scipy.sparse import spmatrix
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,9 @@ def mde(
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obsm["X_mde"] = scvi.model.utils.mde(adata.obsm["X_scVI"])
     """
+    # Check numpy version for mde
+    if np.__version__ >= "2.0.0" and sys.version.split()[0] < "3.12.0":
+        raise ValueError("Using mde for python <=3.11 requires Numpy version smaller than 2.0.0")
     try:
         import pymde
     except ImportError as err:

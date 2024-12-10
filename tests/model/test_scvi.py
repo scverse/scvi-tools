@@ -179,8 +179,16 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     model = SCVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
-    # test mde
-    mde(model.get_latent_representation())
+    # test mde + assertion for numpy>=2
+    try:
+        mde(model.get_latent_representation())
+    except ValueError:
+        # Use pytest.raises to check that the exception is raised
+        with pytest.raises(
+            ValueError,
+            match="Using mde for python <=3.11 requires Numpy version smaller than 2.0.0",
+        ):
+            mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
