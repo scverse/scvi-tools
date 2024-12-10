@@ -40,6 +40,7 @@ dependencies = [
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
+    "numpy",
     "numpyro>=0.12.1",
     "pandas",
     "pyro-ppl>=1.6.0",
@@ -83,7 +84,7 @@ autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
-census = ["cellxgene-census"]
+census = ["cellxgene-census","numpy<2.0"]
 # scvi.hub dependencies
 hub = ["huggingface_hub"]
 # scvi.model.utils.mde dependencies
@@ -91,12 +92,12 @@ pymde = ["pymde"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # read loom
-loompy = ["loompy>=3.0.6"]
+loompy = ["loompy>=3.0.6","numpy<2.0"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.6"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,pymde,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
