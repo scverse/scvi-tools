@@ -1,3 +1,6 @@
+from time import time
+
+import torch
 from torch.nn import Linear
 
 from scvi.data import synthetic_iid
@@ -68,3 +71,45 @@ def test_poissonvi_non_default_params(
 
     model.train(max_epochs=1)
     assert model.get_latent_representation().shape[1] == n_latent
+
+
+def test_cpu_gpu_poissonvi():
+    if torch.cuda.is_available():
+        adata = synthetic_iid(10000, 500)
+
+        POISSONVI.setup_anndata(adata)
+
+        m = POISSONVI(adata)
+        training_start_time = time()
+        m.train(
+            accelerator="cpu",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": False},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"CPU Training finished, took {time() - training_start_time:.2f}s")
+        m.get_latent_representation()
+        m.get_elbo()
+        m.get_reconstruction_error()
+        m.get_accessibility_estimates()
+        m.get_region_factors()
+
+        # run the exact same thing on GPU:
+        m2 = POISSONVI(adata)
+        training_start_time2 = time()
+        m2.train(
+            accelerator="cuda",
+            batch_size=5000,
+            max_epochs=100,
+            train_size=0.9,
+            plan_kwargs={"n_epochs_kl_warmup": 100, "compile": True},
+            datasplitter_kwargs={"drop_last": True},
+        )
+        print(f"Compile + GPU Training finished, took {time() - training_start_time2:.2f}s")
+        m2.get_latent_representation()
+        m2.get_elbo()
+        m2.get_reconstruction_error()
+        m2.get_accessibility_estimates()
+        m2.get_region_factors()
