@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import h5py
@@ -9,21 +10,8 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
-
-try:
-    from anndata.abc import CSCDataset, CSRDataset
-
-    SparseDataset = (CSRDataset, CSCDataset)
-except ImportError:
-    from anndata._core.sparse_dataset import SparseDataset
-
-try:
-    from anndata.io import read_elem
-except ImportError:
-    from anndata._io.specs import read_elem
-
-from typing import TYPE_CHECKING
-
+from anndata.abc import CSCDataset, CSRDataset
+from anndata.io import read_elem
 from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
@@ -39,6 +27,8 @@ if TYPE_CHECKING:
     from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
+
+SparseDataset = (CSRDataset, CSCDataset)
 
 
 def registry_key_to_default_dtype(key: str) -> type:
