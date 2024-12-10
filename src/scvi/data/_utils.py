@@ -11,14 +11,12 @@ import scipy.sparse as sp_sparse
 from anndata import AnnData
 
 try:
-    # anndata >= 0.11
     from anndata.abc import CSCDataset, CSRDataset
 
     SparseDataset = (CSRDataset, CSCDataset)
 except ImportError:
     from anndata._core.sparse_dataset import SparseDataset
 
-# TODO use the experimental api once we lower bound to anndata 0.8
 try:
     from anndata.io import read_elem
 except ImportError:
