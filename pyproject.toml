@@ -86,7 +86,7 @@ aws = ["boto3"]
 # scvi.data.cellxgene
 census = ["cellxgene-census"]
 # scvi.hub dependencies
-hub = ["huggingface_hub"]
+hub = ["huggingface_hub", "igraph", "leidenalg"]
 # scvi.model.utils.mde dependencies
 pymde = ["pymde"]
 # scvi.data.add_dna_sequence
