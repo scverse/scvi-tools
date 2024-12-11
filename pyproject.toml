@@ -93,9 +93,11 @@ pymde = ["pymde"]
 regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.6"]
+# for convinient files sharing
+pooch = ["pooch"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,pymde,pooch,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
@@ -103,7 +105,6 @@ tutorials = [
     "leidenalg",
     "muon",
     "plotnine",
-    "pooch",
     "pynndescent",
     "igraph",
     "scikit-misc",
