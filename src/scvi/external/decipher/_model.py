@@ -15,6 +15,7 @@ from scvi.utils import setup_anndata_dsp
 
 from ._module import DecipherPyroModule
 from ._trainingplan import DecipherTrainingPlan
+from .utils._utils import rot
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,9 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
+        adata_manager = AnnDataManager(
+            fields=anndata_fields, setup_method_args=setup_method_args
+        )
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -138,7 +141,9 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
         latent_locs = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
@@ -151,3 +156,42 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
                 v_loc, _ = self.module.encoder_zx_to_v(torch.cat([z_loc, x], dim=-1))
                 latent_locs.append(v_loc)
         return torch.cat(latent_locs).detach().cpu().numpy()
+
+    # def decipher_gene_imputation(adata):
+    #     """Impute gene expression from the decipher model.
+
+    #     Parameters
+    #     ----------
+    #     adata: sc.AnnData
+    #         The annotated data matrix.
+
+    #     Returns
+    #     -------
+    #     `adata.layers['decipher_imputed']`: ndarray
+    #         The imputed gene expression.
+    #     """
+    #     decipher = decipher_load_model(adata)
+    #     imputed = decipher.impute_gene_expression_numpy(adata.X.toarray())
+    #     adata.layers["decipher_imputed"] = imputed
+    #     logging.info("Added `.layers['imputed']`: the Decipher imputed data.")
+
+    # def decipher_and_gene_covariance(adata):
+    #     if "decipher_imputed" not in adata.layers:
+    #         decipher_gene_imputation(adata)
+    #     gene_expression_imputed = adata.layers["decipher_imputed"]
+    #     adata.varm["decipher_v_gene_covariance"] = np.cov(
+    #         gene_expression_imputed,
+    #         y=adata.obsm["decipher_v"],
+    #         rowvar=False,
+    #     )[: adata.X.shape[1], adata.X.shape[1] :]
+    #     logging.info(
+    #         "Added `.varm['decipher_v_gene_covariance']`: the covariance between Decipher v and each gene."
+    #     )
+    #     adata.varm["decipher_z_gene_covariance"] = np.cov(
+    #         gene_expression_imputed,
+    #         y=adata.obsm["decipher_z"],
+    #         rowvar=False,
+    #     )[: adata.X.shape[1], adata.X.shape[1] :]
+    #     logging.info(
+    #         "Added `.varm['decipher_z_gene_covariance']`: the covariance between Decipher z and each gene."
+    #     )
