@@ -163,7 +163,10 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-    ):
+        compute_covariances: bool = False,
+        v_obsm_key: str | None = None,
+        z_obsm_key: str | None = None,
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Impute gene expression from the decipher model.
 
         Parameters
@@ -174,11 +177,25 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             Indices of the data to get the latent representation of.
         batch_size
             Batch size to use for the data loader.
+        compute_covariances
+            Whether to compute the covariances between the Decipher v and each gene.
+        v_obsm_key
+            Key in `adata.obsm` to use for the Decipher v. Required if
+            `compute_covariances` is True.
+        z_obsm_key
+            Key in `adata.obsm` to use for the Decipher z. Required if
+            `compute_covariances` is True.
 
         Returns
         -------
-        The imputed gene expression.
+        The imputed gene expression, and the covariances between the Decipher v and each gene
+        if `compute_covariances` is True.
         """
+        if compute_covariances and (v_obsm_key is None or z_obsm_key is None):
+            raise ValueError(
+                "`v_obsm_key` and `z_obsm_key` must be provided if `compute_covariances` is True."
+            )
+
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(adata=adata, indices=None, batch_size=None)
 
@@ -191,25 +208,22 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             library_size = x.sum(axis=-1, keepdim=True)
             imputed_gene_expr = (library_size * mu).detach().cpu().numpy()
             imputed_gene_expression_batches.append(imputed_gene_expr)
-        return np.concatenate(imputed_gene_expression_batches, axis=0)
+        imputed_gene_expression = np.concatenate(
+            imputed_gene_expression_batches, axis=0
+        )
 
-    # def decipher_and_gene_covariance(adata):
-    #     if "decipher_imputed" not in adata.layers:
-    #         decipher_gene_imputation(adata)
-    #     gene_expression_imputed = adata.layers["decipher_imputed"]
-    #     adata.varm["decipher_v_gene_covariance"] = np.cov(
-    #         gene_expression_imputed,
-    #         y=adata.obsm["decipher_v"],
-    #         rowvar=False,
-    #     )[: adata.X.shape[1], adata.X.shape[1] :]
-    #     logging.info(
-    #         "Added `.varm['decipher_v_gene_covariance']`: the covariance between Decipher v and each gene."
-    #     )
-    #     adata.varm["decipher_z_gene_covariance"] = np.cov(
-    #         gene_expression_imputed,
-    #         y=adata.obsm["decipher_z"],
-    #         rowvar=False,
-    #     )[: adata.X.shape[1], adata.X.shape[1] :]
-    #     logging.info(
-    #         "Added `.varm['decipher_z_gene_covariance']`: the covariance between Decipher z and each gene."
-    #     )
+        if compute_covariances:
+            G = imputed_gene_expression.shape[1]
+            v_gene_covariance = np.cov(
+                imputed_gene_expression,
+                y=adata.obsm[v_obsm_key],
+                rowvar=False,
+            )[:G, G:]
+            z_gene_covariance = np.cov(
+                imputed_gene_expression,
+                y=adata.obsm[z_obsm_key],
+                rowvar=False,
+            )[:G, G:]
+            return imputed_gene_expression, v_gene_covariance, z_gene_covariance
+
+        return imputed_gene_expression
