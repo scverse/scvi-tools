@@ -16,7 +16,6 @@ from scvi.utils import setup_anndata_dsp
 
 from ._module import DecipherPyroModule
 from ._trainingplan import DecipherTrainingPlan
-from .utils._utils import rot
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +196,9 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             )
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=None, batch_size=None)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
 
         imputed_gene_expression_batches = []
         for tensors in scdl:

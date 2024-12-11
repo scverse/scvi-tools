@@ -8,7 +8,7 @@ def _rot(t, u=1):
     return np.array([[np.cos(t), np.sin(t) * u], [-np.sin(t), np.cos(t) * u]])
 
 
-def rotate_space(
+def rotate_decipher_components(
     adata: AnnData,
     v_obsm_key: str,
     z_obsm_key: str,
@@ -60,6 +60,10 @@ def rotate_space(
             if v_order is not None:
                 v_obs = v_obs.astype("category").cat.set_categories(v_order)
                 v_obs = v_obs.cat.codes.replace(-1, np.nan)
+            elif v_obs.dtype == "category":
+                raise ValueError(
+                    "v_order must be provided if v_obs is a category column"
+                )
             v_valid_cells = ~v_obs.isna()
             v_obs = v_obs[v_valid_cells].astype(float)
             return v_obs, v_valid_cells
