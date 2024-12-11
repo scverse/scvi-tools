@@ -4,6 +4,7 @@ from collections.abc import Sequence
 import numpy as np
 import pyro
 import torch
+import torch.nn.functional as F
 from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
@@ -157,23 +158,40 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
                 latent_locs.append(v_loc)
         return torch.cat(latent_locs).detach().cpu().numpy()
 
-    # def decipher_gene_imputation(adata):
-    #     """Impute gene expression from the decipher model.
+    def compute_imputed_gene_expression(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+    ):
+        """Impute gene expression from the decipher model.
 
-    #     Parameters
-    #     ----------
-    #     adata: sc.AnnData
-    #         The annotated data matrix.
+        Parameters
+        ----------
+        adata
+            The annotated data matrix.
+        indices
+            Indices of the data to get the latent representation of.
+        batch_size
+            Batch size to use for the data loader.
 
-    #     Returns
-    #     -------
-    #     `adata.layers['decipher_imputed']`: ndarray
-    #         The imputed gene expression.
-    #     """
-    #     decipher = decipher_load_model(adata)
-    #     imputed = decipher.impute_gene_expression_numpy(adata.X.toarray())
-    #     adata.layers["decipher_imputed"] = imputed
-    #     logging.info("Added `.layers['imputed']`: the Decipher imputed data.")
+        Returns
+        -------
+        The imputed gene expression.
+        """
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(adata=adata, indices=None, batch_size=None)
+
+        imputed_gene_expression_batches = []
+        for tensors in scdl:
+            x = tensors[REGISTRY_KEYS.X_KEY]
+            z_loc, _, _, _ = self.module.guide(x)
+            mu = self.module.decoder_z_to_x(z_loc)
+            mu = F.softmax(mu, dim=-1)
+            library_size = x.sum(axis=-1, keepdim=True)
+            imputed_gene_expr = (library_size * mu).detach().cpu().numpy()
+            imputed_gene_expression_batches.append(imputed_gene_expr)
+        return np.concatenate(imputed_gene_expression_batches, axis=0)
 
     # def decipher_and_gene_covariance(adata):
     #     if "decipher_imputed" not in adata.layers:
