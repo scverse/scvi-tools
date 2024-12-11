@@ -5,6 +5,7 @@ import numpy as np
 import pyro
 import torch
 import torch.nn.functional as F
+from sklearn.neighbors import KNeighborsRegressor
 from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
@@ -16,8 +17,7 @@ from scvi.utils import setup_anndata_dsp
 
 from ._module import DecipherPyroModule
 from ._trainingplan import DecipherTrainingPlan
-
-logger = logging.getLogger(__name__)
+from .utils._trajectory import Trajectory
 
 
 class Decipher(PyroSviTrainMixin, BaseModelClass):
@@ -228,3 +228,42 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             return imputed_gene_expression, v_gene_covariance, z_gene_covariance
 
         return imputed_gene_expression
+
+    @staticmethod
+    def compute_decipher_time(
+        adata: AnnData,
+        cluster_obs_key: str,
+        trajectory: Trajectory,
+        n_neighbors: int = 10,
+    ) -> np.ndarray:
+        """Compute the decipher time for each cell, based on the inferred trajectories.
+
+        The decipher time is computed by KNN regression of the cells' decipher v on the trajectories.
+
+        Parameters
+        ----------
+        adata : AnnData
+            The annotated data matrix.
+        cluster_obs_key : str
+            The key in adata.obs containing cluster assignments.
+        trajectory : Trajectory
+            A Trajectory object containing the trajectory information.
+        n_neighbors : int
+            The number of neighbors to use for the KNN regression.
+
+        Returns
+        -------
+        The decipher time of each cell.
+        """
+        decipher_time = np.full(adata.n_obs, np.nan)
+
+        knn = KNeighborsRegressor(n_neighbors=n_neighbors)
+        knn.fit(trajectory.trajectory_latent, trajectory.trajectory_time)
+        is_on_trajectory = adata.obs[cluster_obs_key].isin(trajectory.cluster_ids)
+        cells_on_trajectory_index = adata.obs[is_on_trajectory].index
+        cells_on_trajectory_idx = np.where(is_on_trajectory)[0]
+
+        decipher_time[cells_on_trajectory_index] = knn.predict(
+            adata.obsm[trajectory.rep_key][cells_on_trajectory_idx]
+        )
+        return decipher_time
