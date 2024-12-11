@@ -3,8 +3,6 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from scvi import settings
 
 from ._built_in_data._brain_large import _load_brainlarge_dataset
@@ -192,14 +190,10 @@ def smfish(
     >>> import scvi
     >>> adata = scvi.data.smfish()
     """
-    # Check numpy version for loompy
-    if np.__version__ < "2.0.0":
-        return _load_smfish(
-            save_path=save_path,
-            use_high_level_cluster=use_high_level_cluster,
-        )
-    else:
-        raise ValueError("smfish uses loompy which require Numpy version smaller than 2.0.0")
+    return _load_smfish(
+        save_path=save_path,
+        use_high_level_cluster=use_high_level_cluster,
+    )
 
 
 def purified_pbmc_dataset(

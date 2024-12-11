@@ -91,8 +91,6 @@ hub = ["huggingface_hub"]
 pymde = ["pymde"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# read loom
-loompy = ["loompy>=3.0.6","numpy<2.0"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.6"]
 

@@ -1,12 +1,8 @@
 import logging
 import os
 
-import numpy as np
-import pandas as pd
-from anndata import AnnData
-from anndata.io import read_loom
-
-from scvi.data._download import _download
+import pooch
+from anndata import AnnData, read_h5ad
 
 logger = logging.getLogger(__name__)
 
@@ -19,37 +15,15 @@ def _load_retina(save_path: str = "data/") -> AnnData:
     the author. We also extract their normalized data with Combat and use it for benchmarking.
     """
     save_path = os.path.abspath(save_path)
-    url = "https://github.com/YosefLab/scVI-data/raw/master/retina.loom"
-    save_fn = "retina.loom"
-    _download(url, save_path, save_fn)
-    # Check numpy version for loompy
-    if np.__version__ >= "2.0.0":
-        raise ValueError("reading a loom file requires Numpy version smaller than 2.0.0")
-    adata = read_loom(os.path.join(save_path, save_fn))
-    cell_types = [
-        "RBC",
-        "MG",
-        "BC5A",
-        "BC7",
-        "BC6",
-        "BC5C",
-        "BC1A",
-        "BC3B",
-        "BC1B",
-        "BC2",
-        "BC5D",
-        "BC3A",
-        "BC5B",
-        "BC4",
-        "BC8_9",
-    ]
-    adata.obs["labels"] = [
-        cell_types[i] for i in adata.obs["ClusterID"].values.astype(int).ravel()
-    ]
-    del adata.obs["ClusterID"]
-    adata.obs["batch"] = pd.Categorical(adata.obs["BatchID"].values.copy())
-    del adata.obs["BatchID"]
-
+    adata = read_h5ad(
+        pooch.retrieve(
+            url="https://figshare.com/ndownloader/files/51086201",
+            known_hash="5363642ff02647d6868494b962ec962a5d2e3d90703415e245e7c1727c66cf21",
+            fname="retina.h5ad",
+            path=save_path,
+            progressbar=True,
+        )
+    )
     return adata
 
 
@@ -59,42 +33,32 @@ def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     Contains 3,704 cells and 166 genes.
     """
     save_path = os.path.abspath(save_path)
-    url = "https://github.com/YosefLab/scVI-data/raw/master/mpfc-starmap.loom"
-    save_fn = "mpfc-starmap.loom"
-    _download(url, save_path, save_fn)
-    # Check numpy version for loompy
-    if np.__version__ >= "2.0.0":
-        raise ValueError("reading a loom file requires Numpy version smaller than 2.0.0")
-    adata = read_loom(os.path.join(save_path, save_fn))
-
-    adata.obs["labels"] = adata.obs.Clusters.values
-    del adata.obs["Clusters"]
-
-    adata.obs["batch"] = adata.obs.BatchID.values
-    del adata.obs["BatchID"]
-    adata.obs["x_coord"] = adata.obsm["Spatial_coordinates"][:, 0]
-    adata.obs["y_coord"] = adata.obsm["Spatial_coordinates"][:, 1]
-
+    adata = read_h5ad(
+        pooch.retrieve(
+            url="https://figshare.com/ndownloader/files/51086180",
+            known_hash="c583eaef3835960405c6f1124f5fda36da80db3f940b76c9b2432a8d2e0b80ce",
+            fname="mpfc-starmap.h5ad",
+            path=save_path,
+            progressbar=True,
+        )
+    )
     return adata
 
 
 def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
-    url = "https://github.com/YosefLab/scVI-data/raw/master/fc-dropseq.loom"
-    save_fn = "fc-dropseq.loom"
-    _download(url, save_path, save_fn)
-    # Check numpy version for loompy
-    if np.__version__ >= "2.0.0":
-        raise ValueError("reading a loom file requires Numpy version smaller than 2.0.0")
-    adata = read_loom(os.path.join(save_path, save_fn))
-    adata.obs["batch"] = adata.obs["Clusters"]
-    del adata.obs["Clusters"]
-    adata.obs["labels"] = np.zeros(adata.shape[0], dtype=np.int64)
-
+    adata = read_h5ad(
+        pooch.retrieve(
+            url="https://figshare.com/ndownloader/files/51086207",
+            known_hash="934a7179624a4c7c7dec1d5d53de5367fcd0054e5f19b7e245ecf2ecc88c188c",
+            fname="fc-dropseq.h5ad",
+            path=save_path,
+            progressbar=True,
+        )
+    )
     # reorder labels such that layers of the cortex are in order
     # order_labels = [5, 6, 3, 2, 4, 0, 1, 8, 7, 9, 10, 11, 12, 13]
     # self.reorder_cell_types(self.cell_types[order_labels])
-
     return adata
 
 
@@ -111,18 +75,23 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     save_path
         Location for saving the dataset.
     """
+    if name == "1":
+        fileid = "51086192"
+        known_hash = "5d604adce93b3034885646605c2e9a72f5ccf8163caffb2930485f93a9fcb3a3"
+    elif name == "2":
+        fileid = "51086195"
+        known_hash = "fdc2fb7c78e4c2a32877eb22aaed7cc627e22b256f122be670188c1069f741fa"
+    else:
+        fileid = "51086189"
+        known_hash = "58c11e8c4134175c3f525f0d823a12420493cdf545f3904e0f09bec479c31e55"
     save_path = os.path.abspath(save_path)
-    url = f"https://github.com/YosefLab/scVI-data/raw/master/simulation/simulation_{name}.loom"
-    save_fn = f"simulation_{name}.loom"
-    _download(url, save_path, save_fn)
-    if np.__version__ >= "2.0.0":
-        raise ValueError("reading a loom file requires Numpy version smaller than 2.0.0")
-    adata = read_loom(os.path.join(save_path, save_fn))
-
-    adata.obs["labels"] = adata.obs.ClusterID.values
-    del adata.obs["ClusterID"]
-
-    adata.obs["batch"] = adata.obs.BatchID.values
-    del adata.obs["BatchID"]
-
+    adata = read_h5ad(
+        pooch.retrieve(
+            url="https://figshare.com/ndownloader/files/" + fileid,
+            known_hash=known_hash,
+            fname=f"simulation_{name}.h5ad",
+            path=save_path,
+            progressbar=True,
+        )
+    )
     return adata
