@@ -92,7 +92,7 @@ class Trainer(pl.Trainer):
         accelerator: str | Accelerator | None = None,
         devices: list[int] | str | int | None = None,
         benchmark: bool = True,
-        check_val_every_n_epoch: int | None = None,
+        check_val_every_n_epoch: int | None = 1,
         max_epochs: int = 400,
         default_root_dir: str | None = None,
         enable_checkpointing: bool = False,
@@ -128,15 +128,12 @@ class Trainer(pl.Trainer):
                 mode=early_stopping_mode,
             )
             callbacks.append(early_stopping_callback)
-            check_val_every_n_epoch = 1
 
         if enable_checkpointing and not any(isinstance(c, SaveCheckpoint) for c in callbacks):
             callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
-            check_val_every_n_epoch = 1
         elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
             # check if user provided already provided the callback
             enable_checkpointing = True
-            check_val_every_n_epoch = 1
 
         if learning_rate_monitor and not any(
             isinstance(c, LearningRateMonitor) for c in callbacks
