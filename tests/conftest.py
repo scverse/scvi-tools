@@ -16,6 +16,12 @@ def pytest_addoption(parser):
         help="Run tests that retrieve stuff from the internet. This increases test time.",
     )
     parser.addoption(
+        "--multigpu-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that are desinged for multiGPU.",
+    )
+    parser.addoption(
         "--optional",
         action="store_true",
         default=False,
@@ -56,22 +62,31 @@ def pytest_collection_modifyitems(config, items):
     """Docstring for pytest_collection_modifyitems."""
     run_internet = config.getoption("--internet-tests")
     skip_internet = pytest.mark.skip(reason="need --internet-tests option to run")
+    skip_non_internet = pytest.mark.skip(reason="test not having a pytest.mark.internet decorator")
     for item in items:
         # All tests marked with `pytest.mark.internet` get skipped unless
         # `--internet-tests` passed
         if not run_internet and ("internet" in item.keywords):
             item.add_marker(skip_internet)
+        # Skip all tests not marked with `pytest.mark.internet` if `--internet-tests` passed
+        elif run_internet and ("internet" not in item.keywords):
+            item.add_marker(skip_non_internet)
 
     run_optional = config.getoption("--optional")
     skip_optional = pytest.mark.skip(reason="need --optional option to run")
+    skip_non_optional = pytest.mark.skip(reason="test not having a pytest.mark.optional decorator")
     for item in items:
         # All tests marked with `pytest.mark.optional` get skipped unless
         # `--optional` passed
         if not run_optional and ("optional" in item.keywords):
             item.add_marker(skip_optional)
+        # Skip all tests not marked with `pytest.mark.optional` if `--optional` passed
+        elif run_optional and ("optional" not in item.keywords):
+            item.add_marker(skip_non_optional)
 
     run_private = config.getoption("--private")
     skip_private = pytest.mark.skip(reason="need --private option to run")
+    skip_non_private = pytest.mark.skip(reason="test not having a pytest.mark.private decorator")
     for item in items:
         # All tests marked with `pytest.mark.private` get skipped unless
         # `--private` passed
@@ -79,7 +94,19 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_private)
         # Skip all tests not marked with `pytest.mark.private` if `--private` passed
         elif run_private and ("private" not in item.keywords):
-            item.add_marker(skip_private)
+            item.add_marker(skip_non_private)
+
+    run_multigpu = config.getoption("--multigpu-tests")
+    skip_multigpu = pytest.mark.skip(reason="need --multigpu-tests option to run")
+    skip_non_multigpu = pytest.mark.skip(reason="test not having a pytest.mark.multigpu decorator")
+    for item in items:
+        # All tests marked with `pytest.mark.multigpu` get skipped unless
+        # `--multigpu-tests` passed
+        if not run_multigpu and ("multigpu" in item.keywords):
+            item.add_marker(skip_multigpu)
+        # Skip all tests not marked with `pytest.mark.multigpu` if `--multigpu-tests` passed
+        elif run_multigpu and ("multigpu" not in item.keywords):
+            item.add_marker(skip_non_multigpu)
 
 
 @pytest.fixture(scope="session")
