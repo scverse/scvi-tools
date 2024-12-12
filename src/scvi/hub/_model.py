@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import anndata
+import mudata
 import rich
 from huggingface_hub import ModelCard, snapshot_download
 from rich.markdown import Markdown
@@ -518,6 +519,9 @@ class HubModel:
         if os.path.isfile(self._adata_path):
             logger.info("Reading adata...")
             self._adata = anndata.read_h5ad(self._adata_path)
+        if os.path.isfile(self._mudata_path):
+            logger.info("Reading adata...")
+            self._adata = mudata.read_h5mu(self._mudata_path)
         else:
             logger.info("No data found on disk. Skipping...")
 
