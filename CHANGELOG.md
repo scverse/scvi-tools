@@ -42,6 +42,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
+- Removed the support for loompy and local mde function {pr}`2842`.
+
 ### 1.2.1 (2024-12-04)
 
 #### Added

@@ -87,8 +87,6 @@ aws = ["boto3"]
 census = ["cellxgene-census","numpy<2.0"]
 # scvi.hub dependencies
 hub = ["huggingface_hub"]
-# scvi.model.utils.mde dependencies
-pymde = ["pymde"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
@@ -97,7 +95,7 @@ scanpy = ["scanpy>=1.6"]
 pooch = ["pooch"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pymde,pooch,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
