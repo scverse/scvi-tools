@@ -66,7 +66,9 @@ class HubModel:
 
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
+        self._mudata_path = f"{self._local_dir}/mdata.h5mu"
         self._large_training_adata_path = f"{self._local_dir}/large_training_adata.h5ad"
+        self._large_training_mudata_path = f"{self._local_dir}/large_training_mudata.h5mu"
 
         # lazy load - these are not loaded until accessed
         self._model = None
@@ -122,7 +124,6 @@ class HubModel:
         repo_name: str,
         repo_token: str | None = None,
         repo_create: bool = False,
-        push_anndata: bool = True,
         repo_create_kwargs: dict | None = None,
         collection_name: str | None = None,
         **kwargs,
@@ -141,8 +142,6 @@ class HubModel:
             huggingface API token with write permissions if None uses token in HfFolder.get_token()
         repo_create
             Whether to create the repo
-        push_anndata
-            Whether to push the :class:`~anndata.AnnData` object associated with the model.
         repo_create_kwargs
             Keyword arguments passed into :meth:`~huggingface_hub.create_repo` if
             ``repo_create=True``.
@@ -155,6 +154,13 @@ class HubModel:
 
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
+        ):
+            raise ValueError(
+                "Dataset is too large to upload to the Model. \
+                Please refer to scvi-tools tutorials for how to handle this case."
+            )
+        if os.path.isfile(self._mudata_path) and (
+            os.path.getsize(self._mudata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
         ):
             raise ValueError(
                 "Dataset is too large to upload to the Model. \
@@ -253,6 +259,7 @@ class HubModel:
         filenames = ["model.pt", _SCVI_HUB.METADATA_FILE_NAME]
         if pull_anndata:
             filenames.append("adata.h5ad")
+            filenames.append("mdata.h5mu")
 
         snapshot_folder = snapshot_download(
             repo_id=repo_name,
@@ -305,13 +312,15 @@ class HubModel:
         s3.upload_file(self._model_path, s3_bucket, model_s3_path)
 
         if push_anndata:
-            if not os.path.isfile(self._adata_path):
+            if not os.path.isfile(self._adata_path) and not os.path.isfile(self._mudata_path):
                 raise ValueError(
-                    f"No AnnData file found at {self._adata_path}. Please provide an AnnData file "
-                    "or set `push_anndata=False`."
+                    f"No AnnData file found at {self._adata_path} or {self._mudata_path}. "
+                    "Please provide an AnnData file or set `push_anndata=False`."
                 )
             adata_s3_path = os.path.join(s3_path, "adata.h5ad")
             s3.upload_file(self._adata_path, s3_bucket, adata_s3_path)
+            mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
+            s3.upload_file(self._mudata_path, s3_bucket, mudata_s3_path)
 
     @classmethod
     @dependencies("boto3")
@@ -374,6 +383,10 @@ class HubModel:
             adata_s3_path = os.path.join(s3_path, "adata.h5ad")
             adata_local_path = os.path.join(cache_dir, "adata.h5ad")
             s3.download_file(s3_bucket, adata_s3_path, adata_local_path)
+
+            mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
+            mudata_local_path = os.path.join(cache_dir, "mdata.h5mu")
+            s3.download_file(s3_bucket, mudata_s3_path, mudata_local_path)
 
         model_card = ModelCard.load(card_local_path)
         return cls(cache_dir, model_card=model_card)
@@ -467,7 +480,11 @@ class HubModel:
         model_cls_name = self.metadata.model_cls_name
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, model_cls_name)
-        if adata is not None or os.path.isfile(self._adata_path):
+        if (
+            adata is not None
+            or os.path.isfile(self._adata_path)
+            or os.path.isfile(self._mudata_path)
+        ):
             self._model = model_cls.load(
                 os.path.dirname(self._model_path),
                 adata=adata,
@@ -504,6 +521,17 @@ class HubModel:
         else:
             logger.info("No data found on disk. Skipping...")
 
+    def read_mudata(self) -> None:
+        """Reads the data from disk (``self._mudata_path``).
+
+        Reads if it exists. Otherwise, this is a no-op.
+        """
+        if os.path.isfile(self._mudata_path):
+            logger.info("Reading adata...")
+            self._adata = anndata.read_h5ad(self._mudata_path)
+        else:
+            logger.info("No data found on disk. Skipping...")
+
     def read_large_training_adata(self) -> None:
         """Downloads the large training adata.
 
@@ -520,8 +548,12 @@ class HubModel:
             logger.info(
                 f"Downloading large training dataset from this url:\n{training_data_url}..."
             )
-            dn = Path(self._large_training_adata_path).parent.as_posix()
-            fn = Path(self._large_training_adata_path).name
+            if self.metadata.model_cls_name == "TOTALVI":
+                large_training_adata_path = self._large_training_mudata_path
+            else:
+                large_training_adata_path = self._large_training_adata_path
+            dn = Path(large_training_adata_path).parent.as_posix()
+            fn = Path(large_training_adata_path).name
             url_parts = training_data_url.split("/")
             url_last_part = url_parts[-2] if url_parts[-1] == "" else url_parts[-1]
             if url_last_part.endswith(".cxg"):
@@ -529,6 +561,10 @@ class HubModel:
             else:
                 _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
-            self._large_training_adata = anndata.read_h5ad(self._large_training_adata_path)
+            if large_training_adata_path.endswith(".h5mu"):
+                self._large_training_adata = anndata.read_h5mu(large_training_adata_path)
+            else:
+                self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
+
         else:
             logger.info("No training_data_url found in the model card. Skipping...")
