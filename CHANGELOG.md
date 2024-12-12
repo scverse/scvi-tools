@@ -37,6 +37,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Updated the CI workflow with internet, private and optional tests {pr}`3082`.
 - Changed loompy stored files to anndata {pr}`2842`.
+- Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
+    instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
 
 #### Removed
 
