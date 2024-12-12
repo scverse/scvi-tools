@@ -201,6 +201,7 @@ class TOTALVI(
             library_log_vars=library_log_vars,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalVI Model with the following params: \nn_latent: {n_latent}, "
             f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, "
