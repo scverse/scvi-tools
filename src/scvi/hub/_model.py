@@ -171,22 +171,12 @@ class HubModel:
         # upload the model card
         self.model_card.push_to_hub(repo_name, token=repo_token)
         # upload the model
-        api.upload_file(
-            path_or_fileobj=self._model_path,
-            path_in_repo=self._model_path.split("/")[-1],
+        api.upload_folder(
+            folder_path=self._local_dir,
             repo_id=repo_name,
             token=repo_token,
             **kwargs,
         )
-        # upload the data if it exists
-        if os.path.isfile(self._adata_path) and push_anndata:
-            api.upload_file(
-                path_or_fileobj=self._adata_path,
-                path_in_repo=self._adata_path.split("/")[-1],
-                repo_id=repo_name,
-                token=repo_token,
-                **kwargs,
-            )
         # upload the metadata
         api.upload_file(
             path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
@@ -199,12 +189,12 @@ class HubModel:
             collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"
         elif "SCANVI" in self.metadata.model_cls_name:
             collection_slug = "scvi-tools/scanvi-673c3a4aabddf849496e9079"
+        elif "CondSCVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/destvi-673c3dbf537347953810a215"
         elif "SCVI" in self.metadata.model_cls_name:
             collection_slug = "scvi-tools/scvi-673c2c0f2bf4163ef14d018d"
         elif "TOTALVI" in self.metadata.model_cls_name:
             collection_slug = "scvi-tools/totalvi-673c3d67e2882005a1d180c1"
-        elif "CondSCVI" in self.metadata.model_cls_name:
-            collection_slug = "scvi-tools/destvi-673c3dbf537347953810a215"
         elif "Stereoscope" in self.metadata.model_cls_name:
             collection_slug = "scvi-tools/stereoscope-673c3ddcf1f9f7542b8819d6"
         else:

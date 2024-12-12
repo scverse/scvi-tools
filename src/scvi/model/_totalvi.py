@@ -207,6 +207,14 @@ class TOTALVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
+        if self.registry_["setup_method_name"] == "setup_mudata":
+            original_dict = self.registry_["setup_args"]["modalities"]
+            self.modalities = {
+                "rna_layer": original_dict.get("rna_layer"),
+                "protein_layer": original_dict.get("protein_layer"),
+            }
+        else:
+            self.modalities = None
 
     @devices_dsp.dedent
     def train(
@@ -816,7 +824,7 @@ class TOTALVI(
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
@@ -866,19 +874,22 @@ class TOTALVI(
 
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        scdl_list = []
+        rna_list = []
+        protein_list = []
         for tensors in scdl:
             rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
-            data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
 
-            scdl_list += [data]
+            rna_list += [rna_sample]
+            protein_list += [protein_sample]
             if n_samples > 1:
-                scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
-        scdl_list = np.concatenate(scdl_list, axis=0)
+                rna_list[-1] = np.transpose(rna_list[-1], (1, 2, 0))
+                protein_list[-1] = np.transpose(protein_list[-1], (1, 2, 0))
+        rna = np.concatenate(rna_list, axis=0)
+        protein = np.concatenate(protein_list, axis=0)
 
-        return scdl_list
+        return {self.modalities["rna_layer"]: rna, self.modalities["protein_layer"]: protein}
 
     @torch.inference_mode()
     def _get_denoised_samples(

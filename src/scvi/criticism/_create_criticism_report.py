@@ -1,6 +1,8 @@
 import json
 import os
 
+import pandas as pd
+from mudata import MuData
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import mean_absolute_error as mae
 from sklearn.metrics import r2_score
@@ -8,6 +10,8 @@ from sklearn.metrics import r2_score
 from scvi._types import AnnOrMuData
 from scvi.model._utils import REGISTRY_KEYS
 from scvi.model.base import BaseModelClass
+
+from ._ppc import PosteriorPredictiveCheck as PPC
 
 METRIC_CV_CELL = "cv_cell"
 METRIC_CV_GENE = "cv_gene"
@@ -61,11 +65,39 @@ def create_criticism_report(
     save_folder
         Path to folder for storing the metrics. Preferred to store in save_path folder of model.
     """
-    from ._ppc import PosteriorPredictiveCheck as PPC
-
     adata = model._validate_anndata(adata)
+
+    if isinstance(adata, MuData):
+        modalities = model.registry_["setup_args"]["modalities"]
+        modalities = [modalities[i] for i in modalities if "layer" in i]
+        md_cell_wise_cv, md_gene_wise_cv, md_de = "", "", ""
+        for i in modalities:
+            md_cell_wise_cv_, md_gene_wise_cv_, md_de_ = compute_metrics(
+                model, adata, skip_metrics, n_samples, label_key, modality=i
+            )
+            md_cell_wise_cv += f"Modality: {i}\n\n" + md_cell_wise_cv_ + "\n\n"
+            md_gene_wise_cv += f"Modality: {i}\n\n" + md_gene_wise_cv_ + "\n\n"
+            md_de += f"Modality: {i}\n\n" + md_de_ + "\n\n"
+    else:
+        md_cell_wise_cv, md_gene_wise_cv, md_de = compute_metrics(
+            model, adata, skip_metrics, n_samples, label_key
+        )
+
+    markdown_dict = {
+        "cell_wise_cv": md_cell_wise_cv,
+        "gene_wise_cv": md_gene_wise_cv,
+        "diff_exp": md_de,
+    }
+
+    save_path = os.path.join(save_folder, "metrics.json")
+
+    with open(save_path, "w") as f:
+        json.dump(markdown_dict, f, indent=4)
+
+
+def compute_metrics(model, adata, skip_metrics, n_samples, label_key, modality=None):
     models_dict = {"model": model}
-    ppc = PPC(adata, models_dict, n_samples=n_samples)
+    ppc = PPC(adata, models_dict, n_samples=n_samples, modality=modality)
     # run ppc+cv
     if METRIC_CV_CELL not in skip_metrics:
         ppc.coefficient_of_variation("features")
@@ -83,21 +115,34 @@ def create_criticism_report(
         if label_key is None and labels_state_registry.original_key != "_scvi_labels":
             label_key = labels_state_registry.original_key
         ppc.differential_expression(de_groupby=label_key, p_val_thresh=0.2)
-        summary_df = ppc.metrics["diff_exp"]["summary"].set_index("group")
+        summary_df = ppc.metrics[METRIC_DIFF_EXP]["summary"].set_index("group")
         summary_df = summary_df.drop(columns=["model"])
         summary_df = summary_df.sort_values(by="n_cells", ascending=False)
         md_de = _dataframe_to_markdown(summary_df)
+    if modality is not None:
+        adata = model.adata[modality]
+    else:
+        adata = model.adata
+    adata.var["cv_gene_ratio"] = ppc.metrics[METRIC_CV_GENE]["model"] / (
+        ppc.metrics[METRIC_CV_GENE]["model"] + ppc.metrics[METRIC_CV_GENE]["Raw"]
+    )
+    adata.obs["cv_cell_ratio"] = ppc.metrics[METRIC_CV_CELL]["model"] / (
+        ppc.metrics[METRIC_CV_CELL]["model"] + ppc.metrics[METRIC_CV_CELL]["Raw"]
+    )
+    adata.varm["lfc_model"] = pd.DataFrame(
+        {
+            key: value["approx"]
+            for key, value in ppc.metrics["diff_exp"]["lfc_per_model_per_group"]["model"].items()
+        }
+    ).loc[adata.var_names]
+    adata.varm["lfc_raw"] = pd.DataFrame(
+        {
+            key: value["raw"]
+            for key, value in ppc.metrics["diff_exp"]["lfc_per_model_per_group"]["model"].items()
+        }
+    ).loc[adata.var_names]
 
-    markdown_dict = {
-        "cell_wise_cv": md_cell_wise_cv,
-        "gene_wise_cv": md_gene_wise_cv,
-        "diff_exp": md_de,
-    }
-
-    save_path = os.path.join(save_folder, "metrics.json")
-
-    with open(save_path, "w") as f:
-        json.dump(markdown_dict, f, indent=4)
+    return md_cell_wise_cv, md_gene_wise_cv, md_de
 
 
 def _cv_metrics(ppc, model, cell_wise: bool = True):
@@ -121,8 +166,18 @@ def _cv_metrics(ppc, model, cell_wise: bool = True):
     model_metric = ppc.metrics[metric]["model"].values
     raw_metric = ppc.metrics[metric]["Raw"].values
 
-    # log mae, pearson corr, spearman corr, R^2
-    if cell_wise and len(model.train_indices) > 0 and len(model.validation_indices) > 0:
+    if hasattr(model, "train_indices"):
+        train_indices = model.train_indices
+        validation_indices = model.validation_indices
+        if train_indices is None:
+            train_indices = []
+        if validation_indices is None:
+            validation_indices = []
+    else:
+        train_indices = []
+        validation_indices = []
+
+    if cell_wise and len(train_indices) > 0 and len(validation_indices) > 0:
         indices = [model.train_indices, model.validation_indices]
 
         mae_values = [
