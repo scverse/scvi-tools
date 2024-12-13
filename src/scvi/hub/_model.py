@@ -559,15 +559,15 @@ class HubModel:
         (https://cellxgene.cziscience.com/).
         """
         training_data_url = self.metadata.training_data_url
+        if self.metadata.model_cls_name in ["TOTALVI", "MULTIVI"]:
+            large_training_adata_path = self._large_training_mudata_path
+        else:
+            large_training_adata_path = self._large_training_adata_path
         if training_data_url is not None:
             logger.info(
                 f"Downloading large training dataset from this url:\n{training_data_url}..."
             )
             # Add multi-modal models here.
-            if self.metadata.model_cls_name in ["TOTALVI", "MULTIVI"]:
-                large_training_adata_path = self._large_training_mudata_path
-            else:
-                large_training_adata_path = self._large_training_adata_path
             dn = Path(large_training_adata_path).parent.as_posix()
             fn = Path(large_training_adata_path).name
             url_parts = training_data_url.split("/")
