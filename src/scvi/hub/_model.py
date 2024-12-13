@@ -594,6 +594,6 @@ class HubModel:
                 large_training_adata_path,
             )
         if large_training_adata_path.endswith(".h5mu"):
-            self._large_training_adata = anndata.read_h5mu(large_training_adata_path)
+            self._large_training_adata = mudata.read_h5mu(large_training_adata_path)
         else:
             self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
