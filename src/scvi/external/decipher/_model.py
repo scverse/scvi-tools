@@ -1,12 +1,11 @@
-import logging
 from collections.abc import Sequence
 
 import numpy as np
 import pyro
 import torch
 import torch.nn.functional as F
-from sklearn.neighbors import KNeighborsRegressor
 from anndata import AnnData
+from sklearn.neighbors import KNeighborsRegressor
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -76,9 +75,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -141,9 +138,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent_locs = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
@@ -196,9 +191,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             )
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         imputed_gene_expression_batches = []
         for tensors in scdl:
@@ -209,9 +202,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             library_size = x.sum(axis=-1, keepdim=True)
             imputed_gene_expr = (library_size * mu).detach().cpu().numpy()
             imputed_gene_expression_batches.append(imputed_gene_expr)
-        imputed_gene_expression = np.concatenate(
-            imputed_gene_expression_batches, axis=0
-        )
+        imputed_gene_expression = np.concatenate(imputed_gene_expression_batches, axis=0)
 
         if compute_covariances:
             G = imputed_gene_expression.shape[1]
@@ -238,7 +229,8 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
     ) -> np.ndarray:
         """Compute the decipher time for each cell, based on the inferred trajectories.
 
-        The decipher time is computed by KNN regression of the cells' decipher v on the trajectories.
+        The decipher time is computed by KNN regression of the cells'
+        decipher v on the trajectories.
 
         Parameters
         ----------
@@ -260,10 +252,9 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         knn = KNeighborsRegressor(n_neighbors=n_neighbors)
         knn.fit(trajectory.trajectory_latent, trajectory.trajectory_time)
         is_on_trajectory = adata.obs[cluster_obs_key].isin(trajectory.cluster_ids)
-        cells_on_trajectory_index = adata.obs[is_on_trajectory].index
         cells_on_trajectory_idx = np.where(is_on_trajectory)[0]
 
-        decipher_time[cells_on_trajectory_index] = knn.predict(
+        decipher_time[cells_on_trajectory_idx] = knn.predict(
             adata.obsm[trajectory.rep_key][cells_on_trajectory_idx]
         )
         return decipher_time
@@ -309,19 +300,15 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         z_mean, z_scale = self.module.decoder_v_to_z(t_points)
         z_scale = F.softplus(z_scale)
 
-        z_samples = torch.distributions.Normal(z_mean, z_scale).sample(
-            sample_shape=(n_samples,)
-        )
+        z_samples = torch.distributions.Normal(z_mean, z_scale).sample(sample_shape=(n_samples,))
 
         gene_patterns = {}
         gene_patterns["mean"] = (
-            F.softmax(self.module.decoder_z_to_x(z_mean), dim=-1).detach().numpy()
-            * l_scale
+            F.softmax(self.module.decoder_z_to_x(z_mean), dim=-1).detach().numpy() * l_scale
         )
 
         gene_expression_samples = (
-            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().numpy()
-            * l_scale
+            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().numpy() * l_scale
         )
         gene_patterns["q25"] = np.quantile(gene_expression_samples, 0.25, axis=0)
         gene_patterns["q75"] = np.quantile(gene_expression_samples, 0.75, axis=0)

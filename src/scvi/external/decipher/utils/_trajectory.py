@@ -1,4 +1,5 @@
-from typing import List, Dict, Any
+from typing import Any
+
 import numpy as np
 
 
@@ -39,14 +40,14 @@ class Trajectory:
         self,
         rep_key: str,
         cluster_locations: np.ndarray,
-        cluster_ids: List[str],
+        cluster_ids: list[str],
         point_density: int = 50,
     ) -> None:
         self._point_density = point_density
         self.cluster_ids = cluster_ids
         cluster_locations = np.array(cluster_locations)
         distances = []
-        for s, e in zip(cluster_locations, cluster_locations[1:]):
+        for s, e in zip(cluster_locations, cluster_locations[1:], strict=False):
             v = e - s
             d = np.linalg.norm(v)
             distances.append(d)
@@ -96,7 +97,7 @@ class Trajectory:
 
         return self.cluster_locations[i] * (1 - t) + t * self.cluster_locations[i + 1]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert trajectory object to dictionary representation.
 
         Returns
@@ -105,17 +106,17 @@ class Trajectory:
             Dictionary containing trajectory data including cluster locations,
             cluster IDs, trajectory points, times, point density and representation key.
         """
-        return dict(
-            cluster_locations=self.cluster_locations,
-            cluster_ids=self.cluster_ids,
-            points=self.trajectory_latent,
-            times=self.trajectory_time,
-            density=self._point_density,
-            rep_key=self.rep_key,
-        )
+        return {
+            "cluster_locations": self.cluster_locations,
+            "cluster_ids": self.cluster_ids,
+            "points": self.trajectory_latent,
+            "times": self.trajectory_time,
+            "density": self._point_density,
+            "rep_key": self.rep_key,
+        }
 
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> "Trajectory":
+    def from_dict(d: dict[str, Any]) -> "Trajectory":
         """Create a Trajectory object from a dictionary representation.
 
         Parameters
@@ -129,9 +130,9 @@ class Trajectory:
             New Trajectory object initialized with data from dictionary.
         """
         trajectory = Trajectory(
-            d["cluster_locations"],
-            d["cluster_ids"],
-            point_density=d["density"],
             rep_key=d["rep_key"],
+            cluster_locations=d["cluster_locations"],
+            cluster_ids=d["cluster_ids"],
+            point_density=d.get("density", None),
         )
         return trajectory
