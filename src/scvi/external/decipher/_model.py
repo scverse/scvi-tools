@@ -76,9 +76,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
@@ -141,9 +139,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
 
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent_locs = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]
@@ -196,9 +192,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             )
 
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         imputed_gene_expression_batches = []
         for tensors in scdl:
@@ -209,9 +203,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             library_size = x.sum(axis=-1, keepdim=True)
             imputed_gene_expr = (library_size * mu).detach().cpu().numpy()
             imputed_gene_expression_batches.append(imputed_gene_expr)
-        imputed_gene_expression = np.concatenate(
-            imputed_gene_expression_batches, axis=0
-        )
+        imputed_gene_expression = np.concatenate(imputed_gene_expression_batches, axis=0)
 
         if compute_covariances:
             G = imputed_gene_expression.shape[1]
