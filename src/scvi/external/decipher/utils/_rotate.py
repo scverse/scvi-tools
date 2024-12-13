@@ -1,5 +1,5 @@
-from anndata import AnnData
 import numpy as np
+from anndata import AnnData
 
 
 def _rot(t, u=1):
@@ -61,9 +61,7 @@ def rotate_decipher_components(
                 v_obs = v_obs.astype("category").cat.set_categories(v_order)
                 v_obs = v_obs.cat.codes.replace(-1, np.nan)
             elif v_obs.dtype == "category":
-                raise ValueError(
-                    "v_order must be provided if v_obs is a category column"
-                )
+                raise ValueError("v_order must be provided if v_obs is a category column")
             v_valid_cells = ~v_obs.isna()
             v_obs = v_obs[v_valid_cells].astype(float)
             return v_obs, v_valid_cells
