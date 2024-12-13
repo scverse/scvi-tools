@@ -267,3 +267,65 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             adata.obsm[trajectory.rep_key][cells_on_trajectory_idx]
         )
         return decipher_time
+
+    def compute_gene_patterns(
+        self,
+        adata: AnnData,
+        trajectory: Trajectory,
+        l_scale: float = 10_000,
+        n_samples: int = 100,
+    ) -> dict[str, np.ndarray]:
+        """Compute the gene patterns for a trajectory.
+
+        The trajectory's points are sent through the decoders, thus defining distributions over the
+        gene expression. The gene patterns are computed by sampling from these distribution.
+
+        Parameters
+        ----------
+        adata : AnnData
+            The annotated data matrix.
+        trajectory : Trajectory
+            A Trajectory object containing the trajectory information.
+        l_scale : float
+            The library size scaling factor.
+        n_samples : int
+            The number of samples to draw from the decoder to compute the gene pattern statistics.
+
+        Returns
+        -------
+        The gene patterns for the trajectory.
+        Dictionary keys:
+            - `mean`: the mean gene expression pattern
+            - `q25`: the 25% quantile of the gene expression pattern
+            - `q75`: the 75% quantile of the gene expression pattern
+            - `times`: the times of the trajectory
+        """
+        adata = self._validate_anndata(adata)
+
+        t_points = trajectory.trajectory_latent
+        t_times = trajectory.trajectory_time
+
+        t_points = torch.FloatTensor(t_points)
+        z_mean, z_scale = self.module.decoder_v_to_z(t_points)
+        z_scale = F.softplus(z_scale)
+
+        z_samples = torch.distributions.Normal(z_mean, z_scale).sample(
+            sample_shape=(n_samples,)
+        )
+
+        gene_patterns = {}
+        gene_patterns["mean"] = (
+            F.softmax(self.module.decoder_z_to_x(z_mean), dim=-1).detach().numpy()
+            * l_scale
+        )
+
+        gene_expression_samples = (
+            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().numpy()
+            * l_scale
+        )
+        gene_patterns["q25"] = np.quantile(gene_expression_samples, 0.25, axis=0)
+        gene_patterns["q75"] = np.quantile(gene_expression_samples, 0.75, axis=0)
+
+        gene_patterns["times"] = t_times
+
+        return gene_patterns
