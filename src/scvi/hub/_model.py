@@ -37,6 +37,8 @@ class HubModel:
 
     Parameters
     ----------
+    repo_name
+        ID of the huggingface repo where this model is uploaded
     local_dir
         Local directory where the data and pre-trained model reside.
     metadata
@@ -60,10 +62,12 @@ class HubModel:
     def __init__(
         self,
         local_dir: str,
+        repo_name: str | None = None,
         metadata: HubMetadata | str | None = None,
         model_card: HubModelCardHelper | ModelCard | str | None = None,
     ):
         self._local_dir = local_dir
+        self._repo_name = repo_name
 
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
@@ -152,6 +156,8 @@ class HubModel:
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
         from huggingface_hub import HfApi, HfFolder, add_collection_item, create_repo
+
+        self._repo_name = repo_name
 
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
@@ -270,7 +276,7 @@ class HubModel:
             **kwargs,
         )
         model_card = ModelCard.load(repo_name)
-        return cls(snapshot_folder, model_card=model_card)
+        return cls(snapshot_folder, model_card=model_card, repo_name=repo_name)
 
     @dependencies("boto3")
     def push_to_s3(
@@ -415,6 +421,11 @@ class HubModel:
         return self._local_dir
 
     @property
+    def repo_name(self) -> str:
+        """The local directory where the data and pre-trained model reside."""
+        return self._repo_name
+
+    @property
     def metadata(self) -> HubMetadata:
         """The metadata for this model."""
         return self._metadata
@@ -552,7 +563,8 @@ class HubModel:
             logger.info(
                 f"Downloading large training dataset from this url:\n{training_data_url}..."
             )
-            if self.metadata.model_cls_name == "TOTALVI":
+            # Add multi-modal models here.
+            if self.metadata.model_cls_name in ["TOTALVI", "MULTIVI"]:
                 large_training_adata_path = self._large_training_mudata_path
             else:
                 large_training_adata_path = self._large_training_adata_path
@@ -565,10 +577,22 @@ class HubModel:
             else:
                 _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
-            if large_training_adata_path.endswith(".h5mu"):
-                self._large_training_adata = anndata.read_h5mu(large_training_adata_path)
-            else:
-                self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
-
         else:
-            logger.info("No training_data_url found in the model card. Skipping...")
+            # Access file from DVC storage.
+            from dvc.api import DVCFileSystem
+
+            if self.metadata.model_cls_name in ["TOTALVI", "MULTIVI"]:
+                suffix = "h5mu"
+            else:
+                suffix = "h5ad"
+
+            fs = DVCFileSystem(
+                "https://github.com/YosefLab/scvi-hub-models", rev="main", remote="s3_remote"
+            )
+            fs.get_file(
+                f"data/{self.repo_name.rsplit('_', 1)}.{suffix}", large_training_adata_path
+            )
+        if large_training_adata_path.endswith(".h5mu"):
+            self._large_training_adata = anndata.read_h5mu(large_training_adata_path)
+        else:
+            self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
