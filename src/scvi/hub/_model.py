@@ -590,7 +590,8 @@ class HubModel:
                 "https://github.com/YosefLab/scvi-hub-models", rev="main", remote="s3_remote"
             )
             fs.get_file(
-                f"data/{self.repo_name.rsplit('_', 1)}.{suffix}", large_training_adata_path
+                f"data/{self.repo_name.split('/')[1].rsplit('_', 1)[0]}.{suffix}",
+                large_training_adata_path,
             )
         if large_training_adata_path.endswith(".h5mu"):
             self._large_training_adata = anndata.read_h5mu(large_training_adata_path)
