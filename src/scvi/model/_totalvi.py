@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from typing import Literal
 
-    from anndata import AnnData
     from mudata import MuData
 
     from scvi._types import AnnOrMuData, Number
@@ -201,6 +201,7 @@ class TOTALVI(
             library_log_vars=library_log_vars,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalVI Model with the following params: \nn_latent: {n_latent}, "
             f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, "
@@ -889,7 +890,10 @@ class TOTALVI(
         rna = np.concatenate(rna_list, axis=0)
         protein = np.concatenate(protein_list, axis=0)
 
-        return {self.modalities["rna_layer"]: rna, self.modalities["protein_layer"]: protein}
+        if isinstance(adata, AnnData):
+            return {"rna": rna, "protein": protein}
+        else:
+            return {self.modalities["rna_layer"]: rna, self.modalities["protein_layer"]: protein}
 
     @torch.inference_mode()
     def _get_denoised_samples(
