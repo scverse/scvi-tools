@@ -64,8 +64,9 @@ class RNADeconv(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        batch = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        input_dict = {"x": x, "y": y}
+        input_dict = {"x": x, "y": y, "batch": batch}
         return input_dict
 
     @auto_move_data
