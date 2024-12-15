@@ -28,17 +28,23 @@ class RNADeconv(BaseModuleClass):
         self,
         n_genes: int,
         n_labels: int,
+        n_datasets: int,
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
+        self.n_datasets = n_datasets
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
         self.W = torch.nn.Parameter(
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
+
+        self.D = torch.nn.Parameter(
+            torch.randn(self.n_genes, self.n_datasets)
+        )  # n_genes, n_datasets types
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -55,7 +61,13 @@ class RNADeconv(BaseModuleClass):
         type
             list of tensor
         """
-        return self.W.cpu().numpy(), self.px_o.cpu().numpy()
+        W = self.W.cpu().numpy()
+        current_D = self.D.cpu().numpy()
+        product_D = np.prod(current_D, axis=1)
+
+        W_prime = 1/self.n_datasets * W * product_D[:, np.newaxis] 
+
+        return W_prime, self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
         # we perform MAP here, so there is nothing to infer
@@ -79,7 +91,8 @@ class RNADeconv(BaseModuleClass):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
-        px_rate = library * px_scale
+        coef_exp = torch.exp(self.D)[:, y.long().ravel()].T
+        px_rate = library * px_scale * coef_exp
         scaling_factor = self.ct_weight[y.long().ravel()]
 
         return {
@@ -104,9 +117,23 @@ class RNADeconv(BaseModuleClass):
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.sum(scaling_factor * reconst_loss)
+        #loss = torch.sum(scaling_factor * reconst_loss)
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
+        #return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
+
+        reconst_loss = scaling_factor * reconst_loss  # Apply cell-specific scaling
+
+        mean = torch.zeros_like(self.D)
+        scale = torch.ones_like(self.D)
+        neg_log_likelihood_prior = -Normal(mean, scale).log_prob(self.D).sum()
+
+        loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
+
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_global=neg_log_likelihood_prior,
+        )
 
     @torch.inference_mode()
     def sample(
