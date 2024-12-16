@@ -59,15 +59,16 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
-        help(self.summary_stats)
+        self.n_batches = self.summary_stats.n_batch
         # first we have the scRNA-seq model
         self.module = RNADeconv(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
+            n_batches=self.n_batches,
             **model_kwargs,
         )
         self._model_summary_string = (
-            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
+            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}, n_batches: {self.n_batches}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -143,6 +144,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         labels_key: str | None = None,
         layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -151,11 +153,13 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_labels_key)s
         %(param_layer)s
+        %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)

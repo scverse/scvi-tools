@@ -9,7 +9,7 @@ from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
-    """Model of scRNA-seq for deconvolution of spatial transriptomics.
+    """Modified version of Model of scRNA-seq for deconvolution of spatial transriptomics.
 
     Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
@@ -28,13 +28,13 @@ class RNADeconv(BaseModuleClass):
         self,
         n_genes: int,
         n_labels: int,
-        n_datasets: int,
+        n_batches: int,
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
-        self.n_datasets = n_datasets
+        self.n_batches = n_batches
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
@@ -43,8 +43,8 @@ class RNADeconv(BaseModuleClass):
         )  # n_genes, n_cell types
 
         self.D = torch.nn.Parameter(
-            torch.randn(self.n_genes, self.n_datasets)
-        )  # n_genes, n_datasets types
+            torch.randn(self.n_genes, self.n_batches)
+        )  # n_genes, n_batches types
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -65,7 +65,7 @@ class RNADeconv(BaseModuleClass):
         current_D = self.D.cpu().numpy()
         product_D = np.prod(current_D, axis=1)
 
-        W_prime = 1/self.n_datasets * W * product_D[:, np.newaxis] 
+        W_prime = 1/self.n_batches * W * product_D[:, np.newaxis] 
 
         return W_prime, self.px_o.cpu().numpy()
 
