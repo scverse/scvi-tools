@@ -37,7 +37,6 @@ class RNADeconv(BaseModuleClass):
         self.n_labels = n_labels
         self.n_batches = n_batches
         
-        print(n_batches)
         # Initialize w_dg ~ N(0, 1)
         self.w_dg = torch.nn.Parameter(torch.randn(self.n_batches, n_genes))
 
@@ -187,12 +186,12 @@ class RNADeconv(BaseModuleClass):
         # Regularize w_dg ~ N(0, 1)
         # mean_penalty = torch.mean(self.w_dg) ** 2
         # variance_penalty = (torch.var(self.w_dg) - 1) ** 2
+        # reg_penalty = mean_penalty + prior_penalty
         prior_penalty = torch.sum(self.w_dg ** 2).mean()
-        reg_penalty = mean_penalty + prior_penalty
 
-        total_loss = loss + kl_weight * reg_penalty
+        total_loss = loss + kl_weight * prior_penalty
         
-        return LossOutput(loss=total_loss, reconstruction_loss=reconst_loss, kl_global=reg_penalty)
+        return LossOutput(loss=total_loss, reconstruction_loss=reconst_loss, kl_global=prior_penalty)
 
 
     @torch.inference_mode()
