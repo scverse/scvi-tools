@@ -32,10 +32,12 @@ class RNADeconv(BaseModuleClass):
     ):
         super().__init__()
         print("New RNADeconv")
+        print(model_kwargs)
         self.n_genes = n_genes
         self.n_labels = n_labels
         
         # Initialize w_dg ~ N(0, 1)
+        n_batches = model_kwargs["n_batches"]
         self.w_dg = torch.nn.Parameter(torch.randn(n_batches, n_genes))
 
         # logit param for negative binomial
