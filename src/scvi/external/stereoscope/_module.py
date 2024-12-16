@@ -31,6 +31,7 @@ class RNADeconv(BaseModuleClass):
         **model_kwargs,
     ):
         super().__init__()
+        print("New RNADeconv")
         self.n_genes = n_genes
         self.n_labels = n_labels
         
