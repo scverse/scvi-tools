@@ -59,13 +59,13 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
-        n_batches = sc_adata.n_batches
-        print(n_batches)
+        self.n_batches = sc_adata.obs["combined"].nunique()
+        print(self.n_batches, flush=True)
         # first we have the scRNA-seq model
         self.module = RNADeconv(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
-            n_batches=n_batches,
+            n_batches=self.n_batches,
             **model_kwargs,
         )
         self._model_summary_string = (
