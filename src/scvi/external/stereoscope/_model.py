@@ -59,6 +59,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
+        help(self.summary_stats)
         # first we have the scRNA-seq model
         self.module = RNADeconv(
             n_genes=self.n_genes,

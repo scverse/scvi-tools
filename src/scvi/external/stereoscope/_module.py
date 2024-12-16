@@ -87,11 +87,11 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, y):
+    def generative(self, x, y, batch):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
-        coef_exp = torch.exp(self.D)[:, y.long().ravel()].T
+        coef_exp = torch.exp(self.D)[:, batch.long().ravel()].T
         px_rate = library * px_scale * coef_exp
         scaling_factor = self.ct_weight[y.long().ravel()]
 
