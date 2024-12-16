@@ -67,4 +67,4 @@ def test_embedding_save_load(
     state_dict_path = join(save_path, "ext_embedding_state_dict.pt")
     torch.save(ext_embedding, state_dict_path)
     embedding = Embedding(num_embeddings, embedding_dim)
-    embedding.load_state_dict(torch.load(state_dict_path).state_dict())
+    embedding.load_state_dict(torch.load(state_dict_path, weights_only=False).state_dict())
