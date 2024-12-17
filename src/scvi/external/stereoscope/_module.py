@@ -117,7 +117,6 @@ class RNADeconv(BaseModuleClass):
         scale = torch.ones_like(generative_outputs["px_batch"])
         neg_log_likelihood_prior = -Normal(mean, scale).log_prob(generative_outputs["px_batch"]).sum()
         loss = torch.sum(scaling_factor * reconst_loss) + neg_log_likelihood_prior
-        print(loss)
 
         return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_global=neg_log_likelihood_prior)
 
