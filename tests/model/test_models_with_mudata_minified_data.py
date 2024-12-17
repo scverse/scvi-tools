@@ -229,7 +229,8 @@ def test_totalvi_downstream_with_minified_mdata():
     assert model.get_normalized_expression(gene_list=gl, library_size="latent")
     assert model.get_normalized_expression(gene_list=gl, library_size=1)
     sample = model.posterior_predictive_sample()
-    assert sample.shape == mdata.shape
+    assert sample["rna"].shape == mdata["rna"].shape
+    assert sample["protein_expression"].shape == mdata["protein_expression"].shape
     corr = model.get_feature_correlation_matrix()
     assert corr.shape == (mdata.n_vars, mdata.n_vars)
     fore = model.get_protein_foreground_probability()
@@ -257,7 +258,8 @@ def test_totalvi_downstream_with_minified_mdata_keep_counts():
     assert model.get_normalized_expression(gene_list=gl, library_size="latent")
     assert model.get_normalized_expression(gene_list=gl, library_size=1)
     sample = model.posterior_predictive_sample()
-    assert sample.shape == mdata.shape
+    assert sample["rna"].shape == mdata["rna"].shape
+    assert sample["protein_expression"].shape == mdata["protein_expression"].shape
     corr = model.get_feature_correlation_matrix()
     assert corr.shape == (mdata.n_vars, mdata.n_vars)
     fore = model.get_protein_foreground_probability()
