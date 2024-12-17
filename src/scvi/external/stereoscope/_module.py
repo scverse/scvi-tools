@@ -28,17 +28,22 @@ class RNADeconv(BaseModuleClass):
         self,
         n_genes: int,
         n_labels: int,
+        n_batch: int,
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
+        self.n_batch = n_batch
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
         self.W = torch.nn.Parameter(
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
+        self.px_batch = torch.nn.Parameter(
+            torch.randn(self.n_genes, self.n_batch)
+        )
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -55,7 +60,9 @@ class RNADeconv(BaseModuleClass):
         type
             list of tensor
         """
-        return self.W.cpu().numpy(), self.px_o.cpu().numpy()
+        W_prime = torch.nn.functional.softplus(self.W) * self.px_batch.sum(dim=1).reshape((self.genes, self.n_labels)) / self.n_batch
+        W_prime = W_prime + torch.log(-torch.expm1(-W_prime)) # Convert it into a real value so that it can be used in the Spatial Model (inverse of softplus)
+        return W_prime.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
         # we perform MAP here, so there is nothing to infer
@@ -64,8 +71,9 @@ class RNADeconv(BaseModuleClass):
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        batch = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-        input_dict = {"x": x, "y": y}
+        input_dict = {"x": x, "y": y, "dataloaded": batch}
         return input_dict
 
     @auto_move_data
@@ -74,15 +82,17 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, y):
+    def generative(self, x, y, dataloaded):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
-        px_rate = library * px_scale
+        px_batch = self.px_batch[:, dataloaded.long().ravel()].T
+        px_rate = library * torch.exp(px_batch) * px_scale
         scaling_factor = self.ct_weight[y.long().ravel()]
 
         return {
             "px_scale": px_scale,
+            "px_batch": px_batch,
             "px_o": self.px_o,
             "px_rate": px_rate,
             "library": library,
@@ -103,9 +113,13 @@ class RNADeconv(BaseModuleClass):
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.sum(scaling_factor * reconst_loss)
+        mean = torch.zeros_like(generative_outputs["px_batch"])
+        scale = torch.ones_like(generative_outputs["px_batch"])
+        neg_log_likelihood_prior = -Normal(mean, scale).log_prob(generative_outputs["px_batch"]).sum()
+        loss = torch.sum(scaling_factor * reconst_loss) + neg_log_likelihood_prior
+        print(loss)
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_global=neg_log_likelihood_prior)
 
     @torch.inference_mode()
     def sample(

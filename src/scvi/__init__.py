@@ -13,7 +13,8 @@ from . import data, model, external, utils
 from importlib.metadata import version
 
 package_name = "scvi-tools"
-__version__ = version(package_name)
+__version__ = "0.0.0-dev"  # Temporary version for local development
+# __version__ = version(package_name)
 
 settings.verbosity = logging.INFO
 
