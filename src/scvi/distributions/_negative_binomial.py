@@ -275,11 +275,15 @@ def _convert_counts_logits_to_mean_disp(
     return mu, theta
 
 
-def _gamma(theta: torch.Tensor, mu: torch.Tensor) -> Gamma:
+def _gamma(theta: torch.Tensor, mu: torch.Tensor, on_mps: bool = False) -> Gamma:
     concentration = theta
     rate = theta / mu
     # Important remark: Gamma is parametrized by the rate = 1/scale!
-    gamma_d = Gamma(concentration=concentration, rate=rate)
+    gamma_d = (
+        Gamma(concentration=concentration.to("cpu"), rate=rate.to("cpu"))
+        if on_mps
+        else Gamma(concentration=concentration, rate=rate)
+    )
     return gamma_d
 
 
@@ -428,12 +432,18 @@ class NegativeBinomial(Distribution):
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
         gamma_d = self._gamma()
-        p_means = gamma_d.sample(sample_shape)
+        p_means = (
+            gamma_d.sample(sample_shape).to("mps") if self.on_mps else gamma_d.sample(sample_shape)
+        )
 
         # Clamping as distributions objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
-        counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_vars)
+        counts = (
+            PoissonTorch(l_train.to("cpu")).sample().to("mps")
+            if self.on_mps
+            else PoissonTorch(l_train).sample()
+        )  # Shape : (n_samples, n_cells_batch, n_vars)
         return counts
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
@@ -453,7 +463,7 @@ class NegativeBinomial(Distribution):
         )
 
     def _gamma(self) -> Gamma:
-        return _gamma(self.theta, self.mu)
+        return _gamma(self.theta, self.mu, self.on_mps)
 
     def __repr__(self) -> str:
         param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
@@ -672,7 +682,7 @@ class NegativeBinomialMixture(Distribution):
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-        gamma_d = _gamma(theta, mu)
+        gamma_d = _gamma(theta, mu, self.on_mps)
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as distributions objects can have buggy behaviors when
