@@ -41,9 +41,7 @@ class RNADeconv(BaseModuleClass):
         self.W = torch.nn.Parameter(
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
-        self.px_batch = torch.nn.Parameter(
-            torch.randn(self.n_genes, self.n_batch)
-        )
+        self.px_batch = torch.nn.Parameter(torch.randn(self.n_genes, self.n_batch))
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -62,7 +60,9 @@ class RNADeconv(BaseModuleClass):
         """
         batch_correction = self.px_batch.sum(dim=1).unsqueeze(1).repeat(1, self.n_labels)
         W_prime = torch.nn.functional.softplus(self.W) * torch.exp(batch_correction) / self.n_batch
-        W_prime = W_prime + torch.log(-torch.expm1(-W_prime)) # Convert it into a real value so that it can be used in the Spatial Model (inverse of softplus)
+        W_prime = (
+            W_prime + torch.log(-torch.expm1(-W_prime))
+        )  # Convert it into a real value so that it can be used in the Spatial Model (inverse of softplus)
         return W_prime.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
@@ -116,10 +116,14 @@ class RNADeconv(BaseModuleClass):
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         mean = torch.zeros_like(generative_outputs["px_batch"])
         scale = torch.ones_like(generative_outputs["px_batch"])
-        neg_log_likelihood_prior = -Normal(mean, scale).log_prob(generative_outputs["px_batch"]).sum()
+        neg_log_likelihood_prior = (
+            -Normal(mean, scale).log_prob(generative_outputs["px_batch"]).sum()
+        )
         loss = torch.sum(scaling_factor * reconst_loss) + neg_log_likelihood_prior
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_global=neg_log_likelihood_prior)
+        return LossOutput(
+            loss=loss, reconstruction_loss=reconst_loss, kl_global=neg_log_likelihood_prior
+        )
 
     @torch.inference_mode()
     def sample(
