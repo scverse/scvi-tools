@@ -28,16 +28,21 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add support for Numpy 2.0 {pr}`2842`.
+-
 
 #### Fixed
 
 #### Changed
 
 - Updated the CI workflow with internet, private and optional tests {pr}`3082`.
+- Changed loompy stored files to anndata {pr}`2842`.
 - Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
     instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
 
 #### Removed
+
+- Removed the support for loompy and local mde function {pr}`2842`.
 
 ### 1.2.1 (2024-12-04)
 
