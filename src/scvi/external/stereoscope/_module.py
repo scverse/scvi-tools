@@ -9,7 +9,7 @@ from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
-    """Modified version of Model of scRNA-seq for deconvolution of spatial transriptomics.
+    """Model of scRNA-seq for deconvolution of spatial transriptomics.
 
     Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
