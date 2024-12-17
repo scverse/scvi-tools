@@ -20,6 +20,8 @@ class RNADeconv(BaseModuleClass):
         Number of input genes
     n_labels
         Number of input cell types
+    n_batch
+        Number of batches
     **model_kwargs
         Additional kwargs
     """
@@ -28,13 +30,13 @@ class RNADeconv(BaseModuleClass):
         self,
         n_genes: int,
         n_labels: int,
-        n_batches: int,
+        n_batch: int,
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
-        self.n_batches = n_batches
+        self.n_batch = n_batch
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
@@ -43,8 +45,8 @@ class RNADeconv(BaseModuleClass):
         )  # n_genes, n_cell types
 
         self.D = torch.nn.Parameter(
-            torch.randn(self.n_genes, self.n_batches)
-        )  # n_genes, n_batches types
+            torch.randn(self.n_genes, self.n_batch)
+        )  # n_genes, n_batch types
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -65,7 +67,7 @@ class RNADeconv(BaseModuleClass):
         current_D = self.D.cpu().numpy()
         product_D = np.prod(current_D, axis=1)
 
-        W_prime = 1/self.n_batches * W * product_D[:, np.newaxis] 
+        W_prime = 1/self.n_batch * W * product_D[:, np.newaxis] 
 
         return W_prime, self.px_o.cpu().numpy()
 
@@ -117,11 +119,7 @@ class RNADeconv(BaseModuleClass):
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        #loss = torch.sum(scaling_factor * reconst_loss)
-
-        #return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
-
-        reconst_loss = scaling_factor * reconst_loss  # Apply cell-specific scaling
+        reconst_loss = scaling_factor * reconst_loss 
 
         mean = torch.zeros_like(self.D)
         scale = torch.ones_like(self.D)

@@ -59,16 +59,16 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
-        self.n_batches = self.summary_stats.n_batch
+        self.n_batch = self.summary_stats.n_batch
         # first we have the scRNA-seq model
         self.module = RNADeconv(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
-            n_batches=self.n_batches,
+            n_batch=self.n_batch,
             **model_kwargs,
         )
         self._model_summary_string = (
-            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}, n_batches: {self.n_batches}"
+            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}, n_batch: {self.n_batch}"
         )
         self.init_params_ = self._get_init_params(locals())
 
