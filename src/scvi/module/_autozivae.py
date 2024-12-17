@@ -284,6 +284,7 @@ class AutoZIVAE(VAE):
             theta=outputs["px"].theta,
             zi_logits=rescaled_dropout,
             scale=outputs["px"].scale,
+            on_mps=(self.device.type == "mps"),
         )
 
         # Bernoulli parameters
@@ -310,15 +311,14 @@ class AutoZIVAE(VAE):
         px_dropout: torch.Tensor,
         bernoulli_params: torch.Tensor,
         eps_log: float = 1e-8,
-        **kwargs,
     ) -> torch.Tensor:
         """Compute the reconstruction loss."""
         # LLs for NB and ZINB
         ll_zinb = torch.log(1.0 - bernoulli_params + eps_log) + ZeroInflatedNegativeBinomial(
-            mu=px_rate, theta=px_r, zi_logits=px_dropout
+            mu=px_rate, theta=px_r, zi_logits=px_dropout, on_mps=(self.device.type == "mps")
         ).log_prob(x)
         ll_nb = torch.log(bernoulli_params + eps_log) + NegativeBinomial(
-            mu=px_rate, theta=px_r
+            mu=px_rate, theta=px_r, on_mps=(self.device.type == "mps")
         ).log_prob(x)
 
         # Reconstruction loss using a logsumexp-type computation

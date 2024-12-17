@@ -28,6 +28,8 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add Support for MPS usage in mac {pr}`30XX`.
+-
 
 #### Fixed
 
@@ -36,6 +38,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Updated the CI workflow with internet, private and optional tests {pr}`3082`.
 - Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
     instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
+- Enable the default selection of MPS when `accelerator="auto"` in MAC & Lightning {pr}`30XX`.
 
 #### Removed
 

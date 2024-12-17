@@ -109,12 +109,7 @@ def parse_device_args(
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
-    elif _accelerator == "mps" and accelerator == "auto":
-        # auto accelerator should not default to mps
-        connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
-        _accelerator = connector._accelerator_flag
-        _devices = connector._devices_flag
-    elif _accelerator == "mps" and accelerator != "auto":
+    elif _accelerator == "mps":
         warnings.warn(
             "`accelerator` has been set to `mps`. Please note that not all PyTorch "
             "operations are supported with this backend. Refer to "
@@ -183,8 +178,8 @@ def scrna_raw_counts_properties(
         data1 = data1[:, var_idx]
         data2 = data2[:, var_idx]
 
-    mean1 = np.asarray((data1).mean(axis=0)).ravel()
-    mean2 = np.asarray((data2).mean(axis=0)).ravel()
+    mean1 = np.asarray(data1.mean(axis=0)).ravel()
+    mean2 = np.asarray(data2.mean(axis=0)).ravel()
     nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
     nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 

@@ -266,7 +266,11 @@ class MRDeconv(BaseModuleClass):
         gamma = generative_outputs["gamma"]
         v = generative_outputs["v"]
 
-        reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
+        reconst_loss = (
+            -NegativeBinomial(px_rate, logits=px_o, on_mps=(self.device.type == "mps"))
+            .log_prob(x)
+            .sum(-1)
+        )
 
         # eta prior likelihood
         mean = torch.zeros_like(self.eta)

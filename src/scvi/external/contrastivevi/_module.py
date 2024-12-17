@@ -376,8 +376,9 @@ class ContrastiveVAE(BaseModuleClass):
         target_outputs["px_r"] = outputs["px_r"]
         return {"background": background_outputs, "target": target_outputs}
 
-    @staticmethod
+    @auto_move_data
     def reconstruction_loss(
+        self,
         x: torch.Tensor,
         px_rate: torch.Tensor,
         px_r: torch.Tensor,
@@ -403,7 +404,9 @@ class ContrastiveVAE(BaseModuleClass):
         samples > 1, the tensor has shape (n_samples, batch_size).
         """
         recon_loss = (
-            -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+            -ZeroInflatedNegativeBinomial(
+                mu=px_rate, theta=px_r, zi_logits=px_dropout, on_mps=(self.device.type == "mps")
+            )
             .log_prob(x)
             .sum(dim=-1)
         )

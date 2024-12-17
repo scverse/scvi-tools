@@ -299,9 +299,12 @@ class SCAR_VAE(VAE):
                 theta=px_r,
                 zi_logits=px_dropout,
                 scale=px_scale,
+                on_mps=(self.device.type == "mps"),
             )
         elif self.gene_likelihood == "nb":
-            px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+            px = NegativeBinomial(
+                mu=px_rate, theta=px_r, scale=px_scale, on_mps=(self.device.type == "mps")
+            )
         elif self.gene_likelihood == "b":
             px = Binomial(total_count=torch.exp(size_factor).int(), probs=px_scale)
         elif self.gene_likelihood == "poisson":
@@ -351,12 +354,14 @@ class SCAR_VAE(VAE):
                 theta=px.theta,
                 zi_logits=px.zi_logits,
                 scale=px.scale + generative_outputs["pamb_scale"],
+                on_mps=(self.device.type == "mps"),
             )
         elif self.gene_likelihood == "nb":
             px = NegativeBinomial(
                 mu=px.mu + generative_outputs["pamb_rate"],
                 theta=px.theta,
                 scale=px.scale + generative_outputs["pamb_scale"],
+                on_mps=(self.device.type == "mps"),
             )
         elif self.gene_likelihood == "b":
             px = Binomial(

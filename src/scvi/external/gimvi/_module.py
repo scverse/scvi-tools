@@ -354,12 +354,21 @@ class JVAE(BaseModuleClass):
         reconstruction_loss = None
         if self.gene_likelihoods[mode] == "zinb":
             reconstruction_loss = (
-                -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate,
+                    theta=px_r,
+                    zi_logits=px_dropout,
+                    on_mps=(self.device.type == "mps"),
+                )
                 .log_prob(x)
                 .sum(dim=-1)
             )
         elif self.gene_likelihoods[mode] == "nb":
-            reconstruction_loss = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            reconstruction_loss = (
+                -NegativeBinomial(mu=px_rate, theta=px_r, on_mps=(self.device.type == "mps"))
+                .log_prob(x)
+                .sum(dim=-1)
+            )
         elif self.gene_likelihoods[mode] == "poisson":
             reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss

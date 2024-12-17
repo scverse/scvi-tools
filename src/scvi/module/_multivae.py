@@ -814,7 +814,7 @@ class MULTIVAE(BaseModuleClass):
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         if mask_pro.sum().gt(0):
             py_ = generative_outputs["py_"]
-            rl_protein = get_reconstruction_loss_protein(y, py_, None)
+            rl_protein = get_reconstruction_loss_protein(y, py_, None, self.device.type)
         else:
             rl_protein = torch.zeros(x.shape[0], device=x.device, requires_grad=False)
 
@@ -866,12 +866,21 @@ class MULTIVAE(BaseModuleClass):
         rl = 0.0
         if self.gene_likelihood == "zinb":
             rl = (
-                -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+                -ZeroInflatedNegativeBinomial(
+                    mu=px_rate,
+                    theta=px_r,
+                    zi_logits=px_dropout,
+                    on_mps=(self.device.type == "mps"),
+                )
                 .log_prob(x)
                 .sum(dim=-1)
             )
         elif self.gene_likelihood == "nb":
-            rl = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+            rl = (
+                -NegativeBinomial(mu=px_rate, theta=px_r, on_mps=(self.device.type == "mps"))
+                .log_prob(x)
+                .sum(dim=-1)
+            )
         elif self.gene_likelihood == "poisson":
             rl = -Poisson(px_rate).log_prob(x).sum(dim=-1)
         return rl
@@ -1000,13 +1009,14 @@ def sym_kld(qzm1, qzv1, qzm2, qzv2):
 
 
 @auto_move_data
-def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None):
+def get_reconstruction_loss_protein(y, py_, pro_batch_mask_minibatch=None, device_type="gpu"):
     """Get the reconstruction loss for protein data."""
     py_conditional = NegativeBinomialMixture(
         mu1=py_["rate_back"],
         mu2=py_["rate_fore"],
         theta1=py_["r"],
         mixture_logits=py_["mixing"],
+        on_mps=(device_type == "mps"),
     )
 
     reconst_loss_protein_full = -py_conditional.log_prob(y)

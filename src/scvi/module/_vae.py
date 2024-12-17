@@ -519,9 +519,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 theta=px_r,
                 zi_logits=px_dropout,
                 scale=px_scale,
+                on_mps=(self.device.type == "mps"),
             )
         elif self.gene_likelihood == "nb":
-            px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+            px = NegativeBinomial(
+                mu=px_rate, theta=px_r, scale=px_scale, on_mps=(self.device.type == "mps")
+            )
         elif self.gene_likelihood == "poisson":
             px = Poisson(rate=px_rate, scale=px_scale)
         elif self.gene_likelihood == "normal":

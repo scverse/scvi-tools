@@ -23,12 +23,29 @@ from scvi import settings
 from ._constraints import optional_constraint
 
 
+def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
+    """Used in mac M devices while broadcasting a tensor
+
+    Parameters
+    ----------
+    x
+        Data
+
+    Returns
+    -------
+    lgamma tensor that copied first to CPU and then back to MPS
+    """
+    return torch.lgamma(x.to("cpu").to("mps"))
+
+
 def log_zinb_positive(
     x: torch.Tensor,
     mu: torch.Tensor,
     theta: torch.Tensor,
     pi: torch.Tensor,
     eps: float = 1e-8,
+    log_fn: callable = torch.log,
+    lgamma_fn: callable = torch.lgamma,
 ) -> torch.Tensor:
     """Log likelihood (scalar) of a minibatch according to a zinb model.
 
@@ -44,11 +61,17 @@ def log_zinb_positive(
         logit of the dropout parameter (real support) (shape: minibatch x vars)
     eps
         numerical stability constant
+    log_fn
+        log function
+    lgamma_fn
+        log gamma function
 
     Notes
     -----
     We parametrize the bernoulli using the logits, hence the softplus functions appearing.
     """
+    log = log_fn
+    lgamma = lgamma_fn
     # theta is the dispersion rate. If .ndimension() == 1, it is shared for all cells (regardless
     # of batch or labels)
     if theta.ndimension() == 1:
@@ -56,8 +79,8 @@ def log_zinb_positive(
 
     # Uses log(sigmoid(x)) = -softplus(-x)
     softplus_pi = F.softplus(-pi)
-    log_theta_eps = torch.log(theta + eps)
-    log_theta_mu_eps = torch.log(theta + mu + eps)
+    log_theta_eps = log(theta + eps)
+    log_theta_mu_eps = log(theta + mu + eps)
     pi_theta_log = -pi + theta * (log_theta_eps - log_theta_mu_eps)
 
     case_zero = F.softplus(pi_theta_log) - softplus_pi
@@ -66,10 +89,10 @@ def log_zinb_positive(
     case_non_zero = (
         -softplus_pi
         + pi_theta_log
-        + x * (torch.log(mu + eps) - log_theta_mu_eps)
-        + torch.lgamma(x + theta)
-        - torch.lgamma(theta)
-        - torch.lgamma(x + 1)
+        + x * (log(mu + eps) - log_theta_mu_eps)
+        + lgamma(x + theta)
+        - lgamma(theta)
+        - lgamma(x + 1)
     )
     mul_case_non_zero = torch.mul((x > eps).type(torch.float32), case_non_zero)
 
@@ -125,6 +148,8 @@ def log_mixture_nb(
     theta_2: torch.Tensor,
     pi_logits: torch.Tensor,
     eps: float = 1e-8,
+    log_fn: callable = torch.log,
+    lgamma_fn: callable = torch.lgamma,
 ) -> torch.Tensor:
     """Log likelihood (scalar) of a minibatch according to a mixture nb model.
 
@@ -151,7 +176,13 @@ def log_mixture_nb(
         Probability of belonging to mixture component 1 (logits scale)
     eps
         Numerical stability constant
+    log_fn
+        log function
+    lgamma_fn
+        log gamma function
     """
+    log = log_fn
+    lgamma = lgamma_fn
     if theta_2 is not None:
         log_nb_1 = log_nb_positive(x, mu_1, theta_1)
         log_nb_2 = log_nb_positive(x, mu_2, theta_2)
@@ -161,22 +192,22 @@ def log_mixture_nb(
         if theta.ndimension() == 1:
             theta = theta.view(1, theta.size(0))  # In this case, we reshape theta for broadcasting
 
-        log_theta_mu_1_eps = torch.log(theta + mu_1 + eps)
-        log_theta_mu_2_eps = torch.log(theta + mu_2 + eps)
-        lgamma_x_theta = torch.lgamma(x + theta)
-        lgamma_theta = torch.lgamma(theta)
-        lgamma_x_plus_1 = torch.lgamma(x + 1)
+        log_theta_mu_1_eps = log(theta + mu_1 + eps)
+        log_theta_mu_2_eps = log(theta + mu_2 + eps)
+        lgamma_x_theta = lgamma(x + theta)
+        lgamma_theta = lgamma(theta)
+        lgamma_x_plus_1 = lgamma(x + 1)
 
         log_nb_1 = (
-            theta * (torch.log(theta + eps) - log_theta_mu_1_eps)
-            + x * (torch.log(mu_1 + eps) - log_theta_mu_1_eps)
+            theta * (log(theta + eps) - log_theta_mu_1_eps)
+            + x * (log(mu_1 + eps) - log_theta_mu_1_eps)
             + lgamma_x_theta
             - lgamma_theta
             - lgamma_x_plus_1
         )
         log_nb_2 = (
-            theta * (torch.log(theta + eps) - log_theta_mu_2_eps)
-            + x * (torch.log(mu_2 + eps) - log_theta_mu_2_eps)
+            theta * (log(theta + eps) - log_theta_mu_2_eps)
+            + x * (log(mu_2 + eps) - log_theta_mu_2_eps)
             + lgamma_x_theta
             - lgamma_theta
             - lgamma_x_plus_1
@@ -185,9 +216,9 @@ def log_mixture_nb(
     logsumexp = torch.logsumexp(torch.stack((log_nb_1, log_nb_2 - pi_logits)), dim=0)
     softplus_pi = F.softplus(-pi_logits)
 
-    log_mixture_nb = logsumexp - softplus_pi
+    log_mixture_nb_res = logsumexp - softplus_pi
 
-    return log_mixture_nb
+    return log_mixture_nb_res
 
 
 def _convert_mean_disp_to_counts_logits(
@@ -329,6 +360,8 @@ class NegativeBinomial(Distribution):
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
+    on_mps
+        Whether we are running of mac mps device, in such case lgamma function needs a twick
     """
 
     arg_constraints = {
@@ -347,6 +380,7 @@ class NegativeBinomial(Distribution):
         theta: torch.Tensor | None = None,
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
+        on_mps: bool = False,
     ):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
@@ -367,6 +401,7 @@ class NegativeBinomial(Distribution):
         self.mu = mu
         self.theta = theta
         self.scale = scale
+        self.on_mps = on_mps
         super().__init__(validate_args=validate_args)
 
     @property
@@ -412,7 +447,10 @@ class NegativeBinomial(Distribution):
                     stacklevel=settings.warnings_stacklevel,
                 )
 
-        return log_nb_positive(value, mu=self.mu, theta=self.theta, eps=self._eps)
+        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma
+        return log_nb_positive(
+            value, mu=self.mu, theta=self.theta, eps=self._eps, lgamma_fn=lgamma_fn
+        )
 
     def _gamma(self) -> Gamma:
         return _gamma(self.theta, self.mu)
@@ -463,6 +501,8 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
+    on_mps
+        Whether we are running of mac mps device, in such case lgamma function needs a twick
     """
 
     arg_constraints = {
@@ -483,6 +523,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         zi_logits: torch.Tensor | None = None,
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
+        on_mps: bool = False,
     ):
         super().__init__(
             total_count=total_count,
@@ -492,6 +533,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             theta=theta,
             scale=scale,
             validate_args=validate_args,
+            on_mps=on_mps,
         )
         self.zi_logits, self.mu, self.theta = broadcast_all(zi_logits, self.mu, self.theta)
 
@@ -536,7 +578,10 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        return log_zinb_positive(value, self.mu, self.theta, self.zi_logits, eps=1e-08)
+        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma
+        return log_zinb_positive(
+            value, self.mu, self.theta, self.zi_logits, eps=1e-08, lgamma_fn=lgamma_fn
+        )
 
 
 class NegativeBinomialMixture(Distribution):
@@ -559,6 +604,8 @@ class NegativeBinomialMixture(Distribution):
         Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
     validate_args
         Raise ValueError if arguments do not match constraints
+    on_mps
+        Whether we are running of mac mps device, in such case lgamma function needs a twick
     """
 
     arg_constraints = {
@@ -578,6 +625,7 @@ class NegativeBinomialMixture(Distribution):
         mixture_logits: torch.Tensor,
         theta2: torch.Tensor = None,
         validate_args: bool = False,
+        on_mps: bool = False,
     ):
         (
             self.mu1,
@@ -585,7 +633,7 @@ class NegativeBinomialMixture(Distribution):
             self.mu2,
             self.mixture_logits,
         ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
-
+        self.on_mps = on_mps
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
@@ -643,6 +691,7 @@ class NegativeBinomialMixture(Distribution):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma
         return log_mixture_nb(
             value,
             self.mu1,
@@ -651,6 +700,7 @@ class NegativeBinomialMixture(Distribution):
             self.theta2,
             self.mixture_logits,
             eps=1e-08,
+            lgamma_fn=lgamma_fn,
         )
 
     def __repr__(self) -> str:
