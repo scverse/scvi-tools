@@ -67,7 +67,7 @@ class RNADeconv(BaseModuleClass):
         current_D = self.D.cpu().numpy()
         product_D = np.prod(current_D, axis=1)
 
-        W_prime = 1/self.n_batch * W * product_D[:, np.newaxis] 
+        W_prime = 1 / self.n_batch * W * product_D[:, np.newaxis]
 
         return W_prime, self.px_o.cpu().numpy()
 
@@ -119,7 +119,7 @@ class RNADeconv(BaseModuleClass):
         scaling_factor = generative_outputs["scaling_factor"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        reconst_loss = scaling_factor * reconst_loss 
+        reconst_loss = scaling_factor * reconst_loss
 
         mean = torch.zeros_like(self.D)
         scale = torch.ones_like(self.D)
