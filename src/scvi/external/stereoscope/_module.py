@@ -60,7 +60,7 @@ class RNADeconv(BaseModuleClass):
         type
             list of tensor
         """
-        W_prime = torch.nn.functional.softplus(self.W) * self.px_batch.sum(dim=1).reshape((self.genes, self.n_labels)) / self.n_batch
+        W_prime = torch.nn.functional.softplus(self.W) * self.px_batch.sum(dim=1).reshape((self.n_genes, self.n_labels)) / self.n_batch
         W_prime = W_prime + torch.log(-torch.expm1(-W_prime)) # Convert it into a real value so that it can be used in the Spatial Model (inverse of softplus)
         return W_prime.cpu().numpy(), self.px_o.cpu().numpy()
 
