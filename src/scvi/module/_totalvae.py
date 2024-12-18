@@ -301,21 +301,14 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         if self.gene_likelihood == "zinb":
             reconst_loss_gene = (
                 -ZeroInflatedNegativeBinomial(
-                    mu=px_["rate"],
-                    theta=px_["r"],
-                    zi_logits=px_["dropout"],
-                    on_mps=(self.device.type == "mps"),
+                    mu=px_["rate"], theta=px_["r"], zi_logits=px_["dropout"]
                 )
                 .log_prob(x)
                 .sum(dim=-1)
             )
         else:
             reconst_loss_gene = (
-                -NegativeBinomial(
-                    mu=px_["rate"], theta=px_["r"], on_mps=(self.device.type == "mps")
-                )
-                .log_prob(x)
-                .sum(dim=-1)
+                -NegativeBinomial(mu=px_["rate"], theta=px_["r"]).log_prob(x).sum(dim=-1)
             )
 
         py_conditional = NegativeBinomialMixture(
@@ -323,7 +316,6 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             mu2=py_["rate_fore"],
             theta1=py_["r"],
             mixture_logits=py_["mixing"],
-            on_mps=(self.device.type == "mps"),
         )
         reconst_loss_protein_full = -py_conditional.log_prob(y)
         if pro_batch_mask_minibatch is not None:
@@ -708,15 +700,12 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         px_ = generative_outputs["px_"]
         py_ = generative_outputs["py_"]
 
-        rna_dist = NegativeBinomial(
-            mu=px_["rate"], theta=px_["r"], on_mps=(self.device.type == "mps")
-        )
+        rna_dist = NegativeBinomial(mu=px_["rate"], theta=px_["r"])
         protein_dist = NegativeBinomialMixture(
             mu1=py_["rate_back"],
             mu2=py_["rate_fore"],
             theta1=py_["r"],
             mixture_logits=py_["mixing"],
-            on_mps=(self.device.type == "mps"),
         )
         rna_sample = rna_dist.sample().cpu()
         protein_sample = protein_dist.sample().cpu()

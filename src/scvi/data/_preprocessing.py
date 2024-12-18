@@ -157,6 +157,7 @@ def poisson_gene_selection(
         expected_fraction_zeros /= data.shape[0]
 
         # Compute probability of enriched zeros through sampling from Binomial distributions.
+        # TODO:  TORCH MPS FIX - 'aten::binomial' is not currently implemented for the MPS device
         if device.type == "mps":
             observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros.to("cpu"))
             expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros.to("cpu"))

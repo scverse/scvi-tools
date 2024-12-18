@@ -24,7 +24,7 @@ from ._constraints import optional_constraint
 
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
-    """Used in mac M devices while broadcasting a tensor
+    """Used in mac Mx devices while broadcasting a tensor
 
     Parameters
     ----------
@@ -33,9 +33,9 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
 
     Returns
     -------
-    lgamma tensor that copied first to CPU and then back to MPS
+    lgamma tensor that perform on a copied version of the tensor
     """
-    return torch.lgamma(x.to("cpu").to("mps"))
+    return torch.lgamma(x.contiguous())
 
 
 def log_zinb_positive(
@@ -281,7 +281,7 @@ def _gamma(theta: torch.Tensor, mu: torch.Tensor, on_mps: bool = False) -> Gamma
     # Important remark: Gamma is parametrized by the rate = 1/scale!
     gamma_d = (
         Gamma(concentration=concentration.to("cpu"), rate=rate.to("cpu"))
-        if on_mps
+        if on_mps  # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
         else Gamma(concentration=concentration, rate=rate)
     )
     return gamma_d
@@ -364,8 +364,6 @@ class NegativeBinomial(Distribution):
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
-    on_mps
-        Whether we are running of mac mps device, in such case lgamma function needs a twick
     """
 
     arg_constraints = {
@@ -384,7 +382,6 @@ class NegativeBinomial(Distribution):
         theta: torch.Tensor | None = None,
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
-        on_mps: bool = False,
     ):
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
@@ -405,7 +402,9 @@ class NegativeBinomial(Distribution):
         self.mu = mu
         self.theta = theta
         self.scale = scale
-        self.on_mps = on_mps
+        self.on_mps = (
+            mu.device.type == "mps" if total_count is None else total_count.device.type == "mps"
+        )  # TODO: This is used until torch will solve the MPS issues
         super().__init__(validate_args=validate_args)
 
     @property
@@ -431,17 +430,15 @@ class NegativeBinomial(Distribution):
     ) -> torch.Tensor:
         """Sample from the distribution."""
         sample_shape = sample_shape or torch.Size()
-        gamma_d = self._gamma()
-        p_means = (
-            gamma_d.sample(sample_shape).to("mps") if self.on_mps else gamma_d.sample(sample_shape)
-        )
+        gamma_d = self._gamma()  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
+        p_means = gamma_d.sample(sample_shape)
 
         # Clamping as distributions objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
         counts = (
-            PoissonTorch(l_train.to("cpu")).sample().to("mps")
-            if self.on_mps
+            PoissonTorch(l_train).sample().to("mps")
+            if self.on_mps  # TODO: NEED TORCH MPS FIX for 'aten::poisson'
             else PoissonTorch(l_train).sample()
         )  # Shape : (n_samples, n_cells_batch, n_vars)
         return counts
@@ -457,7 +454,7 @@ class NegativeBinomial(Distribution):
                     stacklevel=settings.warnings_stacklevel,
                 )
 
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma
+        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
         return log_nb_positive(
             value, mu=self.mu, theta=self.theta, eps=self._eps, lgamma_fn=lgamma_fn
         )
@@ -511,8 +508,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints
-    on_mps
-        Whether we are running of mac mps device, in such case lgamma function needs a twick
     """
 
     arg_constraints = {
@@ -533,7 +528,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
         zi_logits: torch.Tensor | None = None,
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
-        on_mps: bool = False,
     ):
         super().__init__(
             total_count=total_count,
@@ -543,7 +537,6 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
             theta=theta,
             scale=scale,
             validate_args=validate_args,
-            on_mps=on_mps,
         )
         self.zi_logits, self.mu, self.theta = broadcast_all(zi_logits, self.mu, self.theta)
 
@@ -588,7 +581,7 @@ class ZeroInflatedNegativeBinomial(NegativeBinomial):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma
+        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
         return log_zinb_positive(
             value, self.mu, self.theta, self.zi_logits, eps=1e-08, lgamma_fn=lgamma_fn
         )
@@ -614,8 +607,6 @@ class NegativeBinomialMixture(Distribution):
         Inverse dispersion for component 1. If `None`, assumed to be equal to `theta1`.
     validate_args
         Raise ValueError if arguments do not match constraints
-    on_mps
-        Whether we are running of mac mps device, in such case lgamma function needs a twick
     """
 
     arg_constraints = {
@@ -635,7 +626,6 @@ class NegativeBinomialMixture(Distribution):
         mixture_logits: torch.Tensor,
         theta2: torch.Tensor = None,
         validate_args: bool = False,
-        on_mps: bool = False,
     ):
         (
             self.mu1,
@@ -643,7 +633,9 @@ class NegativeBinomialMixture(Distribution):
             self.mu2,
             self.mixture_logits,
         ) = broadcast_all(mu1, theta1, mu2, mixture_logits)
-        self.on_mps = on_mps
+        self.on_mps = (
+            mu1.device.type == "mps"
+        )  # TODO: This is used until torch will solve the MPS issues
         super().__init__(validate_args=validate_args)
 
         if theta2 is not None:
@@ -682,7 +674,7 @@ class NegativeBinomialMixture(Distribution):
             theta = self.theta1
         else:
             theta = self.theta1 * mixing_sample + self.theta2 * (1 - mixing_sample)
-        gamma_d = _gamma(theta, mu, self.on_mps)
+        gamma_d = _gamma(theta, mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
         p_means = gamma_d.sample(sample_shape)
 
         # Clamping as distributions objects can have buggy behaviors when
@@ -701,7 +693,7 @@ class NegativeBinomialMixture(Distribution):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma
+        lgamma_fn = torch_lgamma_mps if self.on_mps else torch.lgamma  # TODO: TORCH MPS FIX
         return log_mixture_nb(
             value,
             self.mu1,

@@ -184,7 +184,7 @@ class CellAssignModule(BaseModuleClass):
         )
 
         # compute gamma
-        nb_pdf = NegativeBinomial(mu=mu_ngc, theta=phi, on_mps=(self.device.type == "mps"))
+        nb_pdf = NegativeBinomial(mu=mu_ngc, theta=phi)
         x_ = x.unsqueeze(-1).expand(n_cells, self.n_genes, self.n_labels)
         x_log_prob_raw = nb_pdf.log_prob(x_)  # (n, g, c)
         theta_log = theta_log.expand(n_cells, self.n_labels)

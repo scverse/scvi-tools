@@ -138,7 +138,10 @@ def parse_device_args(
     elif return_device == "jax":
         device = jax.devices("cpu")[0]
         if _accelerator != "cpu":
-            device = jax.devices(_accelerator)[device_idx]
+            if _accelerator == "mps":
+                device = jax.devices("METAL")[device_idx]  # MPS-JAX
+            else:
+                device = jax.devices(_accelerator)[device_idx]
         return _accelerator, _devices, device
 
     return _accelerator, _devices

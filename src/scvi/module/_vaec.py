@@ -197,11 +197,7 @@ class VAEC(BaseModuleClass):
         h = self.decoder(*decoder_input)
         px_scale = self.px_decoder(h)
         px_rate = library * px_scale
-        return {
-            MODULE_KEYS.PX_KEY: NegativeBinomial(
-                px_rate, logits=self.px_r, on_mps=(self.device.type == "mps")
-            )
-        }
+        return {MODULE_KEYS.PX_KEY: NegativeBinomial(px_rate, logits=self.px_r)}
 
     def loss(
         self,
@@ -266,7 +262,7 @@ class VAEC(BaseModuleClass):
         px_r = generative_outputs["px_r"]
         px_rate = generative_outputs["px_rate"]
 
-        dist = NegativeBinomial(px_rate, logits=px_r, on_mps=(self.device.type == "mps"))
+        dist = NegativeBinomial(px_rate, logits=px_r)
         if n_samples > 1:
             exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
         else:
