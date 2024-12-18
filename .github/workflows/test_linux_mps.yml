@@ -48,6 +48,7 @@ jobs:
 
       - name: Create virtual environment and install dependencies
         run: |
+          conda init
           conda activate scvi
 
       - name: Install dependencies
