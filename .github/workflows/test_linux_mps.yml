@@ -2,7 +2,7 @@ name: test (mps)
 
 on:
   push:
-    branches: [main, "[0-9]+.[0-9]+.x"] #this is new
+    branches: [main, "[0-9]+.[0-9]+.x"]
   pull_request:
     branches: [main, "[0-9]+.[0-9]+.x"]
     types: [labeled, synchronize, opened]
@@ -25,15 +25,7 @@ jobs:
 
     runs-on: [self-hosted, macOS, X64, MPS]
 
-    defaults:
-      run:
-        shell: bash -e {0} # -e to fail on error
-
-    container:
-      image: ghcr.io/scverse/scvi-tools:py3.12-cu12-base
-      options: --user root --gpus all --pull always
-
-    name: integration
+    name: macos_integration
 
     env:
       OS: ${{ matrix.os }}
@@ -44,9 +36,11 @@ jobs:
       #  id: vars
       #  run: echo "BRANCH_NAME=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
