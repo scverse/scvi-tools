@@ -46,6 +46,10 @@ jobs:
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
 
+      - name: Create virtual environment and install dependencies
+        run: |
+          conda activate scvi
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
