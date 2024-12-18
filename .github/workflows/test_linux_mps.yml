@@ -46,9 +46,10 @@ jobs:
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
 
-      - name: Create virtual environment and install dependencies
+      - name: Create Conda environment and install dependencies
         run: |
-          conda init
+          conda init bash
+          source ~/.bash_profile
           conda activate scvi
 
       - name: Install dependencies
