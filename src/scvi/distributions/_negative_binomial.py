@@ -383,6 +383,9 @@ class NegativeBinomial(Distribution):
         scale: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
+        self.on_mps = (
+            mu.device.type == "mps" if total_count is None else total_count.device.type == "mps"
+        )  # TODO: This is used until torch will solve the MPS issues
         self._eps = 1e-8
         if (mu is None) == (total_count is None):
             raise ValueError(
@@ -395,6 +398,8 @@ class NegativeBinomial(Distribution):
             logits = logits if logits is not None else probs_to_logits(probs)
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
+            if self.on_mps: # TODO: This is used until torch will solve the MPS issues
+                total_count, logits = total_count.contiguous(), logits.contiguous()
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
             scale = mu / torch.sum(mu, dim=-1, keepdim=True)
         else:
@@ -402,9 +407,6 @@ class NegativeBinomial(Distribution):
         self.mu = mu
         self.theta = theta
         self.scale = scale
-        self.on_mps = (
-            mu.device.type == "mps" if total_count is None else total_count.device.type == "mps"
-        )  # TODO: This is used until torch will solve the MPS issues
         super().__init__(validate_args=validate_args)
 
     @property

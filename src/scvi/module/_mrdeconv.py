@@ -127,7 +127,7 @@ class MRDeconv(BaseModuleClass):
         self.px_decoder.load_state_dict(px_decoder_state_dict)
         for param in self.px_decoder.parameters():
             param.requires_grad = False
-        self.register_buffer("px_o", torch.tensor(px_r))
+        self.register_buffer("px_o", torch.tensor(px_r, dtype=torch.float32))
 
         # cell_type specific factor loadings
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
@@ -136,9 +136,9 @@ class MRDeconv(BaseModuleClass):
         self.gamma = torch.nn.Parameter(torch.randn(n_latent, self.n_labels, self.n_spots))
         if mean_vprior is not None:
             self.p = mean_vprior.shape[1]
-            self.register_buffer("mean_vprior", torch.tensor(mean_vprior))
-            self.register_buffer("var_vprior", torch.tensor(var_vprior))
-            self.register_buffer("mp_vprior", torch.tensor(mp_vprior))
+            self.register_buffer("mean_vprior", torch.tensor(mean_vprior, dtype=torch.float32))
+            self.register_buffer("var_vprior", torch.tensor(var_vprior, dtype=torch.float32))
+            self.register_buffer("mp_vprior", torch.tensor(mp_vprior, dtype=torch.float32))
         else:
             self.mean_vprior = None
             self.var_vprior = None
@@ -217,6 +217,8 @@ class MRDeconv(BaseModuleClass):
             v_ind = self.V_encoder(x_)
         else:
             v_ind = self.V[:, ind_x].T  # minibatch_size, labels + 1
+            if v_ind.device.type == "mps":
+                v_ind = v_ind.contiguous()
         v_ind = torch.nn.functional.softplus(v_ind)
 
         # reshape and get gene expression value for all minibatch
@@ -234,6 +236,8 @@ class MRDeconv(BaseModuleClass):
 
         # add the dummy cell type
         eps = eps.repeat((m, 1)).view(m, 1, -1)  # (M, 1, n_genes) <- this is the dummy cell type
+        #if eps.device.type == "mps": # TODO ORI check performance. My gut feeling tells me yes
+        #   eps = eps.contiguous()
 
         # account for gene specific bias and add noise
         r_hat = torch.cat(

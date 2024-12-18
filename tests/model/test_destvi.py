@@ -31,7 +31,8 @@ def test_destvi():
 
     # step 3 learn destVI with multiple amortization scheme
 
-    for amor_scheme in ["both", "none", "proportion", "latent"]:
+    for amor_scheme in ["both", "proportion", "latent", "none"]:
+        print('IIIII', amor_scheme)
         DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
         spatial_model = DestVI.from_rna_model(
