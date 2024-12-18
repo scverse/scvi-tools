@@ -68,7 +68,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = (
-            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}"
+            f"RNADeconv Model with params: \nn_genes: {self.n_genes}, n_labels: {self.n_labels}, n_batches: {self.n_batches}"
         )
         self.init_params_ = self._get_init_params(locals())
 
@@ -153,6 +153,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_labels_key)s
         %(param_layer)s
+        %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [

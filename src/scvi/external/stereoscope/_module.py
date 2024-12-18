@@ -20,6 +20,8 @@ class RNADeconv(BaseModuleClass):
         Number of input genes
     n_labels
         Number of input cell types
+    n_batches
+        Number of input batches
     **model_kwargs
         Additional kwargs
     """
@@ -37,8 +39,8 @@ class RNADeconv(BaseModuleClass):
         self.n_labels = n_labels
         self.n_batches = n_batches
         
-        # Initialize w_dg ~ N(0, 1)
-        self.w_dg = torch.nn.Parameter(torch.randn(self.n_batches, n_genes))
+        # Initialize the Batch effect matrix shape (n_batches, n_genes) each element follows w_dg ~ N(0, 1)
+        self.B = torch.nn.Parameter(torch.randn(self.n_batches, n_genes))
 
         # logit param for negative binomial
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
@@ -51,17 +53,6 @@ class RNADeconv(BaseModuleClass):
         else:
             ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
         self.register_buffer("ct_weight", ct_weight)
-
-    # @torch.inference_mode()
-    # def get_params(self) -> tuple[np.ndarray]:
-    #     """Returns the parameters for feeding into the spatial data.
-
-    #     Returns
-    #     -------
-    #     type
-    #         list of tensor
-    #     """
-    #     return self.W.cpu().numpy(), self.px_o.cpu().numpy()
     
     @torch.inference_mode()
     def get_params(self) -> tuple[np.ndarray, np.ndarray]:
@@ -75,20 +66,19 @@ class RNADeconv(BaseModuleClass):
         tuple
         Adjusted W (mu') and px_o as numpy arrays.
         """
-        # Number of batches
-        D = self.w_dg.shape[0]  # Assuming self.w_dg has size (n_batches, n_genes)
+        W = self.W  # shape (n_genes, n_cell_types) - still a torch tensor on CPU
+        D = self.B.shape[0]
+        batch_effects = torch.exp(self.B)
+        batch_correction = torch.prod(batch_effects, dim=0).unsqueeze(1) # (n_genes, 1)
 
-        # Apply softplus to ensure positivity of batch weights
-        batch_effects = torch.exp(self.w_dg)  # Shape: (n_batches, n_genes)
+        W_transposed = W.T  # (n_cell_types, n_genes)
+        W_corrected = (W_transposed / D) * batch_correction.T  # all torch ops
+        _corrected = W_corrected.T  # back to (n_genes, n_cell_types)
 
-        # Compute the product of batch corrections across all batches
-        batch_correction = torch.prod(batch_effects, dim=0)  # Product over batches for each gene
+        W_corrected_np = W_corrected.cpu().numpy()  # convert to numpy once at the end
+        px_o_np = self.px_o.cpu().numpy()
 
-        # Adjust W: Divide by the number of batches and apply batch corrections
-        adjusted_W = self.W / D * batch_correction.unsqueeze(1)  # Shape: (n_genes, n_cell_types)
-
-        return adjusted_W.cpu().numpy(), self.px_o.cpu().numpy()
-
+        return W_corrected_np, px_o_np
 
     def _get_inference_input(self, tensors):
         # we perform MAP here, so there is nothing to infer
@@ -112,31 +102,14 @@ class RNADeconv(BaseModuleClass):
     def inference(self):
         """Inference."""
         return {}
-
-    # @auto_move_data
-    # def generative(self, x, y):
-    #     """Simply build the negative binomial parameters for every cell in the minibatch."""
-    #     px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T  # cells per gene
-    #     library = torch.sum(x, dim=1, keepdim=True)
-    #     px_rate = library * px_scale
-    #     scaling_factor = self.ct_weight[y.long().ravel()]
-
-    #     return {
-    #         "px_scale": px_scale,
-    #         "px_o": self.px_o,
-    #         "px_rate": px_rate,
-    #         "library": library,
-    #         "scaling_factor": scaling_factor,
-    #     }
         
     @auto_move_data
     def generative(self, x, y, batch):
         """Build the negative binomial parameters for every cell in the minibatch."""
-        # Softplus to ensure positivity of W (baseline)
-        px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T
+        px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T # cells per gene
 
-        # Apply batch-specific weights: ensure positivity with softplus
-        batch_effect = torch.exp(self.w_dg[batch.long().ravel()].unsqueeze(1))
+        # Apply batch-specific weights
+        batch_effect = torch.exp(self.B[batch.long().ravel(), :])
         px_scale_corrected = px_scale * batch_effect
 
         # Library size normalization
@@ -152,24 +125,6 @@ class RNADeconv(BaseModuleClass):
             "scaling_factor": scaling_factor,
             "batch_effect": batch_effect,
         }
-
-    # def loss(
-    #     self,
-    #     tensors,
-    #     inference_outputs,
-    #     generative_outputs,
-    #     kl_weight: float = 1.0,
-    # ):
-    #     """Loss computation."""
-    #     x = tensors[REGISTRY_KEYS.X_KEY]
-    #     px_rate = generative_outputs["px_rate"]
-    #     px_o = generative_outputs["px_o"]
-    #     scaling_factor = generative_outputs["scaling_factor"]
-
-    #     reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-    #     loss = torch.sum(scaling_factor * reconst_loss)
-
-    #     return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
     
     def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float =1.0):
         """Loss computation with batch weight regularization."""
@@ -183,11 +138,9 @@ class RNADeconv(BaseModuleClass):
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
         loss = torch.sum(scaling_factor * reconst_loss)
         
-        # Regularize w_dg ~ N(0, 1)
-        # mean_penalty = torch.mean(self.w_dg) ** 2
-        # variance_penalty = (torch.var(self.w_dg) - 1) ** 2
-        # reg_penalty = mean_penalty + prior_penalty
-        prior_penalty = torch.sum(self.w_dg ** 2).mean()
+        # Regularize B ~ N(0, 1)
+        prior = Normal(loc=0.0, scale=1.0)
+        prior_penalty = -prior.log_prob(self.B).sum()
 
         total_loss = loss + kl_weight * prior_penalty
         
