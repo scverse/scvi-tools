@@ -34,7 +34,6 @@ class RNADeconv(BaseModuleClass):
         **model_kwargs,
     ):
         super().__init__()
-        print("Initializaing RNADeconv", flush=True)
         self.n_genes = n_genes
         self.n_labels = n_labels
         self.n_batches = n_batches
@@ -200,9 +199,6 @@ class SpatialDeconv(BaseModuleClass):
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
         # additive gene bias
         self.beta = torch.nn.Parameter(0.01 * torch.randn(self.n_genes))
-
-        # Add batch-specific weigths
-        self.w_dg = torch.nn.Parameter(torch.zeros(self.n_genes))
 
     @torch.inference_mode()
     def get_proportions(self, keep_noise=False) -> np.ndarray:
