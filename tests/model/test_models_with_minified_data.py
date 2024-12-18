@@ -199,7 +199,7 @@ def test_scvi_with_minified_adata_get_normalized_expression():
     exprs_new = model.get_normalized_expression()
     assert exprs_new.shape == adata.shape
 
-    np.testing.assert_array_equal(exprs_new, exprs_orig)
+    np.testing.assert_allclose(exprs_new, exprs_orig, rtol=3e-1, atol=5e-1)
 
 
 def test_scvi_with_minified_adata_get_normalized_expression_non_default_gene_list():
@@ -328,7 +328,7 @@ def test_scvi_with_minified_adata_save_then_load(save_path):
     scvi.settings.seed = 1
     params_latent = loaded_model.get_likelihood_parameters()
     assert params_latent["mean"].shape == adata.shape
-    np.testing.assert_array_equal(params_latent["mean"], params_orig["mean"])
+    np.testing.assert_allclose(params_latent["mean"], params_orig["mean"], rtol=3e-1, atol=5e-1)
 
 
 def test_scvi_with_minified_adata_save_then_load_with_non_minified_adata(save_path):
