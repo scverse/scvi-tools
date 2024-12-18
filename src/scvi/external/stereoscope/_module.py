@@ -66,14 +66,14 @@ class RNADeconv(BaseModuleClass):
         tuple
         Adjusted W (mu') and px_o as numpy arrays.
         """
-        W = self.W  # shape (n_genes, n_cell_types) - still a torch tensor on CPU
-        D = self.B.shape[0]
+        W = self.W  # shape (n_genes, n_cell_types)
+        D = self.B.shape[0] # shape (n_batches, n_genes)
         batch_effects = torch.exp(self.B)
         batch_correction = torch.prod(batch_effects, dim=0).unsqueeze(1) # (n_genes, 1)
 
         W_transposed = W.T  # (n_cell_types, n_genes)
-        W_corrected = (W_transposed / D) * batch_correction.T  # all torch ops
-        _corrected = W_corrected.T  # back to (n_genes, n_cell_types)
+        W_corrected = (W_transposed / D) * batch_correction.T  # ok to broadcast (n_cell_types, n_genes)
+        W_corrected = W_corrected.T  # back to (n_genes, n_cell_types)
 
         W_corrected_np = W_corrected.cpu().numpy()  # convert to numpy once at the end
         px_o_np = self.px_o.cpu().numpy()
