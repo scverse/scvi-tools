@@ -101,7 +101,7 @@ class CellAssignModule(BaseModuleClass):
             beta_init = torch.zeros(self.n_genes, design_matrix_col_dim)  # (g, p)
             self.beta = torch.nn.Parameter(beta_init)  # (g, p)
 
-        self.register_buffer("basis_means", torch.tensor(basis_means))
+        self.register_buffer("basis_means", torch.tensor(basis_means, dtype=torch.float32))
 
     def _get_inference_input(self, tensors):
         return {}
