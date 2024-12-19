@@ -44,7 +44,7 @@ class RNADeconv(BaseModuleClass):
 
         # logit param for negative binomial
 
-        #px_o is the p vector in the assignment pdf
+        # px_o is the p vector in the assignment pdf
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
         # W is the μ matrix in the assignment pdf
         self.W = torch.nn.Parameter(
@@ -63,7 +63,7 @@ class RNADeconv(BaseModuleClass):
     @torch.inference_mode()
     def get_params(self) -> tuple[np.ndarray]:
         """Returns the parameters for feeding into the spatial data.
-        
+
         Implements equation 6
 
         Returns
@@ -75,7 +75,9 @@ class RNADeconv(BaseModuleClass):
         batch_effects = torch.exp(self.normal_w)  # shape: [n_batches=D, n_genes]
         mean_batch_effect = torch.prod(batch_effects, dim=0)  # shape: [n_genes]
 
-        W_prime = (self.W / self.n_batches) * mean_batch_effect.unsqueeze(1)  # shape: [n_genes, n_labels]
+        W_prime = (self.W / self.n_batches) * mean_batch_effect.unsqueeze(
+            1
+        )  # shape: [n_genes, n_labels]
 
         return W_prime.cpu().numpy(), self.px_o.cpu().numpy()
 
@@ -92,11 +94,7 @@ class RNADeconv(BaseModuleClass):
             batch_index = torch.zeros_like(y, dtype=torch.long)  # Default batch
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]  # Use the registry key
 
-        input_dict = {
-            "x": x,
-            "y": y,
-            "batch_index": batch_index
-        }
+        input_dict = {"x": x, "y": y, "batch_index": batch_index}
         return input_dict
 
     @auto_move_data

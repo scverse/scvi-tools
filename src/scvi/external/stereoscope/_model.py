@@ -167,9 +167,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ]
 
         if batch_key is not None:
-            anndata_fields.append(
-                CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
-            )
+            anndata_fields.append(CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
 
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
