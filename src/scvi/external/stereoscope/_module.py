@@ -20,6 +20,10 @@ class RNADeconv(BaseModuleClass):
         Number of input genes
     n_labels
         Number of input cell types
+    n_batches
+        Number of batches
+    prior_weight
+        Whether to sample the minibatch by the number of total observations or the minibatch size
     **model_kwargs
         Additional kwargs
     """
@@ -28,17 +32,27 @@ class RNADeconv(BaseModuleClass):
         self,
         n_genes: int,
         n_labels: int,
+        n_batches: int,
+        prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
         super().__init__()
         self.n_genes = n_genes
         self.n_labels = n_labels
+        self.n_batches = n_batches
+        self.prior_weight = prior_weight
 
         # logit param for negative binomial
+
+        #px_o is the p vector in the assignment pdf
         self.px_o = torch.nn.Parameter(torch.randn(self.n_genes))
+        # W is the μ matrix in the assignment pdf
         self.W = torch.nn.Parameter(
             torch.randn(self.n_genes, self.n_labels)
         )  # n_genes, n_cell types
+
+        # normal_w is the batch effect parameter (w in equation 5)
+        self.normal_w = torch.nn.Parameter(torch.randn(self.n_batches, self.n_genes))
 
         if "ct_weight" in model_kwargs:
             ct_weight = torch.tensor(model_kwargs["ct_prop"], dtype=torch.float32)
@@ -49,23 +63,40 @@ class RNADeconv(BaseModuleClass):
     @torch.inference_mode()
     def get_params(self) -> tuple[np.ndarray]:
         """Returns the parameters for feeding into the spatial data.
+        
+        Implements equation 6
 
         Returns
         -------
         type
             list of tensor
         """
-        return self.W.cpu().numpy(), self.px_o.cpu().numpy()
+        # W is already in real space (before softplus)
+        batch_effects = torch.exp(self.normal_w)  # shape: [n_batches=D, n_genes]
+        mean_batch_effect = torch.prod(batch_effects, dim=0)  # shape: [n_genes]
+
+        W_prime = (self.W / self.n_batches) * mean_batch_effect.unsqueeze(1)  # shape: [n_genes, n_labels]
+
+        return W_prime.cpu().numpy(), self.px_o.cpu().numpy()
 
     def _get_inference_input(self, tensors):
-        # we perform MAP here, so there is nothing to infer
         return {}
 
     def _get_generative_input(self, tensors, inference_outputs):
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
 
-        input_dict = {"x": x, "y": y}
+        # Case if batch_key is not provided
+        batch_index = tensors.get(REGISTRY_KEYS.BATCH_KEY, None)
+        if batch_index is None:
+            batch_index = torch.zeros_like(y, dtype=torch.long)  # Default batch
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]  # Use the registry key
+
+        input_dict = {
+            "x": x,
+            "y": y,
+            "batch_index": batch_index
+        }
         return input_dict
 
     @auto_move_data
@@ -74,11 +105,15 @@ class RNADeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, y):
+    def generative(self, x, y, batch_index):
         """Simply build the negative binomial parameters for every cell in the minibatch."""
         px_scale = torch.nn.functional.softplus(self.W)[:, y.long().ravel()].T  # cells per gene
         library = torch.sum(x, dim=1, keepdim=True)
-        px_rate = library * px_scale
+
+        normal_w = torch.exp(self.normal_w[batch_index])  # shape: batch_size x n_genes
+
+        # Product in the first argument of Negative Binomial in equation 5
+        px_rate = library * normal_w * px_scale
         scaling_factor = self.ct_weight[y.long().ravel()]
 
         return {
@@ -87,6 +122,7 @@ class RNADeconv(BaseModuleClass):
             "px_rate": px_rate,
             "library": library,
             "scaling_factor": scaling_factor,
+            "normal_w": self.normal_w,  # For the penalty calculation
         }
 
     def loss(
@@ -95,17 +131,32 @@ class RNADeconv(BaseModuleClass):
         inference_outputs,
         generative_outputs,
         kl_weight: float = 1.0,
+        n_obs: int = 1.0,
     ):
         """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         px_rate = generative_outputs["px_rate"]
         px_o = generative_outputs["px_o"]
         scaling_factor = generative_outputs["scaling_factor"]
+        normal_w = generative_outputs["normal_w"]
 
         reconst_loss = -NegativeBinomial(px_rate, logits=px_o).log_prob(x).sum(-1)
-        loss = torch.sum(scaling_factor * reconst_loss)
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss)
+        # Prior likelihood for normal_w (Normal(0,1))
+        mean = torch.zeros_like(normal_w)
+        scale = torch.ones_like(normal_w)
+        neg_log_likelihood_prior = -Normal(mean, scale).log_prob(normal_w).sum()
+
+        if self.prior_weight == "n_obs":
+            loss = n_obs * torch.mean(scaling_factor * reconst_loss) + neg_log_likelihood_prior
+        else:
+            loss = torch.sum(scaling_factor * reconst_loss) + neg_log_likelihood_prior
+
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_global=neg_log_likelihood_prior,
+        )
 
     @torch.inference_mode()
     def sample(
@@ -132,7 +183,7 @@ class SpatialDeconv(BaseModuleClass):
         Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and
         log dispersion parameters
     prior_weight
-        Whether to sample the minibatch by the number of total observations or the monibatch size
+        Whether to sample the minibatch by the number of total observations or the minibatch size
     """
 
     def __init__(

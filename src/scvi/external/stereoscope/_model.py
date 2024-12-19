@@ -59,10 +59,17 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
+
+        # Get original batch_key from adata manager registry
+        batch_key = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).original_key
+        # Count the number of unique batches (D variable in assignment)
+        self.n_batches = len(sc_adata.obs[batch_key].unique())
+
         # first we have the scRNA-seq model
         self.module = RNADeconv(
             n_genes=self.n_genes,
             n_labels=self.n_labels,
+            n_batches=self.n_batches,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -142,6 +149,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         adata: AnnData,
         labels_key: str | None = None,
         layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -150,12 +158,19 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_labels_key)s
         %(param_layer)s
+        %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
+
+        if batch_key is not None:
+            anndata_fields.append(
+                CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+            )
+
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
