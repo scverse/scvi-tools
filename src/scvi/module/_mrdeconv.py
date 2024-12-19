@@ -236,8 +236,8 @@ class MRDeconv(BaseModuleClass):
 
         # add the dummy cell type
         eps = eps.repeat((m, 1)).view(m, 1, -1)  # (M, 1, n_genes) <- this is the dummy cell type
-        if eps.device.type == "mps":  # TODO ORI check performance. My gut feeling tells me yes
-            eps = eps.contiguous()
+        # if eps.device.type == "mps":  # TODO ORI check performance. My gut feeling tells me yes
+        #     eps = eps.contiguous()
 
         # account for gene specific bias and add noise
         r_hat = torch.cat(

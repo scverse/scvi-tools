@@ -417,6 +417,7 @@ class VELOVAE(BaseModuleClass):
         """Runs the generative model."""
         decoder_input = z
         px_pi_alpha, px_rho, px_tau = self.decoder(decoder_input, latent_dim=latent_dim)
+        # TODO: NEED TORCH MPS FIX for 'aten::_dirichlet'
         if px_pi_alpha.device.type == "mps":
             px_pi = Dirichlet(px_pi_alpha.to("cpu")).rsample().to("mps")
         else:
