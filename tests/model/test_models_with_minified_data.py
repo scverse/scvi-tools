@@ -16,9 +16,6 @@ if TYPE_CHECKING:
     import numpy.typing as npt
     from anndata import AnnData
 
-_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
-_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
-
 
 def prep_model(
     cls: BaseMinifiedModeModelClass = SCVI,
@@ -102,11 +99,9 @@ def run_test_for_model_with_minified_adata(
         # minified and non-minified cases (purely to get the tests to pass). this is
         # because in the non-minified case we sample once more (in the call to z_encoder
         # during inference)
-        params_latent = model.get_likelihood_parameters(n_samples=n_samples + 1, give_mean=False)
-        for k in keys:
-            params_latent[k] = params_latent[k][1:].mean(0)
+        params_latent = model.get_likelihood_parameters(n_samples=n_samples, give_mean=give_mean)
     for k in keys:
-        assert params_latent[k].shape == adata_orig.shape
+        assert params_latent[k].shape == params_orig[k].shape
 
     for k in keys:
         assert_approx_equal(params_latent[k], params_orig[k])

@@ -404,6 +404,8 @@ class NegativeBinomial(Distribution):
             scale = mu / torch.sum(mu, dim=-1, keepdim=True)
         else:
             mu, theta = broadcast_all(mu, theta)
+            if self.on_mps:
+                mu, theta = mu.contiguous(), theta.contiguous()
         self.mu = mu
         self.theta = theta
         self.scale = scale

@@ -683,34 +683,34 @@ class RNASeqMixin:
             px_rate = px.mu
             if self.module.gene_likelihood == "zinb":
                 px_dropout = px.zi_probs
-
-            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-
-            px_r = px_r.cpu().numpy()
-            if len(px_r.shape) == 1:
-                dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
-            else:
-                dispersion_list += [px_r]
-            mean_list += [px_rate.cpu().numpy()]
-            if self.module.gene_likelihood == "zinb":
                 dropout_list += [px_dropout.cpu().numpy()]
                 dropout = np.concatenate(dropout_list, axis=-2)
+
+            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+            if self.module.gene_likelihood != "poisson":
+                px_r = px_r.cpu().numpy()
+                if len(px_r.shape) == 1:
+                    dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+                else:
+                    dispersion_list += [px_r]
+            mean_list += [px_rate.cpu().numpy()]
+
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":
                 dropout = dropout.mean(0)
+            if self.module.gene_likelihood != "poisson":
+                dispersions = dispersions.mean(0)
             means = means.mean(0)
-            dispersions = dispersions.mean(0)
 
         return_dict = {}
         return_dict["mean"] = means
 
         if self.module.gene_likelihood == "zinb":
             return_dict["dropout"] = dropout
-            return_dict["dispersions"] = dispersions
-        if self.module.gene_likelihood == "nb":
+        if self.module.gene_likelihood != "poisson":
             return_dict["dispersions"] = dispersions
 
         return return_dict
