@@ -18,8 +18,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import Literal
 
-    import numpy as np
-
 
 class DecoderVELOVI(nn.Module):
     """Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
