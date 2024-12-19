@@ -398,7 +398,7 @@ class NegativeBinomial(Distribution):
             logits = logits if logits is not None else probs_to_logits(probs)
             total_count = total_count.type_as(logits)
             total_count, logits = broadcast_all(total_count, logits)
-            if self.on_mps: # TODO: This is used until torch will solve the MPS issues
+            if self.on_mps:  # TODO: This is used until torch will solve the MPS issues
                 total_count, logits = total_count.contiguous(), logits.contiguous()
             mu, theta = _convert_counts_logits_to_mean_disp(total_count, logits)
             scale = mu / torch.sum(mu, dim=-1, keepdim=True)

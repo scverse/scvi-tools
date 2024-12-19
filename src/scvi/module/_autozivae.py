@@ -97,14 +97,14 @@ class AutoZIVAE(VAE):
                 self.alpha_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
                 self.register_buffer(
-                    "alpha_prior_logit",
-                    torch.tensor([logit(alpha_prior)], dtype=torch.float32))
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
                 self.register_buffer(
-                    "beta_prior_logit",
-                    torch.tensor([logit(alpha_prior)], dtype=torch.float32))
+                    "beta_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
 
         elif self.zero_inflation == "gene-batch":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_batch))
@@ -113,14 +113,14 @@ class AutoZIVAE(VAE):
                 self.alpha_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
                 self.register_buffer(
-                    "alpha_prior_logit",
-                    torch.tensor([logit(alpha_prior)], dtype=torch.float32))
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
                 self.register_buffer(
-                    "beta_prior_logit",
-                    torch.tensor([logit(beta_prior)], dtype=torch.float32))
+                    "beta_prior_logit", torch.tensor([logit(beta_prior)], dtype=torch.float32)
+                )
 
         elif self.zero_inflation == "gene-label":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_labels))
@@ -129,14 +129,14 @@ class AutoZIVAE(VAE):
                 self.alpha_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
             else:
                 self.register_buffer(
-                    "alpha_prior_logit",
-                    torch.tensor([logit(alpha_prior)], dtype=torch.float32))
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
             else:
                 self.register_buffer(
-                    "beta_prior_logit",
-                    torch.tensor([logit(beta_prior)], dtype=torch.float32))
+                    "beta_prior_logit", torch.tensor([logit(beta_prior)], dtype=torch.float32)
+                )
 
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
