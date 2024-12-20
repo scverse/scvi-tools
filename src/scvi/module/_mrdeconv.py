@@ -217,8 +217,6 @@ class MRDeconv(BaseModuleClass):
             v_ind = self.V_encoder(x_)
         else:
             v_ind = self.V[:, ind_x].T  # minibatch_size, labels + 1
-            if v_ind.device.type == "mps":
-                v_ind = v_ind.contiguous()
         v_ind = torch.nn.functional.softplus(v_ind)
 
         # reshape and get gene expression value for all minibatch
