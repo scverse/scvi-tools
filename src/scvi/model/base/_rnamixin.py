@@ -539,20 +539,16 @@ class RNASeqMixin:
             else:
                 px_dispersion = torch.ones_like(x).to(device) * px_r
 
-            # This gamma is really l*w using scVI manuscript notation
+            # This gamma is using scVI manuscript notation
             p = rate / (rate + px_dispersion)
             r = px_dispersion
             # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
             l_train = (
-                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample().to("mps")
+                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample()
                 if device.type == "mps"
-                else torch.distributions.Gamma(r, (1 - p) / p).sample()
+                else torch.distributions.Gamma(r, (1 - p) / p).sample().cpu()
             )
-            data = l_train.cpu().numpy()
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
+            data = l_train.numpy()
             data_loader_list += [data]
 
             if n_samples > 1:
