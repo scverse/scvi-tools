@@ -3,7 +3,7 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.external import Decipher
-from scvi.external.decipher.utils import rotate_decipher_components
+from scvi.external.decipher.utils import Trajectory, rotate_decipher_components
 
 
 @pytest.fixture(scope="session")
@@ -43,7 +43,6 @@ def test_decipher_model_methods(adata):
     adata.obsm[z_obsm_key] = z
 
     v1_obs_col = "batch"
-    v2_obs_col = "label"
     rotated_v, rotated_z, rotation = rotate_decipher_components(
         adata,
         v_obsm_key=v_obsm_key,
@@ -67,3 +66,49 @@ def test_decipher_model_methods(adata):
     assert imputed_expr.shape == (adata.n_obs, adata.n_vars)
     assert v_cov.shape == (adata.n_vars, model.module.dim_v)
     assert z_cov.shape == (adata.n_vars, model.module.dim_z)
+
+
+def test_decipher_trajectory(adata):
+    Decipher.setup_anndata(adata)
+    model = Decipher(adata)
+    model.train(
+        max_epochs=2,
+        check_val_every_n_epoch=1,
+        train_size=0.5,
+        early_stopping=True,
+    )
+
+    v = model.get_latent_representation(give_z=False)
+    adata.obsm["decipher_v"] = v
+
+    trajectory = Trajectory.from_dict(
+        {
+            "rep_key": "decipher_v",
+            "cluster_locations": v[
+                np.random.choice(np.arange(v.shape[0]), size=10, replace=False), :
+            ],
+            "cluster_ids": np.arange(10),
+            "density": 50,
+        }
+    )
+
+    adata.obs["cluster_ids"] = np.random.randint(0, 10, size=adata.n_obs)
+    decipher_time = model.compute_decipher_time(
+        adata,
+        cluster_obs_key="cluster_ids",
+        trajectory=trajectory,
+        n_neighbors=10,
+    )
+    assert decipher_time.shape == (adata.n_obs,)
+
+    gene_patterns = model.compute_gene_patterns(
+        adata,
+        trajectory=trajectory,
+        l_scale=10_000,
+        n_samples=100,
+    )
+    assert gene_patterns["mean"].shape[1] == adata.n_vars
+    assert gene_patterns["q25"].shape[1] == adata.n_vars
+    assert gene_patterns["q75"].shape[1] == adata.n_vars
+    n_times = gene_patterns["mean"].shape[0]
+    assert gene_patterns["times"].shape == (n_times,)
