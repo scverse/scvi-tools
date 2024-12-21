@@ -18,8 +18,11 @@ def rotate_decipher_components(
     v2_order: list | None = None,
     auto_flip_decipher_z: bool = True,
 ) -> tuple[np.array, np.array, np.array]:
-    """Rotate and flip the decipher space v to maximize the correlation of each decipher component
-    with provided columns values from `adata.obs` (e.g. pseudo-time, cell state progression, etc.)
+    """
+    Rotate and flip the decipher space v to maximize the correlation of each decipher component.
+
+    The rotation is performed to maximize the correlation of each decipher component with the
+    providedcolumns values from `adata.obs` (e.g. pseudo-time, cell state progression, etc.).
 
     Parameters
     ----------
