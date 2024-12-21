@@ -5,7 +5,6 @@ import pyro
 import torch
 import torch.nn.functional as F
 from anndata import AnnData
-from sklearn.neighbors import KNeighborsRegressor
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -247,6 +246,11 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         -------
         The decipher time of each cell.
         """
+        try:
+            from sklearn.neighbors import KNeighborsRegressor
+        except ImportError as err:
+            raise ImportError("Please install scikit-learn -- `pip install scikit-learn`") from err
+
         decipher_time = np.full(adata.n_obs, np.nan)
 
         knn = KNeighborsRegressor(n_neighbors=n_neighbors)
