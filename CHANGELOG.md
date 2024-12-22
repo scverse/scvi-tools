@@ -11,16 +11,22 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add support for Numpy 2.0 {pr}`2842`.
+- MuData support for {class}`~scvi.model.MULTIVI` via the method
+    {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 
 #### Fixed
 
 #### Changed
 
 - Updated the CI workflow with internet, private and optional tests {pr}`3082`.
+- Changed loompy stored files to anndata {pr}`2842`.
 - Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
     instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
 
 #### Removed
+
+- Removed the support for loompy and local mde function {pr}`2842`.
 
 ### 1.2.1 (2024-12-04)
 
@@ -31,8 +37,6 @@ to [Semantic Versioning]. Full commit history is available in the
     validation set, if available. {pr}`3036`.
 - Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
-- MuData support for {class}`~scvi.model.MULTIVI` via the method
-    {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 - Support for minified mode while retaining counts to skip the encoder.
 - New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
     the encoder.
