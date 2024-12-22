@@ -67,6 +67,7 @@ def test_condscvi_no_batch_key(save_path: str, weight_obs: bool):
     model = CondSCVI.load(model_path, adata=adata)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_condscvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

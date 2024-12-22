@@ -1300,6 +1300,7 @@ def test_scvi_num_workers():
     model.get_normalized_expression(n_samples=2)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_scvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

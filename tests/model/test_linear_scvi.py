@@ -134,6 +134,7 @@ def test_linear_scvi_use_observed_lib_size():
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
 
+@pytest.mark.optional
 def test_cpu_gpu_linear_scvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

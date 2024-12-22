@@ -235,6 +235,7 @@ def test_peakvi_online_update(save_path):
     assert np.count_nonzero(grad[:, :-4]) != 0
 
 
+@pytest.mark.optional
 def test_cpu_gpu_peakvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

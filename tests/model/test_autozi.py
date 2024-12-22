@@ -133,6 +133,7 @@ def test_autozi():
         autozivae.get_alphas_betas()
 
 
+@pytest.mark.optional
 def test_cpu_gpu_autozi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

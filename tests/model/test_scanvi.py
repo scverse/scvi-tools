@@ -581,6 +581,7 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
     check_no_logits_and_softmax(model)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_scanvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

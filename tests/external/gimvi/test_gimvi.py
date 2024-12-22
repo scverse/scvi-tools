@@ -180,6 +180,7 @@ def test_gimvi_reinit():
     model.train(max_epochs=1)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_gimvi():
     if torch.cuda.is_available():
         adata_seq = synthetic_iid(10000, 500)

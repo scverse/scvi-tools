@@ -1,6 +1,7 @@
 from time import time
 
 import numpy as np
+import pytest
 import torch
 
 from scvi.data import synthetic_iid
@@ -45,6 +46,7 @@ def test_stereoscope(save_path):
     st_model.get_scale_for_ct(y)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_stereoscope():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

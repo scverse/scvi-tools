@@ -805,6 +805,7 @@ def test_totalvi_old_activation_load(save_path: str):
     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_totalvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

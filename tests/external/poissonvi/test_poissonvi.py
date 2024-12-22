@@ -1,5 +1,6 @@
 from time import time
 
+import pytest
 import torch
 from torch.nn import Linear
 
@@ -73,6 +74,7 @@ def test_poissonvi_non_default_params(
     assert model.get_latent_representation().shape[1] == n_latent
 
 
+@pytest.mark.optional
 def test_cpu_gpu_poissonvi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)

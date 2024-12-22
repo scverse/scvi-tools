@@ -81,6 +81,7 @@ def test_multivi_single_batch():
         vae.train(3)
 
 
+@pytest.mark.optional
 def test_cpu_gpu_multivi():
     if torch.cuda.is_available():
         adata = synthetic_iid(10000, 500)
