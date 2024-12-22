@@ -106,8 +106,8 @@ class SCANVI(
 
     _module_cls = SCANVAE
     _training_plan_cls = SemiSupervisedTrainingPlan
-    _LATENT_QZM = "scanvi_latent_qzm"
-    _LATENT_QZV = "scanvi_latent_qzv"
+    _LATENT_QZM_KEY = "scanvi_latent_qzm"
+    _LATENT_QZV_KEY = "scanvi_latent_qzv"
 
     def __init__(
         self,
@@ -137,7 +137,10 @@ class SCANVI(
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key and self.minified_data_type is None:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -242,6 +245,7 @@ class SCANVI(
         cls.setup_anndata(
             adata,
             unlabeled_category=unlabeled_category,
+            use_minified=False,
             **scvi_setup_args,
         )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
@@ -338,6 +342,7 @@ class SCANVI(
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
+        use_minified: bool = True,
         **kwargs,
     ):
         """%(summary)s.
@@ -352,6 +357,8 @@ class SCANVI(
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        use_minified
+            If True, will register the minified version of the adata if possible.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -364,7 +371,7 @@ class SCANVI(
         ]
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
-        if adata_minify_type is not None:
+        if adata_minify_type is not None and use_minified:
             anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)

@@ -1,5 +1,9 @@
 from ._archesmixin import ArchesMixin
-from ._base_model import BaseMinifiedModeModelClass, BaseModelClass
+from ._base_model import (
+    BaseMinifiedModeModelClass,
+    BaseModelClass,
+    BaseMudataMinifiedModeModelClass,
+)
 from ._differential import DifferentialComputation
 from ._embedding_mixin import EmbeddingMixin
 from ._jaxmixin import JaxTrainingMixin
@@ -26,6 +30,7 @@ __all__ = [
     "DifferentialComputation",
     "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",
+    "BaseMudataMinifiedModeModelClass",
     "EmbeddingMixin",
     "SemisupervisedTrainingMixin",
 ]

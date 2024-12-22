@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import h5py
@@ -9,23 +10,8 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
-
-try:
-    # anndata >= 0.10
-    from anndata.experimental import CSCDataset, CSRDataset
-
-    SparseDataset = (CSRDataset, CSCDataset)
-except ImportError:
-    from anndata._core.sparse_dataset import SparseDataset
-
-# TODO use the experimental api once we lower bound to anndata 0.8
-try:
-    from anndata.experimental import read_elem
-except ImportError:
-    from anndata._io.specs import read_elem
-
-from typing import TYPE_CHECKING
-
+from anndata.abc import CSCDataset, CSRDataset
+from anndata.io import read_elem
 from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
@@ -41,6 +27,8 @@ if TYPE_CHECKING:
     from scvi._types import AnnOrMuData, MinifiedDataType
 
 logger = logging.getLogger(__name__)
+
+SparseDataset = (CSRDataset, CSCDataset)
 
 
 def registry_key_to_default_dtype(key: str) -> type:
@@ -311,9 +299,11 @@ def _get_adata_minify_type(adata: AnnData) -> MinifiedDataType | None:
     return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
 
 
-def _is_minified(adata: AnnData | str) -> bool:
+def _is_minified(adata: AnnOrMuData | str) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
+        return adata.uns.get(uns_key, None) is not None
+    elif isinstance(adata, MuData):
         return adata.uns.get(uns_key, None) is not None
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:
