@@ -256,7 +256,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     new_model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     # run model one step to get autoguide params
     try:
-        new_model.load_state_dict(torch.load(model_save_path))
+        new_model.load_state_dict(torch.load(model_save_path, weights_only=False))
     except RuntimeError as err:
         if isinstance(new_model, PyroBaseModuleClass):
             plan = PyroTrainingPlan(new_model)
@@ -267,7 +267,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
                 max_steps=1,
             )
             trainer.fit(plan, train_dl)
-            new_model.load_state_dict(torch.load(model_save_path))
+            new_model.load_state_dict(torch.load(model_save_path, weights_only=False))
         else:
             raise err
 
