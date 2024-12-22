@@ -39,7 +39,6 @@ to [Semantic Versioning]. Full commit history is available in the
 - Changed loompy stored files to anndata {pr}`2842`.
 - Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
     instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
-- Enable the default selection of MPS when `accelerator="auto"` in MAC & Lightning {pr}`3100`.
 
 #### Removed
 
