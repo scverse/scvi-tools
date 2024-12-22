@@ -8,41 +8,54 @@ import scvi
 from .utils import unsupervised_training_one_epoch
 
 
+@pytest.mark.internet
 def test_pbmc_dataset(save_path: str):
     dataset = scvi.data.pbmc_dataset(
         save_path=save_path,
         remove_extracted_data=True,
     )
-    unsupervised_training_one_epoch(
-        dataset,
-    )
+    unsupervised_training_one_epoch(dataset)
 
 
-def test_retina_loom_dataset(save_path: str):
+@pytest.mark.internet
+def test_retina_dataset(save_path: str):
     dataset = scvi.data.retina(save_path=save_path)
     unsupervised_training_one_epoch(dataset, batch_key="batch")
 
 
+@pytest.mark.internet
 def test_pfc_starmap_dataset(save_path: str):
     gene_dataset = scvi.data.prefrontalcortex_starmap(save_path=save_path)
     unsupervised_training_one_epoch(gene_dataset)
 
 
+@pytest.mark.internet
+@pytest.mark.parametrize("name", ["1", "2", "3"])
+def test_annotated_dataset(name: str, save_path: str):
+    dataset = scvi.data.annotation_simulation(name=name, save_path=save_path)
+    unsupervised_training_one_epoch(dataset)
+
+
+@pytest.mark.internet
 def test_fc_dropseq_dataset(save_path: str):
     gene_dataset = scvi.data.frontalcortex_dropseq(save_path=save_path)
     unsupervised_training_one_epoch(gene_dataset)
 
 
-def test_smfish_dataset(save_path: str):
-    gene_dataset = scvi.data.smfish(save_path=save_path)
+@pytest.mark.internet
+@pytest.mark.parametrize("high_level_cluster", [True, False])
+def test_smfish_dataset(high_level_cluster: bool, save_path: str):
+    gene_dataset = scvi.data.smfish(use_high_level_cluster=high_level_cluster, save_path=save_path)
     unsupervised_training_one_epoch(gene_dataset)
 
 
+@pytest.mark.internet
 def test_cortex_dataset(save_path: str):
     adata = scvi.data.cortex(save_path=save_path)
     unsupervised_training_one_epoch(adata, labels_key="cell_type")
 
 
+@pytest.mark.internet
 def test_brainlarge_dataset(save_path: str):
     adata = scvi.data.brainlarge_dataset(
         save_path=save_path,
@@ -55,6 +68,7 @@ def test_brainlarge_dataset(save_path: str):
     )
 
 
+@pytest.mark.internet
 def test_breast_cancer_dataset(save_path: str):
     adata = scvi.data.breast_cancer_dataset(
         save_path=save_path,
@@ -64,6 +78,7 @@ def test_breast_cancer_dataset(save_path: str):
     )
 
 
+@pytest.mark.internet
 def test_mouse_ob_dataset(save_path: str):
     adata = scvi.data.mouse_ob_dataset(
         save_path=save_path,
