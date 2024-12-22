@@ -550,7 +550,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, Distribution | None],
-        kl_weight: float = 1.0,
+        kl_weight: torch.tensor | float = 1.0,
     ) -> LossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence
