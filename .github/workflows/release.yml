@@ -61,7 +61,7 @@ jobs:
 
       - name: git tag
         run: |
-          git config --global user.email "martin.kim@scverse.org"
+          git config --global user.email "ori.kronfeld@scverse.org"
           git config --global user.name "scvi-tools release"
           git tag -m "${{ inputs.tag }}" "${{ inputs.tag }}"
           # If there is duplicate tag, this will fail. The publish to pypi action will have been a noop (due to skip
