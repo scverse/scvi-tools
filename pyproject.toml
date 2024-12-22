@@ -90,7 +90,7 @@ hub = ["huggingface_hub"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
-scanpy = ["scanpy>=1.6"]
+scanpy = ["scanpy>=1.6","scikit-misc"]
 # for convinient files sharing
 pooch = ["pooch"]
 
@@ -105,7 +105,6 @@ tutorials = [
     "plotnine",
     "pynndescent",
     "igraph",
-    "scikit-misc",
     "scrublet",
     "scib-metrics",
     "scvi-tools[optional]",
