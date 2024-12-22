@@ -11,7 +11,11 @@ from .diagvi import DIAGVI
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
+<<<<<<< HEAD
 from .mrvi_torch import TorchMRVI
+=======
+from .muanvi import MUANVI
+>>>>>>> bb720b5f (Add muANVI)
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -45,6 +49,7 @@ __all__ = [
     "SCVIVA",
     "CYTOVI",
     "DIAGVI",
+    "MUANVI",
 ]
 
 
