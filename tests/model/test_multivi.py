@@ -1,14 +1,11 @@
-from time import time
-
-import numpy as np
-import pytest
-import torch
 import os
+from time import time
 
 import anndata as ad
 import numpy as np
 import pytest
 import scanpy as sc
+import torch
 from mudata import MuData
 
 import scvi
@@ -90,6 +87,7 @@ def test_multivi_single_batch():
     with pytest.warns(UserWarning):
         vae.train(3)
 
+
 @pytest.mark.optional
 def test_cpu_gpu_multivi():
     if torch.cuda.is_available():
@@ -131,7 +129,7 @@ def test_cpu_gpu_multivi():
         m2.get_elbo()
         m2.get_reconstruction_error()
 
-        
+
 def test_multivi_mudata_rna_prot_external():
     # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
     adata = scvi.data.pbmcs_10x_cite_seq()
