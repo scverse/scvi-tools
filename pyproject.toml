@@ -86,7 +86,7 @@ aws = ["boto3"]
 # scvi.data.cellxgene
 census = ["cellxgene-census","numpy<2.0"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]>=3.50.0"]
+hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]>=3.57.0"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
