@@ -199,7 +199,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             mu = self.module.decoder_z_to_x(z_loc)
             mu = F.softmax(mu, dim=-1)
             library_size = x.sum(axis=-1, keepdim=True)
-            imputed_gene_expr = (library_size * mu).detach().cpu().numpy()
+            imputed_gene_expr = (library_size * mu.detach().cpu()).numpy()
             imputed_gene_expression_batches.append(imputed_gene_expr)
         imputed_gene_expression = np.concatenate(imputed_gene_expression_batches, axis=0)
 
