@@ -250,22 +250,6 @@ def test_totalvi(save_path):
     model.differential_expression(idx1=[0, 1, 2])
     model.differential_expression(groupby="labels")
 
-    # test with missing proteins
-    adata = pbmcs_10x_cite_seq(
-        save_path=save_path,
-        protein_join="outer",
-    )
-    TOTALVI.setup_anndata(
-        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-    )
-    model = TOTALVI(adata)
-    assert model.module.protein_batch_mask is not None
-    model.train(1, train_size=0.5)
-
-    model = TOTALVI(adata, override_missing_proteins=True)
-    assert model.module.protein_batch_mask is None
-    model.train(1, train_size=0.5)
-
 
 def test_totalvi_model_library_size(save_path):
     adata = synthetic_iid()
@@ -496,6 +480,7 @@ def test_totalvi_reordered_mapping_mudata():
     model.get_elbo(mdata2)
 
 
+@pytest.mark.internet
 def test_totalvi_missing_proteins(save_path):
     # test with missing proteins
     adata = pbmcs_10x_cite_seq(
