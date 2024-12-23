@@ -11,7 +11,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
-    representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+    representation learning in single-cell RNA sequencing data {pr}`3015`.
 
 #### Fixed
 
