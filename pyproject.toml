@@ -127,8 +127,9 @@ testpaths = ["tests"]
 xfail_strict = true
 markers = [
     "internet: mark tests that requires internet access",
-    "optional: mark optional tests",
-    "private: mark tests that are private",
+    "optional: mark optional tests, usually take more time",
+    "private: mark tests that uses private keys, like HF",
+    "multigpu: mark tests that are used to check multi GPU performance",
 ]
 
 [tool.ruff]
