@@ -86,6 +86,7 @@ def test_multivi_single_batch():
         vae.train(3)
 
 
+@pytest.mark.internet
 def test_multivi_mudata_rna_prot_external():
     # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
     adata = scvi.data.pbmcs_10x_cite_seq()
