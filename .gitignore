@@ -2,8 +2,6 @@
 .DS_Store
 *~
 buck-out/
-/eval_multivi/
-/scvi-tutorials/
 
 # Compiled files
 .venv/

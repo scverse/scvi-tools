@@ -82,11 +82,11 @@ docsbuild = ["scvi-tools[docs,optional]"]
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
 # scvi.hub.HubModel.pull_from_s3
-aws = ["boto3"]
+aws = ["boto3", "dvc-s3"]
 # scvi.data.cellxgene
 census = ["cellxgene-census","numpy<2.0"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg"]
+hub = ["huggingface_hub", "igraph", "leidenalg", "dvc-s3"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
@@ -130,7 +130,6 @@ markers = [
     "optional: mark optional tests",
     "private: mark tests that are private",
 ]
-addopts = "--private"
 
 [tool.ruff]
 src = ["src"]
