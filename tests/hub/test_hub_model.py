@@ -281,7 +281,7 @@ def test_hub_model_pull_from_hf():
     assert hub_model.adata is not None
 
     hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi-no-anndata")
-    with pytest.raises(ValueError):
+    with pytest.raises(FileNotFoundError):
         _ = hub_model.model
 
     adata = synthetic_iid()
@@ -327,7 +327,7 @@ def test_hub_model_pull_from_s3():
         "tests/hub/test-scvi-no-anndata",
         pull_anndata=False,
     )
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         _ = hub_model.model
 
     adata = synthetic_iid()

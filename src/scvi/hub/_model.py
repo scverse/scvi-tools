@@ -131,6 +131,7 @@ class HubModel:
         repo_create: bool = False,
         repo_create_kwargs: dict | None = None,
         collection_name: str | None = None,
+        push_anndata: bool = True,
         **kwargs,
     ):
         """Push this model to huggingface.
@@ -152,6 +153,8 @@ class HubModel:
             ``repo_create=True``.
         collection_name
             The name of the collection to which the model belongs.
+        push_anndata
+            Whether to push the :class:`~anndata.AnnData` object associated with the model.
         **kwargs
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
@@ -184,12 +187,6 @@ class HubModel:
         # upload the model card
         self.model_card.push_to_hub(repo_name, token=repo_token)
         # upload the model
-        api.upload_folder(
-            folder_path=self._local_dir,
-            repo_id=repo_name,
-            token=repo_token,
-            **kwargs,
-        )
         # upload the metadata
         api.upload_file(
             path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
@@ -198,6 +195,15 @@ class HubModel:
             token=repo_token,
             **kwargs,
         )
+        if not push_anndata:
+            kwargs["ignore_patterns"] = ["*.h5ad", "*.h5mu"]
+            api.upload_folder(
+                folder_path=self._local_dir,
+                repo_id=repo_name,
+                token=repo_token,
+                **kwargs,
+            )
+
         if collection_name == "test":
             collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"
         elif "SCANVI" in self.metadata.model_cls_name:
@@ -324,10 +330,12 @@ class HubModel:
                     f"No AnnData file found at {self._adata_path} or {self._mudata_path}. "
                     "Please provide an AnnData file or set `push_anndata=False`."
                 )
-            adata_s3_path = os.path.join(s3_path, "adata.h5ad")
-            s3.upload_file(self._adata_path, s3_bucket, adata_s3_path)
-            mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
-            s3.upload_file(self._mudata_path, s3_bucket, mudata_s3_path)
+            if os.path.isfile(self._adata_path):
+                adata_s3_path = os.path.join(s3_path, "adata.h5ad")
+                s3.upload_file(self._adata_path, s3_bucket, adata_s3_path)
+            else:
+                mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
+                s3.upload_file(self._mudata_path, s3_bucket, mudata_s3_path)
 
     @classmethod
     @dependencies("boto3")
@@ -387,13 +395,14 @@ class HubModel:
         s3.download_file(s3_bucket, model_s3_path, model_local_path)
 
         if pull_anndata:
-            adata_s3_path = os.path.join(s3_path, "adata.h5ad")
-            adata_local_path = os.path.join(cache_dir, "adata.h5ad")
-            s3.download_file(s3_bucket, adata_s3_path, adata_local_path)
-
-            mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
-            mudata_local_path = os.path.join(cache_dir, "mdata.h5mu")
-            s3.download_file(s3_bucket, mudata_s3_path, mudata_local_path)
+            try:
+                adata_s3_path = os.path.join(s3_path, "adata.h5ad")
+                adata_local_path = os.path.join(cache_dir, "adata.h5ad")
+                s3.download_file(s3_bucket, adata_s3_path, adata_local_path)
+            except s3.exceptions.ClientError:
+                mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
+                mudata_local_path = os.path.join(cache_dir, "mdata.h5mu")
+                s3.download_file(s3_bucket, mudata_s3_path, mudata_local_path)
 
         model_card = ModelCard.load(card_local_path)
         return cls(cache_dir, model_card=model_card)

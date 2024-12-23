@@ -130,6 +130,7 @@ markers = [
     "optional: mark optional tests",
     "private: mark tests that are private",
 ]
+addopts = "--private"
 
 [tool.ruff]
 src = ["src"]
