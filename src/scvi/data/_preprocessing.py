@@ -458,7 +458,7 @@ def add_dna_sequence(
 
     sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
     adata.varm[sequence_varm_key] = sequence_df
-    adata.varm[code_varm_key] = sequence_df.applymap(_dna_to_code)
+    adata.varm[code_varm_key] = sequence_df.map(_dna_to_code)
 
 
 def reads_to_fragments(
