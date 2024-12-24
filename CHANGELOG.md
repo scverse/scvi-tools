@@ -2143,7 +2143,6 @@ package by our numerous contributors.
 [@munfred]: https://github.com/Munfred
 [@njbernstein]: https://github.com/njbernstein
 [@oscar]: https://github.com/oscarclivio
-[@ori]: https://github.com/ori-kron-wis
 [@pierre]: https://github.com/PierreBoyeau
 [@pierreboyeau]: https://github.com/PierreBoyeau
 [@primoz-godec]: https://github.com/PrimozGodec
