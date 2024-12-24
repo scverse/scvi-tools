@@ -116,7 +116,15 @@ class DecipherPyroModule(PyroBaseModuleClass):
                 self.theta + self._epsilon
             )
             # noinspection PyUnresolvedReferences
-            x_dist = dist.NegativeBinomial(total_count=self.theta + self._epsilon, logits=logit)
+            if self.device.type == "mps":
+                # TODO: TORCH MPS FIX
+                x_dist = dist.NegativeBinomial(
+                    total_count=self.theta.contiguous() + self._epsilon, logits=logit.contiguous()
+                )
+            else:
+                x_dist = dist.NegativeBinomial(
+                    total_count=self.theta + self._epsilon, logits=logit
+                )
             pyro.sample("x", x_dist.to_event(1), obs=x)
 
     @auto_move_data
