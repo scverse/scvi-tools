@@ -1,5 +1,6 @@
 import os
-from time import time@pytest.mark.private
+from time import time
+
 import anndata as ad
 import numpy as np
 import pytest
