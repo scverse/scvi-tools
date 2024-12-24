@@ -10,7 +10,6 @@ from uuid import uuid4
 
 import rich
 from mudata import MuData
-from rich import box
 from rich.console import Console
 from torch.utils.data import Subset
 
@@ -427,30 +426,32 @@ class AnnDataManager:
         """Prints summary stats."""
         if not as_markdown:
             t = rich.table.Table(title="Summary Statistics")
+            t.add_column(
+                "Summary Stat Key",
+                justify="center",
+                style="dodger_blue1",
+                no_wrap=True,
+                overflow="fold",
+            )
+            t.add_column(
+                "Value",
+                justify="center",
+                style="dark_violet",
+                no_wrap=True,
+                overflow="fold",
+            )
         else:
-            t = rich.table.Table(box=box.MARKDOWN)
+            # Generate Markdown manually instead of relying on Rich
+            markdown_rows = [
+                "| Summary Stat Key          | Value |",
+                "|--------------------------|-------|",
+            ]
+            for stat_key, count in summary_stats.items():
+                markdown_rows.append(f"| {stat_key:<25} | {count} |")
+            return "\n".join(markdown_rows)
 
-        t.add_column(
-            "Summary Stat Key",
-            justify="center",
-            style="dodger_blue1",
-            no_wrap=True,
-            overflow="fold",
-        )
-        t.add_column(
-            "Value",
-            justify="center",
-            style="dark_violet",
-            no_wrap=True,
-            overflow="fold",
-        )
         for stat_key, count in summary_stats.items():
             t.add_row(stat_key, str(count))
-
-        if as_markdown:
-            console = Console(file=StringIO(), force_jupyter=False)
-            console.print(t)
-            return console.file.getvalue().strip()
 
         return t
 
@@ -461,23 +462,38 @@ class AnnDataManager:
         """Prints data registry."""
         if not as_markdown:
             t = rich.table.Table(title="Data Registry")
+            t.add_column(
+                "Registry Key",
+                justify="center",
+                style="dodger_blue1",
+                no_wrap=True,
+                overflow="fold",
+            )
+            t.add_column(
+                "scvi-tools Location",
+                justify="center",
+                style="dark_violet",
+                no_wrap=True,
+                overflow="fold",
+            )
         else:
-            t = rich.table.Table(box=box.MARKDOWN)
-
-        t.add_column(
-            "Registry Key",
-            justify="center",
-            style="dodger_blue1",
-            no_wrap=True,
-            overflow="fold",
-        )
-        t.add_column(
-            "scvi-tools Location",
-            justify="center",
-            style="dark_violet",
-            no_wrap=True,
-            overflow="fold",
-        )
+            markdown_rows = [
+                "| Registry Key             | scvi-tools Location                  |",
+                "|--------------------------|--------------------------------------|",
+            ]
+            for registry_key, data_loc in data_registry.items():
+                mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
+                attr_name = data_loc.attr_name
+                attr_key = data_loc.attr_key
+                scvi_data_str = "adata"
+                if mod_key is not None:
+                    scvi_data_str += f".mod['{mod_key}']"
+                if attr_key is None:
+                    scvi_data_str += f".{attr_name}"
+                else:
+                    scvi_data_str += f".{attr_name}['{attr_key}']"
+                markdown_rows.append(f"| {registry_key:<25} | {scvi_data_str:<36} |")
+            return "\n".join(markdown_rows)
 
         for registry_key, data_loc in data_registry.items():
             mod_key = getattr(data_loc, _constants._DR_MOD_KEY, None)
@@ -491,6 +507,8 @@ class AnnDataManager:
             else:
                 scvi_data_str += f".{attr_name}['{attr_key}']"
             t.add_row(registry_key, scvi_data_str)
+
+        return t
 
         if as_markdown:
             console = Console(file=StringIO(), force_jupyter=False)
