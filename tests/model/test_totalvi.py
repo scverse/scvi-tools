@@ -163,9 +163,8 @@ def test_totalvi(save_path):
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
-    post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_vars, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -370,9 +369,8 @@ def test_totalvi_mudata():
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_genes + n_proteins, 2)
-    post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_genes + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_genes, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
