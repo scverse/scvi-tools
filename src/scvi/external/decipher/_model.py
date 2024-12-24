@@ -312,7 +312,8 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         )
 
         gene_expression_samples = (
-            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().cpu().numpy() * l_scale
+            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().cpu().numpy()
+            * l_scale
         )
         gene_patterns["q25"] = np.quantile(gene_expression_samples, 0.25, axis=0)
         gene_patterns["q75"] = np.quantile(gene_expression_samples, 0.75, axis=0)
