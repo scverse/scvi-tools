@@ -598,11 +598,15 @@ class HubModel:
             fs = DVCFileSystem(
                 "https://github.com/YosefLab/scvi-hub-models", rev="main", remote="s3_remote"
             )
-            fs.get_file(
-                f"data/{self.repo_name.split('/')[1].rsplit('_', 1)[0]}.{suffix}",
-                large_training_adata_path,
-            )
-        if large_training_adata_path.endswith(".h5mu"):
-            self._large_training_adata = mudata.read_h5mu(large_training_adata_path)
+            if self.repo_name is not None:
+                fs.get_file(
+                    f"data/{self.repo_name.split('/')[1].rsplit('_', 1)[0]}.{suffix}",
+                    large_training_adata_path,
+                )
+        if os.path.exists(large_training_adata_path):
+            if large_training_adata_path.endswith(".h5mu"):
+                self._large_training_adata = mudata.read_h5mu(large_training_adata_path)
+            else:
+                self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
         else:
-            self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
+            self._large_training_adata = None
