@@ -300,7 +300,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         t_points = trajectory.trajectory_latent
         t_times = trajectory.trajectory_time
 
-        t_points = torch.FloatTensor(t_points)
+        t_points = torch.FloatTensor(t_points).to(self.module.device)
         z_mean, z_scale = self.module.decoder_v_to_z(t_points)
         z_scale = F.softplus(z_scale)
 
@@ -308,11 +308,11 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
 
         gene_patterns = {}
         gene_patterns["mean"] = (
-            F.softmax(self.module.decoder_z_to_x(z_mean), dim=-1).detach().numpy() * l_scale
+            F.softmax(self.module.decoder_z_to_x(z_mean), dim=-1).detach().cpu().numpy() * l_scale
         )
 
         gene_expression_samples = (
-            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().numpy() * l_scale
+            F.softmax(self.module.decoder_z_to_x(z_samples), dim=-1).detach().cpu().numpy() * l_scale
         )
         gene_patterns["q25"] = np.quantile(gene_expression_samples, 0.25, axis=0)
         gene_patterns["q75"] = np.quantile(gene_expression_samples, 0.75, axis=0)
