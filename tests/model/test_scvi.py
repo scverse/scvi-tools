@@ -687,7 +687,7 @@ def test_early_stopping():
 
 
 def test_de_features():
-    adata = synthetic_iid()
+    adata = synthetic_iid(batch_size=50, n_genes=20, n_proteins=20, n_regions=20)
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -1281,9 +1281,11 @@ def test_scvi_normal_likelihood():
     model.get_normalized_expression(n_samples=2)
 
 
+@pytest.mark.optional
 def test_scvi_num_workers():
-    adata = synthetic_iid()
-    scvi.settings.dl_num_workers = 7
+    # this test takes time we use a small dataset
+    adata = synthetic_iid(batch_size=50, n_genes=20, n_proteins=20, n_regions=20)
+    scvi.settings.dl_num_workers = 3
     scvi.settings.dl_persistent_workers = True
     SCVI.setup_anndata(adata, batch_key="batch")
 

@@ -1,6 +1,5 @@
 import os
-from time import time
-
+from time import time@pytest.mark.private
 import anndata as ad
 import numpy as np
 import pytest
@@ -130,6 +129,7 @@ def test_cpu_gpu_multivi():
         m2.get_reconstruction_error()
 
 
+@pytest.mark.internet
 def test_multivi_mudata_rna_prot_external():
     # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
     adata = scvi.data.pbmcs_10x_cite_seq()
