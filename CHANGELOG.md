@@ -30,6 +30,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
 - Add Support for MPS usage in mac {pr}`3100`.
 - Add support for Numpy 2.0 {pr}`2842`.
+- Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
 
 #### Fixed
 

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from typing import Literal
 
-    from anndata import AnnData
     from mudata import MuData
 
     from scvi._types import AnnOrMuData, Number
@@ -201,12 +201,21 @@ class TOTALVI(
             library_log_vars=library_log_vars,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalVI Model with the following params: \nn_latent: {n_latent}, "
             f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, "
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
+        if self.registry_["setup_method_name"] == "setup_mudata":
+            original_dict = self.registry_["setup_args"]["modalities"]
+            self.modalities = {
+                "rna_layer": original_dict.get("rna_layer"),
+                "protein_layer": original_dict.get("protein_layer"),
+            }
+        else:
+            self.modalities = None
 
     @devices_dsp.dedent
     def train(
@@ -816,7 +825,7 @@ class TOTALVI(
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
@@ -866,19 +875,25 @@ class TOTALVI(
 
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        scdl_list = []
+        rna_list = []
+        protein_list = []
         for tensors in scdl:
             rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
-            data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
 
-            scdl_list += [data]
+            rna_list += [rna_sample]
+            protein_list += [protein_sample]
             if n_samples > 1:
-                scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
-        scdl_list = np.concatenate(scdl_list, axis=0)
+                rna_list[-1] = np.transpose(rna_list[-1], (1, 2, 0))
+                protein_list[-1] = np.transpose(protein_list[-1], (1, 2, 0))
+        rna = np.concatenate(rna_list, axis=0)
+        protein = np.concatenate(protein_list, axis=0)
 
-        return scdl_list
+        if isinstance(adata, AnnData):
+            return {"rna": rna, "protein": protein}
+        else:
+            return {self.modalities["rna_layer"]: rna, self.modalities["protein_layer"]: protein}
 
     @torch.inference_mode()
     def _get_denoised_samples(
