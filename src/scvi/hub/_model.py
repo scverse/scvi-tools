@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import anndata
+import mudata
 import rich
 from huggingface_hub import ModelCard, snapshot_download
 from rich.markdown import Markdown
@@ -36,6 +37,8 @@ class HubModel:
 
     Parameters
     ----------
+    repo_name
+        ID of the huggingface repo where this model is uploaded
     local_dir
         Local directory where the data and pre-trained model reside.
     metadata
@@ -59,14 +62,18 @@ class HubModel:
     def __init__(
         self,
         local_dir: str,
+        repo_name: str | None = None,
         metadata: HubMetadata | str | None = None,
         model_card: HubModelCardHelper | ModelCard | str | None = None,
     ):
         self._local_dir = local_dir
+        self._repo_name = repo_name
 
         self._model_path = f"{self._local_dir}/model.pt"
         self._adata_path = f"{self._local_dir}/adata.h5ad"
+        self._mudata_path = f"{self._local_dir}/mdata.h5mu"
         self._large_training_adata_path = f"{self._local_dir}/large_training_adata.h5ad"
+        self._large_training_mudata_path = f"{self._local_dir}/large_training_mudata.h5mu"
 
         # lazy load - these are not loaded until accessed
         self._model = None
@@ -120,10 +127,11 @@ class HubModel:
     def push_to_huggingface_hub(
         self,
         repo_name: str,
-        repo_token: str,
+        repo_token: str | None = None,
         repo_create: bool = False,
-        push_anndata: bool = True,
         repo_create_kwargs: dict | None = None,
+        collection_name: str | None = None,
+        push_anndata: bool = True,
         **kwargs,
     ):
         """Push this model to huggingface.
@@ -137,18 +145,22 @@ class HubModel:
         repo_name
             ID of the huggingface repo where this model needs to be uploaded
         repo_token
-            huggingface API token with write permissions
+            huggingface API token with write permissions if None uses token in HfFolder.get_token()
         repo_create
             Whether to create the repo
-        push_anndata
-            Whether to push the :class:`~anndata.AnnData` object associated with the model.
         repo_create_kwargs
             Keyword arguments passed into :meth:`~huggingface_hub.create_repo` if
             ``repo_create=True``.
+        collection_name
+            The name of the collection to which the model belongs.
+        push_anndata
+            Whether to push the :class:`~anndata.AnnData` object associated with the model.
         **kwargs
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
-        from huggingface_hub import HfApi, create_repo
+        from huggingface_hub import HfApi, HfFolder, add_collection_item, create_repo
+
+        self._repo_name = repo_name
 
         if os.path.isfile(self._adata_path) and (
             os.path.getsize(self._adata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
@@ -157,31 +169,24 @@ class HubModel:
                 "Dataset is too large to upload to the Model. \
                 Please refer to scvi-tools tutorials for how to handle this case."
             )
-        if os.path.isfile(repo_token):
+        if os.path.isfile(self._mudata_path) and (
+            os.path.getsize(self._mudata_path) >= _SCVI_HUB.MAX_HF_UPLOAD_SIZE
+        ):
+            raise ValueError(
+                "Dataset is too large to upload to the Model. \
+                Please refer to scvi-tools tutorials for how to handle this case."
+            )
+        if repo_token is None:
+            repo_token = HfFolder.get_token()
+        elif os.path.isfile(repo_token):
             repo_token = Path(repo_token).read_text()
         if repo_create:
             repo_create_kwargs = repo_create_kwargs or {}
             create_repo(repo_name, token=repo_token, **repo_create_kwargs)
-        api = HfApi()
+        api = HfApi(token=repo_token)
         # upload the model card
         self.model_card.push_to_hub(repo_name, token=repo_token)
         # upload the model
-        api.upload_file(
-            path_or_fileobj=self._model_path,
-            path_in_repo=self._model_path.split("/")[-1],
-            repo_id=repo_name,
-            token=repo_token,
-            **kwargs,
-        )
-        # upload the data if it exists
-        if os.path.isfile(self._adata_path) and push_anndata:
-            api.upload_file(
-                path_or_fileobj=self._adata_path,
-                path_in_repo=self._adata_path.split("/")[-1],
-                repo_id=repo_name,
-                token=repo_token,
-                **kwargs,
-            )
         # upload the metadata
         api.upload_file(
             path_or_fileobj=json.dumps(asdict(self.metadata), indent=4).encode(),
@@ -190,6 +195,44 @@ class HubModel:
             token=repo_token,
             **kwargs,
         )
+        if not push_anndata:
+            kwargs["ignore_patterns"] = ["*.h5ad", "*.h5mu"]
+            api.upload_folder(
+                folder_path=self._local_dir,
+                repo_id=repo_name,
+                token=repo_token,
+                **kwargs,
+            )
+
+        if collection_name == "test":
+            collection_slug = "scvi-tools/test-674f56b9eb86e62d57eac5cf"
+        elif "SCANVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/scanvi-673c3a4aabddf849496e9079"
+        elif "CondSCVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/destvi-673c3dbf537347953810a215"
+        elif "SCVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/scvi-673c2c0f2bf4163ef14d018d"
+        elif "TOTALVI" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/totalvi-673c3d67e2882005a1d180c1"
+        elif "Stereoscope" in self.metadata.model_cls_name:
+            collection_slug = "scvi-tools/stereoscope-673c3ddcf1f9f7542b8819d6"
+        else:
+            warnings.warn(
+                "No collection found for this model."
+                f"Please request a new collection for {self.metadata.model_cls_name}.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            collection_slug = None
+
+        if collection_slug is not None:
+            add_collection_item(
+                collection_slug=collection_slug,
+                item_id=repo_name,
+                item_type="model",
+                exists_ok=True,
+                token=repo_token,
+            )
 
     @classmethod
     def pull_from_huggingface_hub(
@@ -230,6 +273,7 @@ class HubModel:
         filenames = ["model.pt", _SCVI_HUB.METADATA_FILE_NAME]
         if pull_anndata:
             filenames.append("adata.h5ad")
+            filenames.append("mdata.h5mu")
 
         snapshot_folder = snapshot_download(
             repo_id=repo_name,
@@ -239,7 +283,7 @@ class HubModel:
             **kwargs,
         )
         model_card = ModelCard.load(repo_name)
-        return cls(snapshot_folder, model_card=model_card)
+        return cls(snapshot_folder, model_card=model_card, repo_name=repo_name)
 
     @dependencies("boto3")
     def push_to_s3(
@@ -282,13 +326,17 @@ class HubModel:
         s3.upload_file(self._model_path, s3_bucket, model_s3_path)
 
         if push_anndata:
-            if not os.path.isfile(self._adata_path):
+            if not os.path.isfile(self._adata_path) and not os.path.isfile(self._mudata_path):
                 raise ValueError(
-                    f"No AnnData file found at {self._adata_path}. Please provide an AnnData file "
-                    "or set `push_anndata=False`."
+                    f"No AnnData file found at {self._adata_path} or {self._mudata_path}. "
+                    "Please provide an AnnData file or set `push_anndata=False`."
                 )
-            adata_s3_path = os.path.join(s3_path, "adata.h5ad")
-            s3.upload_file(self._adata_path, s3_bucket, adata_s3_path)
+            if os.path.isfile(self._adata_path):
+                adata_s3_path = os.path.join(s3_path, "adata.h5ad")
+                s3.upload_file(self._adata_path, s3_bucket, adata_s3_path)
+            else:
+                mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
+                s3.upload_file(self._mudata_path, s3_bucket, mudata_s3_path)
 
     @classmethod
     @dependencies("boto3")
@@ -348,9 +396,14 @@ class HubModel:
         s3.download_file(s3_bucket, model_s3_path, model_local_path)
 
         if pull_anndata:
-            adata_s3_path = os.path.join(s3_path, "adata.h5ad")
-            adata_local_path = os.path.join(cache_dir, "adata.h5ad")
-            s3.download_file(s3_bucket, adata_s3_path, adata_local_path)
+            try:
+                adata_s3_path = os.path.join(s3_path, "adata.h5ad")
+                adata_local_path = os.path.join(cache_dir, "adata.h5ad")
+                s3.download_file(s3_bucket, adata_s3_path, adata_local_path)
+            except s3.exceptions.ClientError:
+                mudata_s3_path = os.path.join(s3_path, "mudata.h5mu")
+                mudata_local_path = os.path.join(cache_dir, "mdata.h5mu")
+                s3.download_file(s3_bucket, mudata_s3_path, mudata_local_path)
 
         model_card = ModelCard.load(card_local_path)
         return cls(cache_dir, model_card=model_card)
@@ -376,6 +429,11 @@ class HubModel:
     def local_dir(self) -> str:
         """The local directory where the data and pre-trained model reside."""
         return self._local_dir
+
+    @property
+    def repo_name(self) -> str:
+        """The local directory where the data and pre-trained model reside."""
+        return self._repo_name
 
     @property
     def metadata(self) -> HubMetadata:
@@ -444,7 +502,11 @@ class HubModel:
         model_cls_name = self.metadata.model_cls_name
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, model_cls_name)
-        if adata is not None or os.path.isfile(self._adata_path):
+        if (
+            adata is not None
+            or os.path.isfile(self._adata_path)
+            or os.path.isfile(self._mudata_path)
+        ):
             self._model = model_cls.load(
                 os.path.dirname(self._model_path),
                 adata=adata,
@@ -478,6 +540,20 @@ class HubModel:
         if os.path.isfile(self._adata_path):
             logger.info("Reading adata...")
             self._adata = anndata.read_h5ad(self._adata_path)
+        if os.path.isfile(self._mudata_path):
+            logger.info("Reading adata...")
+            self._adata = mudata.read_h5mu(self._mudata_path)
+        else:
+            logger.info("No data found on disk. Skipping...")
+
+    def read_mudata(self) -> None:
+        """Reads the data from disk (``self._mudata_path``).
+
+        Reads if it exists. Otherwise, this is a no-op.
+        """
+        if os.path.isfile(self._mudata_path):
+            logger.info("Reading adata...")
+            self._adata = anndata.read_h5ad(self._mudata_path)
         else:
             logger.info("No data found on disk. Skipping...")
 
@@ -493,12 +569,17 @@ class HubModel:
         (https://cellxgene.cziscience.com/).
         """
         training_data_url = self.metadata.training_data_url
+        if self.metadata.model_cls_name in ["TOTALVI", "MULTIVI"]:
+            large_training_adata_path = self._large_training_mudata_path
+        else:
+            large_training_adata_path = self._large_training_adata_path
         if training_data_url is not None:
             logger.info(
                 f"Downloading large training dataset from this url:\n{training_data_url}..."
             )
-            dn = Path(self._large_training_adata_path).parent.as_posix()
-            fn = Path(self._large_training_adata_path).name
+            # Add multi-modal models here.
+            dn = Path(large_training_adata_path).parent.as_posix()
+            fn = Path(large_training_adata_path).name
             url_parts = training_data_url.split("/")
             url_last_part = url_parts[-2] if url_parts[-1] == "" else url_parts[-1]
             if url_last_part.endswith(".cxg"):
@@ -506,6 +587,27 @@ class HubModel:
             else:
                 _download(training_data_url, dn, fn)
             logger.info("Reading large training data...")
-            self._large_training_adata = anndata.read_h5ad(self._large_training_adata_path)
         else:
-            logger.info("No training_data_url found in the model card. Skipping...")
+            # Access file from DVC storage.
+            from dvc.api import DVCFileSystem
+
+            if self.metadata.model_cls_name in ["TOTALVI", "MULTIVI"]:
+                suffix = "h5mu"
+            else:
+                suffix = "h5ad"
+
+            fs = DVCFileSystem(
+                "https://github.com/YosefLab/scvi-hub-models", rev="main", remote="s3_remote"
+            )
+            if self.repo_name is not None:
+                fs.get_file(
+                    f"data/{self.repo_name.split('/')[1].rsplit('_', 1)[0]}.{suffix}",
+                    large_training_adata_path,
+                )
+        if os.path.exists(large_training_adata_path):
+            if large_training_adata_path.endswith(".h5mu"):
+                self._large_training_adata = mudata.read_h5mu(large_training_adata_path)
+            else:
+                self._large_training_adata = anndata.read_h5ad(large_training_adata_path)
+        else:
+            self._large_training_adata = None
