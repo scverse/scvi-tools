@@ -12,7 +12,14 @@ from scvi.data._utils import _is_minified
 from scvi.model.base._save_load import _load_saved_files
 
 from ._constants import _SCVI_HUB
-from ._template import template
+from ._template import (
+    condscvi_pretext,
+    scanvi_pretext,
+    scvi_pretext,
+    stereoscope_pretext,
+    template,
+    totalvi_pretext,
+)
 from ._url import validate_url
 
 if TYPE_CHECKING:
@@ -147,6 +154,8 @@ class HubModelCardHelper:
         A description of the model.
     references_
         A list of references for the model.
+    metrics_report
+        A dictionary containing the metrics report for the model.
 
     Notes
     -----
@@ -174,6 +183,7 @@ class HubModelCardHelper:
     model_parent_module: str = _SCVI_HUB.DEFAULT_PARENT_MODULE
     description: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
     references: str = _SCVI_HUB.DEFAULT_MISSING_FIELD
+    metrics_report: str | None = None
 
     def __post_init__(self):
         self.model_card = self._to_model_card()
@@ -189,6 +199,7 @@ class HubModelCardHelper:
         local_dir: str,
         license_info: str,
         anndata_version: str,
+        metrics_report: str | None = None,
         data_is_minified: bool | None = None,
         map_location: torch.device | str | dict | None = "cpu",
         **kwargs,
@@ -203,6 +214,8 @@ class HubModelCardHelper:
             The license information for the model.
         anndata_version
             The version of anndata used during model training.
+        metrics_report
+            Path to the json with stored metrics report.
         data_is_minified
             Whether the training data uploaded with the model has been minified.
         map_location
@@ -218,6 +231,15 @@ class HubModelCardHelper:
         model_cls_name = registry["model_name"]
         scvi_version = registry["scvi_version"]
         model_setup_anndata_args = registry["setup_args"]
+        if metrics_report is None:
+            if os.path.isfile(f"{local_dir}/metrics.json"):
+                with open(f"{local_dir}/metrics.json") as f:
+                    metrics_report = json.load(f)
+            else:
+                metrics_report = None
+        else:
+            with open(f"{local_dir}/metrics.json") as f:
+                metrics_report = json.load(f)
         model_summary_stats = dict(AnnDataManager._get_summary_stats_from_registry(registry))
         model_data_registry = dict(AnnDataManager._get_data_registry_from_registry(registry))
 
@@ -236,6 +258,7 @@ class HubModelCardHelper:
             model_data_registry,
             scvi_version,
             anndata_version,
+            metrics_report=metrics_report,
             data_is_minified=is_minified,
             **kwargs,
         )
@@ -283,9 +306,35 @@ class HubModelCardHelper:
             flattened_model_init_params = {**non_kwargs, **kwargs}
         else:
             flattened_model_init_params = self.model_init_params
+        if self.model_cls_name == "SCVI":
+            pretext = scvi_pretext
+        elif self.model_cls_name == "SCANVI":
+            pretext = scanvi_pretext
+        elif self.model_cls_name == "TOTALVI":
+            pretext = totalvi_pretext
+        elif self.model_cls_name == "CondSCVI":
+            pretext = condscvi_pretext
+        elif self.model_cls_name == "RNAStereoscope":
+            pretext = stereoscope_pretext
+        else:
+            raise ValueError(
+                f"Model class name {self.model_cls_name} not recognized. Please provide a valid "
+                "model class name for HuggingFace or create an issue to add this model to "
+                "HuggingFace."
+            )
+        if self.metrics_report is not None:
+            de_metrics = self.metrics_report.get("diff_exp", _SCVI_HUB.DEFAULT_NA_FIELD)
+            cell_wise_cv = self.metrics_report.get("cell_wise_cv", _SCVI_HUB.DEFAULT_NA_FIELD)
+            gene_wise_cv = self.metrics_report.get("gene_wise_cv", _SCVI_HUB.DEFAULT_NA_FIELD)
+        else:
+            de_metrics = _SCVI_HUB.DEFAULT_NA_FIELD
+            cell_wise_cv = _SCVI_HUB.DEFAULT_NA_FIELD
+            gene_wise_cv = _SCVI_HUB.DEFAULT_NA_FIELD
 
         # create the content from the template
         content = template.format(
+            pretext=pretext,
+            model_class_name=self.model_cls_name,
             card_data=card_data.to_yaml(),
             description=self.description,
             model_init_params=json.dumps(flattened_model_init_params, indent=4),
@@ -303,6 +352,9 @@ class HubModelCardHelper:
             training_data_url=self.training_data_url or _SCVI_HUB.DEFAULT_NA_FIELD,
             training_code_url=self.training_code_url or _SCVI_HUB.DEFAULT_NA_FIELD,
             references=self.references,
+            de_metrics=de_metrics,
+            cell_wise_cv=cell_wise_cv,
+            gene_wise_cv=gene_wise_cv,
         )
 
         # finally create and return the actual card
