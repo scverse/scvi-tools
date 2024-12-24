@@ -183,7 +183,7 @@ class HubModel:
         if repo_create:
             repo_create_kwargs = repo_create_kwargs or {}
             create_repo(repo_name, token=repo_token, **repo_create_kwargs)
-        api = HfApi()
+        api = HfApi(token=repo_token)
         # upload the model card
         self.model_card.push_to_hub(repo_name, token=repo_token)
         # upload the model
@@ -231,6 +231,7 @@ class HubModel:
                 item_id=repo_name,
                 item_type="model",
                 exists_ok=True,
+                token=repo_token,
             )
 
     @classmethod

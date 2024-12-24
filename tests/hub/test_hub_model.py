@@ -237,6 +237,7 @@ def test_hub_model_create_repo_hf(save_path: str):
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-create",
         os.environ.get("HF_API_TOKEN", None),
+        collection_name="test",
         repo_create=True,
     )
     delete_repo("scvi-tools/test-scvi-create", token=os.environ.get("HF_API_TOKEN", None))
@@ -327,7 +328,7 @@ def test_hub_model_pull_from_s3():
         "tests/hub/test-scvi-no-anndata",
         pull_anndata=False,
     )
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         _ = hub_model.model
 
     adata = synthetic_iid()
