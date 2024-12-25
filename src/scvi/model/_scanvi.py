@@ -14,7 +14,6 @@ import scvi
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
-    _ADATA_MINIFY_TYPE_UNS_KEY,
     _SETUP_ARGS_KEY,
     ADATA_MINIFY_TYPE,
 )
@@ -26,12 +25,9 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
-    ObsmField,
-    StringUnsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
-from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
@@ -46,11 +42,6 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
     from lightning import LightningDataModule
-
-    from scvi._types import MinifiedDataType
-    from scvi.data.fields import (
-        BaseAnnDataField,
-    )
 
     from ._scvi import SCVI
 
@@ -621,79 +612,3 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             },
             "setup_method_name": "setup_datamodule",
         }
-
-    @staticmethod
-    def _get_fields_for_adata_minification(
-        minified_data_type: MinifiedDataType,
-    ) -> list[BaseAnnDataField]:
-        """Return the fields required for adata minification of the given minified_data_type."""
-        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            fields = [
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZM_KEY,
-                    _SCANVI_LATENT_QZM,
-                ),
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZV_KEY,
-                    _SCANVI_LATENT_QZV,
-                ),
-                NumericalObsField(
-                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-                    _SCANVI_OBSERVED_LIB_SIZE,
-                ),
-            ]
-        else:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-        fields.append(
-            StringUnsField(
-                REGISTRY_KEYS.MINIFY_TYPE_KEY,
-                _ADATA_MINIFY_TYPE_UNS_KEY,
-            ),
-        )
-        return fields
-
-    def minify_adata(
-        self,
-        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ):
-        """Minifies the model's adata.
-
-        Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
-        containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the adata is
-        minified.
-
-        Parameters
-        ----------
-        minified_data_type
-            How to minify the data. Currently only supports `latent_posterior_parameters`.
-            If minified_data_type == `latent_posterior_parameters`:
-
-            * the original count data is removed (`adata.X`, adata.raw, and any layers)
-            * the parameters of the latent representation of the original data is stored
-            * everything else is left untouched
-        use_latent_qzm_key
-            Key to use in `adata.obsm` where the latent qzm params are stored
-        use_latent_qzv_key
-            Key to use in `adata.obsm` where the latent qzv params are stored
-
-        Notes
-        -----
-        The modification is not done inplace -- instead the model is assigned a new (minified)
-        version of the adata.
-        """
-        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-
-        if self.module.use_observed_lib_size is False:
-            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
-
-        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
-        minified_adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-        minified_adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        minified_adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
-        self._update_adata_and_manager_post_minification(minified_adata, minified_data_type)
-        self.module.minified_data_type = minified_data_type
