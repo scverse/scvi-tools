@@ -17,7 +17,7 @@ from scvi.data import synthetic_iid
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader_scvi(save_path="."):
+def test_czi_custom_dataloader_scvi(save_path):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
@@ -224,7 +224,7 @@ def test_czi_custom_dataloader_scvi(save_path="."):
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader_scanvi(save_path="."):
+def test_czi_custom_dataloader_scanvi(save_path):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
@@ -338,7 +338,7 @@ def test_czi_custom_dataloader_scanvi(save_path="."):
 
 
 @pytest.mark.custom_dataloader
-def test_scdataloader_custom_dataloader_scvi(save_path="."):
+def test_scdataloader_custom_dataloader_scvi(save_path):
     # initialize a local lamin database
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
     # os.system("lamin close")
@@ -487,6 +487,6 @@ def test_scdataloader_custom_dataloader_scvi(save_path="."):
 
 
 @pytest.mark.custom_dataloader
-def test_lamindb_custom_dataloader_scvi(save_path="."):
+def test_lamindb_custom_dataloader_scvi(save_path):
     # a test for mapped collection
     return

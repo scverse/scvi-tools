@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 import scvi
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
-from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -16,12 +17,9 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
-    ObsmField,
-    StringUnsField,
 )
 from scvi.model._utils import _init_library_size
 from scvi.model.base import EmbeddingMixin, UnsupervisedTrainingMixin
-from scvi.model.utils import get_minified_adata_scrna
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 
@@ -33,10 +31,6 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from lightning import LightningDataModule
 
-    from scvi._types import MinifiedDataType
-    from scvi.data.fields import (
-        BaseAnnDataField,
-    )
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
@@ -116,6 +110,8 @@ class SCVI(
     """
 
     _module_cls = VAE
+    _LATENT_QZM_KEY = "scvi_latent_qzm"
+    _LATENT_QZV_KEY = "scvi_latent_qzv"
 
     def __init__(
         self,
@@ -150,42 +146,58 @@ class SCVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
 
-        if adata is not None:
-            n_cats_per_cov = (
-                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-                else None
+        if self._module_init_on_train:
+            self.module = None
+            warnings.warn(
+                "Model was initialized without `adata`. The module will be initialized when "
+                "calling `train`. This behavior is experimental and may change in the future.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         else:
-            # custom datamodule
-            n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
-            if n_cats_per_cov == 0:
-                n_cats_per_cov = None
+            if adata is not None:
+                n_cats_per_cov = (
+                    self.adata_manager.get_state_registry(
+                        REGISTRY_KEYS.CAT_COVS_KEY
+                    ).n_cats_per_key
+                    if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                    else None
+                )
+            else:
+                # custom datamodule
+                n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
+                if n_cats_per_cov == 0:
+                    n_cats_per_cov = None
 
-        n_batch = self.summary_stats.n_batch
-        use_size_factor_key = self.get_setup_arg(f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key")
-        library_log_means, library_log_vars = None, None
-        if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
-            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
-        self.module = self._module_cls(
-            n_input=self.summary_stats.n_vars,
-            n_batch=n_batch,
-            n_labels=self.summary_stats.n_labels,
-            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=n_cats_per_cov,
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
-            dispersion=dispersion,
-            gene_likelihood=gene_likelihood,
-            latent_distribution=latent_distribution,
-            use_size_factor_key=use_size_factor_key,
-            library_log_means=library_log_means,
-            library_log_vars=library_log_vars,
-            **kwargs,
-        )
-        self.module.minified_data_type = self.minified_data_type
+            n_batch = self.summary_stats.n_batch
+            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            library_log_means, library_log_vars = None, None
+            if (
+                not use_size_factor_key
+                and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            ):
+                library_log_means, library_log_vars = _init_library_size(
+                    self.adata_manager, n_batch
+                )
+            self.module = self._module_cls(
+                n_input=self.summary_stats.n_vars,
+                n_batch=n_batch,
+                n_labels=self.summary_stats.n_labels,
+                n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
+                n_cats_per_cov=n_cats_per_cov,
+                n_hidden=n_hidden,
+                n_latent=n_latent,
+                n_layers=n_layers,
+                dropout_rate=dropout_rate,
+                dispersion=dispersion,
+                gene_likelihood=gene_likelihood,
+                latent_distribution=latent_distribution,
+                use_size_factor_key=use_size_factor_key,
+                library_log_means=library_log_means,
+                library_log_vars=library_log_vars,
+                **kwargs,
+            )
+            self.module.minified_data_type = self.minified_data_type
 
         self.init_params_ = self._get_init_params(locals())
 
@@ -328,81 +340,3 @@ class SCVI(
             },
             "setup_method_name": "setup_datamodule",
         }
-
-    @staticmethod
-    def _get_fields_for_adata_minification(
-        minified_data_type: MinifiedDataType,
-    ) -> list[BaseAnnDataField]:
-        """Return the fields required for adata minification of the given minified_data_type."""
-        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            fields = [
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZM_KEY,
-                    _SCVI_LATENT_QZM,
-                ),
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZV_KEY,
-                    _SCVI_LATENT_QZV,
-                ),
-                NumericalObsField(
-                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-                    _SCVI_OBSERVED_LIB_SIZE,
-                ),
-            ]
-        else:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-        fields.append(
-            StringUnsField(
-                REGISTRY_KEYS.MINIFY_TYPE_KEY,
-                _ADATA_MINIFY_TYPE_UNS_KEY,
-            ),
-        )
-        return fields
-
-    def minify_adata(
-        self,
-        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ) -> None:
-        """Minifies the model's adata.
-
-        Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
-        containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the adata is
-        minified.
-
-        Parameters
-        ----------
-        minified_data_type
-            How to minify the data. Currently only supports `latent_posterior_parameters`.
-            If minified_data_type == `latent_posterior_parameters`:
-
-            * the original count data is removed (`adata.X`, adata.raw, and any layers)
-            * the parameters of the latent representation of the original data is stored
-            * everything else is left untouched
-        use_latent_qzm_key
-            Key to use in `adata.obsm` where the latent qzm params are stored
-        use_latent_qzv_key
-            Key to use in `adata.obsm` where the latent qzv params are stored
-
-        Notes
-        -----
-        The modification is not done inplace -- instead the model is assigned a new (minified)
-        version of the adata.
-        """
-        # TODO(adamgayoso): Add support for a scenario where we want to cache the latent posterior
-        # without removing the original counts.
-        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-
-        if self.module.use_observed_lib_size is False:
-            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
-
-        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
-        minified_adata.obsm[_SCVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-        minified_adata.obsm[_SCVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        minified_adata.obs[_SCVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
-        self._update_adata_and_manager_post_minification(minified_adata, minified_data_type)
-        self.module.minified_data_type = minified_data_type

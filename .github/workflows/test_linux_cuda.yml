@@ -34,7 +34,7 @@ jobs:
     container:
       image: ghcr.io/scverse/scvi-tools:py3.12-cu12-base
       #image: ghcr.io/scverse/scvi-tools:py3.12-cu12-${{ env.BRANCH_NAME }}-base
-      options: --user root --gpus all
+      options: --user root --gpus all --pull always
 
     name: integration
 
