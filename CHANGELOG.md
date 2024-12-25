@@ -32,7 +32,6 @@ to [Semantic Versioning]. Full commit history is available in the
 - Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
--
 
 #### Fixed
 
