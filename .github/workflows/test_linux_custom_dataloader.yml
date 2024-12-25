@@ -63,7 +63,7 @@ jobs:
           python -m pip install torchdata==0.9.0
           python -m pip install psutil
           python -m pip install lamindb
-          python -m pip install bionty=0.51.0
+          python -m pip install bionty==0.51.0
           python -m pip install biomart
 
       - name: Install Specific Branch of Repository
