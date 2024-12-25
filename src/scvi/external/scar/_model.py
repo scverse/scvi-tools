@@ -40,7 +40,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi_external.SCAR.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.SCAR.setup_anndata`.
     ambient_profile
         The probability of occurrence of each ambient transcript.\
             If None, averaging cells to estimate the ambient profile, by default None.
@@ -70,15 +70,15 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         the sparsity should be low; on the other hand, it should be set high
         in the case of unflitered genes.
     **model_kwargs
-        Keyword args for :class:`~scvi_external.SCAR`
+        Keyword args for :class:`~scvi.external.SCAR`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> raw_adata = anndata.read_h5ad(path_to_raw_anndata)
-    >>> scvi_external.SCAR.setup_anndata(adata, batch_key="batch")
-    >>> scvi_external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
-    >>> vae = scvi_external.SCAR(adata)
+    >>> scvi.external.SCAR.setup_anndata(adata, batch_key="batch")
+    >>> scvi.external.SCAR.get_ambient_profile(adata=adata, raw_adata=raw_adata, prob=0.995)
+    >>> vae = scvi.external.SCAR(adata)
     >>> vae.train()
     >>> adata.obsm["X_scAR"] = vae.get_latent_representation()
     >>> adata.layers['denoised'] = vae.get_denoised_counts()
@@ -152,6 +152,8 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
         layer: str | None = None,
         size_factor_key: str | None = None,
         **kwargs,
@@ -161,14 +163,16 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         %(param_adata)s
+        %(param_batch_key)s
+        %(param_labels_key)s
         %(param_layer)s
         %(param_size_factor_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, None),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)

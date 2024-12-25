@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 import scvi
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _get_adata_minify_type
@@ -116,6 +117,8 @@ class SCVI(
     """
 
     _module_cls = VAE
+    _LATENT_QZM_KEY = "scvi_latent_qzm"
+    _LATENT_QZV_KEY = "scvi_latent_qzv"
 
     def __init__(
         self,
@@ -150,42 +153,58 @@ class SCVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
 
-        if adata is not None:
-            n_cats_per_cov = (
-                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-                else None
+        if self._module_init_on_train:
+            self.module = None
+            warnings.warn(
+                "Model was initialized without `adata`. The module will be initialized when "
+                "calling `train`. This behavior is experimental and may change in the future.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
             )
         else:
-            # custom datamodule
-            n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
-            if n_cats_per_cov == 0:
-                n_cats_per_cov = None
+            if adata is not None:
+                n_cats_per_cov = (
+                    self.adata_manager.get_state_registry(
+                        REGISTRY_KEYS.CAT_COVS_KEY
+                    ).n_cats_per_key
+                    if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                    else None
+                )
+            else:
+                # custom datamodule
+                n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
+                if n_cats_per_cov == 0:
+                    n_cats_per_cov = None
 
-        n_batch = self.summary_stats.n_batch
-        use_size_factor_key = self.get_setup_arg(f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key")
-        library_log_means, library_log_vars = None, None
-        if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
-            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
-        self.module = self._module_cls(
-            n_input=self.summary_stats.n_vars,
-            n_batch=n_batch,
-            n_labels=self.summary_stats.n_labels,
-            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=n_cats_per_cov,
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
-            dropout_rate=dropout_rate,
-            dispersion=dispersion,
-            gene_likelihood=gene_likelihood,
-            latent_distribution=latent_distribution,
-            use_size_factor_key=use_size_factor_key,
-            library_log_means=library_log_means,
-            library_log_vars=library_log_vars,
-            **kwargs,
-        )
-        self.module.minified_data_type = self.minified_data_type
+            n_batch = self.summary_stats.n_batch
+            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            library_log_means, library_log_vars = None, None
+            if (
+                not use_size_factor_key
+                and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            ):
+                library_log_means, library_log_vars = _init_library_size(
+                    self.adata_manager, n_batch
+                )
+            self.module = self._module_cls(
+                n_input=self.summary_stats.n_vars,
+                n_batch=n_batch,
+                n_labels=self.summary_stats.n_labels,
+                n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
+                n_cats_per_cov=n_cats_per_cov,
+                n_hidden=n_hidden,
+                n_latent=n_latent,
+                n_layers=n_layers,
+                dropout_rate=dropout_rate,
+                dispersion=dispersion,
+                gene_likelihood=gene_likelihood,
+                latent_distribution=latent_distribution,
+                use_size_factor_key=use_size_factor_key,
+                library_log_means=library_log_means,
+                library_log_vars=library_log_vars,
+                **kwargs,
+            )
+            self.module.minified_data_type = self.minified_data_type
 
         self.init_params_ = self._get_init_params(locals())
 

@@ -40,7 +40,7 @@ def _load_legacy_saved_files(
         dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_SETUP_DICT_FNAME}"
     )
 
-    model_state_dict = torch.load(model_path, map_location="cpu")
+    model_state_dict = torch.load(model_path, map_location="cpu", weights_only=False)
 
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
@@ -73,7 +73,7 @@ def _load_saved_files(
     model_path = os.path.join(dir_path, model_file_name)
     try:
         _download(backup_url, dir_path, model_file_name)
-        model = torch.load(model_path, map_location=map_location)
+        model = torch.load(model_path, map_location=map_location, weights_only=False)
     except FileNotFoundError as exc:
         raise ValueError(
             f"Failed to load model file at {model_path}. "

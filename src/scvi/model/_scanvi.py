@@ -117,10 +117,12 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     _module_cls = SCANVAE
     _training_plan_cls = SemiSupervisedTrainingPlan
+    _LATENT_QZM_KEY = "scanvi_latent_qzm"
+    _LATENT_QZV_KEY = "scanvi_latent_qzv"
 
     def __init__(
         self,
-        adata: AnnData | None = None,
+        adata: AnnData,
         registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -154,7 +156,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = self.registry_["setup_args"][f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"]
         library_log_means, library_log_vars = None, None
-        if self.adata is not None and not use_size_factor_key and self.minified_data_type is None:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -236,17 +241,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 )
                 del scanvi_kwargs[k]
 
-        if scvi_model.minified_data_type is not None:
+        if scvi_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise ValueError(
-                "We cannot use the given scvi model to initialize scanvi because it has a "
-                "minified adata."
+                "We cannot use the given scVI model to initialize scANVI because it has "
+                "minified adata. Keep counts when minifying model using "
+                "minified_data_type='latent_posterior_parameters_with_counts'."
             )
 
         if adata is None:
             adata = scvi_model.adata
         else:
             if _is_minified(adata):
-                raise ValueError("Please provide a non-minified `adata` to initialize scanvi.")
+                raise ValueError("Please provide a non-minified `adata` to initialize scANVI.")
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
@@ -254,13 +260,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
             raise ValueError(
-                "A `labels_key` is necessary as the SCVI model was initialized without one."
+                "A `labels_key` is necessary as the scVI model was initialized without one."
             )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})
         cls.setup_anndata(
             adata,
             unlabeled_category=unlabeled_category,
+            use_minified=False,
             **scvi_setup_args,
         )
 
@@ -374,7 +381,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         max_epochs: int | None = None,
         n_samples_per_label: float | None = None,
         check_val_every_n_epoch: int | None = None,
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
@@ -472,6 +479,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
+        use_minified: bool = True,
         **kwargs,
     ):
         """%(summary)s.
@@ -486,6 +494,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        use_minified
+            If True, will register the minified version of the adata if possible.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -499,7 +509,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         # register new fields if the adata is minified
         if adata:
             adata_minify_type = _get_adata_minify_type(adata)
-            if adata_minify_type is not None:
+            if adata_minify_type is not None and use_minified:
                 anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
             adata_manager = AnnDataManager(
                 fields=anndata_fields, setup_method_args=setup_method_args

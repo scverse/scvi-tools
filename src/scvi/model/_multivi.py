@@ -9,11 +9,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from mudata import MuData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
+from scvi.data import AnnDataManager, fields
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from scvi._types import Number
+    from scvi._types import AnnOrMuData, Number
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_anndata`.
+        AnnData/MuData object that has been registered via
+        :meth:`~scvi.model.MULTIVI.setup_anndata` or :meth:`~scvi.model.MULTIVI.setup_mudata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -116,13 +118,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     --------
     >>> adata_rna = anndata.read_h5ad(path_to_rna_anndata)
     >>> adata_atac = scvi.data.read_10x_atac(path_to_atac_anndata)
-    >>> adata_multi = scvi.data.read_10x_multiome(path_to_multiomic_anndata)
-    >>> adata_mvi = scvi.data.organize_multiome_anndatas(adata_multi, adata_rna, adata_atac)
-    >>> scvi.model.MULTIVI.setup_anndata(adata_mvi, batch_key="modality")
-    >>> vae = scvi.model.MULTIVI(adata_mvi)
+    >>> adata_protein = anndata.read_h5ad(path_to_protein_anndata)
+    >>> mdata = MuData({"rna": adata_rna, "protein": adata_protein, "atac": adata_atac})
+    >>> scvi.model.MULTIVI.setup_mudata(mdata, batch_key="batch",
+    >>> modalities={"rna_layer": "rna", "protein_layer": "protein", "batch_key": "rna",
+    >>>             "atac_layer": "atac"})
+    >>> vae = scvi.model.MULTIVI(mdata)
     >>> vae.train()
 
-    Notes
+    Notes (for using setup_anndata)
     -----
     * The model assumes that the features are organized so that all expression features are
        consecutive, followed by all accessibility features. For example, if the data has 100 genes
@@ -140,7 +144,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
     def __init__(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData,
         registry: dict | None = None,
         n_genes: int | None = None,
         n_regions: int | None = None,
@@ -164,6 +168,13 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         **model_kwargs,
     ):
         super().__init__(adata)
+
+        if n_genes is None or n_regions is None:
+            assert isinstance(
+                adata, MuData
+            ), "n_genes and n_regions must be provided if using AnnData"
+            n_genes = self.summary_stats.get("n_vars", 0)
+            n_regions = self.summary_stats.get("n_atac", 0)
 
         prior_mean, prior_scale = None, None
         n_cats_per_cov = (
@@ -232,7 +243,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         lr: float = 1e-4,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
@@ -360,7 +371,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_library_size_factors(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] = None,
         batch_size: int = 128,
     ) -> dict[str, np.ndarray]:
@@ -369,8 +380,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If `None`, defaults
+            to the AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
@@ -409,7 +420,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         modality: Literal["joint", "expression", "accessibility"] = "joint",
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
@@ -420,8 +431,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If `None`, defaults
+            to the AnnOrMuData object used to initialize the model.
         modality
             Return modality specific or joint latent representation.
         indices
@@ -479,7 +490,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.inference_mode()
     def get_accessibility_estimates(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] = None,
         n_samples_overall: int | None = None,
         region_list: Sequence[str] | None = None,
@@ -500,8 +511,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Parameters
         ----------
         adata
-            AnnData object that has been registered with scvi. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object that has been registered with scvi. If `None`, defaults to the
+            AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples_overall
@@ -544,7 +555,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if region_list is None:
             region_mask = slice(None)
         else:
-            region_mask = [region in region_list for region in adata.var_names[self.n_genes :]]
+            region_mask = [region in region_list for region in adata.var_names[: self.n_regions]]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -577,25 +588,36 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:  # imputed is a list of tensors
             imputed = torch.cat(imputed).numpy()
 
-        if return_numpy:
-            return imputed
-        elif threshold:
-            return pd.DataFrame.sparse.from_spmatrix(
-                imputed,
-                index=adata.obs_names[indices],
-                columns=adata.var_names[self.n_genes :][region_mask],
-            )
-        else:
+        if np.all(imputed is None):
             return pd.DataFrame(
                 imputed,
                 index=adata.obs_names[indices],
-                columns=adata.var_names[self.n_genes :][region_mask],
+                columns=[],
             )
+        else:
+            if return_numpy:
+                return imputed
+            elif threshold:
+                return pd.DataFrame.sparse.from_spmatrix(
+                    imputed,
+                    index=adata.obs_names[indices],
+                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    if isinstance(adata, MuData)
+                    else adata.var_names[: self.n_regions][region_mask],
+                )
+            else:
+                return pd.DataFrame(
+                    imputed,
+                    index=adata.obs_names[indices],
+                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    if isinstance(adata, MuData)
+                    else adata.var_names[: self.n_regions][region_mask],
+                )
 
     @torch.inference_mode()
     def get_normalized_expression(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         n_samples_overall: int | None = None,
         transform_batch: Sequence[Number | str] | None = None,
@@ -613,8 +635,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If `None`, defaults
+            to the AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         n_samples_overall
@@ -777,7 +799,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        col_names = adata.var_names[self.n_genes :]
+        col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
@@ -798,7 +820,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
-            var_idx=np.arange(adata.shape[1])[self.n_genes :],
+            var_idx=np.arange(adata.shape[1])[: self.n_genes],
         )
 
         result = _de_core(
@@ -929,7 +951,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     @torch.no_grad()
     def get_protein_foreground_probability(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         transform_batch: Sequence[Number | str] | None = None,
         protein_list: Sequence[str] | None = None,
@@ -946,8 +968,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If ``None``, defaults to
-            the AnnData object used to initialize the model.
+            AnnOrMuData object with equivalent structure to initial AnnData. If ``None``, defaults
+            to the AnnOrMuData object used to initialize the model.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         transform_batch
@@ -1081,6 +1103,12 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
             sequential names to proteins.
         """
+        warnings.warn(
+            "MULTIVI is supposed to work with MuData. the use of anndata is "
+            "deprecated and will be removed in scvi-tools 1.4. Please use setup_mudata",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         setup_method_args = cls._get_setup_method_args(**locals())
         adata.obs["_indices"] = np.arange(adata.n_obs)
         batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
@@ -1089,7 +1117,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             batch_field,
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
@@ -1118,3 +1146,126 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         if (adata is not None) and (self.module.modality_weights == "cell"):
             raise RuntimeError("Held out data not permitted when using per cell weights")
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_mudata(
+        cls,
+        mdata: MuData,
+        rna_layer: str | None = None,
+        atac_layer: str | None = None,
+        protein_layer: str | None = None,
+        batch_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        idx_layer: str | None = None,
+        modalities: dict[str, str] | None = None,
+        **kwargs,
+    ):
+        """%(summary_mdata)s.
+
+        Parameters
+        ----------
+        %(param_mdata)s
+        rna_layer
+            RNA layer key. If `None`, will use `.X` of specified modality key.
+        atac_layer
+            ATAC layer key. If `None`, will use `.X` of specified modality key.
+        protein_layer
+            Protein layer key. If `None`, will use `.X` of specified modality key.
+        %(param_batch_key)s
+        size_factor_key
+            Key in `mdata.obsm` for size factors. The first column corresponds to RNA size factors,
+            the second to ATAC size factors.
+            The second column need to be normalized and between 0 and 1.
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        %(idx_layer)s
+        %(param_modalities)s
+
+        Examples
+        --------
+        >>> mdata = muon.read_10x_h5("filtered_feature_bc_matrix.h5")
+        >>> scvi.model.MULTIVI.setup_mudata(
+                mdata, modalities={"rna_layer": "rna", "protein_layer": "atac"}
+            )
+        >>> vae = scvi.model.MULTIVI(mdata)
+        """
+        setup_method_args = cls._get_setup_method_args(**locals())
+
+        if modalities is None:
+            raise ValueError("Modalities cannot be None.")
+        modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+        mdata.obs["_indices"] = np.arange(mdata.n_obs)
+
+        batch_field = fields.MuDataCategoricalObsField(
+            REGISTRY_KEYS.BATCH_KEY,
+            batch_key,
+            mod_key=modalities.batch_key,
+        )
+        mudata_fields = [
+            batch_field,
+            fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.LABELS_KEY,
+                None,
+                mod_key=None,
+            ),
+            fields.MuDataNumericalJointObsField(
+                REGISTRY_KEYS.SIZE_FACTOR_KEY,
+                size_factor_key,
+                mod_key=None,
+                required=False,
+            ),
+            fields.MuDataCategoricalJointObsField(
+                REGISTRY_KEYS.CAT_COVS_KEY,
+                categorical_covariate_keys,
+                mod_key=modalities.categorical_covariate_keys,
+            ),
+            fields.MuDataNumericalJointObsField(
+                REGISTRY_KEYS.CONT_COVS_KEY,
+                continuous_covariate_keys,
+                mod_key=modalities.continuous_covariate_keys,
+            ),
+            fields.MuDataNumericalObsField(
+                REGISTRY_KEYS.INDICES_KEY,
+                "_indices",
+                mod_key=modalities.idx_layer,
+                required=False,
+            ),
+        ]
+        if modalities.rna_layer is not None:
+            mudata_fields.append(
+                fields.MuDataLayerField(
+                    REGISTRY_KEYS.X_KEY,
+                    rna_layer,
+                    mod_key=modalities.rna_layer,
+                    is_count_data=True,
+                    mod_required=True,
+                )
+            )
+        if modalities.atac_layer is not None:
+            mudata_fields.append(
+                fields.MuDataLayerField(
+                    REGISTRY_KEYS.ATAC_X_KEY,
+                    atac_layer,
+                    mod_key=modalities.atac_layer,
+                    is_count_data=True,
+                    mod_required=True,
+                )
+            )
+        if modalities.protein_layer is not None:
+            mudata_fields.append(
+                fields.MuDataProteinLayerField(
+                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
+                    protein_layer,
+                    mod_key=modalities.protein_layer,
+                    use_batch_mask=True,
+                    batch_field=batch_field,
+                    is_count_data=True,
+                    mod_required=True,
+                )
+            )
+        adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
+        adata_manager.register_fields(mdata, **kwargs)
+        cls.register_manager(adata_manager)

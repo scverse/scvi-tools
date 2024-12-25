@@ -6,15 +6,7 @@ from typing import TYPE_CHECKING
 import h5py
 import numpy as np
 import pandas as pd
-
-try:
-    # anndata >= 0.10
-    from anndata.experimental import CSCDataset, CSRDataset
-
-    SparseDataset = (CSRDataset, CSCDataset)
-except ImportError:
-    from anndata._core.sparse_dataset import SparseDataset
-
+from anndata.abc import CSCDataset, CSRDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
@@ -27,6 +19,8 @@ if TYPE_CHECKING:
 from ._utils import registry_key_to_default_dtype, scipy_to_torch_sparse
 
 logger = logging.getLogger(__name__)
+
+SparseDataset = (CSRDataset, CSCDataset)
 
 
 class AnnTorchDataset(Dataset):

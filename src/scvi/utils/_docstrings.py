@@ -140,6 +140,10 @@ param_layer = """\
 layer
     if not `None`, uses this as the key in `adata.layers` for raw count data."""
 
+idx_layer = """\
+idx_layer
+    if not `None`, A vector string represents the different modalities """
+
 param_cat_cov_keys = """\
 categorical_covariate_keys
     keys in `adata.obs` that correspond to categorical data.
@@ -194,6 +198,7 @@ setup_anndata_dsp = DocstringProcessor(
     param_unlabeled_category=param_unlabeled_category,
     param_modalities=param_modalities,
     param_copy=param_copy,
+    idx_layer=idx_layer,
     returns=returns,
 )
 
