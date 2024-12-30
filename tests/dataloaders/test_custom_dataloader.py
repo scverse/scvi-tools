@@ -21,8 +21,7 @@ from torch.utils.data import DataLoader
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.utils import attrdict
-from scvi.data import _constants
+
 
 class MappedCollectionDataModule(LightningDataModule):
     def __init__(
@@ -30,13 +29,15 @@ class MappedCollectionDataModule(LightningDataModule):
         collection: ln.Collection,
         batch_key: str | None = None,
         batch_size: int = 128,
-        **kwargs
+        **kwargs,
     ):
         self._batch_size = batch_size
         self._batch_key = batch_key
         self._parallel = kwargs.pop("parallel", True)
         # here we initialize MappedCollection to use in a pytorch DataLoader
-        self._dataset = collection.mapped(obs_keys=self._batch_key, parallel=self._parallel, **kwargs)
+        self._dataset = collection.mapped(
+            obs_keys=self._batch_key, parallel=self._parallel, **kwargs
+        )
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
@@ -59,7 +60,7 @@ class MappedCollectionDataModule(LightningDataModule):
             batch_size=self._batch_size,
             shuffle=True,
             num_workers=num_workers,
-            worker_init_fn=worker_init_fn
+            worker_init_fn=worker_init_fn,
         )
 
     @property
@@ -101,45 +102,58 @@ class MappedCollectionDataModule(LightningDataModule):
             LABEL_KEY: 0,
         }
 
+
 def setup_datamodule(datamodule):
     datamodule.registry = {
-        'scvi_version': scvi.__version__,
-        'model_name': 'SCVI',
-        'setup_args': {
-            'layer': None,
-            'batch_key': 'batch',
-            'labels_key': None,
-            'size_factor_key': None,
-            'categorical_covariate_keys': None,
-            'continuous_covariate_keys': None,
+        "scvi_version": scvi.__version__,
+        "model_name": "SCVI",
+        "setup_args": {
+            "layer": None,
+            "batch_key": "batch",
+            "labels_key": None,
+            "size_factor_key": None,
+            "categorical_covariate_keys": None,
+            "continuous_covariate_keys": None,
         },
-        'field_registries': {
-            'X': {'data_registry': {'attr_name': 'X', 'attr_key': None},
-                'state_registry': {'n_obs': datamodule.n_obs,
-                'n_vars': datamodule.n_vars,
-                'column_names': [str(i) for i in datamodule.vars]},
-                'summary_stats': {'n_vars': datamodule.n_vars, 'n_cells': datamodule.n_obs}},
-            'batch': {'data_registry': {'attr_name': 'obs',
-                'attr_key': '_scvi_batch'},
-                'state_registry': {'categorical_mapping': datamodule.batch_keys,
-                'original_key': 'batch'},
-                'summary_stats': {'n_batch': datamodule.n_batch}},
-            'labels': {'data_registry': {'attr_name': 'obs',
-                'attr_key': '_scvi_labels'},
-                'state_registry': {'categorical_mapping': np.array([0]),
-                'original_key': '_scvi_labels'},
-                'summary_stats': {'n_labels': 1}},
-            'size_factor': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {}},
-            'extra_categorical_covs': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {'n_extra_categorical_covs': 0}},
-            'extra_continuous_covs': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {'n_extra_continuous_covs': 0}}
+        "field_registries": {
+            "X": {
+                "data_registry": {"attr_name": "X", "attr_key": None},
+                "state_registry": {
+                    "n_obs": datamodule.n_obs,
+                    "n_vars": datamodule.n_vars,
+                    "column_names": [str(i) for i in datamodule.vars],
+                },
+                "summary_stats": {"n_vars": datamodule.n_vars, "n_cells": datamodule.n_obs},
+            },
+            "batch": {
+                "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+                "state_registry": {
+                    "categorical_mapping": datamodule.batch_keys,
+                    "original_key": "batch",
+                },
+                "summary_stats": {"n_batch": datamodule.n_batch},
+            },
+            "labels": {
+                "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+                "state_registry": {
+                    "categorical_mapping": np.array([0]),
+                    "original_key": "_scvi_labels",
+                },
+                "summary_stats": {"n_labels": 1},
+            },
+            "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
+            "extra_categorical_covs": {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_categorical_covs": 0},
+            },
+            "extra_continuous_covs": {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_continuous_covs": 0},
+            },
         },
-        'setup_method_name': 'setup_datamodule',
+        "setup_method_name": "setup_datamodule",
     }
 
 
@@ -147,15 +161,13 @@ def test_lamindb_dataloader_scvi(save_path: str):
     # a test for mapped collection
     collection = ln.Collection.get(name="covid_normal_lung")
     datamodule = MappedCollectionDataModule(
-        collection,
-        batch_key = "assay",
-        batch_size = 128,
-        join = "inner"
+        collection, batch_key="assay", batch_size=128, join="inner"
     )
     setup_datamodule(datamodule)
     model = scvi.model.SCVI(adata=None, datamodule=datamodule, registry=datamodule.registry)
     print("FFFFFFF", model, model.summary_stats, model.module)
     model.train(max_epochs=1, datamodule=datamodule)
+
 
 @pytest.mark.custom_dataloader
 def test_czi_custom_dataloader_scvi(save_path):
