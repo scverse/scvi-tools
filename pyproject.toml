@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.2.0"
+version = "1.2.1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -32,7 +32,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata",
+    "anndata>=0.11",
     "docrep>=0.3.2",
     "flax",
     "jax",
@@ -40,7 +40,7 @@ dependencies = [
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
-    "numpy<2.0",
+    "numpy",
     "numpyro>=0.12.1",
     "pandas",
     "pyro-ppl>=1.6.0",
@@ -61,6 +61,7 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
+cuda = ["torchvision","torchaudio","jax[cuda]"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -83,20 +84,18 @@ autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
-census = ["cellxgene-census"]
+census = ["cellxgene-census","numpy<2.0"]
 # scvi.hub dependencies
-hub = ["huggingface_hub"]
-# scvi.model.utils.mde dependencies
-pymde = ["pymde"]
+hub = ["huggingface_hub", "igraph", "leidenalg","dvc[s3]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# read loom
-loompy = ["loompy>=3.0.6"]
 # scvi.criticism and read 10x
-scanpy = ["scanpy>=1.6","scikit-misc"]
+scanpy = ["scanpy>=1.10","scikit-misc"]
+# for convinient files sharing
+pooch = ["pooch"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,loompy,pymde,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
@@ -104,7 +103,6 @@ tutorials = [
     "leidenalg",
     "muon",
     "plotnine",
-    "pooch",
     "pynndescent",
     "igraph",
     "scrublet",
@@ -113,7 +111,7 @@ tutorials = [
     "squidpy",
 ]
 
-all = ["scvi-tools[dev,docs,tutorials]"]
+all = ["scvi-tools[cuda,dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/scvi']
@@ -129,8 +127,9 @@ testpaths = ["tests"]
 xfail_strict = true
 markers = [
     "internet: mark tests that requires internet access",
-    "optional: mark optional tests",
-    "private: mark tests that are private",
+    "optional: mark optional tests, usually take more time",
+    "private: mark tests that uses private keys, like HF",
+    "multigpu: mark tests that are used to check multi GPU performance",
 ]
 
 [tool.ruff]

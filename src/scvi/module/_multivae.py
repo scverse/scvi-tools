@@ -4,7 +4,7 @@ from typing import Literal
 import numpy as np
 import torch
 from torch import nn
-from torch.distributions import Normal
+from torch.distributions import Normal, Poisson
 from torch.distributions import kl_divergence as kld
 from torch.nn import functional as F
 
@@ -12,7 +12,6 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
-    Poisson,
     ZeroInflatedNegativeBinomial,
 )
 from scvi.module._peakvae import Decoder as DecoderPeakVI
@@ -33,12 +32,11 @@ class LibrarySizeEncoder(torch.nn.Module):
         n_hidden: int = 128,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
-        inject_covariates: bool = False,
-        output_fn: str | None = "LeakyReLU",
+        deep_inject_covariates: bool = False,
         **kwargs,
     ):
         super().__init__()
-        self.encoder = FCLayers(
+        self.px_decoder = FCLayers(
             n_in=n_input,
             n_out=n_hidden,
             n_cat_list=n_cat_list,
@@ -48,20 +46,14 @@ class LibrarySizeEncoder(torch.nn.Module):
             activation_fn=torch.nn.LeakyReLU,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
-            inject_covariates=inject_covariates,
+            inject_covariates=deep_inject_covariates,
             **kwargs,
         )
-        if output_fn == "LeakyReLU":
-            output_fn = nn.LeakyReLU()
-        elif output_fn == "sigmoid":
-            output_fn = nn.Sigmoid()
-        else:
-            output_fn = nn.Identity()
-        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, 1), output_fn)
+        self.output = torch.nn.Sequential(torch.nn.Linear(n_hidden, 1), torch.nn.LeakyReLU())
 
     def forward(self, x: torch.Tensor, *cat_list: int):
         """Forward pass."""
-        return self.output(self.encoder(x, *cat_list))
+        return self.output(self.px_decoder(x, *cat_list))
 
 
 class DecoderADT(torch.nn.Module):
@@ -77,7 +69,7 @@ class DecoderADT(torch.nn.Module):
         dropout_rate: float = 0.1,
         use_batch_norm: bool = False,
         use_layer_norm: bool = True,
-        inject_covariates: bool = False,
+        deep_inject_covariates: bool = False,
     ):
         super().__init__()
         self.n_output_proteins = n_output_proteins
@@ -166,10 +158,7 @@ class DecoderADT(torch.nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = (
-            torch.nn.functional.softplus(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
-            + 1e-8
-        )
+        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 
@@ -211,10 +200,6 @@ class MULTIVAE(BaseModuleClass):
         * ``"Jeffreys"``: Jeffreys penalty to align modalities
         * ``"MMD"``: MMD penalty to align modalities
         * ``"None"``: No penalty
-    mix_modality
-        How are modalities latent parameters combined. One of the following:
-        * ``"moe"``: Mixture of experts
-        * ``"poe"``: Product of experts
     n_batch
         Number of batches, if 0, no batch correction is performed.
     gene_likelihood
@@ -228,18 +213,6 @@ class MULTIVAE(BaseModuleClass):
         * ``'gene-batch'`` - dispersion can differ between different batches
         * ``'gene-label'`` - dispersion can differ between different labels
         * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    atac_likelihood
-        The distribution to use for ATAC-seq data. One of the following
-        * ``'zinb'`` - Zero-Inflated Negative Binomial
-        * ``'nb'`` - Negative Binomial
-        * ``'poisson'`` - Poisson
-        * ``'bernoulli'`` - Bernoulli
-    atac_dispersion
-        One of the following:
-        * ``'peak'`` - dispersion parameter of NB is constant per peak across cells
-        * ``'peak-batch'`` - dispersion can differ between different batches
-        * ``'peak-label'`` - dispersion can differ between different labels
-        * ``'peak-cell'`` - dispersion can differ for every peak in every cell
     protein_dispersion
         One of the following:
 
@@ -260,8 +233,6 @@ class MULTIVAE(BaseModuleClass):
         Dropout rate for neural networks
     region_factors
         Include region-specific factors in the model
-    scale_region_factors
-        Scale region factors by a fixed number to speed up convergence
     use_batch_norm
         One of the following
         * ``'encoder'`` - use batch normalization in the encoder only
@@ -295,14 +266,11 @@ class MULTIVAE(BaseModuleClass):
         n_input_proteins: int = 0,
         modality_weights: Literal["equal", "cell", "universal"] = "equal",
         modality_penalty: Literal["Jeffreys", "MMD", "None"] = "Jeffreys",
-        mix_modality: Literal["moe", "poe"] = "moe",
         n_batch: int = 0,
         n_obs: int = 0,
         n_labels: int = 0,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        atac_likelihood: Literal["zinb", "nb", "poisson", "bernoulli"] = "bernoulli",
-        atac_dispersion: Literal["peak", "peak-batch", "peak-label", "peak-cell"] = "peak",
         n_hidden: int = None,
         n_latent: int = None,
         n_layers_encoder: int = 2,
@@ -311,7 +279,6 @@ class MULTIVAE(BaseModuleClass):
         n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         region_factors: bool = True,
-        scale_region_factors: float = 100.0,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         latent_distribution: Literal["normal", "ln"] = "normal",
@@ -407,8 +374,7 @@ class MULTIVAE(BaseModuleClass):
             n_hidden=self.n_hidden,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
-            inject_covariates=self.deeply_inject_covariates,
-            output_fn="none",
+            deep_inject_covariates=self.deeply_inject_covariates,
         )
 
         # expression decoder
@@ -426,24 +392,6 @@ class MULTIVAE(BaseModuleClass):
         )
 
         # accessibility
-        # atac dispersion parameters
-        self.atac_likelihood = atac_likelihood
-        self.atac_dispersion = atac_dispersion
-        if self.atac_dispersion == "peak":
-            self.px_r_atac = torch.nn.Parameter(2 * torch.rand(self.n_input_regions))
-        elif self.atac_dispersion == "peak-batch":
-            self.px_r_atac = torch.nn.Parameter(2 * torch.rand(self.n_input_regions, n_batch))
-        elif self.atac_dispersion == "peak-label":
-            self.px_r_atac = torch.nn.Parameter(2 * torch.rand(self.n_input_regions, n_labels))
-        elif self.atac_dispersion == "peak-cell":
-            pass
-        else:
-            raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch',"
-                " 'gene-label', 'gene-cell'], but input was "
-                "{}.format(self.dispersion)"
-            )
-
         # accessibility encoder
         if self.n_input_regions == 0:
             input_acc = 1
@@ -467,47 +415,35 @@ class MULTIVAE(BaseModuleClass):
 
         # accessibility region-specific factors
         self.region_factors = None
-        self.scale_region_factors = scale_region_factors
         if region_factors:
             self.region_factors = torch.nn.Parameter(torch.zeros(self.n_input_regions))
 
         # accessibility decoder
-        if self.atac_likelihood == "bernoulli":
-            atac_decoder_fn = DecoderPeakVI
-            decoder_atac_kwargs = {}
-            atac_library_kwargs = {"output_fn": "sigmoid"}
-        else:
-            atac_decoder_fn = DecoderSCVI
-            decoder_atac_kwargs = {
-                "scale_activation": "softplus" if use_size_factor_key else "softmax"
-            }
-            atac_library_kwargs = {"output_fn": "none"}
-
-        self.z_decoder_accessibility = atac_decoder_fn(
-            n_input_decoder,
-            n_input_regions,
-            n_cat_list=cat_list,
-            n_layers=n_layers_decoder,
+        self.z_decoder_accessibility = DecoderPeakVI(
+            n_input=self.n_latent + self.n_continuous_cov,
+            n_output=n_input_regions,
             n_hidden=self.n_hidden,
-            inject_covariates=self.deeply_inject_covariates,
+            n_cat_list=cat_list,
+            n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            **decoder_atac_kwargs,
+            deep_inject_covariates=self.deeply_inject_covariates,
         )
 
         # accessibility library size encoder
-        self.l_encoder_accessibility = LibrarySizeEncoder(
-            n_input_encoder_acc,
+        self.l_encoder_accessibility = DecoderPeakVI(
+            n_input=n_input_encoder_acc,
+            n_output=1,
+            n_hidden=self.n_hidden,
             n_cat_list=encoder_cat_list,
             n_layers=self.n_layers_encoder,
-            n_hidden=self.n_hidden,
             use_batch_norm=self.use_batch_norm_encoder,
             use_layer_norm=self.use_layer_norm_encoder,
-            inject_covariates=self.deeply_inject_covariates,
-            **atac_library_kwargs,
+            deep_inject_covariates=self.deeply_inject_covariates,
         )
 
         # protein
+        # protein encoder
         self.protein_dispersion = protein_dispersion
         if protein_background_prior_mean is None:
             if n_batch > 0:
@@ -566,7 +502,7 @@ class MULTIVAE(BaseModuleClass):
             n_layers=self.n_layers_decoder,
             use_batch_norm=self.use_batch_norm_decoder,
             use_layer_norm=self.use_layer_norm_decoder,
-            inject_covariates=self.deeply_inject_covariates,
+            deep_inject_covariates=self.deeply_inject_covariates,
         )
 
         # protein dispersion parameters
@@ -592,14 +528,9 @@ class MULTIVAE(BaseModuleClass):
             self.mod_weights = torch.nn.Parameter(torch.ones(max_n_modalities))
         else:  # cell-specific weights
             self.mod_weights = torch.nn.Parameter(torch.ones(n_obs, max_n_modalities))
-        self.mix_modality = mix_modality
-        assert mix_modality in ["moe", "poe"], "mix_modality must be one of ['moe', 'poe']"
 
     def _get_inference_input(self, tensors):
         """Get input tensors for the inference model."""
-        # from scvi.data._constants import ADATA_MINIFY_TYPE
-        # TODO: ADD MINIFICATION CONSIDERATION
-
         x = tensors.get(REGISTRY_KEYS.X_KEY, None)
         x_atac = tensors.get(REGISTRY_KEYS.ATAC_X_KEY, None)
         if x is not None and x_atac is not None:
@@ -611,9 +542,7 @@ class MULTIVAE(BaseModuleClass):
         else:
             y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        cell_idx = tensors.get(REGISTRY_KEYS.INDICES_KEY)
-        if cell_idx is not None:
-            cell_idx = cell_idx.long().ravel()
+        cell_idx = tensors.get(REGISTRY_KEYS.INDICES_KEY).long().ravel()
         cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY)
         cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY)
         label = tensors[REGISTRY_KEYS.LABELS_KEY]
@@ -687,39 +616,29 @@ class MULTIVAE(BaseModuleClass):
         if self.use_size_factor_key:
             libsize_expr = torch.log(size_factor[:, [0]] + 1e-6)
             libsize_acc = size_factor[:, [1]]
-            if self.atac_likelihood != "bernoulli":
-                libsize_acc = torch.log(libsize_acc + 1e-6)
         else:
-            libsize_acc = self.l_encoder_accessibility(
-                encoder_input_accessibility, batch_index, *categorical_input
-            )
             libsize_expr = self.l_encoder_expression(
                 encoder_input_expression, batch_index, *categorical_input
+            )
+            libsize_acc = self.l_encoder_accessibility(
+                encoder_input_accessibility, batch_index, *categorical_input
             )
 
         # mix representations
         if self.modality_weights == "cell":
             weights = self.mod_weights[cell_idx, :]
         else:
-            weights = self.mod_weights.unsqueeze(0).expand(x.shape[0], -1)
+            weights = self.mod_weights.unsqueeze(0).expand(len(cell_idx), -1)
 
-        if self.mix_modality == "moe":
-            qz_m = mixture_of_expert(
-                (qzm_expr, qzm_acc, qzm_pro), (mask_expr, mask_acc, mask_pro), weights
-            )
-            qz_v = mixture_of_expert(
-                (qzv_expr, qzv_acc, qzv_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights,
-            )
-            print("FFFFFF", qz_v.mean(), (qzv_expr.mean(), qzv_acc.mean()))
-        else:
-            qz_m, qz_v = product_of_expert(
-                (qzm_expr, qzm_acc, qzm_pro),
-                (qzv_expr, qzv_acc, qzv_pro),
-                (mask_expr, mask_acc, mask_pro),
-                weights,
-            )
+        qz_m = mix_modalities(
+            (qzm_expr, qzm_acc, qzm_pro), (mask_expr, mask_acc, mask_pro), weights
+        )
+        qz_v = mix_modalities(
+            (qzv_expr, qzv_acc, qzv_pro),
+            (mask_expr, mask_acc, mask_pro),
+            weights,
+            torch.sqrt,
+        )
 
         # sample
         if n_samples > 1:
@@ -765,7 +684,6 @@ class MULTIVAE(BaseModuleClass):
         z = inference_outputs["z"]
         qz_m = inference_outputs["qz_m"]
         libsize_expr = inference_outputs["libsize_expr"]
-        libsize_acc = inference_outputs["libsize_acc"]
 
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
@@ -786,7 +704,6 @@ class MULTIVAE(BaseModuleClass):
             "cont_covs": cont_covs,
             "cat_covs": cat_covs,
             "libsize_expr": libsize_expr,
-            "libsize_acc": libsize_acc,
             "label": label,
         }
         return input_dict
@@ -800,7 +717,6 @@ class MULTIVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         libsize_expr=None,
-        libsize_acc=None,
         use_z_mean=False,
         label: torch.Tensor = None,
     ):
@@ -821,54 +737,10 @@ class MULTIVAE(BaseModuleClass):
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
         # Accessibility Decoder
-        region_factor = (
-            torch.sigmoid(self.scale_region_factors * self.region_factors)
-            if self.region_factors is not None
-            else 1.0
-        )
-        if self.atac_likelihood == "bernoulli":
-            p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
-            px_atac = {"px_rate": libsize_acc * region_factor * p, "px_scale": p}
-        else:
-            # ATAC Decoder
-            px_scale_atac, px_r_atac, px_rate_atac, px_dropout_atac = self.z_decoder_accessibility(
-                self.atac_dispersion,
-                decoder_input,
-                libsize_acc,
-                batch_index,
-                *categorical_input,
-                label,
-            )
-            # scale by 2 to match the initial scale of the region factor (0.5).
-            px_rate_atac = px_rate_atac * region_factor
-            # ATAC Dispersion
-            if self.atac_dispersion == "peak-label":
-                px_r_atac = F.linear(
-                    F.one_hot(label.squeeze(-1), self.n_labels).float(), self.px_r_atac
-                )  # px_r gets transposed - last dimension is nb genes
-            elif self.atac_dispersion == "peak-batch":
-                px_r_atac = F.linear(
-                    F.one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.px_r_atac
-                )
-            elif self.atac_dispersion == "peak":
-                px_r_atac = self.px_r_atac
-            px_r_atac = torch.exp(px_r_atac)
-            if self.atac_likelihood == "zinb":
-                px_atac = ZeroInflatedNegativeBinomial(
-                    mu=px_rate_atac,
-                    theta=px_r_atac,
-                    zi_logits=px_dropout_atac,
-                    scale=px_scale_atac,
-                )
-            elif self.atac_likelihood == "nb":
-                px_atac = NegativeBinomial(mu=px_rate_atac, theta=px_r_atac, scale=px_scale_atac)
-            elif self.atac_likelihood == "poisson":
-                px_atac = Poisson(rate=px_rate_atac, scale=px_scale_atac)
-            elif self.atac_likelihood == "normal":
-                px_atac = Normal(px_rate_atac, px_r_atac, normal_mu=px_scale_atac)
+        p = self.z_decoder_accessibility(decoder_input, batch_index, *categorical_input)
 
         # Expression Decoder
-        px_scale, px_scale, px_rate, px_dropout = self.z_decoder_expression(
+        px_scale, _, px_rate, px_dropout = self.z_decoder_expression(
             self.gene_dispersion,
             decoder_input,
             libsize_expr,
@@ -887,20 +759,6 @@ class MULTIVAE(BaseModuleClass):
             px_r = self.px_r
         px_r = torch.exp(px_r)
 
-        if self.gene_likelihood == "zinb":
-            px = ZeroInflatedNegativeBinomial(
-                mu=px_rate,
-                theta=px_r,
-                zi_logits=px_dropout,
-                scale=px_scale,
-            )
-        elif self.gene_likelihood == "nb":
-            px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
-        elif self.gene_likelihood == "poisson":
-            px = Poisson(rate=px_rate, scale=px_scale)
-        elif self.gene_likelihood == "normal":
-            px = Normal(px_rate, px_r, normal_mu=px_scale)
-
         # Protein Decoder
         py_, log_pro_back_mean = self.z_decoder_pro(decoder_input, batch_index, *categorical_input)
         # Protein Dispersion
@@ -915,8 +773,11 @@ class MULTIVAE(BaseModuleClass):
         py_["r"] = py_r
 
         return {
-            "px_atac": px_atac,
-            "px": px,
+            "p": p,
+            "px_scale": px_scale,
+            "px_r": torch.exp(self.px_r),
+            "px_rate": px_rate,
+            "px_dropout": px_dropout,
             "py_": py_,
             "log_pro_back_mean": log_pro_back_mean,
         }
@@ -927,7 +788,7 @@ class MULTIVAE(BaseModuleClass):
         x = inference_outputs["x"]
 
         x_rna = x[:, : self.n_input_genes]
-        x_atac = x[:, self.n_input_genes :]
+        x_atac = x[:, self.n_input_genes : (self.n_input_genes + self.n_input_regions)]
         if self.n_input_proteins == 0:
             y = torch.zeros(x.shape[0], 1, device=x.device, requires_grad=False)
         else:
@@ -938,14 +799,18 @@ class MULTIVAE(BaseModuleClass):
         mask_pro = y.sum(dim=1) > 0
 
         # Compute Accessibility loss
-        px_atac = generative_outputs["px_atac"]
-        if self.atac_likelihood == "bernoulli":
-            rl_accessibility = self._get_reconstruction_loss_bernoulli(x_atac, px_atac["px_rate"])
-        else:
-            rl_accessibility = -px_atac.log_prob(x_atac).sum(-1)
+        p = generative_outputs["p"]
+        libsize_acc = inference_outputs["libsize_acc"]
+        rl_accessibility = self.get_reconstruction_loss_accessibility(x_atac, p, libsize_acc)
 
         # Compute Expression loss
-        rl_expression = -generative_outputs["px"].log_prob(x_rna).sum(-1)
+        px_rate = generative_outputs["px_rate"]
+        px_r = generative_outputs["px_r"]
+        px_dropout = generative_outputs["px_dropout"]
+        x_expression = x[:, : self.n_input_genes]
+        rl_expression = self.get_reconstruction_loss_expression(
+            x_expression, px_rate, px_r, px_dropout
+        )
 
         # Compute Protein loss - No ability to mask minibatch (Param:None)
         if mask_pro.sum().gt(0):
@@ -996,10 +861,25 @@ class MULTIVAE(BaseModuleClass):
         }
         return LossOutput(loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local)
 
-    def _get_reconstruction_loss_bernoulli(self, x, p):
+    def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
+        """Computes the reconstruction loss for the expression data."""
+        rl = 0.0
+        if self.gene_likelihood == "zinb":
+            rl = (
+                -ZeroInflatedNegativeBinomial(mu=px_rate, theta=px_r, zi_logits=px_dropout)
+                .log_prob(x)
+                .sum(dim=-1)
+            )
+        elif self.gene_likelihood == "nb":
+            rl = -NegativeBinomial(mu=px_rate, theta=px_r).log_prob(x).sum(dim=-1)
+        elif self.gene_likelihood == "poisson":
+            rl = -Poisson(px_rate).log_prob(x).sum(dim=-1)
+        return rl
+
+    def get_reconstruction_loss_accessibility(self, x, p, d):
         """Computes the reconstruction loss for the accessibility data."""
-        # Scaling improves convergence speed. Otherwise region_factors takes long to train.
-        return torch.nn.BCELoss(reduction="none")(p, (x > 0).float()).sum(dim=-1)
+        reg_factor = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
+        return torch.nn.BCELoss(reduction="none")(p * d * reg_factor, (x > 0).float()).sum(dim=-1)
 
     def _compute_mod_penalty(self, mod_params1, mod_params2, mod_params3, mask1, mask2, mask3):
         """Computes Similarity Penalty across modalities given selection (None, Jeffreys, MMD).
@@ -1080,7 +960,7 @@ class MULTIVAE(BaseModuleClass):
 
 
 @auto_move_data
-def mixture_of_expert(Xs, masks, weights):
+def mix_modalities(Xs, masks, weights, weight_transform: callable = None):
     """Compute the weighted mean of the Xs while masking unmeasured modality values.
 
     Parameters
@@ -1092,6 +972,8 @@ def mixture_of_expert(Xs, masks, weights):
         should be included in the mix or not (N)
     weights
         Weights for each modality (either K or N x K)
+    weight_transform
+        Transformation to apply to the weights before using them
     """
     # (batch_size x latent) -> (batch_size x modalities x latent)
     Xs = torch.stack(Xs, dim=1)
@@ -1101,42 +983,11 @@ def mixture_of_expert(Xs, masks, weights):
 
     # (batch_size x modalities) -> (batch_size x modalities x latent)
     weights = weights.unsqueeze(-1)
+    if weight_transform is not None:
+        weights = weight_transform(weights)
+
     # sum over modalities, so output is (batch_size x latent)
     return (weights * Xs).sum(1)
-
-
-@auto_move_data
-def product_of_expert(mus, vars, masks, weights):
-    """Compute the weighted mean of the Xs while masking unmeasured modality values.
-
-    Parameters
-    ----------
-    mus
-        Sequence of mus to mix, each should be (N x D)
-    vars
-        Sequence of vars to mix, each should be (N x D)
-    masks
-        Sequence of masks corresponding to the Xs, indicating whether the values
-        should be included in the mix or not (N)
-    weights
-        Weights for each modality (either K or N x K)
-    """
-    mus = torch.stack(mus, dim=1)
-    vars = torch.stack(vars, dim=1)
-    masks = torch.stack(masks, dim=1).float()
-    weights = masked_softmax(weights, masks, dim=-1).unsqueeze(-1)
-
-    # Compute precision (inverse variance) for each expert
-    precisions = masks.unsqueeze(-1) / vars  # (N, K, D)
-    weighted_precisions = precisions * weights  # (N, K, D)
-    joint_precision = weighted_precisions.sum(dim=1)  # Sum across modalities (K -> joint expert)
-    joint_variance = 1.0 / joint_precision  # Joint variance (N, D)
-
-    # Joint mean
-    weighted_mean = (mus * weighted_precisions).sum(dim=1)  # Sum weighted means
-    joint_mean = weighted_mean * joint_variance  # Scale by joint variance
-
-    return joint_mean, joint_variance
 
 
 @auto_move_data

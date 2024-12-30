@@ -15,7 +15,6 @@ from scvi.utils import attrdict
 
 def test_multivi():
     data = synthetic_iid()
-    data2 = data.copy()
     MULTIVI.setup_anndata(
         data,
         batch_key="batch",
@@ -29,7 +28,7 @@ def test_multivi():
     vae.train(1, adversarial_mixing=False)
     vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
-    vae.get_accessibility_estimates(data2)
+    vae.get_accessibility_estimates()
     vae.get_accessibility_estimates(normalize_cells=True)
     vae.get_accessibility_estimates(normalize_regions=True)
     vae.get_normalized_expression()
@@ -54,9 +53,6 @@ def test_multivi():
     # Test with modality weights and penalties
     data = synthetic_iid()
     MULTIVI.setup_anndata(data, batch_key="batch")
-    with pytest.raises(AssertionError):
-        vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
-    MULTIVI.setup_anndata(data, batch_key="batch", index_key="_indices")
     vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
     vae.train(3)
     vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
@@ -71,7 +67,6 @@ def test_multivi():
         batch_key="batch",
         protein_expression_obsm_key="protein_expression",
         protein_names_uns_key="protein_names",
-        index_key="_indices",
     )
     vae = MULTIVI(
         data,
@@ -91,6 +86,7 @@ def test_multivi_single_batch():
         vae.train(3)
 
 
+@pytest.mark.internet
 def test_multivi_mudata_rna_prot_external():
     # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
     adata = scvi.data.pbmcs_10x_cite_seq()
@@ -186,16 +182,12 @@ def test_multivi_mudata_trimodal_external():
     model.get_region_factors()
 
 
-@pytest.mark.parametrize("n_genes", [23, 42])
-@pytest.mark.parametrize("n_regions", [24, 44])
-@pytest.mark.parametrize("n_proteins", [27, 48])
-def test_multivi_mudata(n_genes: int, n_regions: int, n_proteins: int):
+@pytest.mark.parametrize("n_genes", [25, 50, 100])
+@pytest.mark.parametrize("n_regions", [25, 50, 100])
+def test_multivi_mudata(n_genes: int, n_regions: int):
+    # use of syntetic data of rna/proteins/atac for speed
+
     mdata = synthetic_iid(return_mudata=True)
-    mdata.mod["rna"] = mdata.mod["rna"][:, 0:n_genes].copy()
-    mdata.mod["accessibility"] = mdata.mod["accessibility"][:, 0:n_regions].copy()
-    mdata.mod["protein_expression"] = mdata.mod["protein_expression"][:, 0:n_proteins].copy()
-    mdata.update()
-    mdata2 = mdata.copy()
     MULTIVI.setup_mudata(
         mdata,
         batch_key="batch",
@@ -216,7 +208,7 @@ def test_multivi_mudata(n_genes: int, n_regions: int, n_proteins: int):
     model.get_elbo()
     model.get_reconstruction_error()
     model.get_normalized_expression()
-    model.get_normalized_expression(mdata2, transform_batch=["batch_0", "batch_1"])
+    model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
     model.get_accessibility_estimates()
     model.get_accessibility_estimates(normalize_cells=True)
     model.get_accessibility_estimates(normalize_regions=True)
@@ -226,7 +218,26 @@ def test_multivi_mudata(n_genes: int, n_regions: int, n_proteins: int):
     model.get_elbo(indices=model.validation_indices)
     model.get_reconstruction_error(indices=model.validation_indices)
     model.get_accessibility_estimates()
-    model.get_accessibility_estimates(mdata2, normalize_cells=True)
+    model.get_accessibility_estimates(normalize_cells=True)
+    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_library_size_factors()
+    model.get_region_factors()
+
+    mdata2 = synthetic_iid(return_mudata=True)
+    MULTIVI.setup_mudata(
+        mdata2,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+    norm_exp = model.get_normalized_expression(mdata2, indices=[1, 2, 3])
+    assert norm_exp.shape == (3, n_genes)
+
+    # test transfer_anndata_setup + view
+    mdata3 = synthetic_iid(return_mudata=True)
+    mdata3.obs["_indices"] = np.arange(mdata3.n_obs)
+    model.get_elbo(mdata3[:10])
+    model.get_accessibility_estimates()
+    model.get_accessibility_estimates(normalize_cells=True)
     model.get_accessibility_estimates(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()

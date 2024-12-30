@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
-from scvi.data.fields import NumericalObsField, ObsmField, StringUnsField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -24,7 +24,6 @@ from scvi.model._utils import (
     get_max_epochs_heuristic,
 )
 from scvi.model.base._de_core import _de_core
-from scvi.model.utils import get_minified_mudata
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
@@ -41,17 +40,9 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from typing import Literal
 
-    from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import AnnOrMuData, MinifiedDataType, Number
-    from scvi.data.fields import (
-        BaseAnnDataField,
-    )
-
-_TOTALVI_LATENT_QZM = "_totalvi_latent_qzm"
-_TOTALVI_LATENT_QZV = "_totalvi_latent_qzv"
-_TOTALVI_OBSERVED_LIB_SIZE = "_totalvi_observed_lib_size"
+    from scvi._types import AnnOrMuData, Number
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +59,8 @@ class TOTALVI(
     Parameters
     ----------
     adata
-        AnnData/MuData object that has been registered via
-        :meth:`~scvi.model.TOTALVI.setup_anndata` or :meth:`~scvi.model.TOTALVI.setup_mudata`.
+        AnnOrMuData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`
+        or :meth:`~scvi.model.TOTALVI.setup_mudata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -107,13 +98,12 @@ class TOTALVI(
 
     Examples
     --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.TOTALVI.setup_anndata(
-            adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-        )
-    >>> vae = scvi.model.TOTALVI(adata)
+    >>> mdata = mudata.read_h5mu(path_to_mudata)
+    >>> scvi.model.TOTALVI.setup_mudata(
+            mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
+    >>> vae = scvi.model.TOTALVI(mdata)
     >>> vae.train()
-    >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
+    >>> mdata.obsm["X_totalVI"] = vae.get_latent_representation()
 
     Notes
     -----
@@ -125,6 +115,8 @@ class TOTALVI(
     """
 
     _module_cls = TOTALVAE
+    _LATENT_QZM_KEY = "totalvi_latent_qzm"
+    _LATENT_QZV_KEY = "totalvi_latent_qzv"
     _data_splitter_cls = DataSplitter
     _training_plan_cls = AdversarialTrainingPlan
     _train_runner_cls = TrainRunner
@@ -152,10 +144,10 @@ class TOTALVI(
             batch_mask = self.protein_state_registry.protein_batch_mask
             msg = (
                 "Some proteins have all 0 counts in some batches. "
-                + "These proteins will be treated as missing measurements; however, "
-                + "this can occur due to experimental design/biology. "
-                + "Reinitialize the model with `override_missing_proteins=True`,"
-                + "to override this behavior."
+                "These proteins will be treated as missing measurements; however, "
+                "this can occur due to experimental design/biology. "
+                "Reinitialize the model with `override_missing_proteins=True`,"
+                "to override this behavior."
             )
             warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             self._use_adversarial_classifier = True
@@ -168,7 +160,7 @@ class TOTALVI(
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if emp_prior:
+        if emp_prior and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -184,8 +176,10 @@ class TOTALVI(
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        # TODO: ADD MINIFICATION CONSIDERATION
-        if not use_size_factor_key and self.minified_data_type is None:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -214,6 +208,14 @@ class TOTALVI(
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
+        if self.registry_["setup_method_name"] == "setup_mudata":
+            original_dict = self.registry_["setup_args"]["modalities"]
+            self.modalities = {
+                "rna_layer": original_dict.get("rna_layer"),
+                "protein_layer": original_dict.get("protein_layer"),
+            }
+        else:
+            self.modalities = None
 
     @devices_dsp.dedent
     def train(
@@ -823,7 +825,7 @@ class TOTALVI(
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
@@ -873,19 +875,25 @@ class TOTALVI(
 
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        scdl_list = []
+        rna_list = []
+        protein_list = []
         for tensors in scdl:
             rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
-            data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
 
-            scdl_list += [data]
+            rna_list += [rna_sample]
+            protein_list += [protein_sample]
             if n_samples > 1:
-                scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
-        scdl_list = np.concatenate(scdl_list, axis=0)
+                rna_list[-1] = np.transpose(rna_list[-1], (1, 2, 0))
+                protein_list[-1] = np.transpose(protein_list[-1], (1, 2, 0))
+        rna = np.concatenate(rna_list, axis=0)
+        protein = np.concatenate(protein_list, axis=0)
 
-        return scdl_list
+        if isinstance(adata, AnnData):
+            return {"rna": rna, "protein": protein}
+        else:
+            return {self.modalities["rna_layer"]: rna, self.modalities["protein_layer"]: protein}
 
     @torch.inference_mode()
     def _get_denoised_samples(
@@ -1029,6 +1037,7 @@ class TOTALVI(
                 batch_size=batch_size,
                 rna_size_factor=rna_size_factor,
                 transform_batch=b,
+                indices=indices,
             )
             flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
             for i in range(n_samples):
@@ -1240,7 +1249,8 @@ class TOTALVI(
         %(returns)s
         """
         warnings.warn(
-            "TOTALVI is supposed to work with MuData.",
+            "We recommend using setup_mudata for multi-modal data."
+            "It does not influence model performance",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -1360,87 +1370,9 @@ class TOTALVI(
                 mod_required=True,
             ),
         ]
-        # TODO: register new fields if the mudata is minified
         mdata_minify_type = _get_adata_minify_type(mdata)
         if mdata_minify_type is not None:
             mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
-
-    @staticmethod
-    def _get_fields_for_mudata_minification(
-        minified_data_type: MinifiedDataType,
-    ) -> list[BaseAnnDataField]:
-        """Return the fields required for mudata minification of the given minified_data_type."""
-        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            fields = [
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZM_KEY,
-                    _TOTALVI_LATENT_QZM,
-                ),
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZV_KEY,
-                    _TOTALVI_LATENT_QZV,
-                ),
-                NumericalObsField(
-                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-                    _TOTALVI_OBSERVED_LIB_SIZE,
-                ),
-            ]
-        else:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-        fields.append(
-            StringUnsField(
-                REGISTRY_KEYS.MINIFY_TYPE_KEY,
-                _ADATA_MINIFY_TYPE_UNS_KEY,
-            ),
-        )
-        return fields
-
-    def minify_mudata(
-        self,
-        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ) -> None:
-        """Minifies the model's mudata.
-
-        Minifies the mudata, and registers new mudata fields: latent qzm, latent qzv, adata uns
-        containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the mudata is
-        minified.
-
-        Parameters
-        ----------
-        minified_data_type
-            How to minify the data. Currently only supports `latent_posterior_parameters`.
-            If minified_data_type == `latent_posterior_parameters`:
-
-            * the original count data is removed (`adata.X`, adata.raw, and any layers)
-            * the parameters of the latent representation of the original data is stored
-            * everything else is left untouched
-        use_latent_qzm_key
-            Key to use in `adata.obsm` where the latent qzm params are stored
-        use_latent_qzv_key
-            Key to use in `adata.obsm` where the latent qzv params are stored
-
-        Notes
-        -----
-        The modification is not done inplace -- instead the model is assigned a new (minified)
-        version of the adata.
-        """
-        # without removing the original counts.
-        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-
-        if self.module.use_observed_lib_size is False:
-            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
-
-        minified_adata = get_minified_mudata(self.adata, minified_data_type)
-        minified_adata.obsm[_TOTALVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-        minified_adata.obsm[_TOTALVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        minified_adata.obs[_TOTALVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
-        self._update_mudata_and_manager_post_minification(minified_adata, minified_data_type)
-        self.module.minified_data_type = minified_data_type

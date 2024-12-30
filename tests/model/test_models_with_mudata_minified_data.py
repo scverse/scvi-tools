@@ -1,15 +1,14 @@
 import numpy as np
 import pytest
+from mudata import MuData
 
-# from mudata import MuData
 import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
-from scvi.model import MULTIVI, TOTALVI
+from scvi.model import TOTALVI
 
-_TOTALVI_OBSERVED_LIB_SIZE = "_totalvi_observed_lib_size"
-_MULTIVI_OBSERVED_LIB_SIZE = "_multivi_observed_lib_size"
+OBSERVED_LIB_SIZE = "observed_lib_size"
 
 
 def prep_model(cls=TOTALVI, use_size_factor=False):
@@ -75,7 +74,7 @@ def run_test_for_model_with_minified_adata(
 
     assert adata_orig.layers.keys() == model.adata.layers.keys()
     orig_obs_df = adata_orig.obs
-    obs_keys = "observed_lib_size"
+    obs_keys = OBSERVED_LIB_SIZE
     orig_obs_df[obs_keys] = adata_lib_size
     assert model.adata.obs.equals(orig_obs_df)
     assert model.adata.var_names.equals(adata_orig.var_names)
@@ -84,23 +83,18 @@ def run_test_for_model_with_minified_adata(
     np.testing.assert_array_equal(model.adata.varm["my_varm"], adata_orig.varm["my_varm"])
 
 
-def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
+def prep_model_mudata(cls=TOTALVI, use_size_factor=False, layer=None):
     # create a synthetic dataset
-    # adata = synthetic_iid()
-    # protein_adata = synthetic_iid(n_genes=50)
-    # mdata = MuData({"rna": adata, "protein_expression": protein_adata,
-    #                 "accessibility": synthetic_iid()})
     mdata = synthetic_iid(return_mudata=True)
     if use_size_factor:
         mdata.obs["size_factor_rna"] = mdata["rna"].X.sum(1)
         mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
             np.max(mdata["accessibility"].X.sum(1)) + 1.01
         )
-        # mdata.obs["size_factor"] = np.random.randint(1, 5, size=(mdata.shape[0],))
-    # if layer is not None:
-    #     for mod in mdata.mod_names:
-    #         mdata[mod].layers[layer] = mdata[mod].X.copy()
-    #         mdata[mod].X = np.zeros_like(mdata[mod].X)
+    if layer is not None:
+        for mod in mdata.mod_names:
+            mdata[mod].layers[layer] = mdata[mod].X.copy()
+            mdata[mod].X = np.zeros_like(mdata[mod].X)
     mdata.var["n_counts"] = np.squeeze(
         np.concatenate(
             [
@@ -111,7 +105,6 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
         )
     )
     mdata.varm["my_varm"] = np.random.negative_binomial(5, 0.3, size=(mdata.shape[1], 3))
-    # mdata["rna"].layers["my_layer"] = np.ones_like(mdata["rna"].X)
     mdata_before_setup = mdata.copy()
 
     # run setup_anndata
@@ -119,32 +112,19 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False):
         "batch_key": "batch",
     }
 
-    if cls == TOTALVI:
-        if use_size_factor:
-            setup_kwargs["size_factor_key"] = "size_factor_rna"
+    if use_size_factor:
+        setup_kwargs["size_factor_key"] = "size_factor_rna"
 
-        # create and train the model
+    # create and train the model
+    if cls == TOTALVI:
+        mdata = MuData({"rna": mdata["rna"], "protein_expression": mdata["protein_expression"]})
+        mdata.obs = mdata_before_setup.obs
         cls.setup_mudata(
             mdata,
             modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
             **setup_kwargs,
         )
         model = cls(mdata, n_latent=5)
-    elif cls == MULTIVI:
-        if use_size_factor:
-            setup_kwargs["size_factor_key"] = ["size_factor_rna", "size_factor_atac"]
-
-        # create and train the model
-        cls.setup_mudata(
-            mdata,
-            modalities={
-                "rna_layer": "rna",
-                "protein_layer": "protein_expression",
-                "atac_layer": "accessibility",
-            },
-            **setup_kwargs,
-        )
-        model = cls(mdata, n_latent=5, n_genes=50, n_regions=50)
     else:
         raise ValueError("Bad Model name as input to test")
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -181,7 +161,7 @@ def run_test_for_model_with_minified_mudata(
 
     assert mdata_orig["rna"].layers.keys() == model.adata["rna"].layers.keys()
     orig_obs_df = mdata_orig.obs
-    obs_keys = _TOTALVI_OBSERVED_LIB_SIZE if cls == TOTALVI else _MULTIVI_OBSERVED_LIB_SIZE
+    obs_keys = OBSERVED_LIB_SIZE
     orig_obs_df[obs_keys] = mdata_lib_size
     assert model.adata.obs.equals(orig_obs_df)
     assert model.adata.var_names.equals(mdata_orig.var_names)
@@ -202,13 +182,7 @@ def test_with_minified_adata(cls, use_size_factor: bool):
     run_test_for_model_with_minified_adata(cls=cls, use_size_factor=use_size_factor)
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-@pytest.mark.parametrize("use_size_factor", [True])
-def test_with_minified_mudata(cls, use_size_factor: bool):
-    run_test_for_model_with_minified_mudata(cls=cls, use_size_factor=use_size_factor)
-
-
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_get_normalized_expression(cls):
     model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
@@ -218,13 +192,13 @@ def test_with_minified_mdata_get_normalized_expression(cls):
     model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
-    exprs_orig = model.get_normalized_expression()
+    exprs_orig = model.get_normalized_expression(n_samples=500)
 
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    exprs_new = model.get_normalized_expression()
+    exprs_new = model.get_normalized_expression(n_samples=500)
 
     if type(exprs_new) is tuple:
         for ii in range(len(exprs_new)):
@@ -236,13 +210,10 @@ def test_with_minified_mdata_get_normalized_expression(cls):
         assert_approx_equal(exprs_new, exprs_orig)
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
-def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls):
-    model, mdata, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
-
+def test_totalvi_downstream_with_minified_mdata():
+    model, mdata, _, _ = prep_model_mudata(cls=TOTALVI, use_size_factor=True)
     # non-default gene list and n_samples > 1
     gl = mdata.var_names[:5].to_list()
-    n_samples = 10
 
     scvi.settings.seed = 1
     qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
@@ -250,29 +221,53 @@ def test_with_minified_mdata_get_normalized_expression_non_default_gene_list(cls
     model.adata.obsm["X_latent_qzv"] = qzv
 
     scvi.settings.seed = 1
-    exprs_orig = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples, library_size="latent"
-    )
 
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
     scvi.settings.seed = 1
-    exprs_new = model.get_normalized_expression(
-        gene_list=gl, n_samples=n_samples, library_size="latent"
-    )
-
-    if type(exprs_new) is tuple:
-        for ii in range(len(exprs_new)):
-            assert exprs_new[ii].shape == exprs_orig[ii].shape  # mdata[mdata.mod_names[ii]].shape
-        for ii in range(len(exprs_new)):
-            assert_approx_equal(exprs_new[ii], exprs_orig[ii])
-    else:
-        assert exprs_new.shape == exprs_orig.shape
-        assert_approx_equal(exprs_new, exprs_orig)
+    assert model.get_normalized_expression(gene_list=gl, library_size="latent")
+    assert model.get_normalized_expression(gene_list=gl, library_size=1)
+    sample = model.posterior_predictive_sample()
+    assert sample["rna"].shape == mdata["rna"].shape
+    assert sample["protein_expression"].shape == mdata["protein_expression"].shape
+    corr = model.get_feature_correlation_matrix()
+    assert corr.shape == (mdata.n_vars, mdata.n_vars)
+    fore = model.get_protein_foreground_probability()
+    assert fore.shape == (mdata.n_obs, mdata["protein_expression"].n_vars)
+    model.differential_expression(groupby="labels")
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+def test_totalvi_downstream_with_minified_mdata_keep_counts():
+    model, mdata, _, _ = prep_model_mudata(cls=TOTALVI, use_size_factor=True)
+
+    # non-default gene list and n_samples > 1
+    gl = mdata.var_names[:5].to_list()
+
+    scvi.settings.seed = 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+
+    scvi.settings.seed = 1
+
+    model.minify_mudata(minified_data_type="latent_posterior_parameters_with_counts")
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
+
+    scvi.settings.seed = 1
+    assert model.get_normalized_expression(gene_list=gl, library_size="latent")
+    assert model.get_normalized_expression(gene_list=gl, library_size=1)
+    sample = model.posterior_predictive_sample()
+    assert sample["rna"].shape == mdata["rna"].shape
+    assert sample["protein_expression"].shape == mdata["protein_expression"].shape
+    corr = model.get_feature_correlation_matrix()
+    assert corr.shape == (mdata.n_vars, mdata.n_vars)
+    fore = model.get_protein_foreground_probability()
+    assert fore.shape == (mdata.n_obs, mdata["protein_expression"].n_vars)
+    model.differential_expression(groupby="labels")
+
+
+@pytest.mark.parametrize("cls", [TOTALVI])
 def test_validate_unsupported_if_minified(cls):
     model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
@@ -297,13 +292,8 @@ def test_validate_unsupported_if_minified(cls):
         model.get_marginal_ll()
     assert str(e.value) == common_err_msg.format("VAEMixin.get_marginal_ll")
 
-    if cls != TOTALVI:
-        with pytest.raises(AttributeError) as e:
-            model.get_latent_library_size()
-        assert str(e.value) == "'MULTIVI' object has no attribute 'get_latent_library_size'"
 
-
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_save_then_load(cls, save_path):
     # create a model and minify its mdata, then save it and its mdata.
     # Load it back up using the same (minified) mdata. Validate that the
@@ -325,7 +315,7 @@ def test_with_minified_mdata_save_then_load(cls, save_path):
     assert loaded_model.minified_data_type is None
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_path):
     # create a model and minify its mdata, then save it and its mdata.
     # Load it back up using a non-minified mdata. Validate that the
@@ -346,7 +336,7 @@ def test_with_minified_mdata_save_then_load_with_non_minified_mdata(cls, save_pa
     assert loaded_model.minified_data_type is None
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("cls", [TOTALVI])
 def test_save_then_load_with_minified_mdata(cls, save_path):
     # create a model, then save it and its mdata (non-minified).
     # Load it back up using a minified mdata. Validate that this
@@ -370,7 +360,7 @@ def test_save_then_load_with_minified_mdata(cls, save_path):
         cls.load(save_path, adata=model.adata)
 
 
-@pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
+@pytest.mark.parametrize("cls", [TOTALVI])
 def test_with_minified_mdata_get_latent_representation(cls):
     model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
 
@@ -386,28 +376,6 @@ def test_with_minified_mdata_get_latent_representation(cls):
     latent_repr_new = model.get_latent_representation()
 
     assert_approx_equal(latent_repr_new, latent_repr_orig)
-
-
-@pytest.mark.parametrize("cls", [TOTALVI])
-def test_with_minified_mdata_posterior_predictive_sample(cls):
-    model, _, _, _ = prep_model_mudata(cls=cls, use_size_factor=True)
-
-    scvi.settings.seed = 1
-    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    model.adata.obsm["X_latent_qzm"] = qzm
-    model.adata.obsm["X_latent_qzv"] = qzv
-
-    scvi.settings.seed = 1
-    sample_orig = model.posterior_predictive_sample()
-
-    model.minify_mudata()
-    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
-
-    scvi.settings.seed = 1
-    sample_new = model.posterior_predictive_sample()
-    # assert sample_new.shape == (3, 2)
-
-    assert_approx_equal(sample_new, sample_orig)
 
 
 @pytest.mark.parametrize("cls", [TOTALVI])

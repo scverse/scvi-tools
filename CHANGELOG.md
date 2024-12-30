@@ -6,35 +6,59 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.2
 
-### 1.3.0 (2024-XX-XX)
+### 1.3.0 (2025-XX-XX)
 
 #### Added
+
+- Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
+    representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+
+#### Fixed
+
+- Fixed bug in distributed `scvi.dataloaders._concat_dataloader` {pr}`3053`.
+
+#### Changed
+
+- Updated the CI workflow with multiGPU tests {pr}`3053`.
+
+#### Removed
+
+### 1.2.2 (2024-XX-XX)
+
+#### Added
+
+- Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add support for Numpy 2.0 {pr}`2842`.
+- Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
+- MuData support for {class}`~scvi.model.MULTIVI` via the method
+    {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 
 #### Fixed
 
 #### Changed
 
+- Updated the CI workflow with internet, private and optional tests {pr}`3082`.
+- Changed loompy stored files to anndata {pr}`2842`.
+- Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
+    instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
+
 #### Removed
 
-- Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
-    representation learning in single-cell RNA sequencing data {pr}`3015`.
+- Removed the support for loompy and local mde function {pr}`2842`.
 
-### 1.2.1 (2024-XX-XX)
+### 1.2.1 (2024-12-04)
 
 #### Added
 
 - Added adaptive handling for last training minibatch of 1-2 cells in case of
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
     validation set, if available. {pr}`3036`.
-- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`.
+- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
+- Support for minified mode while retaining counts to skip the encoder.
 - New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
     the encoder.
-- Refactored code for minified models.
-- Support for minified mode while retaining counts to skip the encoder.
-- Add MuData Minification option to {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.TOTALVI` {pr}`3039`.
-- MuData support for {class}`~scvi.model.MULTIVI` via the method
-    {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
+- Refactored code for minified models. {pr}`2883`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
     bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
@@ -44,6 +68,7 @@ to [Semantic Versioning]. Full commit history is available in the
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
 
 #### Changed
 

@@ -163,9 +163,8 @@ def test_totalvi(save_path):
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
-    post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_vars, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -249,22 +248,6 @@ def test_totalvi(save_path):
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
     model.differential_expression(groupby="labels")
-
-    # test with missing proteins
-    adata = pbmcs_10x_cite_seq(
-        save_path=save_path,
-        protein_join="outer",
-    )
-    TOTALVI.setup_anndata(
-        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-    )
-    model = TOTALVI(adata)
-    assert model.module.protein_batch_mask is not None
-    model.train(1, train_size=0.5)
-
-    model = TOTALVI(adata, override_missing_proteins=True)
-    assert model.module.protein_batch_mask is None
-    model.train(1, train_size=0.5)
 
 
 def test_totalvi_model_library_size(save_path):
@@ -386,9 +369,8 @@ def test_totalvi_mudata():
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_genes + n_proteins, 2)
-    post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_genes + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_genes, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -496,6 +478,7 @@ def test_totalvi_reordered_mapping_mudata():
     model.get_elbo(mdata2)
 
 
+@pytest.mark.internet
 def test_totalvi_missing_proteins(save_path):
     # test with missing proteins
     adata = pbmcs_10x_cite_seq(

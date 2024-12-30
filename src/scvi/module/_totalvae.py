@@ -689,7 +689,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         inference_kwargs = {"n_samples": n_samples}
         with torch.inference_mode():
             (
-                inference_outputs,
+                _,
                 generative_outputs,
             ) = self.forward(
                 tensors,
@@ -724,11 +724,11 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
             # outputs = self.module.inference(x, y, batch_index, labels)
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
+            qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+            ql = inference_outputs[MODULE_KEYS.QL_KEY]
+            z = inference_outputs[MODULE_KEYS.Z_KEY]
             py_ = generative_outputs["py_"]
             # really need not softmax transformed random variable
-            z = inference_outputs["untran_z"]
             log_pro_back_mean = generative_outputs["log_pro_back_mean"]
 
             # Reconstruction Loss
