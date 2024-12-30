@@ -145,6 +145,7 @@ class SCVI(
             f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
+        self._module_init_on_train = False
 
         if self._module_init_on_train:
             self.module = None
@@ -170,10 +171,10 @@ class SCVI(
                     n_cats_per_cov = None
 
             n_batch = self.summary_stats.n_batch
-            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            use_size_factor_key = False # REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
             library_log_means, library_log_vars = None, None
             if (
-                not use_size_factor_key
+                use_size_factor_key
                 and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
             ):
                 library_log_means, library_log_vars = _init_library_size(

@@ -4,17 +4,158 @@ import os
 import sys
 from pprint import pprint
 
+# import numpy as np
+import lamindb as ln
 import numpy as np
 import pandas as pd
+import psutil
 import pytest
 import scanpy as sc
+
+# this requires a custom scgen branch
+# updated to support custom datamodules for training
+# pip install git+https://github.com/theislab/scgen.git@datamodule
 import tqdm
+from lightning.pytorch import LightningDataModule
+from torch.utils.data import DataLoader
 
 import scvi
 from scvi.data import synthetic_iid
+from scvi.utils import attrdict
+from scvi.data import _constants
 
-# import numpy as np
+class MappedCollectionDataModule(LightningDataModule):
+    def __init__(
+        self,
+        collection: ln.Collection,
+        batch_key: str | None = None,
+        batch_size: int = 128,
+        **kwargs
+    ):
+        self._batch_size = batch_size
+        self._batch_key = batch_key
+        self._parallel = kwargs.pop("parallel", True)
+        # here we initialize MappedCollection to use in a pytorch DataLoader
+        self._dataset = collection.mapped(obs_keys=self._batch_key, parallel=self._parallel, **kwargs)
+        # need by scvi and lightning.pytorch
+        self._log_hyperparams = False
+        self.allow_zero_length_dataloader_with_multiple_devices = False
 
+    def close(self):
+        self._dataset.close()
+
+    def setup(self, stage):
+        pass
+
+    def train_dataloader(self):
+        if self._parallel:
+            num_workers = psutil.cpu_count() - 1
+            worker_init_fn = self._dataset.torch_worker_init_fn
+        else:
+            num_workers = 0
+            worker_init_fn = None
+        return DataLoader(
+            self._dataset,
+            batch_size=self._batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            worker_init_fn=worker_init_fn
+        )
+
+    @property
+    def n_obs(self) -> int:
+        return self._dataset.shape[0]
+
+    @property
+    def vars(self) -> int:
+        return np.arange(self._dataset.shape[1])
+
+    @property
+    def n_vars(self) -> int:
+        return self._dataset.shape[1]
+
+    @property
+    def n_batch(self) -> int:
+        if self._batch_key is None:
+            return 1
+        return len(self._dataset.encoders[self._batch_key])
+
+    @property
+    def batch_keys(self) -> int:
+        if self._batch_key is None:
+            return None
+        return self._dataset.encoders[self._batch_key]
+
+    def on_before_batch_transfer(
+        self,
+        batch,
+        dataloader_idx,
+    ):
+        X_KEY: str = "X"
+        BATCH_KEY: str = "batch"
+        LABEL_KEY: str = "labels"
+
+        return {
+            X_KEY: batch["X"].float(),
+            BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
+            LABEL_KEY: 0,
+        }
+
+def setup_datamodule(datamodule):
+    datamodule.registry = {
+        'scvi_version': scvi.__version__,
+        'model_name': 'SCVI',
+        'setup_args': {
+            'layer': None,
+            'batch_key': 'batch',
+            'labels_key': None,
+            'size_factor_key': None,
+            'categorical_covariate_keys': None,
+            'continuous_covariate_keys': None,
+        },
+        'field_registries': {
+            'X': {'data_registry': {'attr_name': 'X', 'attr_key': None},
+                'state_registry': {'n_obs': datamodule.n_obs,
+                'n_vars': datamodule.n_vars,
+                'column_names': [str(i) for i in datamodule.vars]},
+                'summary_stats': {'n_vars': datamodule.n_vars, 'n_cells': datamodule.n_obs}},
+            'batch': {'data_registry': {'attr_name': 'obs',
+                'attr_key': '_scvi_batch'},
+                'state_registry': {'categorical_mapping': datamodule.batch_keys,
+                'original_key': 'batch'},
+                'summary_stats': {'n_batch': datamodule.n_batch}},
+            'labels': {'data_registry': {'attr_name': 'obs',
+                'attr_key': '_scvi_labels'},
+                'state_registry': {'categorical_mapping': np.array([0]),
+                'original_key': '_scvi_labels'},
+                'summary_stats': {'n_labels': 1}},
+            'size_factor': {'data_registry': {},
+                'state_registry': {},
+                'summary_stats': {}},
+            'extra_categorical_covs': {'data_registry': {},
+                'state_registry': {},
+                'summary_stats': {'n_extra_categorical_covs': 0}},
+            'extra_continuous_covs': {'data_registry': {},
+                'state_registry': {},
+                'summary_stats': {'n_extra_continuous_covs': 0}}
+        },
+        'setup_method_name': 'setup_datamodule',
+    }
+
+
+def test_lamindb_dataloader_scvi(save_path: str):
+    # a test for mapped collection
+    collection = ln.Collection.get(name="covid_normal_lung")
+    datamodule = MappedCollectionDataModule(
+        collection,
+        batch_key = "assay",
+        batch_size = 128,
+        join = "inner"
+    )
+    setup_datamodule(datamodule)
+    model = scvi.model.SCVI(adata=None, datamodule=datamodule, registry=datamodule.registry)
+    print("FFFFFFF", model, model.summary_stats, model.module)
+    model.train(max_epochs=1, datamodule=datamodule)
 
 @pytest.mark.custom_dataloader
 def test_czi_custom_dataloader_scvi(save_path):
@@ -339,18 +480,7 @@ def test_czi_custom_dataloader_scanvi(save_path):
 
 @pytest.mark.custom_dataloader
 def test_scdataloader_custom_dataloader_scvi(save_path):
-    # initialize a local lamin database
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
-    # os.system("lamin close")
-    # os.system("lamin load scdataloader")
-
-    # should be ready for importing the cloned branch on a remote machine that runs github action
-    sys.path.insert(
-        0,
-        "/home/runner/work/scvi-tools/scvi-tools/" "scDataLoader/",
-    )
-    sys.path.insert(0, "src")
-    import lamindb as ln
     from scdataloader import Collator, DataModule, SimpleAnnDataset
 
     # import bionty as bt
@@ -363,7 +493,6 @@ def test_scdataloader_custom_dataloader_scvi(save_path):
 
     # import tiledbsoma as soma
     from scdataloader.utils import populate_my_ontology
-    from torch.utils.data import DataLoader
     # from scdataloader.base import NAME
     # from cellxgene_census.experimental.ml import experiment_dataloader
 
