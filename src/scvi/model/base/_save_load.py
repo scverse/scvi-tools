@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from typing import Literal
 
     import numpy.typing as npt
-    from lightning import LightningDataModule
 
     from scvi._types import AnnOrMuData
 
