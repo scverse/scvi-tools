@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     import numpy.typing as npt
+    from lightning import LightningDataModule
 
     from scvi._types import AnnOrMuData
 
@@ -180,7 +181,9 @@ def _get_var_names(
 
 
 def _validate_var_names(
-    adata: AnnOrMuData, source_var_names: npt.NDArray | dict[str, npt.NDArray]
+    adata: AnnOrMuData | None,
+    source_var_names: npt.NDArray | dict[str, npt.NDArray],
+    load_var_names: npt.NDArray | dict[str, npt.NDArray] | None = None,
 ) -> None:
     """Validate that source and loaded variable names match.
 
@@ -191,15 +194,19 @@ def _validate_var_names(
     source_var_names
         Variable names from a saved model file corresponding to the variable names used during
         training.
+    load_var_names
+        Variable names from the loaded registry.
     """
     from numpy import array_equal
 
-    is_anndata = isinstance(adata, AnnData)
     source_per_mod_var_names = isinstance(source_var_names, dict)
-    load_var_names = _get_var_names(
-        adata,
-        legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
-    )
+
+    if load_var_names is None:
+        is_anndata = isinstance(adata, AnnData)
+        load_var_names = _get_var_names(
+            adata,
+            legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
+        )
 
     if source_per_mod_var_names:
         valid_load_var_names = all(
@@ -211,7 +218,7 @@ def _validate_var_names(
 
     if not valid_load_var_names:
         warnings.warn(
-            "`var_names` for the loaded `adata` does not match those of the `adata` used to "
+            "`var_names` for the loaded `model` does not match those used to "
             "train the model. For valid results, the former should match the latter.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,

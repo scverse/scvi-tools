@@ -281,13 +281,10 @@ class SCVI(
             )
             n_batch = datamodule.n_batch
         else:
-            # Anndata -> CZI
-            # if we are here and datamodule is actually an AnnData object
-            # it means we init the custom dataloder model with anndata
             categorical_mapping = source_registry["field_registries"]["batch"]["state_registry"][
                 "categorical_mapping"
             ]
-            column_names = datamodule.var.soma_joinid.values
+            column_names = datamodule.var_names
             n_batch = source_registry["field_registries"]["batch"]["summary_stats"]["n_batch"]
 
         datamodule.registry = {

@@ -103,7 +103,7 @@ class ArchesMixin:
             reference_model, device=device, adata=adata
         )
 
-        if adata is not None:
+        if adata:
             if isinstance(adata, MuData):
                 for modality in adata.mod:
                     if inplace_subset_query_vars:

@@ -11,32 +11,33 @@ import pandas as pd
 import psutil
 import pytest
 import scanpy as sc
-
-# this requires a custom scgen branch
-# updated to support custom datamodules for training
-# pip install git+https://github.com/theislab/scgen.git@datamodule
 import tqdm
 from lightning.pytorch import LightningDataModule
 from torch.utils.data import DataLoader
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.utils import attrdict
-from scvi.data import _constants
+
 
 class MappedCollectionDataModule(LightningDataModule):
     def __init__(
         self,
         collection: ln.Collection,
         batch_key: str | None = None,
+        label_key: str | None = None,
         batch_size: int = 128,
         **kwargs
     ):
         self._batch_size = batch_size
         self._batch_key = batch_key
+        self._label_key = label_key
         self._parallel = kwargs.pop("parallel", True)
         # here we initialize MappedCollection to use in a pytorch DataLoader
-        self._dataset = collection.mapped(obs_keys=self._batch_key, parallel=self._parallel, **kwargs)
+        self._dataset = collection.mapped(
+            obs_keys=[self._batch_key, self._label_key],
+            parallel=self._parallel,
+            **kwargs
+        )
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
@@ -48,31 +49,41 @@ class MappedCollectionDataModule(LightningDataModule):
         pass
 
     def train_dataloader(self):
+        return self._create_dataloader(shuffle=True)
+
+    def inference_dataloader(self):
+        """Dataloader for inference with `on_before_batch_transfer` applied."""
+        dataloader = self._create_dataloader(shuffle=False, batch_size=4096)
+        return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
+
+    def _create_dataloader(self, shuffle, batch_size=None):
         if self._parallel:
             num_workers = psutil.cpu_count() - 1
             worker_init_fn = self._dataset.torch_worker_init_fn
         else:
             num_workers = 0
             worker_init_fn = None
+        if batch_size is None:
+            batch_size = self._batch_size
         return DataLoader(
             self._dataset,
-            batch_size=self._batch_size,
-            shuffle=True,
+            batch_size=batch_size,
+            shuffle=shuffle,
             num_workers=num_workers,
-            worker_init_fn=worker_init_fn
+            worker_init_fn=worker_init_fn,
         )
 
     @property
     def n_obs(self) -> int:
-        return self._dataset.shape[0]
+        return self._dataset.n_obs
 
     @property
-    def vars(self) -> int:
-        return np.arange(self._dataset.shape[1])
+    def var_names(self) -> int:
+        return self._dataset.var_joint
 
     @property
     def n_vars(self) -> int:
-        return self._dataset.shape[1]
+        return self._dataset.n_vars
 
     @property
     def n_batch(self) -> int:
@@ -81,10 +92,69 @@ class MappedCollectionDataModule(LightningDataModule):
         return len(self._dataset.encoders[self._batch_key])
 
     @property
+    def n_labels(self) -> int:
+        if self._label_key is None:
+            return 1
+        return len(self._dataset.encoders[self._label_key])
+
+    @property
+    def labels(self) -> np.ndarray:
+        return self._dataset[self._label_key]
+
+    @property
+    def registry(self) -> dict:
+        return{
+            'scvi_version': scvi.__version__,
+            'model_name': 'SCVI',
+            'setup_args': {
+                'layer': None,
+                'batch_key': self._batch_key,
+                'labels_key': self._label_key,
+                'size_factor_key': None,
+                'categorical_covariate_keys': None,
+                'continuous_covariate_keys': None,
+            },
+            'field_registries': {
+                'X': {'data_registry': {'attr_name': 'X', 'attr_key': None},
+                    'state_registry': {'n_obs': self.n_obs,
+                    'n_vars': self.n_vars,
+                    'column_names': self.var_names},
+                    'summary_stats': {'n_vars': self.n_vars, 'n_cells': self.n_obs}},
+                'batch': {'data_registry': {'attr_name': 'obs',
+                    'attr_key': '_scvi_batch'},
+                    'state_registry': {'categorical_mapping': self.batch_keys,
+                    'original_key': self._batch_key},
+                    'summary_stats': {'n_batch': self.n_batch}},
+                'labels': {'data_registry': {'attr_name': 'obs',
+                    'attr_key': '_scvi_labels'},
+                    'state_registry': {'categorical_mapping': self.label_keys,
+                    'original_key': self._label_key,
+                    'unlabeled_category': 'unlabeled'},
+                    'summary_stats': {'n_labels': self.n_labels}},
+                'size_factor': {'data_registry': {},
+                    'state_registry': {},
+                    'summary_stats': {}},
+                'extra_categorical_covs': {'data_registry': {},
+                    'state_registry': {},
+                    'summary_stats': {'n_extra_categorical_covs': 0}},
+                'extra_continuous_covs': {'data_registry': {},
+                    'state_registry': {},
+                    'summary_stats': {'n_extra_continuous_covs': 0}}
+            },
+            'setup_method_name': 'setup_anndata',
+        }
+
+    @property
     def batch_keys(self) -> int:
         if self._batch_key is None:
             return None
         return self._dataset.encoders[self._batch_key]
+
+    @property
+    def label_keys(self) -> int:
+        if self._label_key is None:
+            return None
+        return self._dataset.encoders[self._label_key]
 
     def on_before_batch_transfer(
         self,
@@ -98,50 +168,22 @@ class MappedCollectionDataModule(LightningDataModule):
         return {
             X_KEY: batch["X"].float(),
             BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
-            LABEL_KEY: 0,
+            LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else None,
         }
 
-def setup_datamodule(datamodule):
-    datamodule.registry = {
-        'scvi_version': scvi.__version__,
-        'model_name': 'SCVI',
-        'setup_args': {
-            'layer': None,
-            'batch_key': 'batch',
-            'labels_key': None,
-            'size_factor_key': None,
-            'categorical_covariate_keys': None,
-            'continuous_covariate_keys': None,
-        },
-        'field_registries': {
-            'X': {'data_registry': {'attr_name': 'X', 'attr_key': None},
-                'state_registry': {'n_obs': datamodule.n_obs,
-                'n_vars': datamodule.n_vars,
-                'column_names': [str(i) for i in datamodule.vars]},
-                'summary_stats': {'n_vars': datamodule.n_vars, 'n_cells': datamodule.n_obs}},
-            'batch': {'data_registry': {'attr_name': 'obs',
-                'attr_key': '_scvi_batch'},
-                'state_registry': {'categorical_mapping': datamodule.batch_keys,
-                'original_key': 'batch'},
-                'summary_stats': {'n_batch': datamodule.n_batch}},
-            'labels': {'data_registry': {'attr_name': 'obs',
-                'attr_key': '_scvi_labels'},
-                'state_registry': {'categorical_mapping': np.array([0]),
-                'original_key': '_scvi_labels'},
-                'summary_stats': {'n_labels': 1}},
-            'size_factor': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {}},
-            'extra_categorical_covs': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {'n_extra_categorical_covs': 0}},
-            'extra_continuous_covs': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {'n_extra_continuous_covs': 0}}
-        },
-        'setup_method_name': 'setup_datamodule',
-    }
+    class _InferenceDataloader:
+        """Wrapper to apply `on_before_batch_transfer` during iteration."""
 
+        def __init__(self, dataloader, transform_fn):
+            self.dataloader = dataloader
+            self.transform_fn = transform_fn
+
+        def __iter__(self):
+            for i, batch in enumerate(self.dataloader):
+                yield self.transform_fn(batch, dataloader_idx=None)
+
+        def __len__(self):
+            return len(self.dataloader)
 
 def test_lamindb_dataloader_scvi(save_path: str):
     # a test for mapped collection
@@ -149,13 +191,50 @@ def test_lamindb_dataloader_scvi(save_path: str):
     datamodule = MappedCollectionDataModule(
         collection,
         batch_key = "assay",
+        label_key = "cell_type",
         batch_size = 128,
         join = "inner"
     )
-    setup_datamodule(datamodule)
     model = scvi.model.SCVI(adata=None, datamodule=datamodule, registry=datamodule.registry)
-    print("FFFFFFF", model, model.summary_stats, model.module)
+    pprint(model.summary_stats)
+    pprint(model.module)
+    dataloader = datamodule.inference_dataloader()
     model.train(max_epochs=1, datamodule=datamodule)
+    _ = model.get_elbo(dataloader=dataloader)
+    _ = model.get_marginal_ll(dataloader=dataloader)
+    _ = model.get_reconstruction_error(dataloader=dataloader)
+    _ = model.get_latent_representation(dataloader=dataloader)
+
+    model_query = model.load_query_data(datamodule)
+    model_query.train(max_epochs=1, datamodule=datamodule)
+    _ = model_query.get_elbo(dataloader=dataloader)
+    _ = model_query.get_marginal_ll(dataloader=dataloader)
+    _ = model_query.get_reconstruction_error(dataloader=dataloader)
+    _ = model_query.get_latent_representation(dataloader=dataloader)
+
+    adata = collection.load(join='inner')
+    model_query_adata = model.load_query_data(adata)
+    model_query_adata.train(max_epochs=1)
+    _ = model_query_adata.get_elbo()
+    _ = model_query_adata.get_marginal_ll()
+    _ = model_query_adata.get_reconstruction_error()
+    _ = model_query_adata.get_latent_representation()
+    _ = model_query_adata.get_latent_representation(dataloader=dataloader)
+
+    model.save("lamin_model", save_anndata=False, overwrite=True)
+    model.load("lamin_model", adata=False)
+    model.load_query_data(adata=False, reference_model="lamin_model", registry=datamodule.registry)
+
+    model.load_query_data(adata=adata, reference_model="lamin_model")
+    model_adata = model.load("lamin_model", adata=adata)
+    model_adata.train(max_epochs=1)
+    model_adata.save("lamin_model_anndata", save_anndata=False, overwrite=True)
+    model_adata.load("lamin_model_anndata", adata=False)
+    model_adata.load_query_data(
+        adata=False,
+        reference_model="lamin_model_anndata",
+        registry=datamodule.registry
+    )
 
 @pytest.mark.custom_dataloader
 def test_czi_custom_dataloader_scvi(save_path):

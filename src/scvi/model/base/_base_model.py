@@ -675,8 +675,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
-        from scvi.model.base._save_load import _get_var_names
-
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
         else:
@@ -703,7 +701,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
 
-        var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
+        var_names = self.get_var_names(legacy_mudata_format=legacy_mudata_format)
 
         # get all the user attributes
         user_attributes = self._get_user_attributes()
@@ -780,8 +778,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             backup_url=backup_url,
         )
         adata = new_adata if new_adata is not None else adata
-
-        _validate_var_names(adata, var_names)
 
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:

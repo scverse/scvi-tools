@@ -241,11 +241,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
         if adata is None:
             adata = scvi_model.adata
-        else:
+        elif adata:
             if _is_minified(adata):
                 raise ValueError("Please provide a non-minified `adata` to initialize scANVI.")
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
+        else:
+            adata = None
 
         scvi_setup_args = deepcopy(scvi_model.registry[_SETUP_ARGS_KEY])
         scvi_labels_key = scvi_setup_args["labels_key"]
@@ -255,12 +257,13 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})
-        cls.setup_anndata(
-            adata,
-            unlabeled_category=unlabeled_category,
-            use_minified=False,
-            **scvi_setup_args,
-        )
+        if adata is not None:
+            cls.setup_anndata(
+                adata,
+                unlabeled_category=unlabeled_category,
+                use_minified=False,
+                **scvi_setup_args,
+            )
 
         scanvi_model = cls(adata, scvi_model.registry, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
@@ -282,8 +285,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 self.original_label_key,
             ).ravel()
         else:
-            # for CZI:
-            labels = list(datamodule.datapipe.map(lambda x: x["label"]))
+            # TODO Can fix this.
+            labels = [tensors["label"] for tensors in datamodule.inference_dataloader]
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
