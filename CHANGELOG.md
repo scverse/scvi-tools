@@ -6,11 +6,13 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.2
 
-### 1.2.2 (2024-XX-XX)
+### 1.2.2 (2024-12-31)
 
 #### Added
 
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add Support for MPS usage in mac {pr}`3100`.
+- Add support for torch.compile before train (EXPERIMENTAL) {pr}`2931`.
 - Add support for Numpy 2.0 {pr}`2842`.
 - Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
