@@ -171,7 +171,9 @@ class SCVI(
                     n_cats_per_cov = None
 
             n_batch = self.summary_stats.n_batch
-            use_size_factor_key = False # REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            use_size_factor_key = (
+                False  # REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            )
             library_log_means, library_log_vars = None, None
             if (
                 use_size_factor_key
