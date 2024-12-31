@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dependencies: ["", "tutorials"]
+        dependencies: ["", "dev", "tutorials"]
 
     steps:
       - uses: actions/checkout@v4
