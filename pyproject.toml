@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.2.1"
+version = "1.2.2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -62,6 +62,7 @@ editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
 cuda = ["torchvision","torchaudio","jax[cuda]"]
+metal = ["torchvision","torchaudio","jax-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -111,7 +112,7 @@ tutorials = [
     "squidpy",
 ]
 
-all = ["scvi-tools[cuda,dev,docs,tutorials]"]
+all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/scvi']
