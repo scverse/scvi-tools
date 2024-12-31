@@ -12,6 +12,7 @@ from lightning.pytorch.strategies import DDPStrategy, Strategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
+from scipy.sparse import issparse
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
@@ -113,11 +114,19 @@ def parse_device_args(
         connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
         _accelerator = connector._accelerator_flag
         _devices = connector._devices_flag
+        warnings.warn(
+            "`accelerator` has been automatically set to `cpu` although 'mps' exists. If you wish "
+            "to run on mps backend, use explicitly accelerator=='mps' in train function."
+            "In future releases it will become default for mps supported machines.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
     elif _accelerator == "mps" and accelerator != "auto":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
-            "operations are supported with this backend. Refer to "
-            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
+            "operations are supported with this backend. as a result, some models might be slower "
+            "and less accurate than usuall. Please verify your analysis!"
+            "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -142,7 +151,10 @@ def parse_device_args(
     elif return_device == "jax":
         device = jax.devices("cpu")[0]
         if _accelerator != "cpu":
-            device = jax.devices(_accelerator)[device_idx]
+            if _accelerator == "mps":
+                device = jax.devices("METAL")[device_idx]  # MPS-JAX
+            else:
+                device = jax.devices(_accelerator)[device_idx]
         return _accelerator, _devices, device
 
     return _accelerator, _devices
@@ -182,8 +194,8 @@ def scrna_raw_counts_properties(
         data1 = data1[:, var_idx]
         data2 = data2[:, var_idx]
 
-    mean1 = np.asarray((data1).mean(axis=0)).ravel()
-    mean2 = np.asarray((data2).mean(axis=0)).ravel()
+    mean1 = np.asarray(data1.mean(axis=0)).ravel()
+    mean2 = np.asarray(data2.mean(axis=0)).ravel()
     nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
     nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 
@@ -244,6 +256,8 @@ def cite_seq_raw_counts_properties(
 
     nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    if issparse(protein_exp):
+        protein_exp = protein_exp.toarray()
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))

@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import scvi
+from scvi.criticism import create_criticism_report
 from scvi.data import synthetic_iid
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import _SCVI_HUB
@@ -24,6 +25,7 @@ def prep_scvi_hub_model(save_path: str) -> HubModel:
     model = prep_model()
     model_path = os.path.join(save_path, "test_scvi")
     model.save(model_path, save_anndata=True, overwrite=True)
+    create_criticism_report(model, save_folder=model_path, n_samples=2)
 
     metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
     desc = "scVI model trained on synthetic IID data and uploaded with the full training data."
@@ -198,6 +200,10 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
 
+def test_prep_scvi_hub_model(save_path: str) -> HubModel:
+    prep_scvi_hub_model(save_path)
+
+
 @pytest.mark.private
 def test_hub_model_large_training_adata(request, save_path):
     training_data_url = "https://huggingface.co/datasets/scvi-tools/DATASET-FOR-UNIT-TESTING-1/resolve/main/adata.h5ad"
@@ -225,15 +231,16 @@ def test_hub_model_create_repo_hf(save_path: str):
     from huggingface_hub import delete_repo, repo_exists
 
     if repo_exists("scvi-tools/test-scvi-create"):
-        delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
+        delete_repo("scvi-tools/test-scvi-create", token=os.environ.get("HF_API_TOKEN", None))
 
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-create",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
+        collection_name="test",
         repo_create=True,
     )
-    delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
+    delete_repo("scvi-tools/test-scvi-create", token=os.environ.get("HF_API_TOKEN", None))
 
 
 @pytest.mark.private
@@ -241,23 +248,26 @@ def test_hub_model_push_to_hf(save_path: str):
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
         repo_create=False,
+        collection_name="test",
     )
 
     hub_model = prep_scvi_no_anndata_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-no-anndata",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
         repo_create=False,
         push_anndata=False,
+        collection_name="test",
     )
 
     hub_model = prep_scvi_minified_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-minified",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
         repo_create=False,
+        collection_name="test",
     )
 
 
@@ -272,7 +282,7 @@ def test_hub_model_pull_from_hf():
     assert hub_model.adata is not None
 
     hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi-no-anndata")
-    with pytest.raises(ValueError):
+    with pytest.raises(FileNotFoundError):
         _ = hub_model.model
 
     adata = synthetic_iid()
