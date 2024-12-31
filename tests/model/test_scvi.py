@@ -1125,32 +1125,9 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
-    assert model._module_init_on_train
-    assert model.module is None
-
-    # cannot infer default max_epochs without n_obs set in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
-
-    # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
-        model.train()
-
-    model.train(max_epochs=1, datamodule=datamodule)
-
-    # must set n_obs for defaulting max_epochs
-    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
-    model.train(datamodule=datamodule)
-
-    model = SCVI(adata, n_latent=5)
-    assert not model._module_init_on_train
-    assert model.module is not None
-    assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
+    with pytest.raises(ValueError) as excinfo:
+        SCVI(n_latent=5)
+    assert str(excinfo.value) == "adata or registry must be provided."
 
 
 def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
@@ -1173,32 +1150,9 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
-    assert model._module_init_on_train
-    assert model.module is None
-
-    # cannot infer default max_epochs without n_obs set in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
-
-    # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
-        model.train()
-
-    model.train(max_epochs=1, datamodule=datamodule)
-
-    # must set n_obs for defaulting max_epochs
-    datamodule.n_obs = 100_000_000  # large number for fewer default epochs
-    model.train(datamodule=datamodule)
-
-    model = SCVI(adata, n_latent=5)
-    assert not model._module_init_on_train
-    assert model.module is not None
-    assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
+    with pytest.raises(ValueError) as excinfo:
+        SCVI(n_latent=5)
+    assert str(excinfo.value) == "adata or registry must be provided."
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
@@ -1258,6 +1212,23 @@ def test_scvi_inference_custom_dataloader(n_latent: int = 5):
     model.train(max_epochs=1)
 
     dataloader = model._make_data_loader(adata)
+    _ = model.get_elbo(dataloader=dataloader)
+    _ = model.get_marginal_ll(dataloader=dataloader)
+    _ = model.get_reconstruction_error(dataloader=dataloader)
+    _ = model.get_latent_representation(dataloader=dataloader)
+
+
+def test_scvi_train_custom_dataloader(n_latent: int = 5):
+    # ORI this function could help get started.
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(max_epochs=1)
+    dataloader = model._make_data_loader(adata)
+    # SCVI.setup_datamodule(dataloader)
+    # continue from here. Datamodule will always require to pass it into all downstream functions.
+    model.train(max_epochs=1, datamodule=dataloader)
     _ = model.get_elbo(dataloader=dataloader)
     _ = model.get_marginal_ll(dataloader=dataloader)
     _ = model.get_reconstruction_error(dataloader=dataloader)
