@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import nn as nn
@@ -16,8 +17,6 @@ from scvi.nn import Encoder, FCLayers
 if TYPE_CHECKING:
     from collections.abc import Iterable
     from typing import Literal
-
-    import numpy as np
 
 
 class DecoderVELOVI(nn.Module):
@@ -228,11 +227,15 @@ class VELOVAE(BaseModuleClass):
         self.time_dep_transcription_rate = time_dep_transcription_rate
 
         if switch_spliced is not None:
-            self.register_buffer("switch_spliced", torch.from_numpy(switch_spliced))
+            self.register_buffer(
+                "switch_spliced", torch.from_numpy(switch_spliced.astype(np.float32))
+            )
         else:
             self.switch_spliced = None
         if switch_unspliced is not None:
-            self.register_buffer("switch_unspliced", torch.from_numpy(switch_unspliced))
+            self.register_buffer(
+                "switch_unspliced", torch.from_numpy(switch_unspliced.astype(np.float32))
+            )
         else:
             self.switch_unspliced = None
 
@@ -241,7 +244,9 @@ class VELOVAE(BaseModuleClass):
         # switching time
         self.switch_time_unconstr = torch.nn.Parameter(7 + 0.5 * torch.randn(n_input))
         if true_time_switch is not None:
-            self.register_buffer("true_time_switch", torch.from_numpy(true_time_switch))
+            self.register_buffer(
+                "true_time_switch", torch.from_numpy(true_time_switch.astype(np.float32))
+            )
         else:
             self.true_time_switch = None
 
@@ -249,7 +254,9 @@ class VELOVAE(BaseModuleClass):
         if gamma_unconstr_init is None:
             self.gamma_mean_unconstr = torch.nn.Parameter(-1 * torch.ones(n_input))
         else:
-            self.gamma_mean_unconstr = torch.nn.Parameter(torch.from_numpy(gamma_unconstr_init))
+            self.gamma_mean_unconstr = torch.nn.Parameter(
+                torch.from_numpy(gamma_unconstr_init.astype(np.float32))
+            )
 
         # splicing
         # first samples around 1
@@ -259,20 +266,24 @@ class VELOVAE(BaseModuleClass):
         if alpha_unconstr_init is None:
             self.alpha_unconstr = torch.nn.Parameter(0 * torch.ones(n_input))
         else:
-            self.alpha_unconstr = torch.nn.Parameter(torch.from_numpy(alpha_unconstr_init))
+            self.alpha_unconstr = torch.nn.Parameter(
+                torch.from_numpy(alpha_unconstr_init.astype(np.float32))
+            )
 
         # TODO: Add `require_grad`
         if alpha_1_unconstr_init is None:
             self.alpha_1_unconstr = torch.nn.Parameter(0 * torch.ones(n_input))
         else:
-            self.alpha_1_unconstr = torch.nn.Parameter(torch.from_numpy(alpha_1_unconstr_init))
+            self.alpha_1_unconstr = torch.nn.Parameter(
+                torch.from_numpy(alpha_1_unconstr_init.astype(np.float32))
+            )
         self.alpha_1_unconstr.requires_grad = time_dep_transcription_rate
 
         if lambda_alpha_unconstr_init is None:
             self.lambda_alpha_unconstr = torch.nn.Parameter(0 * torch.ones(n_input))
         else:
             self.lambda_alpha_unconstr = torch.nn.Parameter(
-                torch.from_numpy(lambda_alpha_unconstr_init)
+                torch.from_numpy(lambda_alpha_unconstr_init.astype(np.float32))
             )
         self.lambda_alpha_unconstr.requires_grad = time_dep_transcription_rate
 
@@ -406,7 +417,11 @@ class VELOVAE(BaseModuleClass):
         """Runs the generative model."""
         decoder_input = z
         px_pi_alpha, px_rho, px_tau = self.decoder(decoder_input, latent_dim=latent_dim)
-        px_pi = Dirichlet(px_pi_alpha).rsample()
+        # TODO: NEED TORCH MPS FIX for 'aten::_dirichlet'
+        if px_pi_alpha.device.type == "mps":
+            px_pi = Dirichlet(px_pi_alpha.to("cpu")).rsample().to("mps")
+        else:
+            px_pi = Dirichlet(px_pi_alpha).rsample()
 
         scale_unconstr = self.scale_unconstr
         scale = F.softplus(scale_unconstr)
