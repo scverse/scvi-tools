@@ -85,7 +85,7 @@ autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
-census = ["cellxgene-census","numpy<2.0"]
+census = ["cellxgene-census"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "igraph", "leidenalg","dvc[s3]"]
 # scvi.data.add_dna_sequence
@@ -93,10 +93,10 @@ regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10","scikit-misc"]
 # for convinient files sharing
-pooch = ["pooch"]
+file_share = ["pooch"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,file_share,regseq,scanpy]"
 ]
 tutorials = [
     "cell2location",
