@@ -123,11 +123,12 @@ def poisson_gene_selection(
 
         # Calculate empirical statistics.
         sum_0 = np.asarray(data.sum(0)).ravel()
-        scaled_means = torch.from_numpy(sum_0 / sum_0.sum()).to(device)
         total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(device)
-
+        # in MPS we need to first change to float 32, as the MPS framework doesn't support float64.
+        # We will thus do it by default for all accelerators
+        scaled_means = torch.from_numpy(np.float32(sum_0 / sum_0.sum())).to(device)
         observed_fraction_zeros = torch.from_numpy(
-            np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
+            np.float32(np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel())
         ).to(device)
 
         # Calculate probability of zero for a Poisson model.
@@ -151,8 +152,13 @@ def poisson_gene_selection(
         expected_fraction_zeros /= data.shape[0]
 
         # Compute probability of enriched zeros through sampling from Binomial distributions.
-        observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
-        expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
+        # TODO:  TORCH MPS FIX - 'aten::binomial' is not currently implemented for the MPS device
+        if device.type == "mps":
+            observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros.to("cpu"))
+            expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros.to("cpu"))
+        else:
+            observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
+            expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
         extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=device)
         for _ in track(
@@ -161,7 +167,8 @@ def poisson_gene_selection(
             disable=silent,
             style="tqdm",  # do not change
         ):
-            extra_zeros += observed_zero.sample() > expected_zero.sample()
+            obs_exp_bool_mat = observed_zero.sample() > expected_zero.sample()
+            extra_zeros += obs_exp_bool_mat.to("mps") if device.type == "mps" else obs_exp_bool_mat
 
         prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
 
