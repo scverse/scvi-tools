@@ -114,11 +114,19 @@ def parse_device_args(
         connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
         _accelerator = connector._accelerator_flag
         _devices = connector._devices_flag
+        warnings.warn(
+            "`accelerator` has been automatically set to `cpu` although 'mps' exists. If you wish "
+            "to run on mps backend, use explicitly accelerator=='mps' in train function."
+            "In future releases it will become default for mps supported machines.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
     elif _accelerator == "mps" and accelerator != "auto":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
-            "operations are supported with this backend. Refer to "
-            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
+            "operations are supported with this backend. as a result, some models might be slower "
+            "and less accurate than usuall. Please verify your analysis!"
+            "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )

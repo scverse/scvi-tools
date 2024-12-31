@@ -125,16 +125,11 @@ def poisson_gene_selection(
         sum_0 = np.asarray(data.sum(0)).ravel()
         total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(device)
         # in MPS we need to first change to float 32, as the MPS framework doesn't support float64.
-        if device.type == "mps":
-            scaled_means = torch.from_numpy(np.float32(sum_0 / sum_0.sum())).to(device)
-            observed_fraction_zeros = torch.from_numpy(
-                np.float32(np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel())
-            ).to(device)
-        else:
-            scaled_means = torch.from_numpy(sum_0 / sum_0.sum()).to(device)
-            observed_fraction_zeros = torch.from_numpy(
-                np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
-            ).to(device)
+        # We will thus do it by default for all accelerators
+        scaled_means = torch.from_numpy(np.float32(sum_0 / sum_0.sum())).to(device)
+        observed_fraction_zeros = torch.from_numpy(
+            np.float32(np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel())
+        ).to(device)
 
         # Calculate probability of zero for a Poisson model.
         # Perform in batches to save memory.
