@@ -199,6 +199,16 @@ class TrainingPlan(pl.LightningModule):
         self._n_obs_training = None
         self._n_obs_validation = None
 
+        # Whether to compile module first
+        if compile:
+            if compile_kwargs is None:
+                compile_kwargs = {}
+            compile_kwargs["dynamic"] = compile_kwargs.get("dynamic", False)
+            torch._dynamo.config.suppress_errors = True
+            self.module = torch.compile(module, **compile_kwargs)
+        else:
+            self.module = module
+
         # automatic handling of kl weight
         self._loss_args = set(signature(self.module.loss).parameters.keys())
         if "kl_weight" in self._loss_args:
@@ -519,6 +529,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         adversarial_classifier: bool | Classifier = False,
         scale_adversarial_loss: float | Literal["auto"] = "auto",
         compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__(
@@ -536,6 +547,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
             compile=compile,
+            compile_kwargs=compile_kwargs,
             **loss_kwargs,
         )
         if adversarial_classifier is True:
@@ -732,6 +744,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
         compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__(
@@ -746,6 +759,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             compile=compile,
+            compile_kwargs=compile_kwargs,
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})

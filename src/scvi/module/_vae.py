@@ -625,7 +625,12 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         dist = generative_outputs[MODULE_KEYS.PX_KEY]
         if self.gene_likelihood == "poisson":
-            dist = Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
+            # TODO: NEED TORCH MPS FIX for 'aten::poisson'
+            dist = (
+                Poisson(torch.clamp(dist.rate.to("cpu"), max=max_poisson_rate))
+                if self.device.type == "mps"
+                else Poisson(torch.clamp(dist.rate, max=max_poisson_rate))
+            )
 
         # (n_obs, n_vars) if n_samples == 1, else (n_samples, n_obs, n_vars)
         samples = dist.sample()
