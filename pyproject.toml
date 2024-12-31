@@ -110,7 +110,7 @@ tutorials = [
     "scrublet",
     "scib-metrics",
     "scvi-tools[optional]",
-    "squidpy",
+    "squidpy>=1.6.0",
 ]
 
 all = ["scvi-tools[dev,docs,tutorials]"]
