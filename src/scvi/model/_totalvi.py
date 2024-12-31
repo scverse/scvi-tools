@@ -966,7 +966,12 @@ class TOTALVI(
             # This gamma is really l*w using scVI manuscript notation
             p = rate / (rate + dispersion)
             r = dispersion
-            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
+            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            l_train = (
+                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample().to("mps")
+                if self.device.type == "mps"
+                else torch.distributions.Gamma(r, (1 - p) / p).sample()
+            )
             data = l_train.cpu().numpy()
             # make background 0
             data[:, :, x.shape[1] :] = data[:, :, x.shape[1] :] * (1 - mixing_sample).cpu().numpy()
