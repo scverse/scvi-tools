@@ -23,6 +23,18 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
+### 1.2.2 (2025-XX-XX)
+
+#### Added
+
+- Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
 ### 1.2.2 (2024-12-31)
 
 #### Added
