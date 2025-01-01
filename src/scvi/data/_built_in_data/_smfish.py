@@ -3,7 +3,8 @@ import os
 
 import anndata
 import pandas as pd
-import pooch
+
+from scvi.utils import dependencies
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,10 @@ _subtype_to_high_level_mapping = {
 }
 
 
+@dependencies("pooch")
 def _load_smfish(save_path: str = "data/", use_high_level_cluster=True) -> anndata.AnnData:
+    import pooch
+
     save_path = os.path.abspath(save_path)
     adata = anndata.read_h5ad(
         pooch.retrieve(
