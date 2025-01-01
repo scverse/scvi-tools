@@ -168,7 +168,13 @@ class TrainingPlan(pl.LightningModule):
         **loss_kwargs,
     ):
         super().__init__()
-
+        if compile:
+            if compile_kwargs is None:
+                compile_kwargs = {}
+            compile_kwargs["dynamic"] = compile_kwargs.get("dynamic", False)
+            self.module = torch.compile(module, **compile_kwargs)
+        else:
+            self.module = module
         self.lr = lr
         self.weight_decay = weight_decay
         self.eps = eps
@@ -362,6 +368,7 @@ class TrainingPlan(pl.LightningModule):
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+
         self.log(
             "train_loss",
             scvi_loss.loss,

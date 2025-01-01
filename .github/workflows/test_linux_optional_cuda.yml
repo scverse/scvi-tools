@@ -1,4 +1,4 @@
-name: test (cuda)
+name: test (cuda optional tests)
 
 on:
   push:
@@ -16,10 +16,10 @@ concurrency:
 
 jobs:
   test:
-    # if PR has label "cuda tests" or "all tests" or if scheduled or manually triggered
+    # if PR has label "cuda optional tests" or "all tests" or if scheduled or manually triggered
     if: >-
       (
-        contains(github.event.pull_request.labels.*.name, 'cuda tests') ||
+        contains(github.event.pull_request.labels.*.name, 'cuda optional tests') ||
         contains(github.event.pull_request.labels.*.name, 'all tests') ||
         contains(github.event_name, 'schedule') ||
         contains(github.event_name, 'workflow_dispatch')
@@ -69,7 +69,7 @@ jobs:
           DISPLAY: :42
           COLUMNS: 120
         run: |
-          coverage run -m pytest -v --color=yes --accelerator cuda --devices auto
+          coverage run -m pytest -v --color=yes --optional --accelerator cuda --devices auto
           coverage report
 
       - uses: codecov/codecov-action@v4
