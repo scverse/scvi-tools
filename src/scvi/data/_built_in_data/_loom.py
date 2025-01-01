@@ -1,12 +1,14 @@
 import logging
 import os
 
-import pooch
 from anndata import AnnData, read_h5ad
+
+from scvi.utils import dependencies
 
 logger = logging.getLogger(__name__)
 
 
+@dependencies("pooch")
 def _load_retina(save_path: str = "data/") -> AnnData:
     """Loads retina dataset.
 
@@ -14,6 +16,8 @@ def _load_retina(save_path: str = "data/") -> AnnData:
     and 13,166 genes coming from two batches. We use the cluster annotation from 15 cell-types from
     the author. We also extract their normalized data with Combat and use it for benchmarking.
     """
+    import pooch
+
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
@@ -27,11 +31,14 @@ def _load_retina(save_path: str = "data/") -> AnnData:
     return adata
 
 
+@dependencies("pooch")
 def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     """Loads a starMAP dataset from the mouse pre-frontal cortex :cite:p:`Wang18`.
 
     Contains 3,704 cells and 166 genes.
     """
+    import pooch
+
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
@@ -45,7 +52,10 @@ def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     return adata
 
 
+@dependencies("pooch")
 def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
+    import pooch
+
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
@@ -62,6 +72,7 @@ def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     return adata
 
 
+@dependencies("pooch")
 def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     """Simulated datasets for scANVI tutorials.
 
@@ -75,6 +86,8 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     save_path
         Location for saving the dataset.
     """
+    import pooch
+
     if name == "1":
         fileid = "51086192"
         known_hash = "5d604adce93b3034885646605c2e9a72f5ccf8163caffb2930485f93a9fcb3a3"
