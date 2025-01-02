@@ -305,8 +305,7 @@ class DifferentialComputation:
                 "scale2": px_scale_mean2,
             }
 
-        elif (mode == "change" or mode == "change_threeway"):
-
+        elif mode == "change" or mode == "change_threeway":
             # step 1: Construct the change function
             def lfc(x, y):
                 return np.log2(x + pseudocounts) - np.log2(y + pseudocounts)
@@ -324,7 +323,9 @@ class DifferentialComputation:
 
                     def m1_domain_fn(samples):
                         delta_ = (
-                            delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                            delta
+                            if delta is not None
+                            else estimate_delta(lfc_means=samples.mean(0))
                         )
                         logger.debug(f"Using delta ~ {delta_:.2f}")
                         samples_plus = samples >= delta_
@@ -374,13 +375,15 @@ class DifferentialComputation:
                 )
             elif mode == "change":
                 logger.debug("Differential expression using change mode")
-                
+
                 # step2: Construct the DE area function
                 if m1_domain_fn is None:
 
                     def m1_domain_fn(samples):
                         delta_ = (
-                            delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                            delta
+                            if delta is not None
+                            else estimate_delta(lfc_means=samples.mean(0))
                         )
                         logger.debug(f"Using delta ~ {delta_:.2f}")
                         return np.abs(samples) >= delta_
@@ -425,7 +428,7 @@ class DifferentialComputation:
                     delta=delta_,
                     **change_distribution_props,
                 )
-                
+
         else:
             raise NotImplementedError(f"Mode {mode} not recognized")
 
