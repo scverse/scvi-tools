@@ -70,7 +70,7 @@ class DifferentialComputation:
         self,
         idx1: list[bool] | np.ndarray,
         idx2: list[bool] | np.ndarray,
-        mode: Literal["vanilla", "change"] = "vanilla",
+        mode: Literal["vanilla", "change", "change_threeway"] = "vanilla",
         batchid1: Sequence[Number | str] | None = None,
         batchid2: Sequence[Number | str] | None = None,
         use_observed_batches: bool | None = False,
@@ -155,7 +155,7 @@ class DifferentialComputation:
         Parameters
         ----------
         mode
-            one of ["vanilla", "change"]
+            one of ["vanilla", "change", "change_threeway"]
         idx1
             bool array masking subpopulation cells 1. Should be True where cell is
             from associated population
@@ -305,8 +305,7 @@ class DifferentialComputation:
                 "scale2": px_scale_mean2,
             }
 
-        elif mode == "change":
-            logger.debug("Differential expression using change mode")
+        elif (mode == "change" or mode == "change_threeway"):
 
             # step 1: Construct the change function
             def lfc(x, y):
@@ -317,62 +316,116 @@ class DifferentialComputation:
             elif not callable(change_fn):
                 raise ValueError("'change_fn' attribute not understood")
 
-            # step2: Construct the DE area function
-            if m1_domain_fn is None:
+            if mode == "change_threeway":
+                logger.debug("Differential expression using change_threeway mode")
 
-                def m1_domain_fn(samples):
-                    delta_ = (
-                        delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                # step2: Construct the DE area function
+                if m1_domain_fn is None:
+
+                    def m1_domain_fn(samples):
+                        delta_ = (
+                            delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                        )
+                        logger.debug(f"Using delta ~ {delta_:.2f}")
+                        samples_plus = samples >= delta_
+                        samples_minus = samples < -delta_
+                        return samples_plus, samples_minus
+
+                change_fn_specs = inspect.getfullargspec(change_fn)
+                domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
+                if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
+                    raise ValueError(
+                        "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
                     )
-                    logger.debug(f"Using delta ~ {delta_:.2f}")
-                    # return np.abs(samples) >= delta_
-                    samples_plus = samples >= delta_
-                    samples_minus = samples < -delta_
-                    return samples_plus, samples_minus
-
-            change_fn_specs = inspect.getfullargspec(change_fn)
-            domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
-            if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
-                raise ValueError(
-                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+                try:
+                    change_distribution = change_fn(scales_1, scales_2)
+                    is_de_plus, is_de_minus = m1_domain_fn(change_distribution)
+                    delta_ = (
+                        estimate_delta(lfc_means=change_distribution.mean(0))
+                        if delta is None
+                        else delta
+                    )
+                except TypeError as err:
+                    raise TypeError(
+                        "change_fn or m1_domain_fn have has wrong properties."
+                        "Please ensure that these functions have the right signatures and"
+                        "outputs and that they can process numpy arrays"
+                    ) from err
+                proba_m1 = np.mean(is_de_plus, 0)
+                proba_m2 = np.mean(is_de_minus, 0)
+                proba_de = np.maximum(proba_m1, proba_m2)
+                change_distribution_props = describe_continuous_distrib(
+                    samples=change_distribution,
+                    credible_intervals_levels=cred_interval_lvls,
                 )
-            try:
-                change_distribution = change_fn(scales_1, scales_2)
-                # is_de = m1_domain_fn(change_distribution)
-                is_de_plus, is_de_minus = m1_domain_fn(change_distribution)
-                delta_ = (
-                    estimate_delta(lfc_means=change_distribution.mean(0))
-                    if delta is None
-                    else delta
-                )
-            except TypeError as err:
-                raise TypeError(
-                    "change_fn or m1_domain_fn have has wrong properties."
-                    "Please ensure that these functions have the right signatures and"
-                    "outputs and that they can process numpy arrays"
-                ) from err
-            proba_m1 = np.mean(is_de_plus, 0)
-            proba_m2 = np.mean(is_de_minus, 0)
-            proba_de = np.maximum(proba_m1, proba_m2)
-            change_distribution_props = describe_continuous_distrib(
-                samples=change_distribution,
-                credible_intervals_levels=cred_interval_lvls,
-            )
-            change_distribution_props = {
-                "lfc_" + key: val for (key, val) in change_distribution_props.items()
-            }
+                change_distribution_props = {
+                    "lfc_" + key: val for (key, val) in change_distribution_props.items()
+                }
 
-            res = dict(
-                proba_de=proba_de,
-                proba_not_de=1.0 - proba_de,
-                # bayes_factor=np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
-                bayes_factor=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
-                scale1=px_scale_mean1,
-                scale2=px_scale_mean2,
-                pseudocounts=pseudocounts,
-                delta=delta_,
-                **change_distribution_props,
-            )
+                res = dict(
+                    proba_de=proba_de,
+                    proba_not_de=1.0 - proba_de,
+                    bayes_factor=np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
+                    scale1=px_scale_mean1,
+                    scale2=px_scale_mean2,
+                    pseudocounts=pseudocounts,
+                    delta=delta_,
+                    **change_distribution_props,
+                )
+            elif mode == "change":
+                logger.debug("Differential expression using change mode")
+                
+                # step2: Construct the DE area function
+                if m1_domain_fn is None:
+
+                    def m1_domain_fn(samples):
+                        delta_ = (
+                            delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                        )
+                        logger.debug(f"Using delta ~ {delta_:.2f}")
+                        return np.abs(samples) >= delta_
+
+                change_fn_specs = inspect.getfullargspec(change_fn)
+                domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
+                if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
+                    raise ValueError(
+                        "change_fn should take exactly two parameters as inputs; m1_domain_fn one "
+                        "parameter."
+                    )
+                try:
+                    change_distribution = change_fn(scales_1, scales_2)
+                    is_de = m1_domain_fn(change_distribution)
+                    delta_ = (
+                        estimate_delta(lfc_means=change_distribution.mean(0))
+                        if delta is None
+                        else delta
+                    )
+                except TypeError as err:
+                    raise TypeError(
+                        "change_fn or m1_domain_fn have has wrong properties."
+                        "Please ensure that these functions have the right signatures and"
+                        "outputs and that they can process numpy arrays"
+                    ) from err
+                proba_m1 = np.mean(is_de, 0)
+                change_distribution_props = describe_continuous_distrib(
+                    samples=change_distribution,
+                    credible_intervals_levels=cred_interval_lvls,
+                )
+                change_distribution_props = {
+                    "lfc_" + key: val for (key, val) in change_distribution_props.items()
+                }
+
+                res = dict(
+                    proba_de=proba_m1,
+                    proba_not_de=1.0 - proba_m1,
+                    bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
+                    scale1=px_scale_mean1,
+                    scale2=px_scale_mean2,
+                    pseudocounts=pseudocounts,
+                    delta=delta_,
+                    **change_distribution_props,
+                )
+                
         else:
             raise NotImplementedError(f"Mode {mode} not recognized")
 

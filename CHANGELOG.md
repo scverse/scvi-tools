@@ -12,6 +12,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add `mode="change_threeway"` to {meth}`scvi.model.base._differential.DifferentialComputation.get_bayes_factors` to compute differential expression probabilities according to Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`.
 
 #### Fixed
 
