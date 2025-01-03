@@ -1,18 +1,11 @@
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from scvi.dataloaders import DataSplitter
-from scvi.model._utils import (
-    get_max_epochs_heuristic,
-    use_distributed_sampler,
-)
+from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import TrainingPlan, TrainRunner
 from scvi.utils._docstrings import devices_dsp
-
-logger = logging.getLogger(__name__)
-
 
 if TYPE_CHECKING:
     from lightning import LightningDataModule
