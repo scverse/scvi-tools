@@ -32,5 +32,4 @@ __all__ = [
     "BaseMinifiedModeModelClass",
     "BaseMudataMinifiedModeModelClass",
     "EmbeddingMixin",
-    "SemisupervisedTrainingMixin",
 ]
