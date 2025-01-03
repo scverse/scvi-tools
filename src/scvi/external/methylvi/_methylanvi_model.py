@@ -34,6 +34,7 @@ from ._methylanvi_module import METHYLANVAE
 
 logger = logging.getLogger(__name__)
 
+
 class METHYLANVI(VAEMixin, BSSeqMixin, SemisupervisedTrainingMixin, ArchesMixin, BaseModelClass):
     """Methylation annotation using variational inference :cite:p:`Weinberger23`.
 
