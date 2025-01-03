@@ -20,10 +20,9 @@ from scvi.nn import Decoder, Encoder
 
 
 class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
-    """Single-cell annotation using variational inference.
+    """Methylation annotation using variational inference.
 
-    This is an implementation of the scANVI model described in :cite:p:`Xu21`,
-    inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
+    This is an implementation of the MethylANVI model described in :cite:p:`Weinberger2023a`.
 
     Parameters
     ----------
