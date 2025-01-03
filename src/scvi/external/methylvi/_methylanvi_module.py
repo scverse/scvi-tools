@@ -333,9 +333,7 @@ class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
                 kl_local=kl_locals,
             )
 
-        probs = self.classifier(z1)
-        if self.classifier.logits:
-            probs = F.softmax(probs, dim=-1)
+        probs = F.softmax(self.classifier(z1), dim=-1)
 
         reconst_loss += loss_z1_weight + (
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
