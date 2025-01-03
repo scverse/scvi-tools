@@ -8,6 +8,7 @@ from scvi import settings
 from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
 from ._dataframe_field import CategoricalObsField
+from ._mudata import MuDataWrapper
 
 
 class LabelsWithUnlabeledObsField(CategoricalObsField):
@@ -107,3 +108,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         )
         mapping = transfer_state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata_target, mapping)
+
+
+MuDataLabelsWithUnlabeledObsField = MuDataWrapper(LabelsWithUnlabeledObsField)
