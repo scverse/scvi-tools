@@ -173,6 +173,7 @@ class PEAKVAE(BaseModuleClass):
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.deeply_inject_covariates = deeply_inject_covariates
         self.encode_covariates = encode_covariates
+        self.get_norm_expression_with_scalar_input = True
 
         cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
 
@@ -303,12 +304,16 @@ class PEAKVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         use_z_mean=False,
+        transform_batch: torch.Tensor | None = None,
     ):
         """Runs the generative model."""
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:
@@ -322,14 +327,14 @@ class PEAKVAE(BaseModuleClass):
 
         p = self.z_decoder(decoder_input, batch_index, *categorical_input)
 
-        return {"p": p}
+        return {"px": p}
 
     def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]
-        p = generative_outputs["p"]
+        p = generative_outputs["px"]
 
         kld = kl_divergence(
             qz,

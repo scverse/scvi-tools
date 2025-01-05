@@ -187,6 +187,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        self.get_norm_expression_with_scalar_input = False
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
