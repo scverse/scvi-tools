@@ -194,8 +194,6 @@ class BSSeqMixin:
     ) -> (np.ndarray | pd.DataFrame) | dict[str, np.ndarray | pd.DataFrame]:
         r"""Convenience function to obtain normalized methylation values for a single context.
 
-        Only applicable to MuData models.
-
         Parameters
         ----------
         mdata
