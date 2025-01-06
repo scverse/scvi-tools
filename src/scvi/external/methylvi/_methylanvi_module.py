@@ -193,6 +193,7 @@ class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
         mc: torch.Tensor,
         cov: torch.Tensor,
         batch_index: torch.Tensor | None = None,
+        cont_covs=None,
         cat_covs=None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
@@ -224,13 +225,15 @@ class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
 
         # get variational parameters via the encoder networks
         # we input both the methylated reads (mc) and coverage (cov)
-        methylation_input = torch.cat((mc_, cov_), dim=-1)
-        if cat_covs is not None:
+        encoder_input = torch.cat((mc_, cov_), dim=-1)
+        if cont_covs is not None and self.encode_covariates:
+            encoder_input = torch.cat((encoder_input, cont_covs), dim=-1)
+        if cat_covs is not None and self.encode_covariates:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
 
-        qz, z = self.z_encoder(methylation_input, batch_index, *categorical_input)
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         z = qz.loc if use_posterior_mean else z
 
         if self.use_labels_groups:

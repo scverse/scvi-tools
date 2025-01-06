@@ -11,6 +11,7 @@ from scvi import REGISTRY_KEYS
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
+from scvi.module._constants import MODULE_KEYS
 from scvi.train import SemiSupervisedTrainingPlan, TrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp
@@ -18,8 +19,9 @@ from scvi.utils._docstrings import devices_dsp
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from anndata import AnnData
     from lightning import LightningDataModule
+
+    from scvi._types import AnnOrMuData
 
 
 logger = logging.getLogger(__name__)
@@ -183,7 +185,7 @@ class SemisupervisedTrainingMixin:
 
     def predict(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         soft: bool = False,
         batch_size: int | None = None,
@@ -194,7 +196,8 @@ class SemisupervisedTrainingMixin:
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+            AnnData or MuData object that has been registered via corresponding setup
+            method in model class.
         indices
             Return probabilities for each class label.
         soft
@@ -219,19 +222,19 @@ class SemisupervisedTrainingMixin:
         y_pred = []
         for _, tensors in enumerate(scdl):
             inference_inputs = self.module._get_inference_input(tensors)
-            batch = inference_inputs.pop(REGISTRY_KEYS.BATCH_KEY)
+            batch_index = inference_inputs.pop(MODULE_KEYS.BATCH_INDEX_KEY)
 
-            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-            cont_covs = inference_inputs.pop(cont_key, default=None)
+            cont_key = MODULE_KEYS.CONT_COVS_KEY
+            cont_covs = inference_inputs.pop(cont_key, None)
 
-            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-            cat_covs = inference_inputs.pop(cat_key, default=None)
+            cat_key = MODULE_KEYS.CAT_COVS_KEY
+            cat_covs = inference_inputs.pop(cat_key, None)
 
             x = [inference_inputs[key] for key in inference_inputs.keys()]
 
             pred = self.module.classify(
                 *x,
-                batch_index=batch,
+                batch_index=batch_index,
                 cat_covs=cat_covs,
                 cont_covs=cont_covs,
                 use_posterior_mean=use_posterior_mean,
