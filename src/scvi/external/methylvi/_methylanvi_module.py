@@ -10,7 +10,6 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS
 from scvi.external.methylvi._base_components import BSSeqModuleMixin
 from scvi.external.methylvi._methylvi_module import METHYLVAE
 from scvi.module._classifier import Classifier
@@ -252,15 +251,13 @@ class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
     def classification_loss(self, labelled_dataset):
         """Computes scANVI-style classification loss."""
         inference_inputs = self._get_inference_input(labelled_dataset)  # (n_obs, n_vars)
-        mc = inference_inputs[METHYLVI_REGISTRY_KEYS.MC_KEY]
-        cov = inference_inputs[METHYLVI_REGISTRY_KEYS.COV_KEY]
+        data_inputs = {key: inference_inputs[key] for key in self.data_input_keys}
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cat_covs = inference_inputs["cat_covs"]
 
         logits = self.classify(
-            mc,
-            cov,
+            **data_inputs,
             batch_index=batch_idx,
             cat_covs=cat_covs,
         )  # (n_obs, n_labels)

@@ -386,6 +386,8 @@ class BSSeqMixin:
 class BSSeqModuleMixin:
     """Shared methods for BS-seq VAE modules."""
 
+    data_input_keys = [METHYLVI_REGISTRY_KEYS.MC_KEY, METHYLVI_REGISTRY_KEYS.COV_KEY]
+
     def _compute_minibatch_reconstruction_loss(self, minibatch_size, tensors, generative_outputs):
         reconst_loss = torch.zeros(minibatch_size).to(self.device)
 

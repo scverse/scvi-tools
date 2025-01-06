@@ -11,7 +11,6 @@ from scvi import REGISTRY_KEYS
 from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
-from scvi.module._constants import MODULE_KEYS
 from scvi.train import SemiSupervisedTrainingPlan, TrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp
@@ -221,20 +220,20 @@ class SemisupervisedTrainingMixin:
         )
         y_pred = []
         for _, tensors in enumerate(scdl):
-            inference_inputs = self.module._get_inference_input(tensors)
-            batch_index = inference_inputs.pop(MODULE_KEYS.BATCH_INDEX_KEY)
+            inference_inputs = self.module._get_inference_input(tensors)  # (n_obs, n_vars)
+            data_inputs = {key: inference_inputs[key] for key in self.module.data_input_keys}
 
-            cont_key = MODULE_KEYS.CONT_COVS_KEY
-            cont_covs = inference_inputs.pop(cont_key, None)
+            batch = tensors[REGISTRY_KEYS.BATCH_KEY]
 
-            cat_key = MODULE_KEYS.CAT_COVS_KEY
-            cat_covs = inference_inputs.pop(cat_key, None)
+            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+            cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-            x = [inference_inputs[key] for key in inference_inputs.keys()]
+            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+            cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
             pred = self.module.classify(
-                *x,
-                batch_index=batch_index,
+                **data_inputs,
+                batch_index=batch,
                 cat_covs=cat_covs,
                 cont_covs=cont_covs,
                 use_posterior_mean=use_posterior_mean,
