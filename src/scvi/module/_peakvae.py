@@ -173,7 +173,6 @@ class PEAKVAE(BaseModuleClass):
         self.use_layer_norm_decoder = use_layer_norm in ("decoder", "both")
         self.deeply_inject_covariates = deeply_inject_covariates
         self.encode_covariates = encode_covariates
-        self.get_norm_expression_with_scalar_input = True
 
         cat_list = [n_batch] + list(n_cats_per_cov) if n_cats_per_cov is not None else []
 

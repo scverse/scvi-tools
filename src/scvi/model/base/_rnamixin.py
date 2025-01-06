@@ -269,7 +269,7 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                if self.module.get_norm_expression_with_scalar_input:
+                if isinstance(generative_outputs["px"], torch.Tensor):
                     exp_ = generative_outputs["px"]
                 else:
                     exp_ = generative_outputs["px"].get_normalized(generative_output_key)
