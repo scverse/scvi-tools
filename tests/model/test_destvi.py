@@ -16,6 +16,12 @@ def test_destvi():
     sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
     sc_model.train(1, train_size=1)
 
+    sc_model.get_normalized_expression(dataset)
+    _ = sc_model.get_elbo()
+    _ = sc_model.get_reconstruction_error()
+    _ = sc_model.get_latent_representation()
+    _ = sc_model.get_vamp_prior(dataset, p=100)
+
     # step 2 Check model setup
     DestVI.setup_anndata(dataset, layer=None)
 
@@ -52,3 +58,8 @@ def test_destvi():
             50,
             dataset.n_vars,
         )
+
+        spatial_model.get_normalized_expression()
+        spatial_model.get_normalized_expression(dataset)
+        # spatial_model.get_normalized_expression(transform_batch="batch_1")
+        # spatial_model.get_normalized_expression(n_samples=2)

@@ -12,6 +12,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, DestVI. {pr}`3121`
+-
 
 #### Fixed
 

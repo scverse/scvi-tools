@@ -1,14 +1,22 @@
-from collections import OrderedDict
-from typing import Literal
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
 from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
+from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
+
+if TYPE_CHECKING:
+    from collections import OrderedDict
+    from typing import Literal
+
+    import numpy as np
+    from torch.distributions import Distribution
 
 
 def identity(x):
@@ -179,24 +187,47 @@ class MRDeconv(BaseModuleClass):
             torch.nn.Linear(n_hidden, n_labels + 1),
         )
 
-    def _get_inference_input(self, tensors):
-        # we perform MAP here, so we just need to subsample the variables
-        return {}
+    def _get_inference_input(
+        self, tensors: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor | None]:
+        return {
+            MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
+            MODULE_KEYS.BATCH_INDEX_KEY: tensors.get(REGISTRY_KEYS.BATCH_KEY, None),
+        }
 
-    def _get_generative_input(self, tensors, inference_outputs):
+    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
-        input_dict = {"x": x, "ind_x": ind_x}
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
+        input_dict = {"x": x, "ind_x": ind_x, "batch_index": batch_index}
         return input_dict
 
     @auto_move_data
-    def inference(self):
-        """Run the inference model."""
-        return {}
+    def inference(
+        self,
+        x: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | Distribution]:
+        """High level inference method.
+
+        Runs the inference (encoder) model.
+        """
+        encoder_input = [x]
+
+        z = self.V_encoder(*encoder_input)
+        # z = self.gamma_encoder(*encoder_input)
+
+        return {
+            MODULE_KEYS.Z_KEY: z,
+        }
 
     @auto_move_data
-    def generative(self, x, ind_x):
+    def generative(self, x, ind_x, batch_index, transform_batch: torch.Tensor | None = None):
         """Build the deconvolution model for every cell in the minibatch."""
         m = x.shape[0]
         library = torch.sum(x, dim=1, keepdim=True)
@@ -205,6 +236,9 @@ class MRDeconv(BaseModuleClass):
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
         x_ = torch.log(1 + x)
         # subsample parameters
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
 
         if self.amortization in ["both", "latent"]:
             gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
@@ -245,7 +279,7 @@ class MRDeconv(BaseModuleClass):
 
         return {
             "px_o": self.px_o,
-            "px_rate": px_rate,
+            "px": px_rate,
             "px_scale": px_scale,
             "gamma": gamma_ind,
             "v": v_ind,
@@ -261,7 +295,7 @@ class MRDeconv(BaseModuleClass):
     ):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        px_rate = generative_outputs["px_rate"]
+        px_rate = generative_outputs["px"]
         px_o = generative_outputs["px_o"]
         gamma = generative_outputs["gamma"]
         v = generative_outputs["v"]

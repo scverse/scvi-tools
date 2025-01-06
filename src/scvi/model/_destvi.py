@@ -9,8 +9,8 @@ import torch
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import LayerField, NumericalObsField
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
+from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
+class DestVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin):
     """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez22`.
 
     Most users will use the alternate constructor (see example).
@@ -390,6 +390,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         cls,
         adata: AnnData,
         layer: str | None = None,
+        batch_key: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -398,6 +399,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         ----------
         %(param_adata)s
         %(param_layer)s
+        %(param_batch_key)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         # add index for each cell (provided to pyro plate for correct minibatching)
@@ -405,6 +407,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
+            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
