@@ -242,7 +242,7 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.load_sparse_tensor = load_sparse_tensor
-        self.drop_last = kwargs.pop("drop_last", False)
+        self.drop_last = kwargs.get("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
@@ -251,7 +251,7 @@ class DataSplitter(pl.LightningDataModule):
             self.n_train, self.n_val = validate_data_split_with_external_indexing(
                 self.adata_manager.adata.n_obs,
                 self.external_indexing,
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size", settings.batch_size),
                 self.drop_last,
             )
         else:
@@ -259,7 +259,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager.adata.n_obs,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size", settings.batch_size),
                 self.drop_last,
                 self.train_size_is_none,
             )
@@ -401,7 +401,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.train_size = 0.9 if self.train_size_is_none else float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
-        self.drop_last = kwargs.pop("drop_last", False)
+        self.drop_last = kwargs.get("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
@@ -434,7 +434,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
                     n_labeled_idx,
                     [labeled_idx_train, labeled_idx_val, labeled_idx_test],
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
                     self.drop_last,
                 )
             else:
@@ -442,7 +442,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_labeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -475,7 +475,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
                     n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
                     self.drop_last,
                 )
             else:
@@ -483,7 +483,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_unlabeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
                     self.drop_last,
                     self.train_size_is_none,
                 )
