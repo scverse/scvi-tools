@@ -242,7 +242,7 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.load_sparse_tensor = load_sparse_tensor
-        self.drop_last = kwargs.get("drop_last", False)
+        self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
@@ -401,7 +401,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.train_size = 0.9 if self.train_size_is_none else float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
-        self.drop_last = kwargs.get("drop_last", False)
+        self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
 
