@@ -336,7 +336,8 @@ class DifferentialComputation:
                 domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
                 if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
                     raise ValueError(
-                        "change_fn should take exactly two parameters as inputs; m1_domain_fn one parameter."
+                        "change_fn should take exactly two parameters as inputs; "
+                        "m1_domain_fn one parameter."
                     )
                 try:
                     change_distribution = change_fn(scales_1, scales_2)
