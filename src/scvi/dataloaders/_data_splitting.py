@@ -404,6 +404,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
+        self.batch_size = self.data_loader_kwargs.pop("batch_size", settings.batch_size)
 
         labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         labels = get_anndata_attribute(
@@ -434,7 +435,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
                     n_labeled_idx,
                     [labeled_idx_train, labeled_idx_val, labeled_idx_test],
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.batch_size,
                     self.drop_last,
                 )
             else:
@@ -442,7 +443,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_labeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.batch_size,
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -475,7 +476,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
                     n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.batch_size,
                     self.drop_last,
                 )
             else:
@@ -483,7 +484,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_unlabeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.batch_size,
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -531,6 +532,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         return self.data_loader_class(
             self.adata_manager,
             indices=self.train_idx,
+            batch_size=self.batch_size,
             shuffle=True,
             drop_last=self.drop_last,
             pin_memory=self.pin_memory,
@@ -677,7 +679,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             batch_size=bs,
             drop_last=False,
         )
-        return DataLoader(dataset, sampler=sampler, batch_size=None)
+        return DataLoader(dataset, sampler=sampler, batch_size=bs)
 
     def train_dataloader(self):
         """Create the train data loader."""
