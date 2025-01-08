@@ -168,7 +168,16 @@ class FCLayers(nn.Module):
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
-                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
+                            if (
+                                x.device.type == "mps"
+                            ):  # TODO: remove this when MPS supports for loop.
+                                x = torch.cat(
+                                    [(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0
+                                )
+                            else:
+                                x = torch.cat(
+                                    [layer(slice_x).unsqueeze(0) for slice_x in x], dim=0
+                                )
                         else:
                             x = layer(x)
                     else:

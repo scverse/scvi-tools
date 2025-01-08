@@ -15,7 +15,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fixed bug in distributed `scvi.dataloaders._concat_dataloader` {pr}`3053`.
+- Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 
 #### Changed
 
@@ -23,17 +23,21 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
-### 1.2.2 (2024-XX-XX)
+### 1.2.2 (2024-12-31)
 
 #### Added
 
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add Support for MPS usage in mac {pr}`3100`.
+- Add support for torch.compile before train (EXPERIMENTAL) {pr}`2931`.
 - Add support for Numpy 2.0 {pr}`2842`.
 - Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 
 #### Fixed
+
+- Fixed batch_size pop to get in {class}`scvi.dataloaders.DataSplitter` {pr}`3128`.
 
 #### Changed
 

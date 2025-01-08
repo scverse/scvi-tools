@@ -17,8 +17,7 @@ from torch.utils.data import DataLoader
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.utils import attrdict
-from scvi.data import _constants
+
 
 class MappedCollectionDataModule(LightningDataModule):
     def __init__(
@@ -34,7 +33,9 @@ class MappedCollectionDataModule(LightningDataModule):
         self._label_key = label_key
         self._parallel = kwargs.pop("parallel", True)
         # here we initialize MappedCollection to use in a pytorch DataLoader
-        self._dataset = collection.mapped(obs_keys=self._batch_key, parallel=self._parallel, **kwargs)
+        self._dataset = collection.mapped(
+            obs_keys=self._batch_key, parallel=self._parallel, **kwargs
+        )
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
@@ -100,45 +101,57 @@ class MappedCollectionDataModule(LightningDataModule):
 
     @property
     def registry(self) -> dict:
-        return{
-            'scvi_version': scvi.__version__,
-            'model_name': 'SCVI',
-            'setup_args': {
-                'layer': None,
-                'batch_key': self._batch_key,
-                'labels_key': self._label_key,
-                'size_factor_key': None,
-                'categorical_covariate_keys': None,
-                'continuous_covariate_keys': None,
+        return {
+            "scvi_version": scvi.__version__,
+            "model_name": "SCVI",
+            "setup_args": {
+                "layer": None,
+                "batch_key": self._batch_key,
+                "labels_key": self._label_key,
+                "size_factor_key": None,
+                "categorical_covariate_keys": None,
+                "continuous_covariate_keys": None,
             },
-            'field_registries': {
-                'X': {'data_registry': {'attr_name': 'X', 'attr_key': None},
-                    'state_registry': {'n_obs': self.n_obs,
-                    'n_vars': self.n_vars,
-                    'column_names': self.var_names},
-                    'summary_stats': {'n_vars': self.n_vars, 'n_cells': self.n_obs}},
-                'batch': {'data_registry': {'attr_name': 'obs',
-                    'attr_key': '_scvi_batch'},
-                    'state_registry': {'categorical_mapping': self.batch_keys,
-                    'original_key': self._batch_key},
-                    'summary_stats': {'n_batch': self.n_batch}},
-                'labels': {'data_registry': {'attr_name': 'obs',
-                    'attr_key': '_scvi_labels'},
-                    'state_registry': {'categorical_mapping': self.label_keys,
-                    'original_key': self._label_key,
-                    'unlabeled_category': 'unlabeled'},
-                    'summary_stats': {'n_labels': self.n_labels}},
-                'size_factor': {'data_registry': {},
-                    'state_registry': {},
-                    'summary_stats': {}},
-                'extra_categorical_covs': {'data_registry': {},
-                    'state_registry': {},
-                    'summary_stats': {'n_extra_categorical_covs': 0}},
-                'extra_continuous_covs': {'data_registry': {},
-                    'state_registry': {},
-                    'summary_stats': {'n_extra_continuous_covs': 0}}
+            "field_registries": {
+                "X": {
+                    "data_registry": {"attr_name": "X", "attr_key": None},
+                    "state_registry": {
+                        "n_obs": self.n_obs,
+                        "n_vars": self.n_vars,
+                        "column_names": self.var_names,
+                    },
+                    "summary_stats": {"n_vars": self.n_vars, "n_cells": self.n_obs},
+                },
+                "batch": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+                    "state_registry": {
+                        "categorical_mapping": self.batch_keys,
+                        "original_key": self._batch_key,
+                    },
+                    "summary_stats": {"n_batch": self.n_batch},
+                },
+                "labels": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+                    "state_registry": {
+                        "categorical_mapping": self.label_keys,
+                        "original_key": self._label_key,
+                        "unlabeled_category": "unlabeled",
+                    },
+                    "summary_stats": {"n_labels": self.n_labels},
+                },
+                "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
+                "extra_categorical_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_categorical_covs": 0},
+                },
+                "extra_continuous_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_continuous_covs": 0},
+                },
             },
-            'setup_method_name': 'setup_anndata',
+            "setup_method_name": "setup_anndata",
         }
 
     @property
@@ -187,10 +200,7 @@ def test_lamindb_dataloader_scvi(save_path: str):
     # a test for mapped collection
     collection = ln.Collection.get(name="covid_normal_lung")
     datamodule = MappedCollectionDataModule(
-        collection,
-        batch_key = "assay",
-        batch_size = 128,
-        join = "inner"
+        collection, batch_key="assay", batch_size=128, join="inner"
     )
     model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
     pprint(model.summary_stats)
@@ -215,6 +225,8 @@ def test_lamindb_dataloader_scvi(save_path: str):
 
     adata = collection.load(join='inner')
     model_query_adata = model.load_query_data(adata=adata, reference_model="lamin_model")
+    adata = collection.load(join="inner")
+    model_query_adata = model.load_query_data(adata)
     model_query_adata.train(max_epochs=1)
     _ = model_query_adata.get_elbo()
     _ = model_query_adata.get_marginal_ll()
@@ -232,9 +244,7 @@ def test_lamindb_dataloader_scvi(save_path: str):
     model_adata.save("lamin_model_anndata", save_anndata=False, overwrite=True)
     model_adata.load("lamin_model_anndata", adata=False)
     model_adata.load_query_data(
-        adata=False,
-        reference_model="lamin_model_anndata",
-        registry=datamodule.registry
+        adata=False, reference_model="lamin_model_anndata", registry=datamodule.registry
     )
 
 
