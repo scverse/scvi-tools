@@ -19,7 +19,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fixed bug in distributed `scvi.dataloaders._concat_dataloader` {pr}`3053`.
+- Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 
 #### Changed
 
@@ -40,6 +40,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 
 #### Fixed
+
+- Fixed batch_size pop to get in {class}`scvi.dataloaders.DataSplitter` {pr}`3128`.
 
 #### Changed
 
