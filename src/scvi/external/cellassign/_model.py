@@ -20,7 +20,7 @@ from scvi.data.fields import (
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model._utils import get_max_epochs_heuristic
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 B = 10
 
 
-class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
+class CellAssign(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin, VAEMixin):
     """Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
     Original implementation: https://github.com/irrationone/cellassign.

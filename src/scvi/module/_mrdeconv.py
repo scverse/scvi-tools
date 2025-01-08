@@ -283,6 +283,7 @@ class MRDeconv(BaseModuleClass):
             "px_scale": px_scale,
             "gamma": gamma_ind,
             "v": v_ind,
+            "batch_index": batch_index,
         }
 
     def loss(
