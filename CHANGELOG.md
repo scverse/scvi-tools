@@ -6,6 +6,23 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.2
 
+### 1.3.0 (2025-XX-XX)
+
+#### Added
+
+- Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
+    representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+
+#### Fixed
+
+- Fixed bug in distributed `scvi.dataloaders._concat_dataloader` {pr}`3053`.
+
+#### Changed
+
+- Updated the CI workflow with multiGPU tests {pr}`3053`.
+
+#### Removed
+
 ### 1.2.2 (2024-12-31)
 
 #### Added
@@ -19,6 +36,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
 
 #### Fixed
+
+- Fixed batch_size pop to get in {class}`scvi.dataloaders.DataSplitter` {pr}`3128`.
 
 #### Changed
 
