@@ -168,46 +168,19 @@ class MappedCollectionDataModule(LightningDataModule):
             LABEL_KEY: 0,
         }
 
-def setup_datamodule(datamodule):
-    datamodule.registry = {
-        'scvi_version': scvi.__version__,
-        'model_name': 'SCVI',
-        'setup_args': {
-            'layer': None,
-            'batch_key': 'batch',
-            'labels_key': None,
-            'size_factor_key': None,
-            'categorical_covariate_keys': None,
-            'continuous_covariate_keys': None,
-        },
-        'field_registries': {
-            'X': {'data_registry': {'attr_name': 'X', 'attr_key': None},
-                'state_registry': {'n_obs': datamodule.n_obs,
-                'n_vars': datamodule.n_vars,
-                'column_names': [str(i) for i in datamodule.vars]},
-                'summary_stats': {'n_vars': datamodule.n_vars, 'n_cells': datamodule.n_obs}},
-            'batch': {'data_registry': {'attr_name': 'obs',
-                'attr_key': '_scvi_batch'},
-                'state_registry': {'categorical_mapping': datamodule.batch_keys,
-                'original_key': 'batch'},
-                'summary_stats': {'n_batch': datamodule.n_batch}},
-            'labels': {'data_registry': {'attr_name': 'obs',
-                'attr_key': '_scvi_labels'},
-                'state_registry': {'categorical_mapping': np.array([0]),
-                'original_key': '_scvi_labels'},
-                'summary_stats': {'n_labels': 1}},
-            'size_factor': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {}},
-            'extra_categorical_covs': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {'n_extra_categorical_covs': 0}},
-            'extra_continuous_covs': {'data_registry': {},
-                'state_registry': {},
-                'summary_stats': {'n_extra_continuous_covs': 0}}
-        },
-        'setup_method_name': 'setup_datamodule',
-    }
+    class _InferenceDataloader:
+        """Wrapper to apply `on_before_batch_transfer` during iteration."""
+
+        def __init__(self, dataloader, transform_fn):
+            self.dataloader = dataloader
+            self.transform_fn = transform_fn
+
+        def __iter__(self):
+            for batch in self.dataloader:
+                yield self.transform_fn(batch, dataloader_idx=None)
+
+        def __len__(self):
+            return len(self.dataloader)
 
 
 def test_lamindb_dataloader_scvi(save_path: str):
@@ -219,7 +192,7 @@ def test_lamindb_dataloader_scvi(save_path: str):
         batch_size = 128,
         join = "inner"
     )
-    model = scvi.model.SCVI(adata=None, datamodule=datamodule, registry=datamodule.registry)
+    model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
     pprint(model.summary_stats)
     pprint(model.module)
     dataloader = datamodule.inference_dataloader()
@@ -229,7 +202,11 @@ def test_lamindb_dataloader_scvi(save_path: str):
     _ = model.get_reconstruction_error(dataloader=dataloader)
     _ = model.get_latent_representation(dataloader=dataloader)
 
-    model_query = model.load_query_data(datamodule)
+    model.save("lamin_model", save_anndata=False, overwrite=True)
+    model_query = model.load_query_data(
+        adata=False,
+        reference_model="lamin_model",
+        registry=datamodule.registry)
     model_query.train(max_epochs=1, datamodule=datamodule)
     _ = model_query.get_elbo(dataloader=dataloader)
     _ = model_query.get_marginal_ll(dataloader=dataloader)
@@ -237,7 +214,7 @@ def test_lamindb_dataloader_scvi(save_path: str):
     _ = model_query.get_latent_representation(dataloader=dataloader)
 
     adata = collection.load(join='inner')
-    model_query_adata = model.load_query_data(adata)
+    model_query_adata = model.load_query_data(adata=adata, reference_model="lamin_model")
     model_query_adata.train(max_epochs=1)
     _ = model_query_adata.get_elbo()
     _ = model_query_adata.get_marginal_ll()

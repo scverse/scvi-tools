@@ -82,6 +82,9 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     linear_classifier
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
@@ -113,7 +116,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None,
         registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -121,6 +124,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        use_observed_lib_size: bool = True,
         linear_classifier: bool = False,
         datamodule: LightningDataModule | None = None,
         **model_kwargs,
@@ -150,6 +154,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         if (
             not use_size_factor_key
             and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            and not use_observed_lib_size
         ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
@@ -166,6 +171,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             use_size_factor_key=use_size_factor_key,
+            use_observed_lib_size=use_observed_lib_size,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             linear_classifier=linear_classifier,
@@ -279,19 +285,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
         if datamodule is None:
-            labels = get_anndata_attribute(
+            self.labels_ = get_anndata_attribute(
                 self.adata,
                 self.adata_manager.data_registry.labels.attr_name,
                 self.original_label_key,
             ).ravel()
         else:
-            # TODO Can fix this.
-            labels = [tensors["label"] for tensors in datamodule.inference_dataloader]
+            self.labels_ = datamodule.labels.ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
+        self._unlabeled_indices = np.argwhere(self.labels_ == self.unlabeled_category_).ravel()
+        self._labeled_indices = np.argwhere(self.labels_ != self.unlabeled_category_).ravel()
         self._code_to_label = dict(enumerate(self._label_mapping))
 
     def predict(
@@ -383,6 +388,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         devices: int | list[int] | str = "auto",
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
+        datamodule: LightningDataModule | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -417,6 +423,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         plan_kwargs
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword arguments
             passed to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -432,17 +442,24 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         # if we have labeled cells, we want to subsample labels each epoch
-        sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
+        if datamodule is None:
+            sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
+            # In the general case we enter here
+            datasplitter_kwargs = datasplitter_kwargs or {}
+            datamodule = SemiSupervisedDataSplitter(
+                adata_manager=self.adata_manager,
+                datamodule=datamodule,
+                train_size=train_size,
+                validation_size=validation_size,
+                shuffle_set_split=shuffle_set_split,
+                n_samples_per_label=n_samples_per_label,
+                batch_size=batch_size,
+                **datasplitter_kwargs,
+            )
+        else:
+            # TODO fix in external dataloader?
+            sampler_callback = []
 
-        data_splitter = SemiSupervisedDataSplitter(
-            adata_manager=self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            shuffle_set_split=shuffle_set_split,
-            n_samples_per_label=n_samples_per_label,
-            batch_size=batch_size,
-            **datasplitter_kwargs,
-        )
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] + [sampler_callback]
@@ -452,7 +469,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         runner = TrainRunner(
             self,
             training_plan=training_plan,
-            data_splitter=data_splitter,
+            data_splitter=datamodule,
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=devices,

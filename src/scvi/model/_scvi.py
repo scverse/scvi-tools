@@ -78,6 +78,9 @@ class SCVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
         * ``'normal'`` - ``EXPERIMENTAL`` Normal distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     latent_distribution
         One of:
 
@@ -115,7 +118,7 @@ class SCVI(
 
     def __init__(
         self,
-        adata: AnnData | None = None,
+        adata: AnnData | None,
         registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -123,8 +126,8 @@ class SCVI(
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
+        use_observed_lib_size: bool = True,
         latent_distribution: Literal["normal", "ln"] = "normal",
-        datamodule: LightningDataModule | None = None,
         **kwargs,
     ):
         super().__init__(adata, registry)
@@ -171,13 +174,13 @@ class SCVI(
                     n_cats_per_cov = None
 
             n_batch = self.summary_stats.n_batch
-            use_size_factor_key = (
-                False  # REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
-            )
+            use_size_factor_key = self.registry_["setup_args"][
+                f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"]
             library_log_means, library_log_vars = None, None
             if (
-                use_size_factor_key
+                not use_size_factor_key
                 and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+                and not use_observed_lib_size
             ):
                 library_log_means, library_log_vars = _init_library_size(
                     self.adata_manager, n_batch
@@ -194,6 +197,7 @@ class SCVI(
                 dropout_rate=dropout_rate,
                 dispersion=dispersion,
                 gene_likelihood=gene_likelihood,
+                use_observed_lib_size=use_observed_lib_size,
                 latent_distribution=latent_distribution,
                 use_size_factor_key=use_size_factor_key,
                 library_log_means=library_log_means,
