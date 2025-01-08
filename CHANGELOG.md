@@ -12,6 +12,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
 
 #### Fixed
 
@@ -20,18 +21,6 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Changed
 
 - Updated the CI workflow with multiGPU tests {pr}`3053`.
-
-#### Removed
-
-### 1.2.2 (2025-XX-XX)
-
-#### Added
-
-- Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
-
-#### Fixed
-
-#### Changed
 
 #### Removed
 
