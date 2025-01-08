@@ -20,6 +20,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Fixed batch_size pop to get in {class}`scvi.dataloaders.DataSplitter` {pr}`3128`.
+
 #### Changed
 
 - Updated the CI workflow with internet, private and optional tests {pr}`3082`.
