@@ -360,12 +360,12 @@ class DifferentialComputation:
                 proba_m2 = np.mean(is_de_minus, 0)
                 if test_mode == "two":
                     proba_de = proba_m1 + proba_m2
-                    sign = 1.
+                    sign = 1.0
                 else:
                     proba_de = np.maximum(proba_m1, proba_m2)
                     sign = np.sign(proba_m1 - proba_m2)
                 change_distribution_props = describe_continuous_distrib(
-                    samples=change_fn(scales_1, scales_2, 1e-3*pseudocounts),
+                    samples=change_fn(scales_1, scales_2, 1e-3 * pseudocounts),
                     credible_intervals_levels=cred_interval_lvls,
                 ) # reduced pseudocounts to correctly estimate log-fold change.
                 change_distribution_props = {

@@ -61,6 +61,7 @@ def _prepare_obs(
         raise ValueError("One of idx1 or idx2 has size zero.")
     return obs_col, group1, group2
 
+
 def _subset_group(
     subset_idx: list[bool] | np.ndarray | str,
     groupby: list[bool] | np.ndarray | str,
@@ -98,7 +99,7 @@ def _subset_group(
     obs_col = obs_df[groupby].astype(str)
     mask = np.ones_like(obs_col, dtype=bool)
     mask[subset_idx] = False
-    obs_col[mask] = 'other'
+    obs_col[mask] = "other"
     return obs_col
 
 
