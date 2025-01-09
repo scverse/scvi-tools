@@ -10,7 +10,7 @@ import torch
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
-from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.module import MRDeconv
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class DestVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin):
+class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     """Multi-resolution deconvolution of Spatial Transcriptomics data (DestVI) :cite:p:`Lopez22`.
 
     Most users will use the alternate constructor (see example).
@@ -219,6 +219,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin):
             columns=column_names,
             index=index_names,
         )
+
+    def get_normalized_expression(
+        self,
+    ):
+        # Refer to function get_accessibility_estimates
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
 
     def get_gamma(
         self,

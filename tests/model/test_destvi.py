@@ -21,12 +21,9 @@ def test_destvi():
     sc_model.get_reconstruction_error()
     sc_model.get_latent_representation()
     sc_model.get_vamp_prior(dataset, p=100)
-    sc_model.get_normalized_expression()
-    sc_model.get_normalized_expression(dataset)
-    sc_model.get_normalized_expression(n_samples=2)
 
     # step 2 Check model setup
-    DestVI.setup_anndata(dataset, batch_key="batch", layer=None)
+    DestVI.setup_anndata(dataset, layer=None)
 
     # Test clustering outside of get_vamp_prior
 
@@ -41,7 +38,7 @@ def test_destvi():
     # step 3 learn destVI with multiple amortization scheme
 
     for amor_scheme in ["both", "none", "proportion", "latent"]:
-        DestVI.setup_anndata(dataset, batch_key="batch", layer=None)
+        DestVI.setup_anndata(dataset, layer=None)
         # add l1_regularization to cell type proportions
         spatial_model = DestVI.from_rna_model(
             dataset, sc_model, amortization=amor_scheme, l1_reg=50
@@ -62,6 +59,5 @@ def test_destvi():
             dataset.n_vars,
         )
 
-        spatial_model.get_normalized_expression()
-        spatial_model.get_normalized_expression(dataset)
-        spatial_model.get_normalized_expression(transform_batch="batch_1")
+        with pytest.raises(NotImplementedError):
+            spatial_model.get_normalized_expression()
