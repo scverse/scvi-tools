@@ -2,6 +2,7 @@ import logging
 from typing import Literal
 
 import numpy as np
+import pandas as pd
 import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
@@ -211,15 +212,15 @@ class CategoricalDataFrameField(BaseDataFrameField):
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY].copy()
 
         # extend mapping for new categories
-        for c in np.unique(self._get_original_column(adata_target)):
-            if c not in mapping:
-                if extend_categories:
-                    mapping = np.concatenate([mapping, [c]])
-                else:
-                    raise ValueError(
-                        f"Category {c} not found in source registry. "
-                        f"Cannot transfer setup without `extend_categories = True`."
-                    )
+        missing_categories = pd.Index(
+            np.unique(self._get_original_column(adata_target))
+            ).difference(pd.Index(mapping)).to_numpy()
+        if missing_categories.any() and not extend_categories:
+            raise ValueError(
+                f"Category {missing_categories[0]} not found in source registry. "
+                f"Cannot transfer setup without `extend_categories = True`."
+            )
+        mapping = np.concatenate([mapping, missing_categories])
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         new_mapping = _make_column_categorical(
             getattr(adata_target, self.attr_name),
