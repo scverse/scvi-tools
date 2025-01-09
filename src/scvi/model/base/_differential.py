@@ -309,6 +309,7 @@ class DifferentialComputation:
                     quantile=0.9,
                 )
             logger.debug(f"Using pseudocounts ~ {pseudocounts}")
+
             # step 1: Construct the change function
             def lfc(x, y, pseudocounts=pseudocounts):
                 return np.log2(x + pseudocounts) - np.log2(y + pseudocounts)
@@ -367,7 +368,7 @@ class DifferentialComputation:
                 change_distribution_props = describe_continuous_distrib(
                     samples=change_fn(scales_1, scales_2, 1e-3 * pseudocounts),
                     credible_intervals_levels=cred_interval_lvls,
-                ) # reduced pseudocounts to correctly estimate log-fold change.
+                )  # reduced pseudocounts to correctly estimate log-fold change.
                 change_distribution_props = {
                     "lfc_" + key: val for (key, val) in change_distribution_props.items()
                 }
@@ -554,8 +555,8 @@ def estimate_pseudocounts_offset(
     print("where_zero_b", where_zero_b.shape)
     if max_scales_a.shape[0] > where_zero_a.shape[0]:
         # Multimodal data, check only gene expression.
-        max_scales_a = max_scales_a[:where_zero_a.shape[0]]
-        max_scales_b = max_scales_b[:where_zero_b.shape[0]]
+        max_scales_a = max_scales_a[: where_zero_a.shape[0]]
+        max_scales_b = max_scales_b[: where_zero_b.shape[0]]
     asserts = (
         (max_scales_a.shape == where_zero_a.shape) and (max_scales_b.shape == where_zero_b.shape)
     ) and (where_zero_a.shape == where_zero_b.shape)
