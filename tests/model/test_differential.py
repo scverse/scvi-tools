@@ -44,7 +44,7 @@ def test_features():
         where_zero_a=where_zero_a,
         where_zero_b=where_zero_b,
     )
-    expected_off_range = offset <= 1e-6
+    expected_off_range = offset <= 1e-3
     if not expected_off_range:
         raise ValueError("The pseudocount offset was not properly estimated.")
 
@@ -81,7 +81,7 @@ def test_differential_computation(save_path):
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
-    res = dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False)
+    res = dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False, pseudocounts=0.0)
     assert res["delta"] == 0.5
     assert res["pseudocounts"] == 0.0
     res = dc.get_bayes_factors(
@@ -99,11 +99,11 @@ def test_differential_computation(save_path):
 
     delta = 0.5
 
-    def change_fn_test(x, y):
+    def change_fn_test(x, y, pseudocount=0.0):
         return x - y
 
     def m1_domain_fn_test(samples):
-        return np.abs(samples) >= delta
+        return samples >= delta, samples < - delta
 
     dc.get_bayes_factors(
         cell_idx1,

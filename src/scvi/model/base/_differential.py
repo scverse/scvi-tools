@@ -339,11 +339,11 @@ class DifferentialComputation:
                 domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
                 if (len(change_fn_specs.args) != 3) | (len(domain_fn_specs.args) != 1):
                     raise ValueError(
-                        "change_fn should take exactly two parameters as inputs; "
+                        "change_fn should take exactly three parameters as inputs; "
                         "m1_domain_fn one parameter."
                     )
                 try:
-                    change_distribution = change_fn(scales_1, scales_2)
+                    change_distribution = change_fn(scales_1, scales_2, pseudocounts)
                     is_de_plus, is_de_minus = m1_domain_fn(change_distribution)
                     delta_ = (
                         estimate_delta(lfc_means=change_distribution.mean(0))
@@ -548,6 +548,10 @@ def estimate_pseudocounts_offset(
     """
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
+    print("YYYYYYY, max_scales_a", max_scales_a.shape)
+    print("max_scales_b", max_scales_b.shape)
+    print("where_zero_a", where_zero_a.shape)
+    print("where_zero_b", where_zero_b.shape)
     if max_scales_a.shape[0] > where_zero_a.shape[0]:
         # Multimodal data, check only gene expression.
         max_scales_a = max_scales_a[:where_zero_a.shape[0]]
