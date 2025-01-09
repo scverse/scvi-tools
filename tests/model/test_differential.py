@@ -81,7 +81,9 @@ def test_differential_computation(save_path):
     cell_idx1 = np.asarray(adata.obs.labels == "label_1")
     cell_idx2 = ~cell_idx1
     dc.get_bayes_factors(cell_idx1, cell_idx2, mode="vanilla", use_permutation=True)
-    res = dc.get_bayes_factors(cell_idx1, cell_idx2, mode="change", use_permutation=False, pseudocounts=0.0)
+    res = dc.get_bayes_factors(
+        cell_idx1, cell_idx2, mode="change", use_permutation=False, pseudocounts=0.0
+    )
     assert res["delta"] == 0.5
     assert res["pseudocounts"] == 0.0
     res = dc.get_bayes_factors(
@@ -103,7 +105,7 @@ def test_differential_computation(save_path):
         return x - y
 
     def m1_domain_fn_test(samples):
-        return samples >= delta, samples < - delta
+        return samples >= delta, samples < -delta
 
     dc.get_bayes_factors(
         cell_idx1,
