@@ -212,9 +212,11 @@ class CategoricalDataFrameField(BaseDataFrameField):
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY].copy()
 
         # extend mapping for new categories
-        missing_categories = pd.Index(
-            np.unique(self._get_original_column(adata_target))
-            ).difference(pd.Index(mapping)).to_numpy()
+        missing_categories = (
+            pd.Index(np.unique(self._get_original_column(adata_target)))
+            .difference(pd.Index(mapping))
+            .to_numpy()
+        )
         if missing_categories.any() and not extend_categories:
             raise ValueError(
                 f"Category {missing_categories[0]} not found in source registry. "
