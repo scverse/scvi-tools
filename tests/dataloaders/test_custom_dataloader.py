@@ -214,16 +214,15 @@ def test_lamindb_dataloader_scvi(save_path: str):
 
     model.save("lamin_model", save_anndata=False, overwrite=True)
     model_query = model.load_query_data(
-        adata=False,
-        reference_model="lamin_model",
-        registry=datamodule.registry)
+        adata=False, reference_model="lamin_model", registry=datamodule.registry
+    )
     model_query.train(max_epochs=1, datamodule=datamodule)
     _ = model_query.get_elbo(dataloader=dataloader)
     _ = model_query.get_marginal_ll(dataloader=dataloader)
     _ = model_query.get_reconstruction_error(dataloader=dataloader)
     _ = model_query.get_latent_representation(dataloader=dataloader)
 
-    adata = collection.load(join='inner')
+    adata = collection.load(join="inner")
     model_query_adata = model.load_query_data(adata=adata, reference_model="lamin_model")
     adata = collection.load(join="inner")
     model_query_adata = model.load_query_data(adata)
