@@ -70,19 +70,19 @@ class DifferentialComputation:
         self,
         idx1: list[bool] | np.ndarray,
         idx2: list[bool] | np.ndarray,
-        mode: Literal["vanilla", "change"] = "vanilla",
+        mode: Literal["vanilla", "change"] = "change",
         batchid1: Sequence[Number | str] | None = None,
         batchid2: Sequence[Number | str] | None = None,
         use_observed_batches: bool | None = False,
-        n_samples: int = 5000,
+        n_samples_overall: int = 5000,
         use_permutation: bool = False,
         m_permutation: int = 10000,
         change_fn: str | Callable | None = None,
         m1_domain_fn: Callable | None = None,
         delta: float | None = 0.5,
-        pseudocounts: float | None = 0.0,
-        threshold_counts: float = 0.03,
-        test_mode: Literal["two", "three"] = "two",
+        pseudocounts: float | None = None,
+        threshold_counts: float = 0.01,
+        test_mode: Literal["two", "three"] = "three",
         cred_interval_lvls: list[float] | np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
@@ -135,7 +135,7 @@ class DifferentialComputation:
         Both modes require to sample the posterior distributions.
         To that purpose, we sample the posterior in the following way:
 
-        1. The posterior is sampled `n_samples` times for each subpopulation.
+        1. The posterior is sampled `n_samples_overall` times for each subpopulation.
         2. For computational efficiency (posterior sampling is quite expensive), instead of
            comparing the obtained samples element-wise, we can permute posterior samples.
            Remember that computing the Bayes Factor requires sampling :math:`q(z_A \mid x_A)` and
@@ -173,8 +173,8 @@ class DifferentialComputation:
         use_observed_batches
             Whether posterior values are conditioned on observed
             batches
-        n_samples
-            Number of posterior samples
+        n_samples_overall
+            Number of overall posterior samples
         use_permutation
             Activates step 2 described above.
             Simply formulated, pairs obtained from posterior sampling
@@ -209,10 +209,6 @@ class DifferentialComputation:
         Differential expression properties
 
         """
-        # if not np.array_equal(self.indices, np.arange(len(self.dataset))):
-        #     warnings.warn(
-        #         "Differential expression requires a Posterior object created with all indices."
-        #     )
         eps = 1e-8
         # Normalized means sampling for both populations
         if self.representation_fn is not None:
@@ -223,13 +219,13 @@ class DifferentialComputation:
             selection=idx1,
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
-            n_samples=n_samples,
+            n_samples_overall=n_samples_overall,
         )
         scales_batches_2 = self.scale_sampler(
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
-            n_samples=n_samples,
+            n_samples_overall=n_samples_overall,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -285,20 +281,6 @@ class DifferentialComputation:
                 m_permutation=m_permutation,
             )
 
-        # Adding pseudocounts to the scales
-        if pseudocounts is None:
-            logger.debug("Estimating pseudocounts offet from the data")
-            x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-            where_zero_a = np.asarray(np.mean(x[idx1], 0)).flatten() < threshold_counts
-            where_zero_b = np.asarray(np.mean(x[idx2], 0)).flatten() < threshold_counts
-            pseudocounts = estimate_pseudocounts_offset(
-                scales_a=scales_1,
-                scales_b=scales_2,
-                where_zero_a=where_zero_a,
-                where_zero_b=where_zero_b,
-                quantile=0.9,
-            )
-        logger.debug(f"Using pseudocounts ~ {pseudocounts}")
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -313,6 +295,20 @@ class DifferentialComputation:
             }
 
         elif mode == "change":
+            # Adding pseudocounts to the scales
+            if pseudocounts is None:
+                logger.debug("Estimating pseudocounts offet from the data")
+                x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+                where_zero_a = np.asarray(np.mean(x[idx1], 0)).flatten() < threshold_counts
+                where_zero_b = np.asarray(np.mean(x[idx2], 0)).flatten() < threshold_counts
+                pseudocounts = estimate_pseudocounts_offset(
+                    scales_a=scales_1,
+                    scales_b=scales_2,
+                    where_zero_a=where_zero_a,
+                    where_zero_b=where_zero_b,
+                    quantile=0.9,
+                )
+            logger.debug(f"Using pseudocounts ~ {pseudocounts}")
             # step 1: Construct the change function
             def lfc(x, y, pseudocounts=pseudocounts):
                 return np.log2(x + pseudocounts) - np.log2(y + pseudocounts)
@@ -371,7 +367,7 @@ class DifferentialComputation:
                 change_distribution_props = describe_continuous_distrib(
                     samples=change_fn(scales_1, scales_2, 1e-3*pseudocounts),
                     credible_intervals_levels=cred_interval_lvls,
-                ) # reduced pseudocounts to correctly estimate lfc
+                ) # reduced pseudocounts to correctly estimate log-fold change.
                 change_distribution_props = {
                     "lfc_" + key: val for (key, val) in change_distribution_props.items()
                 }
@@ -552,6 +548,10 @@ def estimate_pseudocounts_offset(
     """
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
+    if max_scales_a.shape[0] > where_zero_a.shape[0]:
+        # Multimodal data, check only gene expression.
+        max_scales_a = max_scales_a[:where_zero_a.shape[0]]
+        max_scales_b = max_scales_b[:where_zero_b.shape[0]]
     asserts = (
         (max_scales_a.shape == where_zero_a.shape) and (max_scales_b.shape == where_zero_b.shape)
     ) and (where_zero_a.shape == where_zero_b.shape)
