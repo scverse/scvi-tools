@@ -549,14 +549,6 @@ def estimate_pseudocounts_offset(
     """
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
-    print("YYYYYYY, max_scales_a", max_scales_a.shape)
-    print("max_scales_b", max_scales_b.shape)
-    print("where_zero_a", where_zero_a.shape)
-    print("where_zero_b", where_zero_b.shape)
-    if max_scales_a.shape[0] > where_zero_a.shape[0]:
-        # Multimodal data, check only gene expression.
-        max_scales_a = max_scales_a[: where_zero_a.shape[0]]
-        max_scales_b = max_scales_b[: where_zero_b.shape[0]]
     asserts = (
         (max_scales_a.shape == where_zero_a.shape) and (max_scales_b.shape == where_zero_b.shape)
     ) and (where_zero_a.shape == where_zero_b.shape)
