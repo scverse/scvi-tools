@@ -1070,9 +1070,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         # We let SVI take care of all optimization
         self.automatic_optimization = False
         self.block_fn = (
-            lambda obj: pyro.poutine.block(obj, hide=blocked)
-            if blocked is not None
-            else obj
+            lambda obj: pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
         )
 
         self.svi = pyro.infer.SVI(
