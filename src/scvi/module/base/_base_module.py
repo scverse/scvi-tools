@@ -392,9 +392,9 @@ class PyroBaseModuleClass(nn.Module):
         old_history = model.history_.copy() if model.history_ is not None else None
         model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
-        if 'pyro_param_store' in kwargs:
+        if "pyro_param_store" in kwargs:
             # For scArches shapes are changed and we don't want to overwrite these changed shapes.
-            pyro.get_param_store().set_state(kwargs['pyro_param_store'])
+            pyro.get_param_store().set_state(kwargs["pyro_param_store"])
 
     def create_predictive(
         self,

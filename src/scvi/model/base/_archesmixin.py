@@ -92,7 +92,8 @@ class ArchesMixin:
         )
 
         attr_dict, var_names, load_state_dict, pyro_param_store = _get_loaded_data(
-            reference_model, device=device)
+            reference_model, device=device
+        )
 
         if isinstance(adata, MuData):
             for modality in adata.mod:
@@ -148,7 +149,7 @@ class ArchesMixin:
         # model tweaking
         new_state_dict = model.module.state_dict()
         for key, load_ten in load_state_dict.items():
-            print('SSSSS', key)
+            print("SSSSS", key)
             new_ten = new_state_dict[key]
             load_ten = load_ten.to(new_ten.device)
             if new_ten.size() == load_ten.size():
@@ -189,19 +190,23 @@ class ArchesMixin:
         model.module.on_load(model)
         param_names = pyro.get_param_store().get_all_param_names()
         param_store = pyro.get_param_store().get_state()
-        pyro.clear_param_store() # we will re-add the params with the correct loaded values.
+        pyro.clear_param_store()  # we will re-add the params with the correct loaded values.
         block_parameter = []
         for name in param_names:
-            new_param = param_store['params'][name]
-            new_constraint = param_store['constraints'][name]
-            old_param = pyro_param_store['params'].pop(name, None).to(new_param.device)
-            old_constraint = pyro_param_store['constraints'].pop(name, None)
+            new_param = param_store["params"][name]
+            new_constraint = param_store["constraints"][name]
+            old_param = pyro_param_store["params"].pop(name, None).to(new_param.device)
+            old_constraint = pyro_param_store["constraints"].pop(name, None)
             if old_param is None:
-                logging.warning(f'Parameter {name} in pyro param_store but not found in reference model.')
+                logging.warning(
+                    f"Parameter {name} in pyro param_store but not found in reference model."
+                )
                 pyro.param(name, new_param, constraint=new_constraint)
                 continue
             if type(new_constraint) is not type(old_constraint):
-                logging.warning(f'Constraint mismatch for {name} in pyro param_store. Cannot transfer map parameter.')
+                logging.warning(
+                    f"Constraint mismatch for {name} in pyro param_store. Cannot transfer map parameter."
+                )
                 pyro.param(name, new_param, constraint=new_constraint)
                 continue
             old_param = transform_to(old_constraint)(old_param).detach().requires_grad_()
@@ -212,16 +217,26 @@ class ArchesMixin:
             else:
                 dim_diff = new_param.size()[-1] - old_param.size()[-1]
                 if dim_diff:
-                    updated_param = torch.cat([old_param, new_param[..., -dim_diff:]], dim=-1).detach().requires_grad_()
+                    updated_param = (
+                        torch.cat([old_param, new_param[..., -dim_diff:]], dim=-1)
+                        .detach()
+                        .requires_grad_()
+                    )
                     pyro.param(name, updated_param, constraint=old_constraint)
                 elif new_param.size()[0] - old_param.size()[0]:
                     dim_diff = new_param.size()[0] - old_param.size()[0]
-                    updated_param = torch.cat([old_param, new_param[-dim_diff:, ...]], dim=0).detach().requires_grad_()
+                    updated_param = (
+                        torch.cat([old_param, new_param[-dim_diff:, ...]], dim=0)
+                        .detach()
+                        .requires_grad_()
+                    )
                     pyro.param(name, updated_param, constraint=old_constraint)
                 else:
-                    ValueError('Parameter size mismatch in other dimension than 0 or 1. This is not supported.')
+                    ValueError(
+                        "Parameter size mismatch in other dimension than 0 or 1. This is not supported."
+                    )
 
-        if hasattr(model, '_block_parameters'):
+        if hasattr(model, "_block_parameters"):
             model._block_parameters = block_parameter
 
     @staticmethod
@@ -409,14 +424,14 @@ def _get_loaded_data(reference_model, device=None):
             reference_model, load_adata=False, map_location=device
         )
         pyro_param_store = load_state_dict.pop("pyro_param_store", None)
-        print('PPPP loading')
+        print("PPPP loading")
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
         var_names = _get_var_names(reference_model.adata)
         load_state_dict = deepcopy(reference_model.module.state_dict())
         pyro_param_store = pyro.get_param_store().get_state()
-        print('PPPP loaded')
+        print("PPPP loaded")
 
     return attr_dict, var_names, load_state_dict, pyro_param_store
 
