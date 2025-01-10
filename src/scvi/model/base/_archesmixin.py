@@ -5,10 +5,12 @@ from copy import deepcopy
 import anndata
 import numpy as np
 import pandas as pd
+import pyro
 import torch
 from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csr_matrix
+from torch.distributions import transform_to
 
 from scvi import settings
 from scvi._types import AnnOrMuData
@@ -89,7 +91,8 @@ class ArchesMixin:
             validate_single_device=True,
         )
 
-        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
+        attr_dict, var_names, load_state_dict, pyro_param_store = _get_loaded_data(
+            reference_model, device=device)
 
         if isinstance(adata, MuData):
             for modality in adata.mod:
@@ -145,16 +148,25 @@ class ArchesMixin:
         # model tweaking
         new_state_dict = model.module.state_dict()
         for key, load_ten in load_state_dict.items():
+            print('SSSSS', key)
             new_ten = new_state_dict[key]
+            load_ten = load_ten.to(new_ten.device)
             if new_ten.size() == load_ten.size():
                 continue
             # new categoricals changed size
             else:
                 dim_diff = new_ten.size()[-1] - load_ten.size()[-1]
-                fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
-                load_state_dict[key] = fixed_ten
+                if dim_diff:
+                    fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
+                    load_state_dict[key] = fixed_ten
+                else:
+                    dim_diff = new_ten.size()[0] - load_ten.size()[0]
+                    fixed_ten = torch.cat([load_ten, new_ten[-dim_diff:, ...]], dim=0)
+                    load_state_dict[key] = fixed_ten
 
         model.module.load_state_dict(load_state_dict)
+        if isinstance(model.module, pyro.nn.PyroModule):
+            cls._arches_pyro_setup(model, pyro_param_store)
         model.module.eval()
 
         _set_params_online_update(
@@ -170,6 +182,47 @@ class ArchesMixin:
         model.is_trained_ = False
 
         return model
+
+    @staticmethod
+    def _arches_pyro_setup(model, pyro_param_store):
+        # Initialize pyro parameters before setting requires_grad false.
+        model.module.on_load(model)
+        param_names = pyro.get_param_store().get_all_param_names()
+        param_store = pyro.get_param_store().get_state()
+        pyro.clear_param_store() # we will re-add the params with the correct loaded values.
+        block_parameter = []
+        for name in param_names:
+            new_param = param_store['params'][name]
+            new_constraint = param_store['constraints'][name]
+            old_param = pyro_param_store['params'].pop(name, None).to(new_param.device)
+            old_constraint = pyro_param_store['constraints'].pop(name, None)
+            if old_param is None:
+                logging.warning(f'Parameter {name} in pyro param_store but not found in reference model.')
+                pyro.param(name, new_param, constraint=new_constraint)
+                continue
+            if type(new_constraint) is not type(old_constraint):
+                logging.warning(f'Constraint mismatch for {name} in pyro param_store. Cannot transfer map parameter.')
+                pyro.param(name, new_param, constraint=new_constraint)
+                continue
+            old_param = transform_to(old_constraint)(old_param).detach().requires_grad_()
+            new_param = transform_to(new_constraint)(new_param).detach().requires_grad_()
+            if new_param.size() == old_param.size():
+                pyro.param(name, old_param, constraint=old_constraint)
+                block_parameter.append(name)
+            else:
+                dim_diff = new_param.size()[-1] - old_param.size()[-1]
+                if dim_diff:
+                    updated_param = torch.cat([old_param, new_param[..., -dim_diff:]], dim=-1).detach().requires_grad_()
+                    pyro.param(name, updated_param, constraint=old_constraint)
+                elif new_param.size()[0] - old_param.size()[0]:
+                    dim_diff = new_param.size()[0] - old_param.size()[0]
+                    updated_param = torch.cat([old_param, new_param[-dim_diff:, ...]], dim=0).detach().requires_grad_()
+                    pyro.param(name, updated_param, constraint=old_constraint)
+                else:
+                    ValueError('Parameter size mismatch in other dimension than 0 or 1. This is not supported.')
+
+        if hasattr(model, '_block_parameters'):
+            model._block_parameters = block_parameter
 
     @staticmethod
     def prepare_query_anndata(
@@ -202,7 +255,7 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+        _, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
@@ -242,7 +295,7 @@ class ArchesMixin:
         Query mudata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a dictionary of pd.Index of reference var names is returned.
         """
-        attr_dict, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+        attr_dict, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
 
         for modality in var_names.keys():
             var_names[modality] = pd.Index(var_names[modality])
@@ -355,13 +408,17 @@ def _get_loaded_data(reference_model, device=None):
         attr_dict, var_names, load_state_dict, _ = _load_saved_files(
             reference_model, load_adata=False, map_location=device
         )
+        pyro_param_store = load_state_dict.pop("pyro_param_store", None)
+        print('PPPP loading')
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
         var_names = _get_var_names(reference_model.adata)
         load_state_dict = deepcopy(reference_model.module.state_dict())
+        pyro_param_store = pyro.get_param_store().get_state()
+        print('PPPP loaded')
 
-    return attr_dict, var_names, load_state_dict
+    return attr_dict, var_names, load_state_dict, pyro_param_store
 
 
 def _pad_and_sort_query_anndata(
