@@ -24,7 +24,7 @@ from scvi.dataloaders import AnnTorchDataset
 from scvi.model._utils import (
     scrna_raw_counts_properties,
 )
-from scvi.model.base import ArchesMixin, BaseModelClass, PyroSviTrainMixin
+from scvi.model.base import ArchesMixin, BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.model.base._de_core import _de_core
 from scvi.utils import de_dsp, setup_anndata_dsp
 
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixin):
+class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixin):
     """
     single-cell Variational Inference [Lopez18]_.
 
@@ -605,7 +605,7 @@ class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixi
         if indices is None:
             indices = np.arange(adata.n_obs)
 
-        sampled_prediction = self.sample_posterior_predictive(
+        sampled_prediction = self.sample_posterior(
             adata=adata,
             indices=indices,
             model=self.module.model_corrected,
@@ -613,7 +613,7 @@ class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixi
             num_samples=num_samples,
             return_samples=False,
             batch_size=batch_size,
-            batch_steps=10
+            macrobatches=10,
         )
         y_pred = sampled_prediction['post_sample_means']['probs_prediction']
 

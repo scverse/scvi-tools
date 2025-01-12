@@ -441,6 +441,7 @@ class PyroSampleMixin:
         self,
         adata: AnnData | None = None,
         input_dl: AnnDataLoader | None = None,
+        indices: np.ndarray | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         batch_size: int | None = None,
@@ -458,9 +459,11 @@ class PyroSampleMixin:
         Parameters
         ----------
         adata
-            AnnData object to use for sampling. If `None`, uses the AnnData object.
+            AnnData object to use for sampling. If `None`, uses the registered AnnData object.
         input_dl
             DataLoader object to use for sampling. If `None`, creates one based on `adata`.
+        indices
+            Indices of cells to use for sampling. If `None`, uses all cells.
         %(param_accelerator)s
         %(param_device)s
         batch_size
@@ -502,10 +505,11 @@ class PyroSampleMixin:
 
         if input_dl is None:
             adata = self._validate_anndata(adata)
-            indices = np.arange(adata.n_obs)
+            if indices is None:
+                indices = np.arange(adata.n_obs)
             batch_size = batch_size if batch_size is not None else settings.batch_size
             dl = self._make_data_loader(
-                adata=adata[indices], indices=indices, shuffle=False, batch_size=batch_size)
+                adata=adata, indices=indices, shuffle=False, batch_size=batch_size)
         else:
             dl = input_dl
         # sample local parameters
@@ -518,7 +522,7 @@ class PyroSampleMixin:
         ):
             args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
             args = [a.to(device) for a in args]
-            kwargs = {k: v.to(device) for k, v in kwargs.items()}
+            kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
             self.to_device(device)
 
             if i == 0:
@@ -607,6 +611,9 @@ class PyroSampleMixin:
     @devices_dsp.dedent
     def sample_posterior(
         self,
+        adata: AnnData | None = None,
+        input_dl: AnnDataLoader | None = None,
+        indices: np.ndarray | None = None,
         num_samples: int = 1000,
         return_sites: list | None = None,
         accelerator: str = "auto",
@@ -614,7 +621,9 @@ class PyroSampleMixin:
         batch_size: int | None = None,
         return_observed: bool = False,
         return_samples: bool = False,
+        macrobatches: int | None = None,
         summary_fun: dict[str, Callable] | None = None,
+        **sample_kwargs,
     ):
         """Summarise posterior distribution.
 
@@ -623,6 +632,12 @@ class PyroSampleMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object to use for sampling. If `None`, uses the registered AnnData object.
+        input_dl
+            DataLoader object to use for sampling. If `None`, creates one based on `adata`.
+        indices
+            Indices of cells to use for sampling. If `None`, uses all cells.
         num_samples
             Number of posterior samples to generate.
         return_sites
@@ -637,10 +652,14 @@ class PyroSampleMixin:
         return_samples
             Return all generated posterior samples in addition to sample mean, 5th/95th quantile
             and SD?
+        macrobatches
+            Number of minibatches to process before computing summary statistics.
         summary_fun
             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior
             distribution summaries to compute and which names to use. See below for default
             returns.
+        sample_kwargs
+            Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
 
         Returns
         -------
@@ -667,6 +686,9 @@ class PyroSampleMixin:
         `self.module.model.list_obs_plate_vars` to keep all model-specific variables in one place.
         """
         results = self._posterior_samples_minibatch(
+            adata=adata,
+            input_dl=input_dl,
+            indices=indices,
             accelerator=accelerator,
             device=device,
             batch_size=batch_size,
@@ -675,7 +697,8 @@ class PyroSampleMixin:
             return_observed=return_observed,
             summary_fun=summary_fun,
             return_samples=return_samples,
-            macrobatches=None,
+            macrobatches=macrobatches,
+            **sample_kwargs,
         )
 
         return results

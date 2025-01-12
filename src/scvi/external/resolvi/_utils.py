@@ -289,7 +289,9 @@ class PyroPredictiveMixin:
                 categorical_input = ()
 
             qz_m, qz_v, z = self.module.z_encoder(
-                torch.log1p(kwargs["x"] / torch.mean(kwargs["x"], dim=1, keepdim=True)), kwargs["batch_index"], *categorical_input
+                torch.log1p(kwargs["x"] / torch.mean(kwargs["x"], dim=1, keepdim=True)),
+                kwargs["batch_index"],
+                *categorical_input
             )
             qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
             if give_mean:
