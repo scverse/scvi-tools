@@ -23,6 +23,10 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Changed
 
 - Updated the CI workflow with multiGPU tests {pr}`3053`.
+- Set `mode="change"` as default DE method. Compute positive and negative LFC separately
+    by default (`test_mode="three"`). Corrected computation of pseudocounts and make if
+    default to add a pseudocounts for genes not expressed (`pseudocount=None`). According to
+    Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`
 
 #### Removed
 
