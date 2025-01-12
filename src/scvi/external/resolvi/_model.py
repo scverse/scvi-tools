@@ -572,6 +572,7 @@ class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixi
             batch_correction=False,
             fdr=fdr_target,
             silent=silent,
+            pseudocounts=1e-3,
             **kwargs,
         )
 

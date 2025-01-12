@@ -35,24 +35,26 @@ def test_resolvi_downstream(adata):
     assert latent.shape == (adata.n_obs, model.module.n_latent)
     model.differential_expression(groupby="labels")
     model.differential_expression(groupby="labels", weights="importance")
-    model.save("test_resolvi")
+    model.save("test_resolvi", save_anndata=True, overwrite=True)
     model2 = model.load("test_resolvi")
     latent2 = model2.get_latent_representation()
     assert np.allclose(latent, latent2)
 
-    model_query = model.load_query_data(adata)
+    model_query = model.load_query_data(reference_model=model, adata=adata)
+    model_query = model.load_query_data(reference_model="test_resolvi", adata=adata)
     model_query.train(
         max_epochs=2,
     )
 
 def test_resolvi_semisupervised(adata):
-    RESOLVI.setup_anndata(adata, label_key="labels")
+    RESOLVI.setup_anndata(adata, labels_key="labels")
     model = RESOLVI(adata, semisupervised=True)
     model.train(
         max_epochs=2,
-        check_val_every_n_epoch=1,
-        train_size=0.5,
-        early_stopping=True,
     )
-    model.differential_niche_abundance()
+    model.differential_niche_abundance(
+        batch_size=30,
+        groupby="batch",
+        neighbor_key="index_neighbor",
+    )
     model.predict()

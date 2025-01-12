@@ -620,7 +620,8 @@ class PyroPredictiveMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         if neighbor_key is None:
-            neighbor_key = self.adata_manager.registry['field_registries']['index_neighbor']['data_registry']['attr_key']
+            neighbor_key = self.adata_manager.registry[
+                'field_registries']['index_neighbor']['data_registry']['attr_key']
             neighbor_obsm = adata.obsm[neighbor_key]
         else:
             neighbor_obsm = adata.obsm[neighbor_key]
@@ -630,7 +631,7 @@ class PyroPredictiveMixin:
             if return_numpy is False:
                 warnings.warn(
                     "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
-                    "is`False`, returning an `np.ndarray`.",
+                    "is `False`, returning an `np.ndarray`.",
                     UserWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
