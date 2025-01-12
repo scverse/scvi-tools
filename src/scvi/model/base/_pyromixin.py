@@ -9,7 +9,7 @@ from lightning.pytorch.callbacks import Callback
 from pyro import poutine
 
 from scvi import settings
-from scvi.dataloaders import AnnDataLoader, DataSplitter, DeviceBackedDataSplitter
+from scvi.dataloaders import DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
 from scvi.utils import track
@@ -17,6 +17,11 @@ from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from anndata import AnnData
+    from pyro import PyroBaseModuleClass
+
+    from scvi.dataloaders import AnnDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +211,10 @@ class PyroSampleMixin:
         self,
         args,
         kwargs,
+        model: PyroBaseModuleClass | None = None,
         return_sites: list | None = None,
         return_observed: bool = False,
+        exclude_vars: list | None = None,
     ):
         """Get one sample from posterior distribution.
 
@@ -217,21 +224,31 @@ class PyroSampleMixin:
             arguments to model and guide
         kwargs
             arguments to model and guide
+        model
+            Pyro model class, if `None` uses `self.module.model`.
         return_sites
             List of variables for which to generate posterior samples, defaults to all variables.
         return_observed
             Record samples of observed variables.
+        exclude_vars
+            List of variables to exclude from posterior sample, defaults to no variables.
 
         Returns
         -------
         Dictionary with a sample for each variable
         """
+        if model is None:
+            model = self.module.model
         if isinstance(self.module.guide, poutine.messenger.Messenger):
             # This already includes trace-replay behavior.
             sample = self.module.guide(*args, **kwargs)
+            if return_sites is not None:
+                 sample = {k: v for k, v in sample.items() if k in return_sites}
+            if exclude_vars is not None:
+                 sample = {k: v for k, v in sample.items() if k not in exclude_vars}
         else:
             guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
-            model_trace = poutine.trace(poutine.replay(self.module.model, guide_trace)).get_trace(
+            model_trace = poutine.trace(poutine.replay(model, guide_trace)).get_trace(
                 *args, **kwargs
             )
             sample = {
@@ -239,6 +256,9 @@ class PyroSampleMixin:
                 for name, site in model_trace.nodes.items()
                 if (
                     (site["type"] == "sample")  # sample statement
+                    and (
+                         (exclude_vars is None) or (name not in exclude_vars)
+                     )  # exclude variables
                     and (
                         (return_sites is None) or (name in return_sites)
                     )  # selected in return_sites list
@@ -262,8 +282,10 @@ class PyroSampleMixin:
         self,
         args,
         kwargs,
+        model: PyroBaseModuleClass | None = None,
         num_samples: int = 1000,
         return_sites: list | None = None,
+        exclude_vars: list | None = None,
         return_observed: bool = False,
         show_progress: bool = True,
     ):
@@ -288,8 +310,12 @@ class PyroSampleMixin:
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
         samples = self._get_one_posterior_sample(
-            args, kwargs, return_sites=return_sites, return_observed=return_observed
-        )
+             args,
+             kwargs,
+             return_sites=return_sites,
+             return_observed=return_observed,
+             exclude_vars=exclude_vars,
+         )
         samples = {k: [v] for k, v in samples.items()}
 
         for _ in track(
@@ -300,7 +326,7 @@ class PyroSampleMixin:
         ):
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, return_sites=return_sites, return_observed=return_observed
+                args, kwargs, model=model, return_sites=return_sites, return_observed=return_observed
             )
 
             # add new sample
@@ -369,12 +395,58 @@ class PyroSampleMixin:
 
         return obs_plate
 
+    def _get_valid_sites(
+        self,
+        args: list,
+        kwargs: dict,
+        return_observed: bool = False,
+    ):
+        """Automatically guess which model sites should be sampled.
+
+        Parameters
+        ----------
+        args
+            Arguments to the model.
+        kwargs
+            Keyword arguments to the model.
+        return_observed
+            Record samples of observed variables.
+
+        Returns
+        -------
+        List with keys corresponding to site names.
+        """
+        # find plate dimension
+        trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
+        valid_sites = [
+            name
+            for name, site in trace.nodes.items()
+            if (
+                (site["type"] == "sample")  # sample statement
+                and (
+                    (
+                        (not site.get("is_observed", True)) or return_observed
+                    )  # don't save observed unless requested
+                    or (site.get("infer", False).get("_deterministic", False))
+                )  # unless it is deterministic
+                and not isinstance(
+                    site.get("fn", None), poutine.subsample_messenger._Subsample
+                )  # don't save plates
+            )
+        ]
+        return valid_sites
+
     @devices_dsp.dedent
     def _posterior_samples_minibatch(
         self,
+        adata: AnnData | None = None,
+        input_dl: AnnDataLoader | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         batch_size: int | None = None,
+        macrobatches: int | None = None,
+        summary_fun: dict[str, Callable] | None = None,
+        return_samples: bool = False,
         **sample_kwargs,
     ):
         """Generate samples of the posterior distribution in minibatches.
@@ -385,16 +457,39 @@ class PyroSampleMixin:
 
         Parameters
         ----------
+        adata
+            AnnData object to use for sampling. If `None`, uses the AnnData object.
+        input_dl
+            DataLoader object to use for sampling. If `None`, creates one based on `adata`.
         %(param_accelerator)s
         %(param_device)s
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        summary_fun
+            Dictionary of functions to compute summary statistics for posterior samples.
+        return_samples
+            Return all generated posterior samples.
+        macrobatches
+            Number of minibatches to process before computing summary statistics.
+        sample_kwargs
+            Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
 
         Returns
         -------
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
         samples = {}
+        results = {}
+
+        if summary_fun is None:
+            summary_fun = {
+                "post_sample_means": np.mean,
+                "post_sample_stds": np.std,
+                "post_sample_q05": lambda x, axis: np.quantile(x, 0.05, axis=axis),
+                "post_sample_q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
+            }
+        if return_samples:
+            summary_fun["posterior_samples"] = lambda x, axis: x
 
         _, _, device = parse_device_args(
             accelerator=accelerator,
@@ -405,11 +500,19 @@ class PyroSampleMixin:
 
         batch_size = batch_size if batch_size is not None else settings.batch_size
 
-        train_dl = AnnDataLoader(self.adata_manager, shuffle=False, batch_size=batch_size)
+        if input_dl is None:
+            adata = self._validate_anndata(adata)
+            indices = np.arange(adata.n_obs)
+            batch_size = batch_size if batch_size is not None else settings.batch_size
+            dl = self._make_data_loader(
+                adata=adata[indices], indices=indices, shuffle=False, batch_size=batch_size)
+        else:
+            dl = input_dl
         # sample local parameters
         i = 0
+
         for tensor_dict in track(
-            train_dl,
+            dl,
             style="tqdm",
             description="Sampling local variables, batch: ",
         ):
@@ -426,15 +529,19 @@ class PyroSampleMixin:
                 if len(obs_plate_sites) == 0:
                     # if no local variables - don't sample
                     break
-                obs_plate_dim = list(obs_plate_sites.values())[0]
 
+                # get valid sites & filter local sites
+                valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
+                obs_plate_sites = {k: v for k, v in obs_plate_sites.items() if k in valid_sites}
+                param_names = list(obs_plate_sites.keys())
                 sample_kwargs_obs_plate = sample_kwargs.copy()
                 sample_kwargs_obs_plate["return_sites"] = self._get_obs_plate_return_sites(
                     sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
-
-                samples = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
+            samples_ = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
+            if samples == {}:
+                samples = samples_
             else:
                 samples_ = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
 
@@ -443,27 +550,59 @@ class PyroSampleMixin:
                         [
                             np.concatenate(
                                 [samples[k][j], samples_[k][j]],
-                                axis=obs_plate_dim,
+                                axis=obs_plate_sites[k],
                             )
                             for j in range(len(samples[k]))  # for each sample (in 0 dimension
                         ]
                     )
-                    for k in samples.keys()  # for each variable
+                    for k in param_names  # for each variable
                 }
             i += 1
+            if macrobatches is not None and i % macrobatches == 0:
+                for k in param_names:
+                    if k in results.keys():
+                        results[k] = {
+                            v: np.concatenate(
+                                [results[k], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
+                            ) for v, fun in summary_fun.items()
+                        }
+                    else:
+                        results[k] = {
+                            v: fun(samples[k], axis=0) for v, fun in summary_fun.items()
+                        }
+                samples = {}
+        if samples:
+            for k in param_names:
+                if k in results.keys():
+                    results[k] = {
+                        v: np.concatenate(
+                            [results[k], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
+                        ) for v, fun in summary_fun.items()
+                    }
+                else:
+                    results[k] = {
+                        v: fun(samples[k], axis=0) for v, fun in summary_fun.items()
+                    }
 
         # sample global parameters
+        valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
+        valid_sites = [v for v in valid_sites if v not in obs_plate_sites.keys()]
+        sample_kwargs["return_sites"] = valid_sites
         global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
         global_samples = {
             k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
         }
-
         for k in global_samples.keys():
-            samples[k] = global_samples[k]
+            results[k] = {
+                v: fun(global_samples[k], axis=0) for v, fun in summary_fun.items()
+            }
+        # For consistency with previous versions, we swap the order of the dictionary.
+        swapped_results = {
+            v: {k: results[k][v] for k in results.keys()}
+            for v in summary_fun.keys()
+        }
 
-        self.module.to(device)
-
-        return samples
+        return swapped_results
 
     @devices_dsp.dedent
     def sample_posterior(
@@ -527,29 +666,16 @@ class PyroSampleMixin:
         variables it should contain. This dictionary can be returned by model class property
         `self.module.model.list_obs_plate_vars` to keep all model-specific variables in one place.
         """
-        # sample using minibatches (if full data, data is moved to GPU only once anyway)
-        samples = self._posterior_samples_minibatch(
+        results = self._posterior_samples_minibatch(
             accelerator=accelerator,
             device=device,
             batch_size=batch_size,
             num_samples=num_samples,
             return_sites=return_sites,
             return_observed=return_observed,
+            summary_fun=summary_fun,
+            return_samples=return_samples,
+            macrobatches=None,
         )
-
-        param_names = list(samples.keys())
-        results = {}
-        if return_samples:
-            results["posterior_samples"] = samples
-
-        if summary_fun is None:
-            summary_fun = {
-                "means": np.mean,
-                "stds": np.std,
-                "q05": lambda x, axis: np.quantile(x, 0.05, axis=axis),
-                "q95": lambda x, axis: np.quantile(x, 0.95, axis=axis),
-            }
-        for k, fun in summary_fun.items():
-            results[f"post_sample_{k}"] = {v: fun(samples[v], axis=0) for v in param_names}
 
         return results
