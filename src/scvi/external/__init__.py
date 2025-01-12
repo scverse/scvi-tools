@@ -5,6 +5,7 @@ from .gimvi import GIMVI
 from .methylvi import METHYLVI
 from .mrvi import MRVI
 from .poissonvi import POISSONVI
+from .resolvi import ResolVI
 from .scar import SCAR
 from .scbasset import SCBASSET
 from .solo import SOLO
@@ -27,4 +28,5 @@ __all__ = [
     "VELOVI",
     "MRVI",
     "METHYLVI",
+    "ResolVI",
 ]
