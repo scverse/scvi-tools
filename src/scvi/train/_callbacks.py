@@ -14,6 +14,7 @@ import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
@@ -305,6 +306,52 @@ class LoudEarlyStopping(EarlyStopping):
         """Print the reason for stopping on teardown."""
         if self.early_stopping_reason is not None:
             print(self.early_stopping_reason)
+
+
+class TerminateOnNaN(Callback):
+    def __init__(
+        self,
+        verbose: bool = False,
+        check_nan_loss: bool = True,
+        check_nan_grads: bool = True,
+    ):
+        super().__init__()
+        self.stopped_epoch = 0
+        self.verbose = verbose
+        self.check_loss = check_nan_loss
+        self.check_grads = check_nan_grads
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
+        # Check for NaN/Inf in the loss
+        if self.check_loss:
+            loss = outputs.get("loss") if isinstance(outputs, dict) else outputs
+            if torch.isnan(loss).any() or torch.isinf(loss).any():
+                reason = "NaN or Inf detected in the loss. Stopping training."
+                trainer.should_stop = True
+                self.stopped_epoch = trainer.current_epoch
+                if self.verbose:
+                    self._log_info(trainer, reason)
+
+    def on_after_backward(self, trainer, pl_module) -> None:
+        # Check for NaN/Inf in gradients
+        if self.check_grads:
+            for name, param in pl_module.named_parameters():
+                if param.grad is not None and (
+                    torch.isnan(param.grad).any() or torch.isinf(param.grad).any()
+                ):
+                    reason = f"NaN or Inf detected in gradients of {name}. Stopping training."
+                    trainer.should_stop = True
+                    self.stopped_epoch = trainer.current_epoch
+                    if self.verbose:
+                        self._log_info(trainer, reason)
+                    break
+
+    @staticmethod
+    def _log_info(trainer: pl.Trainer, message: str) -> None:
+        rank = trainer.global_rank if trainer.world_size > 1 else None
+        message = rank_prefixed_message(message, rank)
+        if rank is None or rank == 0:
+            print(message)
 
 
 class JaxModuleInit(Callback):
