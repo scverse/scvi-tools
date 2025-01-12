@@ -216,11 +216,11 @@ class RESOLVAEModel(PyroModule):
 
         ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].long().ravel()
         distances_n = tensor_dict["distance_neighbor"]
-        ind_neighbors = tensor_dict["index_neighbor"]
+        ind_neighbors = tensor_dict["index_neighbor"].long()
 
-        x_n = self.expression_anntorchdata[
+        x_n = torch.tensor(self.expression_anntorchdata[
             ind_neighbors.cpu().numpy().flatten(), :
-        ]["X"].to(x.device)
+        ]["X"]).to(x.device)
         if x.layout is torch.sparse_csr or x.layout is torch.sparse_csc:
             x = x.to_dense()
         if x_n.layout is torch.sparse_csr or x_n.layout is torch.sparse_csc:

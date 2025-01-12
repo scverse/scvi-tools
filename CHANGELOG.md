@@ -12,10 +12,13 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
+    transcriptomics {pr}`30XX`.
 
 #### Fixed
 
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
+- Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
 
 #### Changed
 

@@ -140,6 +140,7 @@ class PyroSviTrainMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        print('FFFFF', trainer_kwargs, train_size, datasplitter_kwargs)
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
 

@@ -154,6 +154,7 @@ class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixi
             n_neighbors=self.summary_stats.n_distance_neighbor,
             n_obs=self.summary_stats['n_ind_x'],
             n_hidden=n_hidden,
+            n_hidden_encoder=n_hidden_encoder,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -261,6 +262,8 @@ class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixi
             )
         })
 
+        print('YYYYY', kwargs)
+
         super().train(
             max_epochs=max_epochs,
             train_size=1.0,
@@ -294,11 +297,15 @@ class RESOLVI(PyroSviTrainMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixi
         prepare_data
             If True, prepares AnnData for training. Computes spatial neighbors and distances.
         prepare_data_kwargs
-            Keyword args for :meth:`scvi.external.resolvi.RESOLVI._prepare_data`
+            Keyword args for :meth:`scvi.external.RESOLVI._prepare_data`
         %(param_unlabeled_category)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        assert np.min(adata.layers[layer].sum(axis=1))>0, "Please filter cells with less than 5 counts prior to running resolVI."
+        if layer is None:
+            x = adata.X
+        else:
+            x = adata.layers[layer]
+        assert np.min(x.sum(axis=1))>0, "Please filter cells with less than 5 counts prior to running resolVI."
         if batch_key is not None:
             adata.obs["_indices"] = adata.obs[batch_key].astype(str) + '_' + adata.obs_names.astype(str)
         else:
