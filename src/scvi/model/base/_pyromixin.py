@@ -145,7 +145,6 @@ class PyroSviTrainMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        print('FFFFF', trainer_kwargs, train_size, datasplitter_kwargs)
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
 
@@ -315,7 +314,7 @@ class PyroSampleMixin:
              return_sites=return_sites,
              return_observed=return_observed,
              exclude_vars=exclude_vars,
-         )
+        )
         samples = {k: [v] for k, v in samples.items()}
 
         for _ in track(
@@ -326,7 +325,11 @@ class PyroSampleMixin:
         ):
             # generate new sample
             samples_ = self._get_one_posterior_sample(
-                args, kwargs, model=model, return_sites=return_sites, return_observed=return_observed
+                args,
+                kwargs,
+                model=model,
+                return_sites=return_sites,
+                return_observed=return_observed
             )
 
             # add new sample
@@ -334,18 +337,18 @@ class PyroSampleMixin:
 
         return {k: np.array(v) for k, v in samples.items()}
 
-    def _get_obs_plate_return_sites(self, return_sites, obs_plate_sites):
-        """Check return_sites for overlap with observation/minibatch plate sites."""
+    def _get_return_sites(self, return_sites, valid_sites):
+        """Check return_sites for overlap with allowed plate sites."""
         # check whether any variable requested in return_sites are in obs_plate
         if return_sites is not None:
             return_sites = np.array(return_sites)
-            return_sites = return_sites[np.isin(return_sites, obs_plate_sites)]
+            return_sites = return_sites[np.isin(return_sites, valid_sites)]
             if len(return_sites) == 0:
-                return [return_sites]
+                return []
             else:
                 return list(return_sites)
         else:
-            return obs_plate_sites
+            return valid_sites
 
     def _get_obs_plate_sites(
         self,
@@ -372,26 +375,27 @@ class PyroSampleMixin:
         Dictionary with keys corresponding to site names and values to plate dimension.
         """
         plate_name = self.module.list_obs_plate_vars["name"]
+        event_dim = self.module.list_obs_plate_vars.get("event_dim", 0) # account for extra dims
 
         # find plate dimension
         trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
-        obs_plate = {
-            name: site["cond_indep_stack"][0].dim
-            for name, site in trace.nodes.items()
-            if (
-                (site["type"] == "sample")  # sample statement
-                and (
-                    (
-                        (not site.get("is_observed", True)) or return_observed
-                    )  # don't save observed unless requested
-                    or (site.get("infer", False).get("_deterministic", False))
-                )  # unless it is deterministic
-                and not isinstance(
-                    site.get("fn", None), poutine.subsample_messenger._Subsample
-                )  # don't save plates
-            )
-            if any(f.name == plate_name for f in site["cond_indep_stack"])
-        }
+        obs_plate = {}
+        for name, site in trace.nodes.items():
+            if not site["type"] == "sample":  # sample statement
+                continue
+            if isinstance(site.get("fn", None), poutine.subsample_messenger._Subsample):
+                # don't save plates
+                continue
+            if site.get("is_observed", True) and not return_observed:
+                # only save observed variables if requested
+                if not site.get("infer", False).get("_deterministic", False):
+                    # unless it is deterministic
+                    continue
+
+            batch_dim = np.where([f.name == plate_name for f in site["cond_indep_stack"]])[0]
+            if not batch_dim.size:
+                continue
+            obs_plate[name] = site["cond_indep_stack"][batch_dim[0]].dim - event_dim
 
         return obs_plate
 
@@ -445,7 +449,7 @@ class PyroSampleMixin:
         accelerator: str = "auto",
         device: int | str = "auto",
         batch_size: int | None = None,
-        macrobatches: int | None = None,
+        summary_frequency: int | None = None,
         summary_fun: dict[str, Callable] | None = None,
         return_samples: bool = False,
         **sample_kwargs,
@@ -472,8 +476,8 @@ class PyroSampleMixin:
             Dictionary of functions to compute summary statistics for posterior samples.
         return_samples
             Return all generated posterior samples.
-        macrobatches
-            Number of minibatches to process before computing summary statistics.
+        summary_frequency
+            Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         sample_kwargs
             Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
 
@@ -537,12 +541,13 @@ class PyroSampleMixin:
                 # get valid sites & filter local sites
                 valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
                 obs_plate_sites = {k: v for k, v in obs_plate_sites.items() if k in valid_sites}
-                param_names = list(obs_plate_sites.keys())
                 sample_kwargs_obs_plate = sample_kwargs.copy()
-                sample_kwargs_obs_plate["return_sites"] = self._get_obs_plate_return_sites(
+                sample_kwargs_obs_plate["return_sites"] = self._get_return_sites(
                     sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
+            if not sample_kwargs_obs_plate["return_sites"]: # Nothing to sample.
+                break
             samples_ = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
             if samples == {}:
                 samples = samples_
@@ -559,15 +564,15 @@ class PyroSampleMixin:
                             for j in range(len(samples[k]))  # for each sample (in 0 dimension
                         ]
                     )
-                    for k in param_names  # for each variable
+                    for k in samples.keys() # for each variable
                 }
             i += 1
-            if macrobatches is not None and i % macrobatches == 0:
-                for k in param_names:
+            if summary_frequency is not None and i % summary_frequency == 0:
+                for k in samples.keys():
                     if k in results.keys():
                         results[k] = {
                             v: np.concatenate(
-                                [results[k], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
+                                [results[k][v], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
                             ) for v, fun in summary_fun.items()
                         }
                     else:
@@ -576,11 +581,11 @@ class PyroSampleMixin:
                         }
                 samples = {}
         if samples:
-            for k in param_names:
+            for k in samples.keys():
                 if k in results.keys():
                     results[k] = {
                         v: np.concatenate(
-                            [results[k], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
+                            [results[k][v], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
                         ) for v, fun in summary_fun.items()
                     }
                 else:
@@ -591,15 +596,17 @@ class PyroSampleMixin:
         # sample global parameters
         valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
         valid_sites = [v for v in valid_sites if v not in obs_plate_sites.keys()]
-        sample_kwargs["return_sites"] = valid_sites
-        global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
-        global_samples = {
-            k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
-        }
-        for k in global_samples.keys():
-            results[k] = {
-                v: fun(global_samples[k], axis=0) for v, fun in summary_fun.items()
+        sample_kwargs["return_sites"] = self._get_return_sites(
+            sample_kwargs["return_sites"], valid_sites)
+        if sample_kwargs["return_sites"]:
+            global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
+            global_samples = {
+                k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
             }
+            for k in global_samples.keys():
+                results[k] = {
+                    v: fun(global_samples[k], axis=0) for v, fun in summary_fun.items()
+                }
         # For consistency with previous versions, we swap the order of the dictionary.
         swapped_results = {
             v: {k: results[k][v] for k in results.keys()}
@@ -621,7 +628,7 @@ class PyroSampleMixin:
         batch_size: int | None = None,
         return_observed: bool = False,
         return_samples: bool = False,
-        macrobatches: int | None = None,
+        summary_frequency: int | None = None,
         summary_fun: dict[str, Callable] | None = None,
         **sample_kwargs,
     ):
@@ -652,8 +659,8 @@ class PyroSampleMixin:
         return_samples
             Return all generated posterior samples in addition to sample mean, 5th/95th quantile
             and SD?
-        macrobatches
-            Number of minibatches to process before computing summary statistics.
+        summary_frequency
+            Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         summary_fun
             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior
             distribution summaries to compute and which names to use. See below for default
@@ -697,7 +704,7 @@ class PyroSampleMixin:
             return_observed=return_observed,
             summary_fun=summary_fun,
             return_samples=return_samples,
-            macrobatches=macrobatches,
+            summary_frequency=summary_frequency,
             **sample_kwargs,
         )
 

@@ -262,8 +262,6 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             )
         })
 
-        print('YYYYY', kwargs)
-
         super().train(
             max_epochs=max_epochs,
             train_size=1.0,
@@ -511,6 +509,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         fdr_target: float = 0.05,
         silent: bool = False,
         filter_outlier_cells: bool = False,
+        pseudocounts: float = 1e-3,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for niche differential abundance analysis.
@@ -572,7 +571,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             batch_correction=False,
             fdr=fdr_target,
             silent=silent,
-            pseudocounts=1e-3,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 
@@ -613,7 +612,8 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             num_samples=num_samples,
             return_samples=False,
             batch_size=batch_size,
-            macrobatches=10,
+            summary_frequency=10,
+            return_observed=True,
         )
         y_pred = sampled_prediction['post_sample_means']['probs_prediction']
 

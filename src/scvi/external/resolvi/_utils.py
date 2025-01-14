@@ -19,215 +19,6 @@ logger = logging.getLogger(__name__)
 class PyroPredictiveMixin:
     """Mixin class for generating samples from posterior distribution using infer.predictive."""
 
-    def _posterior_samples_predictive(
-        self,
-        batch_group,
-        model: partial | None = None,
-        num_samples: int | None = 10,
-        return_sites: list | None = None,
-        library_size: float | None = 1e4,
-        device: torch.device | None = None,
-    ):
-        """
-        Generate samples of the posterior distribution in minibatches.
-
-        Generate samples of the posterior distribution of each parameter, separating local (minibatch) variables
-        and global variables, which is necessary when performing minibatch inference.
-
-        Parameters
-        ----------
-        batch_group
-            Group of minibatches to accumulate results.
-        model
-            Inference model to use.
-        num_samples
-            Number of posterior samples to generate.
-        return_sites
-            List of variables for which to generate posterior samples, defaults to all variables.
-        library_size
-            Scale the expression frequencies to a common library size.
-            This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
-        device
-            Device to use for posterior sampling. Defaults to `None`.
-
-        Returns
-        -------
-        dictionary {variable_name: [array with samples in 0 dimension]}
-        """
-        samples = {}
-        model = model if model else self.module.model
-        # sample local parameters
-        for tensor_dict in batch_group:
-            args, kwargs = self.module._get_fn_args_from_batch(tensor_dict)
-            if device is not None:
-                args = [a.to(device) for a in args]
-                kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
-            if library_size is not None:
-                kwargs["library"] = torch.full_like(
-                    kwargs["library"], torch.log(torch.tensor(library_size))
-                )
-            samples_ = infer.Predictive(
-                model,
-                num_samples=num_samples,
-                guide=self.module.guide,
-                return_sites=return_sites,
-            )(*args, **kwargs)
-            if not samples:
-                model_trace = poutine.trace(model).get_trace(*args, **kwargs)
-                return_sites_ = [
-                    i
-                    for i in model_trace.nodes.keys()
-                    if model_trace.nodes[i].get("cond_indep_stack", False) and i in return_sites
-                ]
-                samples = {k: [v.cpu()] for k, v in samples_.items()}
-            else:
-                # Record minibatches if variable is minibatch dependent
-                samples = {
-                    k: v + [samples_[k].cpu()] if k in return_sites_ else v
-                    for k, v in samples.items()
-                }
-        samples = {
-            k: torch.cat(v, axis=1).numpy()
-            if k in return_sites_ else v[0].numpy()
-            for k, v in samples.items()
-        }  # for each variable
-        return samples
-
-    @torch.inference_mode()
-    def sample_posterior_predictive(
-        self,
-        adata: AnnData | None = None,
-        input_dl: torch.utils.data.DataLoader | None = None,
-        model: partial | None = None,
-        num_samples: int = 20,
-        return_sites: list | None = ("px_rate"),
-        batch_size: int | None = None,
-        batch_steps: int | None = 20,
-        return_samples: bool = False,
-        summary_fun: dict[str, Callable] | None = None,
-        indices: Sequence[int] | None = None,
-        library_size: float | None = None,
-        accelerator: str | None = "auto",
-        devices: str | int | torch.device | None="auto",
-        show_progress: bool = True,
-    ):
-        """
-        Summarize posterior distribution. Generate samples from posterior distribution for each parameter and summary statistics.
-
-        Parameters
-        ----------
-        adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
-        input_dl
-            DataLoader for the current batch of data. If `None`, a new DataLoader is created.
-        model
-            Use modified model for posterior samples (see poutine handles for options.)
-        num_samples
-            Number of posterior samples to generate.
-        return_sites
-            List of variables for which to generate posterior samples, defaults to all variables.
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        batch_steps
-            Compute samples on batch_steps batches and accumulate results afterwards. Reduces memory footprint.
-        return_samples
-            Return all generated posterior samples in addition to sample mean, 5%/95% quantile and SD.
-        summary_fun
-             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior distribution
-             summaries to compute and which names to use. See below for default returns.
-        indices
-            Indices of cells in adata to use. If `None`, all cells are used.
-        library_size
-            Scale the expression frequencies to a common library size.
-            This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent libary size.
-        accelerator
-            Device type specification for Pyro. Defaults to `None`.
-        device
-            Device to use for posterior sampling. Defaults to `None`.
-        validate_anndata
-            Whether adata should be validated for the model before creating posterior samples.
-        show_progress
-            Whether to show progress bar.
-
-        Returns
-        -------
-        post_sample_means: Dict[str, :class:`np.ndarray`]
-            Mean of the posterior distribution for each variable, a dictionary of numpy arrays for each variable;
-        post_sample_q50: Dict[str, :class:`np.ndarray`]
-            50% quantile of the posterior distribution for each variable;
-        post_sample_q05: Dict[str, :class:`np.ndarray`]
-            5% quantile of the posterior distribution for each variable;
-        post_sample_q25: Dict[str, :class:`np.ndarray`]
-            25% quantile of the posterior distribution for each variable;
-        post_sample_std: Dict[str, :class:`np.ndarray`]
-            Standard deviation of the posterior distribution for each variable;
-        posterior_samples: Optional[Dict[str, :class:`np.ndarray`]]
-            Posterior distribution samples for each variable as numpy arrays of shape `(n_samples, ...)` (Optional).
-        """
-        _, _, device = parse_device_args(
-            accelerator=accelerator,
-            devices=devices,
-            return_device="torch",
-            validate_single_device=True,
-        )
-        self.to_device(device)
-        results = dict()
-        if adata is not None and input_dl is not None:
-            raise ValueError("Either adata or input_dl must be provided.")
-        if input_dl is None:
-            adata = self._validate_anndata(adata)
-            indices = np.arange(adata.n_obs)
-            batch_size = batch_size if batch_size is not None else settings.batch_size
-            dl = self._make_data_loader(
-                adata=adata[indices], indices=indices, shuffle=False, batch_size=batch_size)
-        else:
-            dl = input_dl
-        batch_group = []
-
-        for index, batch in enumerate(track(
-            dl,
-            style="tqdm",
-            description="Sampling variables, sample: ",
-            disable=not show_progress,
-        )):
-            batch_group.append(batch)
-            if (index + 1) % batch_steps != 0 and index != len(dl) - 1:
-                continue
-            samples = self._posterior_samples_predictive(
-                batch_group,
-                model=model if model else self.module.model,
-                num_samples=num_samples,
-                return_sites=return_sites,
-                library_size=library_size,
-                device=device,
-            )
-            param_names = list(samples.keys())
-            if summary_fun is None:
-                summary_fun = {
-                    "means": np.mean,
-                    "q50": lambda x, axis: np.quantile(x, 0.50, axis=axis),
-                    "q25": lambda x, axis: np.quantile(x, 0.25, axis=axis),
-                    "q05": lambda x, axis: np.quantile(x, 0.05, axis=axis),
-                }
-            if return_samples:
-                summary_fun["samples"] = lambda x, axis: x
-            if not results.keys():
-                for k, fun in summary_fun.items():
-                    results[f"post_sample_{k}"] = {
-                        v: fun(samples[v], axis=0) for v in param_names
-                    }
-            else:
-                for k, fun in summary_fun.items():
-                    for param in param_names:
-                        ndim = samples[param].ndim - 1
-                        results[f"post_sample_{k}"][param] = np.concatenate([results[f"post_sample_{k}"][param], fun(samples[param], axis=0)], axis=-ndim)
-            batch_group = []
-
-        return results
-
     @torch.inference_mode()
     def get_latent_representation(
         self,
@@ -568,7 +359,7 @@ class PyroPredictiveMixin:
         n_samples: int = 1,
         n_samples_overall: int = None,
         batch_size: int | None = None,
-        batch_steps: int = 2,
+        summary_frequency: int = 2,
         weights: str | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
@@ -593,8 +384,8 @@ class PyroPredictiveMixin:
             Number of posterior samples to use for estimation. Overrides `n_samples`.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        batch_steps
-            Compute samples on batch_steps batches and accumulate results afterwards. Reduces memory footprint.
+        summary_frequency
+            Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         weights
             Spatial weights for each neighbor.
         return_mean
@@ -650,16 +441,17 @@ class PyroPredictiveMixin:
             adata=adata, indices=indices_, shuffle=False, batch_size=batch_size)
 
         neighbor_abundance = []
-        sampled_prediction = self.sample_posterior_predictive(
+        sampled_prediction = self.sample_posterior(
             input_dl=dl,
             model=self.module.model_corrected,
             return_sites=['probs_prediction'],
-            batch_steps=batch_steps,
+            summary_frequency=summary_frequency,
             num_samples=n_samples,
             return_samples=True,
         )
-        flat_neighbor_abundance_ = sampled_prediction['post_sample_samples']['probs_prediction']
-        neighbor_abundance_ = flat_neighbor_abundance_.reshape(n_samples, len(indices), n_neighbors, -1)
+        flat_neighbor_abundance_ = sampled_prediction['posterior_samples']['probs_prediction']
+        neighbor_abundance_ = flat_neighbor_abundance_.reshape(
+            n_samples, len(indices), n_neighbors, -1)
         neighbor_abundance = np.average(neighbor_abundance_, axis=-2, weights=weights)
 
         if return_mean:

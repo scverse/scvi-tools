@@ -149,21 +149,18 @@ class ArchesMixin:
         # model tweaking
         new_state_dict = model.module.state_dict()
         for key, load_ten in load_state_dict.items():
-            print("SSSSS", key)
             new_ten = new_state_dict[key]
             load_ten = load_ten.to(new_ten.device)
             if new_ten.size() == load_ten.size():
                 continue
-            # new categoricals changed size
-            else:
-                dim_diff = new_ten.size()[-1] - load_ten.size()[-1]
-                if dim_diff:
-                    fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
-                    load_state_dict[key] = fixed_ten
-                else:
-                    dim_diff = new_ten.size()[0] - load_ten.size()[0]
-                    fixed_ten = torch.cat([load_ten, new_ten[-dim_diff:, ...]], dim=0)
-                    load_state_dict[key] = fixed_ten
+            fixed_ten = load_ten.clone()
+            for dim in range(len(new_ten.shape)):
+                if new_ten.size(dim) != load_ten.size(dim):
+                    dim_diff = new_ten.size(dim) - load_ten.size(dim)
+                    # Concatenate additional "missing" part
+                    pad_ten = new_ten.narrow(dim, start=-dim_diff, length=dim_diff)
+                    fixed_ten = torch.cat([fixed_ten, pad_ten], dim=dim)
+            load_state_dict[key] = fixed_ten
 
         model.module.load_state_dict(load_state_dict)
         if isinstance(model.module, pyro.nn.PyroModule):
@@ -216,25 +213,19 @@ class ArchesMixin:
                 block_parameter.append(name)
             else:
                 dim_diff = new_param.size()[-1] - old_param.size()[-1]
-                if dim_diff:
-                    updated_param = (
-                        torch.cat([old_param, new_param[..., -dim_diff:]], dim=-1)
-                        .detach()
-                        .requires_grad_()
-                    )
-                    pyro.param(name, updated_param, constraint=old_constraint)
-                elif new_param.size()[0] - old_param.size()[0]:
-                    dim_diff = new_param.size()[0] - old_param.size()[0]
-                    updated_param = (
-                        torch.cat([old_param, new_param[-dim_diff:, ...]], dim=0)
-                        .detach()
-                        .requires_grad_()
-                    )
-                    pyro.param(name, updated_param, constraint=old_constraint)
-                else:
-                    ValueError(
-                        "Parameter size mismatch in other dimension than 0 or 1. This is not supported."
-                    )
+                fixed_param = old_param.clone()
+                for dim in range(len(new_param.shape)):
+                    if new_param.size(dim) != old_param.size(dim):
+                        dim_diff = new_param.size(dim) - old_param.size(dim)
+                        # Concatenate additional "missing" part
+                        pad_param = new_param.narrow(dim, start=-dim_diff, length=dim_diff)
+                        fixed_param = torch.cat([fixed_param, pad_param], dim=dim)
+                updated_param = (
+                    fixed_param
+                    .detach()
+                    .requires_grad_()
+                )
+                pyro.param(name, updated_param, constraint=old_constraint)
 
         if hasattr(model, "_block_parameters"):
             model._block_parameters = block_parameter
@@ -424,14 +415,12 @@ def _get_loaded_data(reference_model, device=None):
             reference_model, load_adata=False, map_location=device
         )
         pyro_param_store = load_state_dict.pop("pyro_param_store", None)
-        print("PPPP loading")
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
         var_names = _get_var_names(reference_model.adata)
         load_state_dict = deepcopy(reference_model.module.state_dict())
         pyro_param_store = pyro.get_param_store().get_state()
-        print("PPPP loaded")
 
     return attr_dict, var_names, load_state_dict, pyro_param_store
 

@@ -3,6 +3,7 @@
 from collections.abc import Callable, Iterable
 from typing import Literal
 
+import numpy as np
 import pyro
 import torch
 import torch.nn.functional as F
@@ -218,9 +219,11 @@ class RESOLVAEModel(PyroModule):
         distances_n = tensor_dict["distance_neighbor"]
         ind_neighbors = tensor_dict["index_neighbor"].long()
 
-        x_n = torch.tensor(self.expression_anntorchdata[
-            ind_neighbors.cpu().numpy().flatten(), :
-        ]["X"]).to(x.device)
+        x_n = self.expression_anntorchdata[ind_neighbors.cpu().numpy().flatten(), :]["X"]
+        if isinstance(x_n, np.ndarray):
+            x_n = torch.from_numpy(x_n)
+        x_n = x_n.to(x.device)
+
         if x.layout is torch.sparse_csr or x.layout is torch.sparse_csc:
             x = x.to_dense()
         if x_n.layout is torch.sparse_csr or x_n.layout is torch.sparse_csc:
@@ -301,7 +304,7 @@ class RESOLVAEModel(PyroModule):
         u_prior_means = pyro.param("u_prior_means", self.u_prior_means)
         u_prior_scales = pyro.param("u_prior_scales", self.u_prior_scales)
 
-        with pyro.plate("data", size=n_obs or self.n_obs, subsample_size=x.shape[0], dim=-1):
+        with pyro.plate("obs_plate", size=n_obs or self.n_obs, subsample_size=x.shape[0], dim=-1):
             # Expected dispersion given distance between cells
             distances = 30. * pyro.deterministic(
                 "distances",
@@ -464,7 +467,7 @@ class RESOLVAEModel(PyroModule):
                 dim=-2,
             )
             if self.gene_likelihood == "poisson":
-                mean_nb = Delta(px_rate_sum).to_event(1).rsample()
+                mean_nb = Delta(px_rate_sum, event_dim=1).rsample()
             else:
                 mean_nb = Gamma(
                     concentration=px_r, rate=px_r / (px_rate_sum + self.eps)).to_event(1).rsample()
@@ -767,7 +770,7 @@ class RESOLVAEGuide(PyroModule):
         )
 
         # Per gene poisson rate for background
-        pyro.sample("per_gene_background", Delta(background_concentration).to_event(2))
+        pyro.sample("per_gene_background", Delta(background_concentration, event_dim=2))
 
         # Amount of background in total counts of Dirichlet
         background_proportion_est = pyro.param(
@@ -797,7 +800,7 @@ class RESOLVAEGuide(PyroModule):
             constraint=constraints.greater_than(self.eps),
             event_dim=1
         )
-        pyro.sample("diffuse_scale", Delta(diffusion_scale_est).to_event(1))
+        pyro.sample("diffuse_scale", Delta(diffusion_scale_est, event_dim=1))
 
         # Weights to which neighbor diffusion happens.
         per_neighbor_diffusion = pyro.param(
@@ -812,7 +815,7 @@ class RESOLVAEGuide(PyroModule):
                 LogNormal(self.downsample_counts_mean,self.downsample_counts_std).sample()
             ) + 10
 
-        with pyro.plate("data", size=n_obs or self.n_obs, subsample=ind_x, dim=-1):
+        with pyro.plate("obs_plate", size=n_obs or self.n_obs, subsample=ind_x, dim=-1):
             # Dispersion of NB for counts.
             px_r_mle = pyro.param(
                 "px_r_mle",
@@ -825,14 +828,14 @@ class RESOLVAEGuide(PyroModule):
                 px_r_inv = F.linear(one_hot(batch_index, self.n_batch), px_r_mle)
             elif self.dispersion == "gene":
                 px_r_inv = px_r_mle
-            pyro.sample("px_r_inv", Delta(px_r_inv).to_event(1))
+            pyro.sample("px_r_inv", Delta(px_r_inv, event_dim=1))
             # Expected diffusion given distance between cells
             concentration = torch.nn.Softmax(dim=-1)(
                 per_neighbor_diffusion[ind_x, :] - torch.clamp(
                     torch.sqrt(distances_n / self.median_distance), max=10.)
             )
 
-            pyro.sample("per_neighbor_diffusion", Delta(concentration).to_event(1))
+            pyro.sample("per_neighbor_diffusion", Delta(concentration, event_dim=1))
 
             if cat_covs is not None and self.encode_covariates:
                 categorical_input = list(torch.split(cat_covs, 1, dim=1))
@@ -844,7 +847,7 @@ class RESOLVAEGuide(PyroModule):
                     torch.log1p(x), batch_index, *categorical_input)
                 # Set minimum diffusion to 0.01. This helps with stability
                 mixture_proportions_est[..., 1] += self.diffusion_eps
-                pyro.sample("mixture_proportions", Delta(mixture_proportions_est).to_event(1))
+                pyro.sample("mixture_proportions", Delta(mixture_proportions_est, event_dim=1))
             with pyro.poutine.scale(scale=kl_weight):
                 # use the encoder to get the parameters used to define q(z|x)
                 if self.training and self.downsample_counts_mean is not None:
@@ -1099,3 +1102,16 @@ class RESOLVAE(PyroBaseModuleClass):
     @property
     def guide_simplified(self):
         return self._model.guide_simplified
+
+    @property
+    def list_obs_plate_vars(self):
+        """
+        Simplified plates adopted from Cell2location.
+
+        1. "name" - the name of observation/minibatch plate;
+        2. "event_dim" - the number of event dimensions.
+        """
+        return {
+            "name": "obs_plate",
+            "event_dim": 1,
+        }
