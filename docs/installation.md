@@ -80,7 +80,7 @@ pip install -U scvi-tools[dev]
 ## Docker
 
 If you plan on running scvi-tools in a containerized environment, we provide various Docker
-[images](https://hub.docker.com/repository/docker/scverse/scvi-tools/general) hosted on Docker Hub.
+[images](https://github.com/scverse/scvi-tools/pkgs/container/scvi-tools) hosted on GHCR.
 
 ## R
 
