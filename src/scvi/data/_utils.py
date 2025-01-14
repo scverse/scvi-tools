@@ -80,7 +80,7 @@ def scipy_to_torch_sparse(x: sp_sparse.csr_matrix | sp_sparse.csc_matrix) -> Ten
         )
     else:
         raise TypeError(
-            "`x` must be of type `scipy.sparse.csr_matrix` or " "`scipy.sparse.csc_matrix`."
+            "`x` must be of type `scipy.sparse.csr_matrix` or `scipy.sparse.csc_matrix`."
         )
 
 
