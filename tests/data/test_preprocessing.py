@@ -44,7 +44,7 @@ def test_add_dna_sequence(save_path: str):
         adata,
         seq_len=seq_len,
         genome_name="test_genome",
-        genome_dir=save_path,
+        genome_dir=save_path + "./test_data/",
         install_genome=False,
     )
     assert "dna_sequence" in adata.varm.keys()
