@@ -124,7 +124,7 @@ class LossOutput:
             self.logits is None or self.true_labels is None
         ):
             raise ValueError(
-                "Must provide `logits` and `true_labels` if `classification_loss` is " "provided."
+                "Must provide `logits` and `true_labels` if `classification_loss` is provided."
             )
 
     @staticmethod
