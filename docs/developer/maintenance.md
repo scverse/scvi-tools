@@ -183,8 +183,7 @@ example).
 
 #### Update Docker images
 
-Finally, build new Docker images with the `stable` and semantic versioning tags using the
-[release image workflow].
+Finally, build new Docker images with the correct branch tag using the [Docker image build].
 
 ## Continuous integration
 
@@ -289,10 +288,9 @@ We use the `BREAKING CHANGE` footer to indicate that a commit introduces a break
 [Semantic Versioning]: https://semver.org/
 [release checklist]: https://github.com/scverse/scvi-tools/blob/main/.github/ISSUE_TEMPLATE/release_checklist.md
 [tutorials]: https://github.com/scverse/scvi-tutorials
-[Docker image build]: https://github.com/YosefLab/scvi-tools-docker/actions/workflows/linux_cuda_manual.yaml
-[run the tutorials]: https://github.com/scverse/scvi-tutorials/actions/workflows/run_linux_cuda_branch.yml
+[Docker image build]: https://github.com/scverse/scvi-tools/actions/workflows/build_image_latest.yaml
+[run the tutorials]: https://github.com/scverse/scvi-tutorials/actions/workflows/run_notebook_individual.yaml
 [tutorial checklist]: https://github.com/scverse/scvi-tutorials/blob/main/.github/ISSUE_TEMPLATE/release_checklist.md
-[release image workflow]: https://github.com/YosefLab/scvi-tools-docker/actions/workflows/linux_cuda_release.yaml
 [release workflow]: https://github.com/scverse/scvi-tools/actions/workflows/release.yml
 [PyPI]: https://pypi.org/project/scvi-tools/
 [feedstock repository]: https://github.com/conda-forge/scvi-tools-feedstock
