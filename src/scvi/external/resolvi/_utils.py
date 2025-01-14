@@ -1,20 +1,19 @@
-
 import logging
 import warnings
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from functools import partial
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pyro import infer, poutine
+from pyro import infer
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
-from scvi.utils import track
 
 logger = logging.getLogger(__name__)
+
 
 class PyroPredictiveMixin:
     """Mixin class for generating samples from posterior distribution using infer.predictive."""
@@ -56,9 +55,7 @@ class PyroPredictiveMixin:
         Low-dimensional representation for each cell or a tuple containing its mean and variance.
         """
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         latent_qzm = []
         latent_qzv = []
@@ -74,15 +71,15 @@ class PyroPredictiveMixin:
             _, kwargs = self.module._get_fn_args_from_batch(tensors)
             kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
 
-            if kwargs['cat_covs'] is not None and self.module.encode_covariates:
-                categorical_input = list(torch.split(kwargs['cat_covs'], 1, dim=1))
+            if kwargs["cat_covs"] is not None and self.module.encode_covariates:
+                categorical_input = list(torch.split(kwargs["cat_covs"], 1, dim=1))
             else:
                 categorical_input = ()
 
             qz_m, qz_v, z = self.module.z_encoder(
                 torch.log1p(kwargs["x"] / torch.mean(kwargs["x"], dim=1, keepdim=True)),
                 kwargs["batch_index"],
-                *categorical_input
+                *categorical_input,
             )
             qz = torch.distributions.Normal(qz_m, qz_v.sqrt())
             if give_mean:
@@ -116,17 +113,13 @@ class PyroPredictiveMixin:
 
         if indices is None:
             indices = np.arange(adata.n_obs)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         transform_batch = _get_batch_code_from_category(
             self.get_anndata_manager(adata, required=True), transform_batch
         )
 
-        gene_mask = (
-            slice(None) if gene_list is None else adata.var_names.isin(gene_list)
-        )
+        gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -152,12 +145,18 @@ class PyroPredictiveMixin:
             args, kwargs = self.module._get_fn_args_from_batch(tensors)
             kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
             model_now = partial(self.module.model_simplified, corrected_rate=True)
-            importance_dist = infer.Importance(model_now, guide=self.module.guide.guide_simplified, num_samples=10 * n_samples)
+            importance_dist = infer.Importance(
+                model_now, guide=self.module.guide.guide_simplified, num_samples=10 * n_samples
+            )
             posterior = importance_dist.run(*args, **kwargs)
             marginal = infer.EmpiricalMarginal(posterior, sites=["mean_poisson", "px_scale"])
             samples = torch.cat([marginal().unsqueeze(1) for i in range(n_samples)], 1)
-            log_weights = torch.distributions.Poisson(samples[0, ...] + 1e-3).log_prob(kwargs['x'].to(samples.device)).sum(-1)
-            log_weights = log_weights/kwargs['x'].to(samples.device).sum(-1)
+            log_weights = (
+                torch.distributions.Poisson(samples[0, ...] + 1e-3)
+                .log_prob(kwargs["x"].to(samples.device))
+                .sum(-1)
+            )
+            log_weights = log_weights / kwargs["x"].to(samples.device).sum(-1)
             weighting.append(log_weights.reshape(-1).cpu())
             exprs.append(samples[1, ...].cpu())
         exprs = torch.cat(exprs, axis=1).numpy()
@@ -257,17 +256,13 @@ class PyroPredictiveMixin:
 
         if indices is None:
             indices = np.arange(adata.n_obs)
-        scdl = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size
-        )
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         transform_batch = _get_batch_code_from_category(
             self.get_anndata_manager(adata, required=True), transform_batch
         )
 
-        gene_mask = (
-            slice(None) if gene_list is None else adata.var_names.isin(gene_list)
-        )
+        gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -294,31 +289,33 @@ class PyroPredictiveMixin:
                 _, kwargs = self.module._get_fn_args_from_batch(tensors)
                 kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
 
-                if kwargs['cat_covs'] is not None and self.module.encode_covariates:
-                    categorical_input = list(torch.split(kwargs['cat_covs'], 1, dim=1))
+                if kwargs["cat_covs"] is not None and self.module.encode_covariates:
+                    categorical_input = list(torch.split(kwargs["cat_covs"], 1, dim=1))
                 else:
                     categorical_input = ()
 
                 qz_m, qz_v, _ = self.module.z_encoder(
-                    torch.log1p(kwargs["x"]/torch.mean(kwargs["x"], dim=1, keepdim=True)), kwargs["batch_index"], *categorical_input
+                    torch.log1p(kwargs["x"] / torch.mean(kwargs["x"], dim=1, keepdim=True)),
+                    kwargs["batch_index"],
+                    *categorical_input,
                 )
-                z = torch.distributions.Normal(qz_m, qz_v.sqrt()).sample([n_samples,])
+                z = torch.distributions.Normal(qz_m, qz_v.sqrt()).sample(
+                    [
+                        n_samples,
+                    ]
+                )
 
-                if kwargs['cat_covs'] is not None:
-                    categorical_input = list(torch.split(kwargs['cat_covs'], 1, dim=1))
+                if kwargs["cat_covs"] is not None:
+                    categorical_input = list(torch.split(kwargs["cat_covs"], 1, dim=1))
                 else:
                     categorical_input = ()
                 if batch is not None:
-                    batch = torch.full_like(kwargs['batch'], batch)
+                    batch = torch.full_like(kwargs["batch"], batch)
                 else:
-                    batch = kwargs['batch_index']
+                    batch = kwargs["batch_index"]
 
                 px_scale, _, px_rate, _ = self.module.model.decoder(
-                    self.module.model.dispersion,
-                    z,
-                    kwargs['library'],
-                    batch,
-                    *categorical_input
+                    self.module.model.dispersion, z, kwargs["library"], batch, *categorical_input
                 )
                 if library_size is not None:
                     exp_ = library_size * px_scale.reshape(-1, px_scale.shape[-1])
@@ -413,8 +410,9 @@ class PyroPredictiveMixin:
         if indices is None:
             indices = np.arange(adata.n_obs)
         if neighbor_key is None:
-            neighbor_key = self.adata_manager.registry[
-                'field_registries']['index_neighbor']['data_registry']['attr_key']
+            neighbor_key = self.adata_manager.registry["field_registries"]["index_neighbor"][
+                "data_registry"
+            ]["attr_key"]
             neighbor_obsm = adata.obsm[neighbor_key]
         else:
             neighbor_obsm = adata.obsm[neighbor_key]
@@ -432,26 +430,26 @@ class PyroPredictiveMixin:
 
         if batch_size is not None:
             if batch_size % n_neighbors != 0:
-                raise ValueError(
-                    "Batch size must be divisible by the number of neighbors."
-                )
+                raise ValueError("Batch size must be divisible by the number of neighbors.")
         batch_size = batch_size if batch_size is not None else n_neighbors * settings.batch_size
         indices_ = neighbor_obsm[indices].reshape(-1)
         dl = self._make_data_loader(
-            adata=adata, indices=indices_, shuffle=False, batch_size=batch_size)
+            adata=adata, indices=indices_, shuffle=False, batch_size=batch_size
+        )
 
         neighbor_abundance = []
         sampled_prediction = self.sample_posterior(
             input_dl=dl,
             model=self.module.model_corrected,
-            return_sites=['probs_prediction'],
+            return_sites=["probs_prediction"],
             summary_frequency=summary_frequency,
             num_samples=n_samples,
             return_samples=True,
         )
-        flat_neighbor_abundance_ = sampled_prediction['posterior_samples']['probs_prediction']
+        flat_neighbor_abundance_ = sampled_prediction["posterior_samples"]["probs_prediction"]
         neighbor_abundance_ = flat_neighbor_abundance_.reshape(
-            n_samples, len(indices), n_neighbors, -1)
+            n_samples, len(indices), n_neighbors, -1
+        )
         neighbor_abundance = np.average(neighbor_abundance_, axis=-2, weights=weights)
 
         if return_mean:

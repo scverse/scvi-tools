@@ -261,7 +261,7 @@ class RESOLVAEModel(PyroModule):
             "sparsity_diffusion",
             Gamma(
                 concentration=self.prior_proportions_rate,
-                rate=self.prior_proportions_rate / self.sparsity_diffusion
+                rate=self.prior_proportions_rate / self.sparsity_diffusion,
             ),
         ).mean()
 
@@ -279,22 +279,28 @@ class RESOLVAEModel(PyroModule):
         # Proportion of true counts
         true_proportion = pyro.sample(
             "true_proportion",
-            Gamma(concentration=self.prior_proportions_rate,
-                  rate=self.prior_proportions_rate / prior_proportions[0]),
+            Gamma(
+                concentration=self.prior_proportions_rate,
+                rate=self.prior_proportions_rate / prior_proportions[0],
+            ),
         ).mean()
 
         # Background proportion
         background_proportion = pyro.sample(
             "background_proportion",
-            Gamma(concentration=self.prior_proportions_rate,
-                  rate=self.prior_proportions_rate / prior_proportions[2]),
+            Gamma(
+                concentration=self.prior_proportions_rate,
+                rate=self.prior_proportions_rate / prior_proportions[2],
+            ),
         ).mean()
 
         # Diffusion proportion
         diffusion_proportion = pyro.sample(
             "diffusion_proportion",
-            Gamma(concentration=self.prior_proportions_rate,
-                  rate=self.prior_proportions_rate / prior_proportions[1]),
+            Gamma(
+                concentration=self.prior_proportions_rate,
+                rate=self.prior_proportions_rate / prior_proportions[1],
+            ),
         ).mean()
 
         # Weights on which range diffusion happens compared to median distance.
@@ -306,12 +312,14 @@ class RESOLVAEModel(PyroModule):
 
         with pyro.plate("obs_plate", size=n_obs or self.n_obs, subsample_size=x.shape[0], dim=-1):
             # Expected dispersion given distance between cells
-            distances = 30. * pyro.deterministic(
+            distances = 30.0 * pyro.deterministic(
                 "distances",
-                torch.exp(- torch.clamp(
-                    diffusion_scale * distances_n / self.median_distance, max=20.)
-                ) + 1e-3, event_dim=1
-            ) # clamping here as otherwise gradient not defined
+                torch.exp(
+                    -torch.clamp(diffusion_scale * distances_n / self.median_distance, max=20.0)
+                )
+                + 1e-3,
+                event_dim=1,
+            )  # clamping here as otherwise gradient not defined
             px_r = 1 / pyro.sample("px_r_inv", Exponential(torch.ones_like(x)).to_event(1))
 
             per_neighbor_diffusion = pyro.sample(
@@ -324,14 +332,15 @@ class RESOLVAEModel(PyroModule):
                     Dirichlet(
                         concentration=torch.tensor(
                             [true_proportion, diffusion_proportion, background_proportion],
-                            device=x.device
+                            device=x.device,
                         ),
                         validate_args=False,  # Softmax has rounding errors
                     ),
                 )
 
             true_mixture_proportion = pyro.deterministic(
-                "true_mixture_proportion", mixture_proportions[..., 0])
+                "true_mixture_proportion", mixture_proportions[..., 0]
+            )
 
             diffusion_mixture_proportion = pyro.deterministic(
                 "diffusion_mixture_proportion", mixture_proportions[..., 1]
@@ -375,7 +384,7 @@ class RESOLVAEModel(PyroModule):
 
             normal_dists = Independent(
                 Normal(u_prior_means, torch.exp(self.u_prior_scales) + 1e-4),
-                reinterpreted_batch_ndims=1
+                reinterpreted_batch_ndims=1,
             )
 
             # sample from prior (value will be sampled by guide when computing the ELBO)
@@ -453,15 +462,18 @@ class RESOLVAEModel(PyroModule):
                         *categorical_input,
                     )
                     px_rate_n = px_rate_n.reshape(
-                        [z.shape[0], x.shape[0], self.n_neighbors, self.n_input])
+                        [z.shape[0], x.shape[0], self.n_neighbors, self.n_input]
+                    )
 
                 px_rate_n = pyro.deterministic("px_rate_n", px_rate_n, event_dim=2)
 
             # Collecting all means. Sample by v from neighboring cells.
             px_rate_sum = torch.sum(
                 torch.cat(
-                    [(true_mixture_proportion.unsqueeze(-1) * px_rate).unsqueeze(-2),
-                     v.unsqueeze(-1) * px_rate_n],
+                    [
+                        (true_mixture_proportion.unsqueeze(-1) * px_rate).unsqueeze(-2),
+                        v.unsqueeze(-1) * px_rate_n,
+                    ],
                     dim=-2,
                 ),
                 dim=-2,
@@ -469,8 +481,11 @@ class RESOLVAEModel(PyroModule):
             if self.gene_likelihood == "poisson":
                 mean_nb = Delta(px_rate_sum, event_dim=1).rsample()
             else:
-                mean_nb = Gamma(
-                    concentration=px_r, rate=px_r / (px_rate_sum + self.eps)).to_event(1).rsample()
+                mean_nb = (
+                    Gamma(concentration=px_r, rate=px_r / (px_rate_sum + self.eps))
+                    .to_event(1)
+                    .rsample()
+                )
 
             mean_poisson = pyro.deterministic(
                 "mean_poisson",
@@ -496,9 +511,7 @@ class RESOLVAEModel(PyroModule):
                 with pyro.poutine.scale(scale=50.0):
                     with pyro.poutine.mask(mask=is_observed):
                         pyro.sample(
-                            "prediction",
-                            Categorical(probs=probs_prediction),
-                            obs=valid_data
+                            "prediction", Categorical(probs=probs_prediction), obs=valid_data
                         )
 
     @auto_move_data
@@ -597,12 +610,9 @@ class RESOLVAEModel(PyroModule):
             "background_proportion",
             "diffusion_proportion",
         ]
-        simplified_model = pyro.poutine.block(
-            self.model_unconditioned,
-            hide=hide
-        )
+        simplified_model = pyro.poutine.block(self.model_unconditioned, hide=hide)
 
-        with pyro.poutine.scale(scale=0.01 * x.shape[0]/self.n_obs):
+        with pyro.poutine.scale(scale=0.01 * x.shape[0] / self.n_obs):
             if corrected_rate:
                 pyro.condition(
                     simplified_model,
@@ -613,8 +623,10 @@ class RESOLVAEModel(PyroModule):
                     },
                 )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight)
             else:
-                simplified_model(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n,
-                                 n_obs, kl_weight)
+                simplified_model(
+                    x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight
+                )
+
 
 class RESOLVAEGuide(PyroModule):
     """A PyroModule that serves as the guide for the RESOLVAE class.
@@ -754,13 +766,23 @@ class RESOLVAEGuide(PyroModule):
 
     @auto_move_data
     def forward(
-        self, x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs=None,
-        kl_weight=1.0):
+        self,
+        x,
+        ind_x,
+        library,
+        y,
+        batch_index,
+        cat_covs,
+        x_n,
+        distances_n,
+        n_obs=None,
+        kl_weight=1.0,
+    ):
         # Amount of true in total counts of Dirichlet
         sparsity_diffusion_est = pyro.param(
             "sparsity_diffusion_est",
             20.0 * x.new_ones([1]),
-            constraint=constraints.greater_than(1e-3)
+            constraint=constraints.greater_than(1e-3),
         )
         pyro.sample("sparsity_diffusion", Delta(sparsity_diffusion_est))
 
@@ -784,7 +806,7 @@ class RESOLVAEGuide(PyroModule):
         diffusion_proportion_est = pyro.param(
             "diffusion_proportion_est",
             3.0 * x.new_ones([1]),
-            constraint=constraints.greater_than(1e-6)
+            constraint=constraints.greater_than(1e-6),
         )
         pyro.sample("diffusion_proportion", Delta(diffusion_proportion_est))
 
@@ -796,9 +818,10 @@ class RESOLVAEGuide(PyroModule):
 
         # Weights to how many neighbors diffusion happens in relation to median distance.
         diffusion_scale_est = pyro.param(
-            "diffuse_scale_est", x.new_ones([1]),
+            "diffuse_scale_est",
+            x.new_ones([1]),
             constraint=constraints.greater_than(self.eps),
-            event_dim=1
+            event_dim=1,
         )
         pyro.sample("diffuse_scale", Delta(diffusion_scale_est, event_dim=1))
 
@@ -811,9 +834,10 @@ class RESOLVAEGuide(PyroModule):
         )
 
         if self.downsample_counts_mean is not None:
-            downsample_counts = int(
-                LogNormal(self.downsample_counts_mean,self.downsample_counts_std).sample()
-            ) + 10
+            downsample_counts = (
+                int(LogNormal(self.downsample_counts_mean, self.downsample_counts_std).sample())
+                + 10
+            )
 
         with pyro.plate("obs_plate", size=n_obs or self.n_obs, subsample=ind_x, dim=-1):
             # Dispersion of NB for counts.
@@ -821,7 +845,7 @@ class RESOLVAEGuide(PyroModule):
                 "px_r_mle",
                 self.px_r,
                 constraint=constraints.greater_than(self.eps),
-                event_dim=len(self.px_r.shape)
+                event_dim=len(self.px_r.shape),
             )
 
             if self.dispersion == "gene-batch":
@@ -831,8 +855,8 @@ class RESOLVAEGuide(PyroModule):
             pyro.sample("px_r_inv", Delta(px_r_inv, event_dim=1))
             # Expected diffusion given distance between cells
             concentration = torch.nn.Softmax(dim=-1)(
-                per_neighbor_diffusion[ind_x, :] - torch.clamp(
-                    torch.sqrt(distances_n / self.median_distance), max=10.)
+                per_neighbor_diffusion[ind_x, :]
+                - torch.clamp(torch.sqrt(distances_n / self.median_distance), max=10.0)
             )
 
             pyro.sample("per_neighbor_diffusion", Delta(concentration, event_dim=1))
@@ -844,7 +868,8 @@ class RESOLVAEGuide(PyroModule):
 
             with pyro.poutine.scale(scale=5.0):
                 _, mixture_proportions_est, _ = self.diffusion_encoder(
-                    torch.log1p(x), batch_index, *categorical_input)
+                    torch.log1p(x), batch_index, *categorical_input
+                )
                 # Set minimum diffusion to 0.01. This helps with stability
                 mixture_proportions_est[..., 1] += self.diffusion_eps
                 pyro.sample("mixture_proportions", Delta(mixture_proportions_est, event_dim=1))
@@ -855,7 +880,7 @@ class RESOLVAEGuide(PyroModule):
                 qz_m, qz_v, _ = self.z_encoder(
                     torch.log1p(x / torch.mean(x, dim=1, keepdim=True)),
                     batch_index,
-                    *categorical_input
+                    *categorical_input,
                 )
                 # sample the latent code z
                 pyro.sample("latent", Normal(qz_m, torch.sqrt(qz_v)).to_event(1))
@@ -876,7 +901,7 @@ class RESOLVAEGuide(PyroModule):
     ):
         simplified_guide = pyro.poutine.block(
             self.forward,
-            expose=['latent'],
+            expose=["latent"],
             hide=[
                 "sparsity_diffusion",
                 "per_gene_background",
@@ -887,12 +912,13 @@ class RESOLVAEGuide(PyroModule):
                 "px_r_inv",
                 "per_neighbor_diffusion",
                 "mixture_proportions",
-            ]
+            ],
         )
 
-        with pyro.poutine.scale(scale=x.shape[0]/self.n_obs):
-            simplified_guide(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs,
-                             kl_weight)
+        with pyro.poutine.scale(scale=x.shape[0] / self.n_obs):
+            simplified_guide(
+                x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight
+            )
 
 
 class RESOLVAE(PyroBaseModuleClass):
@@ -988,9 +1014,8 @@ class RESOLVAE(PyroBaseModuleClass):
         downsample_counts_mean: float | None = None,
         downsample_counts_std: float = 1.0,
         diffusion_eps: float = 0.01,
-        latent_distribution: str | None = None, # placeholder
+        latent_distribution: str | None = None,  # placeholder
     ):
-
         super().__init__()
         self.dispersion = dispersion
         self.n_latent = n_latent

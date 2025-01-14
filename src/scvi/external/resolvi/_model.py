@@ -40,7 +40,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixin):
+class RESOLVI(
+    PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixin
+):
     """
     single-cell Variational Inference [Lopez18]_.
 
@@ -120,9 +122,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         results = self.compute_dataset_dependent_priors()
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
@@ -139,7 +139,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             downsample_counts_mean = None
             downsample_counts_std = 1.0
 
-        expression_anntorchdata=AnnTorchDataset(
+        expression_anntorchdata = AnnTorchDataset(
             self.adata_manager,
             getitem_tensors=["X"],
             load_sparse_tensor=True,
@@ -152,7 +152,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             mixture_k=mixture_k,
             expression_anntorchdata=expression_anntorchdata,
             n_neighbors=self.summary_stats.n_distance_neighbor,
-            n_obs=self.summary_stats['n_ind_x'],
+            n_obs=self.summary_stats["n_ind_x"],
             n_hidden=n_hidden,
             n_hidden_encoder=n_hidden_encoder,
             n_latent=n_latent,
@@ -180,7 +180,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         max_epochs: int = 50,
         lr: float = 3e-3,
         lr_extra: float = 1e-2,
-        extra_lr_parameters: tuple = ('per_neighbor_diffusion_map', 'u_prior_means'),
+        extra_lr_parameters: tuple = ("per_neighbor_diffusion_map", "u_prior_means"),
         batch_size: int = 512,
         weight_decay: float = 0.0,
         eps: float = 1e-4,
@@ -233,12 +233,12 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         blocked = set(blocked) - set(expose_params)
 
         if blocked:
-            print('Running scArches. Set lr to 0 and blocking variables.')
+            print("Running scArches. Set lr to 0 and blocking variables.")
 
         def per_param_callable(module_name, param_name):
-            store_name = f'{module_name}$$${param_name}' if '.' in param_name else param_name
+            store_name = f"{module_name}$$${param_name}" if "." in param_name else param_name
             if store_name in blocked:
-                return {"lr": 0., "weight_decay": 0, "eps": eps}
+                return {"lr": 0.0, "weight_decay": 0, "eps": eps}
             if store_name in extra_lr_parameters:
                 return {"lr": lr_extra, "weight_decay": weight_decay, "eps": eps}
             else:
@@ -248,19 +248,20 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
 
         if plan_kwargs is None:
             plan_kwargs = {}
-        plan_kwargs.update({
-            "optim_kwargs": {
-                "lr": lr, "weight_decay": weight_decay, "eps": eps},
-            "optim": optim,
-            "blocked": blocked,
-            "n_epochs_kl_warmup": n_epochs_kl_warmup if n_epochs_kl_warmup is not None else max_epochs,
-            "n_steps_kl_warmup": n_steps_kl_warmup,
-            "loss_fn": Trace_ELBO(
-                num_particles=5,
-                vectorize_particles=True,
-                retain_graph=True
-            )
-        })
+        plan_kwargs.update(
+            {
+                "optim_kwargs": {"lr": lr, "weight_decay": weight_decay, "eps": eps},
+                "optim": optim,
+                "blocked": blocked,
+                "n_epochs_kl_warmup": n_epochs_kl_warmup
+                if n_epochs_kl_warmup is not None
+                else max_epochs,
+                "n_steps_kl_warmup": n_steps_kl_warmup,
+                "loss_fn": Trace_ELBO(
+                    num_particles=5, vectorize_particles=True, retain_graph=True
+                ),
+            }
+        )
 
         super().train(
             max_epochs=max_epochs,
@@ -281,7 +282,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         categorical_covariate_keys: list[str] | None = None,
         prepare_data: bool | None = True,
         prepare_data_kwargs: dict = None,
-        unlabeled_category: str = 'unknown',
+        unlabeled_category: str = "unknown",
         **kwargs,
     ):
         """%(summary)s.
@@ -303,13 +304,19 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             x = adata.X
         else:
             x = adata.layers[layer]
-        assert np.min(x.sum(axis=1))>0, "Please filter cells with less than 5 counts prior to running resolVI."
+        assert (
+            np.min(x.sum(axis=1)) > 0
+        ), "Please filter cells with less than 5 counts prior to running resolVI."
         if batch_key is not None:
-            adata.obs["_indices"] = adata.obs[batch_key].astype(str) + '_' + adata.obs_names.astype(str)
+            adata.obs["_indices"] = (
+                adata.obs[batch_key].astype(str) + "_" + adata.obs_names.astype(str)
+            )
         else:
             adata.obs["_indices"] = adata.obs_names.astype(str)
-        adata.obs['_indices'] = adata.obs['_indices'].astype("category")
-        assert not adata.obs['_indices'].duplicated(keep="first").any(), "obs_names need to be unique prior to running resolVI."
+        adata.obs["_indices"] = adata.obs["_indices"].astype("category")
+        assert (
+            not adata.obs["_indices"].duplicated(keep="first").any()
+        ), "obs_names need to be unique prior to running resolVI."
         if labels_key is None:
             label_field = CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key)
         else:
@@ -329,18 +336,14 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             ObsmField("distance_neighbor", "distance_neighbor"),
             CategoricalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
             label_field,
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            )
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
         ]
-        adata_manager = AnnDataManager(
-            fields=anndata_fields, setup_method_args=setup_method_args
-        )
+        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
     @staticmethod
-    def _prepare_data(adata, n_neighbors=10, spatial_rep='X_spatial', batch_key=None, **kwargs):
+    def _prepare_data(adata, n_neighbors=10, spatial_rep="X_spatial", batch_key=None, **kwargs):
         try:
             import scanpy
             from sklearn.neighbors._base import _kneighbors_from_graph
@@ -353,7 +356,9 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         if batch_key is None:
             indices = [np.arange(adata.n_obs)]
         else:
-            indices = [np.where(adata.obs[batch_key]==i)[0] for i in adata.obs[batch_key].unique()]
+            indices = [
+                np.where(adata.obs[batch_key] == i)[0] for i in adata.obs[batch_key].unique()
+            ]
 
         distance_neighbor = 1e6 * np.ones([adata.n_obs, n_neighbors])
         index_neighbor = np.zeros([adata.n_obs, n_neighbors], dtype=int)
@@ -363,33 +368,34 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             if importlib.util.find_spec("cuml") is not None:
                 method = "rapids"
             else:
-                method = 'umap'
+                method = "umap"
             scanpy.pp.neighbors(
-                sub_data, n_neighbors=n_neighbors+5, use_rep=spatial_rep, method=method)
-            distances = sub_data.obsp['distances']**2
+                sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep, method=method
+            )
+            distances = sub_data.obsp["distances"] ** 2
 
             distance_neighbor[index, :], index_neighbor_batch = _kneighbors_from_graph(
-                distances, n_neighbors, return_distance=True)
+                distances, n_neighbors, return_distance=True
+            )
             index_neighbor[index, :] = index[index_neighbor_batch]
 
-        adata.obsm['X_spatial'] = adata.obsm[spatial_rep]
-        adata.obsm['index_neighbor'] = index_neighbor
-        adata.obsm['distance_neighbor'] = distance_neighbor
+        adata.obsm["X_spatial"] = adata.obsm[spatial_rep]
+        adata.obsm["index_neighbor"] = index_neighbor
+        adata.obsm["distance_neighbor"] = distance_neighbor
 
     def compute_dataset_dependent_priors(self, n_small_genes=None):
         x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        n_small_genes=x.shape[1]//50 if n_small_genes is None else int(n_small_genes)
+        n_small_genes = x.shape[1] // 50 if n_small_genes is None else int(n_small_genes)
         # Computing library size over low expressed genes (expectation for background).
         # Handles sparse and dense counts.
-        smallest_means = (
-            x[:, np.array(x.sum(0)).flatten().argsort()[:n_small_genes]].mean(1) /
-            np.array(x.mean(1))
-        )
+        smallest_means = x[:, np.array(x.sum(0)).flatten().argsort()[:n_small_genes]].mean(
+            1
+        ) / np.array(x.mean(1))
         background_ratio = np.mean(np.array(smallest_means))
 
         # Median distance for empiric expectation of kernel size in diffusion
         distance = self.adata_manager.get_from_registry("distance_neighbor")
-        median_distance = np.median(np.partition(distance, 5)[:,5])
+        median_distance = np.median(np.partition(distance, 5)[:, 5])
         log_library_size = np.log1p(np.array(x.sum(1)))
         mean_log_counts = np.median(log_library_size)
         std_log_counts = np.std(log_library_size)
@@ -463,9 +469,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             return_mean=False,
         )
 
-        representation_fn = (
-            self.get_latent_representation if filter_outlier_cells else None
-        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
@@ -547,9 +551,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             neighbor_key=neighbor_key,
         )
 
-        representation_fn = (
-            self.get_latent_representation if filter_outlier_cells else None
-        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
@@ -583,7 +585,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         indices: Sequence[int] | None = None,
         soft: bool = False,
         batch_size: int | None = 500,
-        num_samples: int | None = 30
+        num_samples: int | None = 30,
     ) -> np.ndarray | pd.DataFrame:
         """
         Return cell label predictions.
@@ -608,14 +610,14 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
             adata=adata,
             indices=indices,
             model=self.module.model_corrected,
-            return_sites=['probs_prediction'],
+            return_sites=["probs_prediction"],
             num_samples=num_samples,
             return_samples=False,
             batch_size=batch_size,
             summary_frequency=10,
             return_observed=True,
         )
-        y_pred = sampled_prediction['post_sample_means']['probs_prediction']
+        y_pred = sampled_prediction["post_sample_means"]["probs_prediction"]
 
         if not soft:
             y_pred = y_pred.argmax(axis=1)
@@ -632,9 +634,7 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
 
     def _set_indices_and_labels(self):
         """Set indices for labeled and unlabeled cells."""
-        labels_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.LABELS_KEY
-        )
+        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         self.original_label_key = labels_state_registry.original_key
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
@@ -646,9 +646,6 @@ class RESOLVI(PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModel
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
-        self._unlabeled_indices = np.argwhere(
-            labels == self.unlabeled_category_
-        ).ravel()
+        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = dict(enumerate(self._label_mapping))
-

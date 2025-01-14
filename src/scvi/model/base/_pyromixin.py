@@ -242,9 +242,9 @@ class PyroSampleMixin:
             # This already includes trace-replay behavior.
             sample = self.module.guide(*args, **kwargs)
             if return_sites is not None:
-                 sample = {k: v for k, v in sample.items() if k in return_sites}
+                sample = {k: v for k, v in sample.items() if k in return_sites}
             if exclude_vars is not None:
-                 sample = {k: v for k, v in sample.items() if k not in exclude_vars}
+                sample = {k: v for k, v in sample.items() if k not in exclude_vars}
         else:
             guide_trace = poutine.trace(self.module.guide).get_trace(*args, **kwargs)
             model_trace = poutine.trace(poutine.replay(model, guide_trace)).get_trace(
@@ -255,9 +255,7 @@ class PyroSampleMixin:
                 for name, site in model_trace.nodes.items()
                 if (
                     (site["type"] == "sample")  # sample statement
-                    and (
-                         (exclude_vars is None) or (name not in exclude_vars)
-                     )  # exclude variables
+                    and ((exclude_vars is None) or (name not in exclude_vars))  # exclude variables
                     and (
                         (return_sites is None) or (name in return_sites)
                     )  # selected in return_sites list
@@ -309,11 +307,11 @@ class PyroSampleMixin:
         dictionary {variable_name: [array with samples in 0 dimension]}
         """
         samples = self._get_one_posterior_sample(
-             args,
-             kwargs,
-             return_sites=return_sites,
-             return_observed=return_observed,
-             exclude_vars=exclude_vars,
+            args,
+            kwargs,
+            return_sites=return_sites,
+            return_observed=return_observed,
+            exclude_vars=exclude_vars,
         )
         samples = {k: [v] for k, v in samples.items()}
 
@@ -329,7 +327,7 @@ class PyroSampleMixin:
                 kwargs,
                 model=model,
                 return_sites=return_sites,
-                return_observed=return_observed
+                return_observed=return_observed,
             )
 
             # add new sample
@@ -375,7 +373,7 @@ class PyroSampleMixin:
         Dictionary with keys corresponding to site names and values to plate dimension.
         """
         plate_name = self.module.list_obs_plate_vars["name"]
-        event_dim = self.module.list_obs_plate_vars.get("event_dim", 0) # account for extra dims
+        event_dim = self.module.list_obs_plate_vars.get("event_dim", 0)  # account for extra dims
 
         # find plate dimension
         trace = poutine.trace(self.module.model).get_trace(*args, **kwargs)
@@ -513,7 +511,8 @@ class PyroSampleMixin:
                 indices = np.arange(adata.n_obs)
             batch_size = batch_size if batch_size is not None else settings.batch_size
             dl = self._make_data_loader(
-                adata=adata, indices=indices, shuffle=False, batch_size=batch_size)
+                adata=adata, indices=indices, shuffle=False, batch_size=batch_size
+            )
         else:
             dl = input_dl
         # sample local parameters
@@ -546,7 +545,7 @@ class PyroSampleMixin:
                     sample_kwargs["return_sites"], list(obs_plate_sites.keys())
                 )
                 sample_kwargs_obs_plate["show_progress"] = False
-            if not sample_kwargs_obs_plate["return_sites"]: # Nothing to sample.
+            if not sample_kwargs_obs_plate["return_sites"]:  # Nothing to sample.
                 break
             samples_ = self._get_posterior_samples(args, kwargs, **sample_kwargs_obs_plate)
             if samples == {}:
@@ -564,7 +563,7 @@ class PyroSampleMixin:
                             for j in range(len(samples[k]))  # for each sample (in 0 dimension
                         ]
                     )
-                    for k in samples.keys() # for each variable
+                    for k in samples.keys()  # for each variable
                 }
             i += 1
             if summary_frequency is not None and i % summary_frequency == 0:
@@ -573,12 +572,11 @@ class PyroSampleMixin:
                         results[k] = {
                             v: np.concatenate(
                                 [results[k][v], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
-                            ) for v, fun in summary_fun.items()
+                            )
+                            for v, fun in summary_fun.items()
                         }
                     else:
-                        results[k] = {
-                            v: fun(samples[k], axis=0) for v, fun in summary_fun.items()
-                        }
+                        results[k] = {v: fun(samples[k], axis=0) for v, fun in summary_fun.items()}
                 samples = {}
         if samples:
             for k in samples.keys():
@@ -586,31 +584,28 @@ class PyroSampleMixin:
                     results[k] = {
                         v: np.concatenate(
                             [results[k][v], fun(samples[k], axis=0)], axis=obs_plate_sites[k]
-                        ) for v, fun in summary_fun.items()
+                        )
+                        for v, fun in summary_fun.items()
                     }
                 else:
-                    results[k] = {
-                        v: fun(samples[k], axis=0) for v, fun in summary_fun.items()
-                    }
+                    results[k] = {v: fun(samples[k], axis=0) for v, fun in summary_fun.items()}
 
         # sample global parameters
         valid_sites = self._get_valid_sites(args, kwargs, return_observed=return_observed)
         valid_sites = [v for v in valid_sites if v not in obs_plate_sites.keys()]
         sample_kwargs["return_sites"] = self._get_return_sites(
-            sample_kwargs["return_sites"], valid_sites)
+            sample_kwargs["return_sites"], valid_sites
+        )
         if sample_kwargs["return_sites"]:
             global_samples = self._get_posterior_samples(args, kwargs, **sample_kwargs)
             global_samples = {
                 k: v for k, v in global_samples.items() if k not in list(obs_plate_sites.keys())
             }
             for k in global_samples.keys():
-                results[k] = {
-                    v: fun(global_samples[k], axis=0) for v, fun in summary_fun.items()
-                }
+                results[k] = {v: fun(global_samples[k], axis=0) for v, fun in summary_fun.items()}
         # For consistency with previous versions, we swap the order of the dictionary.
         swapped_results = {
-            v: {k: results[k][v] for k in results.keys()}
-            for v in summary_fun.keys()
+            v: {k: results[k][v] for k in results.keys()} for v in summary_fun.keys()
         }
 
         return swapped_results

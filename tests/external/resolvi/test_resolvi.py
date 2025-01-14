@@ -46,6 +46,7 @@ def test_resolvi_downstream(adata):
         max_epochs=2,
     )
 
+
 def test_resolvi_semisupervised(adata):
     RESOLVI.setup_anndata(adata, labels_key="labels")
     model = RESOLVI(adata, semisupervised=True)

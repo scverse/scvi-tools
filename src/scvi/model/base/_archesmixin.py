@@ -220,11 +220,7 @@ class ArchesMixin:
                         # Concatenate additional "missing" part
                         pad_param = new_param.narrow(dim, start=-dim_diff, length=dim_diff)
                         fixed_param = torch.cat([fixed_param, pad_param], dim=dim)
-                updated_param = (
-                    fixed_param
-                    .detach()
-                    .requires_grad_()
-                )
+                updated_param = fixed_param.detach().requires_grad_()
                 pyro.param(name, updated_param, constraint=old_constraint)
 
         if hasattr(model, "_block_parameters"):
