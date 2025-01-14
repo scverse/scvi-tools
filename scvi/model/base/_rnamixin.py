@@ -322,7 +322,7 @@ class RNASeqMixin:
         group2: str | None = None,
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
-        mode: Literal["vanilla", "change"] = "change",
+        mode: Literal["vanilla", "change"] = "vanilla",
         delta: float = 0.25,
         batch_size: int | None = None,
         all_stats: bool = True,

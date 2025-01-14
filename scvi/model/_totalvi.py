@@ -154,13 +154,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         )
 
         n_batch = self.summary_stats.n_batch
-        if 'n_panel' in self.summary_stats:
+        if "n_panel" in self.summary_stats:
             n_panel = self.summary_stats.n_panel
-            panel_key = 'panel'
+            panel_key = "panel"
         else:
             n_panel = self.summary_stats.n_batch
             panel_key = REGISTRY_KEYS.BATCH_KEY
-    
+
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
@@ -272,7 +272,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if adversarial_classifier is None:
             adversarial_classifier = self._use_adversarial_classifier
         n_steps_kl_warmup = (
-            n_steps_kl_warmup if n_steps_kl_warmup is not None else int(0.75 * self.adata.n_obs * 256./batch_size)
+            n_steps_kl_warmup
+            if n_steps_kl_warmup is not None
+            else int(0.75 * self.adata.n_obs * 256.0 / batch_size)
         )
         if reduce_lr_on_plateau:
             check_val_every_n_epoch = 1
@@ -681,13 +683,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
-        use_field=['rna', 'protein'],
+        use_field: list = None,
     ):
-        if 'rna' in use_field:
+        if use_field is None:
+            use_field = ["rna", "protein"]  # Initialize the list inside the function
+        if "rna" in use_field:
             gene_list = None
         else:
             gene_list = []
-        if 'protein' in use_field:
+        if "protein" in use_field:
             protein_list = None
         else:
             protein_list = []
@@ -732,7 +736,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         scale_protein: bool = False,
         sample_protein_mixing: bool = False,
         include_protein_background: bool = False,
-        use_field: list = ['rna', 'protein'],
+        use_field: list = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -774,6 +778,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         -------
         Differential expression DataFrame.
         """
+        if use_field is None:
+            use_field = ["rna", "protein"]  # Initialize the list inside the function
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         model_fn = partial(
@@ -789,13 +795,13 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             cite_seq_raw_counts_properties,
             use_field=use_field,
         )
-        
+
         col_names = []
-        if 'rna' in use_field:
+        if "rna" in use_field:
             col_names.append(np.asarray(_get_var_names_from_manager(adata_manager)))
-        if 'protein' in use_field:
-            col_names.append([i + '_protein' for i in self.protein_state_registry.column_names])
-            
+        if "protein" in use_field:
+            col_names.append([i + "_protein" for i in self.protein_state_registry.column_names])
+
         col_names = np.concatenate(col_names)
         result = _de_core(
             adata_manager,
@@ -816,6 +822,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_correction,
             fdr_target,
             silent,
+            pseudocounts=1e-5,
             **kwargs,
         )
 
@@ -1121,9 +1128,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).get(
                 fields.ProteinObsmField.PROTEIN_BATCH_MASK
             )
-            if 'n_panel' in self.summary_stats:
-                batch = adata_manager.get_from_registry('panel').ravel()
-                cats = adata_manager.get_state_registry('panel')[
+            if "n_panel" in self.summary_stats:
+                batch = adata_manager.get_from_registry("panel").ravel()
+                cats = adata_manager.get_state_registry("panel")[
                     fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
                 ]
             else:
@@ -1251,7 +1258,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         if panel_key is not None:
-            batch_field = fields.CategoricalObsField('panel', panel_key)
+            batch_field = fields.CategoricalObsField("panel", panel_key)
         else:
             batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
@@ -1277,8 +1284,8 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             ),
         ]
         if panel_key is not None:
-            anndata_fields.insert(0, fields.CategoricalObsField('panel', panel_key))
-        
+            anndata_fields.insert(0, fields.CategoricalObsField("panel", panel_key))
+
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
@@ -1328,7 +1335,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
-        
+
         if panel_key is not None:
             batch_field = fields.MuDataCategoricalObsField(
                 "panel",
@@ -1386,7 +1393,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 mod_required=True,
             ),
         ]
-        
+
         if panel_key:
             mudata_fields.insert(
                 0,
@@ -1394,9 +1401,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                     "panel",
                     panel_key,
                     mod_key=modalities.batch_key,
-                )
+                ),
             )
-        
+
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
