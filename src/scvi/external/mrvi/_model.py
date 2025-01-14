@@ -309,7 +309,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         adata: AnnData | None = None,
         indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
-        use_vmap: bool = True,
+        use_vmap: bool = False,
         norm: str = "l2",
         mc_samples: int = 10,
     ) -> xr.Dataset:
@@ -619,7 +619,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
         use_mean: bool = True,
-        use_vmap: bool = True,
+        use_vmap: bool = False,
     ) -> xr.DataArray:
         """Compute the local sample representation of the cells in the ``adata`` object.
 
@@ -660,7 +660,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         batch_size: int = 256,
         use_mean: bool = True,
         normalize_distances: bool = False,
-        use_vmap: bool = True,
+        use_vmap: bool = False,
         groupby: list[str] | str | None = None,
         keep_cell: bool = True,
         norm: str = "l2",
@@ -1053,7 +1053,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_cov_keys: list[str] | None = None,
         sample_subset: list[str] | None = None,
         batch_size: int = 128,
-        use_vmap: bool = True,
+        use_vmap: bool = False,
         normalize_design_matrix: bool = True,
         add_batch_specific_offsets: bool = False,
         mc_samples: int = 100,
