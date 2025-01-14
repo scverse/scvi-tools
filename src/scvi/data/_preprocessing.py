@@ -10,7 +10,7 @@ import torch
 from scipy.sparse import issparse
 
 from scvi.model._utils import parse_device_args
-from scvi.utils import track
+from scvi.utils import dependencies, track
 from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _check_nonnegative_integers
@@ -369,7 +369,7 @@ def _dna_to_code(nt: str) -> int:
         return np.random.randint(0, 3)
 
 
-# @dependencies("genomepy")
+@dependencies("genomepy")
 def add_dna_sequence(
     adata: anndata.AnnData,
     seq_len: int = 1344,
