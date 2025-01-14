@@ -304,9 +304,9 @@ class RESOLVI(
             x = adata.X
         else:
             x = adata.layers[layer]
-        assert (
-            np.min(x.sum(axis=1)) > 0
-        ), "Please filter cells with less than 5 counts prior to running resolVI."
+        assert np.min(x.sum(axis=1)) > 0, (
+            "Please filter cells with less than 5 counts prior to running resolVI."
+        )
         if batch_key is not None:
             adata.obs["_indices"] = (
                 adata.obs[batch_key].astype(str) + "_" + adata.obs_names.astype(str)
@@ -314,9 +314,9 @@ class RESOLVI(
         else:
             adata.obs["_indices"] = adata.obs_names.astype(str)
         adata.obs["_indices"] = adata.obs["_indices"].astype("category")
-        assert (
-            not adata.obs["_indices"].duplicated(keep="first").any()
-        ), "obs_names need to be unique prior to running resolVI."
+        assert not adata.obs["_indices"].duplicated(keep="first").any(), (
+            "obs_names need to be unique prior to running resolVI."
+        )
         if labels_key is None:
             label_field = CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key)
         else:
