@@ -42,13 +42,13 @@ class PyroPredictiveMixin:
         give_mean
             Give mean of distribution or sample from it.
         mc_samples
-            For distributions with no closed-form mean (e.g., `logistic normal`), how many Monte Carlo
-            samples to take for computing mean.
+            For distributions with no closed-form mean (e.g., `logistic normal`), how many
+            Monte Carlo samples to take for computing mean.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_dist
-            Return the distribution parameters of the latent variables rather than their sampled values.
-            If `True`, ignores `give_mean` and `mc_samples`.
+            Return the distribution parameters of the latent variables rather than their sampled
+            values. If `True`, ignores `give_mean` and `mc_samples`.
 
         Returns
         -------
@@ -238,9 +238,9 @@ class PyroPredictiveMixin:
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+             to `False`. Otherwise, it defaults to `True`.
 
         Returns
         -------
@@ -388,9 +388,9 @@ class PyroPredictiveMixin:
         return_mean
             Whether to return the mean of the samples.
         return_numpy
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+             to `False`. Otherwise, it defaults to `True`.
         kwargs
             Additional keyword arguments that have no effect and only serve for compatibility.
 
