@@ -169,9 +169,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         super().__init__(adata)
 
         if n_genes is None or n_regions is None:
-            assert isinstance(
-                adata, MuData
-            ), "n_genes and n_regions must be provided if using AnnData"
+            assert isinstance(adata, MuData), (
+                "n_genes and n_regions must be provided if using AnnData"
+            )
             n_genes = self.summary_stats.get("n_vars", 0)
             n_regions = self.summary_stats.get("n_atac", 0)
 
