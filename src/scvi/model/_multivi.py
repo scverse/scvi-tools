@@ -30,7 +30,8 @@ from scvi.model._utils import (
 )
 from scvi.model.base import (
     ArchesMixin,
-    BaseModelClass,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
@@ -51,7 +52,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
+class MULTIVI(
+    VAEMixin,
+    UnsupervisedTrainingMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+    ArchesMixin,
+):
     """Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
@@ -141,6 +148,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
     _module_cls = MULTIVAE
     _training_plan_cls = AdversarialTrainingPlan
+    _LATENT_QZM_KEY = "multivi_latent_qzm"
+    _LATENT_QZV_KEY = "multivi_latent_qzv"
 
     def __init__(
         self,
@@ -424,6 +433,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
         batch_size: int | None = None,
+        return_dist: bool = False,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 
@@ -440,6 +450,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Give mean of distribution or sample from it.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_dist
+            If ``True``, returns the mean and variance of the latent distribution. Otherwise,
+            returns the mean of the latent distribution.
 
         Returns
         -------
@@ -467,6 +480,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
+        qz_means = []
+        qz_vars = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
@@ -483,8 +498,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 else:
                     z = qz_m
 
+            if return_dist:
+                qz_means.append(qz_m.cpu())
+                qz_vars.append(qz_v.cpu())
+                continue
+
             latent += [z.cpu()]
-        return torch.cat(latent).numpy()
+        if return_dist:
+            return torch.cat(qz_means).numpy(), torch.cat(qz_vars).numpy()
+        else:
+            return torch.cat(latent).numpy()
 
     @torch.inference_mode()
     def get_accessibility_estimates(
@@ -624,7 +647,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         use_z_mean: bool = True,
         n_samples: int = 1,
         batch_size: int | None = None,
-        return_mean: bool = True,
+        return_mean: bool = False,
         return_numpy: bool = False,
     ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
