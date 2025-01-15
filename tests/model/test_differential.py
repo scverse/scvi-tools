@@ -49,7 +49,7 @@ def test_features():
         raise ValueError("The pseudocount offset was not properly estimated.")
 
 
-def test_differential_computation(save_path="."):
+def test_differential_computation(save_path):
     n_latent = 5
     adata = synthetic_iid(batch_size=50, n_genes=30, n_proteins=20, n_regions=20)
     SCVI.setup_anndata(
