@@ -201,7 +201,8 @@ class ArchesMixin:
                 continue
             if type(new_constraint) is not type(old_constraint):
                 logging.warning(
-                    f"Constraint mismatch for {name} in pyro param_store. Cannot transfer map parameter."
+                    f"Constraint mismatch for {name} in pyro param_store. "
+                    f"Cannot transfer map parameter."
                 )
                 pyro.param(name, new_param, constraint=new_constraint)
                 continue
