@@ -444,7 +444,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
         r"""\.
@@ -470,8 +469,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
-        two_sided
-            Whether to perform a two-sided test, or a one-sided test.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -507,20 +504,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
 
-        # TODO check if change_fn in kwargs and raise error if so
-        def change_fn(a, b):
-            return a - b
-
-        if two_sided:
-
-            def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
-
-        else:
-
-            def m1_domain_fn(samples):
-                return samples >= delta
-
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
@@ -539,8 +522,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             delta=delta,
             batch_correction=batch_correction,
             fdr=fdr_target,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
             silent=silent,
             **kwargs,
         )
