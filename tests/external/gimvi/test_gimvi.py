@@ -127,6 +127,12 @@ def test_gimvi():
     model.get_latent_representation()
     model.get_imputed_values()
     model.get_imputed_values(normalized=False)
+    model.get_normalized_expression(adata=adata_seq)
+    model.get_normalized_expression(adata=adata_spatial)
+    model.get_normalized_expression(adata=adata_seq, transform_batch="batch_1")
+    model.get_normalized_expression(adata=adata_spatial, transform_batch="batch_1")
+    # model.get_normalized_expression(adata=adata_seq, n_samples=2)
+    # model.get_normalized_expression(adata=adata_spatial, n_samples=2)
 
     adata_spatial.var_names += "asdf"
     GIMVI.setup_anndata(

@@ -283,6 +283,7 @@ class AutoZIVAE(VAE):
         cat_covs=None,
         n_samples: int = 1,
         eps_log: float = 1e-8,
+        transform_batch: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Run the generative model."""
         outputs = super().generative(
@@ -293,6 +294,7 @@ class AutoZIVAE(VAE):
             cat_covs=cat_covs,
             y=y,
             size_factor=size_factor,
+            transform_batch=transform_batch,
         )
         # Rescale dropout
         rescaled_dropout = self.rescale_dropout(outputs["px"].zi_logits, eps_log=eps_log)

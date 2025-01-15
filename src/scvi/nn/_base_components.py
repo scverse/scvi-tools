@@ -565,6 +565,7 @@ class MultiEncoder(nn.Module):
         n_layers_individual: int = 1,
         n_layers_shared: int = 2,
         n_cat_list: Iterable[int] = None,
+        distribution: str = "normal",
         dropout_rate: float = 0.1,
         return_dist: bool = False,
         **kwargs,
@@ -596,6 +597,11 @@ class MultiEncoder(nn.Module):
             dropout_rate=dropout_rate,
             **kwargs,
         )
+
+        if distribution == "ln":
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = _identity
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)

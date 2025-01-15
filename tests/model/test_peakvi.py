@@ -139,6 +139,9 @@ def test_peakvi():
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+    vae.get_normalized_expression()
+    vae.get_normalized_expression(transform_batch="batch_1")
+    vae.get_normalized_expression(n_samples=2)
 
 
 def single_pass_for_online_update(model):
