@@ -14,7 +14,6 @@ import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
-from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
@@ -330,7 +329,8 @@ class TerminateOnNaN(Callback):
                 trainer.should_stop = True
                 self.stopped_epoch = trainer.current_epoch
                 if self.verbose:
-                    self._log_info(trainer, reason)
+                    print(reason)
+                return
 
     def on_after_backward(self, trainer, pl_module) -> None:
         # Check for NaN/Inf in gradients
@@ -343,15 +343,8 @@ class TerminateOnNaN(Callback):
                     trainer.should_stop = True
                     self.stopped_epoch = trainer.current_epoch
                     if self.verbose:
-                        self._log_info(trainer, reason)
-                    break
-
-    @staticmethod
-    def _log_info(trainer: pl.Trainer, message: str) -> None:
-        rank = trainer.global_rank if trainer.world_size > 1 else None
-        message = rank_prefixed_message(message, rank)
-        if rank is None or rank == 0:
-            print(message)
+                        print(reason)
+                    return
 
 
 class JaxModuleInit(Callback):
