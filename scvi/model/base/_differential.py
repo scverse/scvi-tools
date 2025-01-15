@@ -218,13 +218,13 @@ class DifferentialComputation:
             selection=idx1,
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
-            n_samples=n_samples_overall,
+            n_samples_overall=n_samples_overall,
         )
         scales_batches_2 = self.scale_sampler(
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
-            n_samples=n_samples_overall,
+            n_samples_overall=n_samples_overall,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
