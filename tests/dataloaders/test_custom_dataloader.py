@@ -5,7 +5,6 @@ import sys
 from pprint import pprint
 from time import time
 
-import lamindb as ln
 import numpy as np
 import pandas as pd
 import psutil
@@ -18,9 +17,12 @@ from torch.utils.data import DataLoader
 import scvi
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+from scvi.utils import dependencies
 
 
 class MappedCollectionDataModule(LightningDataModule):
+    import lamindb as ln
+
     def __init__(
         self,
         collection: ln.Collection,
@@ -198,7 +200,10 @@ class MappedCollectionDataModule(LightningDataModule):
 
 
 @pytest.mark.custom_dataloader
+@dependencies("lamindb")
 def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
+    import lamindb as ln
+
     # a test for mapped collection
     collection = ln.Collection.get(name="covid_normal_lung")
     datamodule = MappedCollectionDataModule(
@@ -587,7 +592,10 @@ def test_czi_custom_dataloader_scanvi(save_path: str = "."):
 
 
 @pytest.mark.custom_dataloader
+@dependencies("lamindb")
 def test_scdataloader_custom_dataloader_scvi(save_path: str = "."):
+    import lamindb as ln
+
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
     from scdataloader import Collator, DataModule, SimpleAnnDataset
 
