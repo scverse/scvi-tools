@@ -147,8 +147,7 @@ class ArchesMixin:
 
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
-                "Query integration should be performed using models trained with "
-                "version >= 0.8",
+                "Query integration should be performed using models trained with version >= 0.8",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
