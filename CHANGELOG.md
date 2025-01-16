@@ -13,7 +13,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
-    transcriptomics {pr}`30XX`.
+    transcriptomics {pr}`3144`.
 
 #### Fixed
 

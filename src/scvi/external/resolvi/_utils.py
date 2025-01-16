@@ -15,7 +15,7 @@ from scvi.model._utils import _get_batch_code_from_category, parse_device_args
 logger = logging.getLogger(__name__)
 
 
-class PyroPredictiveMixin:
+class ResolVIPredictiveMixin:
     """Mixin class for generating samples from posterior distribution using infer.predictive."""
 
     @torch.inference_mode()
@@ -24,6 +24,7 @@ class PyroPredictiveMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
+        mc_samples: int = 1, # consistency, noqa, pylint: disable=unused-argument
         batch_size: int | None = None,
         return_dist: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
@@ -42,8 +43,7 @@ class PyroPredictiveMixin:
         give_mean
             Give mean of distribution or sample from it.
         mc_samples
-            For distributions with no closed-form mean (e.g., `logistic normal`), how many
-            Monte Carlo samples to take for computing mean.
+            For consistency with scVI, this parameter is ignored.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         return_dist
@@ -202,7 +202,6 @@ class PyroPredictiveMixin:
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
-        weights: str | np.ndarray | None = None,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -437,7 +436,6 @@ class PyroPredictiveMixin:
             adata=adata, indices=indices_, shuffle=False, batch_size=batch_size
         )
 
-        neighbor_abundance = []
         sampled_prediction = self.sample_posterior(
             input_dl=dl,
             model=self.module.model_corrected,

@@ -26,7 +26,7 @@ from scvi import REGISTRY_KEYS
 from scvi.dataloaders import AnnTorchDataset
 from scvi.module._classifier import Classifier
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
-from scvi.nn import DecoderSCVI, Encoder, _utils, one_hot
+from scvi.nn import DecoderSCVI, Encoder
 
 _RESOLVAE_PYRO_MODULE_NAME = "resolvae"
 
@@ -40,30 +40,38 @@ class RESOLVAEModel(PyroModule):
         Number of input genes
     n_obs
         Number of total input cells
-    n_batch
-        Number of batches, if 0, no batch correction is performed.
     n_neighbors
         Number of spatial neighbors to consider for diffusion.
+    z_encoder
+        Shared encoder between model (neighboring cells) and guide.
+    expression_anntorchdata
+        AnnTorchDataset containing expression data.
+    n_batch
+        Number of batches, if 0, no batch correction is performed.
     n_hidden
         Number of nodes per hidden layer
     n_latent
         Dimensionality of the latent space
+    mixture_k
+        Number of components in the Mixture-of-Gaussian prior
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     n_cats_per_cov
         Number of categories for each extra categorical covariate
+    n_labels
+        Number of cell-type labels in the dataset
     dispersion
         One of the following
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
-    log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
     gene_likelihood
         One of
 
         * ``'nb'`` - Negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    semisupervised
+        Whether to use a semi-supervised model
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder.
         This option only applies when `n_layers` > 1.
@@ -72,15 +80,34 @@ class RESOLVAEModel(PyroModule):
         Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
+    classifier_parameters
+        Parameters for the cell-type classifier
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    prior_true_amount
+        Prior for true_proportion.
+        Equals Gamma(prior_proportions_rate, prior_proportions_rate/prior_true_amount)
+        Default is 1.0
     prior_diffusion_amount
-        Prior for diffusion_proportion equals Gamma(prior_distribution_amount, 1.5)
+        Prior for diffusion_proportion.
+        Equals Gamma(prior_proportions_rate, prior_proportions_rate/prior_diffusion_amount)
+        Default is 0.3
+    sparsity_diffusion
+        Prior for sparsity_diffusion. Controls the concentration of the Dirichlet distribution.
+        Equals Gamma(prior_proportions_rate, prior_proportions_rate/sparsity_diffusion)
+        Default is 3.0
     background_ratio:
-        Prior for background_proportion equals Gamma(1.5 + (50. * background_ratio, 1.5)
+        Prior for background_proportion
+        Equals Gamma(prior_proportions_rate,
+                     prior_proportions_rate/(10*background_ratio*prior_true_amount))
+        Default is 0.1
+    prior_proportions_rate:
+        Rate parameter for the prior proportions.
     median_distance:
         Kernel size in the RBF kernel to estimate distances between cells and neighbors.
+    encode_covariates:
+        Whether to concatenate covariates to expression in encoder
     """
 
     def __init__(
@@ -106,7 +133,7 @@ class RESOLVAEModel(PyroModule):
         classifier_parameters: dict | None = None,
         prior_true_amount: float = 1.0,
         prior_diffusion_amount: float = 0.3,
-        sparsity_diffusion: float = 20.0,
+        sparsity_diffusion: float = 3.0,
         background_ratio: float = 0.1,
         prior_proportions_rate: float = 10.0,
         median_distance: float = 1.0,
@@ -360,7 +387,10 @@ class RESOLVAEModel(PyroModule):
                 "background",
                 background_mixture_proportion.unsqueeze(-1)
                 * torch.exp(library)
-                * torch.matmul(_utils.one_hot(batch_index, self.n_batch), per_gene_background),
+                * torch.matmul(
+                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch).float(),
+                    per_gene_background
+                ),
                 event_dim=1,
             )
 
@@ -637,38 +667,37 @@ class RESOLVAEGuide(PyroModule):
         Number of input genes
     n_obs
         Number of total input cells
-    n_batch
-        Number of batches, if 0, no batch correction is performed.
     n_neighbors
         Number of spatial neighbors to consider for diffusion.
-    n_hidden
-        Number of nodes per hidden layer
+    z_encoder
+        Shared encoder between model (neighboring cells) and guide.
     n_latent
-        Dimensionality of the latent space
+        Dimensionality of the latent space.
+    n_batch
+        Number of batches, if 0, no batch correction is performed.
     n_layers
-        Number of hidden layers used for encoder and decoder NNs
+        Number of hidden layers used for encoder and decoder NNs.
+    n_hidden_encoder
+        Number of nodes per hidden layer in the encoder.
     n_cats_per_cov
-        Number of categories for each extra categorical covariate
-    dropout_rate
-        Dropout rate for neural networks
+        Number of categories for each extra categorical covariate.
     dispersion
         One of the following
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
-    log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
-    gene_likelihood
-        One of
-
-        * ``'nb'`` - Negative binomial distribution
-        * ``'poisson'`` - Poisson distribution
+    downsample_counts_mean
+        Mean of the log-normal distribution used to downsample counts.
+    downsample_counts_std
+        Standard deviation of the log-normal distribution used to downsample counts.
     encode_covariates
         Whether to concatenate covariates to expression in encoder
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder.
         This option only applies when `n_layers` > 1.
         The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_norm
+        Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
     use_size_factor_key
@@ -676,21 +705,10 @@ class RESOLVAEGuide(PyroModule):
         Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
-    library_log_means
-        1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
-        not using observed library size.
-    library_log_vars
-        1 x n_batch array of variances of the log library sizes.
-        Parameterizes prior on library size if not using observed library size.
-    var_activation
-        Callable used to ensure positivity of the variational distributions' variance.
-        When `None`, defaults to `torch.exp`.
-    prior_diffusion_amount
-        Prior for diffusion_proportion equals Gamma(prior_distribution_amount, 1.5)
-    background_ratio:
-        Prior for background_proportion equals Gamma(1.5 + (50. * background_ratio, 1.5)
     median_distance:
         Kernel size in the RBF kernel to estimate distances between cells and neighbors.
+    diffusion_eps:
+        Epsilon value for diffusion.
     """
 
     def __init__(
@@ -765,7 +783,7 @@ class RESOLVAEGuide(PyroModule):
         )
 
     @auto_move_data
-    def forward(
+    def forward( # not used arguments to have same set of arguments in model and guide
         self,
         x,
         ind_x,
@@ -849,7 +867,8 @@ class RESOLVAEGuide(PyroModule):
             )
 
             if self.dispersion == "gene-batch":
-                px_r_inv = F.linear(one_hot(batch_index, self.n_batch), px_r_mle)
+                px_r_inv = F.linear(
+                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch), px_r_mle)
             elif self.dispersion == "gene":
                 px_r_inv = px_r_mle
             pyro.sample("px_r_inv", Delta(px_r_inv, event_dim=1))
@@ -923,28 +942,34 @@ class RESOLVAEGuide(PyroModule):
 
 class RESOLVAE(PyroBaseModuleClass):
     """
-    Module uses a variational mixture model. An implementation of resolVI.
+    Implementation of resolVI.
 
     Parameters
     ----------
-    encoder
-        Common encoder for guide and model
     n_input
         Number of input genes
     n_obs
         Number of total input cells
-    n_batch
-        Number of batches, if 0, no batch correction is performed.
     n_neighbors
         Number of spatial neighbors to consider for diffusion.
+    expression_anntorchdata
+        AnnTorchDataset with expression data.
+    n_batch
+        Number of batches, if 0, no batch correction is performed.
     n_hidden
-        Number of nodes per hidden layer
+        Number of nodes per hidden layer in the decoder
+    n_hidden_encoder
+        Number of nodes per hidden layer in the encoder
     n_latent
         Dimensionality of the latent space
+    mixture_k
+        Number of components in the Mixture-of-Gaussian prior
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     n_cats_per_cov
         Number of categories for each extra categorical covariate
+    n_labels
+        Number of cell-type labels in the dataset
     dropout_rate
         Dropout rate for neural networks
     dispersion
@@ -952,34 +977,58 @@ class RESOLVAE(PyroBaseModuleClass):
 
         * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
         * ``'gene-batch'`` - dispersion can differ between different batches
-    log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
     gene_likelihood
         One of
         * ``'nb'`` - Negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    semi_supervised
+        Whether to use a semi-supervised model
     encode_covariates
         Whether to concatenate covariates to expression in encoder
     deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder.
         This option only applies when `n_layers` > 1.
         The covariates are concatenated to the input of subsequent hidden layers.
+    use_batch_norm
+        Whether to use batch norm in layers
     use_layer_norm
         Whether to use layer norm in layers
-    use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor.
-        Takes priority over `use_observed_lib_size`.
-    use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`.
+    classifier_parameters
+        Parameters for the classifier
+    prior_true_amount
+        Prior for true_proportion.
+        Equals Gamma(prior_proportions_rate, prior_proportions_rate/prior_true_amount)
+        Default is 1.0
     prior_diffusion_amount
-        Prior for diffusion_proportion equals Gamma(prior_distribution_amount, 1.5)
+        Prior for diffusion_proportion.
+        Equals Gamma(prior_proportions_rate, prior_proportions_rate/prior_diffusion_amount)
+        Default is 0.3
+    sparsity_diffusion
+        Prior for sparsity_diffusion. Controls the concentration of the Dirichlet distribution.
+        Equals Gamma(prior_proportions_rate, prior_proportions_rate/sparsity_diffusion)
+        Default is 3.0
     background_ratio:
-        Prior for background_proportion equals Gamma(1.5 + (50. * background_ratio, 1.5)
+        Prior for background_proportion
+        Equals Gamma(prior_proportions_rate,
+                     prior_proportions_rate/(10*background_ratio*prior_true_amount))
+        Default is 0.1
+    prior_proportions_rate:
+        Rate parameter for the prior proportions.
     median_distance:
         Kernel size in the RBF kernel to estimate distances between cells and neighbors.
+    downsample_counts_mean:
+        Mean of the log-normal distribution used to downsample counts.
+    downsample_counts_std:
+        Standard deviation of the log-normal distribution used to downsample counts.
+    diffusion_eps:
+        Epsilon value for diffusion. Creates an offset to stabilize training.
+    encode_covariates:
+        Whether to concatenate covariates to expression in encoder
+    latent_distribution:
+        Placeholder for compatibility with other models.
     """
 
     def __init__(
@@ -1010,11 +1059,12 @@ class RESOLVAE(PyroBaseModuleClass):
         prior_diffusion_amount: float = 0.3,
         sparsity_diffusion: float = 3.0,
         background_ratio: float = 0.1,
+        prior_proportions_rate: float = 10.0,
         median_distance: float = 1.0,
         downsample_counts_mean: float | None = None,
         downsample_counts_std: float = 1.0,
         diffusion_eps: float = 0.01,
-        latent_distribution: str | None = None,  # placeholder
+        latent_distribution: str | None = None,  # noqa,placeholder
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -1096,6 +1146,7 @@ class RESOLVAE(PyroBaseModuleClass):
             prior_diffusion_amount=prior_diffusion_amount,
             sparsity_diffusion=sparsity_diffusion,
             background_ratio=background_ratio,
+            prior_proportions_rate=prior_proportions_rate,
             median_distance=median_distance,
         )
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch

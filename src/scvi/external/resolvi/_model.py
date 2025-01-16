@@ -29,7 +29,7 @@ from scvi.model.base._de_core import _de_core
 from scvi.utils import de_dsp, setup_anndata_dsp
 
 from ._module import RESOLVAE
-from ._utils import PyroPredictiveMixin
+from ._utils import ResolVIPredictiveMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -41,10 +41,10 @@ logger = logging.getLogger(__name__)
 
 
 class RESOLVI(
-    PyroSviTrainMixin, PyroSampleMixin, PyroPredictiveMixin, BaseModelClass, ArchesMixin
+    PyroSviTrainMixin, PyroSampleMixin, ResolVIPredictiveMixin, BaseModelClass, ArchesMixin
 ):
     """
-    single-cell Variational Inference [Lopez18]_.
+    ResolVI addresses noise and bias in single-cell resolved spatial transcriptomics data.
 
     Parameters
     ----------
@@ -200,10 +200,9 @@ class RESOLVI(
         lr
             Learning rate for optimization.
         lr_extra
-            Learning rate for non amortized parameters.
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+            Learning rate for parameters (non-amortized and custom ones)
+        extra_lr_parameters
+            List of parameters to train with `lr_extra` learning rate.
         batch_size
             Minibatch size to use during training.
         weight_decay
@@ -289,6 +288,7 @@ class RESOLVI(
 
         Parameters
         ----------
+        %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
@@ -533,6 +533,9 @@ class RESOLVI(
         %(de_batch_size)s
         %(de_fdr_target)s
         %(de_silent)s
+        filter_outlier_cells
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -595,11 +598,13 @@ class RESOLVI(
         adata
             AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
         indices
-            Return probabilities for each class label.
+            Subsample AnnData to these indices.
         soft
             If True, returns per class probabilities
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        num_samples
+            Samples to draw from the posterior for cell-type prediction.
         """
         adata = self._validate_anndata(adata)
 
