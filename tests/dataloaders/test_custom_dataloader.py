@@ -16,13 +16,12 @@ from torch.utils.data import DataLoader
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.model import SCVI
 from scvi.utils import dependencies
 
 
 @pytest.mark.custom_dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
+def test_lamindb_dataloader_scvi_scanvi(save_path: str):
     import lamindb as ln
 
     class MappedCollectionDataModule(LightningDataModule):
@@ -209,46 +208,49 @@ def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
 
     # a test for mapped collection
     collection = ln.Collection.get(name="covid_normal_lung")
+    artifacts = collection.artifacts.all()
+    artifacts.df()
+
     datamodule = MappedCollectionDataModule(
-        collection, batch_key="assay", batch_size=128, join="inner"
+        collection, batch_key="assay", batch_size=1024, join="inner"
     )
     model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
     pprint(model.summary_stats)
     pprint(model.module)
-    dataloader = datamodule.inference_dataloader()
-    adata = collection.load()  # try to compare this in regular settings
+    inference_dataloader = datamodule.inference_dataloader()
 
     # Using regular adata laoder
-    # setup large
-    SCVI.setup_anndata(
-        adata,
-        batch_key="assay",
-    )
-    model_reg = SCVI(adata)
-    start_time = time()
-    model_reg.train(max_epochs=10, batch_size=1024)
-    time_reg = time() - start_time
-    print(time_reg)
+    # adata = collection.load()  # try to compare this in regular settings
+    # # setup large
+    # SCVI.setup_anndata(
+    #     adata,
+    #     batch_key="assay",
+    # )
+    # model_reg = SCVI(adata)
+    # start_time = time()
+    # model_reg.train(max_epochs=10, batch_size=1024)
+    # time_reg = time() - start_time
+    # print(time_reg)
 
     start_time = time()
     model.train(max_epochs=10, batch_size=1024, datamodule=datamodule)
     time_lamin = time() - start_time
     print(time_lamin)
 
-    _ = model.get_elbo(dataloader=dataloader)
-    _ = model.get_marginal_ll(dataloader=dataloader)
-    _ = model.get_reconstruction_error(dataloader=dataloader)
-    _ = model.get_latent_representation(dataloader=dataloader)
+    _ = model.get_elbo(dataloader=inference_dataloader)
+    _ = model.get_marginal_ll(dataloader=inference_dataloader)
+    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model.get_latent_representation(dataloader=inference_dataloader)
 
     model.save("lamin_model", save_anndata=False, overwrite=True)
     model_query = model.load_query_data(
         adata=False, reference_model="lamin_model", registry=datamodule.registry
     )
     model_query.train(max_epochs=1, datamodule=datamodule)
-    _ = model_query.get_elbo(dataloader=dataloader)
-    _ = model_query.get_marginal_ll(dataloader=dataloader)
-    _ = model_query.get_reconstruction_error(dataloader=dataloader)
-    _ = model_query.get_latent_representation(dataloader=dataloader)
+    _ = model_query.get_elbo(dataloader=inference_dataloader)
+    _ = model_query.get_marginal_ll(dataloader=inference_dataloader)
+    _ = model_query.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model_query.get_latent_representation(dataloader=inference_dataloader)
 
     adata = collection.load(join="inner")
     model_query_adata = model.load_query_data(adata=adata, reference_model="lamin_model")
@@ -259,7 +261,7 @@ def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
     _ = model_query_adata.get_marginal_ll()
     _ = model_query_adata.get_reconstruction_error()
     _ = model_query_adata.get_latent_representation()
-    _ = model_query_adata.get_latent_representation(dataloader=dataloader)
+    _ = model_query_adata.get_latent_representation(dataloader=inference_dataloader)
 
     model.save("lamin_model", save_anndata=False, overwrite=True)
     model.load("lamin_model", adata=False)
@@ -276,7 +278,7 @@ def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader_scvi(save_path: str = "."):
+def test_czi_custom_dataloader_scvi(save_path: str):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
@@ -333,7 +335,7 @@ def test_czi_custom_dataloader_scvi(save_path: str = "."):
     #     list(datamodule.datapipe.var_query.coords[0] if datamodule.datapipe.var_query is not None
     #          else range(datamodule.n_vars)))]
 
-    # basicaly we should mimin everything below to any model census in scvi
+    # basicaly we should mimiC everything below to any model census in scvi
     adata_orig = synthetic_iid()
     scvi.model.SCVI.setup_anndata(adata_orig, batch_key="batch")
 
@@ -354,6 +356,7 @@ def test_czi_custom_dataloader_scvi(save_path: str = "."):
 
     scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
     model_census = scvi.model.SCVI(
+        adata=None,
         registry=datamodule.registry,
         gene_likelihood="nb",
         encode_covariates=False,
@@ -482,7 +485,7 @@ def test_czi_custom_dataloader_scvi(save_path: str = "."):
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader_scanvi(save_path: str = "."):
+def test_czi_custom_dataloader_scanvi(save_path: str):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
@@ -544,7 +547,7 @@ def test_czi_custom_dataloader_scanvi(save_path: str = "."):
     #          else range(datamodule.n_vars)))]
 
     # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
-    # model_census = scvi.model.SCVI(
+    # model_census = scvi.model.SCVI(adata=None,
     #     registry=datamodule.registry,
     #     gene_likelihood="nb",
     #     encode_covariates=False,
@@ -562,7 +565,7 @@ def test_czi_custom_dataloader_scanvi(save_path: str = "."):
 
     scvi.model.SCANVI.setup_datamodule(datamodule)
     pprint(datamodule.registry)
-    model = scvi.model.SCANVI(registry=datamodule.registry, datamodule=datamodule)
+    model = scvi.model.SCANVI(adata=None, registry=datamodule.registry, datamodule=datamodule)
     model.view_anndata_setup(datamodule)
     adata_manager = model.adata_manager
     pprint(adata_manager.registry)
@@ -596,7 +599,7 @@ def test_czi_custom_dataloader_scanvi(save_path: str = "."):
 
 @pytest.mark.custom_dataloader
 @dependencies("lamindb")
-def test_scdataloader_custom_dataloader_scvi(save_path: str = "."):
+def test_scdataloader_custom_dataloader_scvi(save_path: str):
     import lamindb as ln
 
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
@@ -716,7 +719,7 @@ def test_scdataloader_custom_dataloader_scvi(save_path: str = "."):
     _ = model.get_latent_representation(dataloader=dataloader)
 
     # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
-    # model_lamindb = scvi.model.SCVI(
+    # model_lamindb = scvi.model.SCVI(adata=None,
     #     registry=datamodule.registry,
     #     gene_likelihood="nb",
     #     encode_covariates=False,
