@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 import sys
 from pprint import pprint
+from time import time
 
-# import numpy as np
 import lamindb as ln
 import numpy as np
 import pandas as pd
@@ -17,6 +17,7 @@ from torch.utils.data import DataLoader
 
 import scvi
 from scvi.data import synthetic_iid
+from scvi.model import SCVI
 
 
 class MappedCollectionDataModule(LightningDataModule):
@@ -196,7 +197,8 @@ class MappedCollectionDataModule(LightningDataModule):
             return len(self.dataloader)
 
 
-def test_lamindb_dataloader_scvi(save_path: str):
+@pytest.mark.custom_dataloader
+def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
     # a test for mapped collection
     collection = ln.Collection.get(name="covid_normal_lung")
     datamodule = MappedCollectionDataModule(
@@ -206,7 +208,25 @@ def test_lamindb_dataloader_scvi(save_path: str):
     pprint(model.summary_stats)
     pprint(model.module)
     dataloader = datamodule.inference_dataloader()
-    model.train(max_epochs=1, datamodule=datamodule)
+    adata = collection.load()  # try to compare this in regular settings
+
+    # Using regular adata laoder
+    # setup large
+    SCVI.setup_anndata(
+        adata,
+        batch_key="assay",
+    )
+    model_reg = SCVI(adata)
+    start_time = time()
+    model_reg.train(max_epochs=10, batch_size=1024)
+    time_reg = time() - start_time
+    print(time_reg)
+
+    start_time = time()
+    model.train(max_epochs=10, batch_size=1024, datamodule=datamodule)
+    time_lamin = time() - start_time
+    print(time_lamin)
+
     _ = model.get_elbo(dataloader=dataloader)
     _ = model.get_marginal_ll(dataloader=dataloader)
     _ = model.get_reconstruction_error(dataloader=dataloader)
@@ -248,12 +268,11 @@ def test_lamindb_dataloader_scvi(save_path: str):
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader_scvi(save_path):
+def test_czi_custom_dataloader_scvi(save_path: str = "."):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
-        "/home/runner/work/scvi-tools/scvi-tools/"
-        "cellxgene-census/api/python/cellxgene_census/src",
+        "/home/runner/work/scvi-tools/scvi-tools/cellxgene-census/api/python/cellxgene_census/src",
     )
     sys.path.insert(0, "src")
     import cellxgene_census
@@ -455,12 +474,11 @@ def test_czi_custom_dataloader_scvi(save_path):
 
 
 @pytest.mark.custom_dataloader
-def test_czi_custom_dataloader_scanvi(save_path):
+def test_czi_custom_dataloader_scanvi(save_path: str = "."):
     # should be ready for importing the cloned branch on a remote machine that runs github action
     sys.path.insert(
         0,
-        "/home/runner/work/scvi-tools/scvi-tools/"
-        "cellxgene-census/api/python/cellxgene_census/src",
+        "/home/runner/work/scvi-tools/scvi-tools/cellxgene-census/api/python/cellxgene_census/src",
     )
     sys.path.insert(0, "src")
     import cellxgene_census
@@ -569,7 +587,7 @@ def test_czi_custom_dataloader_scanvi(save_path):
 
 
 @pytest.mark.custom_dataloader
-def test_scdataloader_custom_dataloader_scvi(save_path):
+def test_scdataloader_custom_dataloader_scvi(save_path: str = "."):
     os.system("lamin init --storage ~/scdataloader2 --schema bionty")
     from scdataloader import Collator, DataModule, SimpleAnnDataset
 
@@ -703,9 +721,3 @@ def test_scdataloader_custom_dataloader_scvi(save_path):
     # We have to create a registry without setup_anndata that contains the same elements
     # The other way will be to fill the model ,LIKE IN CELLXGENE NOTEBOOK
     # need to pass here new object of registry taht contains everything we will need
-
-
-@pytest.mark.custom_dataloader
-def test_lamindb_custom_dataloader_scvi(save_path):
-    # a test for mapped collection
-    return
