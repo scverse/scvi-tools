@@ -112,6 +112,9 @@ tutorials = [
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
 ]
+dataloaders = [
+    "scdataloader"
+]
 
 all = ["scvi-tools[dev,docs,tutorials]"]
 

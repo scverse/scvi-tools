@@ -386,7 +386,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     def __init__(
         self,
-        adata_manager: AnnDataManager,
+        adata_manager: AnnDataManager | None = None,
+        datamodule: pl.LightningDataModule | None = None,
         train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,

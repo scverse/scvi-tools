@@ -140,6 +140,7 @@ class SpatialDeconv(BaseModuleClass):
         n_spots: int,
         sc_params: tuple[np.ndarray],
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
+        **model_kwargs,
     ):
         super().__init__()
         # unpack and copy parameters
