@@ -24,6 +24,23 @@ def test_resolvi_train(adata):
         max_epochs=2,
     )
 
+def test_resolvi_save_load(adata):
+    RESOLVI.setup_anndata(adata)
+    model = RESOLVI(adata)
+    model.train(
+        max_epochs=2,
+    )
+    hist_elbo = model.history_["elbo_train"]
+    latent = model.get_latent_representation()
+    assert latent.shape == (adata.n_obs, model.module.n_latent)
+    model.differential_expression(groupby="labels")
+    model.differential_expression(groupby="labels", weights="importance")
+    model.save("test_resolvi", save_anndata=True, overwrite=True)
+    model2 = model.load("test_resolvi")
+    np.testing.assert_array_equal(model2.history_["elbo_train"], hist_elbo)
+    latent2 = model2.get_latent_representation()
+    assert np.allclose(latent, latent2)
+    model.load_query_data(reference_model="test_resolvi", adata=adata)
 
 def test_resolvi_downstream(adata):
     RESOLVI.setup_anndata(adata)
@@ -35,17 +52,11 @@ def test_resolvi_downstream(adata):
     assert latent.shape == (adata.n_obs, model.module.n_latent)
     model.differential_expression(groupby="labels")
     model.differential_expression(groupby="labels", weights="importance")
-    model.save("test_resolvi", save_anndata=True, overwrite=True)
-    model2 = model.load("test_resolvi")
-    latent2 = model2.get_latent_representation()
-    assert np.allclose(latent, latent2)
-
     model_query = model.load_query_data(reference_model=model, adata=adata)
     model_query = model.load_query_data(reference_model="test_resolvi", adata=adata)
     model_query.train(
         max_epochs=2,
     )
-
 
 def test_resolvi_semisupervised(adata):
     RESOLVI.setup_anndata(adata, labels_key="labels")
@@ -58,4 +69,7 @@ def test_resolvi_semisupervised(adata):
         groupby="batch",
         neighbor_key="index_neighbor",
     )
-    model.predict()
+    pred = model.predict(soft=True)
+    assert pred.shape == (adata.n_obs, model.summary_stats.n_labels - 1)
+    pred = model.predict(soft=False)
+    assert pred.shape == (adata.n_obs,)
