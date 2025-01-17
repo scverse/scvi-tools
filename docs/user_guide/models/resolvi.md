@@ -187,4 +187,5 @@ the cell-type labels.
 Differential niche abundance analysis is achieved with {meth}`~scvi.external.RESOLVI.differential_niche_abundance`.
 A semisupervised model is necessary to perform this analysis as it leverages the cell-type classifier.
 ResolVI tests differences in abundance of various cell-types in the neighborhood of a cell $n$
-$c_{n} = h_{nu}\left(z_n\right)$. Cell-type prediction vectors are averaged weighted by the distance of a specific cell.
+$c_{n} = h_{nu}\left(z_n\right)$. Cell-type prediction vectors are averaged weighted by the distance of a specific cell
+and differential computation is performed.
