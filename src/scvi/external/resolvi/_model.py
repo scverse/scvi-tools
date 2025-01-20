@@ -441,7 +441,7 @@ class RESOLVI(
         %(de_group1)s
         %(de_group2)s
         %(de_idx1)s
-        %(de_idx2)
+        %(de_idx2)s
         %(de_subset_idx)s
         %(de_mode)s
         %(de_delta)s
