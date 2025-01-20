@@ -36,7 +36,7 @@ acceleration, etc.
 
 # Rapid development of novel probabilistic models
 
-scvi-tools contains the building blocks to develop and deploy novel probablistic models. These
+scvi-tools contains the building blocks to develop and deploy novel probabilistic models. These
 building blocks are powered by popular probabilistic and machine learning frameworks such as
 [PyTorch Lightning] and [Pyro]. For an overview of how the scvi-tools package is structured, you
 may refer to the [codebase overview] page.
@@ -84,7 +84,7 @@ If you use `scvi-tools` in your work, please cite
 >
 > _Nature Biotechnology_ 2022 Feb 07. doi: [10.1038/s41587-021-01206-w](https://doi.org/10.1038/s41587-021-01206-w).
 
-along with the publicaton describing the model used.
+along with the publication describing the model used.
 
 You can cite the scverse publication as follows:
 
