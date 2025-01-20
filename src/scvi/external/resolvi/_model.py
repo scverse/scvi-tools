@@ -441,7 +441,8 @@ class RESOLVI(
         %(de_group1)s
         %(de_group2)s
         %(de_idx1)s
-        %(de_idx2)s
+        %(de_idx2)
+        %(de_subset_idx)s
         %(de_mode)s
         %(de_delta)s
         %(de_batch_size)s
@@ -451,6 +452,10 @@ class RESOLVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        weights
+        filter_outlier_cells
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -526,8 +531,11 @@ class RESOLVI(
         %(de_groupby)s
         %(de_group1)s
         %(de_group2)s
+        neighbor_key
+            Obsm key containing the spatial neighbors of each cell.
         %(de_idx1)s
         %(de_idx2)s
+        %(de_subset_idx)s
         %(de_mode)s
         %(de_delta)s
         %(de_batch_size)s
@@ -535,7 +543,10 @@ class RESOLVI(
         %(de_silent)s
         filter_outlier_cells
             Whether to filter outlier cells with
-            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

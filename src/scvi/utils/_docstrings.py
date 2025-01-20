@@ -70,6 +70,11 @@ de_fn_kwargs = """\
 fn_kwargs
     Additional kwargs for the normalized gene expression estimation.
     Only applies if `importance_sampling` is True."""
+de_subset_idx = """\
+subset_idx
+    Can be of three types. First, it can corresponds to a boolean mask that
+    has the same shape as adata. It can also corresponds to a list of indices.
+    Last, it can correspond to string query of adata.obs columns."""
 
 de_dsp = DocstringProcessor(
     de_adata=de_adata,
@@ -89,6 +94,7 @@ de_dsp = DocstringProcessor(
     de_silent=de_silent,
     de_importance_sampling=de_importance_sampling,
     de_fn_kwargs=de_fn_kwargs,
+    de_subset_idx=de_subset_idx,
 )
 
 
