@@ -44,12 +44,12 @@ ResolVI posits that the observed expression of cell $n$ in gene $g$, $x_{ng}$ is
     r_{ng} &\sim \mathrm{Exponential}(R) \\
     h_{ng} &=
     \mathrm{Gamma}(r_{ng}, \frac{r_{ng}}{\alpha_0 f_\theta(z, b) + \alpha_1 \sum\limits_{{N(n)}} \beta_{N(n)} f_\theta(z_{N(n)}, b)}) + \alpha_2 bg\\
-    x_{ng} &\sim \mathrm{Poisson}(l_n h_{ng})   
+    x_{ng} &\sim \mathrm{Poisson}(l_n h_{ng})
 \end{align}
 ```
 
 In particular, $z$ and $z_{N(n)}$ are the latent embeddings of the cell itself as well as its spatial neighbors
-both of dimension $L$. ResolVI uses a mixture of Gaussians prior on $z$: 
+both of dimension $L$. ResolVI uses a mixture of Gaussians prior on $z$:
 
 ```{math}
 :nowrap: true

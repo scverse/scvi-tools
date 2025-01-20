@@ -24,7 +24,7 @@ class ResolVIPredictiveMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
-        mc_samples: int = 1, # consistency, noqa, pylint: disable=unused-argument
+        mc_samples: int = 1,  # consistency, noqa, pylint: disable=unused-argument
         batch_size: int | None = None,
         return_dist: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:

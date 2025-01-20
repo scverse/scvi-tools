@@ -389,7 +389,7 @@ class RESOLVAEModel(PyroModule):
                 * torch.exp(library)
                 * torch.matmul(
                     torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch).float(),
-                    per_gene_background
+                    per_gene_background,
                 ),
                 event_dim=1,
             )
@@ -783,7 +783,7 @@ class RESOLVAEGuide(PyroModule):
         )
 
     @auto_move_data
-    def forward( # not used arguments to have same set of arguments in model and guide
+    def forward(  # not used arguments to have same set of arguments in model and guide
         self,
         x,
         ind_x,
@@ -868,7 +868,8 @@ class RESOLVAEGuide(PyroModule):
 
             if self.dispersion == "gene-batch":
                 px_r_inv = F.linear(
-                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch), px_r_mle)
+                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch), px_r_mle
+                )
             elif self.dispersion == "gene":
                 px_r_inv = px_r_mle
             pyro.sample("px_r_inv", Delta(px_r_inv, event_dim=1))

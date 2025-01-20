@@ -24,6 +24,7 @@ def test_resolvi_train(adata):
         max_epochs=2,
     )
 
+
 def test_resolvi_save_load(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -42,6 +43,7 @@ def test_resolvi_save_load(adata):
     assert np.allclose(latent, latent2)
     model.load_query_data(reference_model="test_resolvi", adata=adata)
 
+
 def test_resolvi_downstream(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -57,6 +59,7 @@ def test_resolvi_downstream(adata):
     model_query.train(
         max_epochs=2,
     )
+
 
 def test_resolvi_semisupervised(adata):
     RESOLVI.setup_anndata(adata, labels_key="labels")
