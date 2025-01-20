@@ -71,7 +71,7 @@ class ConcatDataLoader(DataLoader):
             )
         lens = [len(dl) for dl in self.dataloaders]
         self.largest_dl = self.dataloaders[np.argmax(lens)]
-        super().__init__(self.largest_dl, **data_loader_kwargs)
+        super().__init__(self.largest_dl, batch_size=batch_size, **data_loader_kwargs)
 
     def __len__(self):
         return len(self.largest_dl)
