@@ -63,6 +63,7 @@ import scvi
    external.MRVI
    external.METHYLVI
    external.Decipher
+   external.RESOLVI
 ```
 
 ## Data loading
