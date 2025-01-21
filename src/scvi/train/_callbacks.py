@@ -347,6 +347,37 @@ class TerminateOnNaN(Callback):
                     return
 
 
+class TerminateOnNaNGradientCallback(Callback):
+    def __init__(self, replace_nan_with_zero=False):
+        """
+        Initialize the callback.
+
+        Args:
+            replace_nan_with_zero (bool): Whether to replace NaN gradients with zero instead of
+            stopping training.
+        """
+        self.replace_nan_with_zero = replace_nan_with_zero
+
+    def on_after_backward(self, trainer, pl_module):
+        """Check for NaN gradients after the backward pass."""
+        for name, param in pl_module.named_parameters():
+            if param.grad is not None and torch.isnan(param.grad).any():
+                print(f"NaN detected in gradient of parameter: {name}...")
+                # param.detach().cpu().numpy().sum()
+                # warnings.warn(
+                #     f"NaN detected in gradient of parameter: {name}",
+                #     RuntimeWarning,
+                #     stacklevel=settings.warnings_stacklevel,
+                # )
+                if not self.replace_nan_with_zero:
+                    print("Stopping...")
+                    trainer.should_stop = True  # Stop training
+                    return
+                else:
+                    print("..And replaced with 0")
+                    param.grad[torch.isnan(param.grad)] = 0.0
+
+
 class JaxModuleInit(Callback):
     """A callback to initialize the Jax-based module."""
 
