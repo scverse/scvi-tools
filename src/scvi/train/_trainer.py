@@ -79,8 +79,7 @@ class Trainer(pl.Trainer):
     check_nan_grads
         if any of the parameters of the backprop are NaN or +/-inf.
     gradient_clip_val
-            Value for gradient clipping. Gradient clipping can be enabled to avoid e
-            xploding gradients.
+        Value for gradient clipping. Gradient clipping can be enabled to avoid eploding gradients.
     progress_bar_refresh_rate
         How often to refresh progress bar (in steps). Value 0 disables progress bar.
     simple_progress_bar
