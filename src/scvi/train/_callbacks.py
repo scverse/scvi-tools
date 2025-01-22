@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import logging
 import os
 import warnings
 from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 import flax
 import numpy as np
@@ -14,6 +15,7 @@ import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
@@ -25,6 +27,8 @@ if TYPE_CHECKING:
     from scvi.dataloaders import AnnDataLoader
 
 MetricCallable = Callable[[BaseModelClass], float]
+
+log = logging.getLogger(__name__)
 
 
 class SaveCheckpoint(ModelCheckpoint):
@@ -308,74 +312,123 @@ class LoudEarlyStopping(EarlyStopping):
 
 
 class TerminateOnNaN(Callback):
+    """A callback to check Nans during training."""
+
     def __init__(
         self,
-        verbose: bool = False,
+        verbose: bool = True,
         check_nan_loss: bool = True,
         check_nan_grads: bool = True,
+        replace_nan_with_zero=False,
+        **kwargs,
     ):
-        super().__init__()
-        self.stopped_epoch = 0
+        """
+        Initialize the callback.
+
+        Parameters
+        ----------
+        verbose (bool): Whether to plot the warnings to screen
+        check_nan_loss (bool): Whether to check for nan in loss
+        check_nan_grads (bool): Whether to check for nans or Infs for gradients of each parameter.
+            This usually adding significnat time overhead for each training backprop step
+        replace_nan_with_zero (bool): Whether to replace NaN gradients with zero instead of
+            stopping training, which should continue training.
+        """
+        super().__init__(**kwargs)
+        self.stopped_epoch = None
         self.verbose = verbose
         self.check_loss = check_nan_loss
         self.check_grads = check_nan_grads
+        self.replace_nan_with_zero = replace_nan_with_zero
+        self.reason = None  # stopping reason if exist
 
+    @override
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
-        # Check for NaN/Inf in the loss
+        # Check for NaN in the loss
+        should_stop = False
+        reason = None
         if self.check_loss:
             loss = outputs.get("loss") if isinstance(outputs, dict) else outputs
-            if torch.isnan(loss).any() or torch.isinf(loss).any():
-                reason = "NaN or Inf detected in the loss. Stopping training."
+            if torch.isnan(loss).any():
+                reason = "\033[31mNaN detected in the loss. Stopping training.\033[0m"
+                should_stop = True
                 trainer.should_stop = True
                 self.stopped_epoch = trainer.current_epoch
+                self.reason = reason
                 if self.verbose:
-                    print(reason)
-                return
+                    print(self.reason)
+                # now init all the gradients so it will gracefully stop
+                for name, param in pl_module.named_parameters():
+                    if param.grad is not None and (
+                        torch.isnan(param.grad).any() or torch.isinf(param.grad).any()
+                    ):
+                        print(
+                            f"\033[31mNaN or Infs detected in gradient of parameter: {name} "
+                            f"And replaced with 0\033[0m"
+                        )
+                        param.grad[torch.isnan(param.grad)] = 0.0
+                    if param is not None and (
+                        torch.isnan(param).any() or torch.isinf(param).any()
+                    ):
+                        print(
+                            f"\033[31mNaN or Infs detected in parameter: {name} "
+                            f"And replaced with 0\033[0m"
+                        )
+                        # param[torch.isnan(param)] = 0.0
+                        # param = torch.where(torch.isnan(param),
+                        #                    torch.tensor(0.0, device=param.device), param)
+                        torch.nan_to_num(param, nan=0.0)
+        # stop every ddp process if any world process decides to stop
+        should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
+        trainer.should_stop = trainer.should_stop or should_stop
+        if reason and self.verbose:
+            self._log_info(trainer, reason, False)
 
+    @override
     def on_after_backward(self, trainer, pl_module) -> None:
-        # Check for NaN/Inf in gradients
+        """Check for NaN or Inf gradients after the backward pass."""
+        should_stop = False
+        reason = None
         if self.check_grads:
             for name, param in pl_module.named_parameters():
                 if param.grad is not None and (
                     torch.isnan(param.grad).any() or torch.isinf(param.grad).any()
                 ):
-                    reason = f"NaN or Inf detected in gradients of {name}. Stopping training."
-                    trainer.should_stop = True
-                    self.stopped_epoch = trainer.current_epoch
+                    reason = (
+                        f"\033[31mNaN or Infs detected in gradient of parameter: {name}...\033[0m"
+                    )
                     if self.verbose:
                         print(reason)
-                    return
+                    if not self.replace_nan_with_zero:
+                        print("\033[31mStopping...\033[0m")
+                        should_stop = True  # Stop training
+                        trainer.should_stop = True
+                        self.stopped_epoch = trainer.current_epoch
+                        self.reason = reason
+                        # break
+                    else:
+                        if self.verbose:
+                            print("\033[31m...And replaced with 0\033[0m")
+                        param.grad[torch.isnan(param.grad)] = 0.0
+                        param[torch.isnan(param)] = 0.0
+        # stop every ddp process if any world process decides to stop
+        should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
+        trainer.should_stop = trainer.should_stop or should_stop
+        if reason and self.verbose:
+            self._log_info(trainer, reason, False)
 
+    def teardown(self, trainer, pl_module, stage: str | None = None) -> None:
+        """Print the reason for stopping on teardown."""
+        if self.verbose:
+            if self.reason is not None:
+                print(self.reason)
 
-class TerminateOnNaNGradientCallback(Callback):
-    def __init__(self, replace_nan_with_zero=False):
-        """
-        Initialize the callback.
-
-        Args:
-            replace_nan_with_zero (bool): Whether to replace NaN gradients with zero instead of
-            stopping training.
-        """
-        self.replace_nan_with_zero = replace_nan_with_zero
-
-    def on_after_backward(self, trainer, pl_module):
-        """Check for NaN gradients after the backward pass."""
-        for name, param in pl_module.named_parameters():
-            if param.grad is not None and torch.isnan(param.grad).any():
-                print(f"NaN detected in gradient of parameter: {name}...")
-                # param.detach().cpu().numpy().sum()
-                # warnings.warn(
-                #     f"NaN detected in gradient of parameter: {name}",
-                #     RuntimeWarning,
-                #     stacklevel=settings.warnings_stacklevel,
-                # )
-                if not self.replace_nan_with_zero:
-                    print("Stopping...")
-                    trainer.should_stop = True  # Stop training
-                    return
-                else:
-                    print("..And replaced with 0")
-                    param.grad[torch.isnan(param.grad)] = 0.0
+    @staticmethod
+    def _log_info(trainer: pl.Trainer, message: str, log_rank_zero_only: bool) -> None:
+        rank = trainer.global_rank if trainer.world_size > 1 else None
+        message = rank_prefixed_message(message, rank)
+        if rank is None or not log_rank_zero_only or rank == 0:
+            log.info(message)
 
 
 class JaxModuleInit(Callback):

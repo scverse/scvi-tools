@@ -9,7 +9,7 @@ from lightning.pytorch.loggers import Logger
 
 from scvi import settings
 
-from ._callbacks import LoudEarlyStopping, SaveCheckpoint, TerminateOnNaNGradientCallback
+from ._callbacks import LoudEarlyStopping, SaveCheckpoint, TerminateOnNaN
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -145,8 +145,11 @@ class Trainer(pl.Trainer):
 
         if terminate_on_nan:
             callbacks.append(
-                # TerminateOnNaN(check_nan_loss=check_nan_loss, check_nan_grads=check_nan_grads)
-                TerminateOnNaNGradientCallback(replace_nan_with_zero=replace_nan_with_zero)
+                TerminateOnNaN(
+                    check_nan_loss=check_nan_loss,
+                    check_nan_grads=check_nan_grads,
+                    replace_nan_with_zero=replace_nan_with_zero,
+                )
             )
             check_val_every_n_epoch = 1
 
