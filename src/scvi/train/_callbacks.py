@@ -311,7 +311,7 @@ class LoudEarlyStopping(EarlyStopping):
             print(self.early_stopping_reason)
 
 
-class TerminateOnNaN(Callback):
+class TerminateOnNaN(ModelCheckpoint):
     """A callback to check Nans during training."""
 
     def __init__(
@@ -375,12 +375,15 @@ class TerminateOnNaN(Callback):
                             f"And replaced with 0\033[0m"
                         )
                         # param[torch.isnan(param)] = 0.0
-                        # param = torch.where(torch.isnan(param),
-                        #                    torch.tensor(0.0, device=param.device), param)
-                        torch.nan_to_num(param, nan=0.0)
+                        param = torch.where(
+                            torch.isnan(param), torch.tensor(0.0, device=param.device), param
+                        )
+                        param = torch.nan_to_num(param, nan=0.0)
         # stop every ddp process if any world process decides to stop
         should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
         trainer.should_stop = trainer.should_stop or should_stop
+        if trainer.should_stop:
+            self.on_save_checkpoint(trainer)
         if reason and self.verbose:
             self._log_info(trainer, reason, False)
 
@@ -414,6 +417,8 @@ class TerminateOnNaN(Callback):
         # stop every ddp process if any world process decides to stop
         should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
         trainer.should_stop = trainer.should_stop or should_stop
+        if trainer.should_stop:
+            self.on_save_checkpoint(trainer)
         if reason and self.verbose:
             self._log_info(trainer, reason, False)
 
@@ -429,6 +434,38 @@ class TerminateOnNaN(Callback):
         message = rank_prefixed_message(message, rank)
         if rank is None or not log_rank_zero_only or rank == 0:
             log.info(message)
+
+    def on_train_end(self, trainer, pl_module):
+        pl_module.module.load_state_dict(self.best_module_state)
+
+    # def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
+    #     """Loads the best model state into the model at the end of training."""
+    #     if not self.load_best_on_end:
+    #         return
+    #
+    #     _, _, best_state_dict, _ = _load_saved_files(
+    #         self.best_model_path,
+    #         load_adata=False,
+    #         map_location=pl_module.module.device,
+    #     )
+    #     pl_module.module.load_state_dict(best_state_dict)
+
+    def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
+        """Saves the model state on Lightning checkpoint saves."""
+        # set post training state before saving
+        model = trainer._model
+        model.module.eval()
+        model.is_trained_ = True
+        model.trainer = trainer
+
+        monitor_candidates = self._monitor_candidates(trainer)
+        save_path = self.format_checkpoint_name(monitor_candidates)
+        # by default, the function above gives a .ckpt extension
+        save_path = save_path.split(".ckpt")[0]
+        model.save(save_path, save_anndata=False, overwrite=True)
+
+        model.module.train()
+        model.is_trained_ = False
 
 
 class JaxModuleInit(Callback):

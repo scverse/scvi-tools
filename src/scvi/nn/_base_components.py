@@ -292,6 +292,13 @@ class Encoder(nn.Module):
         q = self.encoder(x, *cat_list)
         q_m = self.mean_encoder(q)
         q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
+        # if torch.isnan(q_m).any():
+        q_m = torch.where(torch.isnan(q_m), torch.tensor(self.var_eps, device=q_m.device), q_m)
+        q_m = torch.nan_to_num(q_m, nan=self.var_eps)
+        # if torch.isnan(q_v).any():
+        q_v = torch.where(torch.isnan(q_v), torch.tensor(self.var_eps, device=q_v.device), q_v)
+        q_v = torch.nan_to_num(q_v, nan=self.var_eps)
+        # else:
         dist = Normal(q_m, q_v.sqrt())
         latent = self.z_transformation(dist.rsample())
         if self.return_dist:
