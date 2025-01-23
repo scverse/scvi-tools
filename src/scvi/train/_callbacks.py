@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, override
 
 import flax
 import numpy as np
+import pyro
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
@@ -161,7 +162,11 @@ class SaveCheckpoint(ModelCheckpoint):
             load_adata=False,
             map_location=pl_module.module.device,
         )
+        pyro_param_store = best_state_dict.pop("pyro_param_store", None)
         pl_module.module.load_state_dict(best_state_dict)
+        if pyro_param_store is not None:
+            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            pyro.get_param_store().set_state(pyro_param_store)
 
     @override
     def on_exception(self, trainer, pl_module, exception) -> None:

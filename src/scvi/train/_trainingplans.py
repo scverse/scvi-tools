@@ -1042,6 +1042,9 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     scale_elbo
         Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
         numerical inaccuracy when working with very large ELBO.
+    blocked
+        A list of Pyro parameters to block during training.
+        If `None`, defaults to train all parameters.
     """
 
     def __init__(
@@ -1053,6 +1056,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
+        blocked: list | None = None,
     ):
         super().__init__(
             pyro_module=pyro_module,
@@ -1067,10 +1071,13 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
+        self.block_fn = (
+            lambda obj: pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
+        )
 
         self.svi = pyro.infer.SVI(
-            model=self.scale_fn(self.module.model),
-            guide=self.scale_fn(self.module.guide),
+            model=self.block_fn(self.scale_fn(self.module.model)),
+            guide=self.block_fn(self.scale_fn(self.module.guide)),
             optim=self.optim,
             loss=self.loss_fn,
         )

@@ -773,7 +773,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             log_lkl = torch.mean(batch_log_lkl).item()
         return log_lkl
 
-    def on_load(self, model: BaseModelClass):
+    def on_load(self, model: BaseModelClass, **kwargs):
         manager = model.get_anndata_manager(model.adata, required=True)
         source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
         version_split = source_version.split(".")
