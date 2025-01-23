@@ -14,6 +14,7 @@ from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attri
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import (
+    AdversarialTrainingPlan,
     SemiSupervisedAdversarialTrainingPlan,
     SemiSupervisedTrainingPlan,
     TrainingPlan,
@@ -40,7 +41,7 @@ class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
     _data_splitter_cls = DataSplitter
-    _training_plan_cls = TrainingPlan
+    _training_plan_cls = AdversarialTrainingPlan
     _train_runner_cls = TrainRunner
 
     @devices_dsp.dedent

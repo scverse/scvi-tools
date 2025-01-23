@@ -110,10 +110,10 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         n_batch = self.summary_stats.n_batch
         n_fine_labels = self.summary_stats.n_labels - 1
-        print(self.summary_stats)
         n_site = self.summary_stats.n_site
+        n_assay = self.summary_stats.n_assay
 
-        hierarchy_dict, num_classes, hierarchy_matrix = self.extract_hierarchy(
+        self.hierarchy_dict, self.num_classes, self.hierarchy_matrix = self.extract_hierarchy(
             n_site=n_site, eps_yprior=eps_yprior
         )
         n_cats_per_cov = (
@@ -128,8 +128,9 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             n_input=self.summary_stats.n_vars,
             n_batch=n_batch,
             n_site=n_site,
+            n_assay=n_assay,
             n_fine_labels = n_fine_labels,
-            num_classes=num_classes,
+            num_classes=self.num_classes,
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
@@ -139,8 +140,8 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             use_size_factor_key=use_size_factor_key,
-            hierarchy_dict=hierarchy_dict,
-            hierarchy_matrix=hierarchy_matrix,
+            hierarchy_dict=self.hierarchy_dict,
+            hierarchy_matrix=self.hierarchy_matrix,
             update_yprior=update_yprior,
             **muanvae_model_kwargs,
         )
@@ -252,9 +253,9 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         self._unlabeled_indices = list(
             set(np.arange(self.adata.n_obs)) - set(self._labeled_indices)
         )
-        self._code_to_label = [
-            dict(enumerate(self._label_mapping[layer])) for layer in self._label_mapping
-        ]
+        self._code_to_label = {
+            layer: dict(enumerate(self._label_mapping[layer])) for layer in self._label_mapping
+        }
 
     def extract_hierarchy(self, n_site, eps_yprior):
         """
@@ -270,30 +271,30 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         labels_state_registry = self.adata_manager.get_state_registry("label_hierarchy")
         label_keys = labels_state_registry.field_keys
 
-        def nested_groupby(df, label_keys):
-            # Recursively adds dicts for each level of hierarchy.
-            if len(label_keys) == 1:
-                return df.groupby(label_keys[0]).apply(list).to_dict()
+        def fixed_depth_groupby(df, label_keys):
+            if len(label_keys)==1:
+                return list(df[label_keys[-1]].unique()) if not df.empty else []
             else:
+                # Recursive case: build dictionaries up to the fixed depth
                 return {
-                    key: nested_groupby(sub_df, label_keys[1:])
-                    for key, sub_df in df.groupby(label_keys[0])
+                    key: fixed_depth_groupby(sub_df, label_keys[1:])
+                    for key, sub_df in df.groupby(label_keys[0], observed=True)
                 }
 
-        hierarchy_dict = nested_groupby(self.labels, label_keys)
         num_classes = labels_state_registry.n_cats_per_key
+        hierarchy_dict = fixed_depth_groupby(self.labels, label_keys)
         hierarchy_matrix = []
 
         for n_label in range(1, len(num_classes)):
+            curr = pd.DataFrame(
+                0,
+                index=np.arange(num_classes[n_label - 1]),
+                columns=np.arange(num_classes[n_label]),
+            )
             # Site specific last layer.
             if n_label == len(num_classes) - 1:
                 hierarchy_matrix_ = torch.zeros(
                     num_classes[n_label - 1], num_classes[n_label], n_site
-                )
-                curr = pd.DataFrame(
-                    0,
-                    index=np.arange(hierarchy_matrix_.shape[0]),
-                    columns=np.arange(hierarchy_matrix_.shape[1]),
                 )
                 for site in range(n_site):
                     adata = self.adata[self.adata.obs["_scvi_site"] == site]
@@ -307,8 +308,8 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                         )
                         curr_[curr_ > 0] = 1
                         curr_ = curr_.loc[curr.index, curr.columns]
-                        curr = curr_.div(curr_.sum(axis=1), axis=0)
-                        hierarchy_matrix_[:, :, site] = torch.tensor(curr.fillna(0).values)
+                        curr = curr_.div(curr_.sum(axis=1), axis=0).fillna(0)
+                        hierarchy_matrix_[:, :, site] = torch.tensor(curr.values)
             else:
                 curr_ = pd.crosstab(
                     self.adata.obsm["_scvi_label_hierarchy"][label_keys[n_label - 1]],
@@ -316,8 +317,8 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 )
                 curr_[curr_ > 0] = 1
                 curr_ = curr_.loc[curr.index, curr.columns]
-                curr = curr_[curr_.index, curr_.columns].div(curr_.sum(axis=1), axis=0).values
-                hierarchy_matrix_ = torch.tensor(curr.fillna(0).values)
+                curr = curr_.div(curr_.sum(axis=1), axis=0).fillna(0)
+                hierarchy_matrix_ = torch.tensor(curr.values)
 
             hierarchy_matrix.append(hierarchy_matrix_)
 
@@ -378,7 +379,6 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         for _, tensors in enumerate(scdl):
             for site_to_predict_ in sites_to_predict_:
                 probs_, _ = self.module.classification(tensors, site_to_predict=site_to_predict_)
-
                 if site_to_predict_ is not None:
                     if not soft:
                         pred_ = probs_.argmax(dim=1)
@@ -392,19 +392,14 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
                     for i in range(total_level):
                         if not soft:
-                            probs[i] = probs[i].argmax(dim=1)  # select only the label
+                            pred[class_labels[i]].append(probs[i].argmax(dim=1).cpu())
                         else:
                             pred[class_labels[i]].append(probs[i].detach().cpu())
 
         for key in pred.keys():
             pred[key] = torch.cat(pred[key]).numpy()
             if not soft:
-                if key not in class_labels:
-                    pred[key] = [self._code_to_label[-1][ct] for ct in pred[key]]
-                else:
-                    pred[key] = [
-                        self._code_to_label[class_labels.index(key)][ct] for ct in pred[key]
-                    ]
+                pred[key] = [self._code_to_label[key][ct] for ct in pred[key]]
 
         if not soft:
             pred = pd.DataFrame.from_dict(pred)
@@ -412,10 +407,7 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             return pred
         else:
             for key in pred.keys():
-                if key not in class_labels:
-                    columns = list(self._code_to_label[-1].values())[:-1]
-                else:
-                    columns = list(self._code_to_label[class_labels.index(key)].values())[:-1]
+                columns = list(self._code_to_label[key].values())[:-1]
 
                 pred[key] = pd.DataFrame(
                     pred[key],
@@ -684,6 +676,7 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         unlabeled_category: list[str | int | float],
         layer: str | None = None,
         site_key: str | None = None,
+        assay_key: str | None = None,
         batch_key: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
@@ -699,6 +692,7 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         %(param_layer)s
         %(param_batch_key)s
         %(param_site_key)s
+        %(param_assay_key)s
         fine_labels_key
             key in `adata.obs` for fine label information. Categories will automatically be
             converted into integer categories and saved to `adata.obs['_scvi_labels']`.
@@ -717,6 +711,7 @@ class MUANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.ASSAY_KEY, assay_key),
             CategoricalObsField(REGISTRY_KEYS.SITE_KEY, site_key),
             LabelsWithUnlabeledObsField(REGISTRY_KEYS.LABELS_KEY, fine_labels_key, unlabeled_category),
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),

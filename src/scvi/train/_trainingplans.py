@@ -635,14 +635,17 @@ class AdversarialTrainingPlan(TrainingPlan):
                 )
                 self.adversarial_classifier = False
             else:
-                self.n_output_classifier = self.module.n_batch
+                self.n_output_classifier = self.module.n_assay
                 self.adversarial_classifier = Classifier(
                     n_input=self.module.n_latent,
-                    n_hidden=32,
+                    n_hidden=128,
                     n_labels=self.n_output_classifier,
-                    n_layers=2,
+                    n_layers=1,
                     logits=True,
+                    use_batch_norm=False,
+                    use_layer_norm=True,
                 )
+                print('new classifier')
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss
@@ -676,7 +679,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             if self.scale_adversarial_loss == "auto"
             else self.scale_adversarial_loss
         )
-        batch_tensor = batch[REGISTRY_KEYS.BATCH_KEY]
+        batch_tensor = batch[REGISTRY_KEYS.ASSAY_KEY].long()
 
         opts = self.optimizers()
         if not isinstance(opts, list):

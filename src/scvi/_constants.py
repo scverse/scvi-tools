@@ -6,6 +6,7 @@ class _REGISTRY_KEYS_NT(NamedTuple):
     ATAC_X_KEY: str = "atac"
     BATCH_KEY: str = "batch"
     SITE_KEY: str = "site"
+    ASSAY_KEY: str = "assay"
     SAMPLE_KEY: str = "sample"
     LABELS_KEY: str = "labels"
     PROTEIN_EXP_KEY: str = "proteins"

@@ -3,16 +3,13 @@ from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
 
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
-from scvi.data._utils import _make_column_categorical, get_anndata_attribute
+from scvi.data._utils import _make_column_categorical
 from scvi.data.fields import CategoricalJointObsField
-from scvi.dataloaders import ConcatDataLoader
-from scvi.dataloaders._ann_dataloader import AnnDataLoader
 
 
 # Class creating a new Obsm field for partially annotated layers of labels
@@ -81,7 +78,13 @@ class LabelsWithUnlabeledJointObsField(CategoricalJointObsField):
             mapping = categorical_obs.cat.categories.to_numpy(copy=True)
             mapping = self._remap_unlabeled_to_final_category(mapping, level)
             cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
-            mapping = _make_column_categorical(df, key, key, categorical_dtype=cat_dtype)
+            mapping = _make_column_categorical(
+                df,
+                key,
+                key,
+                categorical_dtype=cat_dtype,
+                warning=False
+            )
             categories[key] = mapping
 
         store_cats = categories if category_dict is None else category_dict

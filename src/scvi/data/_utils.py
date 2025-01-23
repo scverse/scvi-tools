@@ -197,6 +197,7 @@ def _make_column_categorical(
     column_key: str,
     alternate_column_key: str,
     categorical_dtype: str | CategoricalDtype | None = None,
+    warning: bool = True,
 ):
     """Makes the data in column_key in DataFrame all categorical.
 
@@ -221,7 +222,7 @@ def _make_column_categorical(
     df[alternate_column_key] = codes
 
     # make sure each category contains enough cells
-    if np.min(counts) < 3:
+    if np.min(counts) < 3 and warning:
         category = unique[np.argmin(counts)]
         warnings.warn(
             f"Category {category} in adata.obs['{alternate_column_key}'] has fewer than 3 cells. "

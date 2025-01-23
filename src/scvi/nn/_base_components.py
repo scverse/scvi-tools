@@ -14,6 +14,38 @@ def _identity(x):
     return x
 
 
+class ConditionalBatchNorm2d(nn.Module):
+    def __init__(self, num_features, num_classes, momentum, eps):
+        super().__init__()
+        self.num_features = num_features
+        self.bn = nn.BatchNorm1d(self.num_features, momentum=momentum, eps=eps, affine=False)
+        self.embed = nn.Embedding(num_classes, self.num_features * 2)
+        self.embed.weight.data[:, :self.num_features].normal_(1, 0.02)  # Initialise scale at N(1, 0.02)
+        self.embed.weight.data[:, self.num_features:].zero_()  # Initialise bias at 0
+
+    def forward(self, x, y):
+        out = self.bn(x)
+        gamma, beta = self.embed(y.long().ravel()).chunk(2, 1)
+        out = gamma.view(-1, self.num_features) * out + beta.view(-1, self.num_features)
+
+        return out
+
+class ConditionalLayerNorm(nn.Module):
+    def __init__(self, num_features, num_classes):
+        super().__init__()
+        self.num_features = num_features
+        self.ln = nn.LayerNorm(self.num_features, elementwise_affine=False)
+        self.embed = nn.Embedding(num_classes, self.num_features * 2)
+        self.embed.weight.data[:, :self.num_features].normal_(1, 0.02)  # Initialise scale at N(1, 0.02)
+        self.embed.weight.data[:, self.num_features:].zero_()  # Initialise bias at 0
+
+    def forward(self, x, y):
+        out = self.ln(x)
+        gamma, beta = self.embed(y.long().ravel()).chunk(2, 1)
+        out = gamma.view(-1, self.num_features) * out + beta.view(-1, self.num_features)
+
+        return out
+
 class FCLayers(nn.Module):
     """A helper class to build fully-connected layers for a neural network.
 
@@ -64,6 +96,7 @@ class FCLayers(nn.Module):
         bias: bool = True,
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
+        conditional_norm: bool = False,
     ):
         super().__init__()
         self.inject_covariates = inject_covariates
@@ -90,11 +123,14 @@ class FCLayers(nn.Module):
                             ),
                             # non-default params come from defaults in the original Tensorflow
                             # implementation
-                            nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
-                            if use_batch_norm
+                            ConditionalBatchNorm2d(n_out, self.n_cat_list[0], momentum=0.01, eps=0.001)
+                            if conditional_norm and use_batch_norm
+                            else nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001) if use_batch_norm
                             else None,
-                            nn.LayerNorm(n_out, elementwise_affine=False)
-                            if use_layer_norm
+                            # non-default params come from defaults in original Tensorflow implementation
+                            ConditionalLayerNorm(n_out, self.n_cat_list[0])
+                            if conditional_norm and use_layer_norm
+                            else nn.LayerNorm(n_out, elementwise_affine=False) if use_layer_norm
                             else None,
                             activation_fn() if use_activation else None,
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
@@ -175,7 +211,15 @@ class FCLayers(nn.Module):
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
-                    if isinstance(layer, nn.BatchNorm1d):
+                    if isinstance(layer, ConditionalBatchNorm2d) or isinstance(
+                        layer, ConditionalLayerNorm):
+                        if x.dim() == 3:
+                            x = torch.cat(
+                                [(layer(slice_x, cat_list[0])).unsqueeze(0) for slice_x in x], dim=0
+                            )
+                        else:
+                            x = layer(x=x, y=cat_list[0])
+                    elif isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
                             if (
                                 x.device.type == "mps"
@@ -349,10 +393,11 @@ class DecoderSCVI(nn.Module):
         n_cat_list: Iterable[int] = None,
         n_layers: int = 1,
         n_hidden: int = 128,
+        n_assay: int = 1,
         inject_covariates: bool = True,
         use_batch_norm: bool = False,
         use_layer_norm: bool = False,
-        scale_activation: Literal["softmax", "softplus"] = "softmax",
+        scale_activation: Literal["softmax", "softplus", "exp"] = "softmax",
         **kwargs,
     ):
         super().__init__()
@@ -374,16 +419,20 @@ class DecoderSCVI(nn.Module):
             px_scale_activation = nn.Softmax(dim=-1)
         elif scale_activation == "softplus":
             px_scale_activation = nn.Softplus()
+        elif scale_activation == "exp":
+            px_scale_activation = ExpActivation()
         self.px_scale_decoder = nn.Sequential(
-            nn.Linear(n_hidden, n_output),
+            nn.Linear(n_hidden + n_assay, n_output),
             px_scale_activation,
         )
 
-        # dispersion: here we only deal with a gene-cell dispersion case
-        self.px_r_decoder = nn.Linear(n_hidden, n_output)
+        # dispersion: here we only deal with gene-cell dispersion case
+        self.px_r_decoder = nn.Linear(n_hidden + n_assay, n_output)
 
         # dropout
-        self.px_dropout_decoder = nn.Linear(n_hidden, n_output)
+        self.px_dropout_decoder = nn.Linear(n_hidden + n_assay, n_output)
+
+        self.n_assay = n_assay
 
     def forward(
         self,
@@ -391,6 +440,7 @@ class DecoderSCVI(nn.Module):
         z: torch.Tensor,
         library: torch.Tensor,
         *cat_list: int,
+        assay: torch.Tensor | None = None,
     ):
         """The forward computation for a single sample.
 
@@ -407,6 +457,8 @@ class DecoderSCVI(nn.Module):
             * ``'gene-batch'`` - dispersion can differ between different batches
             * ``'gene-label'`` - dispersion can differ between different labels
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
+        assay
+            tensor with shape ``(n_input,)`` of assay column
         z
             tensor with shape ``(n_input,)``
         library
@@ -422,11 +474,16 @@ class DecoderSCVI(nn.Module):
         """
         # The decoder returns values for the parameters of the ZINB distribution
         px = self.px_decoder(z, *cat_list)
-        px_scale = self.px_scale_decoder(px)
-        px_dropout = self.px_dropout_decoder(px)
+        if assay is not None:
+            one_hot_cat = nn.functional.one_hot(assay.squeeze(-1), self.n_assay)
+        else:
+            one_hot_cat = torch.zeros(px.size(0), self.n_assay)
+        px_cat = torch.cat([px, one_hot_cat], dim=-1)
+        px_scale = self.px_scale_decoder(px_cat)
+        px_dropout = self.px_dropout_decoder(px_cat)
         # Clamp to high value: exp(12) ~ 160000 to avoid nans (computational stability)
         px_rate = torch.exp(library) * px_scale  # torch.clamp( , max=12)
-        px_r = self.px_r_decoder(px) if dispersion == "gene-cell" else None
+        px_r = self.px_r_decoder(px_cat) if dispersion == "gene-cell" else None
         return px_scale, px_r, px_rate, px_dropout
 
 

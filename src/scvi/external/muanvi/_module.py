@@ -26,6 +26,10 @@ class MUANVAE(SCANVAE):
         Number of input genes
     n_batch
         Number of batches
+    n_site
+        Number of annotation sites
+    n_assay
+        Number of assays
     n_fine_labels
         Number of fine labels
     num_classes
@@ -75,6 +79,7 @@ class MUANVAE(SCANVAE):
         hierarchy_dict: dict,
         n_batch: int = 0,
         n_site: int = 0,
+        n_assay: int = 0,
         n_fine_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -85,8 +90,8 @@ class MUANVAE(SCANVAE):
         dispersion: str = "gene",
         log_variational: bool = True,
         gene_likelihood: str = "nb",
-        classifier_parameters: dict = dict(),
-        classifier_parameters_muanvae: dict = dict(),
+        classifier_parameters: dict | None= None,
+        classifier_parameters_muanvae: dict | None= None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         conditioning_class: int = -1,
@@ -101,13 +106,17 @@ class MUANVAE(SCANVAE):
         self.mog_class = mog_class
         self.site_specific_classifier = n_site > 1
         self.n_site = n_site
+        self.n_assay = n_assay
         self.num_classes = num_classes
         self.update_yprior = update_yprior
         self.n_labels_conditioning = num_classes[self.conditioning_class]
         self.n_fine_labels = n_fine_labels
         self.hiearchy_dict = hierarchy_dict
 
-        classifier_parameters = classifier_parameters or {}
+        if classifier_parameters is None:
+            classifier_parameters = {}
+        if classifier_parameters_muanvae is None:
+            classifier_parameters_muanvae = {}
 
         cls_parameters = {
             "n_layers": n_layers,
@@ -344,6 +353,19 @@ class MUANVAE(SCANVAE):
             logits[self.conditioning_class],
         )
 
+        if z1.ndim == 2:
+            loss_z1_unweight_ = loss_z1_unweight.view(self.n_labels, -1).t()
+            kl_divergence_z2_ = kl_divergence_z2.view(self.n_labels, -1).t()
+        else:
+            loss_z1_unweight_ = torch.transpose(
+                loss_z1_unweight.view(z1.shape[0], self.n_labels, -1), -1, -2
+            )
+            kl_divergence_z2_ = torch.transpose(
+                kl_divergence_z2.view(z1.shape[0], self.n_labels, -1), -1, -2
+            )
+        reconst_loss += loss_z1_weight + (loss_z1_unweight_ * probs[-1]).sum(dim=-1)
+        kl_divergence = (kl_divergence_z2_ * probs[-1]).sum(dim=-1)
+
         if not warmup_model:
             reconst_loss += (
                 (
@@ -364,7 +386,7 @@ class MUANVAE(SCANVAE):
             prior = MixtureSameFamily(cats, normal_dists)
             u = qz1.rsample(sample_shape=(30,))
             # (sample, n_obs, n_latent) -> (sample, n_obs,)
-            kl_divergence = -(prior.log_prob(u) - qz1.log_prob(u).sum(-1)).mean(0)
+            kl_divergence += -(prior.log_prob(u) - qz1.log_prob(u).sum(-1)).mean(0)
         elif self.prior_z1 == "mog_celltype":
             if warmup_model:
                 # Assigns zero meaning equal weight to all unlabeled cells. Otherwise biases to sample from respective MoG.
@@ -386,11 +408,10 @@ class MUANVAE(SCANVAE):
             u = qz1.rsample(sample_shape=(30,))
             # (sample, n_obs, n_latent) -> (sample, n_obs,)
             kl_z = -(prior.log_prob(u) - qz1.log_prob(u).sum(-1)).mean(0)
-            kl_divergence = weighting_mog * kl_z
+            kl_divergence += weighting_mog * kl_z
         else:
             prior = Normal(torch.zeros_like(qz1.loc), torch.ones_like(qz1.loc))
             kl_z = 0
-            kl_divergence = 0
 
         probs_prior, _ = self.classification(tensors, precomputed_z=prior.sample())
         kl_divergence_cat = 0

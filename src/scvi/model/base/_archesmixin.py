@@ -231,6 +231,7 @@ class ArchesMixin:
             freeze_dropout=freeze_dropout,
             freeze_expression=freeze_expression,
             freeze_classifier=freeze_classifier,
+            parameters_yes_grad=additional_parameters,
         )
         model.is_trained_ = False
 
@@ -412,6 +413,7 @@ def _set_params_online_update(
     mod_no_hooks_yes_grad = {"l_encoder"}
     if not freeze_classifier:
         mod_no_hooks_yes_grad.add("classifier")
+    parameters_yes_grad = {"background_pro_alpha", "background_pro_log_beta"}
     parameters_yes_grad = {"background_pro_alpha", "background_pro_log_beta"}
 
     def no_hook_cond(key):

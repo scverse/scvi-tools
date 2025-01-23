@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from torch.nn.functional import one_hot
+from torch import distributions
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data._constants import ADATA_MINIFY_TYPE
@@ -147,6 +148,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self,
         n_input: int,
         n_batch: int = 0,
+        n_assay: int = 0,
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -172,6 +174,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
+        conditional_norm: dict | None = None,
+        mmd_kernel: str | None = "rbf",
+        prior: str | None = None,
+        num_classes: int | None = 30,
     ):
         from scvi.nn import DecoderSCVI, Encoder
 
@@ -183,6 +189,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
         self.n_input = n_input
+        self.n_assay = n_assay
         self.n_labels = n_labels
         self.n_hidden = n_hidden
         self.n_layers = n_layers
@@ -191,6 +198,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         self.extra_payload_autotune = extra_payload_autotune
+        self.mmd_kernel = mmd_kernel
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
@@ -233,8 +241,13 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
         else:
             cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
+        if n_assay > 1:
+            encoder_cat_list = [n_assay] + list([] if n_cats_per_cov is None else n_cats_per_cov)
+            n_input_encoder = n_input + n_continuous_cov * encode_covariates
+        else:
+            encoder_cat_list = cat_list
 
-        encoder_cat_list = cat_list if encode_covariates else None
+        encoder_cat_list = encoder_cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
             n_input_encoder,
@@ -249,6 +262,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             use_layer_norm=use_layer_norm_encoder,
             var_activation=var_activation,
             return_dist=True,
+            conditional_norm=conditional_norm,
             **_extra_encoder_kwargs,
         )
         # l encoder goes from n_input-dimensional data to 1-d library size
@@ -277,12 +291,27 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
+            n_assay=self.n_assay,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
             scale_activation="softplus" if use_size_factor_key else "softmax",
             **_extra_decoder_kwargs,
         )
+
+        self.prior = prior
+        if prior == "mog":
+            self.register_parameter(
+                "prior_means",
+                torch.nn.Parameter(torch.randn([num_classes, n_latent])),
+            )
+            self.register_parameter(
+                "prior_log_scales",
+                torch.nn.Parameter(torch.zeros([num_classes, n_latent])),
+            )
+            self.register_parameter(
+                "prior_logits", torch.nn.Parameter(torch.ones([num_classes]))
+            )
 
     def _get_inference_input(
         self,
@@ -304,6 +333,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
                 MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+                MODULE_KEYS.ASSAY_INDEX_KEY: tensors.get(REGISTRY_KEYS.ASSAY_KEY, None),
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
             }
@@ -328,6 +359,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
             MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+            MODULE_KEYS.ASSAY_INDEX_KEY: tensors.get(REGISTRY_KEYS.ASSAY_KEY, None),
             MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
             MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
             MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
@@ -362,6 +394,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self,
         x: torch.Tensor,
         batch_index: torch.Tensor,
+        assay_index: torch.Tensor | None = None,
         cont_covs: torch.Tensor | None = None,
         cat_covs: torch.Tensor | None = None,
         n_samples: int = 1,
@@ -371,6 +404,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
+            x_ = x_/x_.mean(1).unsqueeze(1)
             x_ = torch.log1p(x_)
 
         if cont_covs is not None and self.encode_covariates:
@@ -382,10 +416,13 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             categorical_input = ()
 
-        if self.batch_representation == "embedding" and self.encode_covariates:
+        if assay_index is not None:
+            assay_index = assay_index.long()
+            qz, z = self.z_encoder(encoder_input, assay_index, *categorical_input)
+        elif self.encode_covariates and self.batch_representation == "embedding":
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
-            qz, z = self.z_encoder(encoder_input, *categorical_input)
+            qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         else:
             qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
 
@@ -448,6 +485,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         z: torch.Tensor,
         library: torch.Tensor,
         batch_index: torch.Tensor,
+        assay_index: torch.Tensor | None = None,
         cont_covs: torch.Tensor | None = None,
         cat_covs: torch.Tensor | None = None,
         size_factor: torch.Tensor | None = None,
@@ -495,6 +533,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 size_factor,
                 *categorical_input,
                 y,
+                assay=assay_index.long() if assay_index is not None else None,
             )
         else:
             px_scale, px_r, px_rate, px_dropout = self.decoder(
@@ -504,6 +543,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 batch_index,
                 *categorical_input,
                 y,
+                assay=assay_index.long() if assay_index is not None else None,
             )
 
         if self.dispersion == "gene-label":
@@ -555,20 +595,42 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, Distribution | None],
         kl_weight: torch.tensor | float = 1.0,
+        weight_assay_loss: float = 1.0,
     ) -> LossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence
 
         x = tensors[REGISTRY_KEYS.X_KEY]
-        kl_divergence_z = kl_divergence(
-            inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
-        ).sum(dim=-1)
+        if self.prior == "mog":
+            qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+            cats = distributions.Categorical(logits=self.prior_logits)
+            normal_dists = distributions.Independent(
+                distributions.Normal(self.prior_means, torch.exp(self.prior_log_scales) + 1e-4),
+                1,
+            )
+            prior = distributions.MixtureSameFamily(cats, normal_dists)
+            u = qz.rsample(sample_shape=(30,))
+            # (sample, n_obs, n_latent) -> (sample, n_obs,)
+            kl_divergence_z = (qz.log_prob(u).sum(-1) - prior.log_prob(u)).mean(0)
+        else:
+            kl_divergence_z = kl_divergence(
+                inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
+            ).sum(dim=-1)
         if not self.use_observed_lib_size:
             kl_divergence_l = kl_divergence(
                 inference_outputs[MODULE_KEYS.QL_KEY], generative_outputs[MODULE_KEYS.PL_KEY]
             ).sum(dim=1)
         else:
             kl_divergence_l = torch.zeros_like(kl_divergence_z)
+
+        assay_index = tensors.get(REGISTRY_KEYS.ASSAY_KEY, None)
+        if weight_assay_loss > 0.0 and assay_index is not None:
+            assay_loss = self._compute_assay_penalty(
+                inference_outputs[MODULE_KEYS.QZ_KEY].loc,
+                assay_index
+            )
+        else:
+            assay_loss = 0.0
 
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
@@ -577,7 +639,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
-        loss = torch.mean(reconst_loss + weighted_kl_local)
+        loss = torch.mean(reconst_loss + weighted_kl_local + weight_assay_loss * assay_loss)
 
         # a payload to be used during autotune
         if self.extra_payload_autotune:
@@ -745,6 +807,121 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             batch_log_lkl = batch_log_lkl.cpu()
         return batch_log_lkl
+
+    def _compute_assay_penalty(
+            self, params, assay):
+        assay = assay.ravel().long()
+        unique = torch.unique(assay)
+        pair_penalty = torch.tensor(0., device=assay.device)
+        if len(unique) > 1:
+            for i in unique:
+                pp = self.mmd(params, mask=(assay == i))
+                pair_penalty += pp
+
+        return pair_penalty
+
+    def mmd(self, params, mask=None):
+        if mask is not None:
+            mod_1 = params[mask]
+            mod_2 = params[~mask]
+        if self.mmd_kernel == 'imq':
+            penalty = imq_kernel(mod_1, mod_2, beta=0.5)
+        elif self.mmd_kernel == 'rbf':
+            penalty = rbf_kernel(mod_1, mod_2)
+        else:
+            penalty = torch.linalg.norm(mod_1 - mod_2, dim=1).mean()
+        return penalty
+
+def imq_kernel(x, y, gammas=None, beta=0.5):
+    """
+    Compute the IMQ kernel between two tensors.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor of shape (N, D).
+    y : torch.Tensor
+        Input tensor of shape (M, D).
+    gammas : list of float or None
+        List of gamma values to compute the kernel with.
+    beta : float
+        The beta parameter controlling the sharpness of the kernel.
+
+    Returns
+    -------
+    kernel_sum : torch.Tensor
+        Tensor of shape (N, M), the sum of IMQ kernels over all gamma values.
+    """
+    if gammas is None:
+        gammas = [
+            1e-3,
+            1e-2,
+            1e-1,
+            1,
+            5,
+            10,
+        ]
+    kxy = torch.cdist(x, y).pow(2)
+    kxx = torch.cdist(x, x).pow(2)
+    kyy = torch.cdist(y, y).pow(2)
+
+    kernel_sum_xy = torch.tensor(0.0, device=x.device)
+    kernel_sum_xx = torch.tensor(0.0, device=x.device)
+    kernel_sum_yy = torch.tensor(0.0, device=x.device)
+    for gamma in gammas:
+        kernel_sum_xy += (gamma + kxy).pow(-beta).mean()
+        kernel_sum_xx += (gamma + kxx).pow(-beta).mean()
+        kernel_sum_yy += (gamma + kyy).pow(-beta).mean()
+
+    return (kernel_sum_xx + kernel_sum_yy - 2 * kernel_sum_xy) / len(gammas)
+
+@auto_move_data
+def rbf_kernel(x, y, gammas=None):
+    """
+    Compute the RBF kernel between two tensors.
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Input tensor of shape (N, D).
+    y : torch.Tensor
+        Input tensor of shape (M, D).
+    gammas : list of float or None
+        List of gamma values to compute the kernel with.
+
+    Returns
+    -------
+    kernel_sum : torch.Tensor
+        Tensor of shape (N, M), the sum of RBF kernels over all gamma values.
+    """
+    if gammas is None:
+        gammas = [
+            1e-10,
+            1e-8,
+            1e-6,
+            1e-4,
+            1e-3,
+            1e-2,
+            1e-1,
+            1,
+            2,
+            5,
+            10,
+        ]
+    kxy = torch.cdist(x, y).pow(2)
+    kxx = torch.cdist(x, x).pow(2)
+    kyy = torch.cdist(y, y).pow(2)
+
+    kernel_sum_xy = torch.tensor(0.0, device=x.device)
+    kernel_sum_xx = torch.tensor(0.0, device=x.device)
+    kernel_sum_yy = torch.tensor(0.0, device=x.device)
+    for gamma in gammas:
+        kernel_sum_xy += torch.exp(-gamma * kxy).mean()
+        kernel_sum_xx += torch.exp(-gamma * kxx).mean()
+        kernel_sum_yy += torch.exp(-gamma * kyy).mean()
+        #print(gamma, (torch.exp(-gamma * kxx).mean() + torch.exp(-gamma * kyy).mean() - 2 * torch.exp(-gamma * kxy).mean()))
+
+    return (kernel_sum_xx + kernel_sum_yy - 2 * kernel_sum_xy) / len(gammas)
 
 
 class LDVAE(VAE):
