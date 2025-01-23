@@ -7,7 +7,7 @@ from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING
 
 import flax
 import numpy as np
@@ -102,7 +102,6 @@ class SaveCheckpoint(ModelCheckpoint):
             **kwargs,
         )
 
-    @override
     def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
         """Saves the model state on Lightning checkpoint saves."""
         # set post training state before saving
@@ -120,7 +119,6 @@ class SaveCheckpoint(ModelCheckpoint):
         model.module.train()
         model.is_trained_ = False
 
-    @override
     def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
         """Removes model saves that are no longer needed.
 
@@ -133,7 +131,6 @@ class SaveCheckpoint(ModelCheckpoint):
         if os.path.exists(model_path) and os.path.isdir(model_path):
             rmtree(model_path)
 
-    @override
     def _update_best_and_save(
         self,
         current: torch.Tensor,
@@ -151,7 +148,6 @@ class SaveCheckpoint(ModelCheckpoint):
             os.remove(self.best_model_path)
         self.best_model_path = self.best_model_path.split(".ckpt")[0]
 
-    @override
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """Loads the best model state into the model at the end of training."""
         if not self.load_best_on_end:
@@ -168,7 +164,6 @@ class SaveCheckpoint(ModelCheckpoint):
             # For scArches shapes are changed and we don't want to overwrite these changed shapes.
             pyro.get_param_store().set_state(pyro_param_store)
 
-    @override
     def on_exception(self, trainer, pl_module, exception) -> None:
         """Save the model in case of unexpected exceptions, like Nan in loss or gradients"""
         if not isinstance(exception, KeyboardInterrupt):
