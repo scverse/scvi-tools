@@ -15,7 +15,6 @@ import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
-from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
@@ -102,6 +101,7 @@ class SaveCheckpoint(ModelCheckpoint):
             **kwargs,
         )
 
+    @override
     def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
         """Saves the model state on Lightning checkpoint saves."""
         # set post training state before saving
@@ -119,6 +119,7 @@ class SaveCheckpoint(ModelCheckpoint):
         model.module.train()
         model.is_trained_ = False
 
+    @override
     def _remove_checkpoint(self, trainer: pl.Trainer, filepath: str) -> None:
         """Removes model saves that are no longer needed.
 
@@ -131,6 +132,7 @@ class SaveCheckpoint(ModelCheckpoint):
         if os.path.exists(model_path) and os.path.isdir(model_path):
             rmtree(model_path)
 
+    @override
     def _update_best_and_save(
         self,
         current: torch.Tensor,
@@ -148,6 +150,7 @@ class SaveCheckpoint(ModelCheckpoint):
             os.remove(self.best_model_path)
         self.best_model_path = self.best_model_path.split(".ckpt")[0]
 
+    @override
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         """Loads the best model state into the model at the end of training."""
         if not self.load_best_on_end:
@@ -159,6 +162,25 @@ class SaveCheckpoint(ModelCheckpoint):
             map_location=pl_module.module.device,
         )
         pl_module.module.load_state_dict(best_state_dict)
+
+    @override
+    def on_exception(self, trainer, pl_module, exception) -> None:
+        """Save the model in case of unexpected exceptions, like Nan in loss or gradients"""
+        if not isinstance(exception, KeyboardInterrupt):
+            self.reason = (
+                "\033[31m[Warning] Exception occurred during training. "
+                "Saving model....Please load it back and continue training\033[0m"
+            )
+            trainer.should_stop = True
+            _, _, best_state_dict, _ = _load_saved_files(
+                self.best_model_path,
+                load_adata=False,
+                map_location=pl_module.module.device,
+            )
+            pl_module.module.load_state_dict(best_state_dict)
+            self.save_path = self.on_save_checkpoint(trainer)
+            print(self.reason)
+            print(f"Model saved to {self.save_path}")
 
 
 class SubSampleLabels(Callback):
@@ -309,163 +331,6 @@ class LoudEarlyStopping(EarlyStopping):
         """Print the reason for stopping on teardown."""
         if self.early_stopping_reason is not None:
             print(self.early_stopping_reason)
-
-
-class TerminateOnNaN(ModelCheckpoint):
-    """A callback to check Nans during training."""
-
-    def __init__(
-        self,
-        verbose: bool = True,
-        check_nan_loss: bool = True,
-        check_nan_grads: bool = True,
-        replace_nan_with_zero=False,
-        **kwargs,
-    ):
-        """
-        Initialize the callback.
-
-        Parameters
-        ----------
-        verbose (bool): Whether to plot the warnings to screen
-        check_nan_loss (bool): Whether to check for nan in loss
-        check_nan_grads (bool): Whether to check for nans or Infs for gradients of each parameter.
-            This usually adding significnat time overhead for each training backprop step
-        replace_nan_with_zero (bool): Whether to replace NaN gradients with zero instead of
-            stopping training, which should continue training.
-        """
-        super().__init__(**kwargs)
-        self.stopped_epoch = None
-        self.verbose = verbose
-        self.check_loss = check_nan_loss
-        self.check_grads = check_nan_grads
-        self.replace_nan_with_zero = replace_nan_with_zero
-        self.reason = None  # stopping reason if exist
-
-    @override
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
-        # Check for NaN in the loss
-        should_stop = False
-        reason = None
-        if self.check_loss:
-            loss = outputs.get("loss") if isinstance(outputs, dict) else outputs
-            if torch.isnan(loss).any():
-                reason = "\033[31mNaN detected in the loss. Stopping training.\033[0m"
-                should_stop = True
-                trainer.should_stop = True
-                self.stopped_epoch = trainer.current_epoch
-                self.reason = reason
-                if self.verbose:
-                    print(self.reason)
-                # now init all the gradients so it will gracefully stop
-                for name, param in pl_module.named_parameters():
-                    if param.grad is not None and (
-                        torch.isnan(param.grad).any() or torch.isinf(param.grad).any()
-                    ):
-                        print(
-                            f"\033[31mNaN or Infs detected in gradient of parameter: {name} "
-                            f"And replaced with 0\033[0m"
-                        )
-                        param.grad[torch.isnan(param.grad)] = 0.0
-                    if param is not None and (
-                        torch.isnan(param).any() or torch.isinf(param).any()
-                    ):
-                        print(
-                            f"\033[31mNaN or Infs detected in parameter: {name} "
-                            f"And replaced with 0\033[0m"
-                        )
-                        # param[torch.isnan(param)] = 0.0
-                        param = torch.where(
-                            torch.isnan(param), torch.tensor(0.0, device=param.device), param
-                        )
-                        param = torch.nan_to_num(param, nan=0.0)
-        # stop every ddp process if any world process decides to stop
-        should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
-        trainer.should_stop = trainer.should_stop or should_stop
-        if trainer.should_stop:
-            self.on_save_checkpoint(trainer)
-        if reason and self.verbose:
-            self._log_info(trainer, reason, False)
-
-    @override
-    def on_after_backward(self, trainer, pl_module) -> None:
-        """Check for NaN or Inf gradients after the backward pass."""
-        should_stop = False
-        reason = None
-        if self.check_grads:
-            for name, param in pl_module.named_parameters():
-                if param.grad is not None and (
-                    torch.isnan(param.grad).any() or torch.isinf(param.grad).any()
-                ):
-                    reason = (
-                        f"\033[31mNaN or Infs detected in gradient of parameter: {name}...\033[0m"
-                    )
-                    if self.verbose:
-                        print(reason)
-                    if not self.replace_nan_with_zero:
-                        print("\033[31mStopping...\033[0m")
-                        should_stop = True  # Stop training
-                        trainer.should_stop = True
-                        self.stopped_epoch = trainer.current_epoch
-                        self.reason = reason
-                        # break
-                    else:
-                        if self.verbose:
-                            print("\033[31m...And replaced with 0\033[0m")
-                        param.grad[torch.isnan(param.grad)] = 0.0
-                        param[torch.isnan(param)] = 0.0
-        # stop every ddp process if any world process decides to stop
-        should_stop = trainer.strategy.reduce_boolean_decision(should_stop, all=False)
-        trainer.should_stop = trainer.should_stop or should_stop
-        if trainer.should_stop:
-            self.on_save_checkpoint(trainer)
-        if reason and self.verbose:
-            self._log_info(trainer, reason, False)
-
-    def teardown(self, trainer, pl_module, stage: str | None = None) -> None:
-        """Print the reason for stopping on teardown."""
-        if self.verbose:
-            if self.reason is not None:
-                print(self.reason)
-
-    @staticmethod
-    def _log_info(trainer: pl.Trainer, message: str, log_rank_zero_only: bool) -> None:
-        rank = trainer.global_rank if trainer.world_size > 1 else None
-        message = rank_prefixed_message(message, rank)
-        if rank is None or not log_rank_zero_only or rank == 0:
-            log.info(message)
-
-    def on_train_end(self, trainer, pl_module):
-        pl_module.module.load_state_dict(self.best_module_state)
-
-    # def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
-    #     """Loads the best model state into the model at the end of training."""
-    #     if not self.load_best_on_end:
-    #         return
-    #
-    #     _, _, best_state_dict, _ = _load_saved_files(
-    #         self.best_model_path,
-    #         load_adata=False,
-    #         map_location=pl_module.module.device,
-    #     )
-    #     pl_module.module.load_state_dict(best_state_dict)
-
-    def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
-        """Saves the model state on Lightning checkpoint saves."""
-        # set post training state before saving
-        model = trainer._model
-        model.module.eval()
-        model.is_trained_ = True
-        model.trainer = trainer
-
-        monitor_candidates = self._monitor_candidates(trainer)
-        save_path = self.format_checkpoint_name(monitor_candidates)
-        # by default, the function above gives a .ckpt extension
-        save_path = save_path.split(".ckpt")[0]
-        model.save(save_path, save_anndata=False, overwrite=True)
-
-        model.module.train()
-        model.is_trained_ = False
 
 
 class JaxModuleInit(Callback):

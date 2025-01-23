@@ -9,7 +9,10 @@ from lightning.pytorch.loggers import Logger
 
 from scvi import settings
 
-from ._callbacks import LoudEarlyStopping, SaveCheckpoint, TerminateOnNaN
+from ._callbacks import (
+    LoudEarlyStopping,
+    SaveCheckpoint,
+)
 from ._logger import SimpleLogger
 from ._progress import ProgressBar
 from ._trainingplans import PyroTrainingPlan
@@ -69,15 +72,6 @@ class Trainer(pl.Trainer):
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
     enable_progress_bar
         Whether to enable or disable the progress bar.
-    terminate_on_nan
-        If set to True, will add a callback to terminate training (by raising a ValueError) at the
-        end of each training batch.
-    replace_nan_with_zero
-        Whether to replace NaN gradients with zero instead of stopping training.
-    check_nan_loss
-        if the loss is NaN or +/-inf.
-    check_nan_grads
-        if any of the parameters of the backprop are NaN or +/-inf.
     gradient_clip_val
         Value for gradient clipping. Gradient clipping can be enabled to avoid eploding gradients.
     progress_bar_refresh_rate
@@ -115,10 +109,6 @@ class Trainer(pl.Trainer):
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
         enable_progress_bar: bool = True,
-        terminate_on_nan: bool = False,
-        replace_nan_with_zero: bool = False,
-        check_nan_loss: bool = False,
-        check_nan_grads: bool = False,
         gradient_clip_val: int | float = 0,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
@@ -141,16 +131,6 @@ class Trainer(pl.Trainer):
                 mode=early_stopping_mode,
             )
             callbacks.append(early_stopping_callback)
-            check_val_every_n_epoch = 1
-
-        if terminate_on_nan:
-            callbacks.append(
-                TerminateOnNaN(
-                    check_nan_loss=check_nan_loss,
-                    check_nan_grads=check_nan_grads,
-                    replace_nan_with_zero=replace_nan_with_zero,
-                )
-            )
             check_val_every_n_epoch = 1
 
         if enable_checkpointing and not any(isinstance(c, SaveCheckpoint) for c in callbacks):

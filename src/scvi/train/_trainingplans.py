@@ -291,8 +291,6 @@ class TrainingPlan(pl.LightningModule):
 
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward method."""
-        # if self.current_epoch == 57:
-        #     pass
         return self.module(
             *args,
             **kwargs,
