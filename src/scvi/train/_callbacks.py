@@ -16,6 +16,7 @@ import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
@@ -94,6 +95,7 @@ class SaveCheckpoint(ModelCheckpoint):
             )
             kwargs.pop("save_last")
         self.load_best_on_end = load_best_on_end
+        self.loss_is_nan = False
 
         super().__init__(
             dirpath=dirpath,
@@ -164,13 +166,25 @@ class SaveCheckpoint(ModelCheckpoint):
             # For scArches shapes are changed and we don't want to overwrite these changed shapes.
             pyro.get_param_store().set_state(pyro_param_store)
 
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
+        # Check for NaN in the loss
+        loss = outputs.get("loss") if isinstance(outputs, dict) else outputs
+        if torch.isnan(loss).any():
+            self.loss_is_nan = True
+
     def on_exception(self, trainer, pl_module, exception) -> None:
         """Save the model in case of unexpected exceptions, like Nan in loss or gradients"""
         if not isinstance(exception, KeyboardInterrupt):
-            self.reason = (
-                "\033[31m[Warning] Exception occurred during training. "
-                "Saving model....Please load it back and continue training\033[0m"
-            )
+            if self.loss_is_nan:
+                self.reason = (
+                    "\033[31m[Warning] NaN detected in the loss. Stopping training. "
+                    "Saving model....Please load it back and continue training\033[0m"
+                )
+            else:
+                self.reason = (
+                    "\033[31m[Warning] Exception occurred during training (Nan or Inf gradients). "
+                    "Saving model....Please load it back and continue training\033[0m"
+                )
             trainer.should_stop = True
             _, _, best_state_dict, _ = _load_saved_files(
                 self.best_model_path,
@@ -181,6 +195,14 @@ class SaveCheckpoint(ModelCheckpoint):
             self.save_path = self.on_save_checkpoint(trainer)
             print(self.reason)
             print(f"Model saved to {self.save_path}")
+            self._log_info(trainer, self.reason, False)
+
+    @staticmethod
+    def _log_info(trainer: pl.Trainer, message: str, log_rank_zero_only: bool) -> None:
+        rank = trainer.global_rank if trainer.world_size > 1 else None
+        message = rank_prefixed_message(message, rank)
+        if rank is None or not log_rank_zero_only or rank == 0:
+            log.info(message)
 
 
 class SubSampleLabels(Callback):

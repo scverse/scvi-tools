@@ -12,8 +12,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
-- Add Callbacks to {class}`scvi.train.callbacks` in order to keep model training instead of failing
-    because of Nan's. {pr}`3159`.
+    - Add an exception callback to {class}`scvi.train.callbacks` in order to save optimal model during
+        training, instead of failing because of Nan's in gradients or loss. {pr}`3159`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 

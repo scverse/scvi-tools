@@ -845,8 +845,6 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             "labelled_tensors": labelled_dataset,
         }
         input_kwargs.update(self.loss_kwargs)
-        # if self.current_epoch >= 57 and batch_idx >= 940:
-        #     pass
         _, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
         loss = loss_output.loss
         self.log(
