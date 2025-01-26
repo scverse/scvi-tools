@@ -3,6 +3,7 @@
 ```{toctree}
 :maxdepth: 1
 
+notebooks/spatial/resolVI_tutorial
 notebooks/spatial/DestVI_tutorial
 notebooks/spatial/DestVI_in_R
 notebooks/spatial/gimvi_tutorial
