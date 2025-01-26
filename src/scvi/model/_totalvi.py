@@ -817,6 +817,7 @@ class TOTALVI(
             batch_correction,
             fdr_target,
             silent,
+            pseudocounts=1e-5,
             **kwargs,
         )
 
