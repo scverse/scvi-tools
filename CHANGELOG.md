@@ -14,14 +14,21 @@ to [Semantic Versioning]. Full commit history is available in the
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
 - Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, PoissonVI, CondSCVI,
     AutoZI, CellAssign and GimVI. {pr}`3121`
+- Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
+    transcriptomics {pr}`3144`.
 
 #### Fixed
 
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
+- Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
 
 #### Changed
 
 - Updated the CI workflow with multiGPU tests {pr}`3053`.
+- Set `mode="change"` as default DE method. Compute positive and negative LFC separately
+    by default (`test_mode="three"`). Corrected computation of pseudocounts and make if
+    default to add a pseudocounts for genes not expressed (`pseudocount=None`). According to
+    Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`
 
 #### Removed
 

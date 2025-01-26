@@ -112,7 +112,7 @@ class RNASeqMixin:
             return_mean=False,
             n_mc_samples=n_mc_samples,
             n_mc_samples_per_pass=n_mc_samples_per_pass,
-        )
+        )  # n_anchors
         mask = torch.tensor(anchor_cells)
         qz_anchor = subset_distribution(qz, mask, 0)  # n_anchors, n_latent
         log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(dim=-1)  # n_samples, n_cells, n_anchors
@@ -129,7 +129,7 @@ class RNASeqMixin:
             log_px_z.append(
                 distributions_px.log_prob(x_anchor).sum(dim=-1)[..., None].cpu()
             )  # n_samples, n_cells, 1
-        log_px_z = torch.cat(log_px_z, dim=-1)
+        log_px_z = torch.cat(log_px_z, dim=-1)  # n_samples, n_cells, n_anchors
 
         log_pz = log_pz.reshape(-1, 1)
         log_px_z = log_px_z.reshape(-1, len(anchor_cells))
@@ -330,7 +330,7 @@ class RNASeqMixin:
         group2: str | None = None,
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
-        mode: Literal["vanilla", "change"] = "change",
+        mode: Literal["vanilla", "change"] = "vanilla",
         delta: float = 0.25,
         batch_size: int | None = None,
         all_stats: bool = True,
