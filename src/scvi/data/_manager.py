@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class AnnDataManagerValidationCheck:
-    """Validation checks for AnnorMudata scvi-tools compat.
+    """Validation checks for AnnOrMudata scvi-tools compat.
 
     Parameters
     ----------

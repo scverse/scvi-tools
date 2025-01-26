@@ -745,9 +745,9 @@ class ContrastiveVI(BaseModelClass):
         if target_idx is not None:
             target_idx = np.array(target_idx)
             if target_idx.dtype is np.dtype("bool"):
-                assert (
-                    len(target_idx) == adata.n_obs
-                ), "target_idx mask must be the same length as adata!"
+                assert len(target_idx) == adata.n_obs, (
+                    "target_idx mask must be the same length as adata!"
+                )
                 target_idx = np.arange(adata.n_obs)[target_idx]
             model_fn = partial(
                 self.get_specific_normalized_expression,

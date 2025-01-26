@@ -169,9 +169,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         super().__init__(adata)
 
         if n_genes is None or n_regions is None:
-            assert isinstance(
-                adata, MuData
-            ), "n_genes and n_regions must be provided if using AnnData"
+            assert isinstance(adata, MuData), (
+                "n_genes and n_regions must be provided if using AnnData"
+            )
             n_genes = self.summary_stats.get("n_vars", 0)
             n_regions = self.summary_stats.get("n_atac", 0)
 
@@ -741,7 +741,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential accessibility analysis.
@@ -803,20 +802,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
         )
 
-        # TODO check if change_fn in kwargs and raise error if so
-        def change_fn(a, b):
-            return a - b
-
-        if two_sided:
-
-            def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
-
-        else:
-
-            def m1_domain_fn(samples):
-                return samples >= delta
-
         all_stats_fn = partial(
             scatac_raw_counts_properties,
             var_idx=np.arange(adata.shape[1])[: self.n_genes],
@@ -840,9 +825,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             delta=delta,
             batch_correction=batch_correction,
             fdr=fdr_target,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
             silent=silent,
+            pseudocounts=1e-6,
             **kwargs,
         )
 
@@ -942,6 +926,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
+            pseudocounts=1e-6,
             **kwargs,
         )
 

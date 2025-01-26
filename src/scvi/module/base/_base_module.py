@@ -124,7 +124,7 @@ class LossOutput:
             self.logits is None or self.true_labels is None
         ):
             raise ValueError(
-                "Must provide `logits` and `true_labels` if `classification_loss` is " "provided."
+                "Must provide `logits` and `true_labels` if `classification_loss` is provided."
             )
 
     @staticmethod
@@ -170,7 +170,7 @@ class BaseModuleClass(nn.Module):
             raise RuntimeError("Module tensors on multiple devices.")
         return device[0]
 
-    def on_load(self, model):
+    def on_load(self, model, **kwargs):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""
 
     @auto_move_data
@@ -383,15 +383,18 @@ class PyroBaseModuleClass(nn.Module):
         """
         return {"name": "", "in": [], "sites": {}}
 
-    def on_load(self, model):
+    def on_load(self, model, **kwargs):
         """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
-        old_history = model.history_.copy()
+        pyro.clear_param_store()
+        old_history = model.history_.copy() if model.history_ is not None else None
         model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
-        pyro.clear_param_store()
+        if "pyro_param_store" in kwargs:
+            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            pyro.get_param_store().set_state(kwargs["pyro_param_store"])
 
     def create_predictive(
         self,
@@ -708,7 +711,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         return _run_inference
 
     @staticmethod
-    def on_load(model):
+    def on_load(model, **kwargs):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
 
         Run one training step prior to loading state dict in order to initialize params.
