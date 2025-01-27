@@ -438,7 +438,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                         raise e
 
                 mean_zs = xr.DataArray(
-                    mean_zs_,
+                    np.array(mean_zs_),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
                         "cell_name": self.adata.obs_names[indices].values,
@@ -457,7 +457,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
                 sampled_zs_ = sampled_zs_.transpose((1, 0, 2, 3))
                 sampled_zs = xr.DataArray(
-                    sampled_zs_,
+                    np.array(sampled_zs_),
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
                         "cell_name": self.adata.obs_names[indices].values,
@@ -468,12 +468,12 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
             if reqs.needs_mean_distances:
                 mean_dists = self._compute_distances_from_representations(
-                    mean_zs_, indices, norm=norm
+                    mean_zs_, indices, norm=norm, return_numpy=True
                 )
 
             if reqs.needs_sampled_distances or reqs.needs_normalized_distances:
                 sampled_dists = self._compute_distances_from_representations(
-                    sampled_zs_, indices, norm=norm
+                    sampled_zs_, indices, norm=norm, return_numpy=True
                 )
 
                 if reqs.needs_normalized_distances:
@@ -582,6 +582,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         reps: jax.typing.ArrayLike,
         indices: jax.typing.ArrayLike,
         norm: Literal["l2", "l1", "linf"] = "l2",
+        return_numpy: bool = True,
     ) -> xr.DataArray:
         if norm not in ("l2", "l1", "linf"):
             raise ValueError(f"`norm` {norm} not supported")
@@ -600,6 +601,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
         if reps.ndim == 3:
             dists = jax.vmap(_compute_distance)(reps)
+            if return_numpy:
+                dists = np.array(dists)
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
@@ -613,6 +616,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         else:
             # Case with sampled representations
             dists = jax.vmap(jax.vmap(_compute_distance))(reps)
+            if return_numpy:
+                dists = np.array(dists)
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "mc_sample", "sample_x", "sample_y"],
