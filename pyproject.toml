@@ -81,8 +81,10 @@ docs = [
 ]
 docsbuild = ["scvi-tools[docs,optional]"]
 
+# metrics for benchmarking single-cell integration outputs
+scib = ["scib-metrics"]
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]"]
+autotune = ["hyperopt>=0.2", "ray[tune]","scib"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
@@ -96,6 +98,7 @@ scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
 pooch = ["pooch"]
 
+
 optional = [
     "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
 ]
@@ -108,7 +111,6 @@ tutorials = [
     "pynndescent",
     "igraph",
     "scrublet",
-    "scib-metrics",
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
 ]

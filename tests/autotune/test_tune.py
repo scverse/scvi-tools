@@ -5,6 +5,7 @@ from scvi import settings
 from scvi.autotune import AutotuneExperiment, run_autotune
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
+from scvi.train._callbacks import ScibCallback
 
 
 def test_run_autotune_scvi_basic(save_path: str):
@@ -68,3 +69,19 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
     assert isinstance(experiment.result_grid, ResultGrid)
+
+
+def test_scib_autotune(save_path: str):
+    settings.logging_dir = save_path
+    adata = synthetic_iid()
+    model_cls = SCVI
+    model_cls.setup_anndata(adata, batch_key="batch", labels_key="labels")
+
+    tuner = run_autotune(model_cls)
+    tuner.fit(
+        adata,
+        use_defaults=True,
+        metric="validation Batch correction",  # necessary
+        train_kwargs={"callbacks": [ScibCallback(stage="validation")]},  # necessary
+        validate_metrics=False,  # necessary
+    )
