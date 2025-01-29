@@ -16,6 +16,7 @@ to [Semantic Versioning]. Full commit history is available in the
     AutoZI, CellAssign and GimVI. {pr}`3121`
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
+- Add semisupervised training mixin class {class}`scvi.model.base.SemisupervisedTrainingMixin` {pr}`3164`.
 
 #### Fixed
 
