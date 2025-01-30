@@ -17,9 +17,26 @@ def get_aggregated_posterior(
     indices: Sequence[int] | None = None,
     batch_size: int | None = None,
     dof: float | None = 3.,
-    qu_scale = None,
-    qu_loc = None,
 ) -> dist.Distribution:
+    """Compute the aggregated posterior over the ``u`` latent representations.
+
+    Parameters
+    ----------
+    adata
+        AnnData object to use. Defaults to the AnnData object used to initialize the model.
+    sample
+        Name or index of the sample to filter on. If ``None``, uses all cells.
+    indices
+        Indices of cells to use.
+    batch_size
+        Batch size to use for computing the latent representation.
+    dof
+        Degrees of freedom for the Student's t-distribution components. If ``None``, components are Normal.
+
+    Returns
+    -------
+    A mixture distribution of the aggregated posterior.
+    """
     self._check_if_trained(warn=False)
     adata = self._validate_anndata(adata)
 
@@ -50,9 +67,32 @@ def differential_abundance(
     batch_size: int = 128,
     downsample_cells: int | None = None,
     dof: float | None = None,
-    qu_loc = None,
-    qu_scale = None,
 ) -> pd.DataFrame:
+    """Compute the differential abundance between samples.
+
+    Computes the logarithm of the ratio of the probabilities of each sample conditioned on the
+    estimated aggregate posterior distribution of each cell.
+
+    Parameters
+    ----------
+    adata
+        The data object to compute the differential abundance for.
+    sample_key
+        Key for the sample covariate.
+    batch_size
+        Minibatch size for computing the differential abundance.
+    downsample_cells
+        Number of cells to subset to before computing the differential abundance.
+    dof
+        Degrees of freedom for the Student's t-distribution components for aggregated posterior. If ``None``, components are Normal.
+
+    Returns
+    -------
+    DataFrame of shape (n_cells, n_samples) containing the log probabilities
+    for each cell across samples. The rows correspond to cell names from `adata.obs_names`,
+    and the columns correspond to unique sample identifiers.
+    """
+
     adata = self._validate_anndata(adata)
 
     us = self.get_latent_representation(
@@ -67,7 +107,7 @@ def differential_abundance(
         if downsample_cells is not None and downsample_cells < indices.shape[0]:
             indices = np.random.choice(indices, downsample_cells, replace=False)
 
-        ap = get_aggregated_posterior(self, adata=adata, indices=indices, dof=dof, qu_loc=qu_loc, qu_scale=qu_scale)
+        ap = get_aggregated_posterior(self, adata=adata, indices=indices, dof=dof)
         log_probs_ = []
         for u_rep in dataloader:
             u_rep = u_rep.to('cuda')
