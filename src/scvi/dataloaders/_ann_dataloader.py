@@ -106,7 +106,7 @@ class AnnDataLoader(DataLoader):
         self.kwargs = copy.deepcopy(kwargs)
 
         if sampler is not None and distributed_sampler:
-            Warning("Cannot specify both `sampler` and `distributed_sampler`.")
+            raise ValueError("Cannot specify both `sampler` and `distributed_sampler`.")
 
         # custom sampler for efficient minibatching on sparse matrices
         if sampler is None:
@@ -134,12 +134,5 @@ class AnnDataLoader(DataLoader):
 
         if iter_ndarray:
             self.kwargs.update({"collate_fn": lambda x: x})
-
-        # Special patch for scanvi multigpu
-        # if adata_manager.registry['model_name']=="SCANVI" and sampler is None
-        # and distributed_sampler:
-        # self.kwargs.update({"batch_size": batch_size, "shuffle": False})
-        # if adata_manager.registry['model_name']=="SCANVI" and sampler is not None:
-        self.kwargs.update({"batch_size": batch_size})
 
         super().__init__(self.dataset, **self.kwargs)
