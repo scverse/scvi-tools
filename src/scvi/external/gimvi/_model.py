@@ -690,7 +690,6 @@ class TrainDL(DataLoader):
         self.data_loader_list = data_loader_list
         self.largest_train_dl_idx = np.argmax([len(dl.indices) for dl in data_loader_list])
         self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
-        self.kwargs.update({"batch_size": self.batch_size})
         super().__init__(self.largest_dl, **kwargs)
 
     def __len__(self):
