@@ -97,7 +97,7 @@ def test_exception_callback():
     scvi.settings.seed = 0
 
     # we still need to find a proper wat to simualte an adata that fail qucikly during training
-    adata = synthetic_iid(n_genes=1000, batch_size=2)
+    adata = synthetic_iid()
     # change the adata to have Nan inside
     # adata.X = adata.X.astype(float)
     # adata.X[0,:] = 0
