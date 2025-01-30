@@ -404,7 +404,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.n_samples_per_label = n_samples_per_label
-        self.batch_size = self.data_loader_kwargs.get("batch_size", settings.batch_size)
 
         labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         labels = get_anndata_attribute(
@@ -532,7 +531,6 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         return self.data_loader_class(
             self.adata_manager,
             indices=self.train_idx,
-            batch_size=self.batch_size,
             shuffle=True,
             drop_last=self.drop_last,
             pin_memory=self.pin_memory,
@@ -679,7 +677,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             batch_size=bs,
             drop_last=False,
         )
-        return DataLoader(dataset, sampler=sampler, batch_size=bs)
+        return DataLoader(dataset, sampler=sampler, batch_size=None)
 
     def train_dataloader(self):
         """Create the train data loader."""

@@ -46,7 +46,7 @@ def test_scanvi_from_scvi_multigpu():
             model,
             adata=adata,
             labels_key="labels",
-            unlabeled_category="label_0",
+            unlabeled_category="unknown",
         )
         print("done")
         print("multi GPU scanvi train from scvi")
@@ -96,12 +96,11 @@ def test_scanvi_from_scratch_multigpu():
         SCANVI.setup_anndata(
             adata,
             "labels",
-            "label_0",
+            "unknown",
             batch_key="batch",
         )
 
         datasplitter_kwargs = {}
-        datasplitter_kwargs["distributed_sampler"] = True
         datasplitter_kwargs["drop_dataset_tail"] = True
         datasplitter_kwargs["drop_last"] = False
 
@@ -188,19 +187,24 @@ adata = scvi.data.synthetic_iid()
 SCANVI.setup_anndata(
     adata,
     "labels",
-    "label_0",
+    "unknown",
     batch_key="batch",
 )
 
 model = SCANVI(adata, n_latent=10)
 
+datasplitter_kwargs = {}
+datasplitter_kwargs["drop_dataset_tail"] = True
+datasplitter_kwargs["drop_last"] = False
+
 model.train(
-    max_epochs=100,
+    max_epochs=1,
     train_size=0.5,
     check_val_every_n_epoch=1,
     accelerator="gpu",
     devices=-1,
     strategy="ddp_find_unused_parameters_true",
+    datasplitter_kwargs=datasplitter_kwargs,
 )
 
 torch.distributed.destroy_process_group()
