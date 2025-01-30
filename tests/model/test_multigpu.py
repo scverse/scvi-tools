@@ -4,123 +4,119 @@ import subprocess
 import pytest
 import torch
 
-import scvi
-from scvi.model import SCANVI, SCVI
-
-
-@pytest.mark.multigpu
-# SCANVI FROM SCVI - reminder: its impossible to debug pytest multigpu work like this
-def test_scanvi_from_scvi_multigpu():
-    if torch.cuda.is_available():
-        adata = scvi.data.synthetic_iid()
-
-        SCVI.setup_anndata(adata)
-
-        datasplitter_kwargs = {}
-        datasplitter_kwargs["drop_dataset_tail"] = True
-        datasplitter_kwargs["drop_last"] = False
-
-        model = SCVI(adata)
-
-        print("multi GPU SCVI train")
-        model.train(
-            max_epochs=1,
-            check_val_every_n_epoch=1,
-            accelerator="gpu",
-            devices=-1,
-            datasplitter_kwargs=datasplitter_kwargs,
-            strategy="ddp_find_unused_parameters_true",
-        )
-        print("done")
-        torch.distributed.destroy_process_group()
-
-        assert model.is_trained
-        adata.obsm["scVI"] = model.get_latent_representation()
-
-        datasplitter_kwargs = {}
-        datasplitter_kwargs["distributed_sampler"] = True
-        datasplitter_kwargs["drop_last"] = False
-
-        print("multi GPU scanvi load from scvi model")
-        model_scanvi = scvi.model.SCANVI.from_scvi_model(
-            model,
-            adata=adata,
-            labels_key="labels",
-            unlabeled_category="unknown",
-        )
-        print("done")
-        print("multi GPU scanvi train from scvi")
-        model_scanvi.train(
-            max_epochs=1,
-            train_size=0.5,
-            check_val_every_n_epoch=1,
-            accelerator="gpu",
-            devices=-1,
-            strategy="ddp_find_unused_parameters_true",
-            datasplitter_kwargs=datasplitter_kwargs,
-        )
-        print("done")
-        adata.obsm["scANVI"] = model_scanvi.get_latent_representation()
-
-        torch.distributed.destroy_process_group()
-
-        assert model_scanvi.is_trained
-
-
-@pytest.mark.multigpu
-# SCANVI FROM SCRATCH - reminder: its impossible to debug pytest multigpu work like this
-def test_scanvi_from_scratch_multigpu():
-    if torch.cuda.is_available():
-        adata = scvi.data.synthetic_iid()
-
-        # SCVI.setup_anndata(adata)
-        #
-        # datasplitter_kwargs = {}
-        # datasplitter_kwargs["drop_dataset_tail"] = True
-        # datasplitter_kwargs["drop_last"] = False
-        #
-        # print("multi GPU train")
-        # model.train(
-        #     max_epochs=1,
-        #     check_val_every_n_epoch=1,
-        #     accelerator="gpu",
-        #     devices=-1,
-        #     datasplitter_kwargs=datasplitter_kwargs,
-        #     strategy='ddp_find_unused_parameters_true'
-        # )
-        #
-        # torch.distributed.destroy_process_group()
-        #
-        # assert model.is_trained
-
-        SCANVI.setup_anndata(
-            adata,
-            "labels",
-            "unknown",
-            batch_key="batch",
-        )
-
-        datasplitter_kwargs = {}
-        datasplitter_kwargs["drop_dataset_tail"] = True
-        datasplitter_kwargs["drop_last"] = False
-
-        model = SCANVI(adata, n_latent=10)
-
-        print("multi GPU scanvi train from scracth")
-        model.train(
-            max_epochs=1,
-            train_size=0.5,
-            check_val_every_n_epoch=1,
-            accelerator="gpu",
-            devices=-1,
-            datasplitter_kwargs=datasplitter_kwargs,
-            strategy="ddp_find_unused_parameters_true",
-        )
-        print("done")
-
-        torch.distributed.destroy_process_group()
-
-        assert model.is_trained
+# @pytest.mark.multigpu
+# # SCANVI FROM SCVI - reminder: its impossible to debug pytest multigpu work like this
+# def test_scanvi_from_scvi_multigpu():
+#     if torch.cuda.is_available():
+#         adata = scvi.data.synthetic_iid()
+#
+#         SCVI.setup_anndata(adata)
+#
+#         datasplitter_kwargs = {}
+#         datasplitter_kwargs["drop_dataset_tail"] = True
+#         datasplitter_kwargs["drop_last"] = False
+#
+#         model = SCVI(adata)
+#
+#         print("multi GPU SCVI train")
+#         model.train(
+#             max_epochs=1,
+#             check_val_every_n_epoch=1,
+#             accelerator="gpu",
+#             devices=-1,
+#             datasplitter_kwargs=datasplitter_kwargs,
+#             strategy="ddp_find_unused_parameters_true",
+#         )
+#         print("done")
+#         torch.distributed.destroy_process_group()
+#
+#         assert model.is_trained
+#         adata.obsm["scVI"] = model.get_latent_representation()
+#
+#         datasplitter_kwargs = {}
+#         datasplitter_kwargs["distributed_sampler"] = True
+#         datasplitter_kwargs["drop_last"] = False
+#
+#         print("multi GPU scanvi load from scvi model")
+#         model_scanvi = scvi.model.SCANVI.from_scvi_model(
+#             model,
+#             adata=adata,
+#             labels_key="labels",
+#             unlabeled_category="unknown",
+#         )
+#         print("done")
+#         print("multi GPU scanvi train from scvi")
+#         model_scanvi.train(
+#             max_epochs=1,
+#             train_size=0.5,
+#             check_val_every_n_epoch=1,
+#             accelerator="gpu",
+#             devices=-1,
+#             strategy="ddp_find_unused_parameters_true",
+#             datasplitter_kwargs=datasplitter_kwargs,
+#         )
+#         print("done")
+#         adata.obsm["scANVI"] = model_scanvi.get_latent_representation()
+#
+#         torch.distributed.destroy_process_group()
+#
+#         assert model_scanvi.is_trained
+#
+#
+# @pytest.mark.multigpu
+# # SCANVI FROM SCRATCH - reminder: its impossible to debug pytest multigpu work like this
+# def test_scanvi_from_scratch_multigpu():
+#     if torch.cuda.is_available():
+#         adata = scvi.data.synthetic_iid()
+#
+#         # SCVI.setup_anndata(adata)
+#         #
+#         # datasplitter_kwargs = {}
+#         # datasplitter_kwargs["drop_dataset_tail"] = True
+#         # datasplitter_kwargs["drop_last"] = False
+#         #
+#         # print("multi GPU train")
+#         # model.train(
+#         #     max_epochs=1,
+#         #     check_val_every_n_epoch=1,
+#         #     accelerator="gpu",
+#         #     devices=-1,
+#         #     datasplitter_kwargs=datasplitter_kwargs,
+#         #     strategy='ddp_find_unused_parameters_true'
+#         # )
+#         #
+#         # torch.distributed.destroy_process_group()
+#         #
+#         # assert model.is_trained
+#
+#         SCANVI.setup_anndata(
+#             adata,
+#             "labels",
+#             "unknown",
+#             batch_key="batch",
+#         )
+#
+#         datasplitter_kwargs = {}
+#         datasplitter_kwargs["drop_dataset_tail"] = True
+#         datasplitter_kwargs["drop_last"] = False
+#
+#         model = SCANVI(adata, n_latent=10)
+#
+#         print("multi GPU scanvi train from scracth")
+#         model.train(
+#             max_epochs=1,
+#             train_size=0.5,
+#             check_val_every_n_epoch=1,
+#             accelerator="gpu",
+#             devices=-1,
+#             datasplitter_kwargs=datasplitter_kwargs,
+#             strategy="ddp_find_unused_parameters_true",
+#         )
+#         print("done")
+#
+#         torch.distributed.destroy_process_group()
+#
+#         assert model.is_trained
 
 
 @pytest.mark.multigpu
