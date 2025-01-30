@@ -2,7 +2,6 @@ from collections.abc import Sequence
 
 import numpy as np
 
-# import xarray as xr
 import pandas as pd
 import torch
 import torch.distributions as dist
@@ -33,17 +32,9 @@ def get_aggregated_posterior(
 
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
     qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True)
-    #qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, give_mean=True)
-
 
     qu_loc = torch.tensor(qu_loc, device='cuda').T
     qu_scale = torch.tensor(qu_scale, device='cuda').T
-
-    #print(qu_loc[:5])
-
-    #qu_loc = torch.tensor(qu_loc[indices], device='cuda').T
-    #qu_scale = torch.tensor(qu_scale[indices], device='cuda').T
-
     
     if dof is None:
         components = dist.Normal(qu_loc, qu_scale)
@@ -52,13 +43,10 @@ def get_aggregated_posterior(
     return dist.MixtureSameFamily(
         dist.Categorical(logits=torch.ones(qu_loc.shape[1], device='cuda')), components)
 
-
-# TODO: add function headers, descriptions of new params
 def differential_abundance(
     self,
     adata: AnnData | None = None,
     sample_key: str | None = None,
-    sample_subset: list[str] | None = None,
     batch_size: int = 128,
     downsample_cells: int | None = None,
     dof: float | None = None,
@@ -70,8 +58,6 @@ def differential_abundance(
     us = self.get_latent_representation(
         batch_size=batch_size, return_dist=False, give_mean=True
     )
-    #print("da", us[:5])
-    #us = qu_loc
     
     unique_samples = adata.obs[sample_key].unique()
     dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
@@ -85,7 +71,6 @@ def differential_abundance(
         log_probs_ = []
         for u_rep in dataloader:
             u_rep = u_rep.to('cuda')
-            #print(u_rep.shape)
             log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True))
         log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
