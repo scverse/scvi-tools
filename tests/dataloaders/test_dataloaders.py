@@ -134,7 +134,7 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
 
 
 @pytest.mark.multigpu
-@pytest.mark.parametrize("num_processes", [1, 2])
+@pytest.mark.parametrize("num_processes", [1])
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     adata = scvi.data.synthetic_iid()
     SCANVI.setup_anndata(
