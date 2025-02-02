@@ -10,8 +10,9 @@ from torch.utils.data import (
     SequentialSampler,
 )
 
-from scvi import settings
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
+from scvi.data._utils import get_anndata_attribute
 
 from ._samplers import BatchDistributedSampler
 
@@ -56,6 +57,8 @@ class AnnDataLoader(DataLoader):
     distributed_sampler
         ``EXPERIMENTAL`` Whether to use :class:`~scvi.dataloaders.BatchDistributedSampler` as the
         sampler. If `True`, `sampler` must be `None`.
+    n_samples_per_label
+        Number of subsamples for each label class to sample per epoch
     load_sparse_tensor
         ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
         :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
@@ -83,6 +86,7 @@ class AnnDataLoader(DataLoader):
         data_and_attributes: list[str] | dict[str, np.dtype] | None = None,
         iter_ndarray: bool = False,
         distributed_sampler: bool = False,
+        n_samples_per_label: int | None = None,
         load_sparse_tensor: bool = False,
         **kwargs,
     ):
@@ -93,6 +97,7 @@ class AnnDataLoader(DataLoader):
                 indices = np.where(indices)[0].ravel()
             indices = np.asarray(indices)
         self.indices = indices
+        self.n_samples_per_label = n_samples_per_label
         self.dataset = adata_manager.create_torch_dataset(
             indices=indices,
             data_and_attributes=data_and_attributes,
@@ -104,9 +109,31 @@ class AnnDataLoader(DataLoader):
             kwargs["persistent_workers"] = settings.dl_persistent_workers
 
         self.kwargs = copy.deepcopy(kwargs)
+        self.adata_manager = adata_manager
+        self.data_and_attributes = data_and_attributes
+        self._shuffle = shuffle
+        self._batch_size = batch_size
+        self._drop_last = drop_last
+        self.load_sparse_tensor = load_sparse_tensor
 
         if sampler is not None and distributed_sampler:
             raise ValueError("Cannot specify both `sampler` and `distributed_sampler`.")
+
+        # Next block of code is for the case of fully labeled anndataloder
+        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        labels = get_anndata_attribute(
+            adata_manager.adata,
+            adata_manager.data_registry.labels.attr_name,
+            labels_state_registry.original_key,
+        ).ravel()
+        if hasattr(labels_state_registry, "unlabeled_category"):
+            # save a nested list of the indices per labeled category (if exists)
+            self.labeled_locs = []
+            for label in np.unique(labels):
+                if label != labels_state_registry.unlabeled_category:
+                    label_loc_idx = np.where(labels[indices] == label)[0]
+                    label_loc = self.indices[label_loc_idx]
+                    self.labeled_locs.append(label_loc)
 
         # custom sampler for efficient minibatching on sparse matrices
         if sampler is None:
@@ -136,3 +163,34 @@ class AnnDataLoader(DataLoader):
             self.kwargs.update({"collate_fn": lambda x: x})
 
         super().__init__(self.dataset, **self.kwargs)
+
+    def resample_labels(self):
+        """Resamples the labeled data."""
+        self.kwargs.pop("batch_size", None)
+        self.kwargs.pop("shuffle", None)
+        self.kwargs.pop("sampler", None)
+        self.kwargs.pop("collate_fn", None)
+        AnnDataLoader(
+            self.adata_manager,
+            indices=self.subsample_labels(),
+            shuffle=self._shuffle,
+            batch_size=self._batch_size,
+            data_and_attributes=self.data_and_attributes,
+            drop_last=self._drop_last,
+            **self.kwargs,
+        )
+
+    def subsample_labels(self):
+        """Subsamples each label class by taking up to n_samples_per_label samples per class."""
+        if self.n_samples_per_label is None:
+            return np.concatenate(self.labeled_locs)
+
+        sample_idx = []
+        for loc in self.labeled_locs:
+            if len(loc) < self.n_samples_per_label:
+                sample_idx.append(loc)
+            else:
+                label_subset = np.random.choice(loc, self.n_samples_per_label, replace=False)
+                sample_idx.append(label_subset)
+        sample_idx = np.concatenate(sample_idx)
+        return sample_idx

@@ -29,6 +29,7 @@ def use_distributed_sampler(strategy: str | Strategy) -> bool:
     """
     if isinstance(strategy, str):
         # ["ddp", "ddp_spawn", "ddp_find_unused_parameters_true"]
+        # ["ddp_notebook","ddp_notebook_find_unused_parameters_true"] - for jupyter nb run
         return "ddp" in strategy
     return isinstance(strategy, DDPStrategy)
 

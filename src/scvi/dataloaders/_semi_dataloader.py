@@ -53,6 +53,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             return None
 
         self.n_samples_per_label = n_samples_per_label
+        self.data_loader_kwargs = data_loader_kwargs
 
         labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         labels = get_anndata_attribute(
@@ -77,7 +78,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             drop_last=drop_last,
-            **data_loader_kwargs,
+            **self.data_loader_kwargs,
         )
 
     def resample_labels(self):
@@ -93,6 +94,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=self._batch_size,
             data_and_attributes=self.data_and_attributes,
             drop_last=self._drop_last,
+            **self.data_loader_kwargs,
         )
 
     def subsample_labels(self):

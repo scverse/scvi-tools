@@ -516,11 +516,16 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.test_idx = indices_test.astype(int)
 
         if len(self._labeled_indices) != 0:
-            self.data_loader_class = SemiSupervisedDataLoader
+            if len(self._unlabeled_indices) != 0:
+                self.data_loader_class = SemiSupervisedDataLoader
+            else:
+                # data is all labeled
+                self.data_loader_class = AnnDataLoader
             dl_kwargs = {
                 "n_samples_per_label": self.n_samples_per_label,
             }
         else:
+            # data is all unlabeled
             self.data_loader_class = AnnDataLoader
             dl_kwargs = {}
 

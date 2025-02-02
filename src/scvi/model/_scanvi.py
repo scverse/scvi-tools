@@ -24,7 +24,7 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
+from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model._utils import _init_library_size, get_max_epochs_heuristic, use_distributed_sampler
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
@@ -408,43 +408,21 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         # if we have labeled cells, we want to subsample labels each epoch
         sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
 
-        # Create the SCVI regular dataplitter in case of multigpu plausioble
-        if (len(self._unlabeled_indices) == 0) and use_distributed_sampler(
-            trainer_kwargs.get("strategy", None)
-        ):
-            # we are in a multigpu env and its all labeled - n_samples_per_label is not used here
-            # also I remvoed the option for load_sparse_tensor it can be reached from kwargs
-            # in this way we bypass the use of concatdataloaders for now
-            run_multi_gpu = True
-            data_splitter = DataSplitter(
-                self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                batch_size=batch_size,
-                shuffle_set_split=shuffle_set_split,
-                distributed_sampler=True,
-                **datasplitter_kwargs,
-            )
-        else:
-            # what we had so far in scanvi (concat dataloaders)
-            run_multi_gpu = False
-            data_splitter = SemiSupervisedDataSplitter(
-                adata_manager=self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                shuffle_set_split=shuffle_set_split,
-                n_samples_per_label=n_samples_per_label,
-                batch_size=batch_size,
-                **datasplitter_kwargs,
-            )
-
+        data_splitter = SemiSupervisedDataSplitter(
+            adata_manager=self.adata_manager,
+            train_size=train_size,
+            validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
+            n_samples_per_label=n_samples_per_label,
+            distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
+            batch_size=batch_size,
+            **datasplitter_kwargs,
+        )
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
-        if not run_multi_gpu:
-            # TODO: how do we generate subsamples per class in multigpu?
-            if "callbacks" in trainer_kwargs.keys():
-                trainer_kwargs["callbacks"] + [sampler_callback]
-            else:
-                trainer_kwargs["callbacks"] = sampler_callback
+        if "callbacks" in trainer_kwargs.keys():
+            trainer_kwargs["callbacks"] + [sampler_callback]
+        else:
+            trainer_kwargs["callbacks"] = sampler_callback
 
         runner = TrainRunner(
             self,

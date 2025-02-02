@@ -12,7 +12,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
-- Add support for {class}`~scvi.model.SCANVI` multiGPU training, only for the full labeled case {pr}`3125`.
+- Add support for {class}`~scvi.model.SCANVI` multiGPU training {pr}`3125`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 
