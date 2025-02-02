@@ -119,21 +119,22 @@ class AnnDataLoader(DataLoader):
         if sampler is not None and distributed_sampler:
             raise ValueError("Cannot specify both `sampler` and `distributed_sampler`.")
 
-        # Next block of code is for the case of fully labeled anndataloder
-        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
-        labels = get_anndata_attribute(
-            adata_manager.adata,
-            adata_manager.data_registry.labels.attr_name,
-            labels_state_registry.original_key,
-        ).ravel()
-        if hasattr(labels_state_registry, "unlabeled_category"):
-            # save a nested list of the indices per labeled category (if exists)
-            self.labeled_locs = []
-            for label in np.unique(labels):
-                if label != labels_state_registry.unlabeled_category:
-                    label_loc_idx = np.where(labels[indices] == label)[0]
-                    label_loc = self.indices[label_loc_idx]
-                    self.labeled_locs.append(label_loc)
+        # Next block of code is for the case of labeled anndataloder used in scanvi multigpu:
+        if adata_manager.registry["model_name"] == "SCANVI":
+            labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+            labels = get_anndata_attribute(
+                adata_manager.adata,
+                adata_manager.data_registry.labels.attr_name,
+                labels_state_registry.original_key,
+            ).ravel()
+            if hasattr(labels_state_registry, "unlabeled_category"):
+                # save a nested list of the indices per labeled category (if exists)
+                self.labeled_locs = []
+                for label in np.unique(labels):
+                    if label != labels_state_registry.unlabeled_category:
+                        label_loc_idx = np.where(labels[indices] == label)[0]
+                        label_loc = self.indices[label_loc_idx]
+                        self.labeled_locs.append(label_loc)
 
         # custom sampler for efficient minibatching on sparse matrices
         if sampler is None:
