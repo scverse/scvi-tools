@@ -1,48 +1,9 @@
 import numpy as np
 
-from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data._utils import get_anndata_attribute
 
-from ._ann_dataloader import AnnDataLoader
+from ._ann_dataloader import AnnDataLoader, labelled_indices_generator, subsample_labels
 from ._concat_dataloader import ConcatDataLoader
-
-
-def subsample_labels(labeled_locs, n_samples_per_label):
-    """Subsamples each label class by taking up to n_samples_per_label samples per class."""
-    if n_samples_per_label is None:
-        return np.concatenate(labeled_locs)
-
-    sample_idx = []
-    for loc in labeled_locs:
-        if len(loc) < n_samples_per_label:
-            sample_idx.append(loc)
-        else:
-            label_subset = np.random.choice(loc, n_samples_per_label, replace=False)
-            sample_idx.append(label_subset)
-    sample_idx = np.concatenate(sample_idx)
-    return sample_idx
-
-
-def labelled_indices_generator(adata_manager, indices, indices_asarray, n_samples_per_label):
-    # Next block of code is for the case of labeled anndataloder used in scanvi multigpu:
-    labelled_idx = []
-    labeled_locs = []
-    labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
-    labels = get_anndata_attribute(
-        adata_manager.adata,
-        adata_manager.data_registry.labels.attr_name,
-        labels_state_registry.original_key,
-    ).ravel()
-    if hasattr(labels_state_registry, "unlabeled_category"):
-        # save a nested list of the indices per labeled category (if exists)
-        for label in np.unique(labels):
-            if label != labels_state_registry.unlabeled_category:
-                label_loc_idx = np.where(labels[indices] == label)[0]
-                label_loc = indices_asarray[label_loc_idx]
-                labeled_locs.append(label_loc)
-        labelled_idx = subsample_labels(labeled_locs, n_samples_per_label)
-    return labeled_locs, labelled_idx
 
 
 class SemiSupervisedDataLoader(ConcatDataLoader):
