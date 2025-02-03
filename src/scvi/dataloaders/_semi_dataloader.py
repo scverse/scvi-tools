@@ -8,6 +8,43 @@ from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
 
 
+def subsample_labels(labeled_locs, n_samples_per_label):
+    """Subsamples each label class by taking up to n_samples_per_label samples per class."""
+    if n_samples_per_label is None:
+        return np.concatenate(labeled_locs)
+
+    sample_idx = []
+    for loc in labeled_locs:
+        if len(loc) < n_samples_per_label:
+            sample_idx.append(loc)
+        else:
+            label_subset = np.random.choice(loc, n_samples_per_label, replace=False)
+            sample_idx.append(label_subset)
+    sample_idx = np.concatenate(sample_idx)
+    return sample_idx
+
+
+def labelled_indices_generator(adata_manager, indices, indices_asarray, n_samples_per_label):
+    # Next block of code is for the case of labeled anndataloder used in scanvi multigpu:
+    labelled_idx = []
+    labeled_locs = []
+    labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+    labels = get_anndata_attribute(
+        adata_manager.adata,
+        adata_manager.data_registry.labels.attr_name,
+        labels_state_registry.original_key,
+    ).ravel()
+    if hasattr(labels_state_registry, "unlabeled_category"):
+        # save a nested list of the indices per labeled category (if exists)
+        for label in np.unique(labels):
+            if label != labels_state_registry.unlabeled_category:
+                label_loc_idx = np.where(labels[indices] == label)[0]
+                label_loc = indices_asarray[label_loc_idx]
+                labeled_locs.append(label_loc)
+        labelled_idx = subsample_labels(labeled_locs, n_samples_per_label)
+    return labeled_locs, labelled_idx
+
+
 class SemiSupervisedDataLoader(ConcatDataLoader):
     """DataLoader that supports semisupervised training.
 
@@ -55,21 +92,9 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
         self.n_samples_per_label = n_samples_per_label
         self.data_loader_kwargs = data_loader_kwargs
 
-        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
-        labels = get_anndata_attribute(
-            adata_manager.adata,
-            adata_manager.data_registry.labels.attr_name,
-            labels_state_registry.original_key,
-        ).ravel()
-
-        # save a nested list of the indices per labeled category
-        self.labeled_locs = []
-        for label in np.unique(labels):
-            if label != labels_state_registry.unlabeled_category:
-                label_loc_idx = np.where(labels[indices] == label)[0]
-                label_loc = self.indices[label_loc_idx]
-                self.labeled_locs.append(label_loc)
-        labelled_idx = self.subsample_labels()
+        self.labeled_locs, labelled_idx = labelled_indices_generator(
+            adata_manager, indices, self.indices, self.n_samples_per_label
+        )
 
         super().__init__(
             adata_manager=adata_manager,
@@ -83,7 +108,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     def resample_labels(self):
         """Resamples the labeled data."""
-        labelled_idx = self.subsample_labels()
+        labelled_idx = subsample_labels(self.labeled_locs, self.n_samples_per_label)
         # self.dataloaders[0] iterates over full_indices
         # self.dataloaders[1] iterates over the labelled_indices
         # change the indices of the labelled set
@@ -96,18 +121,3 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             drop_last=self._drop_last,
             **self.data_loader_kwargs,
         )
-
-    def subsample_labels(self):
-        """Subsamples each label class by taking up to n_samples_per_label samples per class."""
-        if self.n_samples_per_label is None:
-            return np.concatenate(self.labeled_locs)
-
-        sample_idx = []
-        for loc in self.labeled_locs:
-            if len(loc) < self.n_samples_per_label:
-                sample_idx.append(loc)
-            else:
-                label_subset = np.random.choice(loc, self.n_samples_per_label, replace=False)
-                sample_idx.append(label_subset)
-        sample_idx = np.concatenate(sample_idx)
-        return sample_idx

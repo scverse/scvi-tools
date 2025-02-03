@@ -10,11 +10,11 @@ from torch.utils.data import (
     SequentialSampler,
 )
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import settings
 from scvi.data import AnnDataManager
-from scvi.data._utils import get_anndata_attribute
 
 from ._samplers import BatchDistributedSampler
+from ._semi_dataloader import labelled_indices_generator, subsample_labels
 
 logger = logging.getLogger(__name__)
 
@@ -120,21 +120,11 @@ class AnnDataLoader(DataLoader):
             raise ValueError("Cannot specify both `sampler` and `distributed_sampler`.")
 
         # Next block of code is for the case of labeled anndataloder used in scanvi multigpu:
+        self.labeled_locs, labelled_idx = [], []
         if adata_manager.registry["model_name"] == "SCANVI":
-            labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
-            labels = get_anndata_attribute(
-                adata_manager.adata,
-                adata_manager.data_registry.labels.attr_name,
-                labels_state_registry.original_key,
-            ).ravel()
-            if hasattr(labels_state_registry, "unlabeled_category"):
-                # save a nested list of the indices per labeled category (if exists)
-                self.labeled_locs = []
-                for label in np.unique(labels):
-                    if label != labels_state_registry.unlabeled_category:
-                        label_loc_idx = np.where(labels[indices] == label)[0]
-                        label_loc = self.indices[label_loc_idx]
-                        self.labeled_locs.append(label_loc)
+            self.labeled_locs, labelled_idx = labelled_indices_generator(
+                adata_manager, indices, self.indices, self.n_samples_per_label
+            )
 
         # custom sampler for efficient minibatching on sparse matrices
         if sampler is None:
@@ -173,25 +163,10 @@ class AnnDataLoader(DataLoader):
         self.kwargs.pop("collate_fn", None)
         AnnDataLoader(
             self.adata_manager,
-            indices=self.subsample_labels(),
+            indices=subsample_labels(self.labeled_locs, self.n_samples_per_label),
             shuffle=self._shuffle,
             batch_size=self._batch_size,
             data_and_attributes=self.data_and_attributes,
             drop_last=self._drop_last,
             **self.kwargs,
         )
-
-    def subsample_labels(self):
-        """Subsamples each label class by taking up to n_samples_per_label samples per class."""
-        if self.n_samples_per_label is None:
-            return np.concatenate(self.labeled_locs)
-
-        sample_idx = []
-        for loc in self.labeled_locs:
-            if len(loc) < self.n_samples_per_label:
-                sample_idx.append(loc)
-            else:
-                label_subset = np.random.choice(loc, self.n_samples_per_label, replace=False)
-                sample_idx.append(label_subset)
-        sample_idx = np.concatenate(sample_idx)
-        return sample_idx
