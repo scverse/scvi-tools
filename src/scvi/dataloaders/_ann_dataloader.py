@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 def subsample_labels(labeled_locs, n_samples_per_label):
     """Subsamples each label class by taking up to n_samples_per_label samples per class."""
     if n_samples_per_label is None:
-        return np.concatenate(labeled_locs)
+        if len(labeled_locs) == 0:
+            return labeled_locs
+        else:
+            return np.concatenate(labeled_locs)
 
     sample_idx = []
     for loc in labeled_locs:
