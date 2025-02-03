@@ -1,10 +1,10 @@
 from collections.abc import Iterable as IterableClass
 
 import pandas as pd
-from nichevi import NICHEVI_REGISTRY_KEYS
 from rich import print
 
 from scvi import REGISTRY_KEYS
+from scvi.external.nichevi import NICHEVI_REGISTRY_KEYS
 from scvi.model.base._de_core import _fdr_de_prediction, _prepare_obs
 from scvi.model.base._differential import DifferentialComputation
 from scvi.utils import track
