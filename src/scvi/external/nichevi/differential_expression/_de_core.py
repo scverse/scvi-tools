@@ -135,16 +135,16 @@ def _niche_de_core(
 
         # Ensure fdr and delta are lists of the correct length
         if isinstance(fdr, list):
-            assert len(fdr) == len(
-                comparisons
-            ), f"Mismatch: len(fdr)={len(fdr)}, expected={len(comparisons)}"
+            assert len(fdr) == len(comparisons), (
+                f"Mismatch: len(fdr)={len(fdr)}, expected={len(comparisons)}"
+            )
         else:
             fdr = [fdr] * len(comparisons)  # Convert to list of same value
 
         if isinstance(delta, list):
-            assert len(delta) == len(
-                comparisons
-            ), f"Mismatch: len(delta)={len(delta)}, expected={len(comparisons)}"
+            assert len(delta) == len(comparisons), (
+                f"Mismatch: len(delta)={len(delta)}, expected={len(comparisons)}"
+            )
         else:
             delta = [delta] * len(comparisons)  # Convert to list of same value
 
@@ -163,7 +163,7 @@ def _niche_de_core(
                 batchid1=batchid1,
                 batchid2=batchid2,
                 use_observed_batches=not batch_correction,
-                test_mode='three',
+                test_mode="three",
                 **kwargs,
             )
 
