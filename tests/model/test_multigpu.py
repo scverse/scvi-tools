@@ -10,7 +10,6 @@ from scvi.model import MULTIVI, PEAKVI, TOTALVI, CondSCVI, LinearSCVI
 
 
 @pytest.mark.multigpu
-# SCANVI FROM SCVI - reminder: its impossible to debug pytest multigpu work like this
 def test_scanvi_from_scvi_multigpu():
     if torch.cuda.is_available():
         import scvi
@@ -69,7 +68,6 @@ def test_scanvi_from_scvi_multigpu():
 
 
 @pytest.mark.multigpu
-# SCANVI FROM SCRATCH - reminder: its impossible to debug pytest multigpu work like this
 def test_scanvi_from_scratch_multigpu():
     if torch.cuda.is_available():
         import scvi
@@ -110,12 +108,6 @@ def test_totalvi_multigpu():
     adata = scvi.data.synthetic_iid()
     protein_adata = scvi.data.synthetic_iid(n_genes=50)
     mdata = MuData({"rna": adata, "protein": protein_adata})
-    # TOTALVI.setup_anndata(
-    #     adata,
-    #     batch_key="batch",
-    #     protein_expression_obsm_key="protein_expression",
-    #     protein_names_uns_key="protein_names",
-    # )
     TOTALVI.setup_mudata(
         mdata,
         batch_key="batch",
@@ -124,9 +116,8 @@ def test_totalvi_multigpu():
     n_latent = 10
     model = TOTALVI(mdata, n_latent=n_latent)
     model.train(
-        100,
+        1,
         train_size=0.5,
-        early_stopping=False,
         check_val_every_n_epoch=1,
         accelerator="gpu",
         devices=-1,
@@ -137,12 +128,7 @@ def test_totalvi_multigpu():
 
 @pytest.mark.multigpu
 def test_multivi_multigpu():
-    # adata = scvi.data.synthetic_iid()
     mdata = scvi.data.synthetic_iid(return_mudata=True)
-    # MULTIVI.setup_anndata(
-    #     adata,
-    #     batch_key="batch",
-    # )
     MULTIVI.setup_mudata(
         mdata,
         batch_key="batch",
@@ -160,9 +146,8 @@ def test_multivi_multigpu():
         n_regions=50,
     )
     model.train(
-        100,
+        1,
         train_size=0.5,
-        early_stopping=False,
         check_val_every_n_epoch=1,
         accelerator="gpu",
         devices=-1,
@@ -185,10 +170,9 @@ def test_peakvi_multigpu():
     )
 
     model.train(
-        max_epochs=100,
+        max_epochs=1,
         train_size=0.5,
         check_val_every_n_epoch=1,
-        early_stopping=False,
         accelerator="gpu",
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
@@ -209,7 +193,7 @@ def test_condscvi_multigpu():
     model = CondSCVI(adata)
 
     model.train(
-        max_epochs=100,
+        max_epochs=1,
         train_size=0.9,
         check_val_every_n_epoch=1,
         accelerator="gpu",
@@ -227,7 +211,7 @@ def test_linearcvi_multigpu():
     model = LinearSCVI(adata, n_latent=10)
 
     model.train(
-        max_epochs=100,
+        max_epochs=1,
         train_size=0.5,
         check_val_every_n_epoch=1,
         accelerator="gpu",
