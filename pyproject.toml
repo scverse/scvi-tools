@@ -62,8 +62,8 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision","torchaudio","jax[cuda]"]
-metal = ["torchvision","torchaudio","jax-metal"]
+cuda = ["torchvision", "torchaudio", "jax[cuda]"]
+metal = ["torchvision", "torchaudio", "jax-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -82,22 +82,24 @@ docs = [
 docsbuild = ["scvi-tools[docs,optional]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]>=2.5.0"]
+autotune = ["hyperopt>=0.2", "ray[tune]"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
-census = ["cellxgene-census","numpy<2.0"]
+census = ["cellxgene-census", "numpy<2.0"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg","dvc[s3]"]
+hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
-scanpy = ["scanpy>=1.10","scikit-misc"]
+scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
 pooch = ["pooch"]
+# for custom dataloders
+dataloaders = ["lamindb","biomart","bionty","cellxgene_lamin","scdataloader"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy,dataloaders]"
 ]
 tutorials = [
     "cell2location",
@@ -111,9 +113,6 @@ tutorials = [
     "scib-metrics",
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
-]
-dataloaders = [
-    "scdataloader"
 ]
 
 all = ["scvi-tools[dev,docs,tutorials]"]

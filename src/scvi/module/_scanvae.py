@@ -374,7 +374,7 @@ class SCANVAE(VAE):
             )
         return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)
 
-    def on_load(self, model: BaseModelClass):
+    def on_load(self, model: BaseModelClass, **kwargs):
         manager = model.get_anndata_manager(model.adata, required=True)
         source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
         version_split = source_version.split(".")

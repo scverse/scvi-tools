@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
+import pyro
 import rich
 import torch
 from anndata import AnnData
@@ -700,6 +701,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
+        model_state_dict["pyro_param_store"] = pyro.get_param_store().get_state()
 
         var_names = self.get_var_names(legacy_mudata_format=legacy_mudata_format)
 
@@ -797,7 +799,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         model = _initialize_model(cls, adata, registry, attr_dict)
-        model.module.on_load(model)
+        pyro_param_store = model_state_dict.pop("pyro_param_store", None)
+        model.module.on_load(model, pyro_param_store=pyro_param_store)
         model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)

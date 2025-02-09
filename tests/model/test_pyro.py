@@ -369,9 +369,9 @@ def test_pyro_bayesian_train_sample_mixin():
     ]
 
     # test posterior sampling
-    samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
+    results = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
 
-    assert len(samples["posterior_samples"]["sigma"]) == 10
+    assert len(results["posterior_samples"]["sigma"]) == 10
 
 
 def test_pyro_bayesian_train_sample_mixin_full_data():

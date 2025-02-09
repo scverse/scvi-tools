@@ -856,7 +856,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata10, dir_path)
     model10 = SCVI(adata10, n_latent=n_latent)
     model10.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model10)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model10)
     registry = attr_dict.pop("registry_")
     # we validate only relevant covariates were passed - cat2 and cont2 are not used
     assert (
@@ -888,7 +888,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata11, dir_path)
     model11 = SCVI(adata11, n_latent=n_latent)
     model11.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model11)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model11)
     registry = attr_dict.pop("registry_")
     assert (
         registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
@@ -911,7 +911,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata12, dir_path)
     model12 = SCVI(adata12, n_latent=n_latent)
     model12.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model12)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model12)
     registry = attr_dict.pop("registry_")
     assert (
         registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
@@ -1122,9 +1122,9 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    with pytest.raises(ValueError) as excinfo:
-        SCVI(n_latent=5)
-    assert str(excinfo.value) == "adata or registry must be provided."
+    with pytest.raises(TypeError) as excinfo:
+        SCVI(n_latent=n_latent)
+    assert str(excinfo.value) == "SCVI.__init__() missing 1 required positional argument: 'adata'"
 
 
 def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
@@ -1147,9 +1147,9 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    with pytest.raises(ValueError) as excinfo:
-        SCVI(n_latent=5)
-    assert str(excinfo.value) == "adata or registry must be provided."
+    with pytest.raises(TypeError) as excinfo:
+        SCVI(n_latent=n_latent)
+    assert str(excinfo.value) == "SCVI.__init__() missing 1 required positional argument: 'adata'"
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
