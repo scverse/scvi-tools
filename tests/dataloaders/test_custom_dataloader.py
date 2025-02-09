@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+import os
 from pprint import pprint
 from time import time
 
-import lamindb as ln
+import pytest
 
 import scvi
 from scvi.dataloaders import MappedCollectionDataModule
 from scvi.utils import dependencies
 
 
-# @pytest.mark.custom_dataloader
+@pytest.mark.custom_dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scvi_scanvi(save_path: str):
+    os.system("lamin init --storage ./test-registries")
+    import lamindb as ln
+
+    ln.setup.init(name="lamindb_instance_name", storage=save_path)
+
     # a test for mapped collection
     collection = ln.Collection.get(name="covid_normal_lung")
     artifacts = collection.artifacts.all()
