@@ -57,7 +57,8 @@ class ConcatDataLoader(DataLoader):
 
         self.dataloaders = []
         for indices in indices_list:
-            self.data_loader_kwargs.pop("sampler", None)
+            if self._distributed_sampler:
+                self.data_loader_kwargs.pop("sampler", None)
             self.dataloaders.append(
                 AnnDataLoader(
                     adata_manager,
