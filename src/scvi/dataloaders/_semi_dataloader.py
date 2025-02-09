@@ -1,8 +1,10 @@
 import numpy as np
 
+from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._utils import get_anndata_attribute
 
-from ._ann_dataloader import AnnDataLoader, labelled_indices_generator, subsample_labels
+from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
 
 
@@ -46,16 +48,28 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             indices = np.arange(adata.n_obs)
 
         self.indices = np.asarray(indices)
+        self.data_loader_kwargs = data_loader_kwargs
 
         if len(self.indices) == 0:
             return None
 
         self.n_samples_per_label = n_samples_per_label
-        self.data_loader_kwargs = data_loader_kwargs
 
-        self.labeled_locs, labelled_idx = labelled_indices_generator(
-            adata_manager, indices, self.indices, self.n_samples_per_label
-        )
+        labels_state_registry = adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        labels = get_anndata_attribute(
+            adata_manager.adata,
+            adata_manager.data_registry.labels.attr_name,
+            labels_state_registry.original_key,
+        ).ravel()
+
+        # save a nested list of the indices per labeled category
+        self.labeled_locs = []
+        for label in np.unique(labels):
+            if label != labels_state_registry.unlabeled_category:
+                label_loc_idx = np.where(labels[indices] == label)[0]
+                label_loc = self.indices[label_loc_idx]
+                self.labeled_locs.append(label_loc)
+        labelled_idx = self.subsample_labels()
 
         super().__init__(
             adata_manager=adata_manager,
@@ -69,7 +83,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
 
     def resample_labels(self):
         """Resamples the labeled data."""
-        labelled_idx = subsample_labels(self.labeled_locs, self.n_samples_per_label)
+        labelled_idx = self.subsample_labels()
         # self.dataloaders[0] iterates over full_indices
         # self.dataloaders[1] iterates over the labelled_indices
         # change the indices of the labelled set
@@ -82,3 +96,18 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             drop_last=self._drop_last,
             **self.data_loader_kwargs,
         )
+
+    def subsample_labels(self):
+        """Subsamples each label class by taking up to n_samples_per_label samples per class."""
+        if self.n_samples_per_label is None:
+            return np.concatenate(self.labeled_locs)
+
+        sample_idx = []
+        for loc in self.labeled_locs:
+            if len(loc) < self.n_samples_per_label:
+                sample_idx.append(loc)
+            else:
+                label_subset = np.random.choice(loc, self.n_samples_per_label, replace=False)
+                sample_idx.append(label_subset)
+        sample_idx = np.concatenate(sample_idx)
+        return sample_idx
