@@ -14,6 +14,7 @@ to [Semantic Versioning]. Full commit history is available in the
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
+- Add support for using Lamin custom dataloaders with {class}`scvi.model.SCVI`, {pr}`3XXX`.
 
 #### Fixed
 
