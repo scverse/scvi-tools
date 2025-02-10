@@ -438,9 +438,12 @@ class JVAE(BaseModuleClass):
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
 
+        px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+
         return {
             "px_scale": px_scale,
-            "px": px_r,
+            "px": px,
+            "px_r": px_r,
             "px_rate": px_rate,
             "px_dropout": px_dropout,
             "batch_index": batch_index,
@@ -484,7 +487,7 @@ class JVAE(BaseModuleClass):
         qz = inference_outputs["qz"]
         ql = inference_outputs["ql"]
         px_rate = generative_outputs["px_rate"]
-        px_r = generative_outputs["px"]
+        px_r = generative_outputs["px_r"]
         px_dropout = generative_outputs["px_dropout"]
 
         # mask loss to observed genes
