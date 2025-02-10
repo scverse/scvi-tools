@@ -30,32 +30,32 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::
 
 :::{tab-item} scBS-seq
-```{include} index_scbs
+```{include} index_scbs.md
 ```
 :::
 
 :::{tab-item} Multimodal
-```{include} index_multimodal
+```{include} index_multimodal.md
 ```
 :::
 
 :::{tab-item} Spatial transcriptomics
-```{include} index_spatial
+```{include} index_spatial.md
 ```
 :::
 
 :::{tab-item} Model hub
-```{include} index_hub
+```{include} index_hub.md
 ```
 :::
 
 :::{tab-item} Hyperparameter tuning
-```{include} index_tuning
+```{include} index_tuning.md
 ```
 :::
 
 :::{tab-item} Development
-```{include} index_dev
+```{include} index_dev.md
 ```
 :::
 
