@@ -96,7 +96,7 @@ scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
 pooch = ["pooch"]
 # for custom dataloders
-dataloaders = ["lamindb","biomart","bionty","cellxgene_lamin","scdataloader"]
+dataloaders = ["lamindb","biomart","bionty","cellxgene_lamin"]
 
 optional = [
     "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy,dataloaders]"
