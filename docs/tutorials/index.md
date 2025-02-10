@@ -9,19 +9,63 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
-```{toctree}
-:maxdepth: 2
+::::{grid} 1 1 2 3
 
-index_quick_start
-index_scrna
-index_atac
-index_scbs
-index_multimodal
-index_spatial
-index_hub
-index_tuning
-index_dev
+:::{card}
+:header: Quick start
+```{include} index_quick_start.md
 ```
+:::
+
+:::{card}
+:header: scRNA-seq
+```{include} index_scrna.md
+```
+:::
+
+:::{card}
+:header: ATAC-seq
+```{include} index_atac.md
+```
+:::
+
+:::{card}
+:header: scBS-seq
+```{include} index_scbs.md
+```
+:::
+
+:::{card}
+:header: Multimodal
+```{include} index_multimodal.md
+```
+:::
+
+:::{card}
+:header: Spatial transcriptomics
+```{include} index_spatial.md
+```
+:::
+
+:::{card}
+:header: Model hub
+```{include} index_hub.md
+```
+:::
+
+:::{card}
+:header: Hyperparameter tuning
+```{include} index_tuning.md
+```
+:::
+
+:::{card}
+:header: Development
+```{include} index_dev.md
+```
+:::
+::::
+
 
 [forum]: https://discourse.scverse.org/
 [ecosystem]: https://scvi-tools.org/ecosystem
