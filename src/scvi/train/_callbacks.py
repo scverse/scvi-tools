@@ -199,8 +199,7 @@ class SaveCheckpoint(ModelCheckpoint):
                 # For scArches shapes are changed and we don't want to overwrite
                 # these changed shapes.
                 pyro.get_param_store().set_state(pyro_param_store)
-            print(self.reason)
-            print(f"Model saved to {self.best_model_path}")
+            print(self.reason + f". Model saved to {self.best_model_path}")
             self._log_info(trainer, self.reason, False)
             return
 

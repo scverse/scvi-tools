@@ -72,8 +72,6 @@ class Trainer(pl.Trainer):
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
     enable_progress_bar
         Whether to enable or disable the progress bar.
-    gradient_clip_val
-        Value for gradient clipping. Gradient clipping can be enabled to avoid eploding gradients.
     progress_bar_refresh_rate
         How often to refresh progress bar (in steps). Value 0 disables progress bar.
     simple_progress_bar
@@ -109,7 +107,6 @@ class Trainer(pl.Trainer):
         early_stopping_patience: int = 45,
         early_stopping_mode: Literal["min", "max"] = "min",
         enable_progress_bar: bool = True,
-        gradient_clip_val: int | float = 0,
         progress_bar_refresh_rate: int = 1,
         simple_progress_bar: bool = True,
         logger: Logger | None | bool = None,
@@ -159,7 +156,6 @@ class Trainer(pl.Trainer):
             benchmark=benchmark,
             check_val_every_n_epoch=check_val_every_n_epoch,
             max_epochs=max_epochs,
-            gradient_clip_val=gradient_clip_val,
             default_root_dir=default_root_dir,
             enable_checkpointing=enable_checkpointing,
             num_sanity_val_steps=num_sanity_val_steps,
