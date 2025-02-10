@@ -156,9 +156,9 @@ class VAEC(BaseModuleClass):
         x_ = x
         library = x.sum(1).unsqueeze(1)
         if self.log_variational:
-            x = torch.log1p(x_)
+            x_ = torch.log1p(x_)
 
-        encoder_input = [x, y]
+        encoder_input = [x_, y]
         if batch_index is not None and self.encode_covariates:
             encoder_input.append(batch_index)
 

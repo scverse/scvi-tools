@@ -324,16 +324,16 @@ class PEAKVAE(BaseModuleClass):
         else:
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
-        p = self.z_decoder(decoder_input, batch_index, *categorical_input)
+        px = self.z_decoder(decoder_input, batch_index, *categorical_input)
 
-        return {"px": p}
+        return {"px": px}
 
     def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]
-        p = generative_outputs["px"]
+        px = generative_outputs["px"]
 
         kld = kl_divergence(
             qz,
@@ -341,7 +341,7 @@ class PEAKVAE(BaseModuleClass):
         ).sum(dim=1)
 
         f = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
-        rl = self.get_reconstruction_loss(p, d, f, x)
+        rl = self.get_reconstruction_loss(px, d, f, x)
 
         loss = (rl.sum() + kld * kl_weight).sum()
 

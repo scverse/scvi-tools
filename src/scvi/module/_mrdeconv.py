@@ -193,7 +193,7 @@ class MRDeconv(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        batch_index = None  # tensors[REGISTRY_KEYS.BATCH_KEY]
 
         input_dict = {"x": x, "ind_x": ind_x, "batch_index": batch_index}
         return input_dict
@@ -204,7 +204,7 @@ class MRDeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, ind_x, batch_index, transform_batch: torch.Tensor | None = None):
+    def generative(self, x, ind_x, batch_index=None, transform_batch: torch.Tensor | None = None):
         """Build the deconvolution model for every cell in the minibatch."""
         m = x.shape[0]
         library = torch.sum(x, dim=1, keepdim=True)
@@ -214,8 +214,8 @@ class MRDeconv(BaseModuleClass):
         x_ = torch.log(1 + x)
         # subsample parameters
 
-        if transform_batch is not None:
-            batch_index = torch.ones_like(batch_index) * transform_batch
+        # if transform_batch is not None:
+        #    batch_index = torch.ones_like(batch_index) * transform_batch
 
         if self.amortization in ["both", "latent"]:
             gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
