@@ -31,6 +31,8 @@ def run_autotune(
     logging_dir: str | None = None,
     scheduler_kwargs: dict | None = None,
     searcher_kwargs: dict | None = None,
+    scib_stage: str | None = "validation",
+    scib_subsample_rows: int | None = 100,
 ) -> AutotuneExperiment:
     """``BETA`` Run a hyperparameter sweep.
 
@@ -95,6 +97,12 @@ def run_autotune(
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
         Additional keyword arguments to pass to the search algorithm.
+    scib_stage
+        Used when performing scib-metrics tune, select whether to perform on validation (default)
+        or training end.
+    scib_subsample_rows
+        Used when performing scib-metrics tune, select number of rows to subsample (100 default).
+        This is important to save computation time
 
     Returns
     -------
@@ -126,6 +134,8 @@ def run_autotune(
         logging_dir=logging_dir,
         scheduler_kwargs=scheduler_kwargs,
         searcher_kwargs=searcher_kwargs,
+        scib_stage=scib_stage,
+        scib_subsample_rows=scib_subsample_rows,
     )
     logger.info(f"Running autotune experiment {experiment.name}.")
     init(log_to_driver=False, ignore_reinit_error=True)

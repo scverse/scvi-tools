@@ -1,3 +1,4 @@
+import pytest
 from ray import tune
 from ray.tune import ResultGrid
 
@@ -27,7 +28,7 @@ from scvi.model import SCVI
 # metrics = {f"training {metric}": results[metric]["z"] for metric in results}
 
 
-def test_run_autotune_scvi_basic(save_path: str = "."):
+def test_run_autotune_scvi_basic(save_path: str):
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -55,7 +56,7 @@ def test_run_autotune_scvi_basic(save_path: str = "."):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
-def test_run_autotune_scvi_no_anndata(save_path: str = ".", n_batches: int = 3):
+def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
     settings.logging_dir = save_path
     adata = synthetic_iid(n_batches=n_batches)
     SCVI.setup_anndata(adata, batch_key="batch")
@@ -88,9 +89,10 @@ def test_run_autotune_scvi_no_anndata(save_path: str = ".", n_batches: int = 3):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
-def test_run_autotune_scvi_with_scib(save_path: str = "."):
+@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+def test_run_autotune_scvi_with_scib(metric: str, save_path: str = "."):
     settings.logging_dir = save_path
-    adata = synthetic_iid(batch_size=10)
+    adata = synthetic_iid(batch_size=10, n_genes=10)
     SCVI.setup_anndata(adata)
 
     # Mapping of metric fn names to clean DataFrame column names
@@ -98,8 +100,8 @@ def test_run_autotune_scvi_with_scib(save_path: str = "."):
     #     "silhouette_label": "Silhouette label",
     #     "silhouette_batch": "Silhouette batch",
     #     "isolated_labels": "Isolated labels",
-    #     "nmi_ari_cluster_labels_leiden_nmi": "Leiden NMI",
-    #     "nmi_ari_cluster_labels_leiden_ari": "Leiden ARI",
+    #     "nmi_ari_cluster_labels_leiden_nmi": "Leiden NMI", - not run
+    #     "nmi_ari_cluster_labels_leiden_ari": "Leiden ARI", - not run
     #     "nmi_ari_cluster_labels_kmeans_nmi": "KMeans NMI",
     #     "nmi_ari_cluster_labels_kmeans_ari": "KMeans ARI",
     #     "clisi_knn": "cLISI",
@@ -115,7 +117,7 @@ def test_run_autotune_scvi_with_scib(save_path: str = "."):
     experiment = run_autotune(
         SCVI,
         adata,
-        metrics=["BioConservation"],
+        metrics=[metric],
         mode="max",
         search_space={
             "model_params": {
@@ -125,26 +127,28 @@ def test_run_autotune_scvi_with_scib(save_path: str = "."):
                 "max_epochs": 1,
             },
         },
-        num_samples=1,
+        num_samples=2,
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
+        scib_stage="validation",
+        scib_subsample_rows=50,
     )
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
-def test_early_stopping():
-    # we use this temporarily to debug the scib-metrics callback
-    n_epochs = 100
-
-    adata = synthetic_iid()
-    SCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-    )
-    model = SCVI(adata)
-    model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
-    assert len(model.history["elbo_train"]) < n_epochs
+# def test_early_stopping():
+#     # we use this temporarily to debug the scib-metrics callback
+#     n_epochs = 100
+#
+#     adata = synthetic_iid()
+#     SCVI.setup_anndata(
+#         adata,
+#         batch_key="batch",
+#         labels_key="labels",
+#     )
+#     model = SCVI(adata)
+#     model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
+#     assert len(model.history["elbo_train"]) < n_epochs

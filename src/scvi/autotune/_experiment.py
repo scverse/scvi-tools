@@ -26,25 +26,6 @@ _ASHA_DEFAULT_KWARGS = {
     "reduction_factor": 2,
 }
 
-# Mapping of metric fn names to clean DataFrame column names
-metric_name_cleaner = {
-    "silhouette_label": "Silhouette label",
-    "silhouette_batch": "Silhouette batch",
-    "isolated_labels": "Isolated labels",
-    "nmi_ari_cluster_labels_leiden_nmi": "Leiden NMI",
-    "nmi_ari_cluster_labels_leiden_ari": "Leiden ARI",
-    "nmi_ari_cluster_labels_kmeans_nmi": "KMeans NMI",
-    "nmi_ari_cluster_labels_kmeans_ari": "KMeans ARI",
-    "clisi_knn": "cLISI",
-    "ilisi_knn": "iLISI",
-    "kbet_per_label": "KBET",
-    "graph_connectivity": "Graph connectivity",
-    "pcr_comparison": "PCR comparison",
-    "BatchCorrection": "Batch correction",
-    "BioConservation": "Bio conservation",
-    "SCIB_Total": "Total",
-}
-
 
 class AutotuneExperiment:
     """``BETA`` Track hyperparameter tuning experiments.
@@ -109,6 +90,12 @@ class AutotuneExperiment:
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
         Additional keyword arguments to pass to the search algorithm.
+    scib_stage
+        Used when performing scib-metrics tune, select whether to perform on validation (default)
+        or training end.
+    scib_subsample_rows
+        Used when performing scib-metrics tune, select number of rows to subsample (100 default).
+        This is important to save computation time
 
     Notes
     -----
@@ -135,6 +122,8 @@ class AutotuneExperiment:
         logging_dir: str | None = None,
         scheduler_kwargs: dict | None = None,
         searcher_kwargs: dict | None = None,
+        scib_stage: str | None = "validation",
+        scib_subsample_rows: int | None = 100,
     ) -> None:
         self.model_cls = model_cls
         self.data = data
@@ -150,6 +139,8 @@ class AutotuneExperiment:
         self.resources = resources
         self.name = name
         self.logging_dir = logging_dir
+        self.scib_stage = scib_stage
+        self.scib_subsample_rows = scib_subsample_rows
 
     @property
     def id(self) -> str:
@@ -544,16 +535,26 @@ def _trainable(
     for more details.
     """
     from ray.train import get_context
+    from scib_metrics.benchmark._core import metric_name_cleaner
 
     from scvi import settings
     from scvi.train._callbacks import ScibCallback
+
+    metric_name_cleaner["SCIB_Total"] = "Total"  # manual addition
+    metric_name_cleaner["BatchCorrection"] = "Batch correction"  # manual addition
+    metric_name_cleaner["BioConservation"] = "Bio conservation"  # manual addition
 
     model_params, train_params = (
         param_sample.get("model_params", {}),
         param_sample.get("train_params", {}),
     )
-    if experiment.metrics[0] in metric_name_cleaner:
-        tune_callback = ScibCallback(stage="validation", metric=experiment.metrics[0])
+    if experiment.metrics[0] in metric_name_cleaner.values():
+        # This is how we decide on running a scib tuner
+        tune_callback = ScibCallback(
+            stage=experiment.scib_stage,
+            metric=experiment.metrics[0],
+            num_rows_to_select=experiment.scib_subsample_rows,
+        )
     else:
         tune_callback = experiment.metrics_callback
     train_params = {

@@ -339,7 +339,7 @@ class ScibCallback(Callback):
     # example to use in debug:
     # tune_callback = ScibCallback(stage="validation", metric="BioConservation")
     # stage="validation"
-    # metric = "BioConservation"
+    # metric = "Bio conservation"
     # trainer=_trainer
     # pl_module=_pl_module
     from scib_metrics.benchmark import BatchCorrection, BioConservation
@@ -348,14 +348,16 @@ class ScibCallback(Callback):
         self,
         bio_conservation_metrics: BioConservation | None = None,
         batch_correction_metrics: BatchCorrection | None = None,
-        stage: Literal["training", "validation", "both"] = "both",
-        metric: str | None = None,
+        stage: Literal["training", "validation", "both"] = "validation",
+        metric: str | None = "Total",
+        num_rows_to_select: int = 100,
     ):
         super().__init__()
         self.bio_conservation_metrics = bio_conservation_metrics
         self.batch_correction_metrics = batch_correction_metrics
         self.stage = stage
         self.metric = metric
+        self.num_rows_to_select = num_rows_to_select
 
     def compute_metrics(
         self,
@@ -363,7 +365,8 @@ class ScibCallback(Callback):
         pl_module: pl.LightningModule,
         stage: Literal["training", "validation"],
     ):
-        from scib_metrics.benchmark import Benchmarker
+        from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
+        from scib_metrics.benchmark._core import metric_name_cleaner
 
         if self.metric is None:
             return
@@ -377,9 +380,80 @@ class ScibCallback(Callback):
 
         outputs = getattr(pl_module, f"_{stage}_epoch_outputs")
         x = outputs["x"].numpy()
+        # x = np.zeros(x.shape) #TODO: should we do it? can be done also in trainingplans already
         z = outputs["z"].numpy()
         batch = outputs["batch"].numpy()
         labels = outputs["labels"].numpy()
+
+        # TODO: subsample to save time
+        # rand_idx = np.random.choice(x.shape[0], self.num_rows_to_select, replace=False)
+        # batch = batch[rand_idx]
+        # labels = labels[rand_idx]
+        # x = x[rand_idx]
+        # z = z[rand_idx]
+
+        # adjust which metric to run exactly
+        found_metric = next(
+            (key for key, value in metric_name_cleaner.items() if value == self.metric), None
+        )
+        # specal cases:
+        if self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
+            found_metric = "nmi_ari_cluster_labels_leiden"
+        if self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
+            found_metric = "nmi_ari_cluster_labels_kmeans"
+        if found_metric is not None:
+            # beucase originaly those classes are frozen we cant just set the metric to True
+            # Need to do it manualy unfortunatley
+            # self.bio_conservation_metrics=BioConservation(False,False,False,False,False)
+            # self.batch_correction_metrics=BatchCorrection(False,False,False,False,False)
+            # if hasattr(self.bio_conservation_metrics, found_metric):
+            #     setattr(self.bio_conservation_metrics, found_metric, True)
+            # if hasattr(self.batch_correction_metrics, found_metric):
+            #     setattr(self.batch_correction_metrics, found_metric, True)
+            if found_metric == "isolated_labels":
+                self.bio_conservation_metrics = BioConservation(True, False, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
+            if found_metric == "nmi_ari_cluster_labels_leiden":
+                self.bio_conservation_metrics = BioConservation(False, True, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
+            if found_metric == "nmi_ari_cluster_labels_kmeans":
+                self.bio_conservation_metrics = BioConservation(False, False, True, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
+            if found_metric == "silhouette_label":
+                self.bio_conservation_metrics = BioConservation(False, False, False, True, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
+            if found_metric == "clisi_knn":
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, True)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
+            if found_metric == "silhouette_batch":
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(True, False, False, False, False)
+            if found_metric == "ilisi_knn":
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, True, False, False, False)
+            if found_metric == "kbet_per_label":
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, True, False, False)
+            if found_metric == "graph_connectivity":
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, True, False)
+            if found_metric == "pcr_comparison":
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, True)
+        else:
+            # its an aggregative metric
+            if self.metric == "Total":
+                # we jsut run them all, which is the default
+                pass
+            elif self.metric == "Batch correction":
+                # we run all batch correction and no bio conservation
+                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
+            elif self.metric == "Bio conservation":
+                # we run all bio conservation and no batch corredction
+                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
+            else:
+                # an invalid metric!
+                raise ValueError(f"`{self.metric}` is an invalid metric in scib-metrics autotune.")
 
         adata = AnnData(X=x, obs={"batch": batch, "labels": labels}, obsm={"z": z})
         benchmarker = Benchmarker(
@@ -390,10 +464,9 @@ class ScibCallback(Callback):
             bio_conservation_metrics=self.bio_conservation_metrics,
             batch_correction_metrics=self.batch_correction_metrics,
         )
-        benchmarker.prepare()
         benchmarker.benchmark()
         results = benchmarker.get_results(min_max_scale=False).to_dict()
-        metrics = {f"training {metric}": results[metric]["z"] for metric in results}
+        metrics = {f"training {self.metric}": results[self.metric]["z"]}
         pl_module.logger.log_metrics(metrics, trainer.global_step)
 
         delattr(pl_module, f"_{stage}_epoch_outputs")
