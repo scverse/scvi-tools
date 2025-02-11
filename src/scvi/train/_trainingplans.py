@@ -361,7 +361,8 @@ class TrainingPlan(pl.LightningModule):
             kl_weight = self.kl_weight
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
-        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        _, _, loss_outputs = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        scvi_loss = loss_outputs[0]
         self.log(
             "train_loss",
             scvi_loss.loss,
@@ -370,6 +371,28 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+
+        x = loss_outputs[1].detach().cpu()
+        z = loss_outputs[2].detach().cpu()
+        batch = loss_outputs[3].detach().cpu().squeeze()
+        labels = loss_outputs[4].detach().cpu().squeeze()
+
+        # next part is for the usage of scib-metrics autotune
+        if not hasattr(self, "_training_epoch_outputs") or self._training_epoch_outputs is None:
+            self._training_epoch_outputs = {
+                "x": x,
+                "z": z,
+                "batch": batch,
+                "labels": labels,
+            }
+        else:
+            self._training_epoch_outputs = {
+                "x": torch.cat([self._training_epoch_outputs["x"], x]),
+                "z": torch.cat([self._training_epoch_outputs["z"], z]),
+                "batch": torch.cat([self._training_epoch_outputs["batch"], batch]),
+                "labels": torch.cat([self._training_epoch_outputs["labels"], labels]),
+            }
+
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
@@ -377,7 +400,8 @@ class TrainingPlan(pl.LightningModule):
         # loss kwargs here contains `n_obs` equal to n_training_obs
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
-        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        _, _, loss_outputs = self.forward(batch, loss_kwargs=self.loss_kwargs)
+        scvi_loss = loss_outputs[0]
         self.log(
             "validation_loss",
             scvi_loss.loss,
@@ -385,6 +409,30 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
+
+        # next part is for the usage of scib-metrics autotune
+        x = loss_outputs[1].detach().cpu()
+        z = loss_outputs[2].detach().cpu()
+        batch = loss_outputs[3].detach().cpu().squeeze()
+        labels = loss_outputs[4].detach().cpu().squeeze()
+
+        if (
+            not hasattr(self, "_validation_epoch_outputs")
+            or self._validation_epoch_outputs is None
+        ):
+            self._validation_epoch_outputs = {
+                "x": x,
+                "z": z,
+                "batch": batch,
+                "labels": labels,
+            }
+        else:
+            self._validation_epoch_outputs = {
+                "x": torch.cat([self._validation_epoch_outputs["x"], x]),
+                "z": torch.cat([self._validation_epoch_outputs["z"], z]),
+                "batch": torch.cat([self._validation_epoch_outputs["batch"], batch]),
+                "labels": torch.cat([self._validation_epoch_outputs["labels"], labels]),
+            }
 
     def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
         """Create optimizer for the model.

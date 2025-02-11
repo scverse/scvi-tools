@@ -26,6 +26,25 @@ _ASHA_DEFAULT_KWARGS = {
     "reduction_factor": 2,
 }
 
+# Mapping of metric fn names to clean DataFrame column names
+metric_name_cleaner = {
+    "silhouette_label": "Silhouette label",
+    "silhouette_batch": "Silhouette batch",
+    "isolated_labels": "Isolated labels",
+    "nmi_ari_cluster_labels_leiden_nmi": "Leiden NMI",
+    "nmi_ari_cluster_labels_leiden_ari": "Leiden ARI",
+    "nmi_ari_cluster_labels_kmeans_nmi": "KMeans NMI",
+    "nmi_ari_cluster_labels_kmeans_ari": "KMeans ARI",
+    "clisi_knn": "cLISI",
+    "ilisi_knn": "iLISI",
+    "kbet_per_label": "KBET",
+    "graph_connectivity": "Graph connectivity",
+    "pcr_comparison": "PCR comparison",
+    "BatchCorrection": "Batch correction",
+    "BioConservation": "Bio conservation",
+    "SCIB_Total": "Total",
+}
+
 
 class AutotuneExperiment:
     """``BETA`` Track hyperparameter tuning experiments.
@@ -448,6 +467,7 @@ class AutotuneExperiment:
             (TuneReportCheckpointCallback, Callback),
             {},
         )
+
         return callback_cls(metrics=self.metrics, on="validation_end", save_checkpoints=False)
 
     @property
@@ -526,18 +546,23 @@ def _trainable(
     from ray.train import get_context
 
     from scvi import settings
+    from scvi.train._callbacks import ScibCallback
 
     model_params, train_params = (
         param_sample.get("model_params", {}),
         param_sample.get("train_params", {}),
     )
+    if experiment.metrics[0] in metric_name_cleaner:
+        tune_callback = ScibCallback(stage="validation", metric=experiment.metrics[0])
+    else:
+        tune_callback = experiment.metrics_callback
     train_params = {
         "accelerator": "auto",
         "devices": "auto",
         "check_val_every_n_epoch": 1,
         "enable_progress_bar": False,
         "logger": experiment.get_logger(get_context().get_trial_name()),
-        "callbacks": [experiment.metrics_callback],
+        "callbacks": [tune_callback],  # change it to scib metrics callback here?
         **train_params,
     }
 
@@ -550,5 +575,5 @@ def _trainable(
         model = experiment.model_cls(experiment.data, **model_params)
         model.train(**train_params)
     else:
-        model = experiment.model_cls(**train_params)
+        model = experiment.model_cls(**model_params)
         model.train(datamodule=experiment.data, **train_params)

@@ -14,7 +14,8 @@ to [Semantic Versioning]. Full commit history is available in the
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
-- Add {class}`scvi.train._callbacks.ScibCallback` for auto tune for scib metrics {pr}`3XXX`.
+- Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
+    {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
 
 #### Fixed
 

@@ -4,11 +4,30 @@ from ray.tune import ResultGrid
 from scvi import settings
 from scvi.autotune import AutotuneExperiment, run_autotune
 from scvi.data import synthetic_iid
+from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
-from scvi.train._callbacks import ScibCallback
+
+# n_batches=3
+# adata = synthetic_iid()
+# SCVI.setup_anndata(adata, batch_key="batch")
+# model = SCVI(adata,n_latent=5)
+# model.train(max_epochs=1)
+# SCVI_LATENT_KEY = "X_scVI"
+# adata.obsm[SCVI_LATENT_KEY] = model.get_latent_representation()
+# bm = Benchmarker(
+#     adata,
+#     batch_key="batch",
+#     label_key="labels",
+#     embedding_obsm_keys=[SCVI_LATENT_KEY],
+#     #n_jobs=-1,
+# )
+# bm.prepare()
+# bm.benchmark()
+# results = bm.get_results(min_max_scale=False).to_dict()
+# metrics = {f"training {metric}": results[metric]["z"] for metric in results}
 
 
-def test_run_autotune_scvi_basic(save_path: str):
+def test_run_autotune_scvi_basic(save_path: str = "."):
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -26,7 +45,7 @@ def test_run_autotune_scvi_basic(save_path: str):
                 "max_epochs": 1,
             },
         },
-        num_samples=1,
+        num_samples=2,
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
@@ -36,9 +55,7 @@ def test_run_autotune_scvi_basic(save_path: str):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
-def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
-    from scvi.dataloaders import DataSplitter
-
+def test_run_autotune_scvi_no_anndata(save_path: str = ".", n_batches: int = 3):
     settings.logging_dir = save_path
     adata = synthetic_iid(n_batches=n_batches)
     SCVI.setup_anndata(adata, batch_key="batch")
@@ -50,9 +67,56 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
 
     experiment = run_autotune(
         SCVI,
-        datamodule,
+        data=datamodule,
         metrics=["elbo_validation"],
         mode="min",
+        search_space={
+            "model_params": {
+                "n_hidden": tune.choice([1, 2]),
+            },
+            "train_params": {
+                "max_epochs": 1,
+            },
+        },
+        num_samples=2,
+        seed=0,
+        scheduler="asha",
+        searcher="hyperopt",
+    )
+    assert isinstance(experiment, AutotuneExperiment)
+    assert hasattr(experiment, "result_grid")
+    assert isinstance(experiment.result_grid, ResultGrid)
+
+
+def test_run_autotune_scvi_with_scib(save_path: str = "."):
+    settings.logging_dir = save_path
+    adata = synthetic_iid(batch_size=10)
+    SCVI.setup_anndata(adata)
+
+    # Mapping of metric fn names to clean DataFrame column names
+    # metric_name_cleaner = {
+    #     "silhouette_label": "Silhouette label",
+    #     "silhouette_batch": "Silhouette batch",
+    #     "isolated_labels": "Isolated labels",
+    #     "nmi_ari_cluster_labels_leiden_nmi": "Leiden NMI",
+    #     "nmi_ari_cluster_labels_leiden_ari": "Leiden ARI",
+    #     "nmi_ari_cluster_labels_kmeans_nmi": "KMeans NMI",
+    #     "nmi_ari_cluster_labels_kmeans_ari": "KMeans ARI",
+    #     "clisi_knn": "cLISI",
+    #     "ilisi_knn": "iLISI",
+    #     "kbet_per_label": "KBET",
+    #     "graph_connectivity": "Graph connectivity",
+    #     "pcr_comparison": "PCR comparison",
+    #     "BatchCorrection": "Batch correction",
+    #     "BioConservation": "Bio conservation",
+    #     "SCIB_Total": "Total",
+    # }
+
+    experiment = run_autotune(
+        SCVI,
+        adata,
+        metrics=["BioConservation"],
+        mode="max",
         search_space={
             "model_params": {
                 "n_hidden": tune.choice([1, 2]),
@@ -71,17 +135,16 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
-def test_scib_autotune(save_path: str):
-    settings.logging_dir = save_path
-    adata = synthetic_iid()
-    model_cls = SCVI
-    model_cls.setup_anndata(adata, batch_key="batch", labels_key="labels")
+def test_early_stopping():
+    # we use this temporarily to debug the scib-metrics callback
+    n_epochs = 100
 
-    tuner = run_autotune(model_cls)
-    tuner.fit(
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
         adata,
-        use_defaults=True,
-        metric="validation Batch correction",  # necessary
-        train_kwargs={"callbacks": [ScibCallback(stage="validation")]},  # necessary
-        validate_metrics=False,  # necessary
+        batch_key="batch",
+        labels_key="labels",
     )
+    model = SCVI(adata)
+    model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
+    assert len(model.history["elbo_train"]) < n_epochs

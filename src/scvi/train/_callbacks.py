@@ -16,22 +16,16 @@ from anndata import AnnData
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
-from scib_metrics.benchmark import (  # TODO: Need to be installed by default if we put it here
-    Benchmarker,
-)
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
+from scvi.utils import dependencies
 
 if TYPE_CHECKING:
     from typing import Literal
 
     import lightning.pytorch as pl
-    from scib_metrics.benchmark import (
-        BatchCorrection,
-        BioConservation,
-    )
 
     from scvi.dataloaders import AnnDataLoader
 
@@ -340,18 +334,28 @@ class JaxModuleInit(Callback):
         pl_module.set_train_state(params, state)
 
 
+@dependencies("scib_metrics")
 class ScibCallback(Callback):
+    # example to use in debug:
+    # tune_callback = ScibCallback(stage="validation", metric="BioConservation")
+    # stage="validation"
+    # metric = "BioConservation"
+    # trainer=_trainer
+    # pl_module=_pl_module
+    from scib_metrics.benchmark import BatchCorrection, BioConservation
+
     def __init__(
         self,
         bio_conservation_metrics: BioConservation | None = None,
         batch_correction_metrics: BatchCorrection | None = None,
         stage: Literal["training", "validation", "both"] = "both",
+        metric: str | None = None,
     ):
         super().__init__()
-
         self.bio_conservation_metrics = bio_conservation_metrics
         self.batch_correction_metrics = batch_correction_metrics
         self.stage = stage
+        self.metric = metric
 
     def compute_metrics(
         self,
@@ -359,6 +363,10 @@ class ScibCallback(Callback):
         pl_module: pl.LightningModule,
         stage: Literal["training", "validation"],
     ):
+        from scib_metrics.benchmark import Benchmarker
+
+        if self.metric is None:
+            return
         if stage == "training" and self.stage not in ["training", "both"]:
             return
         elif stage == "validation" and self.stage not in ["validation", "both"]:
