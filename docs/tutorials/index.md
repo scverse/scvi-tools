@@ -35,12 +35,12 @@ index_dev
 ```
 :::
 
-:::{dropdown} ATAC-seq
+:::{dropdown} scATAC-seq
 ```{include} index_atac.md
 ```
 :::
 
-:::{dropdown} scBS-seq
+:::{dropdown} scBS-seq (Single-cell bisulfite sequencing)
 ```{include} index_scbs.md
 ```
 :::

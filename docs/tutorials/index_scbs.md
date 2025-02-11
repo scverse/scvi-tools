@@ -1,4 +1,4 @@
-# scBS-seq
+# scBS-seq (Single-cell bisulfite sequencing)
 
 ```{toctree}
 :maxdepth: 1
