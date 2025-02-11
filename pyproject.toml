@@ -81,10 +81,8 @@ docs = [
 ]
 docsbuild = ["scvi-tools[docs,optional]"]
 
-# metrics for benchmarking single-cell integration outputs
-scib = ["scib-metrics"]
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]","scib"]
+autotune = ["hyperopt>=0.2", "ray[tune]","scib-metrics"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
