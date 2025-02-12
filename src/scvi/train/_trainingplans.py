@@ -372,10 +372,10 @@ class TrainingPlan(pl.LightningModule):
         # and adds overhead of time and memory thus used only when needed
         if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
             if "ScibCallback" in [cls.__class__.__name__ for cls in self.trainer.callbacks]:
-                x = loss_outputs[1].detach().cpu()
-                z = loss_outputs[2].detach().cpu()
-                batch = loss_outputs[3].detach().cpu().squeeze()
-                labels = loss_outputs[4].detach().cpu().squeeze()
+                x = loss_outputs["x"].detach().cpu()
+                z = loss_outputs["z"].detach().cpu()
+                batch = loss_outputs["batch"].detach().cpu().squeeze()
+                labels = loss_outputs["labels"].detach().cpu().squeeze()
 
                 # next part is for the usage of scib-metrics autotune
                 if (
@@ -411,19 +411,6 @@ class TrainingPlan(pl.LightningModule):
                             ),
                         },
                     )
-
-    # def log_metrics(self, batch, stage):
-    #     _, _, loss_outputs = self.forward(batch, loss_kwargs=self.loss_kwargs)
-    #     scvi_loss = loss_outputs[0]
-    #     self.log(
-    #         stage+"_loss",
-    #         scvi_loss.loss,
-    #         on_epoch=True,
-    #         sync_dist=self.use_sync_dist,
-    #     )
-    #     self.compute_and_log_metrics(scvi_loss, self.val_metrics, stage)
-    #
-    #     return scvi_loss, loss_outputs
 
     def training_step(self, batch, batch_idx):
         """Training step for the model."""

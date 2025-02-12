@@ -337,11 +337,11 @@ class JaxModuleInit(Callback):
 @dependencies("scib_metrics")
 class ScibCallback(Callback):
     # example to use in debug of the early stopping callback:
-    # tune_callback = ScibCallback(stage="validation", metric="BioConservation")
-    # stage="validation"
-    # metric = "Bio conservation"
+    # stage="training"
+    # metric = "iLISI"
     # trainer=_trainer
     # pl_module=_pl_module
+    # tune_callback = ScibCallback(stage=stage, metric=metric)
     from scib_metrics.benchmark import BatchCorrection, BioConservation
 
     def __init__(
@@ -379,18 +379,18 @@ class ScibCallback(Callback):
             raise ValueError(f"The training plan must have a `_{stage}_epoch_outputs` attribute.")
 
         outputs = getattr(pl_module, f"_{stage}_epoch_outputs")
-        x = outputs["x"].numpy()
-        # x = np.zeros(x.shape) #TODO: should we do it? can be done also in trainingplans already
+        # x = outputs["x"].numpy()
         z = outputs["z"].numpy()
+        x = np.zeros(z.shape)  # TODO: should we do it? x can be remove in trainingplans already
         batch = outputs["batch"].numpy()
         labels = outputs["labels"].numpy()
 
         # TODO: subsample to save time
-        # rand_idx = np.random.choice(x.shape[0], self.num_rows_to_select, replace=False)
-        # batch = batch[rand_idx]
-        # labels = labels[rand_idx]
-        # x = x[rand_idx]
-        # z = z[rand_idx]
+        rand_idx = np.random.choice(z.shape[0], self.num_rows_to_select, replace=False)
+        batch = batch[rand_idx]
+        labels = labels[rand_idx]
+        x = x[rand_idx]
+        z = z[rand_idx]
 
         # adjust which metric to run exactly
         found_metric = next(
@@ -457,6 +457,7 @@ class ScibCallback(Callback):
             embedding_obsm_keys=["z"],
             bio_conservation_metrics=self.bio_conservation_metrics,
             batch_correction_metrics=self.batch_correction_metrics,
+            n_jobs=-1,
         )
         benchmarker.benchmark()
         results = benchmarker.get_results(min_max_scale=False).to_dict()

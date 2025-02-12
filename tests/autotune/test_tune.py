@@ -72,28 +72,11 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
 
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
 def test_run_autotune_scvi_with_scib(metric: str, save_path: str = "."):
+    # metric = "iLISI"
+    # save_path = "."
     settings.logging_dir = save_path
     adata = synthetic_iid(batch_size=10, n_genes=10)
     SCVI.setup_anndata(adata)
-
-    # Mapping of metric fn names to clean DataFrame column names
-    # metric_name_cleaner = {
-    #     "silhouette_label": "Silhouette label",
-    #     "silhouette_batch": "Silhouette batch",
-    #     "isolated_labels": "Isolated labels",
-    #     "nmi_ari_cluster_labels_leiden_nmi": "Leiden NMI", - not run
-    #     "nmi_ari_cluster_labels_leiden_ari": "Leiden ARI", - not run
-    #     "nmi_ari_cluster_labels_kmeans_nmi": "KMeans NMI",
-    #     "nmi_ari_cluster_labels_kmeans_ari": "KMeans ARI",
-    #     "clisi_knn": "cLISI",
-    #     "ilisi_knn": "iLISI",
-    #     "kbet_per_label": "KBET",
-    #     "graph_connectivity": "Graph connectivity",
-    #     "pcr_comparison": "PCR comparison",
-    #     "BatchCorrection": "Batch correction",
-    #     "BioConservation": "Bio conservation",
-    #     "SCIB_Total": "Total",
-    # }
 
     experiment = run_autotune(
         SCVI,
@@ -121,8 +104,8 @@ def test_run_autotune_scvi_with_scib(metric: str, save_path: str = "."):
 
 
 # def test_early_stopping():
-#     from scvi.train._callbacks import ScibCallback
 #     # we use this temporarily to debug the scib-metrics callback
+#     # (here we need to always allow extra metric in the vae)
 #     n_epochs = 100
 #
 #     adata = synthetic_iid()
