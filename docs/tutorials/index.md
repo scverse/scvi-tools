@@ -17,10 +17,10 @@ For questions about using scvi-tools, or broader questions about modeling data, 
     - Integration
     - Transfer learning
     - R
-*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
-    - <span class="tag" group-tag="Integration"></span> Integration Tutorials
-    - <span class="tag" group-tag="Transfer earning"></span> Transfer learning Tutorials
-    - <span class="tag" group-tag="R"></span> R Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
+    - <span class="tag" group-tag="Integration"></span>
+    - <span class="tag" group-tag="Transfer earning"></span>
+    - <span class="tag" group-tag="R"></span>
 :::
 
 <!--
@@ -29,6 +29,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 <span class="tag" group-tag="Transfer earning"></span> Transfer learning Tutorials
 <span class="tag" group-tag="R"></span> R Tutorials
 -->
+
+
 
 
 :::{dropdown} Quick start
