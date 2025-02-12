@@ -30,79 +30,93 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 <span class="tag" group-tag="R"></span> R Tutorials
 -->
 
-
-
-
 :::{dropdown} Quick start
-```{toctree}
-:maxdepth: 2
 
-index_quick_start
-```
+[](./notebooks/quick_start/api_overview.md)
+[](./notebooks/quick_start/data_loading.md)
+[](./notebooks/quick_start/python_in_R.md)
+
 :::
 
 :::{dropdown} scRNA-seq
-```{toctree}
-:maxdepth: 2
 
-index_scrna
-```
+[](./notebooks/scrna/harmonization.md)
+[](./notebooks/scrna/scvi_in_R.md)
+[](./notebooks/scrna/tabula_muris.md)
+[](./notebooks/scrna/scarches_scvi_tools.md)
+[](./notebooks/scrna/query_hlca_knn.md)
+[](./notebooks/scrna/seed_labeling.md)
+[](./notebooks/scrna/linear_decoder.md)
+[](./notebooks/scrna/AutoZI_tutorial.md)
+[](./notebooks/scrna/cellassign_tutorial.md)
+[](./notebooks/scrna/amortized_lda.md)
+[](./notebooks/scrna/scVI_DE_worm.md)
+[](./notebooks/scrna/contrastiveVI_tutorial.md)
+[](./notebooks/scrna/scanvi_fix.md)
+[](./notebooks/scrna/MrVI_tutorial.md)
+
 :::
 
 :::{dropdown} scATAC-seq
-```{toctree}
-:maxdepth: 2
 
-index_atac
-```
+[](./notebooks/atac/PeakVI.md)
+[](./notebooks/atac/peakvi_in_R.md)
+[](./notebooks/atac/scbasset.md)
+[](./notebooks/atac/scbasset_batch.md)
+[](./notebooks/atac/PoissonVI.md)
+
 :::
 
 :::{dropdown} scBS-seq (Single-cell bisulfite sequencing)
-```{toctree}
-:maxdepth: 2
 
-index_scbs
-```
+[](notebooks/scbs/MethylVI_batch.md)
+
 :::
 
 :::{dropdown} Multimodal
-```{toctree}
-:maxdepth: 2
 
-index_multimodal
-```
+[](./notebooks/multimodal/totalVI.md)
+[](./notebooks/multimodal/cite_scrna_integration_w_totalVI.md)
+[](./notebooks/multimodal/totalVI_reference_mapping.md)
+[](./notebooks/multimodal/totalvi_in_R.md)
+[](./notebooks/multimodal/MultiVI_tutorial.md)
+
 :::
 
 :::{dropdown} Spatial transcriptomics
-```{toctree}
-:maxdepth: 2
 
-index_spatial
-```
+[](./notebooks/spatial/resolVI_tutorial.md)
+[](./notebooks/spatial/DestVI_tutorial.md)
+[](./notebooks/spatial/DestVI_in_R.md)
+[](./notebooks/spatial/gimvi_tutorial.md)
+[](./notebooks/spatial/tangram_scvi_tools.md)
+[](./notebooks/spatial/stereoscope_heart_LV_tutorial.md)
+[](./notebooks/spatial/cell2location_lymph_node_spatial_tutorial.md)
+
 :::
 
 :::{dropdown} Model hub
-```{toctree}
-:maxdepth: 2
 
-index_hub
-```
+[](./notebooks/hub/cellxgene_census_model.md)
+[](./notebooks/hub/scvi_hub_intro_and_download.md)
+[](./notebooks/hub/scvi_hub_upload_and_large_files.md)
+[](./notebooks/hub/minification.md)
+
 :::
 
 :::{dropdown} Hyperparameter tuning
-```{toctree}
-:maxdepth: 2
 
-index_tuning
-```
+[](./notebooks/tuning/autotune_scvi.md)
+[](./notebooks/tuning/autotune_new_model.md)
+
 :::
 
 :::{dropdown} Development
-```{toctree}
-:maxdepth: 2
 
-index_dev
-```
+[](./notebooks/dev/data_tutorial.md)
+[](./notebooks/dev/module_user_guide.md)
+[](./notebooks/dev/model_user_guide.md)
+
 :::
 
 [forum]: https://discourse.scverse.org/
