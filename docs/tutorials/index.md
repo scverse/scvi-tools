@@ -9,6 +9,13 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
+<span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+<span class="tag" group-tag="Integration"></span> Integration Tutorials
+<span class="tag" group-tag="Transfer earning"></span> Transfer learning Tutorials
+<span class="tag" group-tag="R"></span> R Tutorials
+
+
+
 :::{dropdown} Quick start
 ```{toctree}
 :maxdepth: 2

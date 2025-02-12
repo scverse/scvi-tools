@@ -1,0 +1,16 @@
+/* Style used for tags in the tutorials index page */
+.tag {
+    display: inline-block;
+    padding: 2px 6px;
+    margin: 2px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+
+/* Unique color per group tag */
+.tag[group-tag="Analysis"] { background-color: #4CAF50; }
+.tag[group-tag="Integration"] { background-color: #3572A5; }
+.tag[group-tag="Transfer learning"] { background-color: #ce830c; }
+.tag[group-tag="R"] { background-color: #990fa6; }
