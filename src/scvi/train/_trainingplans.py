@@ -344,16 +344,86 @@ class TrainingPlan(pl.LightningModule):
             met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
-                    raise ValueError("Extra tracked metrics should be 0-d tensors.")
-                met = met.detach()
-            self.log(
-                f"{key}_{mode}",
-                met,
-                on_step=False,
-                on_epoch=True,
-                batch_size=n_obs_minibatch,
-                sync_dist=self.use_sync_dist,
-            )
+                    Warning(
+                        f"Extra tracked metrics {key} should be 0-d tensors. It will not be logged"
+                    )
+                else:
+                    met = met.detach()
+                    self.log(
+                        f"{key}_{mode}",
+                        met,
+                        on_step=False,
+                        on_epoch=True,
+                        batch_size=n_obs_minibatch,
+                        sync_dist=self.use_sync_dist,
+                    )
+            else:
+                self.log(
+                    f"{key}_{mode}",
+                    met,
+                    on_step=False,
+                    on_epoch=True,
+                    batch_size=n_obs_minibatch,
+                    sync_dist=self.use_sync_dist,
+                )
+
+    def prepare_scib_autotune(self, loss_outputs, stage):
+        # this function is used only for the purpose of scib autotune,
+        # and adds overhead of time and memory thus used only when needed
+        if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
+            if "ScibCallback" in [cls.__class__.__name__ for cls in self.trainer.callbacks]:
+                x = loss_outputs[1].detach().cpu()
+                z = loss_outputs[2].detach().cpu()
+                batch = loss_outputs[3].detach().cpu().squeeze()
+                labels = loss_outputs[4].detach().cpu().squeeze()
+
+                # next part is for the usage of scib-metrics autotune
+                if (
+                    not hasattr(self, "_" + stage + "_epoch_outputs")
+                    or getattr(self, "_" + stage + "_epoch_outputs") is None
+                ):
+                    setattr(
+                        self,
+                        "_" + stage + "_epoch_outputs",
+                        {
+                            "x": x,
+                            "z": z,
+                            "batch": batch,
+                            "labels": labels,
+                        },
+                    )
+                else:
+                    setattr(
+                        self,
+                        "_" + stage + "_epoch_outputs",
+                        {
+                            "x": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["x"], x]
+                            ),
+                            "z": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["z"], z]
+                            ),
+                            "batch": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["batch"], batch]
+                            ),
+                            "labels": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["labels"], labels]
+                            ),
+                        },
+                    )
+
+    # def log_metrics(self, batch, stage):
+    #     _, _, loss_outputs = self.forward(batch, loss_kwargs=self.loss_kwargs)
+    #     scvi_loss = loss_outputs[0]
+    #     self.log(
+    #         stage+"_loss",
+    #         scvi_loss.loss,
+    #         on_epoch=True,
+    #         sync_dist=self.use_sync_dist,
+    #     )
+    #     self.compute_and_log_metrics(scvi_loss, self.val_metrics, stage)
+    #
+    #     return scvi_loss, loss_outputs
 
     def training_step(self, batch, batch_idx):
         """Training step for the model."""
@@ -361,8 +431,7 @@ class TrainingPlan(pl.LightningModule):
             kl_weight = self.kl_weight
             self.loss_kwargs.update({"kl_weight": kl_weight})
             self.log("kl_weight", kl_weight, on_step=True, on_epoch=False)
-        _, _, loss_outputs = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        scvi_loss = loss_outputs[0]
+        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log(
             "train_loss",
             scvi_loss.loss,
@@ -372,26 +441,9 @@ class TrainingPlan(pl.LightningModule):
         )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
 
-        x = loss_outputs[1].detach().cpu()
-        z = loss_outputs[2].detach().cpu()
-        batch = loss_outputs[3].detach().cpu().squeeze()
-        labels = loss_outputs[4].detach().cpu().squeeze()
-
-        # next part is for the usage of scib-metrics autotune
-        if not hasattr(self, "_training_epoch_outputs") or self._training_epoch_outputs is None:
-            self._training_epoch_outputs = {
-                "x": x,
-                "z": z,
-                "batch": batch,
-                "labels": labels,
-            }
-        else:
-            self._training_epoch_outputs = {
-                "x": torch.cat([self._training_epoch_outputs["x"], x]),
-                "z": torch.cat([self._training_epoch_outputs["z"], z]),
-                "batch": torch.cat([self._training_epoch_outputs["batch"], batch]),
-                "labels": torch.cat([self._training_epoch_outputs["labels"], labels]),
-            }
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
 
         return scvi_loss.loss
 
@@ -400,8 +452,7 @@ class TrainingPlan(pl.LightningModule):
         # loss kwargs here contains `n_obs` equal to n_training_obs
         # so when relevant, the actual loss value is rescaled to number
         # of training examples
-        _, _, loss_outputs = self.forward(batch, loss_kwargs=self.loss_kwargs)
-        scvi_loss = loss_outputs[0]
+        _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log(
             "validation_loss",
             scvi_loss.loss,
@@ -410,29 +461,9 @@ class TrainingPlan(pl.LightningModule):
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
-        # next part is for the usage of scib-metrics autotune
-        x = loss_outputs[1].detach().cpu()
-        z = loss_outputs[2].detach().cpu()
-        batch = loss_outputs[3].detach().cpu().squeeze()
-        labels = loss_outputs[4].detach().cpu().squeeze()
-
-        if (
-            not hasattr(self, "_validation_epoch_outputs")
-            or self._validation_epoch_outputs is None
-        ):
-            self._validation_epoch_outputs = {
-                "x": x,
-                "z": z,
-                "batch": batch,
-                "labels": labels,
-            }
-        else:
-            self._validation_epoch_outputs = {
-                "x": torch.cat([self._validation_epoch_outputs["x"], x]),
-                "z": torch.cat([self._validation_epoch_outputs["z"], z]),
-                "batch": torch.cat([self._validation_epoch_outputs["batch"], batch]),
-                "labels": torch.cat([self._validation_epoch_outputs["labels"], labels]),
-            }
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "validation")
 
     def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
         """Create optimizer for the model.

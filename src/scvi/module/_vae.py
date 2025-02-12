@@ -575,19 +575,19 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
-        return (
-            LossOutput(
-                loss=loss,
-                reconstruction_loss=reconst_loss,
-                kl_local={
-                    MODULE_KEYS.KL_L_KEY: kl_divergence_l,
-                    MODULE_KEYS.KL_Z_KEY: kl_divergence_z,
-                },
-            ),
-            x,
-            inference_outputs["z"],
-            tensors[REGISTRY_KEYS.BATCH_KEY],
-            tensors[REGISTRY_KEYS.LABELS_KEY],
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local={
+                MODULE_KEYS.KL_L_KEY: kl_divergence_l,
+                MODULE_KEYS.KL_Z_KEY: kl_divergence_z,
+            },
+            extra_metrics={
+                "x": x,
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            },
         )
 
     @torch.inference_mode()

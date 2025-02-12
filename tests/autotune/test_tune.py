@@ -8,25 +8,6 @@ from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
 
-# n_batches=3
-# adata = synthetic_iid()
-# SCVI.setup_anndata(adata, batch_key="batch")
-# model = SCVI(adata,n_latent=5)
-# model.train(max_epochs=1)
-# SCVI_LATENT_KEY = "X_scVI"
-# adata.obsm[SCVI_LATENT_KEY] = model.get_latent_representation()
-# bm = Benchmarker(
-#     adata,
-#     batch_key="batch",
-#     label_key="labels",
-#     embedding_obsm_keys=[SCVI_LATENT_KEY],
-#     #n_jobs=-1,
-# )
-# bm.prepare()
-# bm.benchmark()
-# results = bm.get_results(min_max_scale=False).to_dict()
-# metrics = {f"training {metric}": results[metric]["z"] for metric in results}
-
 
 def test_run_autotune_scvi_basic(save_path: str):
     settings.logging_dir = save_path
@@ -140,6 +121,7 @@ def test_run_autotune_scvi_with_scib(metric: str, save_path: str = "."):
 
 
 # def test_early_stopping():
+#     from scvi.train._callbacks import ScibCallback
 #     # we use this temporarily to debug the scib-metrics callback
 #     n_epochs = 100
 #

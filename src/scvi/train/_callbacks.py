@@ -336,7 +336,7 @@ class JaxModuleInit(Callback):
 
 @dependencies("scib_metrics")
 class ScibCallback(Callback):
-    # example to use in debug:
+    # example to use in debug of the early stopping callback:
     # tune_callback = ScibCallback(stage="validation", metric="BioConservation")
     # stage="validation"
     # metric = "Bio conservation"
@@ -404,12 +404,6 @@ class ScibCallback(Callback):
         if found_metric is not None:
             # beucase originaly those classes are frozen we cant just set the metric to True
             # Need to do it manualy unfortunatley
-            # self.bio_conservation_metrics=BioConservation(False,False,False,False,False)
-            # self.batch_correction_metrics=BatchCorrection(False,False,False,False,False)
-            # if hasattr(self.bio_conservation_metrics, found_metric):
-            #     setattr(self.bio_conservation_metrics, found_metric, True)
-            # if hasattr(self.batch_correction_metrics, found_metric):
-            #     setattr(self.batch_correction_metrics, found_metric, True)
             if found_metric == "isolated_labels":
                 self.bio_conservation_metrics = BioConservation(True, False, False, False, False)
                 self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
