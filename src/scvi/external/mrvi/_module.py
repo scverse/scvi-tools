@@ -541,12 +541,11 @@ class MRVAE(JaxBaseModuleClass):
         )
 
         if self.u_prior_mixture:
-            kl_u = inference_outputs["qu"].log_prob(inference_outputs["u"]) - generative_outputs[
-                "pu"
-            ].log_prob(inference_outputs["u"])
+            kl_u = inference_outputs["qu"].log_prob(inference_outputs["u"]).sum(
+                -1
+            ) - generative_outputs["pu"].log_prob(inference_outputs["u"])
         else:
-            kl_u = dist.kl_divergence(inference_outputs["qu"], generative_outputs["pu"])
-        inference_outputs["qeps"]
+            kl_u = dist.kl_divergence(inference_outputs["qu"], generative_outputs["pu"]).sum(-1)
 
         kl_z = 0.0
         eps = inference_outputs["z"] - inference_outputs["z_base"]
