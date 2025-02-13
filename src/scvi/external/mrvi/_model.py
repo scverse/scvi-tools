@@ -789,11 +789,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
 
-        qu_loc = jnp.concatenate(qu_locs, axis=0).T
-        qu_scale = jnp.concatenate(qu_scales, axis=0).T
+        qu_loc = jnp.concatenate(qu_locs, axis=0)
+        qu_scale = jnp.concatenate(qu_scales, axis=0)
         return MixtureSameFamily(
-            Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
-            Normal(qu_loc, qu_scale),
+            Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            Normal(qu_loc, qu_scale).to_event(1),
         )
 
     def differential_abundance(
