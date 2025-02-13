@@ -866,11 +866,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             n_splits = max(adata.n_obs // batch_size, 1)
             log_probs_ = []
             for u_rep in np.array_split(us, n_splits):
-                log_probs_.append(jax.device_get(ap.log_prob(u_rep)))
+                log_probs_.append(jax.device_get(ap.log_prob(u_rep))[..., np.newaxis])
 
-            log_probs.append(np.concatenate(log_probs_))  # (n_cells,)
+            log_probs.append(np.concatenate(log_probs_, axis=0))  # (n_cells, 1)
 
-        log_probs = np.concatenate(log_probs)
+        log_probs = np.concatenate(log_probs, 1)
 
         coords = {
             "cell_name": adata.obs_names.to_numpy(),
@@ -1001,8 +1001,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
             in_max_comp_log_probs = ap.component_distribution.log_prob(
-                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)
-            )
+                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap, 1, n_latent_dim)
+            )  # (n_cells_ap, n_cells_ap)
             log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
 
             log_probs_ = []
@@ -1011,10 +1011,12 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 log_probs_.append(
                     jax.device_get(
                         ap.component_distribution.log_prob(
-                            np.expand_dims(u_rep, ap.mixture_dim)
-                        )  # (n_cells_batch, n_cells_ap, n_latent_dim)
-                        .sum(axis=1)  # (n_cells_batch, n_latent_dim)
-                        .max(axis=1, keepdims=True)  # (n_cells_batch, 1)
+                            np.expand_dims(
+                                u_rep, ap.mixture_dim
+                            )  # (n_cells_batch, 1, n_latent_dim)
+                        ).max(  # (n_cells_batch, n_cells_ap)
+                            axis=1, keepdims=True
+                        )  # (n_cells_batch, 1)
                     )
                 )
 
