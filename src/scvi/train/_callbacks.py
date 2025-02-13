@@ -338,7 +338,7 @@ class JaxModuleInit(Callback):
 class ScibCallback(Callback):
     # example to use in debug of the early stopping callback:
     # stage="training"
-    # metric = "iLISI"
+    # metric = "Total"
     # trainer=_trainer
     # pl_module=_pl_module
     # tune_callback = ScibCallback(stage=stage, metric=metric)
@@ -346,8 +346,8 @@ class ScibCallback(Callback):
 
     def __init__(
         self,
-        bio_conservation_metrics: BioConservation | None = None,
-        batch_correction_metrics: BatchCorrection | None = None,
+        bio_conservation_metrics: BioConservation | None = BioConservation(),
+        batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
         stage: Literal["training", "validation", "both"] = "validation",
         metric: str | None = "Total",
         num_rows_to_select: int = 100,
@@ -438,7 +438,8 @@ class ScibCallback(Callback):
             # its an aggregative metric
             if self.metric == "Total":
                 # we jsut run them all, which is the default
-                pass
+                self.bio_conservation_metrics = BioConservation()
+                self.batch_correction_metrics = BatchCorrection()
             elif self.metric == "Batch correction":
                 # we run all batch correction and no bio conservation
                 self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
@@ -463,6 +464,7 @@ class ScibCallback(Callback):
         results = benchmarker.get_results(min_max_scale=False).to_dict()
         metrics = {f"training {self.metric}": results[self.metric]["z"]}
         pl_module.logger.log_metrics(metrics, trainer.global_step)
+        trainer.callback_metrics[self.metric] = torch.tensor(results[self.metric]["z"])
 
         delattr(pl_module, f"_{stage}_epoch_outputs")
 

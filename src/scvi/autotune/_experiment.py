@@ -550,20 +550,23 @@ def _trainable(
     )
     if experiment.metrics[0] in metric_name_cleaner.values():
         # This is how we decide on running a scib tuner
-        tune_callback = ScibCallback(
-            stage=experiment.scib_stage,
-            metric=experiment.metrics[0],
-            num_rows_to_select=experiment.scib_subsample_rows,
-        )
+        tune_callback = [
+            ScibCallback(
+                stage=experiment.scib_stage,
+                metric=experiment.metrics[0],
+                num_rows_to_select=experiment.scib_subsample_rows,
+            ),
+            experiment.metrics_callback,
+        ]
     else:
-        tune_callback = experiment.metrics_callback
+        tune_callback = [experiment.metrics_callback]
     train_params = {
         "accelerator": "auto",
         "devices": "auto",
         "check_val_every_n_epoch": 1,
         "enable_progress_bar": False,
         "logger": experiment.get_logger(get_context().get_trial_name()),
-        "callbacks": [tune_callback],  # change it to scib metrics callback here?
+        "callbacks": tune_callback,  # change it to scib metrics callback here?
         **train_params,
     }
 

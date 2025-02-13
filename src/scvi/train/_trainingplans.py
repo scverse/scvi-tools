@@ -372,6 +372,7 @@ class TrainingPlan(pl.LightningModule):
         # and adds overhead of time and memory thus used only when needed
         if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
             if "ScibCallback" in [cls.__class__.__name__ for cls in self.trainer.callbacks]:
+                # TODO: subsample to save time already here?
                 x = loss_outputs["x"].detach().cpu()
                 z = loss_outputs["z"].detach().cpu()
                 batch = loss_outputs["batch"].detach().cpu().squeeze()

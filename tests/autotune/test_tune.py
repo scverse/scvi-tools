@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from ray import tune
 from ray.tune import ResultGrid
@@ -7,6 +9,9 @@ from scvi.autotune import AutotuneExperiment, run_autotune
 from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCVI
+
+# Set an environment variable - only way it works in jax + ray
+os.environ["JAX_PLATFORMS"] = "cpu"
 
 
 def test_run_autotune_scvi_basic(save_path: str):
@@ -71,7 +76,7 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
 
 
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
-def test_run_autotune_scvi_with_scib(metric: str, save_path: str = "."):
+def test_run_autotune_scvi_with_scib(metric: str, save_path: str):
     # metric = "iLISI"
     # save_path = "."
     settings.logging_dir = save_path
@@ -106,7 +111,7 @@ def test_run_autotune_scvi_with_scib(metric: str, save_path: str = "."):
 # def test_early_stopping():
 #     # we use this temporarily to debug the scib-metrics callback
 #     # (here we need to always allow extra metric in the vae)
-#     n_epochs = 100
+#     n_epochs = 1
 #
 #     adata = synthetic_iid()
 #     SCVI.setup_anndata(
