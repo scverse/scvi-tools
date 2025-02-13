@@ -14,6 +14,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :transfer-learning-tag: `<span class="tag" group-tag="Transfer learning"></span>`
 :r-tag: `<span class="tag" group-tag="R"></span>`
 
+test
+
 :::{list-table} Tutorial Groups
 :widths: auto
 :align: center
