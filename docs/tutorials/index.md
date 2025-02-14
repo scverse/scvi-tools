@@ -20,7 +20,7 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 *   - {octicon}`filled-square;1em;`
     - {octicon}`filled-square;1em;sd-color-analysis`
     - {octicon}`filled-square;1.5em;sd-color-analysis`
-    - 
+    -
 :::
 
 <!--
