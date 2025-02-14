@@ -31,7 +31,7 @@ def run_autotune(
     logging_dir: str | None = None,
     scheduler_kwargs: dict | None = None,
     searcher_kwargs: dict | None = None,
-    scib_stage: str | None = "validation",
+    scib_stage: str | None = "training",
     scib_subsample_rows: int | None = 100,
 ) -> AutotuneExperiment:
     """``BETA`` Run a hyperparameter sweep.
@@ -120,12 +120,12 @@ def run_autotune(
     from ray import init
 
     experiment = AutotuneExperiment(
-        model_cls,
-        data,
-        metrics,
-        mode,
-        search_space,
-        num_samples,
+        model_cls=model_cls,
+        data=data,
+        metrics=metrics,
+        mode=mode,
+        search_space=search_space,
+        num_samples=num_samples,
         scheduler=scheduler,
         searcher=searcher,
         seed=seed,

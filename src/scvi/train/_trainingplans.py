@@ -922,6 +922,11 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "training")
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -947,6 +952,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             batch_size=loss_output.n_obs_minibatch,
         )
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "validation")
 
 
 class LowLevelPyroTrainingPlan(pl.LightningModule):

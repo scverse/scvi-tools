@@ -8,10 +8,7 @@ from scvi import settings
 from scvi.autotune import AutotuneExperiment, run_autotune
 from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter
-from scvi.model import SCVI
-
-# Set an environment variable - only way it works in jax + ray
-os.environ["JAX_PLATFORMS"] = "cpu"
+from scvi.model import SCANVI, SCVI
 
 
 def test_run_autotune_scvi_basic(save_path: str):
@@ -76,15 +73,32 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
 
 
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
-def test_run_autotune_scvi_with_scib(metric: str, save_path: str):
+@pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
+def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
     # metric = "iLISI"
     # save_path = "."
+    # Set an environment variable - only way it works in jax + ray
+    os.environ["JAX_PLATFORMS"] = "cpu"
+    os.environ["TUNE_DISABLE_STRICT_METRIC_CHECKING"] = "1"
+
     settings.logging_dir = save_path
     adata = synthetic_iid(batch_size=10, n_genes=10)
-    SCVI.setup_anndata(adata)
+    if model_cls == SCANVI:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            unlabeled_category="unknown",
+            batch_key="batch",
+        )
+    else:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            batch_key="batch",
+        )
 
     experiment = run_autotune(
-        SCVI,
+        model_cls,
         adata,
         metrics=[metric],
         mode="max",
@@ -100,8 +114,6 @@ def test_run_autotune_scvi_with_scib(metric: str, save_path: str):
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        scib_stage="validation",
-        scib_subsample_rows=50,
     )
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
@@ -111,7 +123,7 @@ def test_run_autotune_scvi_with_scib(metric: str, save_path: str):
 # def test_early_stopping():
 #     # we use this temporarily to debug the scib-metrics callback
 #     # (here we need to always allow extra metric in the vae)
-#     n_epochs = 1
+#     n_epochs = 100
 #
 #     adata = synthetic_iid()
 #     SCVI.setup_anndata(

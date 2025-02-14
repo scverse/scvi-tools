@@ -23,8 +23,6 @@ from scvi.model.base._save_load import _load_saved_files
 from scvi.utils import dependencies
 
 if TYPE_CHECKING:
-    from typing import Literal
-
     import lightning.pytorch as pl
 
     from scvi.dataloaders import AnnDataLoader
@@ -348,7 +346,7 @@ class ScibCallback(Callback):
         self,
         bio_conservation_metrics: BioConservation | None = BioConservation(),
         batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
-        stage: Literal["training", "validation", "both"] = "validation",
+        stage: str | None = "training",
         metric: str | None = "Total",
         num_rows_to_select: int = 100,
     ):
@@ -359,15 +357,14 @@ class ScibCallback(Callback):
         self.metric = metric
         self.num_rows_to_select = num_rows_to_select
 
-    def compute_metrics(
-        self,
-        trainer: pl.Trainer,
-        pl_module: pl.LightningModule,
-        stage: Literal["training", "validation"],
+    def _get_report_dict(
+        self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str | None = "training"
     ):
         from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
         from scib_metrics.benchmark._core import metric_name_cleaner
 
+        # Don't report if just doing initial validation sanity checks.
+        report_dict = {}
         if self.metric is None:
             return
         if stage == "training" and self.stage not in ["training", "both"]:
@@ -396,7 +393,7 @@ class ScibCallback(Callback):
         found_metric = next(
             (key for key, value in metric_name_cleaner.items() if value == self.metric), None
         )
-        # specal cases:
+        # special cases:
         if self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
             found_metric = "nmi_ari_cluster_labels_leiden"
         if self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
@@ -465,11 +462,13 @@ class ScibCallback(Callback):
         metrics = {f"training {self.metric}": results[self.metric]["z"]}
         pl_module.logger.log_metrics(metrics, trainer.global_step)
         trainer.callback_metrics[self.metric] = torch.tensor(results[self.metric]["z"])
-
+        report_dict[self.metric] = trainer.callback_metrics[self.metric].item()
         delattr(pl_module, f"_{stage}_epoch_outputs")
 
-    def on_train_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        self.compute_metrics(trainer, pl_module, "training")
+        return report_dict
 
-    def on_validation_epoch_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        self.compute_metrics(trainer, pl_module, "validation")
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module, "training")
+
+    def on_validation_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module, "validation")
