@@ -9,35 +9,6 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
-<!--
-```{eval-rst}
-.. |integration-tag| replace:: <span class="tag" group-tag="Integration">Integration</span>
-.. |analysis-tag| replace:: <span class="tag" group-tag="Analysis">Analysis</span>
-.. |transfer-learning-tag| replace:: <span class="tag" group-tag="Transfer learning"></span>
-.. |r-tag| replace:: <span class="tag" group-tag="R"></span>
-```
--->
-
-```{role} integration-tag
-:class: tag
-:group-tag: Integration
-```
-
-```{role} analysis-tag
-:class: tag
-:group-tag: Analysis
-```
-
-```{role} transfer-learning-tag
-:class: tag
-:group-tag: Transfer learning
-```
-
-```{role} r-tag
-:class: tag
-:group-tag: R
-```
-
 :::{list-table} Tutorial Groups
 :widths: auto
 :align: center
@@ -46,10 +17,10 @@ For questions about using scvi-tools, or broader questions about modeling data, 
     - Integration
     - Transfer learning
     - R
-*   - |integration-tag|
-    - |analysis-tag|
-    - |transfer-learning-tag|
-    - |r-tag|
+*   - {octicon}`filled-square;1em;custom-analysis`
+    - 
+    - 
+    - 
 :::
 
 <!--

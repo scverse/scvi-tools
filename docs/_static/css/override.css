@@ -1,4 +1,4 @@
-/* Style used for tags in the tutorials index page */
+/* Style used for tags in the tutorials index page
 .tag {
     display: inline-block;
     padding: 6px 8px;
@@ -9,8 +9,16 @@
     color: white;
 }
 
-/* Unique color per group tag */
 .tag[group-tag="Analysis"] { background-color: #4CAF50; }
 .tag[group-tag="Integration"] { background-color: #3572A5; }
 .tag[group-tag="Transfer learning"] { background-color: #ce830c; }
 .tag[group-tag="R"] { background-color: #990fa6; }
+
+*/
+
+:root {
+    --custom-analysis: #4CAF50;
+    --custom-integration: #3572A5;
+    --custom-transfer-learning: #ce830c;
+    --custom-r: #990fa6;
+}
