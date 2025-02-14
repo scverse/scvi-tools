@@ -17,10 +17,10 @@ For questions about using scvi-tools, or broader questions about modeling data, 
     - Integration
     - Transfer learning
     - R
-*   - {octicon}`filled-square;1em;custom-analysis`
-    -
-    -
-    -
+*   - {octicon}`filled-square;1em;`
+    - {octicon}`filled-square;1em;sd-color-analysis`
+    - {octicon}`filled-square;1.5em;sd-color-analysis`
+    - 
 :::
 
 <!--
@@ -35,7 +35,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::{list-table}
 :widths: auto
 :align: left
-
+*   - Tutorial
+    - Desciption
 *   - [](./notebooks/quick_start/api_overview)
     - description
 *   - [](./notebooks/quick_start/data_loading)
@@ -53,6 +54,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - |integration-tag| [](./notebooks/scrna/harmonization)
     - description
 *   - |r-tag| |integration-tag| [](./notebooks/scrna/scvi_in_R)
@@ -92,6 +95,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - |analysis-tag| [](./notebooks/atac/PeakVI)
     - description
 *   - |r-tag| {analysis-tag} [](./notebooks/atac/peakvi_in_R)
@@ -112,6 +117,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - |integration-tag| [](notebooks/scbs/MethylVI_batch)
     - description
 
@@ -124,6 +131,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - |analysis-tag| [](./notebooks/multimodal/totalVI)
     - description
 *   - |integration-tag| [](./notebooks/multimodal/cite_scrna_integration_w_totalVI)
@@ -144,6 +153,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - [](./notebooks/spatial/resolVI_tutorial)
     - description
 *   - [](./notebooks/spatial/DestVI_tutorial)
@@ -168,6 +179,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - [](./notebooks/hub/cellxgene_census_model)
     - description
 *   - [](./notebooks/hub/scvi_hub_intro_and_download)
@@ -186,6 +199,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - [](./notebooks/tuning/autotune_scvi)
     - description
 *   - [](./notebooks/tuning/autotune_new_model)
@@ -200,6 +215,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
+*   - Tutorial
+    - Desciption
 *   - [](./notebooks/dev/data_tutorial)
     - description
 *   - [](./notebooks/dev/module_user_guide)

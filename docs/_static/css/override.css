@@ -17,8 +17,8 @@
 */
 
 :root {
-    --custom-analysis: #4CAF50;
-    --custom-integration: #3572A5;
-    --custom-transfer-learning: #ce830c;
-    --custom-r: #990fa6;
+    --sd-color-analysis: #4CAF50;
+    --sd-color-integration: #3572A5;
+    --sd-color-transfer-learning: #ce830c;
+    --sd-color-r: #990fa6;
 }
