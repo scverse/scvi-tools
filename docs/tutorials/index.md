@@ -18,9 +18,9 @@ For questions about using scvi-tools, or broader questions about modeling data, 
     - Transfer learning
     - R
 *   - {octicon}`filled-square;1em;custom-analysis`
-    - 
-    - 
-    - 
+    -
+    -
+    -
 :::
 
 <!--
