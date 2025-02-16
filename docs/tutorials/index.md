@@ -32,6 +32,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 :::{dropdown} Quick start
 
+Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and how to use basic scvi-tools functionality within an R environment
+
 :::{list-table}
 :widths: auto
 :align: left
@@ -48,6 +50,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::
 
 :::{dropdown} scRNA-seq
+
+Go through the workflows of models used for analysis of scRNA-seq datasets, including scVI, scANVI, AutoZI, AmortizedLDA, LinearSCVI, and contrastiveVI
 
 :::{list-table}
 :widths: auto
@@ -94,6 +98,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 :::{dropdown} scATAC-seq
 
+Go through the workflows of models used for analysis of scATAC-seq datasets, including PeakVI, scBasset, and PoissonVI
+
 :::{list-table}
 :widths: auto
 :align: left
@@ -114,6 +120,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 :::{dropdown} scBS-seq (Single-cell bisulfite sequencing)
 
+Use methylVI with single-cell bisulfite sequencing data
+
 :::{list-table}
 :widths: auto
 :align: left
@@ -127,6 +135,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::
 
 :::{dropdown} Multimodal
+
+Use models to analyze multimodal data, including totalVI for CITE-seq analysis and MultiVI for joint analysis of scRNA-seq and scATAC-seq
 
 :::{list-table}
 :widths: auto
@@ -147,6 +157,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::
 
 :::{dropdown} Spatial transcriptomics
+
+Learn about models and methods to use with spatial transciptomics data, including DestVI, gimVI, Tangram, Cell2location, and Stereoscope
 
 :::{list-table}
 :widths: auto
@@ -172,6 +184,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 :::{dropdown} Model hub
 
+Learn about using and uploading pretrained scvi-tools models with scvi-hub and Hugging Face
+
 :::{list-table}
 :widths: auto
 :align: left
@@ -191,6 +205,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 :::{dropdown} Hyperparameter tuning
 
+Learn about hyperparameter tuning of scvi-tools models
+
 :::{list-table}
 :widths: auto
 :align: left
@@ -204,6 +220,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::
 
 :::{dropdown} Development
+
+Learn how to implement a novel statistical method for single-cell omics data in the scvi-tools environment
 
 :::{list-table}
 :widths: auto
