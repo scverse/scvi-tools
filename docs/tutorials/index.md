@@ -35,14 +35,13 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::{list-table}
 :widths: auto
 :align: left
-*   - Tutorial
-    - Desciption
+
 *   - [](./notebooks/quick_start/api_overview)
-    - description
+    - Go through the typical steps of an scvi-tools workflow
 *   - [](./notebooks/quick_start/data_loading)
-    - description
+    - Load, preprocess, and register data for use with scvi-tools
 *   - |r-tag| [](./notebooks/quick_start/python_in_R)
-    - description
+    - Perform basic Python operations in an R environment
 
 :::
 
@@ -54,36 +53,40 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - |integration-tag| [](./notebooks/scrna/harmonization)
-    - description
+    - Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
 *   - |r-tag| |integration-tag| [](./notebooks/scrna/scvi_in_R)
-    - description
+    - Use basic scvi-tools functionality in R including integration of datasets
 *   - |integration-tag| [](./notebooks/scrna/tabula_muris)
-    - description
+    - Perform de novo integration of a labeled reference dataset with an unlabeled query dataset (label transfer)
 *   - [](./notebooks/scrna/scarches_scvi_tools)
-    - description
+    - Map cells from a query dataset to the latent space of a reference dataset with the scArches method
 *   - [](./notebooks/scrna/query_hlca_knn)
-    - description
+    - Use scANVI, scArches and scvi-hub to query the Human Lung Cell Atlas
 *   - [](./notebooks/scrna/seed_labeling)
-    - description
+    - Create seed labels and transfer cell type annotations to an entire dataset
 *   - [](./notebooks/scrna/linear_decoder)
-    - description
+    - Fit an LDVAE model to scRNA-seq data and interpret how genes are linked to latent variables of cells
 *   - [](./notebooks/scrna/AutoZI_tutorial)
-    - description
+    - Use the AutoZI model to enable gene-specific treatment of zero-inflation
 *   - [](./notebooks/scrna/cellassign_tutorial)
-    - description
+    - Use CellAssign to assign cell types using only knowledge of marker genes
 *   - [](./notebooks/scrna/amortized_lda)
-    - description
+    - Run the amortized Latent Dirichlet Allocation model in scvi-tools to learn topics of an scRNA-seq dataset
 *   - [](./notebooks/scrna/scVI_DE_worm)
-    - description
+    - Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
 *   - [](./notebooks/scrna/contrastiveVI_tutorial)
-    - description
+    - Use contrastiveVI to isolate perturbation-induced variation in Perturb-seq data
 *   - [](./notebooks/scrna/scanvi_fix)
-    - description
+    - Compare scANVI to other models following a bug fix in scvi-tools 1.1.0
 *   - [](./notebooks/scrna/MrVI_tutorial)
-    - description
+    - Analyze multi-sample scRNA-seq data with MrVI
+*   - [](./notebooks/scrna/MrVI_tutorial)
+    - Preprocess data and train the MrVI model
+*   - [](./notebooks/scrna/MrVI_tutorial)
+    - Visualize MrVI’s u latent space
+*   - [](./notebooks/scrna/MrVI_tutorial)
+    - Perform differential expression and differential abundance analysis
 
 :::
 
@@ -95,18 +98,16 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - |analysis-tag| [](./notebooks/atac/PeakVI)
-    - description
+    - Go through the PeakVI workflow to analyze a scATAC-seq dataset
 *   - |r-tag| {analysis-tag} [](./notebooks/atac/peakvi_in_R)
-    - description
+    - Use scvi-tools functionality in R to analyze scATAC-seq data
 *   - |analysis-tag| [](./notebooks/atac/scbasset)
-    - description
+    - Go through the scBasset workflow to analyze a scATAC-seq dataset
 *   - [](./notebooks/atac/scbasset_batch)
-    - description
+    - Use scBasset to integrate data across several samples
 *   - |analysis-tag| [](./notebooks/atac/PoissonVI)
-    - description
+    - Go through the PoissonVI workflow to analyze scATAC-seq data using quantitative fragment counts
 
 :::
 :::
@@ -117,10 +118,10 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - |integration-tag| [](notebooks/scbs/MethylVI_batch)
-    - description
+    - Correct batch effects in across different scBS-seq experiments with methylVI
+*   - |integration-tag| [](notebooks/scbs/MethylVI_batch)
+    - Correct batch effects in across different scBS-seq experiments with methylVI
 
 :::
 :::
@@ -131,18 +132,16 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - |analysis-tag| [](./notebooks/multimodal/totalVI)
-    - description
+    - Go through the totalVI workflow to analyze CITE-seq datasets
 *   - |integration-tag| [](./notebooks/multimodal/cite_scrna_integration_w_totalVI)
-    - description
+    - Use totalVI to integrate CITE-seq and scRNA-seq datasets
 *   - [](./notebooks/multimodal/totalVI_reference_mapping)
-    - description
+    - Use totalVI to train a reference model and map CITE-seq query data
 *   - |analysis-tag| [](./notebooks/multimodal/totalvi_in_R)
-    - description
+    - Use scvii-tools functionality in R to analyze CITE-seq data
 *   - |analysis-tag| [](./notebooks/multimodal/MultiVI_tutorial)
-    - description
+    - Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
 
 :::
 :::
@@ -153,22 +152,20 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - [](./notebooks/spatial/resolVI_tutorial)
     - description
 *   - [](./notebooks/spatial/DestVI_tutorial)
-    - description
+    - Perform multi-resolution analysis on spatial transcriptomics data with DestVI
 *   - |r-tag| [](./notebooks/spatial/DestVI_in_R)
-    - description
+    - Use scvi-tools functionality in R to analyze spatial transcriptomics datasets
 *   - [](./notebooks/spatial/gimvi_tutorial)
-    - description
+    - Use gimVI to impute missing genes in spatial data
 *   - [](./notebooks/spatial/tangram_scvi_tools)
-    - description
+    - Use Tangram to map spatial transcriptomics data
 *   - [](./notebooks/spatial/stereoscope_heart_LV_tutorial)
-    - description
+    - Go through the Stereoscope workflow to map single-cell data
 *   - [](./notebooks/spatial/cell2location_lymph_node_spatial_tutorial)
-    - description
+    - Spatially map lymph node cell types using Cell2location
 
 :::
 :::
@@ -179,16 +176,15 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - [](./notebooks/hub/cellxgene_census_model)
-    - description
+    - Perform analysis of a CELLxGENE dataset using a pretrained model from scVI-hub
 *   - [](./notebooks/hub/scvi_hub_intro_and_download)
-    - description
+    - Learn how to use Hugging Face and scvi-hub to download pretrained scvi-tools models
 *   - [](./notebooks/hub/scvi_hub_upload_and_large_files)
-    - description
+    - Learn how to upload pretrained scvi-tools models to Hugging Face
 *   - [](./notebooks/hub/minification)
-    - description
+    - Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
+
 
 :::
 :::
@@ -199,10 +195,8 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - [](./notebooks/tuning/autotune_scvi)
-    - description
+    - Use scvi’s autotune module to automatically find a good set of model hyperparameters
 *   - [](./notebooks/tuning/autotune_new_model)
     - description
 
@@ -215,14 +209,12 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :widths: auto
 :align: left
 
-*   - Tutorial
-    - Desciption
 *   - [](./notebooks/dev/data_tutorial)
-    - description
+    - Learn about how data is handled in scvi-tools
 *   - [](./notebooks/dev/module_user_guide)
-    - description
+    - Implement a novel statistical method for single-cell omics data as a module
 *   - [](./notebooks/dev/model_user_guide)
-    - description
+    - Implement an scvi-tools model class to provide a convenient interface for the lower-level module objects
 
 :::
 :::
