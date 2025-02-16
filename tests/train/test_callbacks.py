@@ -93,7 +93,6 @@ def test_scib_callback(model_cls, metric: str):
     from scvi.train._callbacks import ScibCallback
 
     # we use this temporarily to debug the scib-metrics callback
-    # (here we need to always allow extra metric in the vae)
     adata = synthetic_iid()
     if model_cls == SCANVI:
         model_cls.setup_anndata(
@@ -112,11 +111,5 @@ def test_scib_callback(model_cls, metric: str):
     model.train(
         1,
         train_size=0.5,
-        callbacks=[
-            ScibCallback(
-                stage="training",
-                metric=metric,
-                num_rows_to_select=100,
-            )
-        ],
+        callbacks=[ScibCallback()],
     )

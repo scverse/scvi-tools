@@ -12,7 +12,6 @@ import flax
 import numpy as np
 import pyro
 import torch
-from anndata import AnnData
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
@@ -20,7 +19,6 @@ from lightning.pytorch.utilities import rank_zero_info
 from scvi import settings
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
-from scvi.utils import dependencies
 
 if TYPE_CHECKING:
     import lightning.pytorch as pl
@@ -332,140 +330,17 @@ class JaxModuleInit(Callback):
         pl_module.set_train_state(params, state)
 
 
-@dependencies("scib_metrics")
 class ScibCallback(Callback):
-    # example to use in debug of the early stopping callback:
-    # stage="training"
-    # metric = "Total"
-    # trainer=_trainer
-    # pl_module=_pl_module
-    # tune_callback = ScibCallback(stage=stage, metric=metric)
-    from scib_metrics.benchmark import BatchCorrection, BioConservation
-
     def __init__(
         self,
-        bio_conservation_metrics: BioConservation | None = BioConservation(),
-        batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
-        stage: str | None = "training",
-        metric: str | None = "Total",
-        num_rows_to_select: int = 100,
     ):
         super().__init__()
-        self.bio_conservation_metrics = bio_conservation_metrics
-        self.batch_correction_metrics = batch_correction_metrics
-        self.stage = stage
-        self.metric = metric
-        self.num_rows_to_select = num_rows_to_select
+        self.pl_module = None
 
     def _get_report_dict(
         self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str | None = "training"
     ):
-        from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
-        from scib_metrics.benchmark._core import metric_name_cleaner
-
-        # Don't report if just doing initial validation sanity checks.
-        report_dict = {}
-        if self.metric is None:
-            return
-        if stage == "training" and self.stage not in ["training", "both"]:
-            return
-        elif stage == "validation" and self.stage not in ["validation", "both"]:
-            return
-
-        if not hasattr(pl_module, f"_{stage}_epoch_outputs"):
-            raise ValueError(f"The training plan must have a `_{stage}_epoch_outputs` attribute.")
-
-        outputs = getattr(pl_module, f"_{stage}_epoch_outputs")
-        # x = outputs["x"].numpy()
-        z = outputs["z"].numpy()
-        x = np.zeros(z.shape)  # TODO: should we do it? x can be remove in trainingplans already
-        batch = outputs["batch"].numpy()
-        labels = outputs["labels"].numpy()
-
-        # TODO: subsample to save time
-        rand_idx = np.random.choice(z.shape[0], self.num_rows_to_select, replace=False)
-        batch = batch[rand_idx]
-        labels = labels[rand_idx]
-        x = x[rand_idx]
-        z = z[rand_idx]
-
-        # adjust which metric to run exactly
-        found_metric = next(
-            (key for key, value in metric_name_cleaner.items() if value == self.metric), None
-        )
-        # special cases:
-        if self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
-            found_metric = "nmi_ari_cluster_labels_leiden"
-        if self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
-            found_metric = "nmi_ari_cluster_labels_kmeans"
-        if found_metric is not None:
-            # beucase originaly those classes are frozen we cant just set the metric to True
-            # Need to do it manualy unfortunatley
-            if found_metric == "isolated_labels":
-                self.bio_conservation_metrics = BioConservation(True, False, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
-            if found_metric == "nmi_ari_cluster_labels_leiden":
-                self.bio_conservation_metrics = BioConservation(False, True, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
-            if found_metric == "nmi_ari_cluster_labels_kmeans":
-                self.bio_conservation_metrics = BioConservation(False, False, True, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
-            if found_metric == "silhouette_label":
-                self.bio_conservation_metrics = BioConservation(False, False, False, True, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
-            if found_metric == "clisi_knn":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, True)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
-            if found_metric == "silhouette_batch":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(True, False, False, False, False)
-            if found_metric == "ilisi_knn":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, True, False, False, False)
-            if found_metric == "kbet_per_label":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, True, False, False)
-            if found_metric == "graph_connectivity":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, True, False)
-            if found_metric == "pcr_comparison":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, True)
-        else:
-            # its an aggregative metric
-            if self.metric == "Total":
-                # we jsut run them all, which is the default
-                self.bio_conservation_metrics = BioConservation()
-                self.batch_correction_metrics = BatchCorrection()
-            elif self.metric == "Batch correction":
-                # we run all batch correction and no bio conservation
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, False)
-            elif self.metric == "Bio conservation":
-                # we run all bio conservation and no batch corredction
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, False)
-            else:
-                # an invalid metric!
-                raise ValueError(f"`{self.metric}` is an invalid metric in scib-metrics autotune.")
-
-        adata = AnnData(X=x, obs={"batch": batch, "labels": labels}, obsm={"z": z})
-        benchmarker = Benchmarker(
-            adata,
-            batch_key="batch",
-            label_key="labels",
-            embedding_obsm_keys=["z"],
-            bio_conservation_metrics=self.bio_conservation_metrics,
-            batch_correction_metrics=self.batch_correction_metrics,
-            n_jobs=-1,
-        )
-        benchmarker.benchmark()
-        results = benchmarker.get_results(min_max_scale=False).to_dict()
-        metrics = {f"training {self.metric}": results[self.metric]["z"]}
-        pl_module.logger.log_metrics(metrics, trainer.global_step)
-        trainer.callback_metrics[self.metric] = torch.tensor(results[self.metric]["z"])
-        report_dict[self.metric] = trainer.callback_metrics[self.metric].item()
-        delattr(pl_module, f"_{stage}_epoch_outputs")
-
-        return report_dict
+        self.pl_module = pl_module
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         self._get_report_dict(trainer, pl_module, "training")

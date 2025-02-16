@@ -138,6 +138,6 @@ def run_autotune(
         scib_subsample_rows=scib_subsample_rows,
     )
     logger.info(f"Running autotune experiment {experiment.name}.")
-    init(log_to_driver=False, ignore_reinit_error=True)
+    init(log_to_driver=False, ignore_reinit_error=True, local_mode=True)
     experiment.result_grid = experiment.get_tuner().fit()
     return experiment

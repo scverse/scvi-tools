@@ -371,7 +371,15 @@ class TrainingPlan(pl.LightningModule):
         # this function is used only for the purpose of scib autotune,
         # and adds overhead of time and memory thus used only when needed
         if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
-            if "ScibCallback" in [cls.__class__.__name__ for cls in self.trainer.callbacks]:
+            if (
+                sum(
+                    [
+                        "Scib" in x
+                        for x in [cls.__class__.__name__ for cls in self.trainer.callbacks]
+                    ]
+                )
+                > 0
+            ):
                 # TODO: subsample to save time already here?
                 x = loss_outputs["x"].detach().cpu()
                 z = loss_outputs["z"].detach().cpu()

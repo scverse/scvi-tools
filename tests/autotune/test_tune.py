@@ -1,5 +1,3 @@
-import os
-
 import pytest
 from ray import tune
 from ray.tune import ResultGrid
@@ -74,15 +72,9 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
 
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
 @pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
-def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
-    # metric = "iLISI"
-    # save_path = "."
-    # Set an environment variable - only way it works in jax + ray
-    os.environ["JAX_PLATFORMS"] = "cpu"
-    os.environ["TUNE_DISABLE_STRICT_METRIC_CHECKING"] = "1"
-
+def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str = "."):
     settings.logging_dir = save_path
-    adata = synthetic_iid(batch_size=10, n_genes=10)
+    adata = synthetic_iid()
     if model_cls == SCANVI:
         model_cls.setup_anndata(
             adata,
@@ -118,19 +110,3 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
     assert isinstance(experiment.result_grid, ResultGrid)
-
-
-# def test_early_stopping():
-#     # we use this temporarily to debug the scib-metrics callback
-#     # (here we need to always allow extra metric in the vae)
-#     n_epochs = 100
-#
-#     adata = synthetic_iid()
-#     SCVI.setup_anndata(
-#         adata,
-#         batch_key="batch",
-#         labels_key="labels",
-#     )
-#     model = SCVI(adata)
-#     model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
-#     assert len(model.history["elbo_train"]) < n_epochs
