@@ -57,32 +57,10 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 :widths: auto
 :align: left
 
-*   - |integration-tag| [](./notebooks/scrna/harmonization)
-    - Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
-*   - |r-tag| |integration-tag| [](./notebooks/scrna/scvi_in_R)
-    - Use basic scvi-tools functionality in R including integration of datasets
-*   - |integration-tag| [](./notebooks/scrna/tabula_muris)
-    - Perform de novo integration of a labeled reference dataset with an unlabeled query dataset (label transfer)
-*   - [](./notebooks/scrna/scarches_scvi_tools)
-    - Map cells from a query dataset to the latent space of a reference dataset with the scArches method
-*   - [](./notebooks/scrna/query_hlca_knn)
-    - Use scANVI, scArches and scvi-hub to query the Human Lung Cell Atlas
-*   - [](./notebooks/scrna/seed_labeling)
-    - Create seed labels and transfer cell type annotations to an entire dataset
-*   - [](./notebooks/scrna/linear_decoder)
-    - Fit an LDVAE model to scRNA-seq data and interpret how genes are linked to latent variables of cells
-*   - [](./notebooks/scrna/AutoZI_tutorial)
-    - Use the AutoZI model to enable gene-specific treatment of zero-inflation
-*   - [](./notebooks/scrna/cellassign_tutorial)
-    - Use CellAssign to assign cell types using only knowledge of marker genes
-*   - [](./notebooks/scrna/amortized_lda)
-    - Run the amortized Latent Dirichlet Allocation model in scvi-tools to learn topics of an scRNA-seq dataset
 *   - [](./notebooks/scrna/scVI_DE_worm)
     - Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
-*   - [](./notebooks/scrna/contrastiveVI_tutorial)
-    - Use contrastiveVI to isolate perturbation-induced variation in Perturb-seq data
-*   - [](./notebooks/scrna/scanvi_fix)
-    - Compare scANVI to other models following a bug fix in scvi-tools 1.1.0
+*   - |r-tag| |integration-tag| [](./notebooks/scrna/scvi_in_R)
+    - Use basic scvi-tools functionality in R including integration of datasets
 *   - [](./notebooks/scrna/MrVI_tutorial)
     - Analyze multi-sample scRNA-seq data with MrVI
 *   - [](./notebooks/scrna/MrVI_tutorial)
@@ -91,6 +69,31 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
     - Visualize MrVI’s u latent space
 *   - [](./notebooks/scrna/MrVI_tutorial)
     - Perform differential expression and differential abundance analysis
+*   - [](./notebooks/scrna/scanvi_fix)
+    - Compare scANVI to other models following a bug fix in scvi-tools 1.1.0
+*   - [](./notebooks/scrna/seed_labeling)
+    - Create seed labels and transfer cell type annotations to an entire dataset
+*   - [](./notebooks/scrna/cellassign_tutorial)
+    - Use CellAssign to assign cell types using only knowledge of marker genes
+*   - [](./notebooks/scrna/linear_decoder)
+    - Fit an LDVAE model to scRNA-seq data and interpret how genes are linked to latent variables of cells
+*   - [](./notebooks/scrna/AutoZI_tutorial)
+    - Use the AutoZI model to enable gene-specific treatment of zero-inflation
+*   - [](./notebooks/scrna/amortized_lda)
+    - Run the amortized Latent Dirichlet Allocation model in scvi-tools to learn topics of an scRNA-seq dataset
+*   - [](./notebooks/scrna/contrastiveVI_tutorial)
+    - Use contrastiveVI to isolate perturbation-induced variation in Perturb-seq data
+*   - |integration-tag| [](./notebooks/scrna/harmonization)
+    - Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
+*   - |integration-tag| [](./notebooks/scrna/tabula_muris)
+    - Perform de novo integration of a labeled reference dataset with an unlabeled query dataset (label transfer)
+*   - [](./notebooks/scrna/scarches_scvi_tools)
+    - Map cells from a query dataset to the latent space of a reference dataset with the scArches method
+*   - [](./notebooks/scrna/query_hlca_knn)
+    - Use scANVI, scArches and scvi-hub to query the Human Lung Cell Atlas
+
+
+
 
 :::
 
@@ -144,12 +147,12 @@ Use models to analyze multimodal data, including totalVI for CITE-seq analysis a
 
 *   - |analysis-tag| [](./notebooks/multimodal/totalVI)
     - Go through the totalVI workflow to analyze CITE-seq datasets
-*   - |integration-tag| [](./notebooks/multimodal/cite_scrna_integration_w_totalVI)
-    - Use totalVI to integrate CITE-seq and scRNA-seq datasets
 *   - [](./notebooks/multimodal/totalVI_reference_mapping)
     - Use totalVI to train a reference model and map CITE-seq query data
+*   - |integration-tag| [](./notebooks/multimodal/cite_scrna_integration_w_totalVI)
+    - Use totalVI to integrate CITE-seq and scRNA-seq datasets
 *   - |analysis-tag| [](./notebooks/multimodal/totalvi_in_R)
-    - Use scvii-tools functionality in R to analyze CITE-seq data
+    - Use scvi-tools functionality in R to analyze CITE-seq data
 *   - |analysis-tag| [](./notebooks/multimodal/MultiVI_tutorial)
     - Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
 
@@ -190,14 +193,16 @@ Learn about using and uploading pretrained scvi-tools models with scvi-hub and H
 :widths: auto
 :align: left
 
-*   - [](./notebooks/hub/cellxgene_census_model)
-    - Perform analysis of a CELLxGENE dataset using a pretrained model from scVI-hub
-*   - [](./notebooks/hub/scvi_hub_intro_and_download)
-    - Learn how to use Hugging Face and scvi-hub to download pretrained scvi-tools models
-*   - [](./notebooks/hub/scvi_hub_upload_and_large_files)
-    - Learn how to upload pretrained scvi-tools models to Hugging Face
+
 *   - [](./notebooks/hub/minification)
     - Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
+*   - [](./notebooks/hub/scvi_hub_intro_and_download)
+    - Learn how to use Hugging Face and scvi-hub to download pretrained scvi-tools models
+*   - [](./notebooks/hub/cellxgene_census_model)
+    - Perform analysis of a CELLxGENE dataset using a pretrained model from scVI-hub
+*   - [](./notebooks/hub/scvi_hub_upload_and_large_files)
+    - Learn how to upload pretrained scvi-tools models to Hugging Face
+
 
 
 :::
