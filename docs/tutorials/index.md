@@ -9,6 +9,8 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
+Test octicon: Installation {octicon}`plug;1em;`
+
 :::{list-table} Tutorial Groups
 :widths: auto
 :align: center
