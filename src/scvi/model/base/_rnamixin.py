@@ -269,7 +269,11 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                exp_ = generative_outputs["px"].get_normalized(generative_output_key)
+                px_generative = generative_outputs["px"]
+                if isinstance(px_generative, torch.Tensor):
+                    exp_ = px_generative
+                else:
+                    exp_ = px_generative.get_normalized(generative_output_key)
                 exp_ = exp_[..., gene_mask]
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
