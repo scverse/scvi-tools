@@ -33,13 +33,13 @@ def test_condscvi_batch_key(
 
 def test_condscvi_batch_key_compat_load(save_path: str):
     adata = synthetic_iid()
-    model_path = os.path.join(save_path, __name__)
-    model = CondSCVI.load(model_path, adata=adata)
+    model = CondSCVI.load("tests/test_data/condscvi_pre_batch", adata=adata)
 
     assert not hasattr(model.summary_stats, "n_batch")
     _ = model.get_latent_representation()
     _ = model.get_vamp_prior(adata)
 
+    model_path = os.path.join(save_path, __name__)
     model.save(model_path, overwrite=True, save_anndata=False)
     model = CondSCVI.load(model_path, adata=adata)
 

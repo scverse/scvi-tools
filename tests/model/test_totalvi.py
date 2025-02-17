@@ -774,10 +774,11 @@ def test_totalvi_logits_backwards_compat(save_path: str):
 
 def test_totalvi_old_activation_load(save_path: str):
     """See #2913. Check old model saves use the old behavior."""
-    resave_model_path = os.path.join(save_path, "exp_activation_totalvi_re")
-    model = TOTALVI.load(resave_model_path)
+    model_path = "tests/test_data/exp_activation_totalvi"
+    model = TOTALVI.load(model_path)
 
     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+    resave_model_path = os.path.join(save_path, "exp_activation_totalvi_re")
     model.save(resave_model_path, overwrite=True)
     adata = model.adata
     del model
