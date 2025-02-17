@@ -18,15 +18,10 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 :::{list-table} Tutorial Groups
 :widths: auto
-:align: center
 
-*   - Analysis
-    - Integration
-    - Transfer learning
-    - R
 *   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
     - <span class="tag" group-tag="Integration"></span> Integration Tutorials
-    - <span class="tag" group-tag="Transfer earning"></span> Transfer learning Tutorials
+    - <span class="tag" group-tag="Transfer learning"></span> Transfer learning Tutorials
     - <span class="tag" group-tag="R"></span> R Tutorials
 :::
 
@@ -38,11 +33,12 @@ Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and h
 :widths: auto
 :align: left
 
-*   - [](./notebooks/quick_start/api_overview)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/quick_start/api_overview)
     - Go through the typical steps of an scvi-tools workflow
 *   - [](./notebooks/quick_start/data_loading)
     - Load, preprocess, and register data for use with scvi-tools
-*   - <span class="tag" group-tag="R"></span> R Tutorials
+*   - <span class="tag" group-tag="R"></span>
     [](./notebooks/quick_start/python_in_R)
     - Perform basic Python operations in an R environment
 
@@ -58,9 +54,11 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 :widths: auto
 :align: left
 
-*   - [](./notebooks/scrna/scVI_DE_worm)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/scrna/scVI_DE_worm)
     - Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
-*   - <span class="tag" group-tag="R"></span> R Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
+    <span class="tag" group-tag="R"></span>
     |integration-tag| [](./notebooks/scrna/scvi_in_R)
     - Use basic scvi-tools functionality in R including integration of datasets
 *   - [](./notebooks/scrna/MrVI_tutorial)
@@ -69,7 +67,8 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
     - Preprocess data and train the MrVI model
 *   - [](./notebooks/scrna/MrVI_tutorial)
     - Visualize MrVI’s u latent space
-*   - [](./notebooks/scrna/MrVI_tutorial)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/scrna/MrVI_tutorial)
     - Perform differential expression and differential abundance analysis
 *   - [](./notebooks/scrna/scanvi_fix)
     - Compare scANVI to other models following a bug fix in scvi-tools 1.1.0
@@ -109,17 +108,19 @@ Go through the workflows of models used for analysis of scATAC-seq datasets, inc
 :widths: auto
 :align: left
 
-*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
     [](./notebooks/atac/PeakVI)
     - Go through the PeakVI workflow to analyze a scATAC-seq dataset
-*   - <span class="tag" group-tag="R"></span> R Tutorials
-    {analysis-tag} [](./notebooks/atac/peakvi_in_R)
+*   - <span class="tag" group-tag="Analysis"></span>
+    <span class="tag" group-tag="R"></span>
+    [](./notebooks/atac/peakvi_in_R)
     - Use scvi-tools functionality in R to analyze scATAC-seq data
-*   - |analysis-tag| [](./notebooks/atac/scbasset)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/atac/scbasset)
     - Go through the scBasset workflow to analyze a scATAC-seq dataset
 *   - [](./notebooks/atac/scbasset_batch)
     - Use scBasset to integrate data across several samples
-*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
     [](./notebooks/atac/PoissonVI)
     - Go through the PoissonVI workflow to analyze scATAC-seq data using quantitative fragment counts
 
@@ -150,17 +151,17 @@ Use models to analyze multimodal data, including totalVI for CITE-seq analysis a
 :widths: auto
 :align: left
 
-*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
     [](./notebooks/multimodal/totalVI)
     - Go through the totalVI workflow to analyze CITE-seq datasets
 *   - [](./notebooks/multimodal/totalVI_reference_mapping)
     - Use totalVI to train a reference model and map CITE-seq query data
 *   - |integration-tag| [](./notebooks/multimodal/cite_scrna_integration_w_totalVI)
     - Use totalVI to integrate CITE-seq and scRNA-seq datasets
-*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
     [](./notebooks/multimodal/totalvi_in_R)
     - Use scvi-tools functionality in R to analyze CITE-seq data
-*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
     [](./notebooks/multimodal/MultiVI_tutorial)
     - Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
 
@@ -177,9 +178,11 @@ Learn about models and methods to use with spatial transciptomics data, includin
 
 *   - [](./notebooks/spatial/resolVI_tutorial)
     - description
-*   - [](./notebooks/spatial/DestVI_tutorial)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/spatial/DestVI_tutorial)
     - Perform multi-resolution analysis on spatial transcriptomics data with DestVI
-*   - <span class="tag" group-tag="R"></span> R Tutorials
+*   - <span class="tag" group-tag="Analysis"></span>
+    <span class="tag" group-tag="R"></span> R Tutorials
     [](./notebooks/spatial/DestVI_in_R)
     - Use scvi-tools functionality in R to analyze spatial transcriptomics datasets
 *   - [](./notebooks/spatial/gimvi_tutorial)
@@ -205,9 +208,11 @@ Learn about using and uploading pretrained scvi-tools models with scvi-hub and H
 
 *   - [](./notebooks/hub/minification)
     - Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
-*   - [](./notebooks/hub/scvi_hub_intro_and_download)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/hub/scvi_hub_intro_and_download)
     - Learn how to use Hugging Face and scvi-hub to download pretrained scvi-tools models
-*   - [](./notebooks/hub/cellxgene_census_model)
+*   - <span class="tag" group-tag="Analysis"></span>
+    [](./notebooks/hub/cellxgene_census_model)
     - Perform analysis of a CELLxGENE dataset using a pretrained model from scVI-hub
 *   - [](./notebooks/hub/scvi_hub_upload_and_large_files)
     - Learn how to upload pretrained scvi-tools models to Hugging Face
