@@ -14,6 +14,8 @@ to [Semantic Versioning]. Full commit history is available in the
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
 - Add an exception callback to {class}`scvi.train.callbacks` in order to save optimal model during
     training, instead of failing because of Nan's in gradients or loss. {pr}`3159`.
+- Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, PoissonVI, CondSCVI,
+    AutoZI, CellAssign and GimVI. {pr}`3121`
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 
