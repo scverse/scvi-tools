@@ -229,69 +229,49 @@ class ScibTuneReportCheckpointCallback(ScibTuneCallback):
                     self.bio_conservation_metrics = BioConservation(
                         True, False, False, False, False
                     )
-                    self.batch_correction_metrics = BatchCorrection(
-                        False, False, False, False, False
-                    )
+                    self.batch_correction_metrics = None
                 if found_metric == "nmi_ari_cluster_labels_leiden":
                     self.bio_conservation_metrics = BioConservation(
                         False, True, False, False, False
                     )
-                    self.batch_correction_metrics = BatchCorrection(
-                        False, False, False, False, False
-                    )
+                    self.batch_correction_metrics = None
                 if found_metric == "nmi_ari_cluster_labels_kmeans":
                     self.bio_conservation_metrics = BioConservation(
                         False, False, True, False, False
                     )
-                    self.batch_correction_metrics = BatchCorrection(
-                        False, False, False, False, False
-                    )
+                    self.batch_correction_metrics = None
                 if found_metric == "silhouette_label":
                     self.bio_conservation_metrics = BioConservation(
                         False, False, False, True, False
                     )
-                    self.batch_correction_metrics = BatchCorrection(
-                        False, False, False, False, False
-                    )
+                    self.batch_correction_metrics = None
                 if found_metric == "clisi_knn":
                     self.bio_conservation_metrics = BioConservation(
                         False, False, False, False, True
                     )
-                    self.batch_correction_metrics = BatchCorrection(
-                        False, False, False, False, False
-                    )
+                    self.batch_correction_metrics = None
                 if found_metric == "silhouette_batch":
-                    self.bio_conservation_metrics = BioConservation(
-                        False, False, False, False, False
-                    )
+                    self.bio_conservation_metrics = None
                     self.batch_correction_metrics = BatchCorrection(
                         True, False, False, False, False
                     )
                 if found_metric == "ilisi_knn":
-                    self.bio_conservation_metrics = BioConservation(
-                        False, False, False, False, False
-                    )
+                    self.bio_conservation_metrics = None
                     self.batch_correction_metrics = BatchCorrection(
                         False, True, False, False, False
                     )
                 if found_metric == "kbet_per_label":
-                    self.bio_conservation_metrics = BioConservation(
-                        False, False, False, False, False
-                    )
+                    self.bio_conservation_metrics = None
                     self.batch_correction_metrics = BatchCorrection(
                         False, False, True, False, False
                     )
                 if found_metric == "graph_connectivity":
-                    self.bio_conservation_metrics = BioConservation(
-                        False, False, False, False, False
-                    )
+                    self.bio_conservation_metrics = None
                     self.batch_correction_metrics = BatchCorrection(
                         False, False, False, True, False
                     )
                 if found_metric == "pcr_comparison":
-                    self.bio_conservation_metrics = BioConservation(
-                        False, False, False, False, False
-                    )
+                    self.bio_conservation_metrics = None
                     self.batch_correction_metrics = BatchCorrection(
                         False, False, False, False, True
                     )
@@ -303,14 +283,10 @@ class ScibTuneReportCheckpointCallback(ScibTuneCallback):
                     self.batch_correction_metrics = BatchCorrection()
                 elif self.metric == "Batch correction":
                     # we run all batch correction and no bio conservation
-                    self.bio_conservation_metrics = BioConservation(
-                        False, False, False, False, False
-                    )
+                    self.bio_conservation_metrics = None
                 elif self.metric == "Bio conservation":
                     # we run all bio conservation and no batch corredction
-                    self.batch_correction_metrics = BatchCorrection(
-                        False, False, False, False, False
-                    )
+                    self.batch_correction_metrics = None
                 else:
                     # an invalid metric!
                     raise ValueError(
@@ -325,7 +301,6 @@ class ScibTuneReportCheckpointCallback(ScibTuneCallback):
                 embedding_obsm_keys=["z"],
                 bio_conservation_metrics=self.bio_conservation_metrics,
                 batch_correction_metrics=self.batch_correction_metrics,
-                # n_jobs=1,
             )
             benchmarker.benchmark()
             results = benchmarker.get_results(min_max_scale=False).to_dict()
