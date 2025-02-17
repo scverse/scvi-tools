@@ -19,9 +19,9 @@ Test octicon: Installation {octicon}`plug;1em;`
     - Integration
     - Transfer learning
     - R
-*   - {octicon}`filled-square;1em;`
-    - {octicon}`filled-square;1em;sd-color-analysis`
-    - {octicon}`filled-square;1.5em;sd-color-analysis`
+*   - {octicon}`square-fill;1em;`
+    - {octicon}`square-fill;1em;sd-color-analysis`
+    - {octicon}`square-fill;1.5em;sd-color-analysis`
     -
 :::
 
