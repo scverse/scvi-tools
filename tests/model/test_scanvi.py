@@ -562,7 +562,7 @@ def test_scanvi_logits_backwards_compat(save_path: str):
 
 def test_scanvi_pre_logits_fix_load(save_path: str):
     """See #2310. Check old model saves use the old behavior."""
-    model_path = "tests/test_data/pre_logits_fix_scanvi"
+    model_path = save_path + "/../../tests/test_data/pre_logits_fix_scanvi"
     model = SCANVI.load(model_path)
 
     def check_no_logits_and_softmax(model: SCANVI):
