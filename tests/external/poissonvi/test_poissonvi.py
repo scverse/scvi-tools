@@ -6,12 +6,15 @@ from scvi.external import POISSONVI
 
 def test_poissonvi():
     adata = synthetic_iid(batch_size=100)
-    POISSONVI.setup_anndata(adata)
+    POISSONVI.setup_anndata(adata, batch_key="batch")
     model = POISSONVI(adata)
     model.train(max_epochs=1)
     model.get_latent_representation()
     model.get_accessibility_estimates()
     model.get_region_factors()
+    model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
 
 
 def test_poissonvi_default_params():
