@@ -24,18 +24,11 @@ For questions about using scvi-tools, or broader questions about modeling data, 
     - Integration
     - Transfer learning
     - R
-*   - {octicon}`square-fill;1em;`
-    - {octicon}`square-fill;1em;sd-color-analysis`
-    - {octicon}`square-fill;1.5em;sd-color-analysis`
-    -
+*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+    - <span class="tag" group-tag="Integration"></span> Integration Tutorials
+    - <span class="tag" group-tag="Transfer earning"></span> Transfer learning Tutorials
+    - <span class="tag" group-tag="R"></span> R Tutorials
 :::
-
-<!--
-<span class="tag" group-tag="Analysis"></span> Analysis Tutorials
-<span class="tag" group-tag="Integration"></span> Integration Tutorials
-<span class="tag" group-tag="Transfer earning"></span> Transfer learning Tutorials
-<span class="tag" group-tag="R"></span> R Tutorials
--->
 
 :::{dropdown} Quick start
 
@@ -49,7 +42,8 @@ Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and h
     - Go through the typical steps of an scvi-tools workflow
 *   - [](./notebooks/quick_start/data_loading)
     - Load, preprocess, and register data for use with scvi-tools
-*   - |r-tag| [](./notebooks/quick_start/python_in_R)
+*   - <span class="tag" group-tag="R"></span> R Tutorials
+    [](./notebooks/quick_start/python_in_R)
     - Perform basic Python operations in an R environment
 
 :::
@@ -66,7 +60,8 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 
 *   - [](./notebooks/scrna/scVI_DE_worm)
     - Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
-*   - |r-tag| |integration-tag| [](./notebooks/scrna/scvi_in_R)
+*   - <span class="tag" group-tag="R"></span> R Tutorials
+    |integration-tag| [](./notebooks/scrna/scvi_in_R)
     - Use basic scvi-tools functionality in R including integration of datasets
 *   - [](./notebooks/scrna/MrVI_tutorial)
     - Analyze multi-sample scRNA-seq data with MrVI
@@ -114,15 +109,18 @@ Go through the workflows of models used for analysis of scATAC-seq datasets, inc
 :widths: auto
 :align: left
 
-*   - |analysis-tag| [](./notebooks/atac/PeakVI)
+*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+    [](./notebooks/atac/PeakVI)
     - Go through the PeakVI workflow to analyze a scATAC-seq dataset
-*   - |r-tag| {analysis-tag} [](./notebooks/atac/peakvi_in_R)
+*   - <span class="tag" group-tag="R"></span> R Tutorials
+    {analysis-tag} [](./notebooks/atac/peakvi_in_R)
     - Use scvi-tools functionality in R to analyze scATAC-seq data
 *   - |analysis-tag| [](./notebooks/atac/scbasset)
     - Go through the scBasset workflow to analyze a scATAC-seq dataset
 *   - [](./notebooks/atac/scbasset_batch)
     - Use scBasset to integrate data across several samples
-*   - |analysis-tag| [](./notebooks/atac/PoissonVI)
+*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+    [](./notebooks/atac/PoissonVI)
     - Go through the PoissonVI workflow to analyze scATAC-seq data using quantitative fragment counts
 
 :::
@@ -152,15 +150,18 @@ Use models to analyze multimodal data, including totalVI for CITE-seq analysis a
 :widths: auto
 :align: left
 
-*   - |analysis-tag| [](./notebooks/multimodal/totalVI)
+*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+    [](./notebooks/multimodal/totalVI)
     - Go through the totalVI workflow to analyze CITE-seq datasets
 *   - [](./notebooks/multimodal/totalVI_reference_mapping)
     - Use totalVI to train a reference model and map CITE-seq query data
 *   - |integration-tag| [](./notebooks/multimodal/cite_scrna_integration_w_totalVI)
     - Use totalVI to integrate CITE-seq and scRNA-seq datasets
-*   - |analysis-tag| [](./notebooks/multimodal/totalvi_in_R)
+*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+    [](./notebooks/multimodal/totalvi_in_R)
     - Use scvi-tools functionality in R to analyze CITE-seq data
-*   - |analysis-tag| [](./notebooks/multimodal/MultiVI_tutorial)
+*   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
+    [](./notebooks/multimodal/MultiVI_tutorial)
     - Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
 
 :::
@@ -178,7 +179,8 @@ Learn about models and methods to use with spatial transciptomics data, includin
     - description
 *   - [](./notebooks/spatial/DestVI_tutorial)
     - Perform multi-resolution analysis on spatial transcriptomics data with DestVI
-*   - |r-tag| [](./notebooks/spatial/DestVI_in_R)
+*   - <span class="tag" group-tag="R"></span> R Tutorials
+    [](./notebooks/spatial/DestVI_in_R)
     - Use scvi-tools functionality in R to analyze spatial transcriptomics datasets
 *   - [](./notebooks/spatial/gimvi_tutorial)
     - Use gimVI to impute missing genes in spatial data

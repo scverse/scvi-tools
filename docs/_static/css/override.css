@@ -1,4 +1,4 @@
-/* Style used for tags in the tutorials index page
+/* Style used for tags in the tutorials index page */
 .tag {
     display: inline-block;
     padding: 6px 8px;
@@ -13,12 +13,3 @@
 .tag[group-tag="Integration"] { background-color: #3572A5; }
 .tag[group-tag="Transfer learning"] { background-color: #ce830c; }
 .tag[group-tag="R"] { background-color: #990fa6; }
-
-*/
-
-:root {
-    --sd-color-analysis: #4CAF50;
-    --sd-color-integration: #3572A5;
-    --sd-color-transfer-learning: #ce830c;
-    --sd-color-r: #990fa6;
-}
