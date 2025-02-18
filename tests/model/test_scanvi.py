@@ -577,3 +577,29 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 
     model = SCANVI.load(resave_model_path, adata)
     check_no_logits_and_softmax(model)
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
+def test_scanvi_interpertability(unlabeled_cat: str):
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+    predictions, attributions = model.predict(ig_interpretability=True)  # orignal predictions
+    # lets see an avg of score of top 5 genea for all samples put together
+    attributions.head(5)
+
+    # new data ig prediction specific samples top 5 genes
+    adata2 = synthetic_iid()
+    predictions, attributions = model.predict(adata2, indices=[1, 2, 3], ig_interpretability=True)
+    attributions.head(5)
+
+    # now run shap values and compare to previous one
+    shap_values = model.shap_predict()
+    # select the label we want to understand (usually the '1' class)
+    model.get_ranked_genes(attrs=shap_values[:, :, 1]).head(5)

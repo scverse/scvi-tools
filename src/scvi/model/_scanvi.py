@@ -5,10 +5,6 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-import numpy as np
-import pandas as pd
-import torch
-
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
@@ -38,7 +34,6 @@ from .base import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from typing import Literal
 
     from anndata import AnnData
@@ -254,81 +249,6 @@ class SCANVI(
         scanvi_model.was_pretrained = True
 
         return scanvi_model
-
-    def predict(
-        self,
-        adata: AnnData | None = None,
-        indices: Sequence[int] | None = None,
-        soft: bool = False,
-        batch_size: int | None = None,
-        use_posterior_mean: bool = True,
-    ) -> np.ndarray | pd.DataFrame:
-        """Return cell label predictions.
-
-        Parameters
-        ----------
-        adata
-            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
-        indices
-            Return probabilities for each class label.
-        soft
-            If True, returns per class probabilities
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        use_posterior_mean
-            If ``True``, uses the mean of the posterior distribution to predict celltype
-            labels. Otherwise, uses a sample from the posterior distribution - this
-            means that the predictions will be stochastic.
-        """
-        adata = self._validate_anndata(adata)
-
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-
-        scdl = self._make_data_loader(
-            adata=adata,
-            indices=indices,
-            batch_size=batch_size,
-        )
-        y_pred = []
-        for _, tensors in enumerate(scdl):
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            batch = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-            cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-            cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-            pred = self.module.classify(
-                x,
-                batch_index=batch,
-                cat_covs=cat_covs,
-                cont_covs=cont_covs,
-                use_posterior_mean=use_posterior_mean,
-            )
-            if self.module.classifier.logits:
-                pred = torch.nn.functional.softmax(pred, dim=-1)
-            if not soft:
-                pred = pred.argmax(dim=1)
-            y_pred.append(pred.detach().cpu())
-
-        y_pred = torch.cat(y_pred).numpy()
-        if not soft:
-            predictions = []
-            for p in y_pred:
-                predictions.append(self._code_to_label[p])
-
-            return np.array(predictions)
-        else:
-            n_labels = len(pred[0])
-            pred = pd.DataFrame(
-                y_pred,
-                columns=self._label_mapping[:n_labels],
-                index=adata.obs_names[indices],
-            )
-            return pred
 
     @classmethod
     @setup_anndata_dsp.dedent

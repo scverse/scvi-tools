@@ -95,9 +95,11 @@ regseq = ["biopython>=1.81", "genomepy"]
 scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
 pooch = ["pooch"]
+# for supervised models interpretability
+interpretability = ["captum","shap"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy,interpretability]"
 ]
 tutorials = [
     "cell2location",

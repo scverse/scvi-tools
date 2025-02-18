@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import logging
 from typing import TYPE_CHECKING
 
@@ -188,7 +189,8 @@ class SemisupervisedTrainingMixin:
         soft: bool = False,
         batch_size: int | None = None,
         use_posterior_mean: bool = True,
-    ) -> np.ndarray | pd.DataFrame:
+        ig_interpretability: bool = False,
+    ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
         """Return cell label predictions.
 
         Parameters
@@ -206,21 +208,55 @@ class SemisupervisedTrainingMixin:
             If ``True``, uses the mean of the posterior distribution to predict celltype
             labels. Otherwise, uses a sample from the posterior distribution - this
             means that the predictions will be stochastic.
+        ig_interpretability
+            If True, run the integrated circuits interpretability per sample and returns a score
+            matrix, in which for each sample we score each gene for its contribution to the
+            sample prediction
+        shap_values
+            If True, run the shap interpretability per sample and returns a score data frame, in
+            which for each sample we score each gene for its contribution to the sample prediction
         """
         adata = self._validate_anndata(adata)
 
         if indices is None:
             indices = np.arange(adata.n_obs)
 
+        attributions = None
+        if ig_interpretability:
+            missing_modules = []
+            try:
+                importlib.import_module("captum")
+            except ImportError:
+                missing_modules.append("captum")
+            if len(missing_modules) > 0:
+                raise ModuleNotFoundError("Please install captum to use this functionality.")
+            from captum.attr import IntegratedGradients
+
+            ig = IntegratedGradients(self.module.classify)
+            attributions = []
+
+        # in case of no indices to predict return empty values
+        if len(indices) == 0:
+            pred = []
+            if ig_interpretability:
+                return pred, attributions
+            else:
+                return pred
+
         scdl = self._make_data_loader(
             adata=adata,
             indices=indices,
             batch_size=batch_size,
         )
+
         y_pred = []
         for _, tensors in enumerate(scdl):
             inference_inputs = self.module._get_inference_input(tensors)  # (n_obs, n_vars)
-            data_inputs = {key: inference_inputs[key] for key in self.module.data_input_keys}
+            data_inputs = {
+                key: inference_inputs[key]
+                for key in inference_inputs.keys()
+                if key not in ["batch_index", "cont_covs", "cat_covs"]
+            }
 
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]
 
@@ -243,18 +279,36 @@ class SemisupervisedTrainingMixin:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
 
-        y_pred = torch.cat(y_pred).numpy()
-        if not soft:
-            predictions = [self._code_to_label[p] for p in y_pred]
-            return np.array(predictions)
-        else:
-            n_labels = len(pred[0])
-            pred = pd.DataFrame(
-                y_pred,
-                columns=self._label_mapping[:n_labels],
-                index=adata.obs_names[indices],
-            )
-            return pred
+            if ig_interpretability:
+                # we need the hard prediction if was not done yet
+                hard_pred = pred.argmax(dim=1) if soft else pred
+                attribution = ig.attribute(tuple(data_inputs.values()), target=hard_pred)
+                attributions.append(attribution[0])
+
+        if ig_interpretability:
+            if attributions is not None and len(attributions) > 0:
+                attributions = torch.cat(attributions, dim=0).detach().numpy()
+                attributions = self.get_ranked_genes(adata, attributions)
+
+        if len(y_pred) > 0:
+            y_pred = torch.cat(y_pred).numpy()
+            if not soft:
+                predictions = [self._code_to_label[p] for p in y_pred]
+                if ig_interpretability:
+                    return np.array(predictions), attributions
+                else:
+                    return np.array(predictions)
+            else:
+                n_labels = len(pred[0])
+                pred = pd.DataFrame(
+                    y_pred,
+                    columns=self._label_mapping[:n_labels],
+                    index=adata.obs_names[indices],
+                )
+                if ig_interpretability:
+                    return pred, attributions
+                else:
+                    return pred
 
     @devices_dsp.dedent
     def train(
@@ -350,4 +404,70 @@ class SemisupervisedTrainingMixin:
         )
         return runner()
 
-    # TODO: ADD the interperability functions
+    def get_ranked_genes(
+        self, adata: AnnOrMuData | None = None, attrs: np.ndarray | None = None
+    ) -> pd.DataFrame:
+        """Get the ranked gene list based on highest attributions.
+
+        Parameters
+        ----------
+        attr: numpy.ndarray
+            Attributions matrix.
+
+        Returns
+        -------
+        pandas.DataFrame
+            A pandas dataframe containing the ranked attributions for each gene
+
+        Examples
+        --------
+        >>> attrs_df = interpreter.get_ranked_genes(attrs)
+        """
+        if attrs is None:
+            Warning("Missing Attributions matrix")
+            return
+
+        adata = self._validate_anndata(adata)
+
+        mean_attrs = attrs.mean(axis=0)
+        idx = mean_attrs.argsort()[::-1]
+        df = {
+            "gene": np.array(adata.var_names)[idx],
+            "gene_idx": idx,
+            "attribution_mean": mean_attrs[idx],
+            "attribution_std": attrs.std(axis=0)[idx],
+            "cells": attrs.shape[0],
+        }
+        return pd.DataFrame(df)
+
+    def shap_adata_predict(
+        self,
+        X,
+    ):
+        adata = self._validate_anndata()
+        # we need to adjust adata to the shap random selection ..
+        # TODO: but what about batch and covariates if they were exists?
+        if len(X) > len(adata):
+            # Repeat the data to expand to a larger size
+            n_repeats = len(X) / len(adata)  # how many times you want to repeat the data
+            adata = adata[adata.obs.index.repeat(n_repeats), :]
+        else:
+            adata = adata[0 : len(X)]
+        adata.X = X
+        return self.predict(adata, soft=True)
+
+    def shap_predict(self, adata: AnnOrMuData | None = None):
+        missing_modules = []
+        try:
+            importlib.import_module("shap")
+        except ImportError:
+            missing_modules.append("shap")
+        if len(missing_modules) > 0:
+            raise ModuleNotFoundError("Please install shap to use this functionality.")
+        import shap
+
+        adata = self._validate_anndata(adata)
+        feature_matrix = pd.DataFrame(adata.X, columns=adata.var_names)
+        explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix)
+        shap_values = explainer.shap_values(feature_matrix)  # will take time!
+        return shap_values
