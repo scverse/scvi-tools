@@ -9,6 +9,7 @@ import pandas as pd
 from anndata.abc import CSCDataset, CSRDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
+import dask.array as da
 
 from scvi._constants import REGISTRY_KEYS
 
@@ -153,6 +154,8 @@ class AnnTorchDataset(Dataset):
                 # used to record the type data minification
                 # TODO: Adata manager should have a list of which fields it will load
                 continue
+            elif issparse(data) or isinstance(data, da.Array):
+                sliced_data = data[indexes].compute()
             else:
                 raise TypeError(f"{key} is not a supported type")
 
