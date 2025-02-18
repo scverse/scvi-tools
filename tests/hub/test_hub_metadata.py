@@ -11,6 +11,7 @@ def prep_model():
     scvi.model.SCVI.setup_anndata(adata)
     model = scvi.model.SCVI(adata)
     model.train(1)
+    # model.init_params_["non_kwargs"].pop("datamodule") # scvi hub not supporting customdatamodule
     return model
 
 
@@ -90,6 +91,7 @@ def test_hub_modelcardhelper(request, save_path):
             "dispersion": "gene",
             "gene_likelihood": "zinb",
             "latent_distribution": "normal",
+            "use_observed_lib_size": True,
         },
     }
     assert hmch.model_setup_anndata_args == {
