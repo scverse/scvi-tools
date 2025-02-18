@@ -3,13 +3,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import dask.array as da
 import h5py
 import numpy as np
 import pandas as pd
 from anndata.abc import CSCDataset, CSRDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
-import dask.array as da
 
 from scvi._constants import REGISTRY_KEYS
 
