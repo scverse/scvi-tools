@@ -9,21 +9,6 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
-```{toctree}
-:maxdepth: 2
-:hidden:
-
-index_quick_start
-index_scrna
-index_atac
-index_scbs
-index_multimodal
-index_spatial
-index_hub
-index_tuning
-index_dev
-```
-
 <div role="search">
    <form action="search.html" method="get">
       <input type="text" name="q" placeholder="Search docs" />
