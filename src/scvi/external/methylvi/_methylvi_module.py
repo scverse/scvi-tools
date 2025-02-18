@@ -11,6 +11,7 @@ from torch.distributions import kl_divergence as kl
 from scvi import REGISTRY_KEYS
 from scvi.distributions import BetaBinomial
 from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS, DecoderMETHYLVI
+from scvi.external.methylvi._base_components import BSSeqModuleMixin
 from scvi.external.methylvi._utils import _context_cov_key, _context_mc_key
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
@@ -18,7 +19,7 @@ from scvi.nn import Encoder
 TensorDict = dict[str, torch.Tensor]
 
 
-class METHYLVAE(BaseModuleClass):
+class METHYLVAE(BaseModuleClass, BSSeqModuleMixin):
     """PyTorch module for methylVI.
 
     Parameters
@@ -206,24 +207,11 @@ class METHYLVAE(BaseModuleClass):
         weighted_kl_local = kl_weight * kl_local_for_warmup
 
         minibatch_size = qz.loc.size()[0]
-        reconst_loss = torch.zeros(minibatch_size).to(self.device)
-
-        for context in self.contexts:
-            px_mu = generative_outputs["px_mu"][context]
-            px_gamma = generative_outputs["px_gamma"][context]
-            mc = tensors[f"{context}_{METHYLVI_REGISTRY_KEYS.MC_KEY}"]
-            cov = tensors[f"{context}_{METHYLVI_REGISTRY_KEYS.COV_KEY}"]
-
-            if self.dispersion == "region":
-                px_gamma = torch.sigmoid(self.px_gamma[context])
-
-            if self.likelihood == "binomial":
-                dist = Binomial(probs=px_mu, total_count=cov)
-            elif self.likelihood == "betabinomial":
-                dist = BetaBinomial(mu=px_mu, gamma=px_gamma, total_count=cov)
-
-            reconst_loss += -dist.log_prob(mc).sum(dim=-1)
-
+        reconst_loss = self._compute_minibatch_reconstruction_loss(
+            minibatch_size=minibatch_size,
+            tensors=tensors,
+            generative_outputs=generative_outputs,
+        )
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
         kl_local = {"kl_divergence_z": kl_divergence_z}
