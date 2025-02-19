@@ -38,15 +38,13 @@ class Prior(torch.nn.Module, abc.ABC):
 class StandardPrior(Prior):
     """Standard prior distribution."""
 
-    def kl(self, m_q: torch.Tensor, v_q: torch.Tensor, z: None = None) -> torch.Tensor:
+    def kl(self, qz: torch.Tensor, z: None = None) -> torch.Tensor:
         """Compute KL div between std. normal prior and the posterior distn.
 
         Parameters
         ----------
-        m_q
-            Posterior distribution mean.
-        v_q
-            Posterior distribution variance.
+        qz
+            Posterior distribution.
         z
             Ignored.
 
@@ -56,7 +54,7 @@ class StandardPrior(Prior):
         """
         # 1 x N
         return kl_divergence(
-            Normal(m_q, v_q.sqrt()), Normal(torch.zeros_like(m_q), torch.ones_like(v_q))
+            qz, Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.loc))
         ).sum(dim=1)
 
 
@@ -74,18 +72,20 @@ class VampPrior(Prior):
         Number of prior components.
     encoder
         The encoder.
-    data_x
+    x
         Expression data for pseudoinputs initialisation.
     n_cat_list
         The number of categorical covariates and
         the number of category levels.
         A list containing, for each covariate of interest,
         the number of categories.
-    data_cat
+    batch_index
+        Batch index for pseudoinputs initialisation.
+    cat
         List of categorical covariates for pseudoinputs initialisation.
         Includes all covariates that will be one-hot encoded by the ``encoder``,
         including the batch.
-    data_cont
+    cont
         Continuous covariates for pseudoinputs initialisation.
     trainable_priors
         Are pseudoinput parameters trainable or fixed.
@@ -97,26 +97,29 @@ class VampPrior(Prior):
         self,
         n_components: int,
         encoder: torch.nn.Module,
-        data_x: torch.Tensor,
+        x: torch.Tensor,
         n_cat_list: list[int],
-        data_cat: list[torch.Tensor],
-        data_cont: torch.Tensor | None = None,
+        batch_index: torch.Tensor,
+        cat_list: list[torch.Tensor],
+        cont: torch.Tensor | None = None,
         trainable_priors: bool = True,
     ):
         super().__init__()
 
+        self.cat_list = []
         self.encoder = encoder
 
         # Make pseudoinputs into parameters
         # X
-        assert n_components == data_x.shape[0]
-        self.u = torch.nn.Parameter(data_x, requires_grad=trainable_priors)  # K x I
+        assert n_components == x.shape[0]
+        self.u = torch.nn.Parameter(x, requires_grad=trainable_priors)  # K x I
         # Cat
-        assert all(cat.shape[0] == n_components for cat in data_cat)
+        cat_list = [batch_index] + cat_list
+        assert all(cat.shape[0] == n_components for cat in cat_list)
         # For categorical covariates, since scvi-tools one-hot encodes
-        # them in the layers, we need to create a multinomial distn
+        # them in the layers, we need to create a multinomial distribution
         # from which we can sample categories for layers input
-        # Initialise the multinomial distn weights based on
+        # Initialise the multinomial distribution weights based on
         # one-hot encoding of pseudoinput categories
         self.u_cat = torch.nn.ParameterList(
             [
@@ -125,17 +128,17 @@ class VampPrior(Prior):
                     # K x C_cat_onehot
                     requires_grad=trainable_priors,
                 )
-                for cat, n in zip(data_cat, n_cat_list, strict=False)
+                for cat, n in zip(cat_list, n_cat_list, strict=False)
                 # K x C_cat
             ]
         )
         # Cont
-        if data_cont is None:
+        if cont is None:
             self.u_cont = None
         else:
-            assert n_components == data_cont.shape[0]
+            assert n_components == cont.shape[0]
             self.u_cont = torch.nn.Parameter(
-                data_cont, requires_grad=trainable_priors
+                cont, requires_grad=trainable_priors
             )  # K x C_cont
 
         # mixing weights
@@ -153,9 +156,10 @@ class VampPrior(Prior):
         self.encoder.train(False)
         # Convert category weights to categories
         cat_list = [torch.multinomial(cat, num_samples=1) for cat in self.u_cat]
-        z = self.encoder(x=self.u, cat_list=cat_list, cont=self.u_cont)
+        batch_index, cat_list = cat_list[0], cat_list[1:]
+        z = self.encoder(x=self.u, batch_index=batch_index, cat_list=cat_list, cont=self.u_cont)
         self.encoder.train(original_mode)
-        return z["y_m"], z["y_v"]  # (K x L), (K x L)
+        return z["q_dist"].loc, z["q_dist"].scale # (K x L), (K x L)
 
     def log_prob(self, z: torch.Tensor) -> torch.Tensor:
         """Log probability of posterior sample under the prior.
@@ -187,15 +191,13 @@ class VampPrior(Prior):
 
         return log_prob  # N x L
 
-    def kl(self, m_q: torch.Tensor, v_q: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+    def kl(self, qz: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
         """Compute KL div. between VampPrior and the posterior distribution.
 
         Parameters
         ----------
-        m_q
-            Posterior distribution mean.
-        v_q
-            Posterior distribution variance.
+        qz
+            Posterior distribution.
         z
             Sample from the posterior distribution.
 
@@ -203,4 +205,4 @@ class VampPrior(Prior):
         -------
         KL divergence.
         """
-        return (Normal(m_q, v_q.sqrt()).log_prob(z) - self.log_prob(z)).sum(1)
+        return (qz.log_prob(z) - self.log_prob(z)).sum(1)

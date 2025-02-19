@@ -55,7 +55,7 @@ def mock_adata():
         "categorical_covariate_keys",
         "continuous_covariate_keys",
         "pseudoinputs_data_indices",
-        "embed_cat",
+        "embed_categorical_covariates",
         "weight_batches",
     ),
     [
@@ -73,7 +73,7 @@ def test_sysvi_model(
     categorical_covariate_keys,
     continuous_covariate_keys,
     pseudoinputs_data_indices,
-    embed_cat,
+    embed_categorical_covariates,
     weight_batches,
 ):
     """Test model with different input and parameters settings."""
@@ -91,7 +91,10 @@ def test_sysvi_model(
     # Model
 
     # Check that model runs through with standard normal prior
-    model = SysVI(adata=adata, prior="standard_normal", embed_cat=embed_cat)
+    model = SysVI(
+        adata=adata,
+        prior="standard_normal",
+        embed_categorical_covariates=embed_categorical_covariates)
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check that model runs through with vamp prior
@@ -100,7 +103,7 @@ def test_sysvi_model(
         prior="vamp",
         pseudoinputs_data_indices=pseudoinputs_data_indices,
         n_prior_components=5,
-        embed_cat=embed_cat,
+        embed_categorical_covariates=embed_categorical_covariates,
     )
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 

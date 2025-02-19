@@ -5,13 +5,11 @@ import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from typing import Literal
 
     from anndata import AnnData
 
 import numpy as np
-import torch
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -22,7 +20,7 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
 from scvi.utils import setup_anndata_dsp
 
 from ._module import SysVAE
@@ -30,7 +28,7 @@ from ._module import SysVAE
 logger = logging.getLogger(__name__)
 
 
-class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
+class SysVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin, VAEMixin):
     """Integration with cVAE & optional VampPrior and latent cycle-consistency.
 
      Described in
@@ -111,9 +109,8 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
 
     def train(
         self,
-        *args,
         plan_kwargs: dict | None = None,
-        **kwargs,
+        **train_kwargs,
     ):
         """Train the models.
 
@@ -125,12 +122,10 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        args
-            Training args.
         plan_kwargs
-            Training plan kwargs.
-        kwargs
-            Training kwargs.
+            Training plan kwargs in `meth`:`scvi.train.TrainingPlan`.
+        train_kwargs
+            Training kwargs. Passed to `meth`:`scvi.model.base.BaseModelClass.train`.
         """
         plan_kwargs = plan_kwargs or {}
         kl_weight_defaults = {"n_epochs_kl_warmup": 0, "n_steps_kl_warmup": 0}
@@ -141,78 +136,13 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
                 + "will be reset to 0.",
                 stacklevel=settings.warnings_stacklevel,
             )
-        # Overwrite plan kwargs with kl weight defaults
-        plan_kwargs = {**plan_kwargs, **kl_weight_defaults}
+        plan_kwargs["n_epochs_kl_warmup"] = 0
+        plan_kwargs["n_steps_kl_warmup"] = 0
 
         # Pass to parent
-        kwargs = kwargs or {}
-        kwargs["plan_kwargs"] = plan_kwargs
-        super().train(*args, **kwargs)
-
-    @torch.inference_mode()
-    def get_latent_representation(
-        self,
-        adata: AnnData,
-        indices: Sequence[int] | None = None,
-        give_mean: bool = True,
-        batch_size: int | None = None,
-        return_dist: bool = False,
-    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        """Return the latent representation for each cell.
-
-        Parameters
-        ----------
-        adata
-            Input adata for which latent representation should be obtained.
-        indices
-            Data indices to embed. If None embedd all samples.
-        give_mean
-            Return the posterior latent distribution mean
-            instead of a sample from it.
-            Ignored if `return_dist` is ``True``.
-        batch_size
-            Minibatch size for data loading into model.
-            Defaults to `scvi.settings.batch_size`.
-        return_dist
-            If ``True``, returns the mean and variance of the posterior
-            latent distribution.
-            Otherwise, returns its mean or a sample from it.
-
-        Returns
-        -------
-        Latent representation of a cell.
-        If ``return_dist`` is ``True``, returns the mean and variance
-        of the posterior latent distribution.
-        Else, returns the mean or a sample, depending on ``give_mean``.
-        """
-        self._check_if_trained(warn=False)
-        adata = self._validate_anndata(adata)
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        # Do not shuffle to retain order
-        tensors_fwd = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size, shuffle=False
-        )
-        predicted_m = []
-        predicted_v = []
-        for tensors in tensors_fwd:
-            inference_inputs = self.module._get_inference_input(tensors)
-            inference_outputs = self.module.inference(**inference_inputs)
-            if give_mean or return_dist:
-                predicted_m += [inference_outputs["z_m"]]
-            else:
-                predicted_m += [inference_outputs["z"]]
-            if return_dist:
-                predicted_v += [inference_outputs["z_v"]]
-
-        predicted_m = torch.cat(predicted_m).cpu().numpy()
-        if return_dist:
-            predicted_v = torch.cat(predicted_v).cpu().numpy()
-
-        if return_dist:
-            return predicted_m, predicted_v
-        else:
-            return predicted_m
+        train_kwargs = train_kwargs or {}
+        train_kwargs["plan_kwargs"] = plan_kwargs
+        super().train(**train_kwargs)
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -248,24 +178,13 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         Parameters
         ----------
-        adata
-            Adata object - will be modified in place.
-        batch_key
-            Name of the obs column with the substantial batch effect covariate,
-            referred to as batch in the original publication
-            (Hrovatin, et al., 2023).
-            Should be categorical.
+        %(param_adata)s
+        %(param_batch_key)s
         layer
             AnnData layer to use, default is X.
-            Should contain normalized and log+1 transformed expression.
-        categorical_covariate_keys
-            Name of obs columns with additional categorical
-            covariate information.
-            Will be one hot encoded or embedded, as later defined in the
-            ``SysVI`` model.
-        continuous_covariate_keys
-            Name of obs columns with additional continuous
-            covariate information.
+            Should contain normalized and log1p transformed expression.
+        %(param_categorical_covariate_keys)s
+        %(param_continuous_covariate_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
