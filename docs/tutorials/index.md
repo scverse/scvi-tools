@@ -9,13 +9,6 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
-<div role="search">
-   <form action="search.html" method="get">
-      <input type="text" name="q" placeholder="Search docs" />
-   </form>
-</div>
-
-
 :::{list-table} Tutorial Groups
 :widths: auto
 
