@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
 
@@ -157,9 +157,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
             raise ValueError("Prior not recognised")
 
     def _get_inference_input(
-        self,
-        tensors: dict[str, torch.Tensor],
-        **kwargs
+        self, tensors: dict[str, torch.Tensor], **kwargs
     ) -> dict[str, torch.Tensor | list[torch.Tensor] | None]:
         """Parse the input tensors to get inference inputs.
 
@@ -319,10 +317,12 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         res = {}
         if compute_original:
             res["px"] = self.decoder(
-                x=z, batch_index=batch_index, cont=cont_covs, cat_list=cat_covs)["q_dist"]
+                x=z, batch_index=batch_index, cont=cont_covs, cat_list=cat_covs
+            )["q_dist"]
         if compute_cycle:
             res["px_cycle"] = self.decoder(
-                x=z, batch_index=cycle_batch, cont=cont_covs, cat_list=cat_covs)["q_dist"]
+                x=z, batch_index=cycle_batch, cont=cont_covs, cat_list=cat_covs
+            )["q_dist"]
         return res
 
     @auto_move_data
@@ -357,7 +357,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
             cycle_batch=cycle_batch,
             **get_generative_input_kwargs,
         )
-        if loss_kwargs.get("z_distance_cycle_weight", 2)==0:
+        if loss_kwargs.get("z_distance_cycle_weight", 2) == 0:
             compute_cycle = False
         else:
             compute_cycle = True
@@ -365,7 +365,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
             **generative_inputs,
             compute_original=True,
             compute_cycle=compute_cycle,
-            **generative_kwargs
+            **generative_kwargs,
         )
         if compute_cycle:
             # Inference cycle
@@ -446,7 +446,8 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
 
         if z_distance_cycle_weight > 0:
             z_distance_cyc = self.latent_cycle_consistency(
-                qz=inference_outputs["qz"], qz_cycle=inference_outputs["qz_cycle"])
+                qz=inference_outputs["qz"], qz_cycle=inference_outputs["qz_cycle"]
+            )
             if "batch_weights" in tensors.keys():
                 z_distance_cyc *= tensors["batch_weights"].flatten()
         else:
@@ -485,7 +486,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         # Select a new batch index for each cell from the available batches
         new_batch_indices = available_batches[
             torch.arange(batch.shape[0], device=batch.device),
-            torch.randint(0, available_batches.shape[1], (batch.shape[0],), device=batch.device)
+            torch.randint(0, available_batches.shape[1], (batch.shape[0],), device=batch.device),
         ]
 
         return new_batch_indices.unsqueeze(-1)
@@ -513,11 +514,13 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         z = torch.concat([qz.loc, qz_cycle.loc])
         means = z.mean(dim=0, keepdim=True)
         stds = z.std(dim=0, keepdim=True)
+
         def standardize(x: torch.Tensor) -> torch.Tensor:
             return (x - means) / stds
 
         return torch.nn.MSELoss(reduction="none")(
-            standardize(qz.loc), standardize(qz_cycle.loc)).sum(dim=1)
+            standardize(qz.loc), standardize(qz_cycle.loc)
+        ).sum(dim=1)
 
     @torch.inference_mode()
     def sample(self, *args, **kwargs):

@@ -53,9 +53,9 @@ class StandardPrior(Prior):
         KL divergence.
         """
         # 1 x N
-        return kl_divergence(
-            qz, Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.loc))
-        ).sum(dim=1)
+        return kl_divergence(qz, Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.loc))).sum(
+            dim=1
+        )
 
 
 class VampPrior(Prior):
@@ -137,9 +137,7 @@ class VampPrior(Prior):
             self.u_cont = None
         else:
             assert n_components == cont.shape[0]
-            self.u_cont = torch.nn.Parameter(
-                cont, requires_grad=trainable_priors
-            )  # K x C_cont
+            self.u_cont = torch.nn.Parameter(cont, requires_grad=trainable_priors)  # K x C_cont
 
         # mixing weights
         self.w = torch.nn.Parameter(torch.zeros(n_components, 1, 1))  # K x 1 x 1
@@ -159,7 +157,7 @@ class VampPrior(Prior):
         batch_index, cat_list = cat_list[0], cat_list[1:]
         z = self.encoder(x=self.u, batch_index=batch_index, cat_list=cat_list, cont=self.u_cont)
         self.encoder.train(original_mode)
-        return z["q_dist"].loc, z["q_dist"].scale # (K x L), (K x L)
+        return z["q_dist"].loc, z["q_dist"].scale  # (K x L), (K x L)
 
     def log_prob(self, z: torch.Tensor) -> torch.Tensor:
         """Log probability of posterior sample under the prior.

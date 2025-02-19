@@ -1,16 +1,14 @@
 from __future__ import annotations
 
-import collections
 import warnings
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Callable
     from typing import Literal
 
 import numpy as np
 import torch
-from torch import nn
 from torch.distributions import Normal
 from torch.nn import (
     Linear,
@@ -131,7 +129,7 @@ class EncoderDecoder(Module):
         outputs = {"q_dist": Normal(q_m, q_v.sqrt())}
 
         if self.sample:
-            outputs["q"]  = outputs["q_dist"].rsample()
+            outputs["q"] = outputs["q_dist"].rsample()
 
         return outputs
 
