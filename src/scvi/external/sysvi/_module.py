@@ -139,9 +139,9 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         if prior == "standard_normal":
             self.prior = StandardPrior()
         elif prior == "vamp":
-            assert (
-                pseudoinput_data is not None
-            ), "Pseudoinput data must be specified if using VampPrior"
+            assert pseudoinput_data is not None, (
+                "Pseudoinput data must be specified if using VampPrior"
+            )
             pseudoinput_data = self._get_inference_input(pseudoinput_data)
             self.prior = VampPrior(
                 n_components=n_prior_components,
