@@ -383,8 +383,8 @@ class TrainingPlan(pl.LightningModule):
                 # TODO: subsample to save time already here?
                 # x = loss_outputs["x"].detach().cpu()
                 z = loss_outputs["z"].detach().cpu()
-                # batch = loss_outputs["batch"].detach().cpu().squeeze()
-                # labels = loss_outputs["labels"].detach().cpu().squeeze()
+                batch = loss_outputs["batch"].detach().cpu().squeeze()
+                labels = loss_outputs["labels"].detach().cpu().squeeze()
 
                 # next part is for the usage of scib-metrics autotune
                 if (
@@ -397,8 +397,8 @@ class TrainingPlan(pl.LightningModule):
                         {
                             # "x": x,
                             "z": z,
-                            # "batch": batch,
-                            # "labels": labels,
+                            "batch": batch,
+                            "labels": labels,
                         },
                     )
                 else:
@@ -412,12 +412,12 @@ class TrainingPlan(pl.LightningModule):
                             "z": torch.cat(
                                 [getattr(self, "_" + stage + "_epoch_outputs")["z"], z]
                             ),
-                            # "batch": torch.cat(
-                            #     [getattr(self, "_" + stage + "_epoch_outputs")["batch"], batch]
-                            # ),
-                            # "labels": torch.cat(
-                            #     [getattr(self, "_" + stage + "_epoch_outputs")["labels"], labels]
-                            # ),
+                            "batch": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["batch"], batch]
+                            ),
+                            "labels": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["labels"], labels]
+                            ),
                         },
                     )
 

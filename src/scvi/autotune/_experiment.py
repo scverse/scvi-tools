@@ -161,12 +161,12 @@ class ScibTuneReportCheckpointCallback(ScibTuneCallback):
             x = np.zeros(
                 z.shape
             )  # TODO: should we do it? x can be remove in trainingplans already
-            batch = (
-                trainer.train_dataloader.adata_manager.adata.obs._scvi_batch
-            )  # outputs["batch"].numpy()
-            labels = (
-                trainer.train_dataloader.adata_manager.adata.obs._scvi_labels
-            )  # outputs["labels"].numpy()
+            batch = outputs["batch"].numpy()  # (
+            # trainer.train_dataloader.adata_manager.adata.obs._scvi_batch
+            # )  # outputs["batch"].numpy()
+            labels = outputs["labels"].numpy()  # (
+            # trainer.train_dataloader.adata_manager.adata.obs._scvi_labels
+            # )  # outputs["labels"].numpy()
 
             # TODO: subsample to save time -  we need only z, rest is in adata
             if self.indices_list is None or len(self.indices_list) == 0:
