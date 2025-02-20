@@ -176,7 +176,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 - {doc}`/user_guide/use_case/multi_gpu_training`
 - {doc}`/user_guide/use_case/custom_dataloaders`
 - {doc}`/user_guide/use_case/downstream_analysis_tasks`
--
+
 ## Glossary
 
 ::::{tab-set}
