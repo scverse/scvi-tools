@@ -94,7 +94,8 @@ def test_sysvi_model(
     model = SysVI(
         adata=adata,
         prior="standard_normal",
-        embed_categorical_covariates=embed_categorical_covariates)
+        embed_categorical_covariates=embed_categorical_covariates,
+    )
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check that model runs through with vamp prior
