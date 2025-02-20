@@ -10,7 +10,8 @@ from scvi.model import MULTIVI, PEAKVI, TOTALVI, CondSCVI, LinearSCVI
 
 
 @pytest.mark.multigpu
-def test_scanvi_from_scvi_multigpu():
+@pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
+def test_scanvi_from_scvi_multigpu(unlabeled_cat: str):
     if torch.cuda.is_available():
         import scvi
         from scvi.model import SCVI
@@ -48,7 +49,7 @@ def test_scanvi_from_scvi_multigpu():
             model,
             adata=adata,
             labels_key="labels",
-            unlabeled_category="unknown",
+            unlabeled_category=unlabeled_cat,
         )
         print("done")
         print("multi GPU scanvi train from scvi")
@@ -68,7 +69,8 @@ def test_scanvi_from_scvi_multigpu():
 
 
 @pytest.mark.multigpu
-def test_scanvi_from_scratch_multigpu():
+@pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
+def test_scanvi_from_scratch_multigpu(unlabeled_cat: str):
     if torch.cuda.is_available():
         import scvi
         from scvi.model import SCANVI
@@ -77,8 +79,8 @@ def test_scanvi_from_scratch_multigpu():
 
         SCANVI.setup_anndata(
             adata,
-            "labels",
-            "unknown",
+            labels_key="labels",
+            unlabeled_category=unlabeled_cat,
             batch_key="batch",
         )
 
@@ -88,7 +90,7 @@ def test_scanvi_from_scratch_multigpu():
 
         model = SCANVI(adata, n_latent=10)
 
-        print("multi GPU scanvi train from scracth")
+        print("multi GPU scanvi train from scratch")
         model.train(
             max_epochs=1,
             train_size=0.5,
@@ -273,7 +275,8 @@ assert model.is_trained
 
 
 @pytest.mark.multigpu
-def test_scanvi_train_ddp(save_path: str):
+@pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
+def test_scanvi_train_ddp(unlabeled_cat: str, save_path: str):
     training_code = """
 import torch
 import scvi
@@ -283,7 +286,7 @@ adata = scvi.data.synthetic_iid()
 SCANVI.setup_anndata(
     adata,
     "labels",
-    "unknown",
+    unlabeled_cat,
     batch_key="batch",
 )
 
