@@ -14,7 +14,7 @@
 .tag[group-tag="Transfer learning"] { background-color: #009E73; }
 .tag[group-tag="R"] { background-color: #F0E442; }
 .tag[group-tag="Differential comparison"] { background-color: #0072B2; }
-.tag[group-tag="Imputation"] { background-color: #D55E00; }
+.tag[group-tag="Modality imputation"] { background-color: #D55E00; }
 .tag[group-tag="Deconvolution"] { background-color: #CC79A7; }
 .tag[group-tag="Dimensionality reduction"] { background-color: #999999; }
 .tag[group-tag="Removal of unwanted variance"] { background-color: #882255; }
