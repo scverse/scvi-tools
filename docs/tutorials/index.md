@@ -9,7 +9,7 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
-:::{list-table} Tutorial Groups
+:::{list-table} Tutorial Tags
 :widths: auto
 
 *   - <span class="tag" group-tag="Analysis"></span> Analysis Tutorials
