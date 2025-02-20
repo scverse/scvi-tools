@@ -16,6 +16,8 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`~scvi.model.LinearSCVI` multiGPU training {pr}`3125`. Also added this support for
     {class}`~scvi.model.TOTALVI`, {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.PEAKVI`
     but need to disable early_stopping first in order to use multiGPU for those models.
+- Add an exception callback to {class}`scvi.train.callbacks` in order to save optimal model during
+    training, instead of failing because of Nan's in gradients or loss. {pr}`3159`.
 - Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, PoissonVI, CondSCVI,
     AutoZI, CellAssign and GimVI. {pr}`3121`
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
