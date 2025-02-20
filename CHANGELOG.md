@@ -21,7 +21,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
 - Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
     out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
-    memory usage.
+    memory usage {pr}`3146`.
 
 #### Changed
 
