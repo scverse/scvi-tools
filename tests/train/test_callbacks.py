@@ -96,11 +96,8 @@ def test_exception_callback():
     torch.set_float32_matmul_precision("high")
     scvi.settings.seed = 0
 
-    # we still need to find a proper wat to simualte an adata that fail qucikly during training
+    # we still need to find a proper way to simulate an adata that fail quickly during training
     adata = synthetic_iid()
-    # change the adata to have Nan inside
-    # adata.X = adata.X.astype(float)
-    # adata.X[0,:] = 0
 
     SCVI.setup_anndata(adata, batch_key="batch")
 
