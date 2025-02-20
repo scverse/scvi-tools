@@ -103,6 +103,7 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
             },
         },
         num_samples=2,
+        scib_subsample_rows=100,
         seed=0,
         scheduler="asha",
         searcher="hyperopt",

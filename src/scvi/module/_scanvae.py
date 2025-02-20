@@ -367,10 +367,10 @@ class SCANVAE(VAE):
                 true_labels=true_labels,
                 logits=logits,
                 extra_metrics={
-                    "x": x,
+                    # "x": x,
                     "z": inference_outputs["z"],
-                    "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                    "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+                    # "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                    # "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
                 },
             )
         return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)

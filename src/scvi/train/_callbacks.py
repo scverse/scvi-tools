@@ -386,13 +386,11 @@ class ScibCallback(Callback):
         super().__init__()
         self.pl_module = None
 
-    def _get_report_dict(
-        self, trainer: pl.Trainer, pl_module: pl.LightningModule, stage: str | None = "training"
-    ):
+    def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
         self.pl_module = pl_module
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        self._get_report_dict(trainer, pl_module, "training")
+        self._get_report_dict(trainer, pl_module)
 
     def on_validation_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        self._get_report_dict(trainer, pl_module, "validation")
+        self._get_report_dict(trainer, pl_module)
