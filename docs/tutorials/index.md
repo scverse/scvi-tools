@@ -9,19 +9,77 @@ change the documentation version using the tab at the bottom of the left sidebar
 For questions about using scvi-tools, or broader questions about modeling data, please use our [forum]. Checkout the [ecosystem] for additional models powered by scvi-tools.
 :::
 
+:::{dropdown} Quick start
 ```{toctree}
 :maxdepth: 2
 
 index_quick_start
+```
+:::
+
+:::{dropdown} scRNA-seq
+```{toctree}
+:maxdepth: 2
+
 index_scrna
+```
+:::
+
+:::{dropdown} scATAC-seq
+```{toctree}
+:maxdepth: 2
+
 index_atac
+```
+:::
+
+:::{dropdown} scBS-seq (Single-cell bisulfite sequencing)
+```{toctree}
+:maxdepth: 2
+
 index_scbs
+```
+:::
+
+:::{dropdown} Multimodal
+```{toctree}
+:maxdepth: 2
+
 index_multimodal
+```
+:::
+
+:::{dropdown} Spatial transcriptomics
+```{toctree}
+:maxdepth: 2
+
 index_spatial
+```
+:::
+
+:::{dropdown} Model hub
+```{toctree}
+:maxdepth: 2
+
 index_hub
+```
+:::
+
+:::{dropdown} Hyperparameter tuning
+```{toctree}
+:maxdepth: 2
+
 index_tuning
+```
+:::
+
+:::{dropdown} Development
+```{toctree}
+:maxdepth: 2
+
 index_dev
 ```
+:::
 
 [forum]: https://discourse.scverse.org/
 [ecosystem]: https://scvi-tools.org/ecosystem
