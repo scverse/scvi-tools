@@ -1585,7 +1585,27 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
 
     def update_sample_info(self, adata):
-        """Initialize/update metadata in the case where additional covariates are added."""
+        """Initialize/update metadata in the case where additional covariates are added.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to update the sample info with. Typically, this corresponds to the
+            working dataset, where additional sample-specific covariates have been added.
+
+        Examples
+        --------
+        >>> import scanpy as sc
+        >>> from scvi.external import MRVI
+        >>> MRVI.setup_anndata(adata, sample_key="sample_id")
+        >>> model = MRVI(adata)
+        >>> model.train()
+        >>> # Update sample info with new covariates
+        >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}
+        >>> adata.obs["disease_status"] = adata.obs["sample_id"].map(sample_mapper)
+        >>> model.update_sample_info(adata)
+        """
+        adata = self._validate_anndata(adata)
         obs_df = adata.obs.copy()
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
