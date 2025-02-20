@@ -770,7 +770,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Categorical,
             MixtureSameFamily,
             Normal,
-            StudentT,
         )
 
         self._check_if_trained(warn=False)
@@ -798,9 +797,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         qu_scale = jnp.concatenate(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
             Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
-            (
-                Normal(qu_loc, qu_scale).to_event(1)
-            ),
+            (Normal(qu_loc, qu_scale).to_event(1)),
         )
 
     def differential_abundance(
