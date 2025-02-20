@@ -762,7 +762,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         self,
         adata: AnnData | None = None,
         sample: str | int | None = None,
-        use_student_t: bool = False,
         indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
     ) -> Distribution:
@@ -777,8 +776,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             AnnData object to use. Defaults to the AnnData object used to initialize the model.
         sample
             Name or index of the sample to filter on. If ``None``, uses all cells.
-        use_student_t
-            Whether to use a student-t distribution for the aggregated posterior.
         indices
             Indices of cells to use.
         batch_size
@@ -824,8 +821,6 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
             (
                 Normal(qu_loc, qu_scale).to_event(1)
-                if use_student_t
-                else StudentT(qu_loc, qu_scale).to_event(1)
             ),
         )
 
@@ -835,7 +830,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_cov_keys: list[str] | None = None,
         sample_subset: list[str] | None = None,
         compute_log_enrichment: bool = False,
-        omit_original_sample: bool = False,
+        omit_original_sample: bool = True,
         batch_size: int = 128,
     ) -> xr.Dataset:
         """Compute the differential abundance between samples.
@@ -946,7 +941,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                     for i, sample in enumerate(cov_samples):
                         sample_cov_one_hot[adata.obs[self.sample_key] == sample, i] = 1
                     sel_log_probs_no_original = np.where(
-                        sample_cov_one_hot, sel_log_probs, -np.inf
+                        sample_cov_one_hot, -np.inf, sel_log_probs
                     )
                     val_log_probs = logsumexp(
                         sel_log_probs_no_original, axis=1
@@ -979,7 +974,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                                 adata.obs[self.sample_key] == sample, i
                             ] = 1
                         rest_log_probs_no_original = np.where(
-                            rest_samples_one_hot, rest_log_probs, -np.inf
+                            rest_samples_one_hot, -np.inf, rest_log_probs
                         )
                         rest_val_log_probs = logsumexp(
                             rest_log_probs_no_original, axis=1
