@@ -38,19 +38,21 @@ Using **CUDA** with **DDP** for multi-GPU training can significantly boost the p
 
 
 2. How to use it: during the model train command, we need to use the strategy parameter and its value depends on whether we are running from command line/script or from an interactive session like jupyter notebook/colab:
-   - From non-interactive session:
-           `model.train(...,
-               accelerator="gpu",
-               devices=-1,
-               strategy="ddp_find_unused_parameters_true",
-           )`
-   - From interactive session:
-           `model.train(...,
-               accelerator="gpu",
-               devices=-1,
-               strategy="ddp_notebook_find_unused_parameters_true",
-           )`
-
+- From non-interactive session:
+```python
+model.train(
+    ..., accelerator="gpu", devices=-1, strategy="ddp_find_unused_parameters_true"
+)
+```
+- From interactive session (e.g. jupyter notebook):
+```python
+model.train(
+    ...,
+    accelerator="gpu",
+    devices=-1,
+    strategy="ddp_notebook_find_unused_parameters_true",
+)
+```
 
 3. There are a few caveats with the current implementation:
    - During interactive session, like in jupyter notebook, we can only train 1 model in multi GPU mode, per session.
