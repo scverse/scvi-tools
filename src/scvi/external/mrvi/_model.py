@@ -911,7 +911,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
         def aggregate_log_probs(log_probs, samples, omit_original_sample=False):
             sample_log_probs = log_probs.loc[
-                {"sample": rest_samples}
+                {"sample": samples}
             ].values  # (n_cells, n_samples_in_group)
             if omit_original_sample:
                 sample_one_hot = np.zeros((adata.n_obs, len(samples)))
