@@ -17,7 +17,7 @@ For questions about using scvi-tools, or broader questions about modeling data, 
     - <span class="tag" group-tag="Transfer learning"></span> Transfer learning
     - <span class="tag" group-tag="R"></span> R
     - <span class="tag" group-tag="Differential comparison"></span> Differential comparison
-    - <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+*   - <span class="tag" group-tag="Modality imputation"></span> Modality imputation
     - <span class="tag" group-tag="Deconvolution"></span> Deconvolution
     - <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
     - <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
@@ -136,11 +136,7 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
     [](./notebooks/scrna/query_hlca_knn)
     - Use scANVI, scArches and scvi-hub to query the Human Lung Cell Atlas
 
-
-
-
 :::
-
 :::
 
 :::{dropdown} scATAC-seq
