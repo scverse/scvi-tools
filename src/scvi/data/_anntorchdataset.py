@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import dask.array as da
 import h5py
 import numpy as np
 import pandas as pd
@@ -153,6 +154,8 @@ class AnnTorchDataset(Dataset):
                 # used to record the type data minification
                 # TODO: Adata manager should have a list of which fields it will load
                 continue
+            elif isinstance(data, da.Array):
+                sliced_data = data[indexes].compute()
             else:
                 raise TypeError(f"{key} is not a supported type")
 
