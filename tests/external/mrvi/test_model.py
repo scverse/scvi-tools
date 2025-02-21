@@ -117,6 +117,7 @@ def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str,
     [
         {"sample_cov_keys": ["meta1_cat"]},
         {"sample_cov_keys": ["meta1_cat", "batch"]},
+        {"sample_cov_keys": ["meta1_cat"], "omit_original_sample": False},
         {"sample_cov_keys": ["meta1_cat"], "compute_log_enrichment": True},
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],
