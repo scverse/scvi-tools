@@ -38,7 +38,7 @@ They also share some features:
 
 ## My model errors out during training due to `NaN`s - how can I fix this?
 
-There is no straightforward solution sicne these are usually caused by numerical instabilities, but
+There is no straightforward solution since these are usually caused by numerical instabilities, but
 here are several factors to consider:
 
 - **Data quality**: Ensure that the data is appropriately preprocessed (_e.g._ removing cells/spots
@@ -53,3 +53,4 @@ here are several factors to consider:
     the softplus for more stability.
 - **Adversarial training**: For models with adversarial training (_e.g._ totalVI), consider turning
     off the component to see if the issue is resolved.
+- **Using SaveCheckpoint Callback**: Starting v1.3.0, we added the on_exception option to the callback, {class}`scvi.train._callbacks.SaveCheckpoint`, that in case of model error exception during training, resulted from Nan's in loss or gradients, will save the best model ("best" in terms of what is the monitored metric) that was achieved upto the point of failure. It will not gracefully shutdown, but the user responsibility will be to load it back and continue the analysis, e.g., user can take the optimal model that was saved, or continue training it with perhaps different parameters, where, in such case it might continue to train passed the point of previous failure. Note this option will add some overhead to train time. It can be used by adding the following parameter to the train function: `callbacks=[SaveCheckpoint(monitor="elbo_validation", load_best_on_end=True)]`

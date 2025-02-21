@@ -4,16 +4,21 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2
+## Version 1.3
 
-### 1.3.0 (2025-XX-XX)
+### 1.3.0 (2025-02-XX)
 
 #### Added
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add multiGPU support for {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`,
+    {class}`~scvi.model.CondSCVI` and {class}`~scvi.model.LinearSCVI`, {class}`~scvi.model.TOTALVI`,
+    {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.PEAKVI`. {pr}`3125`.
+- Add an exception callback to {class}`scvi.train._callbacks.SaveCheckpoint` in order to save
+    optimal model during training, in case of failure because of Nan's in gradients. {pr}`3159`.
 - Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, PoissonVI, CondSCVI,
-    AutoZI, CellAssign and GimVI. {pr}`3121`
+    AutoZI, CellAssign and GimVI. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 
@@ -21,6 +26,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 - Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
+- Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
+    out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
+    memory usage {pr}`3146`.
 
 #### Changed
 
@@ -31,6 +39,8 @@ to [Semantic Versioning]. Full commit history is available in the
     Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`
 
 #### Removed
+
+## Version 1.2
 
 ### 1.2.2 (2024-12-31)
 

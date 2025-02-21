@@ -3,6 +3,7 @@ import os
 import pytest
 
 import scvi
+from scvi.data import synthetic_iid
 
 
 @pytest.mark.parametrize("load_best_on_end", [True, False])
@@ -83,3 +84,28 @@ def test_savecheckpoint(save_path: str, load_best_on_end: bool):
     test_model_cls(scvi.model.SCANVI, adata)
 
     scvi.settings.logging_dir = old_logging_dir
+
+
+def test_exception_callback():
+    import torch
+
+    import scvi
+    from scvi.model import SCVI
+    from scvi.train._callbacks import SaveCheckpoint
+
+    torch.set_float32_matmul_precision("high")
+    scvi.settings.seed = 0
+
+    # we still need to find a proper way to simulate an adata that fail quickly during training
+    adata = synthetic_iid()
+
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata)
+    model.train(max_epochs=5)
+
+    model.train(
+        max_epochs=5,
+        callbacks=[SaveCheckpoint(monitor="elbo_validation", load_best_on_end=True)],
+        enable_checkpointing=True,
+    )
