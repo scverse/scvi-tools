@@ -376,26 +376,19 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
                 **get_inference_input_kwargs,
             )
             inference_cycle_outputs = self.inference(**inference_cycle_inputs, **inference_kwargs)
-
-            # Combine outputs of all forward pass components (first and cycle pass).
-            # Rename keys in outputs of cycle pass.
-            inference_outputs_merged = dict(**inference_outputs)
-            inference_outputs_merged.update(
-                **{k.replace("qz", "qz_cycle"): v for k, v in inference_cycle_outputs.items()}
-            )
-            generative_outputs_merged = dict(**generative_outputs)
+            inference_outputs["qz_cycle"] = inference_cycle_outputs["qz"]
 
         if compute_loss:
             losses = self.loss(
                 tensors=tensors,
-                inference_outputs=inference_outputs_merged,
-                generative_outputs=generative_outputs_merged,
+                inference_outputs=inference_outputs,
+                generative_outputs=generative_outputs,
                 compute_cycle=compute_cycle,
                 **loss_kwargs,
             )
-            return inference_outputs_merged, generative_outputs_merged, losses
+            return inference_outputs, generative_outputs, losses
         else:
-            return inference_outputs_merged, generative_outputs_merged
+            return inference_outputs, generative_outputs
 
     def loss(
         self,
