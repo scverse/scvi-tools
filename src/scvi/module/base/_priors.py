@@ -96,7 +96,7 @@ class MogPrior(Prior):
     ):
         super().__init__()
         self.prior_means = torch.nn.Parameter(0.1 * torch.randn([n_components, n_latent]))
-        self.prior_log_scales = torch.nn.Parameter(torch.zeros([n_components, n_latent]) - 1.)
+        self.prior_log_scales = torch.nn.Parameter(torch.zeros([n_components, n_latent]) - 1.0)
         self.prior_logits = torch.nn.Parameter(torch.zeros([n_components]))
         self.celltype_bias = celltype_bias
         if celltype_bias:
@@ -204,7 +204,8 @@ class VampPrior(Prior):
         assert n_components == pseudoinputs["x"].shape[0]
         self.pseudoinputs = pseudoinputs
         self.pseudoinput_x = torch.nn.Parameter(
-            torch.log(pseudoinputs.pop("x") + 1e-6), requires_grad=trainable_priors)  # K x I
+            torch.log(pseudoinputs.pop("x") + 1e-6), requires_grad=trainable_priors
+        )  # K x I
         cat_list = [pseudoinputs["batch_index"]] + pseudoinputs["cat_covs"]
         if additional_categorical_covariates is not None:
             for i in additional_categorical_covariates:
@@ -235,7 +236,8 @@ class VampPrior(Prior):
         else:
             assert n_components == self.pseudoinputs["cont_covs"].shape[0]
             self.pseudoinputs["cont_covs"] = torch.nn.Parameter(
-                self.pseudoinputs["cont_covs"], requires_grad=trainable_priors)  # K x C_cont
+                self.pseudoinputs["cont_covs"], requires_grad=trainable_priors
+            )  # K x C_cont
 
         # mixing weights
         self.w = torch.nn.Parameter(torch.zeros(n_components))  # K x 1
@@ -254,7 +256,10 @@ class VampPrior(Prior):
             cat_list = cat_list[:-1]
 
         if len(cat_list) > 1:
-            self.pseudoinputs_["batch_index"], self.pseudoinputs["cat_covs"] = cat_list[0], cat_list[1:]
+            self.pseudoinputs_["batch_index"], self.pseudoinputs["cat_covs"] = (
+                cat_list[0],
+                cat_list[1:],
+            )
         else:
             self.pseudoinputs["batch_index"], self.pseudoinputs["cat_covs"] = cat_list[0], None
 
