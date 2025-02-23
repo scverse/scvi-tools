@@ -21,6 +21,7 @@ to [Semantic Versioning]. Full commit history is available in the
     AutoZI, CellAssign and GimVI. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
+- Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
 
 #### Fixed
 
