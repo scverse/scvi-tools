@@ -106,6 +106,10 @@ def test_exception_callback():
 
     model.train(
         max_epochs=5,
-        callbacks=[SaveCheckpoint(monitor="elbo_validation", load_best_on_end=True)],
+        callbacks=[
+            SaveCheckpoint(
+                monitor="elbo_validation", load_best_on_end=True, check_nan_gradients=True
+            )
+        ],
         enable_checkpointing=True,
     )

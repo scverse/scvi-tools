@@ -17,6 +17,15 @@ Using **CUDA** with **DDP** for multi-GPU training can significantly boost the p
    - **Scalability:** As you add more GPUs to the system, the training can scale up, further reducing the time it takes to train large models.
    - **Larger Models and Datasets:** With multiple GPUs, you can train models that are too large to fit into a single GPU’s memory. You can also work with larger datasets more efficiently.
 
+see the following figure which shows the training time of a PBMC data, SCVI model with and without the use of multiGPU vs different cell numbers in data:
+We can see the davantage with larger data, while for the small data, theres no much advantage due to multiGPU overhead needed.
+
+:::{figure} /\_static/multigpu.png
+:align: center
+:alt: MultiGPU train time
+:class: img-fluid
+:::
+
 ### 2. **Efficiency with DDP**
    - **Data Parallelism:** DDP splits your data into smaller chunks, distributes them across multiple GPUs, and then aggregates the results. This allows for better use of available hardware resources.
    - **Synchronization:** DDP efficiently synchronizes gradients and updates between GPUs after each batch, ensuring that each GPU works in sync with the others without much manual intervention.
@@ -56,5 +65,5 @@ model.train(
 
 3. There are a few caveats with the current implementation:
    - During interactive session, like in jupyter notebook, we can only train 1 model in multi GPU mode, per session.
-   It means that we cant train SCANVI model from SCVI model, if the SCVI model was trained in the same notebook. Therefore, need to train and save the SCVI model in another session and load it in the other session.
-   - It cant run with early stopping right now (and some models, like totalvi, run it by default), so we disable early stopping once running with DDP. the reason is that validation loop should be running on 1 device only and not multiGPU.
+   It means that we cant train SCANVI model from SCVI model, if the SCVI model was trained in the same notebook. Therefore, need to train and save the SCVI model in another session and load it in the other session. This is a torch lightning caveat.
+   - It cant run with early stopping right now (and some models, like totalvi, use early stopping by default), so we disable early stopping once running with DDP. the reason is that validation loop should be running on 1 device only and not multiGPU.
