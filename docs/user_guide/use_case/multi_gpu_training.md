@@ -46,6 +46,7 @@ We can see the davantage with larger data, while for the small data, theres no m
    - {class}`~scvi.model.PEAKVI`
 
 
+
 2. How to use it: during the model train command, we need to use the strategy parameter and its value depends on whether we are running from command line/script or from an interactive session like jupyter notebook/colab:
 - From non-interactive session:
 ```python
