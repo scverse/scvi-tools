@@ -36,7 +36,7 @@ index_dev
     - <span class="tag" group-tag="Deconvolution"></span> Deconvolution
     - <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
     - <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
-    - 
+    -
 :::
 
 :::{dropdown} Quick start
