@@ -12,6 +12,7 @@ import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnTorchDataset, _constants, synthetic_iid
 from scvi.data.fields import ObsmField, ProteinObsmField
+from scvi.utils import dependencies
 
 from .utils import generic_setup_adata_manager
 
@@ -434,6 +435,20 @@ def test_anntorchdataset_from_manager(adata):
 
 def test_anntorchdataset_numpy(adata):
     # check that AnnTorchDataset returns numpy array
+    adata_manager = generic_setup_adata_manager(adata)
+    bd = AnnTorchDataset(adata_manager)
+    for value in bd[1].values():
+        assert isinstance(value, np.ndarray)
+
+
+@dependencies("dask")
+def test_anntorchdataset_dask():
+    import dask.array as da
+    # check that AnnTorchDataset returns numpy array
+    adata = synthetic_iid()
+    adata.X = da.from_array(adata.X)
+    raw_counts = adata.X.copy()
+    adata.layers["raw"] = raw_counts
     adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():

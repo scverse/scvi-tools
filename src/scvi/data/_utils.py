@@ -5,7 +5,6 @@ import warnings
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import dask.array as da
 import h5py
 import numpy as np
 import pandas as pd
@@ -19,6 +18,7 @@ from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 from scvi import REGISTRY_KEYS, settings
 
 from . import _constants
+from scvi.utils import is_package_installed
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -241,15 +241,17 @@ def _assign_adata_uuid(adata: AnnOrMuData, overwrite: bool = False) -> None:
 
 
 def _check_nonnegative_integers(
-    data: pd.DataFrame | npt.NDArray | sp_sparse.spmatrix | h5py.Dataset | da.Array,
+    data: pd.DataFrame | npt.NDArray | sp_sparse.spmatrix | h5py.Dataset,
     n_to_check: int = 20,
 ):
     """Approximately checks values of data to ensure it is count data."""
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
-    elif isinstance(data, da.Array):
-        data = data[:100, :100].compute()
+    elif is_package_installed("dask"):
+        import dask.array as da
+        if isinstance(data, da.Array):
+            data = data[:100, :100].compute()
 
     if isinstance(data, np.ndarray):
         data = data
@@ -316,7 +318,7 @@ def _is_minified(adata: AnnOrMuData | str) -> bool:
 
 
 def _check_fragment_counts(
-    data: pd.DataFrame | npt.NDArray | sp_sparse.spmatrix | h5py.Dataset | da.Array,
+    data: pd.DataFrame | npt.NDArray | sp_sparse.spmatrix | h5py.Dataset,
     n_to_check: int = 100,
 ):
     """Approximately checks values of data to ensure it is fragment count data."""
@@ -326,11 +328,13 @@ def _check_fragment_counts(
             data = data[:400]
         else:
             data = data[:]
-    elif isinstance(data, da.Array):
-        if data.shape[0] >= 400:
-            data = data[:400].compute()
-        else:
-            data = data[:].compute()
+    elif is_package_installed("dask"):
+        import dask.array as da
+        if isinstance(data, da.Array):
+            if data.shape[0] >= 400:
+                data = data[:400].compute()
+            else:
+                data = data[:].compute()
 
     # check that n_obs is greater than n_to_check
     if data.shape[0] < n_to_check:
