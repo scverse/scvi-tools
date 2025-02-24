@@ -148,7 +148,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self,
         n_input: int,
         n_batch: int = 0,
-        n_assay: int = 0,
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
@@ -188,8 +187,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
-        self.n_input = n_input
-        self.n_assay = n_assay
         self.n_labels = n_labels
         self.n_hidden = n_hidden
         self.n_layers = n_layers
@@ -241,13 +238,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             cat_list = list([] if n_cats_per_cov is None else n_cats_per_cov)
         else:
             cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
-        if n_assay > 1:
-            encoder_cat_list = [n_assay] + list([] if n_cats_per_cov is None else n_cats_per_cov)
-            n_input_encoder = n_input + n_continuous_cov * encode_covariates
-        else:
-            encoder_cat_list = cat_list
 
-        encoder_cat_list = encoder_cat_list if encode_covariates else None
+        encoder_cat_list = cat_list if encode_covariates else None
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
         self.z_encoder = Encoder(
             n_input_encoder,
@@ -291,7 +283,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
-            n_assay=self.n_assay,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_decoder,
             use_layer_norm=use_layer_norm_decoder,
@@ -422,7 +413,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         elif self.encode_covariates and self.batch_representation == "embedding":
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
-            qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+            qz, z = self.z_encoder(encoder_input, *categorical_input)
         else:
             qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
 

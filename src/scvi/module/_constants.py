@@ -24,6 +24,7 @@ class _MODULE_KEYS(NamedTuple):
     # loss
     KL_L_KEY: str = "kl_divergence_l"
     KL_Z_KEY: str = "kl_divergence_z"
+    KL_SAMPLE_KEY: str = "kl_divergence_sample"
 
 
 MODULE_KEYS = _MODULE_KEYS()

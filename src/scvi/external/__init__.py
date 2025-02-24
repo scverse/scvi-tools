@@ -3,6 +3,7 @@ import warnings
 from scvi import settings
 from scvi.utils import error_on_missing_dependencies
 
+from .assayvi import ASSAYVI
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI
@@ -11,11 +12,8 @@ from .diagvi import DIAGVI
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
-<<<<<<< HEAD
 from .mrvi_torch import TorchMRVI
-=======
 from .muanvi import MUANVI
->>>>>>> bb720b5f (Add muANVI)
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -28,6 +26,7 @@ from .totalanvi import TOTALANVI
 from .velovi import VELOVI
 
 __all__ = [
+    "ASSAYVI",
     "SCAR",
     "SOLO",
     "GIMVI",

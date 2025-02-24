@@ -96,7 +96,7 @@ class MogPrior(Prior):
     ):
         super().__init__()
         self.prior_means = torch.nn.Parameter(0.1 * torch.randn([n_components, n_latent]))
-        self.prior_log_scales = torch.nn.Parameter(torch.zeros([n_components, n_latent]) - 1.0)
+        self.prior_log_scales = torch.nn.Parameter(torch.zeros([n_components, n_latent]) - 1.)
         self.prior_logits = torch.nn.Parameter(torch.zeros([n_components]))
         self.celltype_bias = celltype_bias
         if celltype_bias:
