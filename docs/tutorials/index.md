@@ -36,6 +36,7 @@ index_dev
     - <span class="tag" group-tag="Deconvolution"></span> Deconvolution
     - <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
     - <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
+    - 
 :::
 
 :::{dropdown} Quick start
@@ -107,7 +108,7 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 *   - <span class="tag" group-tag="Analysis"></span>
     <span class="tag" group-tag="Dimensionality reduction"></span>
     <span class="tag" group-tag="Removal of unwanted variance"></span>
-    - <span class="tag" group-tag="Integration"></span>
+    <span class="tag" group-tag="Integration"></span>
     [](./notebooks/scrna/scanvi_fix)
     - Compare scANVI to other models following a bug fix in scvi-tools 1.1.0
 *   - <span class="tag" group-tag="Transfer learning"></span>
