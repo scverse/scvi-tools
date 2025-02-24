@@ -783,7 +783,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         -------
         A mixture distribution of the aggregated posterior.
         """
-        from numpyro.distributions import Categorical, MixtureSameFamily, Normal
+        from numpyro.distributions import (
+            Categorical,
+            MixtureSameFamily,
+            Normal,
+        )
 
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
@@ -806,11 +810,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
 
-        qu_loc = jnp.concatenate(qu_locs, axis=0).T
-        qu_scale = jnp.concatenate(qu_scales, axis=0).T
+        qu_loc = jnp.concatenate(qu_locs, axis=0)  # n_cells x n_latent_u
+        qu_scale = jnp.concatenate(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
-            Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
-            Normal(qu_loc, qu_scale),
+            Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            (Normal(qu_loc, qu_scale).to_event(1)),
         )
 
     def differential_abundance(
@@ -819,6 +823,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_cov_keys: list[str] | None = None,
         sample_subset: list[str] | None = None,
         compute_log_enrichment: bool = False,
+        omit_original_sample: bool = True,
         batch_size: int = 128,
     ) -> xr.Dataset:
         """Compute the differential abundance between samples.
@@ -839,6 +844,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Only compute differential abundance for these sample labels.
         compute_log_enrichment
             Whether to compute the log enrichment scores for each covariate value.
+        omit_original_sample
+            If true, each cell's sample-of-origin is discarded to compute aggregate posteriors.
+            Only relevant if sample_cov_keys is not None.
         batch_size
             Minibatch size for computing the differential abundance.
 
@@ -883,7 +891,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             n_splits = max(adata.n_obs // batch_size, 1)
             log_probs_ = []
             for u_rep in np.array_split(us, n_splits):
-                log_probs_.append(jax.device_get(ap.log_prob(u_rep).sum(-1, keepdims=True)))
+                log_probs_.append(jax.device_get(ap.log_prob(u_rep))[..., np.newaxis])
 
             log_probs.append(np.concatenate(log_probs_, axis=0))  # (n_cells, 1)
 
@@ -901,6 +909,23 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         if sample_cov_keys is None or len(sample_cov_keys) == 0:
             return log_probs_arr
 
+        def aggregate_log_probs(log_probs, samples, omit_original_sample=False):
+            sample_log_probs = log_probs.loc[
+                {"sample": samples}
+            ].values  # (n_cells, n_samples_in_group)
+            if omit_original_sample:
+                sample_one_hot = np.zeros((adata.n_obs, len(samples)))
+                for i, sample in enumerate(samples):
+                    sample_one_hot[adata.obs[self.sample_key] == sample, i] = 1
+                log_probs_no_original = np.where(
+                    sample_one_hot, -np.inf, sample_log_probs
+                )  # virtually discards samples-of-origin from aggregate posteriors
+                return logsumexp(log_probs_no_original, axis=1) - np.log(
+                    (1 - sample_one_hot).sum(axis=1)
+                )
+            else:
+                return logsumexp(sample_log_probs, axis=1) - np.log(sample_log_probs.shape[1])
+
         sample_cov_log_probs_map = {}
         sample_cov_log_enrichs_map = {}
         for sample_cov_key in sample_cov_keys:
@@ -916,8 +941,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 if len(cov_samples) == 0:
                     continue
 
-                sel_log_probs = log_probs_arr.log_probs.loc[{"sample": cov_samples}]
-                val_log_probs = logsumexp(sel_log_probs, axis=1) - np.log(sel_log_probs.shape[1])
+                val_log_probs = aggregate_log_probs(
+                    log_probs_arr.log_probs,
+                    cov_samples,
+                    omit_original_sample=omit_original_sample,
+                )
                 per_val_log_probs[sample_cov_value] = val_log_probs
 
                 if compute_log_enrichment:
@@ -930,9 +958,10 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                             stacklevel=2,
                         )
                         continue
-                    rest_log_probs = log_probs_arr.log_probs.loc[{"sample": rest_samples}]
-                    rest_val_log_probs = logsumexp(rest_log_probs, axis=1) - np.log(
-                        rest_log_probs.shape[1]
+                    rest_val_log_probs = aggregate_log_probs(
+                        log_probs_arr.log_probs,
+                        rest_samples,
+                        omit_original_sample=omit_original_sample,
                     )
                     enrichment_scores = val_log_probs - rest_val_log_probs
                     per_val_log_enrichs[sample_cov_value] = enrichment_scores
@@ -1018,8 +1047,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
             in_max_comp_log_probs = ap.component_distribution.log_prob(
-                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)
-            ).sum(axis=1)
+                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap, 1, n_latent_dim)
+            )  # (n_cells_ap, n_cells_ap)
             log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
 
             log_probs_ = []
@@ -1028,10 +1057,12 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 log_probs_.append(
                     jax.device_get(
                         ap.component_distribution.log_prob(
-                            np.expand_dims(u_rep, ap.mixture_dim)
-                        )  # (n_cells_batch, n_cells_ap, n_latent_dim)
-                        .sum(axis=1)  # (n_cells_batch, n_latent_dim)
-                        .max(axis=1, keepdims=True)  # (n_cells_batch, 1)
+                            np.expand_dims(
+                                u_rep, ap.mixture_dim
+                            )  # (n_cells_batch, 1, n_latent_dim)
+                        ).max(  # (n_cells_batch, n_cells_ap)
+                            axis=1, keepdims=True
+                        )  # (n_cells_batch, 1)
                     )
                 )
 
