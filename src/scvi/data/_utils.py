@@ -16,9 +16,9 @@ from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.utils import is_package_installed
 
 from . import _constants
-from scvi.utils import is_package_installed
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -250,6 +250,7 @@ def _check_nonnegative_integers(
         data = data[:100]
     elif is_package_installed("dask"):
         import dask.array as da
+
         if isinstance(data, da.Array):
             data = data[:100, :100].compute()
 
@@ -330,6 +331,7 @@ def _check_fragment_counts(
             data = data[:]
     elif is_package_installed("dask"):
         import dask.array as da
+
         if isinstance(data, da.Array):
             if data.shape[0] >= 400:
                 data = data[:400].compute()

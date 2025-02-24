@@ -156,6 +156,7 @@ class AnnTorchDataset(Dataset):
                 continue
             elif is_package_installed("dask"):
                 import dask.array as da
+
                 if isinstance(data, da.Array):
                     sliced_data = data[indexes].compute()
             else:

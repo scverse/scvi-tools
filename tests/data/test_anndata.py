@@ -444,6 +444,7 @@ def test_anntorchdataset_numpy(adata):
 @dependencies("dask")
 def test_anntorchdataset_dask():
     import dask.array as da
+
     # check that AnnTorchDataset returns numpy array
     adata = synthetic_iid()
     adata.X = da.from_array(adata.X)

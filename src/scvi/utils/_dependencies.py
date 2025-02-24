@@ -34,4 +34,3 @@ def is_package_installed(module):
         return True  # If no exception is raised, the package is installed
     except ImportError:
         return False  # If ImportError is raised, the package is not installed
-
