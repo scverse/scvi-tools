@@ -24,22 +24,17 @@ index_tuning
 index_dev
 ```
 
-:::{list-table} Tutorial Tags
-:widths: auto
-
-*   - <span class="tag" group-tag="Analysis"></span> Analysis
-    - <span class="tag" group-tag="Integration"></span> Integration
-    - <span class="tag" group-tag="Transfer learning"></span> Transfer learning
-    - <span class="tag" group-tag="R"></span> R
-    - <span class="tag" group-tag="Differential comparison"></span> Differential comparison
-*   - <span class="tag" group-tag="Modality imputation"></span> Modality imputation
-    - <span class="tag" group-tag="Deconvolution"></span> Deconvolution
-    - <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
-    - <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
-    -
-:::
-
 :::{dropdown} Quick start
+
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
 
 Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and how to use basic scvi-tools functionality within an R environment
 
@@ -64,6 +59,16 @@ Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and h
 :::
 
 :::{dropdown} scRNA-seq
+
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
 
 Go through the workflows of models used for analysis of scRNA-seq datasets, including scVI, scANVI, AutoZI, AmortizedLDA, LinearSCVI, and contrastiveVI
 
@@ -157,6 +162,16 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 
 :::{dropdown} scATAC-seq
 
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
+
 Go through the workflows of models used for analysis of scATAC-seq datasets, including PeakVI, scBasset, and PoissonVI
 
 :::{list-table}
@@ -197,6 +212,16 @@ Go through the workflows of models used for analysis of scATAC-seq datasets, inc
 
 :::{dropdown} scBS-seq (Single-cell bisulfite sequencing)
 
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
+
 Use methylVI with single-cell bisulfite sequencing data
 
 :::{list-table}
@@ -218,6 +243,16 @@ Use methylVI with single-cell bisulfite sequencing data
 :::
 
 :::{dropdown} Multimodal
+
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
 
 Use models to analyze multimodal data, including totalVI for CITE-seq analysis and MultiVI for joint analysis of scRNA-seq and scATAC-seq
 
@@ -259,6 +294,16 @@ Use models to analyze multimodal data, including totalVI for CITE-seq analysis a
 
 :::{dropdown} Spatial transcriptomics
 
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
+
 Learn about models and methods to use with spatial transciptomics data, including DestVI, gimVI, Tangram, Cell2location, and Stereoscope
 
 :::{list-table}
@@ -296,6 +341,16 @@ Learn about models and methods to use with spatial transciptomics data, includin
 
 :::{dropdown} Model hub
 
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
+
 Learn about using and uploading pretrained scvi-tools models with scvi-hub and Hugging Face
 
 :::{list-table}
@@ -324,6 +379,16 @@ Learn about using and uploading pretrained scvi-tools models with scvi-hub and H
 
 :::{dropdown} Hyperparameter tuning
 
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
+
 Learn about hyperparameter tuning of scvi-tools models
 
 :::{list-table}
@@ -337,6 +402,16 @@ Learn about hyperparameter tuning of scvi-tools models
 :::
 
 :::{dropdown} Development
+
+- <span class="tag" group-tag="Analysis"></span> Analysis
+- <span class="tag" group-tag="Integration"></span> Integration
+- <span class="tag" group-tag="Transfer learning"></span> Transfer learning
+- <span class="tag" group-tag="R"></span> R
+- <span class="tag" group-tag="Differential comparison"></span> Differential comparison
+- <span class="tag" group-tag="Modality imputation"></span> Modality imputation
+- <span class="tag" group-tag="Deconvolution"></span> Deconvolution
+- <span class="tag" group-tag="Dimensionality reduction"></span> Dimensionality reduction
+- <span class="tag" group-tag="Removal of unwanted variance"></span> Removal of unwanted variance
 
 Learn how to implement a novel statistical method for single-cell omics data in the scvi-tools environment
 
