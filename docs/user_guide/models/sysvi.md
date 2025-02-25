@@ -12,7 +12,7 @@ The limitations of SysVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/sysVI.ipynb`
+-   {doc}`/tutorials/notebooks/scrna/sysVI`
 ```
 
 :::{note}
