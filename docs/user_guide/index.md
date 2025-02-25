@@ -45,7 +45,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/mrvi`
      - Characterization of sample-level heterogeneity
      - :cite:p:`Boyeau24`
-
+   * - :doc:`/user_guide/models/sysvi`
+     - Integrating single-cell RNA-seq datasets with substantial batch effects
+     - :cite:p:`Hrovatin23`
 ```
 
 ## ATAC-seq analysis

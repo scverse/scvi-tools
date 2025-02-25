@@ -24,6 +24,7 @@ to [Semantic Versioning]. Full commit history is available in the
     transcriptomics {pr}`3144`.
 - Add a [use cases](%22https://docs.scvi-tools.org/en/latest/user_guide/index.html#common-use-cases%22)
     section in the docs, {pr}`3200`.
+- Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
 
@@ -32,6 +33,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
     out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
     memory usage {pr}`3146`.
+- Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
 
 #### Changed
 
