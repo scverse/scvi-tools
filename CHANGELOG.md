@@ -23,6 +23,7 @@ to [Semantic Versioning]. Full commit history is available in the
     transcriptomics {pr}`3144`.
 - Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
     {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
+- Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
 
@@ -31,6 +32,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
     out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
     memory usage {pr}`3146`.
+- Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
 
 #### Changed
 
