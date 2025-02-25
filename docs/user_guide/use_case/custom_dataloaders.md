@@ -6,7 +6,8 @@ This page is under construction.
 
 In SCVI, custom dataloaders allow you to create a tailored data pipeline that can handle unique formats or complex datasets not covered by the default loaders. A custom dataloader can be useful when you have a specific structure for your data or need to preprocess it in a particular way before feeding it into the model, in order to gain some advantage.
 
-For example, we would like to have custom dataloders that do not necessarily store the data on RAM while training, thus able us to expand the sizes of dataset that we can train our models based on while not being limited by the amount of RAM that we have.
+For example, we offer custom dataloaders that do not necessarily store the data on memory while training, thus enable us to expand the sizes of dataset that we can train our models based on while not being limited by the amount of memory that we have.
+Without dataloader large data can be on disk but inefficient. We increase efficiency for data on disk and enable data on cloud storage.
 
 In SCVI, we work with several collaborators in order to construct efficient custom dataloaders:
 1. [lamin.ai]("https://lamin.ai/") custom dataloader is based on MappedCollectionDataModule and can run a collection of adata based on lamindb backend.
@@ -110,5 +111,5 @@ Writing custom dataloaders requires a good understanding of PyTorch’s DataLoad
 It will also requite maintenance: If the data format or preprocessing needs change, you’ll have to modify and maintain the custom dataloader code, But it can be a greate addition to the model pipeline, in terms of runtime and how much data we can digest.
 
 :::{note}
-As for SCVI-Tools v1.3.0 Custom Dataloaders are not ready yet
+As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental.
 :::
