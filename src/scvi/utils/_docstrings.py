@@ -66,6 +66,11 @@ silent
 de_importance_sampling = """\
 importance_sampling
     Whether to use importance sampling to compute normalized gene expression."""
+de_subset_idx = """\
+subset_idx
+    Can be of three types. First, it can corresponds to a boolean mask that
+    has the same shape as adata. It can also corresponds to a list of indices.
+    Last, it can correspond to string query of adata.obs columns."""
 de_fn_kwargs = """\
 fn_kwargs
     Additional kwargs for the normalized gene expression estimation.
@@ -88,6 +93,7 @@ de_dsp = DocstringProcessor(
     de_fdr_target=de_fdr_target,
     de_silent=de_silent,
     de_importance_sampling=de_importance_sampling,
+    de_subset_idx=de_subset_idx,
     de_fn_kwargs=de_fn_kwargs,
 )
 
@@ -139,6 +145,10 @@ size_factor_key
 param_layer = """\
 layer
     if not `None`, uses this as the key in `adata.layers` for raw count data."""
+
+idx_layer = """\
+idx_layer
+    if not `None`, A vector string represents the different modalities """
 
 param_cat_cov_keys = """\
 categorical_covariate_keys
@@ -194,6 +204,7 @@ setup_anndata_dsp = DocstringProcessor(
     param_unlabeled_category=param_unlabeled_category,
     param_modalities=param_modalities,
     param_copy=param_copy,
+    idx_layer=idx_layer,
     returns=returns,
 )
 

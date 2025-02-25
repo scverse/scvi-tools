@@ -15,6 +15,7 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 index_quick_start
 index_scrna
 index_atac
+index_scbs
 index_multimodal
 index_spatial
 index_hub

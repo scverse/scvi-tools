@@ -9,19 +9,22 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
+import pyro
 import rich
 import torch
 from anndata import AnnData
 from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.data import AnnDataManager
+from scvi.data import AnnDataManager, fields
 from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import (
+    _ADATA_MINIFY_TYPE_UNS_KEY,
     _MODEL_NAME_KEY,
     _SCVI_UUID_KEY,
     _SETUP_ARGS_KEY,
     _SETUP_METHOD_NAME,
+    ADATA_MINIFY_TYPE,
 )
 from scvi.data._utils import _assign_adata_uuid, _check_if_view, _get_adata_minify_type
 from scvi.dataloaders import AnnDataLoader
@@ -33,6 +36,7 @@ from scvi.model.base._save_load import (
     _load_saved_files,
     _validate_var_names,
 )
+from scvi.model.utils import get_minified_adata_scrna, get_minified_mudata
 from scvi.utils import attrdict, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -87,6 +91,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     1. :doc:`/tutorials/notebooks/dev/model_user_guide`
     """
 
+    _OBSERVED_LIB_SIZE_KEY = "observed_lib_size"
     _data_loader_cls = AnnDataLoader
 
     def __init__(self, adata: AnnOrMuData | None = None):
@@ -337,7 +342,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if _SCVI_UUID_KEY not in adata.uns:
             if required:
                 raise ValueError(
-                    f"Please set up your AnnData with {cls.__name__}.setup_anndata first."
+                    f"Please set up your AnnData with {cls.__name__}.setup_anndata'"
+                    "or {cls.__name__}.setup_mudata first."
                 )
             return None
 
@@ -352,7 +358,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         elif adata_id not in cls._per_instance_manager_store[self.id]:
             if required:
                 raise AssertionError(
-                    "Please call ``self._validate_anndata`` on this AnnData object."
+                    "Please call ``self._validate_anndata`` on this AnnData or MuData object."
                 )
             return None
 
@@ -627,6 +633,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         # save the model state dict and the trainer state dict only
         model_state_dict = self.module.state_dict()
+        model_state_dict["pyro_param_store"] = pyro.get_param_store().get_state()
 
         var_names = _get_var_names(self.adata, legacy_mudata_format=legacy_mudata_format)
 
@@ -724,7 +731,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         model = _initialize_model(cls, adata, attr_dict)
-        model.module.on_load(model)
+        pyro_param_store = model_state_dict.pop("pyro_param_store", None)
+        model.module.on_load(model, pyro_param_store=pyro_param_store)
         model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
@@ -898,40 +906,234 @@ class BaseMinifiedModeModelClass(BaseModelClass):
             else None
         )
 
-    @abstractmethod
     def minify_adata(
         self,
-        *args,
-        **kwargs,
-    ):
-        """Minifies the model's adata.
+        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ) -> None:
+        """Minify the model's :attr:`~scvi.model.base.BaseModelClass.adata`.
 
-        Minifies the adata, and registers new anndata fields as required (can be model-specific).
-        This also sets the appropriate property on the module to indicate that the adata is
-        minified.
+        Minifies the :class:`~anndata.AnnData` object associated with the model according to the
+        method specified by ``minified_data_type`` and registers the new fields with the model's
+        :class:`~scvi.data.AnnDataManager`. This also sets the ``minified_data_type`` attribute
+        of the underlying :class:`~scvi.module.base.BaseModuleClass` instance.
+
+        Parameters
+        ----------
+        minified_data_type
+            Method for minifying the data. One of the following:
+
+            - ``"latent_posterior_parameters"``: Store the latent posterior mean and variance in
+                :attr:`~anndata.AnnData.obsm` using the keys ``use_latent_qzm_key`` and
+                ``use_latent_qzv_key``.
+            - ``"latent_posterior_parameters_with_counts"``: Store the latent posterior mean and
+                variance in :attr:`~anndata.AnnData.obsm` using the keys ``use_latent_qzm_key`` and
+                ``use_latent_qzv_key``, and the raw count data in :attr:`~anndata.AnnData.X`.
+        use_latent_qzm_key
+            Key to use for storing the latent posterior mean in :attr:`~anndata.AnnData.obsm` when
+            ``minified_data_type`` is ``"latent_posterior"``.
+        use_latent_qzv_key
+            Key to use for storing the latent posterior variance in :attr:`~anndata.AnnData.obsm`
+            when ``minified_data_type`` is ``"latent_posterior"``.
 
         Notes
         -----
         The modification is not done inplace -- instead the model is assigned a new (minified)
-        version of the adata.
+        version of the :class:`~anndata.AnnData`.
         """
+        if minified_data_type not in ADATA_MINIFY_TYPE:
+            raise NotImplementedError(
+                f"Minification method {minified_data_type} is not supported."
+            )
+        elif not getattr(self.module, "use_observed_lib_size", True):
+            raise ValueError(
+                "Minification is not supported for models that do not use observed library size."
+            )
 
-    @staticmethod
-    @abstractmethod
-    def _get_fields_for_adata_minification(minified_data_type: MinifiedDataType):
-        """Return the anndata fields required for adata minification of the given type."""
+        keep_count_data = minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
+        mini_adata = get_minified_adata_scrna(
+            adata_manager=self.adata_manager,
+            keep_count_data=keep_count_data,
+        )
+        del mini_adata.uns[_SCVI_UUID_KEY]
+        mini_adata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = minified_data_type
+        mini_adata.obsm[self._LATENT_QZM_KEY] = self.adata.obsm[use_latent_qzm_key]
+        mini_adata.obsm[self._LATENT_QZV_KEY] = self.adata.obsm[use_latent_qzv_key]
+        mini_adata.obs[self._OBSERVED_LIB_SIZE_KEY] = np.squeeze(
+            np.asarray(self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY).sum(axis=-1))
+        )
+        self._update_adata_and_manager_post_minification(
+            mini_adata,
+            minified_data_type,
+        )
+        self.module.minified_data_type = minified_data_type
+
+    @classmethod
+    def _get_fields_for_adata_minification(
+        cls,
+        minified_data_type: MinifiedDataType,
+    ):
+        """Return the fields required for minification of the given type."""
+        if minified_data_type not in ADATA_MINIFY_TYPE:
+            raise NotImplementedError(
+                f"Minification method {minified_data_type} is not supported."
+            )
+
+        mini_fields = [
+            fields.ObsmField(REGISTRY_KEYS.LATENT_QZM_KEY, cls._LATENT_QZM_KEY),
+            fields.ObsmField(REGISTRY_KEYS.LATENT_QZV_KEY, cls._LATENT_QZV_KEY),
+            fields.NumericalObsField(REGISTRY_KEYS.OBSERVED_LIB_SIZE, cls._OBSERVED_LIB_SIZE_KEY),
+            fields.StringUnsField(REGISTRY_KEYS.MINIFY_TYPE_KEY, _ADATA_MINIFY_TYPE_UNS_KEY),
+        ]
+
+        return mini_fields
 
     def _update_adata_and_manager_post_minification(
+        self,
+        minified_adata: AnnOrMuData,
+        minified_data_type: MinifiedDataType,
+    ):
+        """Update the :class:`~anndata.AnnData` and :class:`~scvi.data.AnnDataManager` in-place.
+
+        Parameters
+        ----------
+        minified_adata
+            Minified version of :attr:`~scvi.model.base.BaseModelClass.adata`.
+        minified_data_type
+            Method used for minifying the data.
+        keep_count_data
+            If ``True``, the full count matrix is kept in the minified
+            :attr:`~scvi.model.base.BaseModelClass.adata`.
+        """
+        self._validate_anndata(minified_adata)
+        new_adata_manager = self.get_anndata_manager(minified_adata, required=True)
+        new_adata_manager.register_new_fields(
+            self._get_fields_for_adata_minification(minified_data_type)
+        )
+        self.adata = minified_adata
+
+    @property
+    def summary_string(self):
+        """Summary string of the model."""
+        summary_string = super().summary_string
+        summary_string += "\nModel's adata is minified?: {}".format(
+            hasattr(self, "minified_data_type") and self.minified_data_type is not None
+        )
+        return summary_string
+
+
+class BaseMudataMinifiedModeModelClass(BaseModelClass):
+    """Abstract base class for scvi-tools models that can handle minified data."""
+
+    @property
+    def minified_data_type(self) -> MinifiedDataType | None:
+        """The type of minified data associated with this model, if applicable."""
+        return (
+            self.adata_manager.get_from_registry(REGISTRY_KEYS.MINIFY_TYPE_KEY)
+            if REGISTRY_KEYS.MINIFY_TYPE_KEY in self.adata_manager.data_registry
+            else None
+        )
+
+    def minify_mudata(
+        self,
+        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+        use_latent_qzm_key: str = "X_latent_qzm",
+        use_latent_qzv_key: str = "X_latent_qzv",
+    ) -> None:
+        """Minify the model's :attr:`~scvi.model.base.BaseModelClass.adata`.
+
+        Minifies the :class:`~mudata.MuData` object associated with the model according to the
+        method specified by ``minified_data_type`` and registers the new fields with the model's
+        :class:`~scvi.data.AnnDataManager`. This also sets the ``minified_data_type`` attribute
+        of the underlying :class:`~scvi.module.base.BaseModuleClass` instance.
+
+        Parameters
+        ----------
+        minified_data_type
+            Method for minifying the data. One of the following:
+
+            - ``"latent_posterior_parameters"``: Store the latent posterior mean and variance in
+                :attr:`~mudata.MuData.obsm` using the keys ``use_latent_qzm_key`` and
+                ``use_latent_qzv_key``.
+            - ``"latent_posterior_parameters_with_counts"``: Store the latent posterior mean and
+                variance in :attr:`~mudata.MuData.obsm` using the keys ``use_latent_qzm_key`` and
+                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData.X`.
+        use_latent_qzm_key
+            Key to use for storing the latent posterior mean in :attr:`~mudata.MuData.obsm` when
+            ``minified_data_type`` is ``"latent_posterior"``.
+        use_latent_qzv_key
+            Key to use for storing the latent posterior variance in :attr:`~mudata.MuData.obsm`
+            when ``minified_data_type`` is ``"latent_posterior"``.
+
+        Notes
+        -----
+        The modification is not done inplace -- instead the model is assigned a new (minified)
+        version of the :class:`~mudata.MuData`.
+        """
+        if self.adata_manager._registry["setup_method_name"] != "setup_mudata":
+            raise ValueError(
+                f"MuData must be registered with {self.__name__}.setup_mudata to use this method."
+            )
+        if minified_data_type not in ADATA_MINIFY_TYPE:
+            raise NotImplementedError(
+                f"Minification method {minified_data_type} is not supported."
+            )
+        elif not getattr(self.module, "use_observed_lib_size", True):
+            raise ValueError(
+                "Minification is not supported for models that do not use observed library size."
+            )
+
+        keep_count_data = minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS
+        mini_adata = get_minified_mudata(
+            adata_manager=self.adata_manager,
+            keep_count_data=keep_count_data,
+        )
+        del mini_adata.uns[_SCVI_UUID_KEY]
+        mini_adata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = minified_data_type
+        mini_adata.obsm[self._LATENT_QZM_KEY] = self.adata.obsm[use_latent_qzm_key]
+        mini_adata.obsm[self._LATENT_QZV_KEY] = self.adata.obsm[use_latent_qzv_key]
+        mini_adata.obs[self._OBSERVED_LIB_SIZE_KEY] = np.squeeze(
+            np.asarray(self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY).sum(axis=-1))
+        )
+        self._update_mudata_and_manager_post_minification(
+            mini_adata,
+            minified_data_type,
+        )
+        self.module.minified_data_type = minified_data_type
+
+    @classmethod
+    def _get_fields_for_mudata_minification(
+        cls,
+        minified_data_type: MinifiedDataType,
+    ):
+        """Return the fields required for minification of the given type."""
+        if minified_data_type not in ADATA_MINIFY_TYPE:
+            raise NotImplementedError(
+                f"Minification method {minified_data_type} is not supported."
+            )
+
+        mini_fields = [
+            fields.ObsmField(REGISTRY_KEYS.LATENT_QZM_KEY, cls._LATENT_QZM_KEY),
+            fields.ObsmField(REGISTRY_KEYS.LATENT_QZV_KEY, cls._LATENT_QZV_KEY),
+            fields.NumericalObsField(REGISTRY_KEYS.OBSERVED_LIB_SIZE, cls._OBSERVED_LIB_SIZE_KEY),
+            fields.StringUnsField(REGISTRY_KEYS.MINIFY_TYPE_KEY, _ADATA_MINIFY_TYPE_UNS_KEY),
+        ]
+
+        return mini_fields
+
+    def _update_mudata_and_manager_post_minification(
         self, minified_adata: AnnOrMuData, minified_data_type: MinifiedDataType
     ):
-        """Update the anndata and manager inplace after creating a minified adata."""
+        """Update the mudata and manager inplace after creating a minified adata."""
         # Register this new adata with the model, creating a new manager in the cache
         self._validate_anndata(minified_adata)
         new_adata_manager = self.get_anndata_manager(minified_adata, required=True)
         # This inplace edits the manager
         new_adata_manager.register_new_fields(
-            self._get_fields_for_adata_minification(minified_data_type)
+            self._get_fields_for_mudata_minification(minified_data_type),
         )
+        new_adata_manager.registry["setup_method_name"] = "setup_mudata"
         # We set the adata attribute of the model as this will update self.registry_
         # and self.adata_manager with the new adata manager
         self.adata = minified_adata

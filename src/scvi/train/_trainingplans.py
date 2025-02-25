@@ -41,7 +41,7 @@ def _compute_kl_weight(
     n_steps_kl_warmup: int | None,
     max_kl_weight: float = 1.0,
     min_kl_weight: float = 0.0,
-) -> float:
+) -> float | torch.Tensor:
     """Computes the kl weight for the current step or epoch.
 
     If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
@@ -134,6 +134,8 @@ class TrainingPlan(pl.LightningModule):
         Maximum scaling factor on KL divergence during training.
     min_kl_weight
         Minimum scaling factor on KL divergence during training.
+    compile
+        Whether to compile the model using torch.compile.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -146,6 +148,7 @@ class TrainingPlan(pl.LightningModule):
         optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
         optimizer_creator: TorchOptimizerCreator | None = None,
         lr: float = 1e-3,
+        update_only_decoder: bool = False,
         weight_decay: float = 1e-6,
         eps: float = 0.01,
         n_steps_kl_warmup: int = None,
@@ -160,10 +163,12 @@ class TrainingPlan(pl.LightningModule):
         lr_min: float = 0,
         max_kl_weight: float = 1.0,
         min_kl_weight: float = 0.0,
+        compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__()
-        self.module = module
+
         self.lr = lr
         self.weight_decay = weight_decay
         self.eps = eps
@@ -180,12 +185,23 @@ class TrainingPlan(pl.LightningModule):
         self.min_kl_weight = min_kl_weight
         self.max_kl_weight = max_kl_weight
         self.optimizer_creator = optimizer_creator
+        self.update_only_decoder = update_only_decoder
 
         if self.optimizer_name == "Custom" and self.optimizer_creator is None:
             raise ValueError("If optimizer is 'Custom', `optimizer_creator` must be provided.")
 
         self._n_obs_training = None
         self._n_obs_validation = None
+
+        # Whether to compile module first
+        if compile:
+            if compile_kwargs is None:
+                compile_kwargs = {}
+            compile_kwargs["dynamic"] = compile_kwargs.get("dynamic", False)
+            torch._dynamo.config.suppress_errors = True
+            self.module = torch.compile(module, **compile_kwargs)
+        else:
+            self.module = module
 
         # automatic handling of kl weight
         self._loss_args = set(signature(self.module.loss).parameters.keys())
@@ -275,7 +291,11 @@ class TrainingPlan(pl.LightningModule):
 
     def forward(self, *args, **kwargs):
         """Passthrough to the module's forward method."""
-        return self.module(*args, **kwargs)
+        return self.module(
+            *args,
+            **kwargs,
+            get_inference_input_kwargs={"full_forward_pass": not self.update_only_decoder},
+        )
 
     @torch.inference_mode()
     def compute_and_log_metrics(
@@ -415,14 +435,17 @@ class TrainingPlan(pl.LightningModule):
 
     @property
     def kl_weight(self):
-        """Scaling factor on KL divergence during training."""
-        return _compute_kl_weight(
+        """Scaling factor on KL divergence during training. Consider Jax"""
+        klw = _compute_kl_weight(
             self.current_epoch,
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
             self.max_kl_weight,
             self.min_kl_weight,
+        )
+        return (
+            klw if type(self).__name__ == "JaxTrainingPlan" else torch.tensor(klw).to(self.device)
         )
 
 
@@ -471,6 +494,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         Scaling factor on the adversarial components of the loss.
         By default, adversarial loss is scaled from 1 to 0 following opposite of
         kl warmup.
+    compile
+        Whether to compile the model for faster training
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -496,6 +521,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         lr_min: float = 0,
         adversarial_classifier: bool | Classifier = False,
         scale_adversarial_loss: float | Literal["auto"] = "auto",
+        compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__(
@@ -512,6 +539,8 @@ class AdversarialTrainingPlan(TrainingPlan):
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
             lr_min=lr_min,
+            compile=compile,
+            compile_kwargs=compile_kwargs,
             **loss_kwargs,
         )
         if adversarial_classifier is True:
@@ -707,6 +736,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         lr_scheduler_metric: Literal[
             "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
         ] = "elbo_validation",
+        compile: bool = False,
+        compile_kwargs: dict | None = None,
         **loss_kwargs,
     ):
         super().__init__(
@@ -720,6 +751,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             lr_patience=lr_patience,
             lr_threshold=lr_threshold,
             lr_scheduler_metric=lr_scheduler_metric,
+            compile=compile,
+            compile_kwargs=compile_kwargs,
             **loss_kwargs,
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
@@ -1007,6 +1040,9 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     scale_elbo
         Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
         numerical inaccuracy when working with very large ELBO.
+    blocked
+        A list of Pyro parameters to block during training.
+        If `None`, defaults to train all parameters.
     """
 
     def __init__(
@@ -1018,6 +1054,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
+        blocked: list | None = None,
     ):
         super().__init__(
             pyro_module=pyro_module,
@@ -1032,10 +1069,13 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
+        self.block_fn = (
+            lambda obj: pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
+        )
 
         self.svi = pyro.infer.SVI(
-            model=self.scale_fn(self.module.model),
-            guide=self.scale_fn(self.module.guide),
+            model=self.block_fn(self.scale_fn(self.module.model)),
+            guide=self.block_fn(self.scale_fn(self.module.guide)),
             optim=self.optim,
             loss=self.loss_fn,
         )

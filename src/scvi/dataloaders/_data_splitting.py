@@ -21,7 +21,14 @@ from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
 
 
-def validate_data_split(n_samples: int, train_size: float, validation_size: float | None = None):
+def validate_data_split(
+    n_samples: int,
+    train_size: float,
+    validation_size: float | None = None,
+    batch_size: int | None = None,
+    drop_last: bool | int = False,
+    train_size_is_none: bool | int = True,
+):
     """Check data splitting parameters and return n_train and n_val.
 
     Parameters
@@ -32,20 +39,17 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
         Size of train set. Need to be: 0 < train_size <= 1.
     validation_size
         Size of validation set. Need to be 0 <= validation_size < 1
+    batch_size
+        batch size of each iteration. If `None`, do not minibatch
+    drop_last
+        drops last non-full batch
+    train_size_is_none
+        Whether the user did not explicitly input train_size
     """
     if train_size > 1.0 or train_size <= 0.0:
         raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
 
     n_train = ceil(train_size * n_samples)
-
-    if n_train % settings.batch_size < 3 and n_train % settings.batch_size > 0:
-        warnings.warn(
-            f"Last batch will have a small size of {n_train % settings.batch_size}"
-            f"samples. Consider changing settings.batch_size or batch_size in model.train"
-            f"currently {settings.batch_size} to avoid errors during model training.",
-            UserWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
 
     if validation_size is None:
         n_val = n_samples - n_train
@@ -59,9 +63,31 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
     if n_train == 0:
         raise ValueError(
             f"With n_samples={n_samples}, train_size={train_size} and "
-            f"validation_size={validation_size}, the resulting train set will be empty. Adjust"
+            f"validation_size={validation_size}, the resulting train set will be empty. Adjust "
             "any of the aforementioned parameters."
         )
+
+    if batch_size is not None:
+        num_of_cells = n_train % batch_size
+        if (num_of_cells < 3 and num_of_cells > 0) and drop_last is False:
+            if not train_size_is_none:
+                warnings.warn(
+                    f"Last batch will have a small size of {num_of_cells} "
+                    f"samples. Consider changing settings.batch_size or batch_size in model.train "
+                    f"from currently {batch_size} to avoid errors during model training.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            else:
+                n_train -= num_of_cells
+                if n_val > 0:
+                    n_val += num_of_cells
+                    warnings.warn(
+                        f"{num_of_cells} cells moved from training set to validation set."
+                        f" if you want to avoid it please use train_size parameter during train.",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
+                    )
 
     return n_train, n_val
 
@@ -69,6 +95,8 @@ def validate_data_split(n_samples: int, train_size: float, validation_size: floa
 def validate_data_split_with_external_indexing(
     n_samples: int,
     external_indexing: list[np.array, np.array, np.array] | None = None,
+    batch_size: int | None = None,
+    drop_last: bool | int = False,
 ):
     """Check data splitting parameters and return n_train and n_val.
 
@@ -79,6 +107,10 @@ def validate_data_split_with_external_indexing(
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
+    batch_size
+        batch size of each iteration. If `None`, do not minibatch
+    drop_last
+        drops last non-full batch
     """
     if not isinstance(external_indexing, list):
         raise ValueError("External indexing is not of list type")
@@ -132,6 +164,18 @@ def validate_data_split_with_external_indexing(
     n_train = len(external_indexing[0])
     n_val = len(external_indexing[1])
 
+    if batch_size is not None:
+        num_of_cells = n_train % batch_size
+        if (num_of_cells < 3 and num_of_cells > 0) and drop_last is False:
+            warnings.warn(
+                f"Last batch will have a small size of {num_of_cells} "
+                f"samples. Consider changing settings.batch_size or batch_size in model.train "
+                f"from currently {batch_size} to avoid errors during model training "
+                f"or change the given external indices accordingly.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+
     return n_train, n_val
 
 
@@ -145,7 +189,8 @@ class DataSplitter(pl.LightningDataModule):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is 0.9)
+        float, or None (default is None, which is practicaly 0.9 and potentially adding small last
+        batch to validation cells)
     validation_size
         float, or None (default is None)
     shuffle_set_split
@@ -182,7 +227,7 @@ class DataSplitter(pl.LightningDataModule):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
@@ -192,7 +237,8 @@ class DataSplitter(pl.LightningDataModule):
     ):
         super().__init__()
         self.adata_manager = adata_manager
-        self.train_size = float(train_size)
+        self.train_size_is_none = not bool(train_size)
+        self.train_size = 0.9 if self.train_size_is_none else float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.load_sparse_tensor = load_sparse_tensor
@@ -205,10 +251,17 @@ class DataSplitter(pl.LightningDataModule):
             self.n_train, self.n_val = validate_data_split_with_external_indexing(
                 self.adata_manager.adata.n_obs,
                 self.external_indexing,
+                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.drop_last,
             )
         else:
             self.n_train, self.n_val = validate_data_split(
-                self.adata_manager.adata.n_obs, self.train_size, self.validation_size
+                self.adata_manager.adata.n_obs,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.drop_last,
+                self.train_size_is_none,
             )
 
     def setup(self, stage: str | None = None):
@@ -298,7 +351,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is 0.9)
+        float, or None (default is None, which is practicaly 0.9 and potentially adding small last
+        batch to validation cells)
     validation_size
         float, or None (default is None)
     shuffle_set_split
@@ -333,7 +387,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         n_samples_per_label: int | None = None,
@@ -343,7 +397,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     ):
         super().__init__()
         self.adata_manager = adata_manager
-        self.train_size = float(train_size)
+        self.train_size_is_none = not bool(train_size)
+        self.train_size = 0.9 if self.train_size_is_none else float(train_size)
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.drop_last = kwargs.pop("drop_last", False)
@@ -379,10 +434,17 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
                     n_labeled_idx,
                     [labeled_idx_train, labeled_idx_val, labeled_idx_test],
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.drop_last,
                 )
             else:
                 n_labeled_train, n_labeled_val = validate_data_split(
-                    n_labeled_idx, self.train_size, self.validation_size
+                    n_labeled_idx,
+                    self.train_size,
+                    self.validation_size,
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.drop_last,
+                    self.train_size_is_none,
                 )
 
                 labeled_permutation = self._labeled_indices
@@ -413,10 +475,17 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
                     n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.drop_last,
                 )
             else:
                 n_unlabeled_train, n_unlabeled_val = validate_data_split(
-                    n_unlabeled_idx, self.train_size, self.validation_size
+                    n_unlabeled_idx,
+                    self.train_size,
+                    self.validation_size,
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.drop_last,
+                    self.train_size_is_none,
                 )
 
                 unlabeled_permutation = self._unlabeled_indices
@@ -508,7 +577,8 @@ class DeviceBackedDataSplitter(DataSplitter):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is 0.9)
+        float, or None (default is None, which is practicaly 0.9 and potentially adding small last
+        batch to validation cells)
     validation_size
         float, or None (default is None)
     %(param_accelerator)s
@@ -536,7 +606,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        train_size: float = 1.0,
+        train_size: float | None = None,
         validation_size: float | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",

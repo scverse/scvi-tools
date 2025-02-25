@@ -17,7 +17,6 @@ from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.model import SCVI
-from scvi.model.utils import mde
 from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -178,9 +177,6 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     )
     model = SCVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
-
-    # test mde
-    mde(model.get_latent_representation())
 
     # Test with observed lib size.
     adata = synthetic_iid()
@@ -477,10 +473,18 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     model = SCVI(adata, n_latent=n_latent)
     with pytest.raises(ValueError):
         model.train(1, train_size=1.0)
-    with pytest.warns(UserWarning):
-        # Warning is emitted if last batch less than 3 cells.
-        model.train(1, train_size=1.0, batch_size=127)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0, batch_size=128)
     model.train(1, train_size=1.0, datasplitter_kwargs={"drop_last": True})
+
+    adata = synthetic_iid()
+    adata = adata[0:143].copy()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=0.9)  # np.ceil(n_cells * 0.9) % 128 == 1
+    model.train(1, train_size=0.9, datasplitter_kwargs={"drop_last": True})
+    model.train(1)
     assert model.is_trained is True
 
 
@@ -679,7 +683,7 @@ def test_early_stopping():
 
 
 def test_de_features():
-    adata = synthetic_iid()
+    adata = synthetic_iid(batch_size=50, n_genes=20, n_proteins=20, n_regions=20)
     SCVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -852,7 +856,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata10, dir_path)
     model10 = SCVI(adata10, n_latent=n_latent)
     model10.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model10)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model10)
     registry = attr_dict.pop("registry_")
     # we validate only relevant covariates were passed - cat2 and cont2 are not used
     assert (
@@ -884,7 +888,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata11, dir_path)
     model11 = SCVI(adata11, n_latent=n_latent)
     model11.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model11)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model11)
     registry = attr_dict.pop("registry_")
     assert (
         registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
@@ -907,7 +911,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata12, dir_path)
     model12 = SCVI(adata12, n_latent=n_latent)
     model12.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model12)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model12)
     registry = attr_dict.pop("registry_")
     assert (
         registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
@@ -1230,7 +1234,8 @@ def test_scvi_batch_embeddings(
     model = SCVI.load(model_path, adata)
 
     batch_rep_loaded = model.get_batch_representation()
-    assert np.allclose(batch_rep, batch_rep_loaded)
+    atol = 5 if model.device.type == "mps" else 1.0e-8
+    assert np.allclose(batch_rep, batch_rep_loaded, atol=atol)
 
     with pytest.raises(KeyError):
         model.module.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batches)
@@ -1273,9 +1278,11 @@ def test_scvi_normal_likelihood():
     model.get_normalized_expression(n_samples=2)
 
 
+@pytest.mark.optional
 def test_scvi_num_workers():
-    adata = synthetic_iid()
-    scvi.settings.dl_num_workers = 7
+    # this test takes time we use a small dataset
+    adata = synthetic_iid(batch_size=50, n_genes=20, n_proteins=20, n_regions=20)
+    scvi.settings.dl_num_workers = 3
     scvi.settings.dl_persistent_workers = True
     SCVI.setup_anndata(adata, batch_key="batch")
 

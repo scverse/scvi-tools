@@ -139,6 +139,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/tangram`
      - Deconvolution, single cell spatial mapping
      - :cite:p:`Biancalani21`
+   * - :doc:`/user_guide/models/resolvi`
+     - Generative model of single-cell resolved spatial transcriptomics
+     - :cite:p:`Ergen25`
 ```
 
 ## General purpose analysis
@@ -164,6 +167,15 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 - {doc}`/user_guide/background/counterfactual_prediction`
 - {doc}`/user_guide/background/transfer_learning`
 - {doc}`/user_guide/background/codebase_overview`
+
+## Common Use Cases
+
+- {doc}`/user_guide/use_case/saving_and_loading_models`
+- {doc}`/user_guide/use_case/early_stopping`
+- {doc}`/user_guide/use_case/hyper_parameters_tuning`
+- {doc}`/user_guide/use_case/multi_gpu_training`
+- {doc}`/user_guide/use_case/custom_dataloaders`
+- {doc}`/user_guide/use_case/downstream_analysis_tasks`
 
 ## Glossary
 

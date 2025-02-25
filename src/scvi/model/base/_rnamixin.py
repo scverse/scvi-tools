@@ -112,7 +112,7 @@ class RNASeqMixin:
             return_mean=False,
             n_mc_samples=n_mc_samples,
             n_mc_samples_per_pass=n_mc_samples_per_pass,
-        )
+        )  # n_anchors
         mask = torch.tensor(anchor_cells)
         qz_anchor = subset_distribution(qz, mask, 0)  # n_anchors, n_latent
         log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(dim=-1)  # n_samples, n_cells, n_anchors
@@ -129,7 +129,7 @@ class RNASeqMixin:
             log_px_z.append(
                 distributions_px.log_prob(x_anchor).sum(dim=-1)[..., None].cpu()
             )  # n_samples, n_cells, 1
-        log_px_z = torch.cat(log_px_z, dim=-1)
+        log_px_z = torch.cat(log_px_z, dim=-1)  # n_samples, n_cells, n_anchors
 
         log_pz = log_pz.reshape(-1, 1)
         log_px_z = log_px_z.reshape(-1, len(anchor_cells))
@@ -269,7 +269,11 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                exp_ = generative_outputs["px"].get_normalized(generative_output_key)
+                px_generative = generative_outputs["px"]
+                if isinstance(px_generative, torch.Tensor):
+                    exp_ = px_generative
+                else:
+                    exp_ = px_generative.get_normalized(generative_output_key)
                 exp_ = exp_[..., gene_mask]
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
@@ -326,7 +330,7 @@ class RNASeqMixin:
         group2: str | None = None,
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
-        mode: Literal["vanilla", "change"] = "change",
+        mode: Literal["vanilla", "change"] = "vanilla",
         delta: float = 0.25,
         batch_size: int | None = None,
         all_stats: bool = True,
@@ -539,15 +543,16 @@ class RNASeqMixin:
             else:
                 px_dispersion = torch.ones_like(x).to(device) * px_r
 
-            # This gamma is really l*w using scVI manuscript notation
+            # This gamma is using scVI manuscript notation
             p = rate / (rate + px_dispersion)
             r = px_dispersion
-            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
-            data = l_train.cpu().numpy()
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
+            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            l_train = (
+                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample()
+                if device.type == "mps"
+                else torch.distributions.Gamma(r, (1 - p) / p).sample().cpu()
+            )
+            data = l_train.numpy()
             data_loader_list += [data]
 
             if n_samples > 1:
@@ -678,34 +683,34 @@ class RNASeqMixin:
             px_rate = px.mu
             if self.module.gene_likelihood == "zinb":
                 px_dropout = px.zi_probs
-
-            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-
-            px_r = px_r.cpu().numpy()
-            if len(px_r.shape) == 1:
-                dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
-            else:
-                dispersion_list += [px_r]
-            mean_list += [px_rate.cpu().numpy()]
-            if self.module.gene_likelihood == "zinb":
                 dropout_list += [px_dropout.cpu().numpy()]
                 dropout = np.concatenate(dropout_list, axis=-2)
+
+            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+            if self.module.gene_likelihood != "poisson":
+                px_r = px_r.cpu().numpy()
+                if len(px_r.shape) == 1:
+                    dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+                else:
+                    dispersion_list += [px_r]
+            mean_list += [px_rate.cpu().numpy()]
+
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":
                 dropout = dropout.mean(0)
+            if self.module.gene_likelihood != "poisson":
+                dispersions = dispersions.mean(0)
             means = means.mean(0)
-            dispersions = dispersions.mean(0)
 
         return_dict = {}
         return_dict["mean"] = means
 
         if self.module.gene_likelihood == "zinb":
             return_dict["dropout"] = dropout
-            return_dict["dispersions"] = dispersions
-        if self.module.gene_likelihood == "nb":
+        if self.module.gene_likelihood != "poisson":
             return_dict["dispersions"] = dispersions
 
         return return_dict

@@ -180,6 +180,8 @@ Module classes in the external API with respective generative and inference proc
    external.velovi.VELOVAE
    external.mrvi.MRVAE
    external.methylvi.METHYLVAE
+   external.decipher.DecipherPyroModule
+   external.resolvi.RESOLVAE
 
 ```
 

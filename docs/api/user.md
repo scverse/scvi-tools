@@ -62,6 +62,8 @@ import scvi
    external.VELOVI
    external.MRVI
    external.METHYLVI
+   external.Decipher
+   external.RESOLVI
 ```
 
 ## Data loading
@@ -158,7 +160,6 @@ Here we maintain miscellaneous general methods.
    :toctree: reference/
    :nosignatures:
 
-   model.utils.mde
    model.utils.get_minified_adata_scrna
 ```
 
