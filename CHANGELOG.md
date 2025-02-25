@@ -21,6 +21,7 @@ to [Semantic Versioning]. Full commit history is available in the
     AutoZI, CellAssign and GimVI. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
+- Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
 
@@ -29,6 +30,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
     out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
     memory usage {pr}`3146`.
+- Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
 
 #### Changed
 
