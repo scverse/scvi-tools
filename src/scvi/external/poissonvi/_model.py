@@ -235,21 +235,14 @@ class POISSONVI(PEAKVI, RNASeqMixin):
 
     @torch.inference_mode()
     def get_region_factors(self):
-        """Return region-specific factors."""
-        region_factors = self.module.decoder.px_scale_decoder[-2].bias.numpy()
+        """Return region-specific factors. CPU/GPU dependent"""
+        if self.device.type == "cpu":
+            region_factors = self.module.decoder.px_scale_decoder[-2].bias.numpy()
+        else:
+            region_factors = self.module.decoder.px_scale_decoder[-2].bias.cpu().numpy()  # gpu
         if region_factors is None:
             raise RuntimeError("region factors were not included in this model")
         return region_factors
-
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = (
-            f"differential_expression is not implemented for {self.__class__.__name__}, please "
-            f"use {self.__class__.__name__}.get_accessibility_estimates"
-        )
-        raise NotImplementedError(msg)
 
     @de_dsp.dedent
     def differential_accessibility(

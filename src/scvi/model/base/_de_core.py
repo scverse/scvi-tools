@@ -1,10 +1,13 @@
 import logging
+import warnings
 from collections.abc import Iterable as IterableClass
 
 import anndata
 import numpy as np
 import pandas as pd
 
+from scvi import settings
+from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.utils import track
 
 from ._differential import DifferentialComputation
@@ -59,6 +62,47 @@ def _prepare_obs(
     return obs_col, group1, group2
 
 
+def _subset_group(
+    subset_idx: list[bool] | np.ndarray | str,
+    groupby: list[bool] | np.ndarray | str,
+    adata: anndata.AnnData,
+):
+    """Construct an array used for masking.
+
+    Given a column in adata.obs `groupby` and a subset of observations `subset_idx`,
+    this function creates an array `obs_col` that subset groupby to only those items in
+    `adata`.
+    In particular, `obs_col` will take values `other`
+    for `subset_idx` and the values of `groupby` for the rest of the observations.
+
+    Parameters
+    ----------
+    subset_idx
+        Can be of three types. First, it can corresponds to a boolean mask that
+        has the same shape as adata. It can also corresponds to a list of indices.
+        Last, it can correspond to string query of adata.obs columns.
+    groupby
+        Column in AnnData
+    adata
+        AnnData
+    """
+
+    def ravel_idx(my_idx, obs_df):
+        return (
+            obs_df.index.isin(obs_df.query(my_idx).index)
+            if isinstance(my_idx, str)
+            else np.asarray(my_idx).ravel()
+        )
+
+    obs_df = adata.obs
+    subset_idx = ravel_idx(subset_idx, obs_df)
+    obs_col = obs_df[groupby].astype(str)
+    mask = np.ones_like(obs_col, dtype=bool)
+    mask[subset_idx] = False
+    obs_col[mask] = "other"
+    return obs_col
+
+
 def _de_core(
     adata_manager,
     model_fn,
@@ -78,9 +122,19 @@ def _de_core(
     batch_correction,
     fdr,
     silent,
+    subset_idx=None,
     **kwargs,
 ):
     """Internal function for DE interface."""
+    if (
+        adata_manager.adata.uns.get(_ADATA_MINIFY_TYPE_UNS_KEY, None)
+        == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+    ):
+        warnings.warn(
+            "Count statistics make no sense for minified model. Consider disabling all_stats.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
     adata = adata_manager.adata
     if group1 is None and idx1 is None:
         group1 = adata.obs[groupby].astype("category").cat.categories.tolist()
@@ -94,6 +148,11 @@ def _de_core(
     temp_key = None
     if idx1 is not None:
         obs_col, group1, group2 = _prepare_obs(idx1, idx2, adata)
+        temp_key = "_scvi_temp_de"
+        adata.obs[temp_key] = obs_col
+        groupby = temp_key
+    if subset_idx is not None:
+        obs_col = _subset_group(subset_idx, groupby, adata)
         temp_key = "_scvi_temp_de"
         adata.obs[temp_key] = obs_col
         groupby = temp_key

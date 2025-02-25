@@ -158,7 +158,7 @@ class VAEC(BaseModuleClass):
         if self.log_variational:
             x_ = torch.log1p(x_)
 
-        encoder_input = [x, y]
+        encoder_input = [x_, y]
         if batch_index is not None and self.encode_covariates:
             encoder_input.append(batch_index)
 
@@ -250,8 +250,6 @@ class VAEC(BaseModuleClass):
         x_new : :py:class:`torch.Tensor`
             tensor with shape (n_cells, n_genes, n_samples)
         """
-        from scvi.distributions import NegativeBinomial
-
         inference_kwargs = {"n_samples": n_samples}
         generative_outputs = self.forward(
             tensors,
@@ -259,10 +257,7 @@ class VAEC(BaseModuleClass):
             compute_loss=False,
         )[1]
 
-        px_r = generative_outputs["px_r"]
-        px_rate = generative_outputs["px_rate"]
-
-        dist = NegativeBinomial(px_rate, logits=px_r)
+        dist = generative_outputs[MODULE_KEYS.PX_KEY]
         if n_samples > 1:
             exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
         else:

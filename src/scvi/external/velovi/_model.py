@@ -129,7 +129,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         weight_decay: float = 1e-2,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         batch_size: int = 256,
         early_stopping: bool = True,

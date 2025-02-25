@@ -9,10 +9,12 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._utils import _check_nonnegative_integers
+from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import (
     _get_batch_code_from_category,
@@ -20,33 +22,46 @@ from scvi.model._utils import (
     _init_library_size,
     cite_seq_raw_counts_properties,
     get_max_epochs_heuristic,
+    use_distributed_sampler,
 )
 from scvi.model.base._de_core import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
+from .base import (
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+    RNASeqMixin,
+    VAEMixin,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from typing import Literal
 
-    from anndata import AnnData
     from mudata import MuData
 
-    from scvi._types import Number
+    from scvi._types import AnnOrMuData, Number
 
 logger = logging.getLogger(__name__)
 
 
-class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
+class TOTALVI(
+    RNASeqMixin,
+    VAEMixin,
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+):
     """total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`.
+        AnnOrMuData object that has been registered via :meth:`~scvi.model.TOTALVI.setup_anndata`
+        or :meth:`~scvi.model.TOTALVI.setup_mudata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -84,13 +99,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
     Examples
     --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.TOTALVI.setup_anndata(
-            adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-        )
-    >>> vae = scvi.model.TOTALVI(adata)
+    >>> mdata = mudata.read_h5mu(path_to_mudata)
+    >>> scvi.model.TOTALVI.setup_mudata(
+            mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
+    >>> vae = scvi.model.TOTALVI(mdata)
     >>> vae.train()
-    >>> adata.obsm["X_totalVI"] = vae.get_latent_representation()
+    >>> mdata.obsm["X_totalVI"] = vae.get_latent_representation()
 
     Notes
     -----
@@ -102,13 +116,15 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """
 
     _module_cls = TOTALVAE
+    _LATENT_QZM_KEY = "totalvi_latent_qzm"
+    _LATENT_QZV_KEY = "totalvi_latent_qzv"
     _data_splitter_cls = DataSplitter
     _training_plan_cls = AdversarialTrainingPlan
     _train_runner_cls = TrainRunner
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         n_latent: int = 20,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
@@ -129,10 +145,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_mask = self.protein_state_registry.protein_batch_mask
             msg = (
                 "Some proteins have all 0 counts in some batches. "
-                + "These proteins will be treated as missing measurements; however, "
-                + "this can occur due to experimental design/biology. "
-                + "Reinitialize the model with `override_missing_proteins=True`,"
-                + "to override this behavior."
+                "These proteins will be treated as missing measurements; however, "
+                "this can occur due to experimental design/biology. "
+                "Reinitialize the model with `override_missing_proteins=True`,"
+                "to override this behavior."
             )
             warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             self._use_adversarial_classifier = True
@@ -145,7 +161,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if emp_prior:
+        if emp_prior and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -161,7 +177,10 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -183,12 +202,21 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             library_log_vars=library_log_vars,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalVI Model with the following params: \nn_latent: {n_latent}, "
             f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, "
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}"
         )
         self.init_params_ = self._get_init_params(locals())
+        if self.registry_["setup_method_name"] == "setup_mudata":
+            original_dict = self.registry_["setup_args"]["modalities"]
+            self.modalities = {
+                "rna_layer": original_dict.get("rna_layer"),
+                "protein_layer": original_dict.get("protein_layer"),
+            }
+        else:
+            self.modalities = None
 
     @devices_dsp.dedent
     def train(
@@ -197,7 +225,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         lr: float = 4e-3,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 256,
@@ -295,6 +323,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             external_indexing=external_indexing,
             **datasplitter_kwargs,
         )
@@ -790,6 +819,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             batch_correction,
             fdr_target,
             silent,
+            pseudocounts=1e-5,
             **kwargs,
         )
 
@@ -798,7 +828,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         n_samples: int = 1,
         batch_size: int | None = None,
@@ -848,19 +878,25 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
 
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        scdl_list = []
+        rna_list = []
+        protein_list = []
         for tensors in scdl:
             rna_sample, protein_sample = self.module.sample(tensors, n_samples=n_samples)
             rna_sample = rna_sample[..., gene_mask]
             protein_sample = protein_sample[..., protein_mask]
-            data = torch.cat([rna_sample, protein_sample], dim=-1).numpy()
 
-            scdl_list += [data]
+            rna_list += [rna_sample]
+            protein_list += [protein_sample]
             if n_samples > 1:
-                scdl_list[-1] = np.transpose(scdl_list[-1], (1, 2, 0))
-        scdl_list = np.concatenate(scdl_list, axis=0)
+                rna_list[-1] = np.transpose(rna_list[-1], (1, 2, 0))
+                protein_list[-1] = np.transpose(protein_list[-1], (1, 2, 0))
+        rna = np.concatenate(rna_list, axis=0)
+        protein = np.concatenate(protein_list, axis=0)
 
-        return scdl_list
+        if isinstance(adata, AnnData):
+            return {"rna": rna, "protein": protein}
+        else:
+            return {self.modalities["rna_layer"]: rna, self.modalities["protein_layer"]: protein}
 
     @torch.inference_mode()
     def _get_denoised_samples(
@@ -932,7 +968,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
             # This gamma is really l*w using scVI manuscript notation
             p = rate / (rate + dispersion)
             r = dispersion
-            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
+            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            l_train = (
+                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample().to("mps")
+                if self.device.type == "mps"
+                else torch.distributions.Gamma(r, (1 - p) / p).sample()
+            )
             data = l_train.cpu().numpy()
             # make background 0
             data[:, :, x.shape[1] :] = data[:, :, x.shape[1] :] * (1 - mixing_sample).cpu().numpy()
@@ -1004,6 +1045,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 batch_size=batch_size,
                 rna_size_factor=rna_size_factor,
                 transform_batch=b,
+                indices=indices,
             )
             flattened = np.zeros((denoised_data.shape[0] * n_samples, denoised_data.shape[1]))
             for i in range(n_samples):
@@ -1214,6 +1256,12 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         -------
         %(returns)s
         """
+        warnings.warn(
+            "We recommend using setup_mudata for multi-modal data."
+            "It does not influence model performance",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         setup_method_args = cls._get_setup_method_args(**locals())
         batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
@@ -1275,7 +1323,7 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
         --------
         >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
         >>> scvi.model.TOTALVI.setup_mudata(
-                mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"}
+                mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
             )
         >>> vae = scvi.model.TOTALVI(mdata)
         """
@@ -1330,6 +1378,9 @@ class TOTALVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
                 mod_required=True,
             ),
         ]
+        mdata_minify_type = _get_adata_minify_type(mdata)
+        if mdata_minify_type is not None:
+            mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)

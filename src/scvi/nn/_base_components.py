@@ -177,7 +177,16 @@ class FCLayers(nn.Module):
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
-                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
+                            if (
+                                x.device.type == "mps"
+                            ):  # TODO: remove this when MPS supports for loop.
+                                x = torch.cat(
+                                    [(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0
+                                )
+                            else:
+                                x = torch.cat(
+                                    [layer(slice_x).unsqueeze(0) for slice_x in x], dim=0
+                                )
                         else:
                             x = layer(x)
                     else:
@@ -565,6 +574,7 @@ class MultiEncoder(nn.Module):
         n_layers_individual: int = 1,
         n_layers_shared: int = 2,
         n_cat_list: Iterable[int] = None,
+        distribution: str = "normal",
         dropout_rate: float = 0.1,
         return_dist: bool = False,
         **kwargs,
@@ -596,6 +606,11 @@ class MultiEncoder(nn.Module):
             dropout_rate=dropout_rate,
             **kwargs,
         )
+
+        if distribution == "ln":
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = _identity
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
@@ -889,8 +904,9 @@ class DecoderTOTALVI(nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = self.activation_function_bg(
-            self.py_back_mean_log_beta(py_back_cat_z, *cat_list)
+        py_["back_beta"] = (
+            self.activation_function_bg(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+            + 1e-8
         )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)

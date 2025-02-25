@@ -17,7 +17,7 @@ from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_device_args
-from scvi.model.base import BaseModelClass, VAEMixin
+from scvi.model.base import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -41,7 +41,7 @@ def _unpack_tensors(tensors):
     return x, batch_index, y
 
 
-class GIMVI(VAEMixin, BaseModelClass):
+class GIMVI(VAEMixin, BaseModelClass, RNASeqMixin):
     """Joint VAE for imputing missing genes in spatial data :cite:p:`Lopez19`.
 
     Parameters
@@ -172,7 +172,7 @@ class GIMVI(VAEMixin, BaseModelClass):
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
         kappa: int = 5,
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
@@ -313,9 +313,11 @@ class GIMVI(VAEMixin, BaseModelClass):
                     self.module.sample_from_posterior_z(
                         sample_batch, mode, deterministic=deterministic
                     )
+                    .cpu()
+                    .detach()
                 )
 
-            latent = torch.cat(latent).cpu().detach().numpy()
+            latent = torch.cat(latent).numpy()
             latents.append(latent)
 
         return latents
@@ -372,6 +374,8 @@ class GIMVI(VAEMixin, BaseModelClass):
                             deterministic=deterministic,
                             decode_mode=decode_mode,
                         )
+                        .cpu()
+                        .detach()
                     )
                 else:
                     imputed_value.append(
@@ -383,9 +387,11 @@ class GIMVI(VAEMixin, BaseModelClass):
                             deterministic=deterministic,
                             decode_mode=decode_mode,
                         )
+                        .cpu()
+                        .detach()
                     )
 
-            imputed_value = torch.cat(imputed_value).cpu().detach().numpy()
+            imputed_value = torch.cat(imputed_value).numpy()
             imputed_values.append(imputed_value)
 
         return imputed_values

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pytest
 import torch
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
@@ -215,6 +216,7 @@ def test_pyro_bayesian_regression_low_level(
     ]
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
@@ -254,7 +256,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     new_model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     # run model one step to get autoguide params
     try:
-        new_model.load_state_dict(torch.load(model_save_path))
+        new_model.load_state_dict(torch.load(model_save_path, weights_only=False))
     except RuntimeError as err:
         if isinstance(new_model, PyroBaseModuleClass):
             plan = PyroTrainingPlan(new_model)
@@ -265,7 +267,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
                 max_steps=1,
             )
             trainer.fit(plan, train_dl)
-            new_model.load_state_dict(torch.load(model_save_path))
+            new_model.load_state_dict(torch.load(model_save_path, weights_only=False))
         else:
             raise err
 
@@ -277,6 +279,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression_jit(
     accelerator: str,
     devices: list | str | int,
@@ -365,9 +368,9 @@ def test_pyro_bayesian_train_sample_mixin():
     ]
 
     # test posterior sampling
-    samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
+    results = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
 
-    assert len(samples["posterior_samples"]["sigma"]) == 10
+    assert len(results["posterior_samples"]["sigma"]) == 10
 
 
 def test_pyro_bayesian_train_sample_mixin_full_data():

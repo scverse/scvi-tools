@@ -1,7 +1,7 @@
-from collections import OrderedDict
-from typing import Literal
+from __future__ import annotations
 
-import numpy as np
+from typing import TYPE_CHECKING
+
 import torch
 from torch.distributions import Normal
 
@@ -9,6 +9,12 @@ from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import FCLayers
+
+if TYPE_CHECKING:
+    from collections import OrderedDict
+    from typing import Literal
+
+    import numpy as np
 
 
 def identity(x):
@@ -127,7 +133,7 @@ class MRDeconv(BaseModuleClass):
         self.px_decoder.load_state_dict(px_decoder_state_dict)
         for param in self.px_decoder.parameters():
             param.requires_grad = False
-        self.register_buffer("px_o", torch.tensor(px_r))
+        self.register_buffer("px_o", torch.tensor(px_r, dtype=torch.float32))
 
         # cell_type specific factor loadings
         self.V = torch.nn.Parameter(torch.randn(self.n_labels + 1, self.n_spots))
@@ -136,9 +142,9 @@ class MRDeconv(BaseModuleClass):
         self.gamma = torch.nn.Parameter(torch.randn(n_latent, self.n_labels, self.n_spots))
         if mean_vprior is not None:
             self.p = mean_vprior.shape[1]
-            self.register_buffer("mean_vprior", torch.tensor(mean_vprior))
-            self.register_buffer("var_vprior", torch.tensor(var_vprior))
-            self.register_buffer("mp_vprior", torch.tensor(mp_vprior))
+            self.register_buffer("mean_vprior", torch.tensor(mean_vprior, dtype=torch.float32))
+            self.register_buffer("var_vprior", torch.tensor(var_vprior, dtype=torch.float32))
+            self.register_buffer("mp_vprior", torch.tensor(mp_vprior, dtype=torch.float32))
         else:
             self.mean_vprior = None
             self.var_vprior = None
@@ -187,7 +193,9 @@ class MRDeconv(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         ind_x = tensors[REGISTRY_KEYS.INDICES_KEY].long().ravel()
 
-        input_dict = {"x": x, "ind_x": ind_x}
+        batch_index = None  # tensors[REGISTRY_KEYS.BATCH_KEY]
+
+        input_dict = {"x": x, "ind_x": ind_x, "batch_index": batch_index}
         return input_dict
 
     @auto_move_data
@@ -196,7 +204,7 @@ class MRDeconv(BaseModuleClass):
         return {}
 
     @auto_move_data
-    def generative(self, x, ind_x):
+    def generative(self, x, ind_x, batch_index=None, transform_batch: torch.Tensor | None = None):
         """Build the deconvolution model for every cell in the minibatch."""
         m = x.shape[0]
         library = torch.sum(x, dim=1, keepdim=True)
@@ -205,6 +213,9 @@ class MRDeconv(BaseModuleClass):
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
         x_ = torch.log(1 + x)
         # subsample parameters
+
+        # if transform_batch is not None:
+        #    batch_index = torch.ones_like(batch_index) * transform_batch
 
         if self.amortization in ["both", "latent"]:
             gamma_ind = torch.transpose(self.gamma_encoder(x_), 0, 1).reshape(
@@ -249,6 +260,7 @@ class MRDeconv(BaseModuleClass):
             "px_scale": px_scale,
             "gamma": gamma_ind,
             "v": v_ind,
+            "batch_index": batch_index,
         }
 
     def loss(

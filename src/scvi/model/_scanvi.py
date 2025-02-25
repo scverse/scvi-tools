@@ -8,12 +8,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
-    _ADATA_MINIFY_TYPE_UNS_KEY,
     _SETUP_ARGS_KEY,
     ADATA_MINIFY_TYPE,
 )
@@ -25,12 +23,9 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
     NumericalObsField,
-    ObsmField,
-    StringUnsField,
 )
 from scvi.dataloaders import SemiSupervisedDataSplitter
-from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
-from scvi.model.utils import get_minified_adata_scrna
+from scvi.model._utils import _init_library_size, get_max_epochs_heuristic, use_distributed_sampler
 from scvi.module import SCANVAE
 from scvi.train import SemiSupervisedTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
@@ -45,16 +40,7 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
-    from scvi._types import MinifiedDataType
-    from scvi.data.fields import (
-        BaseAnnDataField,
-    )
-
     from ._scvi import SCVI
-
-_SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
-_SCANVI_LATENT_QZV = "_scanvi_latent_qzv"
-_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +101,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
 
     _module_cls = SCANVAE
     _training_plan_cls = SemiSupervisedTrainingPlan
+    _LATENT_QZM_KEY = "scanvi_latent_qzm"
+    _LATENT_QZV_KEY = "scanvi_latent_qzv"
 
     def __init__(
         self,
@@ -144,7 +132,10 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         n_batch = self.summary_stats.n_batch
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key and self.minified_data_type is None:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -223,17 +214,18 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
                 )
                 del scanvi_kwargs[k]
 
-        if scvi_model.minified_data_type is not None:
+        if scvi_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             raise ValueError(
-                "We cannot use the given scvi model to initialize scanvi because it has a "
-                "minified adata."
+                "We cannot use the given scVI model to initialize scANVI because it has "
+                "minified adata. Keep counts when minifying model using "
+                "minified_data_type='latent_posterior_parameters_with_counts'."
             )
 
         if adata is None:
             adata = scvi_model.adata
         else:
             if _is_minified(adata):
-                raise ValueError("Please provide a non-minified `adata` to initialize scanvi.")
+                raise ValueError("Please provide a non-minified `adata` to initialize scANVI.")
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
 
@@ -241,13 +233,14 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
             raise ValueError(
-                "A `labels_key` is necessary as the SCVI model was initialized without one."
+                "A `labels_key` is necessary as the scVI model was initialized without one."
             )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})
         cls.setup_anndata(
             adata,
             unlabeled_category=unlabeled_category,
+            use_minified=False,
             **scvi_setup_args,
         )
         scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
@@ -356,7 +349,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         max_epochs: int | None = None,
         n_samples_per_label: float | None = None,
         check_val_every_n_epoch: int | None = None,
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
@@ -421,6 +414,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             n_samples_per_label=n_samples_per_label,
+            distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
@@ -454,6 +448,7 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
+        use_minified: bool = True,
         **kwargs,
     ):
         """%(summary)s.
@@ -468,6 +463,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        use_minified
+            If True, will register the minified version of the adata if possible.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -480,84 +477,8 @@ class SCANVI(RNASeqMixin, VAEMixin, ArchesMixin, BaseMinifiedModeModelClass):
         ]
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
-        if adata_minify_type is not None:
+        if adata_minify_type is not None and use_minified:
             anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-    @staticmethod
-    def _get_fields_for_adata_minification(
-        minified_data_type: MinifiedDataType,
-    ) -> list[BaseAnnDataField]:
-        """Return the fields required for adata minification of the given minified_data_type."""
-        if minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            fields = [
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZM_KEY,
-                    _SCANVI_LATENT_QZM,
-                ),
-                ObsmField(
-                    REGISTRY_KEYS.LATENT_QZV_KEY,
-                    _SCANVI_LATENT_QZV,
-                ),
-                NumericalObsField(
-                    REGISTRY_KEYS.OBSERVED_LIB_SIZE,
-                    _SCANVI_OBSERVED_LIB_SIZE,
-                ),
-            ]
-        else:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-        fields.append(
-            StringUnsField(
-                REGISTRY_KEYS.MINIFY_TYPE_KEY,
-                _ADATA_MINIFY_TYPE_UNS_KEY,
-            ),
-        )
-        return fields
-
-    def minify_adata(
-        self,
-        minified_data_type: MinifiedDataType = ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
-        use_latent_qzm_key: str = "X_latent_qzm",
-        use_latent_qzv_key: str = "X_latent_qzv",
-    ):
-        """Minifies the model's adata.
-
-        Minifies the adata, and registers new anndata fields: latent qzm, latent qzv, adata uns
-        containing minified-adata type, and library size.
-        This also sets the appropriate property on the module to indicate that the adata is
-        minified.
-
-        Parameters
-        ----------
-        minified_data_type
-            How to minify the data. Currently only supports `latent_posterior_parameters`.
-            If minified_data_type == `latent_posterior_parameters`:
-
-            * the original count data is removed (`adata.X`, adata.raw, and any layers)
-            * the parameters of the latent representation of the original data is stored
-            * everything else is left untouched
-        use_latent_qzm_key
-            Key to use in `adata.obsm` where the latent qzm params are stored
-        use_latent_qzv_key
-            Key to use in `adata.obsm` where the latent qzv params are stored
-
-        Notes
-        -----
-        The modification is not done inplace -- instead the model is assigned a new (minified)
-        version of the adata.
-        """
-        if minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
-            raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-
-        if self.module.use_observed_lib_size is False:
-            raise ValueError("Cannot minify the data if `use_observed_lib_size` is False")
-
-        minified_adata = get_minified_adata_scrna(self.adata, minified_data_type)
-        minified_adata.obsm[_SCANVI_LATENT_QZM] = self.adata.obsm[use_latent_qzm_key]
-        minified_adata.obsm[_SCANVI_LATENT_QZV] = self.adata.obsm[use_latent_qzv_key]
-        counts = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-        minified_adata.obs[_SCANVI_OBSERVED_LIB_SIZE] = np.squeeze(np.asarray(counts.sum(axis=1)))
-        self._update_adata_and_manager_post_minification(minified_adata, minified_data_type)
-        self.module.minified_data_type = minified_data_type

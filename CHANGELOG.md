@@ -4,17 +4,96 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2
+## Version 1.3
 
-### 1.2.1 (2024-XX-XX)
+### 1.3.0 (2025-02-XX)
 
 #### Added
+
+- Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
+    representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add multiGPU support for {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`,
+    {class}`~scvi.model.CondSCVI` and {class}`~scvi.model.LinearSCVI`, {class}`~scvi.model.TOTALVI`,
+    {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.PEAKVI`. {pr}`3125`.
+- Add an exception callback to {class}`scvi.train._callbacks.SaveCheckpoint` in order to save
+    optimal model during training, in case of failure because of Nan's in gradients. {pr}`3159`.
+- Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, PoissonVI, CondSCVI,
+    AutoZI, CellAssign and GimVI. {pr}`3121`.
+- Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
+    transcriptomics {pr}`3144`.
+- Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
+
+#### Fixed
+
+- Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
+- Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
+- Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
+    out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
+    memory usage {pr}`3146`.
+- Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
+
+#### Changed
+
+- Updated the CI workflow with multiGPU tests {pr}`3053`.
+- Set `mode="change"` as default DE method. Compute positive and negative LFC separately
+    by default (`test_mode="three"`). Corrected computation of pseudocounts and make if
+    default to add a pseudocounts for genes not expressed (`pseudocount=None`). According to
+    Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`
+
+#### Removed
+
+## Version 1.2
+
+### 1.2.2 (2024-12-31)
+
+#### Added
+
+- Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
+- Add Support for MPS usage in mac {pr}`3100`.
+- Add support for torch.compile before train (EXPERIMENTAL) {pr}`2931`.
+- Add support for Numpy 2.0 {pr}`2842`.
+- Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
+- MuData support for {class}`~scvi.model.MULTIVI` via the method
+    {meth}`~scvi.model.MULTIVI.setup_mudata` {pr}`3038`.
+
+#### Fixed
+
+- Fixed batch_size pop to get in {class}`scvi.dataloaders.DataSplitter` {pr}`3128`.
+
+#### Changed
+
+- Updated the CI workflow with internet, private and optional tests {pr}`3082`.
+- Changed loompy stored files to anndata {pr}`2842`.
+- Address AnnData >= 0.11 deprecation warning for {class}`anndata.experimental` by replacing
+    instances to {class}`anndata.abc` and {class}`anndata.io` {pr}`3085`.
+
+#### Removed
+
+- Removed the support for loompy and local mde function {pr}`2842`.
+
+### 1.2.1 (2024-12-04)
+
+#### Added
+
+- Added adaptive handling for last training minibatch of 1-2 cells in case of
+    `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
+    validation set, if available. {pr}`3036`.
+- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
+- Implemented variance of ZINB distribution. {pr}`3044`.
+- Support for minified mode while retaining counts to skip the encoder.
+- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+    the encoder.
+- Refactored code for minified models. {pr}`2883`.
+- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
+    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
+- Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
 
 #### Changed
 
@@ -68,8 +147,6 @@ to [Semantic Versioning]. Full commit history is available in the
     data {pr}`2756`.
 - Add support for reference mapping with {class}`mudata.MuData` models to
     {class}`scvi.model.base.ArchesMixin` {pr}`2578`.
-- Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
-    bisulfite sequencing (scBS-seq) experiments {pr}`2834`.
 - Add argument `return_mean` to {meth}`scvi.model.base.VAEMixin.get_reconstruction_error`
     and {meth}`scvi.model.base.VAEMixin.get_elbo` to allow computation
     without averaging across cells {pr}`2362`.
@@ -1580,7 +1657,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 #### Enhancements
 
-##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method  <!-- markdownlint-disable -->
+##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
 It is now possible to iteratively update these models with new samples, without altering the model
 for the "reference" population. Here we use the
@@ -1642,7 +1719,7 @@ use scvi-tools is with our documentation and tutorials.
 - New high-level API and data loading, please see tutorials and examples for usage.
 - `GeneExpressionDataset` and associated classes have been removed.
 - Built-in datasets now return `AnnData` objects.
-- `scvi-tools` now relies entirely on the \[AnnData\] format.
+- `scvi-tools` now relies entirely on the [AnnData] format.
 - `scvi.models` has been moved to `scvi.core.module`.
 - `Posterior` classes have been reduced to wrappers on `DataLoaders`
 - `scvi.inference` has been split to `scvi.core.data_loaders` for `AnnDataLoader` classes and

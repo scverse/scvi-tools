@@ -122,7 +122,6 @@ intersphinx_mapping = {
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     "lightning": ("https://lightning.ai/docs/pytorch/stable/", None),
     "pyro": ("http://docs.pyro.ai/en/stable/", None),
-    "pymde": ("https://pymde.org/", None),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
@@ -223,7 +222,7 @@ def linkcode_resolve(domain, info):
         return None
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    return f"{repository_url}/blob/{git_ref}/scvi/{path}"
+    return f"{repository_url}/blob/{git_ref}/src/scvi/{path}"
 
 
 # -- Config for hoverxref -------------------------------------------

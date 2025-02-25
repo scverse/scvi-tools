@@ -17,7 +17,10 @@ class TestDataSplitters:
 
         with pytest.raises(ValueError) as excinfo:
             scvi.dataloaders.DataSplitter(
-                manager, train_size=1.5, validation_size=0.3, shuffle_set_split=False
+                manager,
+                train_size=1.5,
+                validation_size=0.3,
+                shuffle_set_split=False,
             )
         assert str(excinfo.value) == "Invalid train_size. Must be: 0 < train_size <= 1"
 
