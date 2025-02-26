@@ -1,4 +1,4 @@
-# ATAC-seq
+# scATAC-seq
 
 ```{toctree}
 :maxdepth: 1
