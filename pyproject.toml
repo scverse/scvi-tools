@@ -55,6 +55,7 @@ dependencies = [
     "torchmetrics>=0.11.0",
     "tqdm",
     "xarray>=2023.2.0",
+    "dask",
 ]
 
 [project.optional-dependencies]
@@ -94,10 +95,12 @@ regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
-pooch = ["pooch"]
+file_sharing = ["pooch"]
+# for parallelization engine
+parallel = ["dask[array]>=2023.5.1,<2024.8.0"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel]"
 ]
 tutorials = [
     "cell2location",
