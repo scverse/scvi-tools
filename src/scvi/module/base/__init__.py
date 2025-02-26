@@ -8,6 +8,7 @@ from ._base_module import (
 )
 from ._decorators import auto_move_data, flax_configure
 from ._embedding_mixin import EmbeddingModuleMixin
+from ._priors import GaussianPrior, MogPrior, VampPrior
 
 __all__ = [
     "BaseModuleClass",
@@ -19,4 +20,7 @@ __all__ = [
     "TrainStateWithState",
     "BaseMinifiedModeModuleClass",
     "EmbeddingModuleMixin",
+    "GaussianPrior",
+    "MogPrior",
+    "VampPrior",
 ]

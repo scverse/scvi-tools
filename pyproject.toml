@@ -94,12 +94,14 @@ regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
-pooch = ["pooch"]
+file_sharing = ["pooch"]
+# for parallelization engine
+parallel = ["dask[array]>=2023.5.1,<2024.8.0"]
 # for supervised models interpretability
 interpretability = ["captum","shap"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,pooch,regseq,scanpy,interpretability]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
