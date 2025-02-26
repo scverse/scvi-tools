@@ -1,5 +1,9 @@
 # SysVI
 
+:::{note}
+This page is under construction.
+:::
+
 **sysVI** (Python class {class}`~scvi.external.SysVI`) is a ...
 
 The advantages of SysVI are:
@@ -14,7 +18,3 @@ The limitations of SysVI include:
 
 -   {doc}`/tutorials/notebooks/scrna/sysVI`
 ```
-
-:::{note}
-This page is under construction.
-:::
