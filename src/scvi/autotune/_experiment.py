@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import inspect
 import logging
-import os
-import tempfile
-from contextlib import contextmanager
 from os.path import join
 from typing import TYPE_CHECKING
 
@@ -14,10 +11,10 @@ from anndata import AnnData
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
 from mudata import MuData
-from ray import train
-from ray.train import Checkpoint
 from ray.tune import Tuner
 from ray.util.annotations import PublicAPI
+
+from scvi.utils import is_package_installed
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -47,236 +44,190 @@ _allowed_hooks = {
 }
 
 
-def _scib_override_ptl_hooks(callback_cls: type[ScibTuneCallback]) -> type[ScibTuneCallback]:
-    """Overrides all allowed PTL Callback hooks with our custom handle logic."""
+if is_package_installed("ray"):
+    from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 
-    def generate_overridden_hook(fn_name):
-        def overridden_hook(
+    @PublicAPI
+    class ScibTuneReportCheckpointCallback(TuneReportCheckpointCallback):
+        """Ray based PyTorch Lightning report and checkpoint callback, suitd for Scib-Metrics
+
+        Saves checkpoints after each validation step. Also reports metrics to Tune,
+        which is needed for checkpoint registration.
+
+        Args:
+            metrics: Metrics to report to Tune. If this is a list,
+                each item describes the metric key reported to PyTorch Lightning,
+                and it will reported under the same name to Tune. If this is a
+                dict, each key will be the name reported to Tune and the respective
+                value will be the metric key reported to PyTorch Lightning.
+            filename: Filename of the checkpoint within the checkpoint
+                directory. Defaults to "checkpoint".
+            save_checkpoints: If True (default), checkpoints will be saved and
+                reported to Ray. If False, only metrics will be reported.
+            on: When to trigger checkpoint creations and metric reports. Must be one of
+                the PyTorch Lightning event hooks (less the ``on_``), e.g.
+                "train_batch_start", or "train_end". Defaults to "validation_end".
+            bio_conservation_metrics: Specification of which bio conservation metrics to run.
+            batch_correction_metrics: Specification of which batch correction metrics to run.
+            num_rows_to_select: select number of rows to subsample (5000 default).
+                This is important to save Scib computation time
+            indices_list: If not empty will be used to select the indices to calc the scib metric
+                on, therwise will use the random indices selection in size of scib_subsample_rows
+
+        """
+
+        from scib_metrics.benchmark import BatchCorrection, BioConservation
+
+        def __init__(
             self,
-            trainer: pl.Trainer,
-            *args,
-            pl_module: pl.LightningModule | None = None,
-            **kwargs,
+            metrics: str | list[str] | dict[str, str] | None = None,
+            filename: str = "checkpoint",
+            save_checkpoints: bool = True,
+            on: str | list[str] = "train_end",
+            bio_conservation_metrics: BioConservation | None = BioConservation(),
+            batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
+            num_rows_to_select: int = 5000,
+            indices_list: list | None = None,
         ):
-            if fn_name in self._on:
-                self._handle(trainer=trainer, pl_module=pl_module)
-
-        return overridden_hook
-
-    # Set the overridden hook to all the allowed hooks in ScibTuneCallback.
-    for fn_name in _allowed_hooks:
-        setattr(callback_cls, fn_name, generate_overridden_hook(fn_name))
-
-    return callback_cls
-
-
-@_scib_override_ptl_hooks
-class ScibTuneCallback(Callback):
-    """Base class for Tune's PyTorch Lightning callbacks.
-
-    Args:
-        When to trigger checkpoint creations. Must be one of
-        the PyTorch Lightning event hooks (less the ``on_``), e.g.
-        "train_batch_start", or "train_end". Defaults to "validation_end"
-    """
-
-    def __init__(self, on: str | list[str] = "train_end"):
-        if not isinstance(on, list):
-            on = [on]
-
-        for hook in on:
-            if f"on_{hook}" not in _allowed_hooks:
-                raise ValueError(f"Invalid hook selected: {hook}. Must be one of {_allowed_hooks}")
-
-        # Add back the "on_" prefix for internal consistency.
-        on = [f"on_{hook}" for hook in on]
-
-        self._on = on
-
-    def _handle(self, trainer: pl.Trainer, pl_module: pl.LightningModule | None):
-        raise NotImplementedError
-
-
-@PublicAPI
-class ScibTuneReportCheckpointCallback(ScibTuneCallback):
-    """PyTorch Lightning report and checkpoint callback"""
-
-    from scib_metrics.benchmark import BatchCorrection, BioConservation
-
-    def __init__(
-        self,
-        metrics: str | list[str] | dict[str, str] | None = None,
-        filename: str = "checkpoint",
-        save_checkpoints: bool = True,
-        on: str | list[str] = "train_end",
-        bio_conservation_metrics: BioConservation | None = BioConservation(),
-        batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
-        num_rows_to_select: int = 5000,
-        indices_list: list | None = None,
-    ):
-        super().__init__(on=on)
-        if isinstance(metrics, str):
-            metrics = [metrics]
-        self._save_checkpoints = save_checkpoints
-        self._filename = filename
-        self._metrics = metrics
-        self.stage = "training" if on == "train_end" else "validation"
-        self.metric = metrics[0]
-        self.num_rows_to_select = num_rows_to_select
-        self.bio_conservation_metrics = bio_conservation_metrics
-        self.batch_correction_metrics = batch_correction_metrics
-        self.on = on
-        self.indices_list = indices_list
-
-    def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        # Don't report if just doing initial validation sanity checks.
-        if trainer.sanity_checking:
-            return
-        if not self._metrics:
-            report_dict = {k: v.item() for k, v in trainer.callback_metrics.items()}
-        else:
-            from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
-
-            # Don't report if just doing initial validation sanity checks.
-            report_dict = {}
-            if self.metric is None:
-                return
-            # if self.stage == "training" and self.stage not in ["training", "both"]:
-            #     return
-            # elif self.stage == "validation" and self.stage not in ["validation", "both"]:
-            #     return
-
-            # we take th pl module from the scib callback
-            pl_module = trainer.callbacks[0].pl_module
-            if not hasattr(pl_module, f"_{self.stage}_epoch_outputs"):
-                raise ValueError(
-                    f"The training plan must have a `_{self.stage}_epoch_outputs` attribute."
-                )
-
-            # we have the original adata if needed
-            # trainer.train_dataloader.adata_manager.adata
-            outputs = getattr(pl_module, f"_{self.stage}_epoch_outputs")
-            # x = outputs["x"].numpy()
-            z = outputs["z"].numpy()
-            x = np.zeros(
-                z.shape
-            )  # TODO: should we do it? x can be remove in trainingplans already
-            batch = outputs["batch"].numpy()  # (
-            # trainer.train_dataloader.adata_manager.adata.obs._scvi_batch
-            # )  # outputs["batch"].numpy()
-            labels = outputs["labels"].numpy()  # (
-            # trainer.train_dataloader.adata_manager.adata.obs._scvi_labels
-            # )  # outputs["labels"].numpy()
-
-            # TODO: subsample to save time -  we need only z, rest is in adata
-            if self.indices_list is None or len(self.indices_list) == 0:
-                rand_idx = np.random.choice(
-                    z.shape[0], np.min([z.shape[0], self.num_rows_to_select]), replace=False
-                )
-            else:
-                rand_idx = self.indices_list
-            batch = batch[rand_idx]
-            labels = labels[rand_idx]
-            x = x[rand_idx]
-            z = z[rand_idx]
-
-            # # adjust which metric to run exactly
-            # found_metric = next(
-            #     (key for key, value in metric_name_cleaner.items() if value == self.metric), None
-            # )
-            # # special cases:
-            # if self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
-            #     found_metric = "nmi_ari_cluster_labels_leiden"
-            # if self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
-            #     found_metric = "nmi_ari_cluster_labels_kmeans"
-            # if found_metric is not None:
-
-            # beucase originaly those classes are frozen we cant just set the metric to True
-            # Need to do it manualy unfortunatley
-            if self.metric == "silhouette_label":
-                self.bio_conservation_metrics = BioConservation(True, False, False, False, False)
-                self.batch_correction_metrics = None
-            elif self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
-                self.bio_conservation_metrics = BioConservation(False, True, False, False, False)
-                self.batch_correction_metrics = None
-            elif self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
-                self.bio_conservation_metrics = BioConservation(False, False, True, False, False)
-                self.batch_correction_metrics = None
-            elif self.metric == "Silhouette label":
-                self.bio_conservation_metrics = BioConservation(False, False, False, True, False)
-                self.batch_correction_metrics = None
-            elif self.metric == "cLISI":
-                self.bio_conservation_metrics = BioConservation(False, False, False, False, True)
-                self.batch_correction_metrics = None
-            elif self.metric == "Silhouette batch":
-                self.bio_conservation_metrics = None
-                self.batch_correction_metrics = BatchCorrection(True, False, False, False, False)
-            elif self.metric == "iLISI":
-                self.bio_conservation_metrics = None
-                self.batch_correction_metrics = BatchCorrection(False, True, False, False, False)
-            elif self.metric == "KBET":
-                self.bio_conservation_metrics = None
-                self.batch_correction_metrics = BatchCorrection(False, False, True, False, False)
-            elif self.metric == "Graph connectivity":
-                self.bio_conservation_metrics = None
-                self.batch_correction_metrics = BatchCorrection(False, False, False, True, False)
-            elif self.metric == "PCR comparison":
-                self.bio_conservation_metrics = None
-                self.batch_correction_metrics = BatchCorrection(False, False, False, False, True)
-            # else:
-            # its an aggregative metric
-            elif self.metric == "Total":
-                # we jsut run them all, which is the default
-                self.bio_conservation_metrics = BioConservation()
-                self.batch_correction_metrics = BatchCorrection()
-            elif self.metric == "Batch correction":
-                # we run all batch correction and no bio conservation
-                self.bio_conservation_metrics = None
-            elif self.metric == "Bio conservation":
-                # we run all bio conservation and no batch corredction
-                self.batch_correction_metrics = None
-            else:
-                # an invalid metric!
-                raise ValueError(f"`{self.metric}` is an invalid metric in scib-metrics autotune.")
-
-            adata = AnnData(X=x, obs={"batch": batch, "labels": labels}, obsm={"z": z})
-            benchmarker = Benchmarker(
-                adata,
-                batch_key="batch",
-                label_key="labels",
-                embedding_obsm_keys=["z"],
-                bio_conservation_metrics=self.bio_conservation_metrics,
-                batch_correction_metrics=self.batch_correction_metrics,
+            super().__init__(
+                on=on, metrics=metrics, filename=filename, save_checkpoints=save_checkpoints
             )
-            benchmarker.benchmark()
-            results = benchmarker.get_results(min_max_scale=False).to_dict()
-            metrics = {f"training {self.metric}": results[self.metric]["z"]}
-            pl_module.logger.log_metrics(metrics, trainer.global_step)
-            trainer.callback_metrics[self.metric] = torch.tensor(results[self.metric]["z"])
-            report_dict[self.metric] = trainer.callback_metrics[self.metric].item()
-        return report_dict
+            if isinstance(metrics, str):
+                metrics = [metrics]
+            self.stage = "training" if on == "train_end" else "validation"
+            self.metric = metrics[0]
+            self.num_rows_to_select = num_rows_to_select
+            self.bio_conservation_metrics = bio_conservation_metrics
+            self.batch_correction_metrics = batch_correction_metrics
+            self.on = on
+            self.indices_list = indices_list
 
-    @contextmanager
-    def _get_checkpoint(self, trainer: pl.Trainer) -> Checkpoint | None:
-        if not self._save_checkpoints:
-            yield None
-            return
+        def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+            # Don't report if just doing initial validation sanity checks.
+            if trainer.sanity_checking:
+                return
+            if not self._metrics:
+                report_dict = {k: v.item() for k, v in trainer.callback_metrics.items()}
+            else:
+                from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
 
-        with tempfile.TemporaryDirectory() as checkpoint_dir:
-            trainer.save_checkpoint(os.path.join(checkpoint_dir, self._filename))
-            checkpoint = Checkpoint.from_directory(checkpoint_dir)
-            yield checkpoint
+                # Don't report if just doing initial validation sanity checks.
+                report_dict = {}
+                if self.metric is None:
+                    return
 
-    def _handle(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
-        if trainer.sanity_checking:
-            return
+                # we take th pl module from the scib callback
+                pl_module = trainer.callbacks[0].pl_module
+                if not hasattr(pl_module, f"_{self.stage}_epoch_outputs"):
+                    raise ValueError(
+                        f"The training plan must have a `_{self.stage}_epoch_outputs` attribute."
+                    )
 
-        report_dict = self._get_report_dict(trainer, pl_module)
-        if not report_dict:
-            return
+                # we have the original adata if needed
+                outputs = getattr(pl_module, f"_{self.stage}_epoch_outputs")
+                z = outputs["z"].numpy()
+                x = np.zeros(z.shape)  # we don't really need x here, we work on z
+                batch = outputs["batch"].numpy()  # (
+                labels = outputs["labels"].numpy()  # (
 
-        with self._get_checkpoint(trainer) as checkpoint:
-            train.report(report_dict, checkpoint=checkpoint)
+                # subsample to save time
+                if self.indices_list is None or len(self.indices_list) == 0:
+                    rand_idx = np.random.choice(
+                        z.shape[0], np.min([z.shape[0], self.num_rows_to_select]), replace=False
+                    )
+                else:
+                    rand_idx = self.indices_list
+                batch = batch[rand_idx]
+                labels = labels[rand_idx]
+                x = x[rand_idx]
+                z = z[rand_idx]
+
+                # beucase originaly those classes are frozen we cant just set the metric to True
+                # Need to do it manualy unfortunatley
+                if self.metric == "silhouette_label":
+                    self.bio_conservation_metrics = BioConservation(
+                        True, False, False, False, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, True, False, False, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, False, True, False, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "Silhouette label":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, False, False, True, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "cLISI":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, False, False, False, True
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "Silhouette batch":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        True, False, False, False, False
+                    )
+                elif self.metric == "iLISI":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, True, False, False, False
+                    )
+                elif self.metric == "KBET":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, False, True, False, False
+                    )
+                elif self.metric == "Graph connectivity":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, False, False, True, False
+                    )
+                elif self.metric == "PCR comparison":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, False, False, False, True
+                    )
+                # else:
+                # its an aggregative metric
+                elif self.metric == "Total":
+                    # we jsut run them all, which is the default
+                    self.bio_conservation_metrics = BioConservation()
+                    self.batch_correction_metrics = BatchCorrection()
+                elif self.metric == "Batch correction":
+                    # we run all batch correction and no bio conservation
+                    self.bio_conservation_metrics = None
+                elif self.metric == "Bio conservation":
+                    # we run all bio conservation and no batch corredction
+                    self.batch_correction_metrics = None
+                else:
+                    # an invalid metric!
+                    raise ValueError(
+                        f"`{self.metric}` is an invalid metric in scib-metrics autotune."
+                    )
+
+                adata = AnnData(X=x, obs={"batch": batch, "labels": labels}, obsm={"z": z})
+                benchmarker = Benchmarker(
+                    adata,
+                    batch_key="batch",
+                    label_key="labels",
+                    embedding_obsm_keys=["z"],
+                    bio_conservation_metrics=self.bio_conservation_metrics,
+                    batch_correction_metrics=self.batch_correction_metrics,
+                )
+                benchmarker.benchmark()
+                results = benchmarker.get_results(min_max_scale=False).to_dict()
+                metrics = {f"training {self.metric}": results[self.metric]["z"]}
+                pl_module.logger.log_metrics(metrics, trainer.global_step)
+                trainer.callback_metrics[self.metric] = torch.tensor(results[self.metric]["z"])
+                report_dict[self.metric] = trainer.callback_metrics[self.metric].item()
+            return report_dict
 
 
 class AutotuneExperiment:

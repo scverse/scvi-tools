@@ -34,6 +34,9 @@ def run_autotune(
     scib_stage: str | None = "train_end",
     scib_subsample_rows: int | None = 5000,
     scib_indices_list: list | None = None,
+    log_to_driver: bool = False,
+    local_mode: bool = False,
+    ignore_reinit_error: bool = False,
 ) -> AutotuneExperiment:
     """``BETA`` Run a hyperparameter sweep.
 
@@ -107,6 +110,14 @@ def run_autotune(
     scib_indices_list
         If not empty will be used to select the indices to calc the scib metric on, otherwise will
         use the random indices selection in size of scib_subsample_rows
+    ignore_reinit_error
+        If true, Ray suppresses errors from calling
+        ray.init() a second time. Ray won't be restarted.
+    local_mode
+        Deprecated: consider using the Ray Debugger instead.
+    log_to_driver
+        If true, the output from all of the worker
+        processes on all nodes will be directed to the driver.
 
     Returns
     -------
@@ -143,6 +154,8 @@ def run_autotune(
         scib_indices_list=scib_indices_list,
     )
     logger.info(f"Running autotune experiment {experiment.name}.")
-    init(log_to_driver=False, ignore_reinit_error=True, local_mode=True)
+    init(
+        log_to_driver=log_to_driver, ignore_reinit_error=ignore_reinit_error, local_mode=local_mode
+    )
     experiment.result_grid = experiment.get_tuner().fit()
     return experiment

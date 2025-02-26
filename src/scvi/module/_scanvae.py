@@ -367,7 +367,6 @@ class SCANVAE(VAE):
                 true_labels=true_labels,
                 logits=logits,
                 extra_metrics={
-                    # "x": x,
                     "z": inference_outputs["z"],
                     "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
                     "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
