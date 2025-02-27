@@ -2,10 +2,10 @@
 
 In PyTorch Lightning, callbacks are special functions that let you execute custom actions during the training process, like saving checkpoints, adjusting learning rates, or early stopping based on performance. To use callbacks, you first create a callback class that defines what should happen at specific points in training (e.g., at the end of an epoch or batch). Then, when setting up your Trainer, you simply pass a list of these callbacks. For example, if you want to save the best model during training, you can use ModelCheckpoint to automatically store the model when it achieves the best validation score.
 
-In SCVI we developed 2 main custom callbacks based on that:
+In scvi-tools we provide two custom callbacks based on that:
 1. Early Stopping callback: {class}`scvi.train._callbacks.LoudEarlyStopping`
 
-With this callback, training will stop while its monitored metric is reaching an optimal point for and not improving for several epochs.
+With this callback, training will stop when its monitored metric is reaching an optimal point for and did not improve for several epochs.
 There are several common parameters that can be controlled when running this callback:
 - early_stopping: A boolean on whether to activate the early stopping callback.
 - monitor: There are several metric keys we automatically record while training:
@@ -24,7 +24,7 @@ There are several common parameters that can be controlled when running this cal
 - patience: number of checks with no improvement
     after which training will be stopped. Under the default configuration, one check happens after
     every training epoch. However, the frequency of validation can be modified by setting various parameters on
-    the ``Trainer``, for example ``check_val_every_n_epoch`` and ``val_check_interval``. by deafult, if not set, ``check_val_every_n_epoch`` will be 1, thus adding computation overhead to the training step.
+    the ``Trainer``, for example ``check_val_every_n_epoch`` and ``val_check_interval``. by default, if not set, ``check_val_every_n_epoch`` will be 1, thus adding computation overhead to the training step.
 - mode: one of ``'min'``, ``'max'``. In ``'min'`` mode, training will stop when the quantity
     monitored has stopped decreasing and in ``'max'`` mode it will stop when the quantity
     monitored has stopped increasing.
@@ -46,7 +46,7 @@ Several models will be trained with early stopping by default, e.g {class}`~scvi
 2. Model Checkpoint Callback: {class}`scvi.train._callbacks.SaveCheckpoint`
 
 Saves model checkpoints based on a monitored metric. The best model saved and best model score based on ``monitor`` can be accessed post-training
-    with the ``best_model_path`` and ``best_model_score`` attributes, respectively. Starting v1.3.0, we added the on_exception option to this callback, which in case of model error exception during training, resulted from Nan's in loss or gradients, will save the best model ("best" in terms of what is the monitored metric) that was achieved upto the point of failure. It will not gracefully shutdown, but the user responsibility will be to load it back and continue the analysis, e.g., user can take the optimal model that was saved, or continue training it with perhaps different parameters, where, in such case it might continue to train passed the point of previous failure. Note this option will add some overhead to train time.
+    with the ``best_model_path`` and ``best_model_score`` attributes, respectively. Starting in scvi-tools 1.3.0, we added the on_exception option to this callback, which in case of model error exceptions during training, resulting from Nan's in loss or gradients, will save the best model ("best" in terms of what is the monitored metric). It does not gracefully shutdown, but it is the user responsibility to load this model and continue the analysis, e.g., user can take the optimal model that was saved, or continue training it with perhaps different training parameters, to prevent the model from failing to train. Note this option will add some overhead to the training time.
 
 It can be used by adding the following parameter to the train function:
 ```python
