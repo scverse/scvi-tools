@@ -4,6 +4,7 @@ import importlib
 import logging
 from typing import TYPE_CHECKING
 
+import anndata
 import numpy as np
 import pandas as pd
 import torch
@@ -382,6 +383,7 @@ class SemisupervisedTrainingMixin:
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             n_samples_per_label=n_samples_per_label,
+            distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
@@ -445,18 +447,23 @@ class SemisupervisedTrainingMixin:
         X,
     ):
         adata = self._validate_anndata()
+
         # we need to adjust adata to the shap random selection ..
-        # TODO: but what about batch and covariates if they were exists?
         if len(X) > len(adata):
             # Repeat the data to expand to a larger size
             n_repeats = len(X) / len(adata)  # how many times you want to repeat the data
-            adata = adata[adata.obs.index.repeat(n_repeats), :]
+            adata_to_pred = adata[adata.obs.index.repeat(n_repeats), :]
+            if len(X) > len(adata_to_pred):
+                adata_to_pred = anndata.concat(
+                    [adata_to_pred, adata[0 : (len(X) - len(adata_to_pred))]]
+                )
         else:
-            adata = adata[0 : len(X)]
-        adata.X = X
-        return self.predict(adata, soft=True)
+            adata_to_pred = adata[0 : len(X)]
+        adata_to_pred.X = X
 
-    def shap_predict(self, adata: AnnOrMuData | None = None):
+        return self.predict(adata_to_pred, soft=True)
+
+    def shap_predict(self, adata: AnnOrMuData | None = None, max_size: int = 100):
         missing_modules = []
         try:
             importlib.import_module("shap")
@@ -466,8 +473,23 @@ class SemisupervisedTrainingMixin:
             raise ModuleNotFoundError("Please install shap to use this functionality.")
         import shap
 
+        adata_orig = self._validate_anndata()
         adata = self._validate_anndata(adata)
-        feature_matrix = pd.DataFrame(adata.X, columns=adata.var_names)
-        explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix)
-        shap_values = explainer.shap_values(feature_matrix)  # will take time!
+
+        if type(adata_orig.X).__name__ == "csr_matrix":
+            feature_matrix_background = pd.DataFrame.sparse.from_spmatrix(
+                adata_orig.X, columns=adata_orig.var_names
+            )
+        else:
+            feature_matrix_background = pd.DataFrame(adata_orig.X, columns=adata_orig.var_names)
+        if type(adata.X).__name__ == "csr_matrix":
+            feature_matrix = pd.DataFrame.sparse.from_spmatrix(
+                adata.X, columns=adata_orig.var_names
+            )
+        else:
+            feature_matrix = pd.DataFrame(adata.X, columns=adata_orig.var_names)
+        feature_matrix_background = shap.sample(feature_matrix_background, max_size)
+        feature_matrix = shap.sample(feature_matrix, max_size)
+        explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix_background)
+        shap_values = explainer.shap_values(feature_matrix)
         return shap_values

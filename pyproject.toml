@@ -136,6 +136,7 @@ markers = [
     "optional: mark optional tests, usually take more time",
     "private: mark tests that uses private keys, like HF",
     "multigpu: mark tests that are used to check multi GPU performance",
+    "autotune: mark tests that are used to check ray autotune capabilities",
 ]
 
 [tool.ruff]

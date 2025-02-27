@@ -22,6 +22,7 @@ You can compare the expression of genes between clusters to identify which genes
 differential_expression = scvi.model.SCVI().differential_expression()
 ```
 Log-fold Change (LFC) and p-values are typically used to assess which genes have significant expression differences between groups.
+Refer to [SCVI-Hub]("https://huggingface.co/scvi-tools") for use cases of DE.
 3. Cell Type Identification
 Mapping to Known Labels: After training a model with SCVI, you can use the latent space to assign cells to known or predicted cell types. You can compare how well SCVI clusters cells by their latent representations and match them to known biological annotations.
 If you have labeled data (e.g., cell types), you can assess how well the model’s clusters correspond to these labels.

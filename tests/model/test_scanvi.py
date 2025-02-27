@@ -595,7 +595,7 @@ def test_scanvi_interpertability(unlabeled_cat: str):
         categorical_covariate_keys=["cat1", "cat2"],
     )
     model = SCANVI(adata, n_latent=10)
-    model.train(100, train_size=0.5, check_val_every_n_epoch=1)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
     # get the IG for all data
     predictions, attributions = model.predict(ig_interpretability=True)  # orignal predictions
@@ -622,7 +622,7 @@ def test_scanvi_interpertability(unlabeled_cat: str):
 
     # now run shap values for the test set
     # (here, the more labels the more time it will take to run)
-    # shap_values_test = model.shap_predict(adata2)
+    shap_values_test = model.shap_predict(adata2)
     # # select the label we want to understand (usually the '1' class)
-    # shap_top_features_test = model.get_ranked_genes(attrs=shap_values_test[:, :, 1]).head(5)
-    # print(shap_top_features_test)
+    shap_top_features_test = model.get_ranked_genes(attrs=shap_values_test[:, :, 1]).head(5)
+    print(shap_top_features_test)

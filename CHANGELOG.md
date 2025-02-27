@@ -6,7 +6,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.0 (2025-02-XX)
+### 1.3.0 (2025-02-28)
 
 #### Added
 
@@ -18,14 +18,15 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add an exception callback to {class}`scvi.train._callbacks.SaveCheckpoint` in order to save
     optimal model during training, in case of failure because of Nan's in gradients. {pr}`3159`.
 - Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: {class}`~scvi.model.PEAKVI`,
-    {class}`~scvi.external.PoissonVI`, {class}`~scvi.model.CondSCVI`, {class}`~scvi.model.AutoZI`,
-    {class}`~scvi.external.CellAssign` and {class}`~scvi.external.GimVI`. {pr}`3121`.
+    {class}`~scvi.external.POISSONVI`, {class}`~scvi.model.CondSCVI`, {class}`~scvi.model.AUTOZI`,
+    {class}`~scvi.external.CellAssign` and {class}`~scvi.external.GIMVI`. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 - Add semisupervised training mixin class {class}`scvi.model.base.SemisupervisedTrainingMixin` {pr}`3164`.
+- Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
+    {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
 - Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
-- Add a [use cases](%22https://docs.scvi-tools.org/en/latest/user_guide/index.html#common-use-cases%22)
-    section in the docs, {pr}`3200`.
+- Add a {doc}`/user_guide/use_case` section in the docs, {pr}`3200`.
 - Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
