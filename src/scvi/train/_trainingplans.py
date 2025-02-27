@@ -344,16 +344,77 @@ class TrainingPlan(pl.LightningModule):
             met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
-                    raise ValueError("Extra tracked metrics should be 0-d tensors.")
-                met = met.detach()
-            self.log(
-                f"{key}_{mode}",
-                met,
-                on_step=False,
-                on_epoch=True,
-                batch_size=n_obs_minibatch,
-                sync_dist=self.use_sync_dist,
-            )
+                    Warning(
+                        f"Extra tracked metrics {key} should be 0-d tensors. It will not be logged"
+                    )
+                else:
+                    met = met.detach()
+                    self.log(
+                        f"{key}_{mode}",
+                        met,
+                        on_step=False,
+                        on_epoch=True,
+                        batch_size=n_obs_minibatch,
+                        sync_dist=self.use_sync_dist,
+                    )
+            else:
+                self.log(
+                    f"{key}_{mode}",
+                    met,
+                    on_step=False,
+                    on_epoch=True,
+                    batch_size=n_obs_minibatch,
+                    sync_dist=self.use_sync_dist,
+                )
+
+    def prepare_scib_autotune(self, loss_outputs, stage):
+        # this function is used only for the purpose of scib autotune,
+        # and adds overhead of time and memory thus used only when needed
+        if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
+            if (
+                sum(
+                    [
+                        "Scib" in x
+                        for x in [cls.__class__.__name__ for cls in self.trainer.callbacks]
+                    ]
+                )
+                > 0
+            ):
+                z = loss_outputs["z"].detach().cpu()
+                batch = loss_outputs["batch"].detach().cpu().squeeze()
+                labels = loss_outputs["labels"].detach().cpu().squeeze()
+
+                # next part is for the usage of scib-metrics autotune
+                if (
+                    not hasattr(self, "_" + stage + "_epoch_outputs")
+                    or getattr(self, "_" + stage + "_epoch_outputs") is None
+                ):
+                    setattr(
+                        self,
+                        "_" + stage + "_epoch_outputs",
+                        {
+                            # "x": x,
+                            "z": z,
+                            "batch": batch,
+                            "labels": labels,
+                        },
+                    )
+                else:
+                    setattr(
+                        self,
+                        "_" + stage + "_epoch_outputs",
+                        {
+                            "z": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["z"], z]
+                            ),
+                            "batch": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["batch"], batch]
+                            ),
+                            "labels": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["labels"], labels]
+                            ),
+                        },
+                    )
 
     def training_step(self, batch, batch_idx):
         """Training step for the model."""
@@ -370,6 +431,11 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
+
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
@@ -385,6 +451,10 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "validation")
 
     def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
         """Create optimizer for the model.
@@ -856,6 +926,11 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "training")
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -881,6 +956,10 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             batch_size=loss_output.n_obs_minibatch,
         )
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "validation")
 
 
 class LowLevelPyroTrainingPlan(pl.LightningModule):
