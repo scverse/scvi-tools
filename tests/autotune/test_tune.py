@@ -9,6 +9,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.model import SCANVI, SCVI
 
 
+@pytest.mark.autotune
 def test_run_autotune_scvi_basic(save_path: str):
     settings.logging_dir = save_path
     adata = synthetic_iid()
@@ -38,6 +39,7 @@ def test_run_autotune_scvi_basic(save_path: str):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
+@pytest.mark.autotune
 def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
     settings.logging_dir = save_path
     adata = synthetic_iid(n_batches=n_batches)
@@ -72,6 +74,7 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
+@pytest.mark.autotune
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
 @pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
 def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
@@ -117,6 +120,7 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
     assert isinstance(experiment.result_grid, ResultGrid)
 
 
+@pytest.mark.autotune
 def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str = "iLISI"):
     settings.logging_dir = save_path
     adata = synthetic_iid()
