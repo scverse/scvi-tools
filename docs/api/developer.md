@@ -182,6 +182,7 @@ Module classes in the external API with respective generative and inference proc
    external.methylvi.METHYLVAE
    external.decipher.DecipherPyroModule
    external.resolvi.RESOLVAE
+   external.sysvi.SysVAE
 
 ```
 

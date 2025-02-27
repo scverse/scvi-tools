@@ -8,6 +8,7 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import Logger
 
 from scvi import settings
+from scvi.model._utils import use_distributed_sampler
 
 from ._callbacks import (
     LoudEarlyStopping,
@@ -119,6 +120,14 @@ class Trainer(pl.Trainer):
 
         check_val_every_n_epoch = check_val_every_n_epoch or sys.maxsize
         callbacks = kwargs.pop("callbacks", [])
+
+        if use_distributed_sampler(kwargs.get("strategy", None)):
+            warnings.warn(
+                "early_stopping was automaticaly disabled due to the use of DDP",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            early_stopping = False
 
         if early_stopping:
             early_stopping_callback = LoudEarlyStopping(

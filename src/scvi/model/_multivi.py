@@ -27,6 +27,7 @@ from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
     scrna_raw_counts_properties,
+    use_distributed_sampler,
 )
 from scvi.model.base import (
     ArchesMixin,
@@ -348,6 +349,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             train_size=train_size,
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
+            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             batch_size=batch_size,
             **datasplitter_kwargs,
         )

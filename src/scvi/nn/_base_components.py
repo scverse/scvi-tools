@@ -27,6 +27,8 @@ class FCLayers(nn.Module):
         A list containing, for each category of interest,
         the number of categories. Each category will be
         included using a one-hot encoding.
+    n_cont
+        The dimensionality of the continuous covariates
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -52,6 +54,7 @@ class FCLayers(nn.Module):
         n_in: int,
         n_out: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -72,7 +75,8 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        cat_dim = sum(self.n_cat_list)
+        self.n_cov = n_cont + sum(self.n_cat_list)
+
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
@@ -80,7 +84,7 @@ class FCLayers(nn.Module):
                         f"Layer {i}",
                         nn.Sequential(
                             nn.Linear(
-                                n_in + cat_dim * self.inject_into_layer(i),
+                                n_in + self.n_cov * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
                             ),
@@ -135,7 +139,7 @@ class FCLayers(nn.Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, *cat_list: int):
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
         """Forward computation on ``x``.
 
         Parameters
@@ -144,13 +148,17 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
+        cont
+            tensor of continuous covariates with shape ``(n_cont,)``
 
         Returns
         -------
         :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
         """
-        one_hot_cat_list = []  # for generality in this list many indices useless.
+        one_hot_cat_list = []  # for generality in this list many idxs useless.
+        cont_list = [cont] if cont is not None else []
+        cat_list = cat_list or []
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
@@ -163,6 +171,7 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
+        cov_list = cont_list + one_hot_cat_list
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
@@ -183,13 +192,13 @@ class FCLayers(nn.Module):
                     else:
                         if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
-                                one_hot_cat_list_layer = [
+                                cov_list_layer = [
                                     o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
-                                    for o in one_hot_cat_list
+                                    for o in cov_list
                                 ]
                             else:
-                                one_hot_cat_list_layer = one_hot_cat_list
-                            x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
+                                cov_list_layer = cov_list
+                            x = torch.cat((x, *cov_list_layer), dim=-1)
                         x = layer(x)
         return x
 
@@ -565,6 +574,7 @@ class MultiEncoder(nn.Module):
         n_layers_individual: int = 1,
         n_layers_shared: int = 2,
         n_cat_list: Iterable[int] = None,
+        distribution: str = "normal",
         dropout_rate: float = 0.1,
         return_dist: bool = False,
         **kwargs,
@@ -596,6 +606,11 @@ class MultiEncoder(nn.Module):
             dropout_rate=dropout_rate,
             **kwargs,
         )
+
+        if distribution == "ln":
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = _identity
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)

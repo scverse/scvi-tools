@@ -529,7 +529,7 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                return_observed = getattr(sample_kwargs, "return_observed", False)
+                return_observed = sample_kwargs.get("return_observed", False)
                 obs_plate_sites = self._get_obs_plate_sites(
                     args, kwargs, return_observed=return_observed
                 )

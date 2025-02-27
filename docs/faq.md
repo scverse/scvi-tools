@@ -38,7 +38,7 @@ They also share some features:
 
 ## My model errors out during training due to `NaN`s - how can I fix this?
 
-There is no straightforward solution sicne these are usually caused by numerical instabilities, but
+There is no straightforward solution since these are usually caused by numerical instabilities, but
 here are several factors to consider:
 
 - **Data quality**: Ensure that the data is appropriately preprocessed (_e.g._ removing cells/spots
@@ -53,3 +53,4 @@ here are several factors to consider:
     the softplus for more stability.
 - **Adversarial training**: For models with adversarial training (_e.g._ totalVI), consider turning
     off the component to see if the issue is resolved.
+- **Using SaveCheckpoint Callback**: Starting v1.3.0, we added the on_exception option to the callback, that in case of model error exception during training, will save the best model up to this point. The user will be able to load it back and continue the analysis. Obviously, failing for the first few epochs probably means basic issues with model.

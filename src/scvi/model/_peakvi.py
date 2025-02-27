@@ -29,7 +29,7 @@ from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Peak Variational Inference for chromatin accessilibity analysis :cite:p:`Ashuach22`.
 
     Parameters
@@ -393,7 +393,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            p = generative_outputs["p"].cpu()
+            p = generative_outputs["px"].cpu()
 
             if normalize_cells:
                 p *= inference_outputs["d"].cpu()

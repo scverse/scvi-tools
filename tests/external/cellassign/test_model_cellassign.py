@@ -28,6 +28,9 @@ def test_cellassign():
     model = CellAssign(adata, marker_df)
     model.train(max_epochs=1)
     model.predict()
+    model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch="batch_1")
+    # model.get_normalized_expression(n_samples=2)
 
 
 def test_cellassign_error_duplicates():

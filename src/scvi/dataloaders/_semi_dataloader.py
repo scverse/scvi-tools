@@ -48,6 +48,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             indices = np.arange(adata.n_obs)
 
         self.indices = np.asarray(indices)
+        self.data_loader_kwargs = data_loader_kwargs
 
         if len(self.indices) == 0:
             return None
@@ -77,7 +78,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             drop_last=drop_last,
-            **data_loader_kwargs,
+            **self.data_loader_kwargs,
         )
 
     def resample_labels(self):
@@ -93,6 +94,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=self._batch_size,
             data_and_attributes=self.data_and_attributes,
             drop_last=self._drop_last,
+            **self.data_loader_kwargs,
         )
 
     def subsample_labels(self):

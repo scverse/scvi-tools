@@ -11,6 +11,7 @@ from scipy.sparse import issparse
 from torch.utils.data import Dataset
 
 from scvi._constants import REGISTRY_KEYS
+from scvi.utils import is_package_installed
 
 if TYPE_CHECKING:
     import torch
@@ -153,6 +154,11 @@ class AnnTorchDataset(Dataset):
                 # used to record the type data minification
                 # TODO: Adata manager should have a list of which fields it will load
                 continue
+            elif is_package_installed("dask"):
+                import dask.array as da
+
+                if isinstance(data, da.Array):
+                    sliced_data = data[indexes].compute()
             else:
                 raise TypeError(f"{key} is not a supported type")
 

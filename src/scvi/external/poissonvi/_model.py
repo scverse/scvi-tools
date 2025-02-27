@@ -244,16 +244,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             raise RuntimeError("region factors were not included in this model")
         return region_factors
 
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = (
-            f"differential_expression is not implemented for {self.__class__.__name__}, please "
-            f"use {self.__class__.__name__}.get_accessibility_estimates"
-        )
-        raise NotImplementedError(msg)
-
     @de_dsp.dedent
     def differential_accessibility(
         self,
