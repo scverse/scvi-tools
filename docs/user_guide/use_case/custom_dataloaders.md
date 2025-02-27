@@ -4,14 +4,15 @@
 This page is under construction.
 :::
 
-In SCVI, custom dataloaders allow you to create a tailored data pipeline that can handle unique formats or complex datasets not covered by the default loaders. A custom dataloader can be useful when you have a specific structure for your data or need to preprocess it in a particular way before feeding it into the model, in order to improve training speed or hardware utilization.
+In SCVI, custom dataloaders allow you to create a tailored data pipeline that can handle unique formats or complex datasets not covered by the default loaders. A custom dataloader can be useful when you have a specific structure for your data or need to preprocess it in a particular way before feeding it into the model, in order to gain some advantage.
 
-For example, we offer custom dataloaders that do not necessarily store the data on memory while training and can work with a collection of AnnData datasets, which provides an efficient manner to train models on datasets that are to large for the provided amount of memory. Without dataloader large data can be on disk but this is less efficient. Custom dataloaders increase efficiency for data on disk while they also enable data on cloud storage.
+For example, we offer custom dataloaders that do not necessarily store the data on memory while training, thus enable us to expand the sizes of dataset that we can train our models based on while not being limited by the amount of memory that we have.
+Without dataloader large data can be on disk but inefficient. We increase efficiency for data on disk and enable data on cloud storage.
 
 In SCVI, we work with several collaborators in order to construct efficient custom dataloaders:
 1. [lamin.ai]("https://lamin.ai/") custom dataloader is based on MappedCollectionDataModule and can run a collection of adata based on lamindb backend.
 
-LamindDB is a key-value store designed specifically for machine learning, particularly focusing on making it easier to manage large-scale training datasets. LamindDB’s design allows for efficient handling of large datasets with a focus on machine learning workflows, such as those used in SCVI.
+LamindDB is a key-value store designed specifically for machine learning, particularly focusing on making it easier to manage large-scale training datasets. It is optimized for storing and querying tabular data, providing fast read and write access. LamindDB’s design allows for efficient handling of large datasets with a focus on machine learning workflows, such as those used in SCVI.
 
 Pros:
 
@@ -36,16 +37,17 @@ datamodule = MappedCollectionDataModule(
 model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
 ...
 ```
+LamindDB may not be as efficient or flexible as TileDB for handling complex multi-dimensional data
 
-2. [CZI CELLxGENE]("https://chanzuckerberg.com/") based [tiledb]("https://tiledb.com/") custom dataloader is based on CensusSCVIDataModule and can run on large datasets that are stored in TileDB’s format.
+2. [CZI]("https://chanzuckerberg.com/") based [tiledb]("https://tiledb.com/") custom dataloader is based on CensusSCVIDataModule and can run a large multi-dimensional datasets that are stored in TileDB’s format.
 
-TileDB is a general-purpose, multi-dimensional array storage engine designed for high-performance, scalable data access. It supports various data types, including dense and sparse arrays, and is optimized for handling large datasets efficiently. 
+TileDB is a general-purpose, multi-dimensional array storage engine designed for high-performance, scalable data access. It supports various data types, including dense and sparse arrays, and is optimized for handling large datasets efficiently. TileDB’s strength lies in its ability to store and query data across multiple dimensions and scale efficiently with large volumes of data.
 
+Pros:
 
-Prose:
-
-- Strength of this dataloader is that CELLxGENE is provided as TileDB's soma object and this dataloader can directly leverage this data storage allowing for efficient data loading from the CELLxGENE AWS store.
-- Flexibility: Supports custom data storage solution and can be more customized to large-teams needs.
+- Efficient Data Access: With TileDB, you can query and access specific subsets of your data without needing to load the entire dataset into memory, improving performance.
+Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
+- Flexibility: Supports multi-dimensional data storage, which can be useful for storing gene expression data across multiple conditions or time points.
 
 ```python
 import cellxgene_census
@@ -96,13 +98,18 @@ Key Differences between them in terms of Custom Dataloaders:
 - TileDB is highly optimized for large, sparse datasets and supports sophisticated indexing, making it ideal for querying and accessing large portions of a dataset efficiently, even across multiple dimensions.
 - LamindDB is optimized for fast tabular data access and may be easier to set up and use in machine learning workflows when dealing with simple table-based data.
 
-When to Use Each:
-- CensusSCVIDataModule is optimized for CELLxGENE access and can also load this data from the AWS storage. We only recommend performing inference without downloading the data as it creates a high overhead to download the data during each epoch.
-- MappedCollectionDataModule is optimized for a collection of AnnData datasets that can be efficiently stored in laminDB.
+3. Complexity:
 
-Writing new custom dataloaders requires a good understanding of PyTorch’s DataLoader class and how to integrate it with SCVI, which may be difficult even for advanced users. Please get in contact and create an issue, if you plan to create your own custom dataloaders and provide use cases intended for this new class.
-It might also require maintenance: If the data format or preprocessing needs change, you’ll need to be able to modify and maintain the custom dataloader code. This step can't be provided by the scvi-tools team, while we provide support to feed mini-batches into models.
+- TileDB requires more effort to integrate into a custom dataloader, as it’s more complex and can involve handling multi-dimensional data storage.
+- LamindDB offers a simpler integration for custom dataloaders when dealing with tabular data and might be more intuitive for machine learning tasks.
+
+When to Use Each:
+- TileDB is ideal when your data is large, multi-dimensional, and potentially sparse, requiring advanced indexing and querying capabilities.
+- LamindDB is a better choice when you're working with large, structured tabular data and need fast, efficient access for machine learning models like SCVI.
+
+Writing custom dataloaders requires a good understanding of PyTorch’s DataLoader class and how to integrate it with SCVI, which may be difficult for beginners.
+It will also requite maintenance: If the data format or preprocessing needs change, you’ll have to modify and maintain the custom dataloader code, But it can be a greate addition to the model pipeline, in terms of runtime and how much data we can digest.
 
 :::{note}
-As of SCVI-Tools v1.3.0 Custom Dataloaders are not released.
+As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental.
 :::

@@ -183,11 +183,13 @@ class SaveCheckpoint(ModelCheckpoint):
             if self.loss_is_nan:
                 self.reason = (
                     "\033[31m[Warning] NaN detected in the loss. Stopping training. "
+                    "Please verify your model and data. "
                     "Saving model....Please load it back and continue training\033[0m"
                 )
             else:
                 self.reason = (
                     "\033[31m[Warning] Exception occurred during training (Nan or Inf gradients). "
+                    "Please verify your model and data. "
                     "Saving model....Please load it back and continue training\033[0m"
                 )
             trainer.should_stop = True
