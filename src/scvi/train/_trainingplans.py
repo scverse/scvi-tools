@@ -587,6 +587,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         """Training step for adversarial training."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
+            self.log("kl_weight", self.kl_weight, on_step=True, on_epoch=False)
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
