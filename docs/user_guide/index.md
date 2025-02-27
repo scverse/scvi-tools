@@ -173,11 +173,11 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 ## Common Use Cases
 
 - {doc}`/user_guide/use_case/saving_and_loading_models`
-- {doc}`/user_guide/use_case/early_stopping`
+- {doc}`/user_guide/use_case/downstream_analysis_tasks`
+- {doc}`/user_guide/use_case/using_callbacks`
 - {doc}`/user_guide/use_case/hyper_parameters_tuning`
 - {doc}`/user_guide/use_case/multi_gpu_training`
 - {doc}`/user_guide/use_case/custom_dataloaders`
-- {doc}`/user_guide/use_case/downstream_analysis_tasks`
 
 ## Glossary
 
