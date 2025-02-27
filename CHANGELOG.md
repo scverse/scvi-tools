@@ -17,12 +17,15 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.PEAKVI`. {pr}`3125`.
 - Add an exception callback to {class}`scvi.train._callbacks.SaveCheckpoint` in order to save
     optimal model during training, in case of failure because of Nan's in gradients. {pr}`3159`.
-- Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: PeakVI, PoissonVI, CondSCVI,
-    AutoZI, CellAssign and GimVI. {pr}`3121`.
+- Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: {class}`~scvi.model.PEAKVI`,
+    {class}`~scvi.external.PoissonVI`, {class}`~scvi.model.CondSCVI`, {class}`~scvi.model.AutoZI`,
+    {class}`~scvi.external.CellAssign` and {class}`~scvi.external.GimVI`. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 - Add semisupervised training mixin class {class}`scvi.model.base.SemisupervisedTrainingMixin` {pr}`3164`.
 - Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
+- Add a [use cases](%22https://docs.scvi-tools.org/en/latest/user_guide/index.html#common-use-cases%22)
+    section in the docs, {pr}`3200`.
 - Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
