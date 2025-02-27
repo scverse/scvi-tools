@@ -4,6 +4,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid
+from scvi.model import SCANVI, SCVI
 
 
 @pytest.mark.parametrize("load_best_on_end", [True, False])
@@ -112,4 +113,32 @@ def test_exception_callback():
             )
         ],
         enable_checkpointing=True,
+    )
+
+
+@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
+def test_scib_callback(model_cls, metric: str):
+    from scvi.train._callbacks import ScibCallback
+
+    # we use this temporarily to debug the scib-metrics callback
+    adata = synthetic_iid()
+    if model_cls == SCANVI:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            unlabeled_category="unknown",
+            batch_key="batch",
+        )
+    else:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            batch_key="batch",
+        )
+    model = model_cls(adata)
+    model.train(
+        1,
+        train_size=0.5,
+        callbacks=[ScibCallback()],
     )

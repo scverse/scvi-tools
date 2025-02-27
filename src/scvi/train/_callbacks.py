@@ -384,3 +384,20 @@ class JaxModuleInit(Callback):
         module_init = module.init(module.rngs, next(iter(dl)))
         state, params = flax.core.pop(module_init, "params")
         pl_module.set_train_state(params, state)
+
+
+class ScibCallback(Callback):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+        self.pl_module = None
+
+    def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self.pl_module = pl_module
+
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module)
+
+    def on_validation_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module)
