@@ -55,7 +55,6 @@ dependencies = [
     "torchmetrics>=0.11.0",
     "tqdm",
     "xarray>=2023.2.0",
-    "dask",
 ]
 
 [project.optional-dependencies]
@@ -98,10 +97,12 @@ scanpy = ["scanpy>=1.10", "scikit-misc"]
 file_sharing = ["pooch"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0"]
+# for supervised models interpretability
+interpretability = ["captum","shap"]
 
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
@@ -135,6 +136,7 @@ markers = [
     "optional: mark optional tests, usually take more time",
     "private: mark tests that uses private keys, like HF",
     "multigpu: mark tests that are used to check multi GPU performance",
+    "autotune: mark tests that are used to check ray autotune capabilities",
 ]
 
 [tool.ruff]
