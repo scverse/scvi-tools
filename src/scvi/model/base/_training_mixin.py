@@ -191,6 +191,7 @@ class SemisupervisedTrainingMixin:
         batch_size: int | None = None,
         use_posterior_mean: bool = True,
         ig_interpretability: bool = False,
+        ig_args: dict | None = None,
     ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
         """Return cell label predictions.
 
@@ -213,9 +214,8 @@ class SemisupervisedTrainingMixin:
             If True, run the integrated circuits interpretability per sample and returns a score
             matrix, in which for each sample we score each gene for its contribution to the
             sample prediction
-        shap_values
-            If True, run the shap interpretability per sample and returns a score data frame, in
-            which for each sample we score each gene for its contribution to the sample prediction
+        ig_args
+            Keyword args for IntegratedGradients
         """
         adata = self._validate_anndata(adata)
 
@@ -283,7 +283,10 @@ class SemisupervisedTrainingMixin:
             if ig_interpretability:
                 # we need the hard prediction if was not done yet
                 hard_pred = pred.argmax(dim=1) if soft else pred
-                attribution = ig.attribute(tuple(data_inputs.values()), target=hard_pred)
+                ig_args = ig_args or {}
+                attribution = ig.attribute(
+                    tuple(data_inputs.values()), target=hard_pred, **ig_args
+                )
                 attributions.append(attribution[0])
 
         if ig_interpretability:

@@ -580,7 +580,7 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 
 
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
-def test_scanvi_interpertability(unlabeled_cat: str):
+def test_scanvi_interpertability_ig(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -612,6 +612,32 @@ def test_scanvi_interpertability(unlabeled_cat: str):
     predictions, attributions = model.predict(adata2, indices=[1, 2, 3], ig_interpretability=True)
     ig_top_features_3_samples = attributions.head(5)
     print(ig_top_features_3_samples)
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0"])
+def test_scanvi_interpertability_shap(unlabeled_cat: str):
+    adata = synthetic_iid(batch_size=50)
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+    # new data ig prediction specific for samples, top 5 genes
+    adata2 = synthetic_iid(batch_size=10)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
 
     # now run shap values and compare to previous results
     # (here, the more labels the more time it will take to run)
