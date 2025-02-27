@@ -60,6 +60,9 @@ class SaveCheckpoint(ModelCheckpoint):
         Metric to monitor for checkpointing.
     load_best_on_end
         If ``True``, loads the best model state into the model at the end of training.
+    check_nan_gradients
+        If ``True``, will use the on exception callback to store best model in case of training
+        exception caused by NaN's in gradients or loss calculations.
     **kwargs
         Additional keyword arguments passed into the constructor for
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
@@ -71,6 +74,7 @@ class SaveCheckpoint(ModelCheckpoint):
         filename: str | None = None,
         monitor: str = "validation_loss",
         load_best_on_end: bool = False,
+        check_nan_gradients: bool = False,
         **kwargs,
     ):
         if dirpath is None:
@@ -96,6 +100,7 @@ class SaveCheckpoint(ModelCheckpoint):
             kwargs.pop("save_last")
         self.load_best_on_end = load_best_on_end
         self.loss_is_nan = False
+        self.check_nan_gradients = check_nan_gradients
 
         super().__init__(
             dirpath=dirpath,
@@ -174,15 +179,17 @@ class SaveCheckpoint(ModelCheckpoint):
 
     def on_exception(self, trainer, pl_module, exception) -> None:
         """Save the model in case of unexpected exceptions, like Nan in loss or gradients"""
-        if not isinstance(exception, KeyboardInterrupt):
+        if (not isinstance(exception, KeyboardInterrupt)) and self.check_nan_gradients:
             if self.loss_is_nan:
                 self.reason = (
                     "\033[31m[Warning] NaN detected in the loss. Stopping training. "
+                    "Please verify your model and data. "
                     "Saving model....Please load it back and continue training\033[0m"
                 )
             else:
                 self.reason = (
                     "\033[31m[Warning] Exception occurred during training (Nan or Inf gradients). "
+                    "Please verify your model and data. "
                     "Saving model....Please load it back and continue training\033[0m"
                 )
             trainer.should_stop = True
@@ -377,3 +384,20 @@ class JaxModuleInit(Callback):
         module_init = module.init(module.rngs, next(iter(dl)))
         state, params = flax.core.pop(module_init, "params")
         pl_module.set_train_state(params, state)
+
+
+class ScibCallback(Callback):
+    def __init__(
+        self,
+    ):
+        super().__init__()
+        self.pl_module = None
+
+    def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self.pl_module = pl_module
+
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module)
+
+    def on_validation_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module)

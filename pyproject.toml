@@ -55,7 +55,6 @@ dependencies = [
     "torchmetrics>=0.11.0",
     "tqdm",
     "xarray>=2023.2.0",
-    "dask",
 ]
 
 [project.optional-dependencies]
@@ -83,7 +82,7 @@ docs = [
 docsbuild = ["scvi-tools[docs,optional]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]"]
+autotune = ["hyperopt>=0.2", "ray[tune]","scib-metrics"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.data.cellxgene
@@ -98,9 +97,12 @@ scanpy = ["scanpy>=1.10", "scikit-misc"]
 file_sharing = ["pooch"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0"]
+# for supervised models interpretability
+interpretability = ["captum","shap"]
+
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
@@ -111,7 +113,6 @@ tutorials = [
     "pynndescent",
     "igraph",
     "scrublet",
-    "scib-metrics",
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
 ]
@@ -135,6 +136,7 @@ markers = [
     "optional: mark optional tests, usually take more time",
     "private: mark tests that uses private keys, like HF",
     "multigpu: mark tests that are used to check multi GPU performance",
+    "autotune: mark tests that are used to check ray autotune capabilities",
 ]
 
 [tool.ruff]

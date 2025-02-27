@@ -20,7 +20,7 @@ index_scbs
 index_multimodal
 index_spatial
 index_hub
-index_tuning
+index_use_cases
 index_dev
 ```
 
