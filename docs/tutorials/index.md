@@ -46,8 +46,6 @@ Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and h
 
 :::{dropdown} scRNA-seq
 
-
-
 Go through the workflows of models used for analysis of scRNA-seq datasets, including scVI, scANVI, AutoZI, AmortizedLDA, LinearSCVI, and contrastiveVI
 
 :::{card} Unsupervised Models
@@ -86,11 +84,15 @@ These models do not utilize known cell types.
 *   - [](./notebooks/scrna/cellassign_tutorial)
     - Use CellAssign to assign cell types using only knowledge of marker genes
 
+:::
+
 :::{card} scANVI
 The following tutorials use scANVI, a semi-supervised model for single-cell transciptomics data.
 Unlike the models used in the previous section, scANVI can use exisiting cell type knowledge
 for a subset of cells to infer the states of all cells.
 :::
+
+:::{list-table}
 
 *   - Preprocessing
     - description
@@ -103,6 +105,7 @@ for a subset of cells to infer the states of all cells.
 *   - [](./notebooks/scrna/tabula_muris)
     - Perform de novo integration of a labeled reference dataset with an unlabeled query dataset (label transfer)
 
+:::
 
 :::{card} Reference Mapping
 The following tutorials cover the process of reference mapping with scArches. In the reference
@@ -111,11 +114,12 @@ model's reference latent space in order to analyze the new data in the context o
 data. This is different from de novo integration, where the model is trained on multiple datasets.
 :::
 
+:::{list-table}
+
 *   - [](./notebooks/scrna/scarches_scvi_tools)
     - Map cells from a query dataset to the latent space of a reference dataset with the scArches method
 *   - [](./notebooks/scrna/query_hlca_knn)
     - Use scANVI, scArches and scvi-hub to query the Human Lung Cell Atlas
-
 
 :::
 :::
@@ -126,13 +130,15 @@ data. This is different from de novo integration, where the model is trained on 
 
 Go through the workflows of models used for analysis of scATAC-seq datasets, including PeakVI, scBasset, and PoissonVI
 
-:::{list-table}
-:widths: auto
-:align: left
+
 
 :::{card}
 The following tutorials use peakVI, a generative model of scATAC-seq data.
 :::
+
+:::{list-table}
+:widths: auto
+:align: left
 
 *   - Preprocessing
     - description
@@ -141,24 +147,35 @@ The following tutorials use peakVI, a generative model of scATAC-seq data.
 *   - [](./notebooks/atac/peakvi_in_R)
     - Use scvi-tools functionality in R to analyze scATAC-seq data
 
+:::
+
 :::{card}
 In the following tutorial, we use poissonVI, which models scATAC-seq fragment counts, unlike
 peakVI which only models binarized scATAC-seq data.
 :::
 
+:::{list-table}
+:widths: auto
+:align: left
+
 *   - [](./notebooks/atac/PoissonVI)
     - Go through the PoissonVI workflow to analyze scATAC-seq data using quantitative fragment counts
+
+:::
 
 :::{card}
 In the following tutorials, we use scBasset which provides a sequence-based method for
 representation learning of scATAC-seq data.
 :::
 
+:::{list-table}
+:widths: auto
+:align: left
+
 *   - [](./notebooks/atac/scbasset)
     - Go through the scBasset workflow to analyze a scATAC-seq dataset
 *   - [](./notebooks/atac/scbasset_batch)
     - Use scBasset to integrate data across several samples
-
 
 :::
 :::
@@ -187,15 +204,17 @@ Use methylVI with single-cell bisulfite sequencing data
 
 Use models to analyze multimodal data, including totalVI for CITE-seq analysis and MultiVI for joint analysis of scRNA-seq and scATAC-seq
 
-:::{list-table}
-:widths: auto
-:align: left
+
 
 :::{card}
 In the following tutorials we use totalVI, a generative model of CITE-seq RNA and protein data
 that can be used for downstream analysis tasks such as dimensionalit reduction and differential
 expression. TotalVI can also be used to integrate CITE-seq and scRNA-seq data.
 :::
+
+:::{list-table}
+:widths: auto
+:align: left
 
 *   - Preprocessing
     - description
@@ -208,11 +227,17 @@ expression. TotalVI can also be used to integrate CITE-seq and scRNA-seq data.
 *   - [](./notebooks/multimodal/totalvi_in_R)
     - Use scvi-tools functionality in R to analyze CITE-seq data
 
+:::
+
 :::{card}
 In the following tutorial, we use MultiVI, a multimodal generative model which can integrate
 multiome, scRNA-seq and scATAC-seq data. MultiVI can be used for downstream tasks such as
 dimensionality reduction and imputation of missing modalities.
 :::
+
+:::{list-table}
+:widths: auto
+:align: left
 
 *   - Preprocessing
     - description
@@ -227,14 +252,16 @@ dimensionality reduction and imputation of missing modalities.
 
 Learn about models and methods to use with spatial transciptomics data, including DestVI, gimVI, Tangram, Cell2location, and Stereoscope
 
-:::{list-table}
-:widths: auto
-:align: left
+
 
 :::{card}
 In the following tutorials we use various scvi-tools models for spatial transcriptomics
 analysis. See the [user guide](./user_guide/index.md#Spatial transcriptomics analysis) for more information about these models.
 :::
+
+:::{list-table}
+:widths: auto
+:align: left
 
 *   - Preprocessing
     - description
