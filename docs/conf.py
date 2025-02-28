@@ -158,6 +158,8 @@ html_static_path = ["_static"]
 html_css_files = ["css/override.css"]
 html_show_sphinx = False
 
+html_js_files = ["js/tutorial_highlight.js"]
+
 
 def setup(app):
     """App setup hook."""
