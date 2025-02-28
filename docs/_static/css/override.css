@@ -1,20 +1,21 @@
-/* Style used for tags in the tutorials index page */
-.tag {
-    display: inline-block;
-    padding: 6px 8px;
-    margin: 2px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: bold;
-    color: white;
+.tutorial-row {
+    transition: background-color 0.3s;
 }
-
-.tag[group-tag="Analysis"] { background-color: #E69F00; }
-.tag[group-tag="Integration"] { background-color: #56B4E9; }
-.tag[group-tag="Transfer learning"] { background-color: #009E73; }
-.tag[group-tag="R"] { background-color: #F0E442; }
-.tag[group-tag="Differential comparison"] { background-color: #0072B2; }
-.tag[group-tag="Modality imputation"] { background-color: #D55E00; }
-.tag[group-tag="Deconvolution"] { background-color: #CC79A7; }
-.tag[group-tag="Dimensionality reduction"] { background-color: #999999; }
-.tag[group-tag="Removal of unwanted variance"] { background-color: #882255; }
+.highlight {
+    background-color: yellow !important;
+}
+.category-buttons {
+    margin-bottom: 10px;
+}
+.category-button {
+    cursor: pointer;
+    padding: 5px 10px;
+    margin: 5px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+}
+.category-button:hover {
+    background-color: #0056b3;
+}
