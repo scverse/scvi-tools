@@ -67,12 +67,8 @@ These models do not utilize known cell types.
     - Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
 *   - [](./notebooks/scrna/MrVI_tutorial)
     - Analyze multi-sample scRNA-seq data with MrVI
-*   - [](./notebooks/scrna/MrVI_tutorial)
-    - Preprocess data and train the MrVI model
-*   - [](./notebooks/scrna/MrVI_tutorial)
-    - Visualize MrVI’s u latent space
-*   - [](./notebooks/scrna/MrVI_tutorial)
-    - Perform differential expression and differential abundance analysis
+*   - [](./notebooks/scrna/sysVI)
+    - Integrate scRNA-seq datasets with substantial batch effects.
 *   - [](./notebooks/scrna/contrastiveVI_tutorial)
     - Use contrastiveVI to isolate perturbation-induced variation in Perturb-seq data
 *   - [](./notebooks/scrna/amortized_lda)
@@ -192,8 +188,6 @@ Use methylVI with single-cell bisulfite sequencing data
 
 *   - [](notebooks/scbs/MethylVI_batch)
     - Correct batch effects in across different scBS-seq experiments with methylVI
-*   - [](notebooks/scbs/MethylVI_batch)
-    - Correct batch effects in across different scBS-seq experiments with methylVI
 
 :::
 :::
@@ -294,8 +288,6 @@ Learn about using and uploading pretrained scvi-tools models with scvi-hub and H
 :align: left
 
 
-*   - [](./notebooks/hub/minification)
-    - Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
 *   - [](./notebooks/hub/scvi_hub_intro_and_download)
     - Learn how to use Hugging Face and scvi-hub to download pretrained scvi-tools models
 *   - [](./notebooks/hub/cellxgene_census_model)
@@ -338,6 +330,24 @@ Learn how to implement a novel statistical method for single-cell omics data in 
     - Implement a novel statistical method for single-cell omics data as a module
 *   - [](./notebooks/dev/model_user_guide)
     - Implement an scvi-tools model class to provide a convenient interface for the lower-level module objects
+
+:::
+:::
+
+:::{dropdown} Common Modelling Use Cases
+
+Learn common tasks in the scvi-tools workflow.
+
+:::{list-table}
+:widths: auto
+:align: left
+
+*   - [](./notebooks/use_cases/autotune_scvi)
+    - Automatically find a good set of hyperparameters using autotune.
+*   - [](./notebooks/hub/minification)
+    - Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
+*   - [](./notebooks/use_cases/interpretability)
+    - Learn how to interpret cell type classification.
 
 :::
 :::
