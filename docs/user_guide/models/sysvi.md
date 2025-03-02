@@ -35,7 +35,7 @@ many settings.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/sysVI.ipynb`
+-   {doc}`/tutorials/notebooks/scrna/sysVI`
 ```
 
 ```{topic} References:
@@ -76,6 +76,7 @@ the switched-batch cell are computed. The model is trained to minimize this dist
 :align: center
 :alt: Cycle consistency loss used to increase batch correction in SysVI.
 :class: img-fluid
+:::
 
 Benefits of this approach:
 - As only cells with identical biological background are compared, this method
@@ -101,6 +102,7 @@ prior for which the mode positions are learned during the training.
 :align: center
 :alt: VampPrior used to increase the preservation of biological variation in SysVI.
 :class: img-fluid
+:::
 
 Benefits of this approach:
 - More expressive latent space leads to increased preservation of
