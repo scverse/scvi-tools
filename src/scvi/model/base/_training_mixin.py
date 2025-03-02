@@ -162,6 +162,8 @@ class UnsupervisedTrainingMixin:
 
 
 class SemisupervisedTrainingMixin:
+    """General purpose semisupervised train, predict and interoperability methods."""
+
     _training_plan_cls = SemiSupervisedTrainingPlan
 
     def _set_indices_and_labels(self):
@@ -416,7 +418,10 @@ class SemisupervisedTrainingMixin:
 
         Parameters
         ----------
-        attr: numpy.ndarray
+        adata
+            AnnData or MuData object that has been registered via corresponding setup
+            method in model class.
+        attrs: numpy.ndarray
             Attributions matrix.
 
         Returns
@@ -426,7 +431,7 @@ class SemisupervisedTrainingMixin:
 
         Examples
         --------
-        >>> attrs_df = interpreter.get_ranked_genes(attrs)
+        >>> attrs_df = model.get_ranked_genes(attrs)
         """
         if attrs is None:
             Warning("Missing Attributions matrix")
