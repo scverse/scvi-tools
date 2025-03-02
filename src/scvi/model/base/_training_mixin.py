@@ -395,7 +395,7 @@ class SemisupervisedTrainingMixin:
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
 
         if "callbacks" in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"] = trainer_kwargs["callbacks"] + [sampler_callback]
+            trainer_kwargs["callbacks"] + [sampler_callback]
         else:
             trainer_kwargs["callbacks"] = sampler_callback
 
@@ -452,22 +452,22 @@ class SemisupervisedTrainingMixin:
 
     def shap_adata_predict(
         self,
-        x,
+        X,
     ):
         adata = self._validate_anndata()
 
         # we need to adjust adata to the shap random selection ..
-        if len(x) > len(adata):
+        if len(X) > len(adata):
             # Repeat the data to expand to a larger size
-            n_repeats = len(x) / len(adata)  # how many times you want to repeat the data
+            n_repeats = len(X) / len(adata)  # how many times you want to repeat the data
             adata_to_pred = adata[adata.obs.index.repeat(n_repeats), :]
-            if len(x) > len(adata_to_pred):
+            if len(X) > len(adata_to_pred):
                 adata_to_pred = anndata.concat(
-                    [adata_to_pred, adata[0 : (len(x) - len(adata_to_pred))]]
+                    [adata_to_pred, adata[0 : (len(X) - len(adata_to_pred))]]
                 )
         else:
-            adata_to_pred = adata[0 : len(x)]
-        adata_to_pred.X = x
+            adata_to_pred = adata[0 : len(X)]
+        adata_to_pred.X = X
 
         return self.predict(adata_to_pred, soft=True)
 
