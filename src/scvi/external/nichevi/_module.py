@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import torch
+from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
 from scvi.module import VAE, Classifier
@@ -11,7 +12,6 @@ from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     auto_move_data,
 )
-from scvi.nn import one_hot
 
 from ._components import DirichletDecoder, Encoder, NicheDecoder
 from ._constants import NICHEVI_MODULE_KEYS, NICHEVI_REGISTRY_KEYS
