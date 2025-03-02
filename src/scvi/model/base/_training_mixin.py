@@ -455,7 +455,8 @@ class SemisupervisedTrainingMixin:
     def shap_adata_predict(
         self,
         X,
-    ):
+    ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
+        """SHAP Operator (gives soft predictions gives data X)"""
         adata = self._validate_anndata()
 
         # we need to adjust adata to the shap random selection ..
@@ -473,7 +474,10 @@ class SemisupervisedTrainingMixin:
 
         return self.predict(adata_to_pred, soft=True)
 
-    def shap_predict(self, adata: AnnOrMuData | None = None, max_size: int = 100):
+    def shap_predict(
+        self, adata: AnnOrMuData | None = None, max_size: int = 100
+    ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
+        """Run SHAP interpreter for a trained model and gives back shap values"""
         missing_modules = []
         try:
             importlib.import_module("shap")
