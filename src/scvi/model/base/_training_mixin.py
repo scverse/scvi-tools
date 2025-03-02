@@ -395,7 +395,7 @@ class SemisupervisedTrainingMixin:
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
 
         if "callbacks" in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"] + [sampler_callback]
+            trainer_kwargs["callbacks"] = trainer_kwargs["callbacks"] + [sampler_callback]
         else:
             trainer_kwargs["callbacks"] = sampler_callback
 
@@ -418,7 +418,10 @@ class SemisupervisedTrainingMixin:
 
         Parameters
         ----------
-        attr: numpy.ndarray
+        adata
+            AnnData or MuData object that has been registered via corresponding setup
+            method in model class.
+        attrs: numpy.ndarray
             Attributions matrix.
 
         Returns
@@ -428,7 +431,7 @@ class SemisupervisedTrainingMixin:
 
         Examples
         --------
-        >>> attrs_df = interpreter.get_ranked_genes(attrs)
+        >>> attrs_df = model.get_ranked_genes(attrs)
         """
         if attrs is None:
             Warning("Missing Attributions matrix")
@@ -449,22 +452,22 @@ class SemisupervisedTrainingMixin:
 
     def shap_adata_predict(
         self,
-        X,
+        x,
     ):
         adata = self._validate_anndata()
 
         # we need to adjust adata to the shap random selection ..
-        if len(X) > len(adata):
+        if len(x) > len(adata):
             # Repeat the data to expand to a larger size
-            n_repeats = len(X) / len(adata)  # how many times you want to repeat the data
+            n_repeats = len(x) / len(adata)  # how many times you want to repeat the data
             adata_to_pred = adata[adata.obs.index.repeat(n_repeats), :]
-            if len(X) > len(adata_to_pred):
+            if len(x) > len(adata_to_pred):
                 adata_to_pred = anndata.concat(
-                    [adata_to_pred, adata[0 : (len(X) - len(adata_to_pred))]]
+                    [adata_to_pred, adata[0 : (len(x) - len(adata_to_pred))]]
                 )
         else:
-            adata_to_pred = adata[0 : len(X)]
-        adata_to_pred.X = X
+            adata_to_pred = adata[0 : len(x)]
+        adata_to_pred.x = x
 
         return self.predict(adata_to_pred, soft=True)
 
@@ -481,18 +484,18 @@ class SemisupervisedTrainingMixin:
         adata_orig = self._validate_anndata()
         adata = self._validate_anndata(adata)
 
-        if type(adata_orig.X).__name__ == "csr_matrix":
+        if type(adata_orig.x).__name__ == "csr_matrix":
             feature_matrix_background = pd.DataFrame.sparse.from_spmatrix(
-                adata_orig.X, columns=adata_orig.var_names
+                adata_orig.x, columns=adata_orig.var_names
             )
         else:
-            feature_matrix_background = pd.DataFrame(adata_orig.X, columns=adata_orig.var_names)
-        if type(adata.X).__name__ == "csr_matrix":
+            feature_matrix_background = pd.DataFrame(adata_orig.x, columns=adata_orig.var_names)
+        if type(adata.x).__name__ == "csr_matrix":
             feature_matrix = pd.DataFrame.sparse.from_spmatrix(
-                adata.X, columns=adata_orig.var_names
+                adata.x, columns=adata_orig.var_names
             )
         else:
-            feature_matrix = pd.DataFrame(adata.X, columns=adata_orig.var_names)
+            feature_matrix = pd.DataFrame(adata.x, columns=adata_orig.var_names)
         feature_matrix_background = shap.sample(feature_matrix_background, max_size)
         feature_matrix = shap.sample(feature_matrix, max_size)
         explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix_background)
