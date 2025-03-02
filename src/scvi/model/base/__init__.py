@@ -23,6 +23,7 @@ __all__ = [
     "RNASeqMixin",
     "VAEMixin",
     "UnsupervisedTrainingMixin",
+    "SemisupervisedTrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
     "PyroJitGuideWarmup",
@@ -32,5 +33,4 @@ __all__ = [
     "BaseMinifiedModeModelClass",
     "BaseMudataMinifiedModeModelClass",
     "EmbeddingMixin",
-    "SemisupervisedTrainingMixin",
 ]
