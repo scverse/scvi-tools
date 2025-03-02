@@ -466,6 +466,14 @@ def test_scvi_sparse(n_latent: int = 5):
     model.differential_expression(groupby="labels", group1="label_1")
 
 
+def test_scvi_error_on_es(n_latent: int = 5):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0, early_stopping=True)
+
+
 def test_scvi_n_obs_error(n_latent: int = 5):
     adata = synthetic_iid()
     adata = adata[0:129].copy()
