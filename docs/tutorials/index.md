@@ -53,21 +53,15 @@ The following tutorials use generative models of scRNA-seq data for downstream a
 These models do not utilize known cell types.
 :::
 
-<div class="category-buttons">
-    <button class="category-button" onclick="highlightCategory('integration')">Integration</button>
-    <button class="category-button" onclick="highlightCategory('analysis')">Analysis</button>
-    <button class="category-button" onclick="highlightCategory('reference')">Reference Mapping</button>
-</div>
-
 :::{list-table}
 :widths: auto
 :align: left
 
-*   - Preprocessing {class="tutorial-row integration"}
+*   - Preprocessing
     - description
-*   - [](./notebooks/scrna/harmonization) (link to first header) {class="tutorial-row integration"}
+*   - [](./notebooks/scrna/harmonization) (link to first header)
     - Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
-*   - [](./notebooks/scrna/scvi_in_R) {class="tutorial-row analysis"}
+*   - [](./notebooks/scrna/scvi_in_R)
     - Use basic scvi-tools functionality in R including integration of datasets
 *   - [](./notebooks/scrna/scVI_DE_worm)
     - Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
