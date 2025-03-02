@@ -63,8 +63,10 @@ class UnsupervisedTrainingMixin:
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range ``[0.0, 1.0]``. Passed into
-            :class:`~scvi.dataloaders.DataSplitter`. Not used if ``datamodule`` is passed in.
+            Float, or None. Size of training set in the range ``[0.0, 1.0]``. default is None,
+            which is practicaly 0.9 and potentially adding small last batch to validation cells.
+            Passed into :class:`~scvi.dataloaders.DataSplitter`.
+            Not used if ``datamodule`` is passed in.
         validation_size
             Size of the test set. If ``None``, defaults to ``1 - train_size``. If
             ``train_size + validation_size < 1``, the remaining cells belong to a test set. Passed
@@ -162,6 +164,8 @@ class UnsupervisedTrainingMixin:
 
 
 class SemisupervisedTrainingMixin:
+    """General purpose semisupervised train, predict and interoperability methods."""
+
     _training_plan_cls = SemiSupervisedTrainingPlan
 
     def _set_indices_and_labels(self):
@@ -416,7 +420,10 @@ class SemisupervisedTrainingMixin:
 
         Parameters
         ----------
-        attr: numpy.ndarray
+        adata
+            AnnData or MuData object that has been registered via corresponding setup
+            method in model class.
+        attrs: numpy.ndarray
             Attributions matrix.
 
         Returns
@@ -426,7 +433,7 @@ class SemisupervisedTrainingMixin:
 
         Examples
         --------
-        >>> attrs_df = interpreter.get_ranked_genes(attrs)
+        >>> attrs_df = model.get_ranked_genes(attrs)
         """
         if attrs is None:
             Warning("Missing Attributions matrix")
@@ -448,7 +455,8 @@ class SemisupervisedTrainingMixin:
     def shap_adata_predict(
         self,
         X,
-    ):
+    ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
+        """SHAP Operator (gives soft predictions gives data X)"""
         adata = self._validate_anndata()
 
         # we need to adjust adata to the shap random selection ..
@@ -466,7 +474,10 @@ class SemisupervisedTrainingMixin:
 
         return self.predict(adata_to_pred, soft=True)
 
-    def shap_predict(self, adata: AnnOrMuData | None = None, max_size: int = 100):
+    def shap_predict(
+        self, adata: AnnOrMuData | None = None, max_size: int = 100
+    ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
+        """Run SHAP interpreter for a trained model and gives back shap values"""
         missing_modules = []
         try:
             importlib.import_module("shap")

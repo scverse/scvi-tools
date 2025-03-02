@@ -387,6 +387,8 @@ class JaxModuleInit(Callback):
 
 
 class ScibCallback(Callback):
+    """A callback to initialize the Scib-Metrics autotune module."""
+
     def __init__(
         self,
     ):
@@ -394,6 +396,7 @@ class ScibCallback(Callback):
         self.pl_module = None
 
     def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        """Exposing the pl_module to the scib-metrics autotune"""
         self.pl_module = pl_module
 
     def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):

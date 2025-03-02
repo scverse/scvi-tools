@@ -6,6 +6,18 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
+### 1.3.1 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+- Add consideration for missing monitor set during early stopping. {pr}`3226`.
+
+#### Changed
+
+#### Removed
+
 ### 1.3.0 (2025-02-28)
 
 #### Added
@@ -22,11 +34,12 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`~scvi.external.CellAssign` and {class}`~scvi.external.GIMVI`. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
-- Add semisupervised training mixin class {class}`scvi.model.base.SemisupervisedTrainingMixin` {pr}`3164`.
+- Add semisupervised training mixin class
+    {class}`scvi.model.base.SemisupervisedTrainingMixin`. {pr}`3164`.
 - Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
     {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
 - Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
-- Add a {doc}`/user_guide/use_case` section in the docs, {pr}`3200`.
+- Add a common use cases section in the docs user guide. {pr}`3200`.
 - Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
