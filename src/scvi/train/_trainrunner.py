@@ -84,6 +84,20 @@ class TrainRunner:
             devices=lightning_devices,
             **trainer_kwargs,
         )
+
+        # Sanity checks for usage of early Stopping"
+        if trainer_kwargs["early_stopping"]:
+            if (data_splitter.n_val == 0) and (
+                "valid" in self.trainer.early_stopping_callback.monitor
+            ):
+                raise ValueError(
+                    "Cant run Early Stopping with validation monitor with no validation set"
+                )
+            if (model.adata.n_obs - data_splitter.n_train - data_splitter.n_val) and (
+                "test" in self.trainer.early_stopping_callback.monitor
+            ):
+                raise ValueError("Cant run Early Stopping with test monitor with no test set")
+
         self.trainer._model = model  # needed for savecheckpoint callback
 
     def __call__(self):
