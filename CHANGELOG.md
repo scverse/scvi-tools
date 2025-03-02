@@ -23,7 +23,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
 - Add semisupervised training mixin class
-    {class}`scvi.model.base._training_mixin.SemisupervisedTrainingMixin`. {pr}`3164`.
+    {class}`scvi.model.base.SemisupervisedTrainingMixin`. {pr}`3164`.
 - Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
     {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
 - Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.

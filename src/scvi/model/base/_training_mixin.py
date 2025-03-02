@@ -162,6 +162,8 @@ class UnsupervisedTrainingMixin:
 
 
 class SemisupervisedTrainingMixin:
+    """General purpose semisupervised train, predict and interoperability methods."""
+
     _training_plan_cls = SemiSupervisedTrainingPlan
 
     def _set_indices_and_labels(self):
