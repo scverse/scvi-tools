@@ -13,9 +13,10 @@ def _gaussian_process_classifier(
     alpha_init: float = 0.1,
     alpha_bounds: tuple = (1e-3, 1.0),
     n_restarts_optimizer: int = 20,
-    save_training_data: bool = True,
+    save_data: bool = True,
+    restrict_to_upregulated: bool = True,
 ) -> GaussianProcessClassifier:
-    """Train a Gaussian Process Classifier on the log fold change median values of two groups."""
+    """Train a Gaussian Process Classifier on the log fold change values of two groups."""
     from sklearn.gaussian_process.kernels import (
         ConstantKernel as C,
     )
@@ -30,22 +31,43 @@ def _gaussian_process_classifier(
         alpha_bounds=alpha_bounds,
     )
 
+    if restrict_to_upregulated:
+        # Identify upregulated genes
+        upregulated_g1_g2 = lfc_g1_g2[lfc_g1_g2 > 0]
+        selected_genes = upregulated_g1_g2.index
+
+        # Subset features and labels for training
+        lfc_g1_g2_train = lfc_g1_g2.loc[selected_genes]
+        lfc_n1_g2_train = lfc_n1_g2.loc[selected_genes]
+        fdr_g1_n1_train = fdr_g1_n1.loc[selected_genes]
+    else:
+        selected_genes = lfc_g1_g2.index  # Use all genes if not restricting
+        lfc_g1_g2_train = lfc_g1_g2
+        lfc_n1_g2_train = lfc_n1_g2
+        fdr_g1_n1_train = fdr_g1_n1
+
     # The design matrix X is concat of lfc_g1_g2 and lfc_n1_g2:
     X = pd.concat(
         [lfc_g1_g2, lfc_n1_g2],
         axis=1,
     )
+    X_train = pd.concat(
+        [lfc_g1_g2_train, lfc_n1_g2_train],
+        axis=1,
+    )
 
     gpc = GaussianProcessClassifier(
         kernel=kernel, n_restarts_optimizer=n_restarts_optimizer, random_state=0
-    ).fit(X, fdr_g1_n1)
+    ).fit(X_train, fdr_g1_n1_train)
 
-    gpc.train_score_ = gpc.score(X, fdr_g1_n1)
-    gpc.gene_probas_ = gpc.predict_proba(X)[:, 1]
+    gpc.train_score_ = gpc.score(X_train, fdr_g1_n1_train)
+    gene_probas = pd.Series(0.0, index=lfc_g1_g2.index)
+    gene_probas.loc[selected_genes] = gpc.predict_proba(X_train)[:, 1]
+    gpc.gene_probas_ = gene_probas
 
-    if save_training_data:
-        gpc.X_train_ = X
-        gpc.y_train_ = fdr_g1_n1
+    if save_data:
+        gpc.X_ = X
+        gpc.y_ = fdr_g1_n1
 
     return gpc
 
@@ -77,8 +99,8 @@ def plot_DE_results(
     italic_font = FontProperties(style="italic", size=fontsize - 2)
 
     if X is None:
-        X = gpc.X_train_
-        y = gpc.y_train_
+        X = gpc.X_
+        y = gpc.y_
 
     if filter is None:
         filter = X.index
@@ -87,6 +109,8 @@ def plot_DE_results(
     fdr_g1_n1_display = y.loc[filter]
     lfc_g1_g2_display = X.iloc[:, 0].loc[filter]
     lfc_n1_g2_display = X.iloc[:, 1].loc[filter]
+
+    gpc.confident_genes = fdr_g1_n1_display.index[fdr_g1_n1_display]
 
     if background_filter is not None:
         X_background = X.loc[background_filter].values
@@ -198,16 +222,21 @@ def plot_DE_results(
             markerfacecolor="green",
             markersize=8,
         ),
-        plt.Line2D(
-            [0],
-            [0],
-            marker="o",
-            color="w",
-            label="DE g1_g2 in Xenium",
-            markerfacecolor="lightgrey",
-            markersize=8,
-        ),
     ]
+
+    # Add legend for background points if background_filter is provided
+    if background_filter is not None:
+        legend_elements += [
+            plt.Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                label="DE g1_g2 in background",
+                markerfacecolor="lightgrey",
+                markersize=8,
+            )
+        ]
     disp.ax_.legend(handles=legend_elements, loc="upper right")
 
     # Annotate gene names

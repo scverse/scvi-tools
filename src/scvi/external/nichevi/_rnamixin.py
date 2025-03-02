@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Literal
 
+import joblib
 import pandas as pd
 from anndata import AnnData
 
@@ -41,6 +42,7 @@ class NicheRNASeqMixin(RNASeqMixin):
         k_nn: int | None = None,
         niche_mode: bool = True,
         n_restarts_optimizer_gpc: int = 10,
+        path_to_save: str | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -146,5 +148,8 @@ class NicheRNASeqMixin(RNASeqMixin):
                 silent,
                 **kwargs,
             )
+
+        if path_to_save is not None:
+            joblib.dump(result, path_to_save)
 
         return result

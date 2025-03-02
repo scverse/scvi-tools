@@ -78,18 +78,3 @@ def get_connectivity_distribution(csr_matrix):
     ax.set_ylabel("Number of rows")
     ax.set_title("Histogram of non-zero entries per row")
     plt.show()
-
-
-# def _fdr_de_prediction(posterior_probas: pd.Series, fdr: float = 0.05) -> pd.Series:
-#     """Compute posterior expected FDR and tag features as DE."""
-#     import pandas as pd
-#     if not posterior_probas.ndim == 1:
-#         raise ValueError("posterior_probas should be 1-dimensional")
-#     original_index = posterior_probas.index
-#     sorted_pgs = posterior_probas.sort_values(ascending=False)
-#     cumulative_fdr = (1.0 - sorted_pgs).cumsum() / (1.0 + np.arange(len(sorted_pgs)))
-#     d = (cumulative_fdr <= fdr).sum()
-#     is_pred_de = pd.Series(np.zeros_like(cumulative_fdr).astype(bool), index=sorted_pgs.index)
-#     is_pred_de.iloc[:d] = True
-#     is_pred_de = is_pred_de.loc[original_index]
-#     return is_pred_de

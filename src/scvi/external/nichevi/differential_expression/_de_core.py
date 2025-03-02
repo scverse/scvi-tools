@@ -213,7 +213,11 @@ def _niche_de_core(
 
     print("Computing g1 confidence scores...")
     gpc_ = _gaussian_process_classifier(
-        lfc_g1_g2, lfc_n1_g2, fdr_g1_n1, n_restarts_optimizer=n_restarts_optimizer_gpc
+        lfc_g1_g2,
+        lfc_n1_g2,
+        fdr_g1_n1,
+        n_restarts_optimizer=n_restarts_optimizer_gpc,
+        restrict_to_upregulated=True,
     )
 
     for groups in list(DE_results.keys()):
