@@ -63,8 +63,10 @@ class UnsupervisedTrainingMixin:
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range ``[0.0, 1.0]``. Passed into
-            :class:`~scvi.dataloaders.DataSplitter`. Not used if ``datamodule`` is passed in.
+            Float, or None. Size of training set in the range ``[0.0, 1.0]``. default is None,
+            which is practicaly 0.9 and potentially adding small last batch to validation cells.
+            Passed into :class:`~scvi.dataloaders.DataSplitter`.
+            Not used if ``datamodule`` is passed in.
         validation_size
             Size of the test set. If ``None``, defaults to ``1 - train_size``. If
             ``train_size + validation_size < 1``, the remaining cells belong to a test set. Passed
