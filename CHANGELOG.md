@@ -12,6 +12,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Add consideration for missing monitor set during early stopping. {pr}`3226`.
+
 #### Changed
 
 #### Removed

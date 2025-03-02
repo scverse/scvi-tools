@@ -86,7 +86,7 @@ class TrainRunner:
         )
 
         # Sanity checks for usage of early Stopping"
-        if trainer_kwargs["early_stopping"]:
+        if self.trainer.early_stopping_callback is not None:
             if (data_splitter.n_val == 0) and (
                 "valid" in self.trainer.early_stopping_callback.monitor
             ):
