@@ -467,7 +467,7 @@ class SemisupervisedTrainingMixin:
                 )
         else:
             adata_to_pred = adata[0 : len(x)]
-        adata_to_pred.x = x
+        adata_to_pred.X = x
 
         return self.predict(adata_to_pred, soft=True)
 
@@ -484,18 +484,18 @@ class SemisupervisedTrainingMixin:
         adata_orig = self._validate_anndata()
         adata = self._validate_anndata(adata)
 
-        if type(adata_orig.x).__name__ == "csr_matrix":
+        if type(adata_orig.X).__name__ == "csr_matrix":
             feature_matrix_background = pd.DataFrame.sparse.from_spmatrix(
-                adata_orig.x, columns=adata_orig.var_names
+                adata_orig.X, columns=adata_orig.var_names
             )
         else:
-            feature_matrix_background = pd.DataFrame(adata_orig.x, columns=adata_orig.var_names)
-        if type(adata.x).__name__ == "csr_matrix":
+            feature_matrix_background = pd.DataFrame(adata_orig.X, columns=adata_orig.var_names)
+        if type(adata.X).__name__ == "csr_matrix":
             feature_matrix = pd.DataFrame.sparse.from_spmatrix(
-                adata.x, columns=adata_orig.var_names
+                adata.X, columns=adata_orig.var_names
             )
         else:
-            feature_matrix = pd.DataFrame(adata.x, columns=adata_orig.var_names)
+            feature_matrix = pd.DataFrame(adata.X, columns=adata_orig.var_names)
         feature_matrix_background = shap.sample(feature_matrix_background, max_size)
         feature_matrix = shap.sample(feature_matrix, max_size)
         explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix_background)
