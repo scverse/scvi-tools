@@ -387,6 +387,8 @@ class JaxModuleInit(Callback):
 
 
 class ScibCallback(Callback):
+    """A callback to initialize the Scib-Metrics autotune module."""
+
     def __init__(
         self,
     ):
