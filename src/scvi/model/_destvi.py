@@ -220,6 +220,13 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             index=index_names,
         )
 
+    def get_normalized_expression(
+        self,
+    ):
+        # Refer to function get_accessibility_estimates
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
     def get_gamma(
         self,
         indices: Sequence[int] | None = None,

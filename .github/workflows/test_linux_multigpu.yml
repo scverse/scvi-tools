@@ -52,7 +52,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
-          python -m pip install jax[cuda]
+          python -m pip install "jax[cuda]==0.4.35"
           python -m pip install nvidia-nccl-cu12
 
       - name: Run pytest

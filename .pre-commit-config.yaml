@@ -18,7 +18,7 @@ repos:
         types: [yaml]
 
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.21
+    rev: 0.7.22
     hooks:
       - id: mdformat
         additional_dependencies:
@@ -41,7 +41,7 @@ repos:
           )$
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.3
+    rev: v0.9.7
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
