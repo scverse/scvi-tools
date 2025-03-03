@@ -118,15 +118,11 @@ data. This is different from de novo integration, where the model is trained on 
     - Use scANVI, scArches and scvi-hub to query the Human Lung Cell Atlas
 
 :::
+
 :::
 
 :::{dropdown} scATAC-seq
-
-
-
 Go through the workflows of models used for analysis of scATAC-seq datasets, including PeakVI, scBasset, and PoissonVI
-
-
 
 :::{card}
 The following tutorials use peakVI, a generative model of scATAC-seq data.
@@ -174,11 +170,10 @@ representation learning of scATAC-seq data.
     - Use scBasset to integrate data across several samples
 
 :::
+
 :::
 
 :::{dropdown} scBS-seq (Single-cell bisulfite sequencing)
-
-
 
 Use methylVI with single-cell bisulfite sequencing data
 
@@ -190,15 +185,12 @@ Use methylVI with single-cell bisulfite sequencing data
     - Correct batch effects in across different scBS-seq experiments with methylVI
 
 :::
+
 :::
 
 :::{dropdown} Multimodal
 
-
-
 Use models to analyze multimodal data, including totalVI for CITE-seq analysis and MultiVI for joint analysis of scRNA-seq and scATAC-seq
-
-
 
 :::{card}
 In the following tutorials we use totalVI, a generative model of CITE-seq RNA and protein data
@@ -239,14 +231,12 @@ dimensionality reduction and imputation of missing modalities.
     - Go through the MultiVI workflow to perform joint analysis of paired and unpaired multi omic data
 
 :::
+
 :::
 
 :::{dropdown} Spatial transcriptomics
 
-
 Learn about models and methods to use with spatial transciptomics data, including DestVI, gimVI, Tangram, Cell2location, and Stereoscope
-
-
 
 :::{card}
 In the following tutorials we use various scvi-tools models for spatial transcriptomics
@@ -275,11 +265,10 @@ analysis. See the [user guide](./user_guide/index.md#Spatial transcriptomics ana
     - Spatially map lymph node cell types using Cell2location
 
 :::
+
 :::
 
 :::{dropdown} Model hub
-
-
 
 Learn about using and uploading pretrained scvi-tools models with scvi-hub and Hugging Face
 
@@ -295,14 +284,11 @@ Learn about using and uploading pretrained scvi-tools models with scvi-hub and H
 *   - [](./notebooks/hub/scvi_hub_upload_and_large_files)
     - Learn how to upload pretrained scvi-tools models to Hugging Face
 
-
-
 :::
+
 :::
 
 :::{dropdown} Hyperparameter tuning
-
-
 
 Learn about hyperparameter tuning of scvi-tools models
 
@@ -314,6 +300,7 @@ Learn about hyperparameter tuning of scvi-tools models
     - Use scvi’s autotune module to automatically find a good set of model hyperparameters
 
 :::
+
 :::
 
 :::{dropdown} Development
@@ -332,6 +319,7 @@ Learn how to implement a novel statistical method for single-cell omics data in 
     - Implement an scvi-tools model class to provide a convenient interface for the lower-level module objects
 
 :::
+
 :::
 
 :::{dropdown} Common Modelling Use Cases
@@ -350,6 +338,7 @@ Learn common tasks in the scvi-tools workflow.
     - Learn how to interpret cell type classification.
 
 :::
+
 :::
 
 [forum]: https://discourse.scverse.org/
