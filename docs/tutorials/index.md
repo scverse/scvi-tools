@@ -32,6 +32,10 @@ index_dev
 
 Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and how to use basic scvi-tools functionality within an R environment
 
+:::{dropdown} Quick start tutorials
+
+:::
+
 ## scRNA-seq
 
 Go through the workflows of models used for analysis of scRNA-seq datasets, including scVI, scANVI, AutoZI, AmortizedLDA, LinearSCVI, and contrastiveVI
@@ -40,9 +44,21 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 
 ### Unsupervised Models
 
+:::{dropdown} Unsupervised model tutorials
+
+:::
+
 ### Semi-supervised Models
 
+:::{dropdown} semi-supervised model tutorials
+
+:::
+
 ### Reference Mapping
+
+:::{dropdown} Reference mapping tutorials
+
+:::
 
 ## scATAC-seq
 
@@ -52,13 +68,29 @@ Go through the workflows of models used for analysis of scATAC-seq datasets, inc
 
 ### PeakVI
 
+:::{dropdown} PeakVI tutorials
+
+:::
+
 ### PoissonVI
 
+:::{dropdown} PoissonVI tutorials
+
+:::
+
 ### scBasset
+
+:::{dropdown} scBasset tutorials
+
+:::
 
 ## scBS-seq (Single-cell bisulfite sequencing)
 
 Use methylVI with single-cell bisulfite sequencing data
+
+:::{dropdown} methylVI tutorials
+
+:::
 
 ## Multimodal
 
@@ -68,7 +100,15 @@ Use models to analyze multimodal data, including totalVI for CITE-seq analysis a
 
 ### totalVI
 
+:::{dropdown} totalVI tutorials
+
+:::
+
 ### MultiVI
+
+:::{dropdown} MultiVI tutorials
+
+:::
 
 ## Spatial Transcriptomics
 
@@ -76,14 +116,30 @@ Learn about models and methods to use with spatial transciptomics data, includin
 
 ### Pre-processing
 
+:::{dropdown} Spatial transciptomics tutorials
+
+:::
+
 ## Model Hub
 
 Learn about using and uploading pretrained scvi-tools models with scvi-hub and Hugging Face
+
+:::{dropdown} Model hub tutorials
+
+:::
 
 ## Common Modeling Use Cases
 
 Learn common tasks in the scvi-tools workflow
 
+:::{dropdown} Common use case tutorials
+
+:::
+
 ## Development
 
 Learn how to implement a novel statistical method for single-cell omics data in the scvi-tools environment
+
+:::{dropdown} scvi-tools development tutorials
+
+:::
