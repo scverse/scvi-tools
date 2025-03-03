@@ -238,7 +238,8 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         cluster_obs_key : str
             The key in adata.obs containing cluster assignments.
         trajectory : Trajectory
-            A Trajectory object containing the trajectory information.
+            A :class:`~scvi.external.decipher.utils.Trajectory` object containing
+            the trajectory information.
         n_neighbors : int
             The number of neighbors to use for the KNN regression.
 
@@ -280,7 +281,8 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         adata : AnnData
             The annotated data matrix.
         trajectory : Trajectory
-            A Trajectory object containing the trajectory information.
+            A :class:`~scvi.external.decipher.utils.Trajectory` object containing
+            the trajectory information.
         l_scale : float
             The library size scaling factor.
         n_samples : int
