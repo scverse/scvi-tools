@@ -285,7 +285,6 @@ class SemisupervisedTrainingMixin:
                 pred = pred.argmax(dim=1)
             y_pred.append(pred.detach().cpu())
 
-
             if ig_interpretability:
                 # we need the hard prediction if was not done yet
                 hard_pred = pred.argmax(dim=1) if soft else pred
