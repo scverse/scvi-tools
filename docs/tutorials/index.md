@@ -26,3 +26,46 @@ index_dev
 
 [forum]: https://discourse.scverse.org/
 [ecosystem]: https://scvi-tools.org/ecosystem
+
+
+## Quick Start
+
+## scRNA-seq
+
+### Pre-processing
+
+### Unsupervised Models
+
+### Semi-supervised Models
+
+### Reference Mapping
+
+## scATAC-seq
+
+### Pre-processing
+
+### PeakVI
+
+### PoissonVI
+
+### scBasset
+
+## scBS-seq (Single-cell bisulfite sequencing)
+
+## Multimodal
+
+### Pre-processing
+
+### totalVI
+
+### MultiVI
+
+## Spatial Transcriptomics
+
+### Pre-processing
+
+## Model Hub
+
+## Common Modeling Use Cases
+
+## Development
