@@ -4,7 +4,7 @@ import numpy as np
 
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
-from scvi.external.methylvi import METHYLVI_REGISTRY_KEYS
+from scvi.external.methylvi._constants import METHYLVI_REGISTRY_KEYS
 
 logger = logging.getLogger(__name__)
 
