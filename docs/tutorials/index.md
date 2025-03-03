@@ -30,7 +30,11 @@ index_dev
 
 ## Quick Start
 
+Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and how to use basic scvi-tools functionality within an R environment
+
 ## scRNA-seq
+
+Go through the workflows of models used for analysis of scRNA-seq datasets, including scVI, scANVI, AutoZI, AmortizedLDA, LinearSCVI, and contrastiveVI
 
 ### Pre-processing
 
@@ -42,6 +46,8 @@ index_dev
 
 ## scATAC-seq
 
+Go through the workflows of models used for analysis of scATAC-seq datasets, including PeakVI, scBasset, and PoissonVI
+
 ### Pre-processing
 
 ### PeakVI
@@ -52,7 +58,11 @@ index_dev
 
 ## scBS-seq (Single-cell bisulfite sequencing)
 
+Use methylVI with single-cell bisulfite sequencing data
+
 ## Multimodal
+
+Use models to analyze multimodal data, including totalVI for CITE-seq analysis and MultiVI for joint analysis of scRNA-seq and scATAC-seq
 
 ### Pre-processing
 
@@ -62,10 +72,18 @@ index_dev
 
 ## Spatial Transcriptomics
 
+Learn about models and methods to use with spatial transciptomics data, including DestVI, gimVI, Tangram, Cell2location, and Stereoscope
+
 ### Pre-processing
 
 ## Model Hub
 
+Learn about using and uploading pretrained scvi-tools models with scvi-hub and Hugging Face
+
 ## Common Modeling Use Cases
 
+Learn common tasks in the scvi-tools workflow
+
 ## Development
+
+Learn how to implement a novel statistical method for single-cell omics data in the scvi-tools environment
