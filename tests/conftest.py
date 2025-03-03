@@ -19,7 +19,13 @@ def pytest_addoption(parser):
         "--multigpu-tests",
         action="store_true",
         default=False,
-        help="Run tests that are desinged for multiGPU.",
+        help="Run tests that are designed for multiGPU.",
+    )
+    parser.addoption(
+        "--autotune-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that are designed for Ray Autotune.",
     )
     parser.addoption(
         "--optional",
@@ -107,6 +113,18 @@ def pytest_collection_modifyitems(config, items):
         # Skip all tests not marked with `pytest.mark.multigpu` if `--multigpu-tests` passed
         elif run_multigpu and ("multigpu" not in item.keywords):
             item.add_marker(skip_non_multigpu)
+
+    run_autotune = config.getoption("--autotune-tests")
+    skip_autotune = pytest.mark.skip(reason="need --autotune-tests option to run")
+    skip_non_autotune = pytest.mark.skip(reason="test not having a pytest.mark.autotune decorator")
+    for item in items:
+        # All tests marked with `pytest.mark.autotune` get skipped unless
+        # `--autotune-tests` passed
+        if not run_autotune and ("autotune" in item.keywords):
+            item.add_marker(skip_autotune)
+        # Skip all tests not marked with `pytest.mark.autotune` if `--autotune-tests` passed
+        elif run_autotune and ("autotune" not in item.keywords):
+            item.add_marker(skip_non_autotune)
 
 
 @pytest.fixture(scope="session")

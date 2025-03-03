@@ -23,6 +23,7 @@ __all__ = [
     "RNASeqMixin",
     "VAEMixin",
     "UnsupervisedTrainingMixin",
+    "SemisupervisedTrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
     "PyroJitGuideWarmup",

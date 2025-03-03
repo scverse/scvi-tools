@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [main, "[0-9]+.[0-9]+.x"]
     types: [labeled, synchronize, opened]
-  schedule:
-    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  #schedule:
+  #  - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
 
 concurrency:
@@ -59,7 +59,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
-          python -m pip install jax[cuda]
+          python -m pip install "jax[cuda]==0.4.35"
           python -m pip install nvidia-nccl-cu12
 
       - name: Run pytest
