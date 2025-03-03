@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 
     from scvi._types import AnnOrMuData
 
+
 logger = logging.getLogger(__name__)
 
 
