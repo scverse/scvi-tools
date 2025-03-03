@@ -10,6 +10,7 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 :::
 
 ```{toctree}
+:hidden:
 :maxdepth: 2
 
 index_quick_start
