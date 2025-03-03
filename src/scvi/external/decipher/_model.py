@@ -19,7 +19,7 @@ from .utils._trajectory import Trajectory
 
 
 class Decipher(PyroSviTrainMixin, BaseModelClass):
-    """Decipher model for single-cell data analysis :cite:p:`Nazaret23`.
+    """Decipher model for single-cell data analysis :cite:p:`Nazaret24`.
 
     Parameters
     ----------
