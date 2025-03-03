@@ -60,6 +60,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
+            mod_key=getattr(adata_manager.data_registry.labels, "mod_key", None),
         ).ravel()
 
         # save a nested list of the indices per labeled category
