@@ -32,7 +32,7 @@ index_dev
 
 Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and how to use basic scvi-tools functionality within an R environment
 
-:::{dropdown} Quick start tutorials
+::::{dropdown} Quick start tutorials
 
 :::{card} [](notebooks/quick_start/api_overview)
 :link: notebooks/quick_start/api_overview
@@ -55,7 +55,7 @@ Load, preprocess, and register data for use with scvi-tools
 Perform basic Python operations in an R environment
 :::
 
-:::
+::::
 
 ## scRNA-seq
 
