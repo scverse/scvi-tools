@@ -34,31 +34,26 @@ Learn the typical scvi-tools workflow, how to handle data with scvi-tools, and h
 
 :::{dropdown} Quick start tutorials
 
-::::{grid} 1 2 3 3
-:gutter: 2
-
-:::{grid-item-card} [](notebooks/quick_start/api_overview)
+:::{card} [](notebooks/quick_start/api_overview)
 :link: notebooks/quick_start/api_overview
 :link-type: doc
 
 Go through the typical steps of an scvi-tools workflow
 :::
 
-:::{grid-item-card} [](notebooks/quick_start/data_loading)
+:::{card} [](notebooks/quick_start/data_loading)
 :link: notebooks/quick_start/data_loading
 :link-type: doc
 
 Load, preprocess, and register data for use with scvi-tools
 :::
 
-:::{grid-item-card} [](notebooks/quick_start/python_in_R)
+:::{card} [](notebooks/quick_start/python_in_R)
 :link: notebooks/quick_start/python_in_R
 :link-type: doc
 
 Perform basic Python operations in an R environment
 :::
-
-::::
 
 :::
 
