@@ -1,6 +1,7 @@
 from ._base_components import DecoderMETHYLVI
 from ._constants import METHYLVI_REGISTRY_KEYS
-from ._model import METHYLVI as METHYLVI
-from ._module import METHYLVAE
+from ._methylanvi_model import METHYLANVI as METHYLANVI
+from ._methylvi_model import METHYLVI as METHYLVI
+from ._methylvi_module import METHYLVAE
 
-__all__ = ["METHYLVI_REGISTRY_KEYS", "DecoderMETHYLVI", "METHYLVAE", "METHYLVI"]
+__all__ = ["METHYLVI_REGISTRY_KEYS", "DecoderMETHYLVI", "METHYLVAE", "METHYLVI", "METHYLANVI"]
