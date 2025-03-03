@@ -63,10 +63,6 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 
 ### Pre-processing
 
-:::{card} [](notebooks/scrna/harmonization)
-:link: notebooks/scrna/harmonization
-:link-type: doc
-
 ### Unsupervised Models
 
 The following tutorials use generative models of scRNA-seq data for downstream analysis.
