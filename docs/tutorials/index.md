@@ -63,6 +63,11 @@ Go through the workflows of models used for analysis of scRNA-seq datasets, incl
 
 ### Pre-processing
 
+:::{card} [](notebooks/processing/preprocessing)
+:link: notebooks/processing/preprocessing
+:link-type: doc
+:::
+
 ### Unsupervised Models
 
 The following tutorials use generative models of scRNA-seq data for downstream analysis.
@@ -148,7 +153,7 @@ The following tutorials use scANVI, a semi-supervised model for single-cell tran
 Unlike the models used in the previous section, scANVI can use existing cell type knowledge
 for a subset of cells to infer the states of all cells.
 
-::::{dropdown} semi-supervised model tutorials
+::::{dropdown} Semi-supervised model tutorials
 
 :::{card} [](notebooks/scrna/harmonization)
 :link: notebooks/scrna/harmonization
@@ -210,6 +215,11 @@ Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
 Go through the workflows of models used for analysis of scATAC-seq datasets, including PeakVI, scBasset, and PoissonVI
 
 ### Pre-processing
+
+:::{card} [](notebooks/processing/preprocessing)
+:link: notebooks/processing/preprocessing
+:link-type: doc
+:::
 
 ### PeakVI
 
@@ -293,6 +303,11 @@ Use models to analyze multimodal data, including totalVI for CITE-seq analysis a
 
 ### Pre-processing
 
+:::{card} [](notebooks/processing/preprocessing)
+:link: notebooks/processing/preprocessing
+:link-type: doc
+:::
+
 ### totalVI
 
 In the following tutorials we use totalVI, a generative model of CITE-seq RNA and protein data
@@ -354,12 +369,15 @@ Learn about models and methods to use with spatial transciptomics data, includin
 
 ### Pre-processing
 
-::::{dropdown} Spatial transciptomics tutorials
+:::{card} [](notebooks/processing/preprocessing)
+:link: notebooks/processing/preprocessing
+:link-type: doc
+:::
 
-:::{card}
 In the following tutorials we use various scvi-tools models for spatial transcriptomics
 analysis. See the [user guide](./user_guide/index.md#Spatial transcriptomics analysis) for more information about these models.
-:::
+
+::::{dropdown} Spatial transciptomics tutorials
 
 :::{card} [](notebooks/spatial/resolVI_tutorial)
 :link: notebooks/spatial/resolVI_tutorial
@@ -454,8 +472,8 @@ Learn common tasks in the scvi-tools workflow
 Automatically find a good set of hyperparameters using autotune.
 :::
 
-:::{card} [](notebooks/hub/minification)
-:link: notebooks/hub/minification
+:::{card} [](notebooks/use_cases/minification)
+:link: notebooks/use_cases/minification
 :link-type: doc
 
 Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
@@ -466,13 +484,6 @@ Minify a dataset by replacing count data with the model’s estimated parameters
 :link-type: doc
 
 Interpret a model to improve its performance
-:::
-
-:::{card} [](notebooks/use_cases/external_datasets)
-:link: notebooks/use_cases/external_datasets
-:link-type: doc
-
-Learn how to use scvi-tools models for external datasets
 :::
 
 ::::
