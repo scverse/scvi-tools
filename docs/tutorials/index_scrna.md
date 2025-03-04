@@ -19,4 +19,5 @@ notebooks/scrna/scanvi_fix
 notebooks/scrna/MrVI_tutorial
 notebooks/scrna/sysVI
 notebooks/scrna/decipher_tutorial
+notebooks/scrna/velovi
 ```

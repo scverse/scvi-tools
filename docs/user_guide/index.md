@@ -51,6 +51,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/decipher`
      - Joint representation and visualization of derailed cell states with Decipher
      - :cite:p:`Nazaret24`
+   * - :doc:`/user_guide/models/velovi`
+     - Deep generative modeling of transcriptional dynamics for RNA velocity analysis in single cells
+     - :cite:p:`GayosoWeiler23`
 ```
 
 ## ATAC-seq analysis
