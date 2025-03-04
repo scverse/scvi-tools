@@ -119,6 +119,7 @@ These classes should be used to construct user-facing model classes.
     model.base.RNASeqMixin
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
+    model.base.SemisupervisedTrainingMixin
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
@@ -180,6 +181,7 @@ Module classes in the external API with respective generative and inference proc
    external.velovi.VELOVAE
    external.mrvi.MRVAE
    external.methylvi.METHYLVAE
+   external.methylvi.METHYLANVAE
    external.decipher.DecipherPyroModule
    external.resolvi.RESOLVAE
    external.sysvi.SysVAE
@@ -257,6 +259,7 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.TrainingPlan
    train.TrainRunner
    train.SaveBestState
+   train.ScibCallback
    train.SaveCheckpoint
    train.LoudEarlyStopping
 

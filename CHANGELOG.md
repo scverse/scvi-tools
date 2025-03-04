@@ -10,6 +10,10 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add {class}`scvi.external.METHYLANVI` for modeling methylation labelled data from single-cell
+    bisulfite sequencing (scBS-seq) {pr}`3066`.
+-
+
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
