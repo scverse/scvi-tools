@@ -48,6 +48,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/sysvi`
      - Integrating single-cell RNA-seq datasets with substantial batch effects
      - :cite:p:`Hrovatin23`
+   * - :doc:`/user_guide/models/decipher`
+     - Joint representation and visualization of derailed cell states with Decipher
+     - :cite:p:`Nazaret24`
 ```
 
 ## ATAC-seq analysis
