@@ -16,5 +16,5 @@ The limitations of Decipher include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/decipher_tutorial`
+-   {doc}`/tutorials/notebooks/scrna/decipher_tutorial`
 ```
