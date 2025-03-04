@@ -282,4 +282,5 @@ Utility functions used by scvi-tools.
    utils.setup_anndata_dsp
    utils.attrdict
    model.get_max_epochs_heuristic
+   external.decipher.utils.Trajectory
 ```
