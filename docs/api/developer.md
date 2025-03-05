@@ -204,6 +204,7 @@ These classes should be used to construct module classes that define generative 
 
    module.base.BaseModuleClass
    module.base.BaseMinifiedModeModuleClass
+   module.base.SupervisedModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
    module.base.EmbeddingModuleMixin
