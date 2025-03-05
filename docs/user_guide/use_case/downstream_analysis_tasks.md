@@ -35,7 +35,7 @@ See {class}`scvi.module.LDVAE`
 5. Predictive Modeling and Imputation
 Gene Expression/Protein Imputation: SCVI can be used to impute missing or dropout gene expression values. This is useful when dealing with sparse data, as SCVI can recover hidden information based on the patterns it learns in the data.
 Prediction: After training, SCVI can also be used to predict gene expression under different conditions or experimental setups.
-We can get those with get_normalized_expression function, exists for most models, and plot it, per gene over the already generated latent embedding umap. See {doc}`/user_guide/models/mrvi` as example
+We can get those with get_normalized_expression function, exists for most models, and plot it, per gene over the already generated latent embedding umap.
 6. Batch Effect Removal
 Identifying and Correcting Batch Effects: SCVI allows you to account for and remove batch effects during training. You can use the model to test if there is any batch-related structure in the latent space or gene expression.
 You can evaluate how much of the variability in gene expression is due to biological factors versus technical factors like batch.
