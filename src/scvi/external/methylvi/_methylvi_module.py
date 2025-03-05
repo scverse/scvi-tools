@@ -42,6 +42,8 @@ class METHYLVAE(BaseModuleClass, BSSeqModuleMixin):
         Number of hidden layers used for encoder and decoder NNs
     dropout_rate
         Dropout rate for neural networks
+    log_variational
+        Log(data+1) prior to encoding for numerical stability. Not normalization.
     likelihood
         One of
         * ``'betabinomial'`` - BetaBinomial distribution
@@ -63,6 +65,7 @@ class METHYLVAE(BaseModuleClass, BSSeqModuleMixin):
         n_latent: int = 10,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
+        log_variational: bool = True,
         likelihood: Literal["betabinomial", "binomial"] = "betabinomial",
         dispersion: Literal["region", "region-cell"] = "region",
     ):
@@ -74,6 +77,7 @@ class METHYLVAE(BaseModuleClass, BSSeqModuleMixin):
         self.dispersion = dispersion
         self.likelihood = likelihood
         self.contexts = contexts
+        self.log_variational = log_variational
         self.num_features_per_context = num_features_per_context
 
         cat_list = [n_batch] + list([] if n_cats_per_cov is None else n_cats_per_cov)
