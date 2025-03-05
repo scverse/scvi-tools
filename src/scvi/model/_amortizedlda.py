@@ -270,3 +270,10 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         return np.exp(
             self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
         )
+
+    def get_normalized_expression(
+        self,
+    ):
+        # Refer to function get_accessibility_estimates
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)

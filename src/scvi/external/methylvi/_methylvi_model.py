@@ -81,6 +81,7 @@ class METHYLVI(VAEMixin, BSSeqMixin, UnsupervisedTrainingMixin, ArchesMixin, Bas
             "methylation_contexts"
         ]
         self.num_features_per_context = [mdata[context].shape[1] for context in self.contexts]
+        self.get_normalized_function_name = "get_normalized_methylation"
 
         n_input = np.sum(self.num_features_per_context)
 

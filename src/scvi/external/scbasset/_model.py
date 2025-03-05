@@ -443,3 +443,10 @@ class SCBASSET(BaseModelClass):
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    def get_normalized_expression(
+        self,
+    ):
+        # Refer to function get_accessibility_estimates
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)

@@ -4,7 +4,7 @@ SCVI provides useful tools for exploring and understanding the learned latent re
 
 1. Latent Space Exploration
 Visualization: You can visualize the learned latent representation of cells to observe patterns, clusters, and structure in the data.
-We usually apply [scanpy's UMAP]("https://scanpy.readthedocs.io/en/1.10.x/tutorials/plotting/core.html"); These dimensionality reduction techniques can be applied to the model’s latent space to visualize how cells are grouped in 2D or 3D.
+We usually apply [scanpy's UMAP](https://scanpy.readthedocs.io/en/1.10.x/tutorials/plotting/core.html); These dimensionality reduction techniques can be applied to the model’s latent space to visualize how cells are grouped in 2D or 3D.
 
     Clustering: After visualizing the latent space, you can perform clustering (e.g., leiden, k-means, hierarchical clustering) to identify distinct groups of cells with similar gene expression profiles.
 
@@ -17,12 +17,12 @@ For example:
 :::
 2. Differential Expression (DE) Analysis
 Gene Expression Comparisons: SCVI allows you to perform differential expression analysis between different clusters or conditions (e.g., different cell types or experimental conditions).
-You can compare the expression of genes between clusters to identify which genes are differentially expressed. See more information [here]("https://decoupler-py.readthedocs.io/en/latest/notebooks/bulk.html#Differential-expression-analysis")
+You can compare the expression of genes between clusters to identify which genes are differentially expressed. See more information [here](https://decoupler-py.readthedocs.io/en/latest/notebooks/bulk.html#Differential-expression-analysis)
 ```python
 differential_expression = scvi.model.SCVI().differential_expression()
 ```
 Log-fold Change (LFC) and p-values are typically used to assess which genes have significant expression differences between groups.
-Refer to [SCVI-Hub]("https://huggingface.co/scvi-tools") for use cases of DE.
+Refer to [SCVI-Hub](https://huggingface.co/scvi-tools) for use cases of DE.
 3. Cell Type Identification
 Mapping to Known Labels: After training a model with SCVI, you can use the latent space to assign cells to known or predicted cell types. You can compare how well SCVI clusters cells by their latent representations and match them to known biological annotations.
 If you have labeled data (e.g., cell types), you can assess how well the model’s clusters correspond to these labels.
@@ -50,7 +50,7 @@ Log-Likelihood: SCVI models the data through a probabilistic framework, so you c
 Cross-validation: Perform cross-validation to check for overfitting and assess the model's generalizability.
 10. Model Comparison
 Comparing SCVI Models: You can compare different SCVI models trained with different configurations or hyperparameters to assess which model performs better. This is especially useful in selecting the best model for downstream tasks like differential expression or clustering.
-We usually use to run [scib-metrics]("https://github.com/YosefLab/scib-metrics") to compare different models bio conservation and batch correction metrics.
+We usually use to run [scib-metrics](https://github.com/YosefLab/scib-metrics) to compare different models bio conservation and batch correction metrics.
 
 In summary:
 SCVI provides a broad set of downstream analysis capabilities, including differential expression analysis, cell type identification, latent factor exploration, trajectory inference, and batch effect correction, among others. By using SCVI’s probabilistic framework, you can explore complex patterns in single-cell RNA-seq data, visualize latent representations, impute missing data, and integrate metadata to gain deeper insights into cellular behaviors. These tools are crucial for understanding biological processes, making SCVI a versatile tool for single-cell genomics analysis.

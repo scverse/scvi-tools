@@ -120,6 +120,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
+        self.get_normalized_function_name_ = "get_normalized_expression"
 
     @property
     def adata(self) -> AnnOrMuData:
@@ -807,6 +808,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             "Trained" if self.is_trained_ else "Not Trained"
         )
         return summary_string
+
+    @property
+    def get_normalized_function_name(self) -> str:
+        """What the get normalized functions name is"""
+        return self.get_normalized_function_name_
+
+    @get_normalized_function_name.setter
+    def get_normalized_function_name(self, value):
+        self.get_normalized_function_name_ = value
 
     def __repr__(self):
         rich.print(self.summary_string)

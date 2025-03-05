@@ -1058,6 +1058,13 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         return bdata
 
+    def get_normalized_expression(
+        self,
+    ):
+        # Refer to function get_accessibility_estimates
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
 
 def _compute_directional_statistics_tensor(
     tensor: np.ndarray, n_jobs: int, n_cells: int

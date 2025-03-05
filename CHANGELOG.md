@@ -12,7 +12,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add {class}`scvi.external.METHYLANVI` for modeling methylation labelled data from single-cell
     bisulfite sequencing (scBS-seq) {pr}`3066`.
--
+- Add get normalized function model property {pr}`32XX`.
 
 #### Fixed
 
