@@ -152,7 +152,7 @@ class METHYLVI(VAEMixin, BSSeqMixin, UnsupervisedTrainingMixin, ArchesMixin, Bas
             (specified by `mc_layer`) and total number of counts (specified by `cov_layer`) for
             each genomic region feature.
         %(param_batch_key)s
-        %(param_categorical_covariate_keys)s
+        %(param_cat_cov_keys)s
         %(param_modalities)s
 
         Examples

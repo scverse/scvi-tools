@@ -903,6 +903,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ) from err
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
 
+    def get_normalized_expression(
+        self,
+    ):
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
 
 class BaseMinifiedModeModelClass(BaseModelClass):
     """Abstract base class for scvi-tools models that can handle minified data."""

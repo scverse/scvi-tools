@@ -1640,10 +1640,3 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         obs_df = adata.obs.copy()
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
-
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
-        raise NotImplementedError(msg)

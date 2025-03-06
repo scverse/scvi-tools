@@ -473,13 +473,6 @@ class SOLO(BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
-        raise NotImplementedError(msg)
-
 
 def _validate_scvi_model(scvi_model: SCVI, restrict_to_batch: str):
     if scvi_model.summary_stats.n_batch > 1 and restrict_to_batch is None:

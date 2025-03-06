@@ -325,10 +325,3 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         x_denoised = torch.cat(data_loader_list, dim=0).numpy()
 
         return x_denoised
-
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
-        raise NotImplementedError(msg)

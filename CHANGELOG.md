@@ -13,7 +13,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.METHYLANVI` for modeling methylation labelled data from single-cell
     bisulfite sequencing (scBS-seq) {pr}`3066`.
 - Add supervised module class {class}`scvi.model.base.SupervisedModuleClass`. {pr}`3237`.
-- Add get normalized function model property {pr}`3238`.
+- Add get normalized function model property for any generative model {pr}`3238` and changed
+    get_accessibility_estimates to get_normalized_accessibility, where needed.
 
 #### Fixed
 

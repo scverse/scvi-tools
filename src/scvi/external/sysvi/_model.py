@@ -183,8 +183,8 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin, VAEMixin):
         layer
             AnnData layer to use, default is X.
             Should contain normalized and log1p transformed expression.
-        %(param_categorical_covariate_keys)s
-        %(param_continuous_covariate_keys)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
@@ -207,10 +207,3 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin, VAEMixin):
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
-
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
-        raise NotImplementedError(msg)
