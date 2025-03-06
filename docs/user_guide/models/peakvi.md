@@ -132,7 +132,7 @@ A PeakVI model can be pre-trained on reference data and updated with query data 
 
 ### Estimation of accessibility
 
-In {func}`~scvi.model.PEAKVI.get_accessibility_estimates` PeakVI returns the expected value of $y_i$ under the approximate posterior. For one cell $i$, this can be written as:
+In {func}`~scvi.model.PEAKVI.get_normalized_accessibility` PeakVI returns the expected value of $y_i$ under the approximate posterior. For one cell $i$, this can be written as:
 
 ```{math}
 :nowrap: true

@@ -81,6 +81,7 @@ class METHYLVI(VAEMixin, BSSeqMixin, UnsupervisedTrainingMixin, ArchesMixin, Bas
             "methylation_contexts"
         ]
         self.num_features_per_context = [mdata[context].shape[1] for context in self.contexts]
+        self.get_normalized_function_name = "get_normalized_methylation"
 
         n_input = np.sum(self.num_features_per_context)
 
@@ -151,7 +152,7 @@ class METHYLVI(VAEMixin, BSSeqMixin, UnsupervisedTrainingMixin, ArchesMixin, Bas
             (specified by `mc_layer`) and total number of counts (specified by `cov_layer`) for
             each genomic region feature.
         %(param_batch_key)s
-        %(param_categorical_covariate_keys)s
+        %(param_cat_cov_keys)s
         %(param_modalities)s
 
         Examples
