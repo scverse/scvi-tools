@@ -14,11 +14,11 @@ from scvi.external.methylvi._base_components import BSSeqModuleMixin
 from scvi.external.methylvi._methylvi_module import METHYLVAE
 from scvi.module._classifier import Classifier
 from scvi.module._utils import broadcast_labels
-from scvi.module.base import LossOutput, auto_move_data
+from scvi.module.base import LossOutput, SupervisedModuleClass, auto_move_data
 from scvi.nn import Decoder, Encoder
 
 
-class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
+class METHYLANVAE(SupervisedModuleClass, METHYLVAE, BSSeqModuleMixin):
     """Methylation annotation using variational inference.
 
     This is an implementation of the MethylANVI model described in :cite:p:`Weinberger2023a`.
@@ -51,8 +51,6 @@ class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
         One of the following
         * ``'region'`` - dispersion parameter of BetaBinomial is constant per region across cells
         * ``'region-cell'`` - dispersion can differ for every region in every cell
-    log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
     y_prior
         If None, initialized to uniform probability over cell types
     labels_groups
@@ -196,76 +194,16 @@ class METHYLANVAE(METHYLVAE, BSSeqModuleMixin):
         cat_covs=None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
-        """Forward pass through the encoder and classifier.
-
-        Parameters
-        ----------
-        x
-            Tensor of shape ``(n_obs, n_vars)``.
-        batch_index
-            Tensor of shape ``(n_obs,)`` denoting batch indices.
-        cont_covs
-            Tensor of shape ``(n_obs, n_continuous_covariates)``.
-        cat_covs
-            Tensor of shape ``(n_obs, n_categorical_covariates)``.
-        use_posterior_mean
-            Whether to use the posterior mean of the latent distribution for
-            classification.
-
-        Returns
-        -------
-        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
-        Before v1.1, this method by default returned probabilities per label,
-        see #2301 for more details.
-        """
-        # log the inputs to the variational distribution for numerical stability
-        mc_ = torch.log(1 + mc)
-        cov_ = torch.log(1 + cov)
-
+        """Forward pass through the encoder and classifier of methylANVI."""
         # get variational parameters via the encoder networks
         # we input both the methylated reads (mc) and coverage (cov)
-        encoder_input = torch.cat((mc_, cov_), dim=-1)
-        if cont_covs is not None and self.encode_covariates:
-            encoder_input = torch.cat((encoder_input, cont_covs), dim=-1)
-        if cat_covs is not None and self.encode_covariates:
-            categorical_input = torch.split(cat_covs, 1, dim=1)
-        else:
-            categorical_input = ()
-
-        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
-        z = qz.loc if use_posterior_mean else z
-
-        if self.use_labels_groups:
-            w_g = self.classifier_groups(z)
-            unw_y = self.classifier(z)
-            w_y = torch.zeros_like(unw_y)
-            for i, group_index in enumerate(self.groups_index):
-                unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
-                w_y[:, group_index] *= w_g[:, [i]]
-        else:
-            w_y = self.classifier(z)
-        return w_y
-
-    @auto_move_data
-    def classification_loss(self, labelled_dataset):
-        """Computes scANVI-style classification loss."""
-        inference_inputs = self._get_inference_input(labelled_dataset)  # (n_obs, n_vars)
-        data_inputs = {key: inference_inputs[key] for key in self.data_input_keys}
-        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
-        batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
-        cat_covs = inference_inputs["cat_covs"]
-
-        logits = self.classify(
-            **data_inputs,
-            batch_index=batch_idx,
+        return super().classify(
+            x=torch.cat((mc, cov), dim=-1),
+            batch_index=batch_index,
+            cont_covs=cont_covs,
             cat_covs=cat_covs,
-        )  # (n_obs, n_labels)
-        ce_loss = F.cross_entropy(
-            logits,
-            y.view(-1).long(),
+            use_posterior_mean=use_posterior_mean,
         )
-        return ce_loss, y, logits
 
     def loss(
         self,
