@@ -235,6 +235,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self.n_genes = n_genes
         self.n_regions = n_regions
         self.n_proteins = n_proteins
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
     @devices_dsp.dedent
     def train(
@@ -489,7 +490,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         return torch.cat(latent).numpy()
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnOrMuData | None = None,
         indices: Sequence[int] = None,
@@ -801,7 +802,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata = self._validate_anndata(adata)
         col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
-            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
+            self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
 
         all_stats_fn = partial(

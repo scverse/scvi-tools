@@ -187,6 +187,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 - {doc}`/user_guide/use_case/hyper_parameters_tuning`
 - {doc}`/user_guide/use_case/multi_gpu_training`
 - {doc}`/user_guide/use_case/custom_dataloaders`
+- {doc}`/user_guide/use_case/scvi_criticism`
 
 ## Glossary
 
