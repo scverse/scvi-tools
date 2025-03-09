@@ -114,6 +114,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
             n_input_regions=self.summary_stats.n_vars,
@@ -306,7 +307,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] = None,
@@ -501,7 +502,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
         model_fn = partial(
-            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
+            self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
 
         result = _de_core(

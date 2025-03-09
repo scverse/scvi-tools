@@ -96,6 +96,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self._module_cls = VAE
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -135,7 +136,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] = None,
@@ -334,7 +335,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         col_names = adata.var_names
         importance_weighting_kwargs = importance_weighting_kwargs or {}
         model_fn = partial(
-            self.get_accessibility_estimates,
+            self.get_normalized_accessibility,
             return_numpy=True,
             n_samples=1,
             batch_size=batch_size,

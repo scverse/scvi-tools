@@ -41,7 +41,7 @@ def _unpack_tensors(tensors):
     return x, batch_index, y
 
 
-class GIMVI(VAEMixin, BaseModelClass, RNASeqMixin):
+class GIMVI(VAEMixin, RNASeqMixin, BaseModelClass):
     """Joint VAE for imputing missing genes in spatial data :cite:p:`Lopez19`.
 
     Parameters
