@@ -64,6 +64,7 @@ import scvi
    external.Decipher
    external.RESOLVI
    external.SysVI
+   external.NICHEVI
 ```
 
 ## Data loading

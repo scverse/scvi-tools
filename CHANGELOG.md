@@ -15,6 +15,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
+- Add {class}`scvi.external.NICHEVI` for representation of cells and
+    their environments in spatial transcriptomics {pr}`3172`.
 
 #### Fixed
 
