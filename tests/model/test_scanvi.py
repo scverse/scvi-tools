@@ -614,7 +614,6 @@ def test_scanvi_interpertability_ig(unlabeled_cat: str):
     print(ig_top_features_3_samples)
 
 
-@pytest.mark.optional
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
 def test_scanvi_interpertability_shap(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
@@ -642,14 +641,18 @@ def test_scanvi_interpertability_shap(unlabeled_cat: str):
 
     # now run shap values and compare to previous results
     # (here, the more labels the more time it will take to run)
-    shap_values = model.shap_predict()
+    shap_values = model.shap_predict(shap_args={"nsamples": 100})
     # select the label we want to understand (usually the '1' class)
     shap_top_features = model.get_ranked_genes(attrs=shap_values[:, :, 1]).head(5)
     print(shap_top_features)
 
-    # now run shap values for the test set
+    # now run shap values for the test set (can be specific class or indices and with params)
     # (here, the more labels the more time it will take to run)
-    shap_values_test = model.shap_predict(adata2)
+    shap_values_test = model.shap_predict(
+        adata2,
+        indices=[1, 2, 3],
+        shap_args={"link": "identity", "silent": True, "gc_collect": True, "nsamples": 300},
+    )
     # # select the label we want to understand (usually the '1' class)
     shap_top_features_test = model.get_ranked_genes(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)
