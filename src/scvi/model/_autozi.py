@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # register buffer
 
 
-class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin):
+class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
     """Automatic identification of zero-inflated genes :cite:p:`Clivio19`.
 
     Parameters
