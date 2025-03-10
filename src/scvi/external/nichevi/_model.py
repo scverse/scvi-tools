@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import logging
 import warnings
-from typing import TYPE_CHECKING
+from functools import partial
+from typing import TYPE_CHECKING, Literal
 
+import joblib
 import numpy as np
 import pandas as pd
 import torch
+from anndata import AnnData
 from rich import print
 
 from scvi import REGISTRY_KEYS, settings
@@ -22,30 +25,38 @@ from scvi.data.fields import (
     ObsmField,
     StringUnsField,
 )
-from scvi.model._utils import _init_library_size
+from scvi.model._utils import _init_library_size, scrna_raw_counts_properties
 from scvi.model.base import (
     ArchesMixin,
     BaseMinifiedModeModelClass,
     EmbeddingMixin,
+    RNASeqMixin,
     UnsupervisedTrainingMixin,
+    VAEMixin,
 )
+from scvi.model.base._de_core import _de_core
 from scvi.model.utils import get_minified_adata_scrna
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import de_dsp, setup_anndata_dsp, unsupported_if_adata_minified
 
 from ._constants import NICHEVI_REGISTRY_KEYS
 from ._module import nicheVAE
-from ._rnamixin import NicheRNASeqMixin
-from ._vaemixin import NicheVAEMixin
+
+# from ._rnamixin import NicheRNASeqMixin
+# from ._vaemixin import NicheVAEMixin
+from .differential_expression import _niche_de_core
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
     from typing import Literal
 
     from anndata import AnnData
+    from torch import Tensor
 
     from scvi._types import MinifiedDataType
     from scvi.data.fields import (
         BaseAnnDataField,
     )
+
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
@@ -56,8 +67,10 @@ logger = logging.getLogger(__name__)
 
 class nicheSCVI(
     EmbeddingMixin,
-    NicheRNASeqMixin,
-    NicheVAEMixin,
+    # NicheRNASeqMixin,
+    # NicheVAEMixin,
+    RNASeqMixin,
+    VAEMixin,
     ArchesMixin,
     UnsupervisedTrainingMixin,
     BaseMinifiedModeModelClass,
@@ -464,6 +477,268 @@ class nicheSCVI(
             ct_prediction.append(p_m.detach().cpu())
 
         return torch.cat(ct_prediction).numpy()
+
+    @de_dsp.dedent
+    def differential_expression(
+        self,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: list[str] | None = None,
+        group2: str | None = None,
+        idx1: list[int] | list[bool] | str | None = None,
+        idx2: list[int] | list[bool] | str | None = None,
+        mode: Literal["vanilla", "change"] = "change",
+        delta: float | list[float] = 0.25,
+        batch_size: int | None = None,
+        all_stats: bool = True,
+        batch_correction: bool = False,
+        batchid1: list[str] | None = None,
+        batchid2: list[str] | None = None,
+        fdr_target: float | list[float] = 0.05,
+        silent: bool = False,
+        weights: Literal["uniform", "importance"] | None = "uniform",
+        filter_outlier_cells: bool = False,
+        importance_weighting_kwargs: dict | None = None,
+        ###### NicheSCVI specific ######
+        radius: int | None = 50,
+        k_nn: int | None = None,
+        niche_mode: bool = True,
+        n_restarts_optimizer_gpc: int = 10,
+        path_to_save: str | None = None,
+        **kwargs,
+    ) -> pd.DataFrame:
+        r"""A unified method for differential expression analysis.
+
+        Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
+
+        Parameters
+        ----------
+        %(de_adata)s
+        %(de_groupby)s
+        %(de_group1)s
+        %(de_group2)s
+        %(de_idx1)s
+        %(de_idx2)s
+        %(de_mode)s
+        %(de_delta)s
+        %(de_batch_size)s
+        %(de_all_stats)s
+        %(de_batch_correction)s
+        %(de_batchid1)s
+        %(de_batchid2)s
+        %(de_fdr_target)s
+        %(de_silent)s
+        weights
+            Weights to use for sampling. If `None`, defaults to `"uniform"`.
+        filter_outlier_cells
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
+        importance_weighting_kwargs
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+        radius
+            Radius for NicheSCVI DE.
+        k_nn
+            Number of nearest neighbors for NicheSCVI DE.
+        niche_mode
+            Whether to use NicheSCVI DE or SCVI DE.
+        **kwargs
+            Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
+
+        Returns
+        -------
+        Differential expression DataFrame.
+        """
+        adata = self._validate_anndata(adata)
+        col_names = adata.var_names
+        importance_weighting_kwargs = importance_weighting_kwargs or {}
+        model_fn = partial(
+            self.get_normalized_expression,
+            return_numpy=True,
+            n_samples=1,
+            batch_size=batch_size,
+            weights=weights,
+            **importance_weighting_kwargs,
+        )
+        representation_fn = self.get_latent_representation if filter_outlier_cells else None
+
+        if niche_mode:
+            result = _niche_de_core(
+                self.get_anndata_manager(adata, required=True),
+                model_fn,
+                representation_fn,
+                groupby,
+                group1,
+                group2,
+                idx1,
+                idx2,
+                all_stats,
+                scrna_raw_counts_properties,
+                col_names,
+                mode,
+                batchid1,
+                batchid2,
+                delta,
+                batch_correction,
+                fdr_target,
+                silent,
+                radius=radius,
+                k_nn=k_nn,
+                n_restarts_optimizer_gpc=n_restarts_optimizer_gpc,
+                **kwargs,
+            )
+
+        else:
+            result = _de_core(
+                self.get_anndata_manager(adata, required=True),
+                model_fn,
+                representation_fn,
+                groupby,
+                group1,
+                group2,
+                idx1,
+                idx2,
+                all_stats,
+                scrna_raw_counts_properties,
+                col_names,
+                mode,
+                batchid1,
+                batchid2,
+                delta,
+                batch_correction,
+                fdr_target,
+                silent,
+                **kwargs,
+            )
+
+        if path_to_save is not None:
+            joblib.dump(result, path_to_save)
+
+        return result
+
+    @torch.inference_mode()
+    @unsupported_if_adata_minified
+    def get_composition_error(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        return_mean: bool = True,
+        **kwargs,
+    ) -> dict[str, float]:
+        r"""Compute the reconstruction error on the data.
+
+        The reconstruction error is the negative log likelihood of the data given the latent
+        variables. It is different from the marginal log-likelihood, but still gives good insights
+        on the modeling of the data and is fast to compute. This is typically written as
+        :math:`p(x \mid z)`, the likelihood term given one posterior sample.
+
+        Parameters
+        ----------
+        adata
+            :class:`~anndata.AnnData` object with :attr:`~anndata.AnnData.var_names` in the same
+            order as the ones used to train the model. If ``None`` and ``dataloader`` is also
+            ``None``, it defaults to the object used to initialize the model.
+        indices
+            Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
+            Ignored if ``dataloader`` is not ``None``
+        batch_size
+            Minibatch size for the forward pass. If ``None``, defaults to
+            ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
+        return_mean
+            Whether to return the mean reconstruction loss or the reconstruction loss
+            for each observation.
+        **kwargs
+            Additional keyword arguments to pass into the forward method of the module.
+
+        Returns
+        -------
+        Reconstruction error for the data.
+
+        Notes
+        -----
+        This is not the negative reconstruction error, so higher is better.
+        """
+        from ._log_likelihood import compute_composition_error
+
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+        return compute_composition_error(
+            self.module, dataloader, return_mean=return_mean, **kwargs
+        )
+
+    @torch.inference_mode()
+    @unsupported_if_adata_minified
+    def get_niche_error(
+        self,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        return_mean: bool = True,
+        **kwargs,
+    ) -> dict[str, float]:
+        r"""Compute the reconstruction error on the data.
+
+        The reconstruction error is the negative log likelihood of the data given the latent
+        variables. It is different from the marginal log-likelihood, but still gives good insights
+        on the modeling of the data and is fast to compute. This is typically written as
+        :math:`p(x \mid z)`, the likelihood term given one posterior sample.
+
+        Parameters
+        ----------
+        adata
+            :class:`~anndata.AnnData` object with :attr:`~anndata.AnnData.var_names` in the same
+            order as the ones used to train the model. If ``None`` and ``dataloader`` is also
+            ``None``, it defaults to the object used to initialize the model.
+        indices
+            Indices of observations in ``adata`` to use. If ``None``, defaults to all observations.
+            Ignored if ``dataloader`` is not ``None``
+        batch_size
+            Minibatch size for the forward pass. If ``None``, defaults to
+            ``scvi.settings.batch_size``. Ignored if ``dataloader`` is not ``None``
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
+        return_mean
+            Whether to return the mean reconstruction loss or the reconstruction loss
+            for each observation.
+        **kwargs
+            Additional keyword arguments to pass into the forward method of the module.
+
+        Returns
+        -------
+        Reconstruction error for the data.
+
+        Notes
+        -----
+        This is not the negative reconstruction error, so higher is better.
+        """
+        from ._log_likelihood import compute_niche_error
+
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+        return compute_niche_error(self.module, dataloader, return_mean=return_mean, **kwargs)
 
 
 def get_niche_indexes(
