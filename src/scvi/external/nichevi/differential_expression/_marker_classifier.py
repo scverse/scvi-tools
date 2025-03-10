@@ -156,21 +156,13 @@ def plot_DE_results(
         cmap=chosen_colormap,
     )
 
-    # # Retrieve and set the limits directly from disp.ax_
-    # xlim = disp.ax_.get_xlim()
-    # ylim = disp.ax_.get_ylim()
     # Set the limits to ensure the decision boundary display matches the full range of data
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
 
     # Plot the identity line using the retrieved limits with np.linspace
-    # line_points = np.linspace(min(xlim[0], ylim[0]), max(xlim[1], ylim[1]), 100)
     line_points = np.linspace(min(x_min, y_min), max(x_max, y_max), 100)
     ax.plot(line_points, line_points, "k--", alpha=0.85, zorder=0)
-
-    # Set the limits to exactly match the decision boundary display
-    # ax.set_xlim(xlim)
-    # ax.set_ylim(ylim)
 
     # Plot background points in light grey if background_filter is provided
     if background_filter is not None:
@@ -193,7 +185,7 @@ def plot_DE_results(
                 fontproperties=italic_font,
             )
 
-    # Scatter plot with fixed colors for True (yellow) and False (blue)
+    # Scatter plot with fixed colors for True (yellow) and False (green) DE genes
     colors = np.where(fdr_g1_n1_display, "yellow", "green")
     disp.ax_.scatter(X_display[:, 0], X_display[:, 1], c=colors, edgecolor="k", s=markersize)
 
@@ -252,8 +244,6 @@ def plot_DE_results(
             fontsize=fontsize,
         )
 
-    # Set equal aspect ratio
-    # ax.set_aspect("equal", "box")
     ax.set_aspect("auto")  # Allow the plot to adjust freely
 
     # Adjust layout and save/show plot

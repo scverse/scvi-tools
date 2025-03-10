@@ -13,8 +13,6 @@ from ._de_utils import _get_nonzero_indices_from_rows, adjusted_nearest_neighbor
 from ._marker_classifier import _gaussian_process_classifier
 from ._results_dataclass import DifferentialExpressionResults
 
-# from ._differential import DifferentialComputation
-
 
 def _niche_de_core(
     adata_manager,
@@ -104,7 +102,6 @@ def _niche_de_core(
 
         if group2 is None:
             cell_idx2 = ~cell_idx1
-            # neighbors_idx2 = None
 
             DE_indices = {
                 "group1_group2": [cell_idx1, cell_idx2],

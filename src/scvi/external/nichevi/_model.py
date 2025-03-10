@@ -29,17 +29,12 @@ from scvi.model.base import (
     EmbeddingMixin,
     UnsupervisedTrainingMixin,
 )
-
-# RNASeqMixin,
-# VAEMixin,
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.utils import setup_anndata_dsp
 
 from ._constants import NICHEVI_REGISTRY_KEYS
 from ._module import nicheVAE
 from ._rnamixin import NicheRNASeqMixin
-
-# from ._training_mixin import UnsupervisedTrainingMixin
 from ._vaemixin import NicheVAEMixin
 
 if TYPE_CHECKING:
