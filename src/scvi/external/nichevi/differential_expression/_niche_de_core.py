@@ -176,7 +176,6 @@ def _niche_de_core(
                     res["proba_de"], fdr=DE_group_fdr[comparison]
                 )
             if idx1 is None:
-                # g2 = "Rest" if group2 is None else group2
                 g1_name = DE_group_names[comparison][0]
                 g2_name = DE_group_names[comparison][1]
                 res["comparison"] = f"{g1_name} vs {g2_name}"

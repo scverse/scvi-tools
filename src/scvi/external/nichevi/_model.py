@@ -40,8 +40,6 @@ from scvi.utils import de_dsp, setup_anndata_dsp, unsupported_if_adata_minified
 
 from ._constants import NICHEVI_REGISTRY_KEYS
 from ._module import nicheVAE
-
-# from ._rnamixin import NicheRNASeqMixin
 from .differential_expression import _niche_de_core
 
 if TYPE_CHECKING:
