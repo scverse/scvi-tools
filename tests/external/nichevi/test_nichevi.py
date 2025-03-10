@@ -113,8 +113,11 @@ def test_nichevi_save_load(adata):
     nichevae.get_composition_error(return_mean=False, indices=nichevae.validation_indices)
     nichevae.get_niche_error(return_mean=False, indices=nichevae.validation_indices)
     nichevae.get_normalized_expression()
-    nichevae.predict_neighborhood()  # specific to nicheSCVI
-    nichevae.predict_niche_activation()  # specific to nicheSCVI
+    predicted_alpha = nichevae.predict_neighborhood()  # specific to nicheSCVI
+    assert predicted_alpha.shape == (adata.n_obs, nichevae.n_labels)
+    assert np.allclose(predicted_alpha.sum(), adata.n_obs, atol=1e-5)
+    predicted_eta = nichevae.predict_niche_activation()  # specific to nicheSCVI
+    assert predicted_eta.shape == (adata.n_obs, nichevae.n_labels, N_LATENT)
 
 
 def test_nichevi_differential(adata):
