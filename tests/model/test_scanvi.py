@@ -580,7 +580,7 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 
 
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
-def test_scanvi_interpertability_ig(unlabeled_cat: str):
+def test_scanvi_interpretability_ig(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -615,7 +615,7 @@ def test_scanvi_interpertability_ig(unlabeled_cat: str):
 
 
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
-def test_scanvi_interpertability_shap(unlabeled_cat: str):
+def test_scanvi_interpretability_shap(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
