@@ -42,7 +42,6 @@ from ._constants import NICHEVI_REGISTRY_KEYS
 from ._module import nicheVAE
 
 # from ._rnamixin import NicheRNASeqMixin
-# from ._vaemixin import NicheVAEMixin
 from .differential_expression import _niche_de_core
 
 if TYPE_CHECKING:
@@ -68,7 +67,6 @@ logger = logging.getLogger(__name__)
 class nicheSCVI(
     EmbeddingMixin,
     # NicheRNASeqMixin,
-    # NicheVAEMixin,
     RNASeqMixin,
     VAEMixin,
     ArchesMixin,
