@@ -10,7 +10,7 @@ def test_poissonvi():
     model = POISSONVI(adata)
     model.train(max_epochs=1)
     model.get_latent_representation()
-    model.get_accessibility_estimates()
+    model.get_normalized_accessibility()
     model.get_region_factors()
     model.get_normalized_expression()
     model.get_normalized_expression(transform_batch="batch_1")

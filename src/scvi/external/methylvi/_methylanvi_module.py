@@ -1,6 +1,7 @@
-from __future__ import annotations
+"""PyTorch module for methylVI for single cell methylation data."""
 
-from typing import TYPE_CHECKING
+from collections.abc import Iterable, Sequence
+from typing import Literal
 
 import numpy as np
 import torch
@@ -9,25 +10,18 @@ from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.module.base import LossOutput, SupervisedModuleClass
+from scvi.external.methylvi._base_components import BSSeqModuleMixin
+from scvi.external.methylvi._methylvi_module import METHYLVAE
+from scvi.module._classifier import Classifier
+from scvi.module._utils import broadcast_labels
+from scvi.module.base import LossOutput, SupervisedModuleClass, auto_move_data
 from scvi.nn import Decoder, Encoder
 
-from ._classifier import Classifier
-from ._utils import broadcast_labels
-from ._vae import VAE
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
-    from typing import Literal
+class METHYLANVAE(SupervisedModuleClass, METHYLVAE, BSSeqModuleMixin):
+    """Methylation annotation using variational inference.
 
-    from torch.distributions import Distribution
-
-
-class SCANVAE(SupervisedModuleClass, VAE):
-    """Single-cell annotation using variational inference.
-
-    This is an implementation of the scANVI model described in :cite:p:`Xu21`,
-    inspired from M1 + M2 model, as described in (https://arxiv.org/pdf/1406.5298.pdf).
+    This is an implementation of the MethylANVI model described in :cite:p:`Weinberger2023a`.
 
     Parameters
     ----------
@@ -49,20 +43,14 @@ class SCANVAE(SupervisedModuleClass, VAE):
         Number of categories for each extra categorical covariate
     dropout_rate
         Dropout rate for neural networks
+    likelihood
+        One of
+        * ``'betabinomial'`` - BetaBinomial distribution
+        * ``'binomial'`` - Binomial distribution
     dispersion
         One of the following
-
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-        * ``'gene-label'`` - dispersion can differ between different labels
-        * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-    log_variational
-        Log(data+1) prior to encoding for numerical stability. Not normalization.
-    gene_likelihood
-        One of:
-
-        * ``'nb'`` - Negative binomial distribution
-        * ``'zinb'`` - Zero-inflated negative binomial distribution
+        * ``'region'`` - dispersion parameter of BetaBinomial is constant per region across cells
+        * ``'region-cell'`` - dispersion can differ for every region in every cell
     y_prior
         If None, initialized to uniform probability over cell types
     labels_groups
@@ -81,48 +69,45 @@ class SCANVAE(SupervisedModuleClass, VAE):
     linear_classifier
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
-    **vae_kwargs
-        Keyword args for :class:`~scvi.module.VAE`
+    **model_kwargs
+        Keyword args for :class:`~scvi.external.methylvi.METHYLVAE`
     """
 
     def __init__(
         self,
         n_input: int,
+        contexts: Iterable[str],
+        num_features_per_context: Iterable[int],
         n_batch: int = 0,
+        n_cats_per_cov: Iterable[int] | None = None,
         n_labels: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
-        n_continuous_cov: int = 0,
-        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
-        dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb"] = "zinb",
-        y_prior: torch.Tensor | None = None,
+        likelihood: Literal["betabinomial", "binomial"] = "betabinomial",
+        dispersion: Literal["region", "region-cell"] = "region",
+        y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         linear_classifier: bool = False,
         classifier_parameters: dict | None = None,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        **vae_kwargs,
+        **model_kwargs,
     ):
         super().__init__(
-            n_input,
+            n_input=n_input,
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_layers=n_layers,
-            n_continuous_cov=n_continuous_cov,
-            n_cats_per_cov=n_cats_per_cov,
-            dropout_rate=dropout_rate,
             n_batch=n_batch,
+            n_cats_per_cov=n_cats_per_cov,
+            contexts=contexts,
+            num_features_per_context=num_features_per_context,
+            likelihood=likelihood,
             dispersion=dispersion,
-            log_variational=log_variational,
-            gene_likelihood=gene_likelihood,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
-            **vae_kwargs,
+            **model_kwargs,
         )
 
         classifier_parameters = classifier_parameters or {}
@@ -199,75 +184,103 @@ class SCANVAE(SupervisedModuleClass, VAE):
                 ]
             )
 
+    @auto_move_data
+    def classify(
+        self,
+        mc: torch.Tensor,
+        cov: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        cont_covs=None,
+        cat_covs=None,
+        use_posterior_mean: bool = True,
+    ) -> torch.Tensor:
+        """Forward pass through the encoder and classifier of methylANVI."""
+        # get variational parameters via the encoder networks
+        # we input both the methylated reads (mc) and coverage (cov)
+        return super().classify(
+            x=torch.cat((mc, cov), dim=-1),
+            batch_index=batch_index,
+            cont_covs=cont_covs,
+            cat_covs=cat_covs,
+            use_posterior_mean=use_posterior_mean,
+        )
+
     def loss(
         self,
-        tensors: dict[str, torch.Tensor],
-        inference_outputs: dict[str, torch.Tensor | Distribution | None],
-        generative_ouputs: dict[str, Distribution | None],
-        kl_weight: float = 1.0,
-        labelled_tensors: dict[str, torch.Tensor] | None = None,
-        classification_ratio: float | None = None,
+        tensors,
+        inference_outputs,
+        generative_outputs,
+        feed_labels=False,
+        kl_weight=1,
+        labelled_tensors=None,
+        classification_ratio=None,
     ):
         """Compute the loss."""
-        px: Distribution = generative_ouputs["px"]
-        qz1: torch.Tensor = inference_outputs["qz"]
-        z1: torch.Tensor = inference_outputs["z"]
-        x: torch.Tensor = tensors[REGISTRY_KEYS.X_KEY]
-        batch_index: torch.Tensor = tensors[REGISTRY_KEYS.BATCH_KEY]
+        qz1 = inference_outputs["qz"]
+        z1 = inference_outputs["z"]
 
+        if feed_labels:
+            y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        else:
+            y = None
+        is_labelled = False if y is None else True
+
+        # Enumerate choices of label
         ys, z1s = broadcast_labels(z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, ys)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, ys)
-        reconst_loss = -px.log_prob(x).sum(-1)
+
+        minibatch_size = qz1.loc.size()[0]
+        reconst_loss = self._compute_minibatch_reconstruction_loss(
+            minibatch_size=minibatch_size,
+            tensors=tensors,
+            generative_outputs=generative_outputs,
+        )
 
         # KL Divergence
         mean = torch.zeros_like(qz2.loc)
         scale = torch.ones_like(qz2.scale)
 
-        kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=-1)
+        kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=1)
         loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
 
-        probs = self.classifier(z1)
-        if self.classifier.logits:
-            probs = F.softmax(probs, dim=-1)
+        if is_labelled:
+            loss = reconst_loss + loss_z1_weight + loss_z1_unweight
+            kl_locals = {
+                "kl_divergence_z2": kl_divergence_z2,
+            }
+            if labelled_tensors is not None:
+                ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
+                loss += ce_loss * classification_ratio
+                return LossOutput(
+                    loss=loss,
+                    reconstruction_loss=reconst_loss,
+                    kl_local=kl_locals,
+                    classification_loss=ce_loss,
+                    true_labels=true_labels,
+                    logits=logits,
+                    extra_metrics={
+                        "n_labelled_tensors": labelled_tensors[REGISTRY_KEYS.X_KEY].shape[0],
+                    },
+                )
+            return LossOutput(
+                loss=loss,
+                reconstruction_loss=reconst_loss,
+                kl_local=kl_locals,
+            )
 
-        if z1.ndim == 2:
-            loss_z1_unweight_ = loss_z1_unweight.view(self.n_labels, -1).t()
-            kl_divergence_z2_ = kl_divergence_z2.view(self.n_labels, -1).t()
-        else:
-            loss_z1_unweight_ = torch.transpose(
-                loss_z1_unweight.view(z1.shape[0], self.n_labels, -1), -1, -2
-            )
-            kl_divergence_z2_ = torch.transpose(
-                kl_divergence_z2.view(z1.shape[0], self.n_labels, -1), -1, -2
-            )
-        reconst_loss += loss_z1_weight + (loss_z1_unweight_ * probs).sum(dim=-1)
-        kl_divergence = (kl_divergence_z2_ * probs).sum(dim=-1)
+        probs = F.softmax(self.classifier(z1), dim=-1)
+
+        reconst_loss += loss_z1_weight + (
+            (loss_z1_unweight).view(self.n_labels, -1).t() * probs
+        ).sum(dim=1)
+
+        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
         kl_divergence += kl(
             Categorical(probs=probs),
-            Categorical(
-                probs=self.y_prior.repeat(probs.size(0), probs.size(1), 1)
-                if len(probs.size()) == 3
-                else self.y_prior.repeat(probs.size(0), 1)
-            ),
+            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
         )
-
-        if not self.use_observed_lib_size:
-            ql = inference_outputs["ql"]
-            (
-                local_library_log_means,
-                local_library_log_vars,
-            ) = self._compute_local_library_params(batch_index)
-
-            kl_divergence_l = kl(
-                ql,
-                Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
-            ).sum(dim=1)
-        else:
-            kl_divergence_l = torch.zeros_like(kl_divergence)
-
-        kl_divergence += kl_divergence_l
 
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
@@ -282,10 +295,5 @@ class SCANVAE(SupervisedModuleClass, VAE):
                 classification_loss=ce_loss,
                 true_labels=true_labels,
                 logits=logits,
-                extra_metrics={
-                    "z": inference_outputs["z"],
-                    "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                    "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
-                },
             )
         return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)

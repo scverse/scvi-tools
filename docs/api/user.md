@@ -60,6 +60,7 @@ import scvi
    external.VELOVI
    external.MRVI
    external.METHYLVI
+   external.METHYLANVI
    external.Decipher
    external.RESOLVI
    external.SysVI
