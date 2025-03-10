@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import flax.linen as nn
+# import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
@@ -11,110 +11,119 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any, Literal
 
+    import torch
+
+from torch import nn
+
 PYTORCH_DEFAULT_SCALE = 1 / 3
 
 
-class Dense(nn.DenseGeneral):
-    """Dense layer.
-
-    Uses a custom initializer for the kernel to replicate the default PyTorch behavior.
-    """
-
+class Dense(nn.Linear):
     def __init__(self, *args, **kwargs):
-        from flax.linen.initializers import variance_scaling
+        # TODO: Might need to change the kernel initialization.
+        # Not sure if default torch behavior is correct
+        # otherwise can just get rid of this class and use nn.Linear itself
 
-        _kwargs = {"kernel_init": variance_scaling(PYTORCH_DEFAULT_SCALE, "fan_in", "uniform")}
-        _kwargs.update(kwargs)
-
-        super().__init__(*args, **_kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class ResnetBlock(nn.Module):
-    """Resnet block.
+    def __init__(
+        self,
+        # TODO: should I keep n_in or is there a functional way to do this like in flax?
+        n_in: int,
+        n_out: int,
+        n_hidden: int = 128,
+        internal_activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
+        output_activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
+        training: bool | None = None,
+    ):
+        super.__init__()
+        self.n_in = n_in
+        self.n_out = n_out
+        self.n_hidden = n_hidden
+        self.internal_activation = internal_activation
+        self.output_activation = output_activation
+        self.training = training
 
-    Consists of the following operations:
+        # TODO: figure out what below does (taken from jax code)
+        # training = nn.merge_param("training", self.training, training)
 
-    1. :class:`~flax.linen.Dense`
-    2. :class:`~flax.linen.LayerNorm`
-    3. Activation function specified by ``internal_activation``
-    4. Skip connection if ``n_in`` is equal to ``n_hidden``, otherwise a :class:`~flax.linen.Dense`
-        layer is applied to the input before the skip connection to match features.
-    5. :class:`~flax.linen.Dense`
-    6. :class:`~flax.linen.LayerNorm`
-    7. Activation function specified by ``output_activation``
+        # dense layer
+        self.fc1 = Dense(in_features=n_in, out_features=n_out)
 
-    Parameters
-    ----------
-    n_out
-        Number of output units.
-    n_hidden
-        Number of hidden units.
-    internal_activation
-        Activation function to use after the first :class:`~flax.linen.Dense` layer.
-    output_activation
-        Activation function to use after the last :class:`~flax.linen.Dense` layer.
-    training
-        Whether the model is in training mode.
-    """
+        # layer norm
+        self.layer_norm1 = nn.LayerNorm(n_out)
 
-    n_out: int
-    n_hidden: int = 128
-    internal_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
-    output_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
-    training: bool | None = None
+        # internal activation
 
-    @nn.compact
-    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> jax.Array:
-        training = nn.merge_param("training", self.training, training)
-        h = Dense(self.n_hidden)(inputs)
-        h = nn.LayerNorm()(h)
+        # skip connection if n_in equal to n_hidden,
+        # otherwise dense layer applied before skip connection to match features
+        self.fc_match = Dense(in_features=n_in, out_features=n_hidden)
+
+        # dense layer
+        self.fc2 = Dense(in_features=n_hidden, out_features=n_out)
+
+        # layer norm
+        self.layer_norm2 = nn.LayerNorm(n_out)
+
+        # output activation
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        h = self.fc1(inputs)
+        h = self.layer_norm1(h)
         h = self.internal_activation(h)
-        if inputs.shape[-1] != self.n_hidden:
-            h = h + Dense(self.n_hidden)(inputs)
+
+        if self.n_in != self.n_hidden:
+            h = h + self.fc_match(inputs)
         else:
             h = h + inputs
-        h = Dense(self.n_out)(h)
-        h = nn.LayerNorm()(h)
+
+        h = self.fc2(h)
+        h = self.layer_norm2(h)
         return self.output_activation(h)
 
 
 class MLP(nn.Module):
-    """Multi-layer perceptron with resnet blocks.
+    def __init__(
+        self,
+        n_in: int,
+        n_out: int,
+        n_hidden: int = 128,
+        n_layers: int = 1,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
+        training: bool | None = None,
+    ):
+        super.__init__()
+        self.n_in = n_in
+        self.n_out = n_out
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.activation = activation
+        self.training = training
 
-    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
-    :class:`~flax.linen.Dense` layer to project to the output dimension.
+        # sequence of n_layers resnet blocks
+        self.resnet_blocks = nn.Sequential(
+            *[
+                ResnetBlock(
+                    n_in=n_in,
+                    n_out=n_hidden,
+                    internal_activation=activation,
+                    output_activation=activation,
+                )
+                for _ in range(n_layers)
+            ]
+        )
 
-    Parameters
-    ----------
-    n_out
-        Number of output units.
-    n_hidden
-        Number of hidden units.
-    n_layers
-        Number of resnet blocks.
-    activation
-        Activation function to use.
-    training
-        Whether the model is in training mode.
-    """
+        # dense layer to project to the output dimension
+        self.fc = Dense(in_features=n_hidden, out_features=n_out)
 
-    n_out: int
-    n_hidden: int = 128
-    n_layers: int = 1
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
-    training: bool | None = None
+    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
+        # TODO: figure out what belwo is
+        # training = nn.merge_param("training", self.training, training)
 
-    @nn.compact
-    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> jax.Array:
-        training = nn.merge_param("training", self.training, training)
-        h = inputs
-        for _ in range(self.n_layers):
-            h = ResnetBlock(
-                n_out=self.n_hidden,
-                internal_activation=self.activation,
-                output_activation=self.activation,
-            )(h, training=training)
-        return Dense(self.n_out)(h)
+        h = self.resnet_blocks(inputs)
+        return self.fc(h)
 
 
 class NormalDistOutputNN(nn.Module):

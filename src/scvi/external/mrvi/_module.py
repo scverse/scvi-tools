@@ -8,6 +8,8 @@ import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
 
+# TODO: add torch imports
+# import torch.nn as nn
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
@@ -72,6 +74,8 @@ class DecoderZXAttention(nn.Module):
         Activation function for the MLP.
     """
 
+    # TODO: add torch parameters
+
     n_in: int
     n_out: int
     n_batch: int
@@ -88,6 +92,19 @@ class DecoderZXAttention(nn.Module):
     training: bool | None = None
     low_dim_batch: bool = True
     activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
+
+    # TODO: add all layers in init
+    def __init__(self):
+        super().__init__()
+
+    # TODO: torch forward method
+    """def forward(
+            self,
+            z:,
+            batch_covariate:,
+            size_factor:,
+            training: bool | None = None,
+    ) -> NegativeBinomial:"""
 
     @nn.compact
     def __call__(
