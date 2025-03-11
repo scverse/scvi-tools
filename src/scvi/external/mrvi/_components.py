@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 # import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import numpyro.distributions as dist
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -14,6 +13,7 @@ if TYPE_CHECKING:
     import torch
 
 from torch import nn
+from torch.distributions import Normal
 
 PYTORCH_DEFAULT_SCALE = 1 / 3
 
@@ -119,7 +119,7 @@ class MLP(nn.Module):
         self.fc = Dense(in_features=n_hidden, out_features=n_out)
 
     def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
-        # TODO: figure out what belwo is
+        # TODO: figure out what below is
         # training = nn.merge_param("training", self.training, training)
 
         h = self.resnet_blocks(inputs)
@@ -127,39 +127,50 @@ class MLP(nn.Module):
 
 
 class NormalDistOutputNN(nn.Module):
-    """Fully-connected neural net parameterizing a normal distribution.
+    def __init__(
+        self,
+        n_in: int,
+        n_out: int,
+        n_hidden: int = 128,
+        n_layers: int = 1,
+        scale_eps: float = 1e-5,
+        training: bool | None = None,
+    ):
+        super().__init__()
+        self.n_in = n_in
+        self.n_out = n_out
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.scale_eps = scale_eps
+        self.training = training
 
-    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
-    :class:`~flax.linen.Dense` layer for the mean and a :class:`~flax.linen.Dense` and
-    :func:`~flax.linen.softplus` layer for the scale.
+        self.resnet_blocks = nn.Sequential(
+            *[
+                ResnetBlock(
+                    n_in=n_in,
+                    n_out=n_hidden,
+                )
+                for _ in range(n_layers)
+            ]
+        )
 
-    Parameters
-    ----------
-    n_out
-        Number of output units.
-    n_hidden
-        Number of hidden units.
-    n_layers
-        Number of resnet blocks.
-    scale_eps
-        Numerical stability constant added to the scale of the normal distribution.
-    """
+        self.fc_mean = Dense(in_features=n_hidden, out_features=n_out)
+        self.fc_scale = nn.Sequential(
+            Dense(in_features=n_hidden, out_features=n_out),
+            nn.Softplus(),
+        )
 
-    n_out: int
-    n_hidden: int = 128
-    n_layers: int = 1
-    scale_eps: float = 1e-5
-    training: bool | None = None
+    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> Normal:
+        # what is below doing?
+        # training = nn.merge_param("training", self.training, training)
 
-    @nn.compact
-    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> dist.Normal:
-        training = nn.merge_param("training", self.training, training)
-        h = inputs
-        for _ in range(self.n_layers):
-            h = ResnetBlock(n_out=self.n_hidden)(h, training=training)
-        mean = Dense(self.n_out)(h)
-        scale = nn.Sequential([Dense(self.n_out), nn.softplus])(h)
-        return dist.Normal(mean, scale + self.scale_eps)
+        h = self.resnet_blocks(inputs, training)
+        mean = self.fc_mean(h)
+        scale = self.fc_scale(h)
+        return Normal(mean, scale + self.scale_eps)
+
+
+# TODO: implement ConditionalNormalization in torch
 
 
 class ConditionalNormalization(nn.Module):
@@ -233,6 +244,9 @@ class ConditionalNormalization(nn.Module):
         )(cond_int)
 
         return gamma * x + beta
+
+
+# TODO: implement AttentionBlock in torch
 
 
 class AttentionBlock(nn.Module):
