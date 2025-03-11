@@ -21,7 +21,7 @@ from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
-    "scvi_version": "0.0.0",
+    "scvi_version": scvi.__version__,
     "categorical_mappings": {
         "_scvi_batch": {
             "original_key": "testbatch",
