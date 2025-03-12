@@ -1,13 +1,14 @@
 import pytest
 
 from scvi import settings
-from scvi.autotune import AutotuneExperiment
-from scvi.autotune._experiment import _trainable
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
 
+@pytest.mark.autotune
 def test_experiment_init(save_path: str):
+    from scvi.autotune import AutotuneExperiment
+
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -125,7 +126,10 @@ def test_experiment_init(save_path: str):
         _ = experiment.result_grid  # set after running the tuner
 
 
+@pytest.mark.autotune
 def test_experiment_no_setup_anndata():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
 
     with pytest.raises(ValueError):
@@ -143,7 +147,10 @@ def test_experiment_no_setup_anndata():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_metrics():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -188,7 +195,10 @@ def test_experiment_invalid_metrics():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_mode():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -220,7 +230,10 @@ def test_experiment_invalid_mode():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_search_space():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -257,7 +270,10 @@ def test_experiment_invalid_search_space():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_num_samples():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -276,7 +292,10 @@ def test_experiment_invalid_num_samples():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_scheduler():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -310,7 +329,10 @@ def test_experiment_invalid_scheduler():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_scheduler_kwargs():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -330,7 +352,10 @@ def test_experiment_invalid_scheduler_kwargs():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_searcher():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -364,7 +389,10 @@ def test_experiment_invalid_searcher():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_searcher_kwargs():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -384,7 +412,10 @@ def test_experiment_invalid_searcher_kwargs():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_invalid_seed():
+    from scvi.autotune import AutotuneExperiment
+
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
 
@@ -408,6 +439,8 @@ def test_experiment_invalid_seed():
 def test_experiment_get_tuner(save_path: str):
     from ray.tune import Tuner
 
+    from scvi.autotune import AutotuneExperiment
+
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -428,7 +461,11 @@ def test_experiment_get_tuner(save_path: str):
     assert isinstance(tuner, Tuner)
 
 
+@pytest.mark.autotune
 def test_trainable(save_path: str):
+    from scvi.autotune import AutotuneExperiment
+    from scvi.autotune._experiment import _trainable
+
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
