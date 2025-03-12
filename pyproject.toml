@@ -103,7 +103,7 @@ interpretability = ["captum","shap"]
 
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
+    "scvi-tools[aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
