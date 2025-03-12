@@ -404,6 +404,7 @@ def test_experiment_invalid_seed():
         )
 
 
+@pytest.mark.autotune
 def test_experiment_get_tuner(save_path: str):
     from ray.tune import Tuner
 
