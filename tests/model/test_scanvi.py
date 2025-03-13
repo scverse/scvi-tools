@@ -632,7 +632,7 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     model = SCANVI(adata, n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
-    # new data ig prediction specific for samples, top 5 genes
+    # new data for shap prediction specific for samples, top 5 genes
     adata2 = synthetic_iid(batch_size=10)
     adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
     adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
@@ -656,3 +656,91 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     # # select the label we want to understand (usually the '1' class)
     shap_top_features_test = model.get_ranked_genes(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0"])
+def test_scanvi_interpretability_fast_shap(unlabeled_cat: str):
+    """
+    based on: FastSHAP: Real-Time Shapley Value Estimation/ Jethani et al. 2021
+    https://github.com/iancovert/fastshap
+    """
+
+    # now run fast shap values and compare to previous results
+    import torch.nn as nn
+
+    from scvi.utils import FastSHAP, Surrogate
+    from scvi.utils.fastshap import KLDivLoss, MaskLayer1d
+
+    adata = synthetic_iid(batch_size=50)
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+    # new data for shap prediction specific for samples, top 5 genes
+    adata2 = synthetic_iid(batch_size=10)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+
+    # Create surrogate model
+    num_features = adata.shape[1]
+    surr = nn.Sequential(
+        MaskLayer1d(value=0, append=True),
+        nn.Linear(2 * num_features, 128),
+        nn.ELU(inplace=True),
+        nn.Linear(128, 128),
+        nn.ELU(inplace=True),
+        nn.Linear(128, 2),
+    ).to(model.device)
+
+    # Set up surrogate object
+    surrogate = Surrogate(surr, num_features)
+    # Train Surrogate
+    surrogate.train_original_model(
+        train_data=adata.X[model.train_indices],
+        val_data=adata.X[model.validation_indices],
+        original_model=model.shap_adata_predict,
+        batch_size=64,
+        max_epochs=100,
+        loss_fn=KLDivLoss(),
+        validation_samples=10,
+        validation_batch_size=10000,
+        verbose=True,
+    )
+
+    # Train FastSHAP
+    # Create explainer model
+    explainer = nn.Sequential(
+        nn.Linear(num_features, 128),
+        nn.ReLU(inplace=True),
+        nn.Linear(128, 128),
+        nn.ReLU(inplace=True),
+        nn.Linear(128, 2 * num_features),
+    ).to(model.device)
+    # Set up FastSHAP object
+    fastshap = FastSHAP(explainer, surrogate, normalization="additive", link=nn.Softmax(dim=-1))
+    # Train
+    fastshap.train(
+        train_data=adata.X[model.train_indices],
+        val_data=adata.X[model.validation_indices],
+        batch_size=32,
+        num_samples=32,
+        max_epochs=200,
+        validation_samples=128,
+        verbose=True,
+    )
+
+    # run explainer for some sample
+    fastshap.shap_values(np.array([adata.X[0]]))[0]
