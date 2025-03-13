@@ -476,7 +476,10 @@ class SemisupervisedTrainingMixin:
         return self.predict(adata_to_pred, soft=True)
 
     def shap_predict(
-        self, adata: AnnOrMuData | None = None, max_size: int = 100
+        self,
+        adata: AnnOrMuData | None = None,
+        indices: Sequence[int] | None = None,
+        shap_args: dict | None = None,
     ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
         """Run SHAP interpreter for a trained model and gives back shap values"""
         missing_modules = []
@@ -488,8 +491,13 @@ class SemisupervisedTrainingMixin:
             raise ModuleNotFoundError("Please install shap to use this functionality.")
         import shap
 
+        shap_args = shap_args or {}
+
         adata_orig = self._validate_anndata()
         adata = self._validate_anndata(adata)
+        if indices is not None:
+            adata = adata[indices]
+            adata = self._validate_anndata(adata)
 
         if type(adata_orig.X).__name__ == "csr_matrix":
             feature_matrix_background = pd.DataFrame.sparse.from_spmatrix(
@@ -503,8 +511,8 @@ class SemisupervisedTrainingMixin:
             )
         else:
             feature_matrix = pd.DataFrame(adata.X, columns=adata_orig.var_names)
-        feature_matrix_background = shap.sample(feature_matrix_background, max_size)
-        feature_matrix = shap.sample(feature_matrix, max_size)
-        explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix_background)
-        shap_values = explainer.shap_values(feature_matrix)
+        explainer = shap.KernelExplainer(
+            self.shap_adata_predict, feature_matrix_background, **shap_args
+        )
+        shap_values = explainer.shap_values(feature_matrix, **shap_args)
         return shap_values
