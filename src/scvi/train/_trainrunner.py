@@ -85,18 +85,14 @@ class TrainRunner:
             **trainer_kwargs,
         )
 
-        # Sanity checks for usage of early Stopping"
+        # Sanity checks for usage of early Stopping
         if self.trainer.early_stopping_callback is not None:
-            if (data_splitter.n_val == 0) and (
+            if (data_splitter.validation_size == 0) and (
                 "valid" in self.trainer.early_stopping_callback.monitor
             ):
                 raise ValueError(
                     "Cant run Early Stopping with validation monitor with no validation set"
                 )
-            if (model.adata.n_obs - data_splitter.n_train - data_splitter.n_val) and (
-                "test" in self.trainer.early_stopping_callback.monitor
-            ):
-                raise ValueError("Cant run Early Stopping with test monitor with no test set")
 
         self.trainer._model = model  # needed for savecheckpoint callback
 
