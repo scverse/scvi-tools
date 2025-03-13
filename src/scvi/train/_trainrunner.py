@@ -87,8 +87,11 @@ class TrainRunner:
 
         # Sanity checks for usage of early Stopping
         if self.trainer.early_stopping_callback is not None:
-            if (data_splitter.validation_size == 0) and (
-                "valid" in self.trainer.early_stopping_callback.monitor
+            if (
+                (data_splitter.validation_size == 0)
+                and ("valid" in self.trainer.early_stopping_callback.monitor)
+                or (data_splitter.validation_size is None)
+                and ("valid" in self.trainer.early_stopping_callback.monitor)
             ):
                 raise ValueError(
                     "Cant run Early Stopping with validation monitor with no validation set"
