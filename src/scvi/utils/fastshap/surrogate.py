@@ -375,7 +375,7 @@ class Surrogate:
 
                 # Get original model prediction.
                 with torch.no_grad():
-                    y = original_model(x)
+                    y = original_model(x.cpu())
 
                 # Generate subsets.
                 S = sampler.sample(batch_size).to(device=device)
