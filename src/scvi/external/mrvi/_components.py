@@ -8,7 +8,7 @@ import jax.numpy as jnp
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Any, Literal
+    from typing import Literal
 
     import torch
 
@@ -171,77 +171,35 @@ class NormalDistOutputNN(nn.Module):
 
 
 # TODO: implement ConditionalNormalization in torch
-
-
 class ConditionalNormalization(nn.Module):
-    """Condition-specific normalization.
-
-    Applies either batch normalization or layer normalization to the input, followed by
-    condition-specific scaling (``gamma``) and shifting (``beta``).
-
-    Parameters
-    ----------
-    n_features
-        Number of features.
-    n_conditions
-        Number of conditions.
-    training
-        Whether the model is in training mode.
-    normalization_type
-        Type of normalization to apply. Must be one of ``"batch", "layer"``.
-    """
-
-    n_features: int
-    n_conditions: int
-    training: bool | None = None
-    normalization_type: Literal["batch", "layer"] = "layer"
-
-    @staticmethod
-    def _gamma_initializer() -> jax.nn.initializers.Initializer:
-        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jax.Array:
-            weights = jax.random.normal(key, shape, dtype) * 0.02 + 1
-            return weights
-
-        return init
-
-    @staticmethod
-    def _beta_initializer() -> jax.nn.initializers.Initializer:
-        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jax.Array:
-            del key
-            weights = jnp.zeros(shape, dtype=dtype)
-            return weights
-
-        return init
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        x: jax.typing.ArrayLike,
-        condition: jax.typing.ArrayLike,
+        n_features: int,
+        n_conditions: int,
         training: bool | None = None,
-    ) -> jax.Array:
-        training = nn.merge_param("training", self.training, training)
+        normalization_type: Literal["batch", "layer"] = "layer",
+    ):
+        super().__init__()
+        self.n_features = n_features
+        self.n_conditions = n_conditions
+        self.training = training
+        self.normalization_type = normalization_type
 
+    def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
+        # training = nn.merge_param("training", self.training, training)
         if self.normalization_type == "batch":
-            x = nn.BatchNorm(use_bias=False, use_scale=False)(x, use_running_average=not training)
+            x = nn.functional.batch_norm(
+                x, running_mean=not training, running_var=not training, training=training
+            )
         elif self.normalization_type == "layer":
-            x = nn.LayerNorm(use_bias=False, use_scale=False)(x)
+            x = nn.functional.layer_norm(x, training=training)
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
+        # TODO: figure out how to initialize embeddings in torch
         cond_int = condition.squeeze(-1).astype(int)
-        gamma = nn.Embed(
-            self.n_conditions,
-            self.n_features,
-            embedding_init=self._gamma_initializer(),
-            name="gamma_conditional",
-        )(cond_int)
-        beta = nn.Embed(
-            self.n_conditions,
-            self.n_features,
-            embedding_init=self._beta_initializer(),
-            name="beta_conditional",
-        )(cond_int)
+        gamma = nn.Embedding(self.n_conditions, self.n_features)(cond_int)
+        beta = nn.Embedding(self.n_conditions, self.n_features)(cond_int)
 
         return gamma * x + beta
 
