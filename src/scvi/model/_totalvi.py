@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -506,7 +507,7 @@ class TOTALVI(
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
-            for b in transform_batch:
+            for b in tqdm(transform_batch):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -656,7 +657,7 @@ class TOTALVI(
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for b in transform_batch:
+            for b in tqdm(transform_batch):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -1039,7 +1040,7 @@ class TOTALVI(
         )
 
         corr_mats = []
-        for b in transform_batch:
+        for b in tqdm(transform_batch):
             denoised_data = self._get_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -419,7 +420,7 @@ class ContrastiveVI(BaseModelClass):
             batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
             background_per_batch_exprs = []
             salient_per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in tqdm(transform_batch):
                 if batch is not None:
                     batch_index = torch.ones_like(batch_index) * batch
                 inference_outputs = self.module._generic_inference(

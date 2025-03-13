@@ -11,6 +11,7 @@ import pandas as pd
 import torch
 import torch.distributions as db
 from pyro.distributions.util import deep_to
+from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
@@ -260,7 +261,7 @@ class RNASeqMixin:
         px_store = DistributionConcatenator()
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in tqdm(transform_batch):
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
                 inference_kwargs = {"n_samples": n_samples}
                 inference_outputs, generative_outputs = self.module.forward(
@@ -609,7 +610,7 @@ class RNASeqMixin:
         )
 
         corr_mats = []
-        for b in transform_batch:
+        for b in tqdm(transform_batch):
             denoised_data = self._get_denoised_samples(
                 adata=adata,
                 indices=indices,
