@@ -183,8 +183,8 @@ class SysVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin, VAEMixin):
         layer
             AnnData layer to use, default is X.
             Should contain normalized and log1p transformed expression.
-        %(param_categorical_covariate_keys)s
-        %(param_continuous_covariate_keys)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
