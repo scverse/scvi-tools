@@ -48,12 +48,7 @@ Go through the typical steps of an scvi-tools workflow
 Load, preprocess, and register data for use with scvi-tools
 :::
 
-:::{card} [](notebooks/quick_start/python_in_R)
-:link: notebooks/quick_start/python_in_R
-:link-type: doc
 
-Perform basic Python operations in an R environment
-:::
 
 ::::
 
@@ -82,12 +77,7 @@ These models do not utilize known cell types.
 Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
 :::
 
-:::{card} [](notebooks/scrna/scvi_in_R)
-:link: notebooks/scrna/scvi_in_R
-:link-type: doc
 
-Use basic scvi-tools functionality in R including integration of datasets
-:::
 
 :::{card} [](notebooks/scrna/scVI_DE_worm)
 :link: notebooks/scrna/scVI_DE_worm
@@ -337,12 +327,7 @@ Use totalVI to train a reference model and map CITE-seq query data
 Use totalVI to integrate CITE-seq and scRNA-seq datasets
 :::
 
-:::{card} [](notebooks/multimodal/totalvi_in_R)
-:link: notebooks/multimodal/totalvi_in_R
-:link-type: doc
 
-Use scvi-tools functionality in R to analyze CITE-seq data
-:::
 
 ::::
 
@@ -393,12 +378,7 @@ description
 Perform multi-resolution analysis on spatial transcriptomics data with DestVI
 :::
 
-:::{card} [](notebooks/spatial/DestVI_in_R)
-:link: notebooks/spatial/DestVI_in_R
-:link-type: doc
 
-Use scvi-tools functionality in R to analyze spatial transcriptomics datasets
-:::
 
 :::{card} [](notebooks/spatial/gimvi_tutorial)
 :link: notebooks/spatial/gimvi_tutorial
@@ -513,6 +493,42 @@ Implement a novel statistical method for single-cell omics data as a module
 :link-type: doc
 
 Implement an scvi-tools model class to provide a convenient interface for the lower-level module objects
+:::
+
+::::
+
+## R Tutorials
+
+Use scvi-tools functionality in R with reticulate.
+
+::::{dropdown} R tutorials
+
+:::{card} [](notebooks/quick_start/python_in_R)
+:link: notebooks/quick_start/python_in_R
+:link-type: doc
+
+Perform basic Python operations in an R environment
+:::
+
+:::{card} [](notebooks/scrna/scvi_in_R)
+:link: notebooks/scrna/scvi_in_R
+:link-type: doc
+
+Use basic scvi-tools functionality in R including integration of datasets
+:::
+
+:::{card} [](notebooks/multimodal/totalvi_in_R)
+:link: notebooks/multimodal/totalvi_in_R
+:link-type: doc
+
+Use scvi-tools functionality in R to analyze CITE-seq data
+:::
+
+:::{card} [](notebooks/spatial/DestVI_in_R)
+:link: notebooks/spatial/DestVI_in_R
+:link-type: doc
+
+Use scvi-tools functionality in R to analyze spatial transcriptomics datasets
 :::
 
 ::::
