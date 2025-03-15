@@ -62,7 +62,12 @@ These models do not utilize known cell types.
 Perform integration of multiple scRNA-seq datasets both with and without cell type annotation (scVI and scANVI)
 :::
 
+:::{card} [](notebooks/scrna/MrVI_tutorial)
+:link: notebooks/scrna/MrVI_tutorial
+:link-type: doc
 
+Analyze multi-sample scRNA-seq data with MrVI
+:::
 
 :::{card} [](notebooks/scrna/scVI_DE_worm)
 :link: notebooks/scrna/scVI_DE_worm
@@ -71,18 +76,18 @@ Perform integration of multiple scRNA-seq datasets both with and without cell ty
 Perform DE analysis on C. elegans data with scVI to quantify differences in gene expression between groups of cells
 :::
 
-:::{card} [](notebooks/scrna/MrVI_tutorial)
-:link: notebooks/scrna/MrVI_tutorial
+:::{card} [](notebooks/scrna/cellassign_tutorial)
+:link: notebooks/scrna/cellassign_tutorial
 :link-type: doc
 
-Analyze multi-sample scRNA-seq data with MrVI
+Use CellAssign to assign cell types using only knowledge of marker genes
 :::
 
-:::{card} [](notebooks/scrna/sysVI)
-:link: notebooks/scrna/sysVI
+:::{card} [](notebooks/scrna/linear_decoder)
+:link: notebooks/scrna/linear_decoder
 :link-type: doc
 
-Integrate scRNA-seq datasets with substantial batch effects.
+Fit an LDVAE model to scRNA-seq data and interpret how genes are linked to latent variables of cells
 :::
 
 :::{card} [](notebooks/scrna/contrastiveVI_tutorial)
@@ -106,18 +111,11 @@ Run the amortized Latent Dirichlet Allocation model in scvi-tools to learn topic
 Use the AutoZI model to enable gene-specific treatment of zero-inflation
 :::
 
-:::{card} [](notebooks/scrna/linear_decoder)
-:link: notebooks/scrna/linear_decoder
+:::{card} [](notebooks/scrna/sysVI)
+:link: notebooks/scrna/sysVI
 :link-type: doc
 
-Fit an LDVAE model to scRNA-seq data and interpret how genes are linked to latent variables of cells
-:::
-
-:::{card} [](notebooks/scrna/cellassign_tutorial)
-:link: notebooks/scrna/cellassign_tutorial
-:link-type: doc
-
-Use CellAssign to assign cell types using only knowledge of marker genes
+Integrate scRNA-seq datasets with substantial batch effects.
 :::
 
 ::::
