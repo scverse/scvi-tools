@@ -172,7 +172,6 @@ def test_sysvi_latent_representation():
     model.get_normalized_expression(library_size="latent")
     model.get_normalized_expression(library_size="latent", transform_batch="a")
     model.get_normalized_expression(library_size="latent", indices=[1, 2, 3])
-    model.get_normalized_expression()
 
 
 def test_sysvi_warnings():

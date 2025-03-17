@@ -52,6 +52,6 @@ class Normal(NormalTorch):
         if key == "mu":
             return self.loc
         elif key == "scale":
-            return self.scale  # self.normal_mu
+            return self.normal_mu
         else:
             raise ValueError(f"normalized key {key} not recognized")
