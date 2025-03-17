@@ -15,7 +15,7 @@ class Normal(NormalTorch):
     ----------
     mu
         loc of the Normal distribution.
-    var
+    scale
         scale of the Normal distribution.
     validate_args
         whether to validate input.
@@ -52,6 +52,6 @@ class Normal(NormalTorch):
         if key == "mu":
             return self.loc
         elif key == "scale":
-            return self.normal_mu
+            return self.scale  # self.normal_mu
         else:
             raise ValueError(f"normalized key {key} not recognized")

@@ -19,6 +19,8 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
+- Fix bug in SysVI get_normalized_expression function. {pr}`32XX`.
+-
 
 #### Changed
 

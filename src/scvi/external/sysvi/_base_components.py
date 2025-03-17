@@ -9,7 +9,6 @@ if TYPE_CHECKING:
 
 import numpy as np
 import torch
-from torch.distributions import Normal
 from torch.nn import (
     Linear,
     Module,
@@ -17,6 +16,7 @@ from torch.nn import (
 )
 
 from scvi import settings
+from scvi.distributions import Normal
 from scvi.nn import FCLayers
 
 
