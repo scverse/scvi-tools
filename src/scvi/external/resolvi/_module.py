@@ -1065,7 +1065,7 @@ class RESOLVAE(PyroBaseModuleClass):
         downsample_counts_mean: float | None = None,
         downsample_counts_std: float = 1.0,
         diffusion_eps: float = 0.01,
-        latent_distribution: str | None = None, 
+        latent_distribution: str | None = None,
     ):
         super().__init__()
         self.dispersion = dispersion
