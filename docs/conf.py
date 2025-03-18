@@ -58,6 +58,7 @@ extensions = [
     "sphinx_design",
     "sphinxext.opengraph",
     "hoverxref.extension",
+    "scvi_tutorials",
 ]
 
 
@@ -156,6 +157,7 @@ pygments_style = "default"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/override.css"]
+html_js_files = ["js/tutorial_filter.js"]
 html_show_sphinx = False
 
 
