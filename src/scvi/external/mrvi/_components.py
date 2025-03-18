@@ -2,16 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-# import flax.linen as nn
-import jax
-import jax.numpy as jnp
-
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Literal
 
-    import torch
-
+import torch
 from torch import nn
 from torch.distributions import Normal
 
@@ -170,7 +165,6 @@ class NormalDistOutputNN(nn.Module):
         return Normal(mean, scale + self.scale_eps)
 
 
-# TODO: implement ConditionalNormalization in torch
 class ConditionalNormalization(nn.Module):
     def __init__(
         self,
@@ -204,90 +198,87 @@ class ConditionalNormalization(nn.Module):
         return gamma * x + beta
 
 
-# TODO: implement AttentionBlock in torch
-
-
 class AttentionBlock(nn.Module):
-    """Attention block consisting of multi-head self-attention and MLP.
-
-    Parameters
-    ----------
-    query_dim
-        Dimension of the query input.
-    out_dim
-        Dimension of the output.
-    outerprod_dim
-        Dimension of the outer product.
-    n_channels
-        Number of channels.
-    n_heads
-        Number of heads.
-    dropout_rate
-        Dropout rate.
-    n_hidden_mlp
-        Number of hidden units in the MLP.
-    n_layers_mlp
-        Number of layers in the MLP.
-    training
-        Whether the model is in training mode.
-    stop_gradients_mlp
-        Whether to stop gradients through the MLP.
-    activation
-        Activation function to use.
-    """
-
-    query_dim: int
-    out_dim: int
-    outerprod_dim: int = 16
-    n_channels: int = 4
-    n_heads: int = 2
-    dropout_rate: float = 0.0
-    n_hidden_mlp: int = 32
-    n_layers_mlp: int = 1
-    training: bool | None = None
-    stop_gradients_mlp: bool = False
-    activation: Callable[[jax.Array], jax.Array] = nn.gelu
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        query_embed: jax.typing.ArrayLike,
-        kv_embed: jax.typing.ArrayLike,
+        query_dim: int,
+        out_dim: int,
+        outerprod_dim: int = 16,
+        n_channels: int = 4,
+        n_heads: int = 2,
+        dropout_rate: float = 0.0,
+        n_hidden_mlp: int = 32,
+        n_layers_mlp: int = 1,
         training: bool | None = None,
-    ) -> jax.Array:
-        training = nn.merge_param("training", self.training, training)
+        stop_gradients_mlp: bool = False,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+    ):
+        super().__init__()
+        self.query_dim = query_dim
+        self.out_dim = out_dim
+        self.outerprod_dim = outerprod_dim
+        self.n_channels = n_channels
+        self.n_heads = n_heads
+        self.dropout_rate = dropout_rate
+        self.n_hidden_mlp = n_hidden_mlp
+        self.n_layers_mlp = n_layers_mlp
+        self.training = training
+        self.stop_gradients_mlp = stop_gradients_mlp
+        self.activation = activation
+
+        self.query_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim)
+        self.kv_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim)
+        self.attention = nn.MultiheadAttention(
+            embed_dim=n_channels * n_heads,
+            num_heads=n_heads,
+            dropout=dropout_rate,  # I believe dropout is disabled when in eval mode
+            batch_first=True,  # TODO: double check this one specifically
+        )
+        self.mlp_eps = MLP(
+            n_in=n_channels * n_heads,  # TODO: need to double check this
+            n_out=outerprod_dim,
+            n_hidden=n_hidden_mlp,
+            n_layers=n_layers_mlp,
+            training=training,
+            activation=activation,
+        )
+        self.mlp_residual = MLP(
+            n_in=outerprod_dim + query_dim,  # TODO: double check
+            n_out=out_dim,
+            n_hidden=n_hidden_mlp,
+            n_layers=n_layers_mlp,
+            training=training,
+            activation=activation,
+        )
+
+    def forward(
+        self, query_embed: torch.Tensor, kv_embed: torch.Tensor, training: bool | None = None
+    ) -> torch.Tensor:
+        # training = nn.merge_param("training", self.training, training)
         has_mc_samples = query_embed.ndim == 3
 
-        query_embed_stop = (
-            query_embed if not self.stop_gradients_mlp else jax.lax.stop_gradient(query_embed)
-        )
-        query_for_att = nn.DenseGeneral((self.outerprod_dim, 1), use_bias=False)(query_embed_stop)
-        kv_for_att = nn.DenseGeneral((self.outerprod_dim, 1), use_bias=False)(kv_embed)
-        eps = nn.MultiHeadDotProductAttention(
-            num_heads=self.n_heads,
-            qkv_features=self.n_channels * self.n_heads,
-            out_features=self.n_channels,
-            dropout_rate=self.dropout_rate,
-            use_bias=True,
-        )(inputs_q=query_for_att, inputs_kv=kv_for_att, deterministic=not training)
+        if self.stop_gradients_mlp:
+            query_embed_stop = query_embed.detach()
+        else:
+            query_embed_stop = query_embed
+
+        # TODO: do I need to project embeddings like the jax version?
+        query_for_att = self.query_proj(query_embed_stop)
+        kv_for_att = self.kv_proj(kv_embed)
+
+        # TODO: need to split k and v, maybe just make them two different parameters?
+        # Below is most likeley wrong, just a first guess
+        k_for_att = kv_for_att[:, 0]
+        v_for_att = kv_for_att[:, 1]
+
+        eps = self.attention(query_for_att, k_for_att, v_for_att)
 
         if not has_mc_samples:
-            eps = jnp.reshape(eps, (eps.shape[0], eps.shape[1] * eps.shape[2]))
+            eps = torch.reshape(eps, (eps.shape[0], -1))
         else:
-            eps = jnp.reshape(eps, (eps.shape[0], eps.shape[1], eps.shape[2] * eps.shape[3]))
+            eps = torch.reshape(eps, (eps.shape[0], eps.shape[1], -1))
 
-        eps_ = MLP(
-            n_out=self.outerprod_dim,
-            n_hidden=self.n_hidden_mlp,
-            training=training,
-            activation=self.activation,
-        )(inputs=eps)
-        inputs = jnp.concatenate([query_embed, eps_], axis=-1)
-        residual = MLP(
-            n_out=self.out_dim,
-            n_hidden=self.n_hidden_mlp,
-            n_layers=self.n_layers_mlp,
-            training=training,
-            activation=self.activation,
-        )(inputs=inputs)
+        eps_ = self.mlp_eps(eps, training)
+        inputs = torch.cat([query_embed, eps_], dim=-1)
+        residual = self.mlp_residual(inputs, training)
         return residual
