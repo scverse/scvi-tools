@@ -6,13 +6,13 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-from scipy import sparse
-from scipy.sparse.csr import csr_matrix
+from scipy.sparse import csr_matrix
 
 import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnTorchDataset, _constants, synthetic_iid
 from scvi.data.fields import ObsmField, ProteinObsmField
+from scvi.utils import dependencies
 
 from .utils import generic_setup_adata_manager
 
@@ -59,7 +59,7 @@ def test_transfer_fields_correct_mapping(adata1, adata2):
     adata1_manager.transfer_fields(adata2)
     labels_mapping = adata1_manager.get_state_registry("labels").categorical_mapping
     correct_label = np.where(labels_mapping == "label_1")[0][0]
-    assert adata2.obs["_scvi_labels"][0] == correct_label
+    assert adata2.obs._scvi_labels.iloc[0] == correct_label
 
 
 def test_transfer_fields_correct_batch(adata1, adata2):
@@ -76,8 +76,8 @@ def test_transfer_fields_same_batch_and_label(adata1, adata2):
     adata1_manager = generic_setup_adata_manager(adata1)
     del adata2.obs["batch"]
     adata1_manager.transfer_fields(adata2)
-    assert adata2.obs["_scvi_batch"][0] == 0
-    assert adata2.obs["_scvi_labels"][0] == 0
+    assert adata2.obs._scvi_batch.iloc[0] == 0
+    assert adata2.obs._scvi_labels.iloc[0] == 0
 
 
 def test_transfer_fields_subset(adata1, adata2):
@@ -438,27 +438,42 @@ def test_anntorchdataset_numpy(adata):
     adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
+
+
+@dependencies("dask")
+def test_anntorchdataset_dask():
+    import dask.array as da
+
+    # check that AnnTorchDataset returns numpy array
+    adata = synthetic_iid()
+    adata.X = da.from_array(adata.X)
+    raw_counts = adata.X.copy()
+    adata.layers["raw"] = raw_counts
+    adata_manager = generic_setup_adata_manager(adata)
+    bd = AnnTorchDataset(adata_manager)
+    for value in bd[1].values():
+        assert isinstance(value, np.ndarray)
 
 
 def test_anntorchdataset_numpy_sparse(adata):
     # check AnnTorchDataset returns numpy array counts were sparse
-    adata.X = sparse.csr_matrix(adata.X)
+    adata.X = csr_matrix(adata.X)
     adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_anntorchdataset_getitem_numpy_sparse(adata):
     # check AnnTorchDataset returns numpy array if pro exp was sparse
-    adata.obsm["protein_expression"] = sparse.csr_matrix(adata.obsm["protein_expression"])
+    adata.obsm["protein_expression"] = csr_matrix(adata.obsm["protein_expression"])
     adata_manager = generic_setup_adata_manager(
         adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
     )
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_anntorchdataset_getitem_pro_exp(adata):
@@ -471,7 +486,7 @@ def test_anntorchdataset_getitem_pro_exp(adata):
     )
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
-        assert type(value) == np.ndarray
+        assert isinstance(value, np.ndarray)
 
 
 def test_view_registry(adata):

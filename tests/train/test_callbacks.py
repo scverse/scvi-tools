@@ -3,14 +3,24 @@ import os
 import pytest
 
 import scvi
-from scvi.train._callbacks import MetricsCallback, SaveCheckpoint
+from scvi.data import synthetic_iid
+from scvi.model import SCANVI, SCVI
 
 
-def test_modelcheckpoint_callback(save_path: str):
-    def check_checkpoint_logging(model, adata):
+@pytest.mark.parametrize("load_best_on_end", [True, False])
+def test_savecheckpoint(save_path: str, load_best_on_end: bool):
+    import torch
+    from anndata import AnnData
+
+    from scvi.model.base import BaseModelClass
+    from scvi.train._callbacks import SaveCheckpoint
+
+    def check_checkpoint_logging(model: BaseModelClass, adata: AnnData):
         assert any(isinstance(c, SaveCheckpoint) for c in model.trainer.callbacks)
+
         callback = [c for c in model.trainer.callbacks if isinstance(c, SaveCheckpoint)]
         assert len(callback) == 1
+
         callback = callback[0]
         assert callback.best_model_path is not None
         assert callback.best_model_score is not None
@@ -18,14 +28,27 @@ def test_modelcheckpoint_callback(save_path: str):
 
         log_dirs = os.listdir(scvi.settings.logging_dir)
         assert len(log_dirs) >= 1
+
         checkpoints_dir = os.path.join(scvi.settings.logging_dir, log_dirs[0])
         checkpoint_dirs = os.listdir(checkpoints_dir)
         assert len(checkpoint_dirs) >= 1
+
         checkpoint_dir = os.path.join(checkpoints_dir, checkpoint_dirs[0])
         checkpoint = model.__class__.load(checkpoint_dir, adata=adata)
         assert checkpoint.is_trained_
 
-    def test_model_cls(model_cls, adata):
+        if load_best_on_end:
+            best_model = model.__class__.load(callback.best_model_path, adata=adata)
+            assert best_model.is_trained_
+
+            current_state_dict = model.module.state_dict()
+            best_state_dict = best_model.module.state_dict()
+            assert len(current_state_dict) == len(best_state_dict)
+            for k, v in current_state_dict.items():
+                assert torch.equal(v, best_state_dict[k])
+                assert v.device == best_state_dict[k].device
+
+    def test_model_cls(model_cls, adata: AnnData):
         scvi.settings.logging_dir = os.path.join(save_path, model_cls.__name__)
 
         # enable_checkpointing=True, default monitor
@@ -46,7 +69,9 @@ def test_modelcheckpoint_callback(save_path: str):
         model = model_cls(adata)
         model.train(
             max_epochs=5,
-            callbacks=[SaveCheckpoint(monitor="elbo_validation")],
+            callbacks=[
+                SaveCheckpoint(monitor="elbo_validation", load_best_on_end=load_best_on_end)
+            ],
         )
         check_checkpoint_logging(model, adata)
 
@@ -62,56 +87,58 @@ def test_modelcheckpoint_callback(save_path: str):
     scvi.settings.logging_dir = old_logging_dir
 
 
-def test_metricscallback_init():
-    def dummy_metric(model) -> float:
-        return 0.0
+def test_exception_callback():
+    import torch
 
-    callback = MetricsCallback(dummy_metric)
-    assert callback.metric_fns == {"dummy_metric": dummy_metric}
+    import scvi
+    from scvi.model import SCVI
+    from scvi.train._callbacks import SaveCheckpoint
 
-    metrics = [dummy_metric]
-    callback = MetricsCallback(metrics)
-    assert callback.metric_fns == {"dummy_metric": dummy_metric}
+    torch.set_float32_matmul_precision("high")
+    scvi.settings.seed = 0
 
-    metrics = {"dummy_metric": dummy_metric, "dummy_metric2": dummy_metric}
-    callback = MetricsCallback(metrics)
-    assert len(callback.metric_fns) == 2
+    # we still need to find a proper way to simulate an adata that fail quickly during training
+    adata = synthetic_iid()
 
-    with pytest.raises(TypeError):
-        MetricsCallback(0)
+    SCVI.setup_anndata(adata, batch_key="batch")
 
-    with pytest.raises(TypeError):
-        MetricsCallback([0])
-
-
-def test_metricscallback_with_scvi():
-    adata = scvi.data.synthetic_iid()
-    scvi.model.SCVI.setup_anndata(adata)
-    model = scvi.model.SCVI(adata)
-
-    def dummy_metric(model: scvi.model.SCVI) -> float:
-        _ = model.get_latent_representation()
-        return 0.0
+    model = SCVI(adata)
+    model.train(max_epochs=5)
 
     model.train(
-        max_epochs=1,
-        check_val_every_n_epoch=1,
-        additional_val_metrics={"dummy_metric": dummy_metric},
+        max_epochs=5,
+        callbacks=[
+            SaveCheckpoint(
+                monitor="elbo_validation", load_best_on_end=True, check_nan_gradients=True
+            )
+        ],
+        enable_checkpointing=True,
     )
-    assert "dummy_metric" in model.history
 
-    model = scvi.model.SCVI(adata)
-    model.train(
-        max_epochs=1,
-        check_val_every_n_epoch=1,
-        additional_val_metrics=[dummy_metric],
-    )
-    assert "dummy_metric" in model.history
 
-    with pytest.warns(UserWarning):
-        # no validation step
-        model.train(
-            max_epochs=1,
-            check_val_every_n_epoch=None,
-            additional_val_metrics=[dummy_metric],
+@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
+def test_scib_callback(model_cls, metric: str):
+    from scvi.train._callbacks import ScibCallback
+
+    # we use this temporarily to debug the scib-metrics callback
+    adata = synthetic_iid()
+    if model_cls == SCANVI:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            unlabeled_category="unknown",
+            batch_key="batch",
         )
+    else:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            batch_key="batch",
+        )
+    model = model_cls(adata)
+    model.train(
+        1,
+        train_size=0.5,
+        callbacks=[ScibCallback()],
+    )

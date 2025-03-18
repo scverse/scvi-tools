@@ -1,0 +1,71 @@
+name: test (resolution)
+
+on:
+  pull_request:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+    types: [labeled, synchronize, opened]
+  schedule:
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # if PR has label "resolution tests" or "all tests" or if scheduled or manually triggered
+    if: >-
+      (
+        contains(github.event.pull_request.labels.*.name, 'resolution tests') ||
+        contains(github.event.pull_request.labels.*.name, 'all tests') ||
+        contains(github.event_name, 'schedule') ||
+        contains(github.event_name, 'workflow_dispatch')
+      )
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash -e {0} # -e to fail on error
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12"]
+        install-flags: ["--prerelease if-necessary-or-explicit"]
+
+    name: integration
+
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel uv
+          python -m uv pip install ${{ matrix.install-flags }} --system "scvi-tools[tests] @ ."
+
+      - name: Run pytest
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ${{ matrix.os }}
+          DISPLAY: :42
+          COLUMNS: 120
+        run: |
+          coverage run -m pytest -v --color=yes
+          coverage report
+
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

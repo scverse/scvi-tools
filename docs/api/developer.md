@@ -75,8 +75,6 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
-   dataloaders.ContrastiveDataLoader
-   dataloaders.ContrastiveDataSplitter
 
 ```
 
@@ -98,6 +96,7 @@ Parameterizable probability distributions.
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
    distributions.JaxNegativeBinomialMeanDisp
+   distributions.BetaBinomial
 
 ```
 
@@ -120,6 +119,7 @@ These classes should be used to construct user-facing model classes.
     model.base.RNASeqMixin
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
+    model.base.SemisupervisedTrainingMixin
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
@@ -179,6 +179,12 @@ Module classes in the external API with respective generative and inference proc
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
+   external.mrvi.MRVAE
+   external.methylvi.METHYLVAE
+   external.methylvi.METHYLANVAE
+   external.decipher.DecipherPyroModule
+   external.resolvi.RESOLVAE
+   external.sysvi.SysVAE
 
 ```
 
@@ -198,6 +204,7 @@ These classes should be used to construct module classes that define generative 
 
    module.base.BaseModuleClass
    module.base.BaseMinifiedModeModuleClass
+   module.base.SupervisedModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
    module.base.EmbeddingModuleMixin
@@ -253,6 +260,7 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.TrainingPlan
    train.TrainRunner
    train.SaveBestState
+   train.ScibCallback
    train.SaveCheckpoint
    train.LoudEarlyStopping
 
@@ -275,6 +283,5 @@ Utility functions used by scvi-tools.
    utils.setup_anndata_dsp
    utils.attrdict
    model.get_max_epochs_heuristic
+   external.decipher.utils.Trajectory
 ```
-
-[ray tune]: https://docs.ray.io/en/latest/tune/index.html

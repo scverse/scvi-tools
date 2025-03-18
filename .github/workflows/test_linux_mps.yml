@@ -1,0 +1,77 @@
+name: test (mps)
+
+on:
+  push:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+  pull_request:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+    types: [labeled, synchronize, opened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # if PR has label "cuda tests" or "all tests" or if scheduled or manually triggered
+    if: >-
+      (
+        contains(github.event.pull_request.labels.*.name, 'mps') ||
+        contains(github.event.pull_request.labels.*.name, 'all tests') ||
+        contains(github.event_name, 'schedule') ||
+        contains(github.event_name, 'workflow_dispatch')
+      )
+
+    runs-on: [self-hosted, macOS, X64, MPS]
+
+    name: macos_integration
+
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
+
+    steps:
+      #- name: Get the current branch name
+      #  id: vars
+      #  run: echo "BRANCH_NAME=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> $GITHUB_ENV
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Create Conda environment and install dependencies
+        run: |
+          conda init bash
+          source ~/.bash_profile
+          conda activate scvi
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel uv
+          python -m pip install "scvi-tools[tests]"
+          python -m pip install jax-metal
+          python -m pip install coverage
+          python -m pip install pytest
+
+      - name: Run pytest
+        env:
+          MPLBACKEND: agg
+          PLATFORM: ${{ matrix.os }}
+          DISPLAY: :42
+          COLUMNS: 120
+          PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0
+          PYTORCH_ENABLE_MPS_FALLBACK: 1.0
+        run: |
+          coverage run -m pytest -v --color=yes --accelerator mps --devices auto
+          coverage report
+
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

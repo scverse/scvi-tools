@@ -91,7 +91,7 @@ def test_saving_and_loading(save_path):
 
 def test_autozi():
     data = synthetic_iid(
-        n_batches=1,
+        n_batches=2,
     )
     AUTOZI.setup_anndata(
         data,
@@ -112,6 +112,9 @@ def test_autozi():
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
+        autozivae.get_normalized_expression()
+        autozivae.get_normalized_expression(transform_batch="batch_1")
+        autozivae.get_normalized_expression(n_samples=2)
 
     # Model library size.
     for disp_zi in ["gene", "gene-label"]:
@@ -122,12 +125,14 @@ def test_autozi():
             use_observed_lib_size=False,
         )
         autozivae.train(1, plan_kwargs={"lr": 1e-2}, check_val_every_n_epoch=1)
-        assert hasattr(autozivae.module, "library_log_means") and hasattr(
-            autozivae.module, "library_log_vars"
-        )
+        assert hasattr(autozivae.module, "library_log_means")
+        assert hasattr(autozivae.module, "library_log_vars")
         assert len(autozivae.history["elbo_train"]) == 1
         assert len(autozivae.history["elbo_validation"]) == 1
         autozivae.get_elbo(indices=autozivae.validation_indices)
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
+        autozivae.get_normalized_expression()
+        autozivae.get_normalized_expression(transform_batch="batch_1")
+        autozivae.get_normalized_expression(n_samples=2)

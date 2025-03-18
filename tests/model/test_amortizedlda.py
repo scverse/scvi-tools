@@ -14,6 +14,29 @@ def test_lda_model_single_step(n_topics: int = 5):
     assert len(mod1.history["elbo_train"]) == 1
 
 
+def test_lda_model_single_step_with_external_indices(n_topics: int = 5):
+    adata = synthetic_iid()
+    AmortizedLDA.setup_anndata(adata)
+    mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    mod1.train(
+        max_steps=1,
+        max_epochs=10,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+    )
+    assert len(mod1.history["elbo_train"]) == 1
+
+
 def test_lda_model(n_topics: int = 5):
     adata = synthetic_iid()
 
@@ -46,22 +69,18 @@ def test_lda_model(n_topics: int = 5):
     adata_gbt = mod.get_feature_by_topic().to_numpy()
     assert np.allclose(adata_gbt.sum(axis=0), 1)
     adata_lda = mod.get_latent_representation(adata).to_numpy()
-    assert (
-        adata_lda.shape == (adata.n_obs, n_topics)
-        and np.all((adata_lda <= 1) & (adata_lda >= 0))
-        and np.allclose(adata_lda.sum(axis=1), 1)
-    )
+    assert adata_lda.shape == (adata.n_obs, n_topics)
+    assert np.all((adata_lda <= 1) & (adata_lda >= 0))
+    assert np.allclose(adata_lda.sum(axis=1), 1)
     mod.get_elbo()
     mod.get_perplexity()
 
     adata2 = synthetic_iid()
     AmortizedLDA.setup_anndata(adata2)
     adata2_lda = mod.get_latent_representation(adata2).to_numpy()
-    assert (
-        adata2_lda.shape == (adata2.n_obs, n_topics)
-        and np.all((adata2_lda <= 1) & (adata2_lda >= 0))
-        and np.allclose(adata2_lda.sum(axis=1), 1)
-    )
+    assert adata2_lda.shape == (adata2.n_obs, n_topics)
+    assert np.all((adata2_lda <= 1) & (adata2_lda >= 0))
+    assert np.allclose(adata2_lda.sum(axis=1), 1)
     mod.get_elbo(adata2)
     mod.get_perplexity(adata2)
 

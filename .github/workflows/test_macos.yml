@@ -1,8 +1,11 @@
-name: Test (MacOS)
+name: test (macos)
 
 on:
+  pull_request:
+    branches: [main, "[0-9]+.[0-9]+.x"]
+    types: [labeled, synchronize, opened]
   schedule:
-    - cron: "0 10 * * *" # runs at 10:00 UTC -> 03:00 PST every day
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
 
 concurrency:
@@ -11,7 +14,18 @@ concurrency:
 
 jobs:
   test:
+    # if PR has label "macos tests" or "all tests" or if scheduled or manually triggered or on push
+    if: >-
+      (
+        contains(github.event.pull_request.labels.*.name, 'macos tests') ||
+        contains(github.event.pull_request.labels.*.name, 'all tests') ||
+        contains(github.event_name, 'schedule') ||
+        contains(github.event_name, 'workflow_dispatch') ||
+        contains(github.event_name, 'push')
+      )
+
     runs-on: ${{ matrix.os }}
+
     defaults:
       run:
         shell: bash -e {0} # -e to fail on error
@@ -19,10 +33,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
-        python: ["3.9", "3.10", "3.11"]
+        os: [macos-14]
+        python: ["3.10", "3.11", "3.12"]
 
-    name: Integration
+    name: integration
 
     env:
       OS: ${{ matrix.os }}
@@ -30,32 +44,31 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
           cache-dependency-path: "**/pyproject.toml"
 
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip wheel
-
       - name: Install dependencies
         run: |
-          pip install ".[tests]"
+          python -m pip install --upgrade pip wheel uv
+          python -m uv pip install --system "scvi-tools[tests] @ ."
+          python -m pip install jax-metal
 
-      - name: Test
+      - name: Run pytest
         env:
           MPLBACKEND: agg
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
+          COLUMNS: 120
+          PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0
+          PYTORCH_ENABLE_MPS_FALLBACK: 1.0
         run: |
           coverage run -m pytest -v --color=yes
-      - name: Report coverage
-        run: |
           coverage report
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+
+      - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

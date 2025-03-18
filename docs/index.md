@@ -2,13 +2,27 @@
 
 `scvi-tools` (single-cell variational inference tools) is a package for end-to-end analysis of
 single-cell omics data primarily developed and maintained by the
-[Yosef Lab](https://yoseflab.github.io/) at UC Berkeley and the Weizmann Institute of Science.
+[Yosef Lab](https://www.weizmann.ac.il/immunology/yosef/) at the Weizmann Institute of Science.
 `scvi-tools` has two components:
 
 -   Interface for easy use of a range of probabilistic models for single-cell omics (e.g., scVI, scANVI, totalVI).
 -   Tools to build new probabilistic models, which are powered by PyTorch, PyTorch Lightning, and Pyro.
 
 If you find a model useful for your research, please consider citing the [scvi-tools manuscript](http://dx.doi.org/10.1038/s41587-021-01206-w) as well as the publication describing the model, which can be found in the corresponding documentation.
+
+[//]: # (numfocus-fiscal-sponsor-attribution)
+
+scvi-tools is part of the scverse® project ([website](https://scverse.org), [governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS](https://numfocus.org/).
+If you like scverse® and want to support our mission, please consider making a tax-deductible [donation](https://numfocus.org/donate-to-scverse) to help the project pay for developer time, professional services, travel, workshops, and a variety of other needs.
+
+<div align="center">
+<a href="https://numfocus.org/project/scverse">
+  <img
+    src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
+    width="200"
+  >
+</a>
+</div>
 
 ::::{grid} 1 2 3 3
 :gutter: 2
@@ -65,11 +79,12 @@ Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the late
 
 installation
 tutorials/index
+faq
 user_guide/index
 api/index
-release_notes/index
+developer/index
+changelog.md
 references
-contributing/index
 Discussion <https://discourse.scvi-tools.org>
 GitHub <https://github.com/scverse/scvi-tools>
 Model hub <https://huggingface.co/scvi-tools>

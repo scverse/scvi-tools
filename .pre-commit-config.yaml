@@ -7,27 +7,48 @@ default_stages:
 minimum_pre_commit_version: 2.16.0
 repos:
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.16.0
+    rev: 1.19.1
     hooks:
       - id: blacken-docs
+
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.1.0
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
-        # Newer versions of node don't work on systems that have an older version of GLIBC
-        # (in particular Ubuntu 18.04 and Centos 7)
-        # EOL of Centos 7 is in 2024-06, we can probably get rid of this then.
-        # See https://github.com/scverse/cookiecutter-scverse/issues/143 and
-        # https://github.com/jupyterlab/jupyterlab/issues/12675
-        language_version: "17.9.1"
+        types: [yaml]
+
+  - repo: https://github.com/executablebooks/mdformat
+    rev: 0.7.22
+    hooks:
+      - id: mdformat
+        additional_dependencies:
+          - mdformat-mkdocs
+          - mdformat-admon
+        exclude: |
+          (?x)^(
+            \.github/.*\.md
+            | docs/.*\.md
+          )$
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.44.0
+    hooks:
+      - id: markdownlint-fix
+        exclude: |
+          (?x)^(
+            \.github/.*\.md
+            | docs/.*\.md
+          )$
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.2.1
+    rev: v0.11.0
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: detect-private-key
       - id: check-ast
@@ -36,6 +57,7 @@ repos:
         args: [--fix=lf]
       - id: trailing-whitespace
       - id: check-case-conflict
+
   - repo: local
     hooks:
       - id: forbid-to-commit

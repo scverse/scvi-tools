@@ -111,7 +111,7 @@ class TestContrastiveVI:
             n_samples=1, return_numpy=True
         )
         one_sample_exprs = one_sample_exprs[representation_kind]
-        assert type(one_sample_exprs) == np.ndarray
+        assert isinstance(one_sample_exprs, np.ndarray)
         assert one_sample_exprs.shape == (n_cells, n_genes)
 
         many_sample_exprs = mock_contrastive_vi_model.get_normalized_expression(
@@ -119,7 +119,7 @@ class TestContrastiveVI:
             return_mean=False,
         )
         many_sample_exprs = many_sample_exprs[representation_kind]
-        assert type(many_sample_exprs) == np.ndarray
+        assert isinstance(many_sample_exprs, np.ndarray)
         assert many_sample_exprs.shape == (n_samples, n_cells, n_genes)
 
         exprs_df = mock_contrastive_vi_model.get_normalized_expression(
@@ -127,7 +127,7 @@ class TestContrastiveVI:
             return_numpy=False,
         )
         exprs_df = exprs_df[representation_kind]
-        assert type(exprs_df) == pd.DataFrame
+        assert isinstance(exprs_df, pd.DataFrame)
         assert exprs_df.shape == (n_cells, n_genes)
 
     def test_get_salient_normalized_expression(self, mock_contrastive_vi_model):
@@ -138,21 +138,21 @@ class TestContrastiveVI:
         one_sample_expr = mock_contrastive_vi_model.get_salient_normalized_expression(
             n_samples=1, return_numpy=True
         )
-        assert type(one_sample_expr) == np.ndarray
+        assert isinstance(one_sample_expr, np.ndarray)
         assert one_sample_expr.shape == (n_cells, n_genes)
 
         many_sample_expr = mock_contrastive_vi_model.get_salient_normalized_expression(
             n_samples=n_samples,
             return_mean=False,
         )
-        assert type(many_sample_expr) == np.ndarray
+        assert isinstance(many_sample_expr, np.ndarray)
         assert many_sample_expr.shape == (n_samples, n_cells, n_genes)
 
         expr_df = mock_contrastive_vi_model.get_salient_normalized_expression(
             n_samples=1,
             return_numpy=False,
         )
-        assert type(expr_df) == pd.DataFrame
+        assert isinstance(expr_df, pd.DataFrame)
         assert expr_df.shape == (n_cells, n_genes)
 
     def test_differential_expression(self, mock_contrastive_vi_model):
@@ -161,5 +161,5 @@ class TestContrastiveVI:
             group1=["label_0"],
         )
         n_vars = mock_contrastive_vi_model.adata.n_vars
-        assert type(de_df) == pd.DataFrame
+        assert isinstance(de_df, pd.DataFrame)
         assert de_df.shape[0] == n_vars

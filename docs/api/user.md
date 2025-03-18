@@ -34,8 +34,6 @@ import scvi
    model.MULTIVI
    model.AmortizedLDA
    model.JaxSCVI
-
-
 ```
 
 ```{eval-rst}
@@ -60,7 +58,12 @@ import scvi
    external.ContrastiveVI
    external.POISSONVI
    external.VELOVI
-
+   external.MRVI
+   external.METHYLVI
+   external.METHYLANVI
+   external.Decipher
+   external.RESOLVI
+   external.SysVI
 ```
 
 ## Data loading
@@ -103,8 +106,6 @@ Here we maintain a few package specific utilities for feature selection, etc.
    data.organize_multiome_anndatas
    data.add_dna_sequence
    data.reads_to_fragments
-   external.velovi.get_permutation_scores
-   external.velovi.preprocess_data
 ```
 
 ```{eval-rst}
@@ -159,7 +160,6 @@ Here we maintain miscellaneous general methods.
    :toctree: reference/
    :nosignatures:
 
-   model.utils.mde
    model.utils.get_minified_adata_scrna
 ```
 
