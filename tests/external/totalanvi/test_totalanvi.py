@@ -1,4 +1,3 @@
-
 import pandas as pd
 import pytest
 
@@ -22,7 +21,7 @@ def test_totalanvi():
     model.differential_expression(groupby="labels", group1="label_1")
 
     adata = synthetic_iid()
-    adata.obs['label_names'] = adata.obs['labels']
+    adata.obs["label_names"] = adata.obs["labels"]
     TOTALANVI.setup_anndata(
         adata,
         batch_key="batch",

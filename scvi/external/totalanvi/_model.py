@@ -22,7 +22,6 @@ from scvi.model._utils import (
     _init_library_size,
     get_max_epochs_heuristic,
 )
-from scvi.module import TOTALVAE
 from scvi.train import SemiSupervisedAdversarialTrainingPlan, TrainRunner
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
@@ -137,7 +136,7 @@ class TOTALANVI(TOTALVI):
         else:
             batch_mask = None
             self._use_adversarial_classifier = False
-            
+
         emp_prior = (
             empirical_protein_background_prior
             if empirical_protein_background_prior is not None
@@ -163,9 +162,9 @@ class TOTALANVI(TOTALVI):
         )
 
         n_batch = self.summary_stats.n_batch
-        if 'n_panel' in self.summary_stats:
+        if "n_panel" in self.summary_stats:
             n_panel = self.summary_stats.n_panel
-            panel_key = 'panel'
+            panel_key = "panel"
         else:
             n_panel = self.summary_stats.n_batch
             panel_key = REGISTRY_KEYS.BATCH_KEY
@@ -199,16 +198,9 @@ class TOTALANVI(TOTALVI):
             **model_kwargs,
         )
         self._model_summary_string = (
-            "TotalANVI Model with the following params: \nunlabeled_category: {}, n_latent: {}, "
-            "gene_dispersion: {}, protein_dispersion: {}, gene_likelihood: {}, "
-            "latent_distribution: {}"
-        ).format(
-            self.unlabeled_category_,
-            n_latent,
-            gene_dispersion,
-            protein_dispersion,
-            gene_likelihood,
-            latent_distribution,
+            f"TotalANVI Model with the following params: \nunlabeled_category: {self.unlabeled_category_}, n_latent: {n_latent}, "
+            f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, gene_likelihood: {gene_likelihood}, "
+            f"latent_distribution: {latent_distribution}"
         )
         self.unsupervised_history_ = None
         self.semisupervised_history_ = None
@@ -266,7 +258,7 @@ class TOTALANVI(TOTALVI):
             totalvi_model._validate_anndata(adata)
 
         totalvi_setup_args = deepcopy(totalvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
-        if labels_key is None :
+        if labels_key is None:
             raise ValueError(
                 "A `labels_key` is necessary as the TOTALVI model was initialized without one."
             )
@@ -279,7 +271,9 @@ class TOTALANVI(TOTALVI):
         totalanvi_model = cls(adata, **non_kwargs, **kwargs, **totalanvi_kwargs)
         totalvi_state_dict = totalvi_model.module.state_dict()
         totalanvi_model.module.load_state_dict(totalvi_state_dict, strict=False)
-        logging.info("Sample level parameters are not optimized during supervised model. This helps with integration")
+        logging.info(
+            "Sample level parameters are not optimized during supervised model. This helps with integration"
+        )
         totalanvi_model.module.background_pro_alpha.requires_grad = False
         totalanvi_model.module.background_pro_log_beta.requires_grad = False
         totalanvi_model.module.log_per_batch_efficiency.requires_grad = False
@@ -304,7 +298,6 @@ class TOTALANVI(TOTALVI):
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
         self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
         self._code_to_label = dict(enumerate(self._label_mapping))
-
 
     def predict(
         self,
@@ -483,7 +476,9 @@ class TOTALANVI(TOTALVI):
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
-        training_plan = self._training_plan_cls(self.module, self.n_labels, key_adversarial=key_adversarial, **plan_kwargs)
+        training_plan = self._training_plan_cls(
+            self.module, self.n_labels, key_adversarial=key_adversarial, **plan_kwargs
+        )
         if "callbacks" in trainer_kwargs.keys():
             trainer_kwargs["callbacks"] + [sampler_callback]
         else:
@@ -545,7 +540,7 @@ class TOTALANVI(TOTALVI):
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         if panel_key is not None:
-            batch_field = fields.CategoricalObsField('panel', panel_key)
+            batch_field = fields.CategoricalObsField("panel", panel_key)
         else:
             batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
@@ -571,8 +566,8 @@ class TOTALANVI(TOTALVI):
             ),
         ]
         if panel_key is not None:
-            anndata_fields.insert(0, fields.CategoricalObsField('panel', panel_key))
-        
+            anndata_fields.insert(0, fields.CategoricalObsField("panel", panel_key))
+
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
@@ -687,9 +682,9 @@ class TOTALANVI(TOTALVI):
                     "panel",
                     panel_key,
                     mod_key=modalities.batch_key,
-                )
+                ),
             )
-        
+
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)

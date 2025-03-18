@@ -1,6 +1,7 @@
 """Main module."""
+
 from collections.abc import Iterable, Sequence
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -10,16 +11,11 @@ from torch.distributions import kl_divergence as kl
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import (
-    NegativeBinomial,
-    NegativeBinomialMixture,
-    ZeroInflatedNegativeBinomial,
-)
 from scvi.module import TOTALVAE
 from scvi.module._classifier import Classifier
 from scvi.module._utils import broadcast_labels
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import Decoder, DecoderTOTALVI, Encoder, EncoderTOTALVI
+from scvi.module.base import LossOutput, auto_move_data
+from scvi.nn import Decoder, Encoder
 
 
 # VAE model
@@ -117,7 +113,7 @@ class TOTALANVAE(TOTALVAE):
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label"] = "gene",
@@ -125,25 +121,25 @@ class TOTALANVAE(TOTALVAE):
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
+        protein_batch_mask: dict[str | int, np.ndarray] = None,
         encode_covariates: bool = True,
-        protein_background_prior_mean: Optional[np.ndarray] = None,
-        protein_background_prior_scale: Optional[np.ndarray] = None,
+        protein_background_prior_mean: np.ndarray | None = None,
+        protein_background_prior_scale: np.ndarray | None = None,
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
-        n_panel: Optional[int] = None,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
+        n_panel: int | None = None,
         panel_key: str = REGISTRY_KEYS.BATCH_KEY,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
         y_prior=None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
         linear_classifier: bool = False,
-        classifier_parameters: Optional[dict] = None,
+        classifier_parameters: dict | None = None,
     ):
         super().__init__(
             n_input_genes,
@@ -255,16 +251,15 @@ class TOTALANVAE(TOTALVAE):
                     for i in range(self.n_groups)
                 ]
             )
-        
 
     @auto_move_data
     def classify(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        cont_covs: Optional[torch.Tensor] = None,
-        cat_covs: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
         use_posterior_mean: bool = True,
     ) -> torch.Tensor:
         """Forward pass through the encoder and classifier.
@@ -293,7 +288,7 @@ class TOTALANVAE(TOTALVAE):
         """
         x_ = x / (1 + x.mean(1, keepdim=True))
         y_ = y / (1 + y.mean(1, keepdim=True))
-        
+
         if self.log_variational:
             x_ = torch.log(1 + x_)
             y_ = torch.log(1 + y_)
@@ -306,9 +301,7 @@ class TOTALANVAE(TOTALVAE):
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
-        qz, _, _, _ = self.encoder(
-            encoder_input, batch_index, *categorical_input
-        )
+        qz, _, _, _ = self.encoder(encoder_input, batch_index, *categorical_input)
 
         z = qz.loc if use_posterior_mean else qz.rsample()
 
@@ -378,7 +371,7 @@ class TOTALANVAE(TOTALVAE):
         ql = inference_outputs["ql"]
         px_ = generative_outputs["px_"]
         py_ = generative_outputs["py_"]
-        per_batch_efficiency = generative_outputs['per_batch_efficiency']
+        per_batch_efficiency = generative_outputs["per_batch_efficiency"]
 
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -396,7 +389,7 @@ class TOTALANVAE(TOTALVAE):
         scale = torch.ones_like(qz2.scale)
 
         kl_divergence_z2 = kl(qz2, Normal(mean, scale)).sum(dim=1)
-        loss_z1_unweight = - Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
+        loss_z1_unweight = -Normal(pz1_m, torch.sqrt(pz1_v)).log_prob(z1s).sum(dim=-1)
         loss_z1_weight = qz1.log_prob(z1).sum(dim=-1)
 
         if not self.use_observed_lib_size:
@@ -430,17 +423,28 @@ class TOTALANVAE(TOTALVAE):
         )
 
         kl_div_back_pro_full = kl(
-            Normal(py_["back_alpha"], py_["back_beta"]), inference_outputs['back_mean_prior']
+            Normal(py_["back_alpha"], py_["back_beta"]), inference_outputs["back_mean_prior"]
         )
-        lkl_back_pro_full = - torch.distributions.LogNormal(
-            torch.tensor([0.]).to(x.device), torch.tensor([1.]).to(x.device)).log_prob(per_batch_efficiency)
-        lkl_protein_expressed = - 1e-3 * torch.distributions.Bernoulli(logits=py_["mixing"]).log_prob(torch.ones_like(py_["mixing"]))
+        lkl_back_pro_full = -torch.distributions.LogNormal(
+            torch.tensor([0.0]).to(x.device), torch.tensor([1.0]).to(x.device)
+        ).log_prob(per_batch_efficiency)
+        lkl_protein_expressed = -1e-3 * torch.distributions.Bernoulli(
+            logits=py_["mixing"]
+        ).log_prob(torch.ones_like(py_["mixing"]))
         if pro_batch_mask_minibatch is not None:
             kl_div_back_pro = pro_batch_mask_minibatch.bool() * kl_div_back_pro_full
-            kl_div_back_pro = kl_div_back_pro.sum(dim=1) + lkl_back_pro_full.sum(dim=1) + lkl_protein_expressed.sum(dim=1)
+            kl_div_back_pro = (
+                kl_div_back_pro.sum(dim=1)
+                + lkl_back_pro_full.sum(dim=1)
+                + lkl_protein_expressed.sum(dim=1)
+            )
         else:
-            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1) + lkl_back_pro_full.sum(dim=1) + lkl_protein_expressed.sum(dim=1)
-        
+            kl_div_back_pro = (
+                kl_div_back_pro_full.sum(dim=1)
+                + lkl_back_pro_full.sum(dim=1)
+                + lkl_protein_expressed.sum(dim=1)
+            )
+
         reconst_loss = reconst_loss_gene + kl_weight * pro_recons_weight * reconst_loss_protein
         reconst_losses = {
             "reconst_loss_gene": reconst_loss_gene,
@@ -468,12 +472,12 @@ class TOTALANVAE(TOTALVAE):
             ]
         )
         kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
-        kl_locals['kl_divergence'] = kl_divergence
+        kl_locals["kl_divergence"] = kl_divergence
         kl_divergence_class = kl(
             Categorical(probs=probs),
             Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
         )
-        kl_locals['kl_divergence_class'] = kl_divergence_class
+        kl_locals["kl_divergence_class"] = kl_divergence_class
 
         loss = torch.mean(
             reconst_loss
@@ -495,7 +499,7 @@ class TOTALANVAE(TOTALVAE):
                 logits=logits,
             )
         return LossOutput(
-                loss=loss,
-                reconstruction_loss=reconst_losses,
-                kl_local=kl_locals,
-            )
+            loss=loss,
+            reconstruction_loss=reconst_losses,
+            kl_local=kl_locals,
+        )
