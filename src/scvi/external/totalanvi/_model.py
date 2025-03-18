@@ -2,15 +2,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from copy import deepcopy
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
-from mudata import MuData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -28,6 +25,13 @@ from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
 
 from ._module import TOTALANVAE
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from typing import Literal
+
+    from anndata import AnnData
+    from mudata import MuData
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +41,8 @@ class TOTALANVI(TOTALVI):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.external.model.TOTALANVI.setup_anndata`.
+        AnnData object that has been registered via
+        :meth:`~scvi.external.model.TOTALANVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -198,8 +203,9 @@ class TOTALANVI(TOTALVI):
             **model_kwargs,
         )
         self._model_summary_string = (
-            f"TotalANVI Model with the following params: \nunlabeled_category: {self.unlabeled_category_}, n_latent: {n_latent}, "
-            f"gene_dispersion: {gene_dispersion}, protein_dispersion: {protein_dispersion}, gene_likelihood: {gene_likelihood}, "
+            f"TotalANVI Model with the following params: \nunlabeled_category: "
+            f"{self.unlabeled_category_}, n_latent:{n_latent}, gene_dispersion: {gene_dispersion},"
+            f" protein_dispersion: {protein_dispersion}, gene_likelihood: {gene_likelihood}, "
             f"latent_distribution: {latent_distribution}"
         )
         self.unsupervised_history_ = None
@@ -218,7 +224,7 @@ class TOTALANVI(TOTALVI):
         adata: AnnData | None = None,
         **totalanvi_kwargs,
     ):
-        """Initialize totalVI model with weights from pretrained :class:`~scvi.model.TOTALVI` model.
+        """Initialize totalVI model with weights from pretrained :class:`~scvi.model.TOTALVI` model
 
         Parameters
         ----------
@@ -231,7 +237,8 @@ class TOTALANVI(TOTALVI):
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
-            AnnData object that has been registered via :meth:`~scvi.model.external.TOTALANVI.setup_anndata`.
+            AnnData object that has been registered via
+            :meth:`~scvi.model.external.TOTALANVI.setup_anndata`.
         totalanvi_kwargs
             kwargs for totalANVI model
         """
@@ -272,7 +279,8 @@ class TOTALANVI(TOTALVI):
         totalvi_state_dict = totalvi_model.module.state_dict()
         totalanvi_model.module.load_state_dict(totalvi_state_dict, strict=False)
         logging.info(
-            "Sample level parameters are not optimized during supervised model. This helps with integration"
+            "Sample level parameters are not optimized during supervised model. "
+            "This helps with integration"
         )
         totalanvi_model.module.background_pro_alpha.requires_grad = False
         totalanvi_model.module.background_pro_log_beta.requires_grad = False
@@ -312,7 +320,7 @@ class TOTALANVI(TOTALVI):
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :meth:`~scvi.model.TOTALANVI.setup_anndata`.
+            AnnData object that has been registered via :meth:`~scvi.model.TOTALANVI.setup_anndata`
         indices
             Return probabilities for each class label.
         soft

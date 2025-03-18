@@ -463,7 +463,7 @@ class TOTALANVAE(TOTALVAE):
             (loss_z1_unweight).view(self.n_labels, -1).t() * probs
         ).sum(dim=1)
 
-        probs_masked = torch.stack(
+        torch.stack(
             [
                 torch.nn.functional.one_hot(y_i, self.n_labels)
                 if y_i < self.n_labels
