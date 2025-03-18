@@ -64,9 +64,11 @@ def test_totalanvi():
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
+    assert post_pred["rna"].shape == (n_obs, n_vars, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_vars)
+    assert post_pred["protein"].shape == (n_obs, n_proteins)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -112,6 +114,7 @@ def test_totalanvi():
     assert totalanvi_model.module.state_dict() is not model.module.state_dict()
     totalanvi_pxr = totalanvi_model.module.state_dict().get("px_r", None)
     totalvi_pxr = model.module.state_dict().get("px_r", None)
-    assert totalanvi_pxr is not None and totalvi_pxr is not None
+    assert totalanvi_pxr is not None
+    assert totalvi_pxr is not None
     assert totalanvi_pxr is not totalvi_pxr
     totalanvi_model.train(1)

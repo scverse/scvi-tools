@@ -380,7 +380,7 @@ class TOTALANVAE(TOTALVAE):
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
         # Enumerate choices of label
-        labels_, z1s = broadcast_labels(None, z1, n_broadcast=self.n_labels)
+        labels_, z1s = broadcast_labels(z1, n_broadcast=self.n_labels)
         qz2, z2 = self.encoder_z2_z1(z1s, labels_)
         pz1_m, pz1_v = self.decoder_z1_z2(z2, labels_)
 
@@ -451,7 +451,7 @@ class TOTALANVAE(TOTALVAE):
             "reconst_loss_protein": reconst_loss_protein,
         }
         kl_locals = {
-            "kl_div_l_gene": kl_div_l_gene,
+            # "kl_div_l_gene": kl_div_l_gene,
             "kl_div_back_pro": kl_div_back_pro,
         }
 
