@@ -96,6 +96,8 @@ def test_totalanvi():
     model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
 
+    # model.predict(ig_interpretability=True)
+
     # test from_totalvi_model
     adata = synthetic_iid()
     TOTALVI.setup_anndata(

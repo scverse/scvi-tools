@@ -261,7 +261,7 @@ class SemisupervisedTrainingMixin:
             data_inputs = {
                 key: inference_inputs[key]
                 for key in inference_inputs.keys()
-                if key not in ["batch_index", "cont_covs", "cat_covs"]
+                if key not in ["batch_index", "cont_covs", "cat_covs", "panel_index"]
             }
 
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]

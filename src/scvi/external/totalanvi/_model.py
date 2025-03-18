@@ -5,28 +5,19 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-import numpy as np
-import pandas as pd
-import torch
-
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.data._constants import _SETUP_ARGS_KEY
-from scvi.data._utils import get_anndata_attribute
 from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model import TOTALVI
-from scvi.model._utils import (
-    _init_library_size,
-    get_max_epochs_heuristic,
-)
+from scvi.model._utils import _init_library_size
+from scvi.model.base import SemisupervisedTrainingMixin
 from scvi.train import SemiSupervisedAdversarialTrainingPlan, TrainRunner
-from scvi.train._callbacks import SubSampleLabels
-from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
+from scvi.utils._docstrings import setup_anndata_dsp
 
 from ._module import TOTALANVAE
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from typing import Literal
 
     from anndata import AnnData
@@ -35,7 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class TOTALANVI(TOTALVI):
+class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
     """total Variational Inference :cite:p:`GayosoSteier21`.
 
     Parameters
@@ -288,221 +279,6 @@ class TOTALANVI(TOTALVI):
         totalanvi_model.was_pretrained = True
 
         return totalanvi_model
-
-    def _set_indices_and_labels(self):
-        """Set indices for labeled and unlabeled cells."""
-        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
-        self.original_label_key = labels_state_registry.original_key
-        self.unlabeled_category_ = labels_state_registry.unlabeled_category
-
-        labels = get_anndata_attribute(
-            self.adata,
-            self.adata_manager.data_registry.labels.attr_name,
-            self.original_label_key,
-        ).ravel()
-        self._label_mapping = labels_state_registry.categorical_mapping
-
-        # set unlabeled and labeled indices
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
-        self._code_to_label = dict(enumerate(self._label_mapping))
-
-    def predict(
-        self,
-        adata: AnnData | None = None,
-        indices: Sequence[int] | None = None,
-        soft: bool = False,
-        batch_size: int | None = None,
-        use_posterior_mean: bool = True,
-    ) -> np.ndarray | pd.DataFrame:
-        """Return cell label predictions.
-
-        Parameters
-        ----------
-        adata
-            AnnData object that has been registered via :meth:`~scvi.model.TOTALANVI.setup_anndata`
-        indices
-            Return probabilities for each class label.
-        soft
-            If True, returns per class probabilities
-        batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        use_posterior_mean
-            If ``True``, uses the mean of the posterior distribution to predict celltype
-            labels. Otherwise, uses a sample from the posterior distribution - this
-            means that the predictions will be stochastic.
-        """
-        adata = self._validate_anndata(adata)
-
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-
-        scdl = self._make_data_loader(
-            adata=adata,
-            indices=indices,
-            batch_size=batch_size,
-        )
-        y_pred = []
-        for _, tensors in enumerate(scdl):
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
-            batch = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-            cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-            cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-            cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-            cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-            pred = self.module.classify(
-                x,
-                y,
-                batch_index=batch,
-                cat_covs=cat_covs,
-                cont_covs=cont_covs,
-                use_posterior_mean=use_posterior_mean,
-            )
-            if self.module.classifier.logits:
-                pred = torch.nn.functional.softmax(pred, dim=-1)
-            if not soft:
-                pred = pred.argmax(dim=1)
-            y_pred.append(pred.detach().cpu())
-
-        y_pred = torch.cat(y_pred).numpy()
-        if not soft:
-            predictions = []
-            for p in y_pred:
-                predictions.append(self._code_to_label[p])
-
-            return np.array(predictions)
-        else:
-            n_labels = len(pred[0])
-            pred = pd.DataFrame(
-                y_pred,
-                columns=self._label_mapping[:n_labels],
-                index=adata.obs_names[indices],
-            )
-            return pred
-
-    @devices_dsp.dedent
-    def train(
-        self,
-        max_epochs: int | None = None,
-        n_samples_per_label: float | None = None,
-        lr: float = 4e-3,
-        accelerator: str = "auto",
-        devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
-        validation_size: float | None = None,
-        shuffle_set_split: bool = True,
-        batch_size: int = 256,
-        check_val_every_n_epoch: int | None = None,
-        adversarial_classifier: bool | None = None,
-        key_adversarial: str = REGISTRY_KEYS.BATCH_KEY,
-        datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
-        **trainer_kwargs,
-    ):
-        """Trains the model using amortized variational inference.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset.
-        n_samples_per_label
-            Number of subsamples for each label class to sample per epoch. By default, there
-            is no label subsampling.
-        lr
-            Learning rate for optimization.
-        %(param_accelerator)s
-        %(param_devices)s
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        shuffle_set_split
-            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
-            are split in the sequential order of the data according to `validation_size` and
-            `train_size` percentages.
-        batch_size
-            Minibatch size to use during training.
-        early_stopping
-            Whether to perform early stopping with respect to the validation set.
-        check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping`
-            is `True` or `reduce_lr_on_plateau` is `True`. If either of the latter conditions are
-            met, val is checked every epoch.
-        reduce_lr_on_plateau
-            Reduce learning rate on plateau of validation metric (default is ELBO).
-        n_steps_kl_warmup
-            Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-            Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
-            to `floor(0.75 * adata.n_obs)`.
-        n_epochs_kl_warmup
-            Number of epochs to scale weight on KL divergences from 0 to 1.
-            Overrides `n_steps_kl_warmup` when both are not `None`.
-        adversarial_classifier
-            Whether to use adversarial classifier in the latent space. This helps mixing when
-            there are missing proteins in any of the batches. Defaults to `True` is missing
-            proteins are detected.
-        datasplitter_kwargs
-            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
-        plan_kwargs
-            Keyword args for :class:`~scvi.train.AdversarialTrainingPlan`. Keyword arguments passed
-            to `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        **trainer_kwargs
-            Other keyword args for :class:`~scvi.train.Trainer`.
-        """
-        if adversarial_classifier is None:
-            adversarial_classifier = self._use_adversarial_classifier
-
-        update_dict = {
-            "lr": lr,
-            "adversarial_classifier": adversarial_classifier,
-        }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
-
-        if max_epochs is None:
-            max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
-
-        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
-        datasplitter_kwargs = datasplitter_kwargs or {}
-
-        # if we have labeled cells, we want to subsample labels each epoch
-        sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
-
-        data_splitter = self._data_splitter_cls(
-            adata_manager=self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            shuffle_set_split=shuffle_set_split,
-            n_samples_per_label=n_samples_per_label,
-            batch_size=batch_size,
-            **datasplitter_kwargs,
-        )
-        training_plan = self._training_plan_cls(
-            self.module, self.n_labels, key_adversarial=key_adversarial, **plan_kwargs
-        )
-        if "callbacks" in trainer_kwargs.keys():
-            trainer_kwargs["callbacks"] + [sampler_callback]
-        else:
-            trainer_kwargs["callbacks"] = sampler_callback
-
-        runner = self._train_runner_cls(
-            self,
-            training_plan=training_plan,
-            data_splitter=data_splitter,
-            max_epochs=max_epochs,
-            accelerator=accelerator,
-            devices=devices,
-            check_val_every_n_epoch=check_val_every_n_epoch,
-            **trainer_kwargs,
-        )
-        return runner()
 
     @classmethod
     @setup_anndata_dsp.dedent

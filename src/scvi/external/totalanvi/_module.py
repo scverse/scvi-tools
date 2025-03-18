@@ -14,12 +14,12 @@ from scvi import REGISTRY_KEYS
 from scvi.module import TOTALVAE
 from scvi.module._classifier import Classifier
 from scvi.module._utils import broadcast_labels
-from scvi.module.base import LossOutput, auto_move_data
+from scvi.module.base import LossOutput, SupervisedModuleClass, auto_move_data
 from scvi.nn import Decoder, Encoder
 
 
 # VAE model
-class TOTALANVAE(TOTALVAE):
+class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
     """Total variational inference for CITE-seq data.
 
     Implements a combination of scANVI and totalVI model of :cite:p:`GayosoSteier21`.
@@ -305,38 +305,7 @@ class TOTALANVAE(TOTALVAE):
 
         z = qz.loc if use_posterior_mean else qz.rsample()
 
-        if self.use_labels_groups:
-            w_g = self.classifier_groups(z)
-            unw_y = self.classifier(z)
-            w_y = torch.zeros_like(unw_y)
-            for i, group_index in enumerate(self.groups_index):
-                unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
-                w_y[:, group_index] *= w_g[:, [i]]
-        else:
-            w_y = self.classifier(z)
-        return w_y
-
-    @auto_move_data
-    def classification_loss(self, labelled_dataset):
-        x = labelled_dataset[REGISTRY_KEYS.X_KEY]  # (n_obs, n_vars)
-        y = labelled_dataset[REGISTRY_KEYS.PROTEIN_EXP_KEY]  # (n_obs, n_proteins)
-        labels = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
-        batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
-
-        logits = self.classify(
-            x, y, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
-        )  # (n_obs, n_labels)
-        ce_loss = F.cross_entropy(
-            logits,
-            labels.view(-1).long(),
-        )
-        return ce_loss, labels, logits
+        return self.classify_helper(z)
 
     def loss(
         self,
