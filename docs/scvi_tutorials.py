@@ -125,6 +125,34 @@ def process_tutorial_cards(app, doctree, fromdocname):
         node.replace_self(container)
 
 
+def visit_tutorial_card_node(self, node):
+    """
+    Visit a TutorialCardNode.
+
+    Parameters
+    ----------
+    self : HTMLTranslator
+        The HTML translator.
+    node : TutorialCardNode
+        The tutorial card node.
+    """
+    self.body.append(self.starttag(node, "div", CLASS="tutorial-card"))
+
+
+def depart_tutorial_card_node(self, node):
+    """
+    Depart a TutorialCardNode.
+
+    Parameters
+    ----------
+    self : HTMLTranslator
+        The HTML translator.
+    node : TutorialCardNode
+        The tutorial card node.
+    """
+    self.body.append("</div>")
+
+
 def setup(app):
     """
     App setup hook.
@@ -134,8 +162,7 @@ def setup(app):
     app : Sphinx application object
         The Sphinx application object.
     """
-    app.add_node(TutorialCardNode)
-    app.add_node(TutorialListNode)
+    app.add_node(TutorialCardNode, html=(visit_tutorial_card_node, depart_tutorial_card_node))
     app.add_directive("tutorialcard", TutorialCardDirective)
     app.add_directive("tutoriallist", TutorialListDirective)
     app.connect("doctree-resolved", process_tutorial_cards)
