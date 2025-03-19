@@ -20,6 +20,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
+- Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
 
 #### Changed
 
@@ -130,9 +131,9 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add support for Python 3.12 {pr}`2966`.
-- Add support for categorial covariates in scArches in {meth}`scvi.model.archesmixin` {pr}`2936`.
+- Add support for categorial covariates in scArches in {class}`scvi.model.base.ArchesMixin` {pr}`2936`.
 - Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
-- Add {meth}`scvi.external.poissonvi.get_region_factors` {pr}`2940`.
+- Add {meth}`scvi.external.POISSONVI.get_region_factors` {pr}`2940`.
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
     {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`

@@ -903,9 +903,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ) from err
         adata_manager.view_registry(hide_state_registries=hide_state_registries)
 
-    def get_normalized_expression(
-        self,
-    ):
+    def get_normalized_expression(self, *args, **kwargs):
         msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
