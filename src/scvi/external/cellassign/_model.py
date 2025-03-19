@@ -151,6 +151,7 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
         plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 15,
+        early_stopping_warmup_epochs: int = 0,
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):
@@ -183,6 +184,8 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
             Adds callback for early stopping on validation_loss
         early_stopping_patience
             Number of times early stopping metric can not improve over early_stopping_min_delta
+        early_stopping_warmup_epochs
+            Wait for a certain number of warm-up epochs before the early stopping starts monitoring
         early_stopping_min_delta
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -209,6 +212,7 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",
+                    warmup_epochs=early_stopping_warmup_epochs,
                 )
             ]
             if "callbacks" in kwargs:
