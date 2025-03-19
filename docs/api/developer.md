@@ -75,6 +75,7 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
+   dataloaders.BatchDistributedSampler
 
 ```
 
@@ -231,8 +232,11 @@ Basic neural network building blocks.
    nn.Encoder
    nn.Decoder
    nn.DecoderSCVI
+   nn.LinearDecoderSCVI
    nn.one_hot
    nn.Embedding
+   nn.DecoderTOTALVI
+   nn.EncoderTOTALVI
 
 ```
 
