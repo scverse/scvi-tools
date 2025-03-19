@@ -28,7 +28,7 @@ from ._module import SysVAE
 logger = logging.getLogger(__name__)
 
 
-class SysVI(UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin, VAEMixin):
+class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
     """Integration with cVAE & optional VampPrior and latent cycle-consistency.
 
      Described in
