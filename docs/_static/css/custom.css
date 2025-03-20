@@ -1,0 +1,21 @@
+.filter-btn {
+    cursor: pointer;
+    padding: 5px 10px;
+    margin: 5px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.filter-btn.selected {
+    background-color: #007bff;
+    color: white;
+}
+
+.tutorial-card-container {
+    margin: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}

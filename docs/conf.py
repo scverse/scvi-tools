@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
+sys.path.append(str(Path('_ext').resolve()))
+
 # -- Project information -----------------------------------------------------
 
 info = metadata("scvi-tools")
@@ -58,6 +60,7 @@ extensions = [
     "sphinx_design",
     "sphinxext.opengraph",
     "hoverxref.extension",
+    "tutorial_filter"
 ]
 
 
@@ -155,7 +158,8 @@ pygments_style = "default"
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_css_files = ["css/override.css"]
+html_css_files = ["css/override.css", "css/custom.css"]
+html_js_files = ["js/custom.js", "filter_tutorials.js"]
 html_show_sphinx = False
 
 
