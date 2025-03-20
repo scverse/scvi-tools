@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 from anndata import AnnData
 from pyro import infer
+from tqdm import tqdm
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
@@ -284,7 +285,7 @@ class ResolVIPredictiveMixin:
 
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in tqdm(transform_batch):
                 _, kwargs = self.module._get_fn_args_from_batch(tensors)
                 kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
 
