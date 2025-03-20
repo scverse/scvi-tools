@@ -22,6 +22,7 @@ from scvi.model._utils import (
     _init_library_size,
     cite_seq_raw_counts_properties,
     get_max_epochs_heuristic,
+    use_distributed_sampler,
 )
 from scvi.model.base._de_core import _de_core
 from scvi.module import TOTALVAE
@@ -323,6 +324,7 @@ class TOTALVI(
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             external_indexing=external_indexing,
             **datasplitter_kwargs,
         )

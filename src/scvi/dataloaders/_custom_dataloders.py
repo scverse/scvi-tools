@@ -7,13 +7,16 @@ from lightning.pytorch import LightningDataModule
 from torch.utils.data import DataLoader
 
 import scvi
+from scvi.utils import dependencies
 
 if TYPE_CHECKING:
-    import lamindb as ln
     import numpy as np
 
 
+@dependencies("lamindb")
 class MappedCollectionDataModule(LightningDataModule):
+    import lamindb as ln
+
     def __init__(
         self,
         collection: ln.Collection,
@@ -129,7 +132,7 @@ class MappedCollectionDataModule(LightningDataModule):
                     "state_registry": {
                         "categorical_mapping": self.label_keys,
                         "original_key": self._label_key,
-                        "unlabeled_category": "unlabeled",
+                        "unlabeled_category": self._unlabeled_category,
                     },
                     "summary_stats": {"n_labels": self.n_labels},
                 },

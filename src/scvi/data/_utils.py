@@ -16,7 +16,7 @@ from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.utils import attrdict
+from scvi.utils import attrdict, is_package_installed
 
 from . import _constants
 
@@ -256,6 +256,11 @@ def _check_nonnegative_integers(
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
+    elif is_package_installed("dask"):
+        import dask.array as da
+
+        if isinstance(data, da.Array):
+            data = data[:100, :100].compute()
 
     if isinstance(data, np.ndarray):
         data = data
@@ -332,6 +337,14 @@ def _check_fragment_counts(
             data = data[:400]
         else:
             data = data[:]
+    elif is_package_installed("dask"):
+        import dask.array as da
+
+        if isinstance(data, da.Array):
+            if data.shape[0] >= 400:
+                data = data[:400].compute()
+            else:
+                data = data[:].compute()
 
     # check that n_obs is greater than n_to_check
     if data.shape[0] < n_to_check:

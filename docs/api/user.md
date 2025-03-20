@@ -34,8 +34,6 @@ import scvi
    model.MULTIVI
    model.AmortizedLDA
    model.JaxSCVI
-
-
 ```
 
 ```{eval-rst}
@@ -62,8 +60,10 @@ import scvi
    external.VELOVI
    external.MRVI
    external.METHYLVI
+   external.METHYLANVI
    external.Decipher
    external.RESOLVI
+   external.SysVI
 ```
 
 ## Data loading

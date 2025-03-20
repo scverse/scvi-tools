@@ -147,6 +147,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
+        self.get_normalized_function_name_ = "get_normalized_expression"
 
     @property
     def adata(self) -> None | AnnOrMuData:
@@ -877,6 +878,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
         return summary_string
 
+    @property
+    def get_normalized_function_name(self) -> str:
+        """What the get normalized functions name is"""
+        return self.get_normalized_function_name_
+
+    @get_normalized_function_name.setter
+    def get_normalized_function_name(self, value):
+        self.get_normalized_function_name_ = value
+
     def __repr__(self):
         rich.print(self.summary_string)
         return ""
@@ -1104,6 +1114,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             in the registry of this instance.
         """
         self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
+
+    def get_normalized_expression(self, *args, **kwargs):
+        msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
 
 
 class BaseMinifiedModeModelClass(BaseModelClass):

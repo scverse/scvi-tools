@@ -16,7 +16,7 @@ The limitations of resolVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/resolVI_tutorial.ipynb`
+-   {doc}`/tutorials/notebooks/spatial/resolVI_tutorial`
 ```
 
 ## Preliminaries

@@ -19,7 +19,7 @@ from .utils._trajectory import Trajectory
 
 
 class Decipher(PyroSviTrainMixin, BaseModelClass):
-    """Decipher model for single-cell data analysis :cite:p:`Nazaret23`.
+    """Decipher model for single-cell data analysis :cite:p:`Nazaret24`.
 
     Parameters
     ----------
@@ -238,7 +238,8 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         cluster_obs_key : str
             The key in adata.obs containing cluster assignments.
         trajectory : Trajectory
-            A Trajectory object containing the trajectory information.
+            A :class:`~scvi.external.decipher.utils.Trajectory` object containing
+            the trajectory information.
         n_neighbors : int
             The number of neighbors to use for the KNN regression.
 
@@ -280,7 +281,8 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         adata : AnnData
             The annotated data matrix.
         trajectory : Trajectory
-            A Trajectory object containing the trajectory information.
+            A :class:`~scvi.external.decipher.utils.Trajectory` object containing
+            the trajectory information.
         l_scale : float
             The library size scaling factor.
         n_samples : int

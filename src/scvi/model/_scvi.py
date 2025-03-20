@@ -148,7 +148,6 @@ class SCVI(
             f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
         )
-        self._module_init_on_train = False
 
         if self._module_init_on_train:
             self.module = None

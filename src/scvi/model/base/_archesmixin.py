@@ -422,7 +422,7 @@ def _set_params_online_update(
             par.requires_grad = False
 
 
-def _get_loaded_data(reference_model, device=None, adata=None):
+def _get_loaded_data(reference_model, device=None):
     if isinstance(reference_model, str):
         attr_dict, var_names, load_state_dict, _ = _load_saved_files(
             reference_model, load_adata=False, map_location=device

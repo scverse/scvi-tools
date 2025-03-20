@@ -45,7 +45,15 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/mrvi`
      - Characterization of sample-level heterogeneity
      - :cite:p:`Boyeau24`
-
+   * - :doc:`/user_guide/models/sysvi`
+     - Integrating single-cell RNA-seq datasets with substantial batch effects
+     - :cite:p:`Hrovatin23`
+   * - :doc:`/user_guide/models/decipher`
+     - Joint representation and visualization of derailed cell states with Decipher
+     - :cite:p:`Nazaret24`
+   * - :doc:`/user_guide/models/velovi`
+     - Deep generative modeling of transcriptional dynamics for RNA velocity analysis in single cells
+     - :cite:p:`GayosoWeiler23`
 ```
 
 ## ATAC-seq analysis
@@ -81,6 +89,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
    * - :doc:`/user_guide/models/methylvi`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential methylation, imputation, normalization of other cell- and sample-level confounding factors
+     - :cite:p:`Weinberger2023a`
+   * - :doc:`/user_guide/models/methylanvi`
+     - MethylVI tasks along with cell type label transfer from reference, seed labeling
      - :cite:p:`Weinberger2023a`
 ```
 
@@ -167,6 +178,16 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 - {doc}`/user_guide/background/counterfactual_prediction`
 - {doc}`/user_guide/background/transfer_learning`
 - {doc}`/user_guide/background/codebase_overview`
+
+## Common Use Cases
+
+- {doc}`/user_guide/use_case/saving_and_loading_models`
+- {doc}`/user_guide/use_case/downstream_analysis_tasks`
+- {doc}`/user_guide/use_case/using_callbacks`
+- {doc}`/user_guide/use_case/hyper_parameters_tuning`
+- {doc}`/user_guide/use_case/multi_gpu_training`
+- {doc}`/user_guide/use_case/custom_dataloaders`
+- {doc}`/user_guide/use_case/scvi_criticism`
 
 ## Glossary
 

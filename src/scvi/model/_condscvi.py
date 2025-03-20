@@ -298,9 +298,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             fields.CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
         ]
-        if batch_key is not None:
-            anndata_fields.append(fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key))
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)

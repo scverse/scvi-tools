@@ -562,8 +562,8 @@ def test_scanvi_logits_backwards_compat(save_path: str):
 
 def test_scanvi_pre_logits_fix_load(save_path: str):
     """See #2310. Check old model saves use the old behavior."""
-    model_path = "tests/test_data/pre_logits_fix_scanvi"
-    model = SCANVI.load(model_path)
+    resave_model_path = os.path.join(save_path, "pre_logits_fix_scanvi")
+    model = SCANVI.load(resave_model_path)
 
     def check_no_logits_and_softmax(model: SCANVI):
         assert not model.module.classifier.logits
@@ -571,10 +571,88 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 
     check_no_logits_and_softmax(model)
 
-    resave_model_path = os.path.join(save_path, "pre_logits_fix_scanvi")
     model.save(resave_model_path, overwrite=True)
     adata = model.adata
     del model
 
     model = SCANVI.load(resave_model_path, adata)
     check_no_logits_and_softmax(model)
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0"])
+def test_scanvi_interpretability_ig(unlabeled_cat: str):
+    adata = synthetic_iid(batch_size=50)
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+    # get the IG for all data
+    predictions, attributions = model.predict(ig_interpretability=True)  # orignal predictions
+    # let's see an avg of score of top 5 genes for all samples put together
+    ig_top_features = attributions.head(5)
+    print(ig_top_features)
+
+    # new data ig prediction specific for samples, top 5 genes
+    adata2 = synthetic_iid(batch_size=10)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    predictions, attributions = model.predict(adata2, indices=[1, 2, 3], ig_interpretability=True)
+    ig_top_features_3_samples = attributions.head(5)
+    print(ig_top_features_3_samples)
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0"])
+def test_scanvi_interpretability_shap(unlabeled_cat: str):
+    adata = synthetic_iid(batch_size=50)
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+    # new data for shap prediction specific for samples, top 5 genes
+    adata2 = synthetic_iid(batch_size=10)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+
+    # now run shap values and compare to previous results
+    # (here, the more labels the more time it will take to run)
+    shap_values = model.shap_predict(shap_args={"nsamples": 100})
+    # select the label we want to understand (usually the '1' class)
+    shap_top_features = model.get_ranked_genes(attrs=shap_values[:, :, 1]).head(5)
+    print(shap_top_features)
+
+    # now run shap values for the test set (can be specific class or indices and with params)
+    # (here, the more labels the more time it will take to run)
+    shap_values_test = model.shap_predict(
+        adata2,
+        indices=[1, 2, 3],
+        shap_args={"link": "identity", "silent": True, "gc_collect": True, "nsamples": 300},
+    )
+    # # select the label we want to understand (usually the '1' class)
+    shap_top_features_test = model.get_ranked_genes(attrs=shap_values_test[:, :, 1]).head(5)
+    print(shap_top_features_test)
