@@ -96,7 +96,10 @@ def test_totalanvi():
     model.predict(adata2, soft=True, indices=[1, 2, 3])
     model.get_normalized_expression(adata2)
 
-    # model.predict(ig_interpretability=True)
+    predictions, attributions = model.predict(ig_interpretability=True)
+    # let's see an avg of score of top 5 markers for all samples put together
+    ig_top_features = attributions.head(5)
+    print(ig_top_features)
 
     # test from_totalvi_model
     adata = synthetic_iid()
