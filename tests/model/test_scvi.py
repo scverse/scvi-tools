@@ -1157,6 +1157,10 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     with pytest.raises(ValueError):
         model.train(datamodule=datamodule)
 
+    with pytest.raises(TypeError) as excinfo:
+        SCVI(n_latent=n_latent)
+    assert str(excinfo.value) == "SCVI.__init__() missing 1 required positional argument: 'adata'"
+
 
 def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
     from scvi.dataloaders import DataSplitter
@@ -1204,6 +1208,10 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     # initialized with adata, cannot pass in datamodule
     with pytest.raises(ValueError):
         model.train(datamodule=datamodule)
+
+    with pytest.raises(TypeError) as excinfo:
+        SCVI(n_latent=n_latent)
+    assert str(excinfo.value) == "SCVI.__init__() missing 1 required positional argument: 'adata'"
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
@@ -1263,6 +1271,23 @@ def test_scvi_inference_custom_dataloader(n_latent: int = 5):
     model.train(max_epochs=1)
 
     dataloader = model._make_data_loader(adata)
+    _ = model.get_elbo(dataloader=dataloader)
+    _ = model.get_marginal_ll(dataloader=dataloader)
+    _ = model.get_reconstruction_error(dataloader=dataloader)
+    _ = model.get_latent_representation(dataloader=dataloader)
+
+
+def test_scvi_train_custom_dataloader(n_latent: int = 5):
+    # ORI this function could help get started.
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata, n_latent=n_latent)
+    model.train(max_epochs=1)
+    dataloader = model._make_data_loader(adata)
+    # SCVI.setup_datamodule(dataloader)
+    # continue from here. Datamodule will always require to pass it into all downstream functions.
+    model.train(max_epochs=1, datamodule=dataloader)
     _ = model.get_elbo(dataloader=dataloader)
     _ = model.get_marginal_ll(dataloader=dataloader)
     _ = model.get_reconstruction_error(dataloader=dataloader)

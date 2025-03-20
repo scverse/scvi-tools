@@ -103,20 +103,15 @@ class UnsupervisedTrainingMixin:
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
-        if datamodule is not None and not self._module_init_on_train:
-            raise ValueError(
-                "Cannot pass in `datamodule` if the model was initialized with `adata`."
-            )
-        elif datamodule is None and self._module_init_on_train:
-            raise ValueError(
-                "If the model was not initialized with `adata`, a `datamodule` must be passed in."
-            )
-
         if max_epochs is None:
+            # if self.adata is not None:
+            #     max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
+            # else:
+            #     max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
             if datamodule is None:
                 max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
             elif hasattr(datamodule, "n_obs"):
-                max_epochs = get_max_epochs_heuristic(datamodule.n_obs)
+                max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
             else:
                 raise ValueError(
                     "If `datamodule` does not have `n_obs` attribute, `max_epochs` must be "
@@ -124,6 +119,7 @@ class UnsupervisedTrainingMixin:
                 )
 
         if datamodule is None:
+            # In the general case we enter here
             datasplitter_kwargs = datasplitter_kwargs or {}
             datamodule = self._data_splitter_cls(
                 self.adata_manager,
@@ -134,15 +130,6 @@ class UnsupervisedTrainingMixin:
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
-            )
-        elif self.module is None:
-            self.module = self._module_cls(
-                datamodule.n_vars,
-                n_batch=datamodule.n_batch,
-                n_labels=getattr(datamodule, "n_labels", 1),
-                n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
-                n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
-                **self._module_kwargs,
             )
 
         plan_kwargs = plan_kwargs or {}
@@ -169,23 +156,25 @@ class SemisupervisedTrainingMixin:
 
     _training_plan_cls = SemiSupervisedTrainingPlan
 
-    def _set_indices_and_labels(self):
+    def _set_indices_and_labels(self, datamodule=None):
         """Set indices for labeled and unlabeled cells."""
-        labels_state_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
+        labels_state_registry = self.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         self.original_label_key = labels_state_registry.original_key
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
-        labels = get_anndata_attribute(
-            self.adata,
-            self.adata_manager.data_registry.labels.attr_name,
-            self.original_label_key,
-            mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
-        ).ravel()
+        if datamodule is None:
+            self.labels_ = get_anndata_attribute(
+                self.adata,
+                self.adata_manager.data_registry.labels.attr_name,
+                self.original_label_key,
+            ).ravel()
+        else:
+            self.labels_ = datamodule.labels.ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
+        self._unlabeled_indices = np.argwhere(self.labels_ == self.unlabeled_category_).ravel()
+        self._labeled_indices = np.argwhere(self.labels_ != self.unlabeled_category_).ravel()
         self._code_to_label = dict(enumerate(self._label_mapping))
 
     def predict(
@@ -333,6 +322,7 @@ class SemisupervisedTrainingMixin:
         devices: int | list[int] | str = "auto",
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
+        datamodule: LightningDataModule | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -368,6 +358,10 @@ class SemisupervisedTrainingMixin:
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword
             arguments passed to `train()` will overwrite values present in `plan_kwargs`,
             when appropriate.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -382,19 +376,26 @@ class SemisupervisedTrainingMixin:
         plan_kwargs = {} if plan_kwargs is None else plan_kwargs
         datasplitter_kwargs = datasplitter_kwargs or {}
 
-        # if we have labeled cells, we want to subsample labels each epoch
-        sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
+        if datamodule is None:
+            # if we have labeled cells, we want to subsample labels each epoch
+            sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
 
-        data_splitter = SemiSupervisedDataSplitter(
-            adata_manager=self.adata_manager,
-            train_size=train_size,
-            validation_size=validation_size,
-            shuffle_set_split=shuffle_set_split,
-            n_samples_per_label=n_samples_per_label,
-            distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
-            batch_size=batch_size,
-            **datasplitter_kwargs,
-        )
+            datasplitter_kwargs = datasplitter_kwargs or {}
+            datamodule = SemiSupervisedDataSplitter(
+                adata_manager=self.adata_manager,
+                datamodule=datamodule,
+                train_size=train_size,
+                validation_size=validation_size,
+                shuffle_set_split=shuffle_set_split,
+                n_samples_per_label=n_samples_per_label,
+                distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
+                batch_size=batch_size,
+                **datasplitter_kwargs,
+            )
+        else:
+            Warning("Warning: SCANVI sampler is not available with custom dataloader")
+            sampler_callback = []
+
         training_plan = self._training_plan_cls(self.module, self.n_labels, **plan_kwargs)
 
         if "callbacks" in trainer_kwargs.keys():
@@ -405,7 +406,7 @@ class SemisupervisedTrainingMixin:
         runner = TrainRunner(
             self,
             training_plan=training_plan,
-            data_splitter=data_splitter,
+            data_splitter=datamodule,
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=devices,

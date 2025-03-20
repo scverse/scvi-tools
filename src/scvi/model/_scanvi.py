@@ -5,6 +5,7 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
+import scvi
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import (
@@ -37,8 +38,13 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+    from lightning import LightningDataModule
 
     from ._scvi import SCVI
+
+_SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
+_SCANVI_LATENT_QZV = "_scanvi_latent_qzv"
+_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +81,9 @@ class SCANVI(
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     linear_classifier
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
@@ -106,35 +115,45 @@ class SCANVI(
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        use_observed_lib_size: bool = True,
         linear_classifier: bool = False,
+        datamodule: LightningDataModule | None = None,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
         scanvae_model_kwargs = dict(model_kwargs)
 
-        self._set_indices_and_labels()
+        self._set_indices_and_labels(datamodule)
 
         # ignores unlabeled catgegory
         n_labels = self.summary_stats.n_labels - 1
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else None
+            )
+        else:
+            # custom datamodule
+            n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
+            if n_cats_per_cov == 0:
+                n_cats_per_cov = None
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        use_size_factor_key = self.registry_["setup_args"][f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"]
         library_log_means, library_log_vars = None, None
         if (
             not use_size_factor_key
             and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            and not use_observed_lib_size
         ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
@@ -151,6 +170,7 @@ class SCANVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             use_size_factor_key=use_size_factor_key,
+            use_observed_lib_size=use_observed_lib_size,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             linear_classifier=linear_classifier,
@@ -178,6 +198,7 @@ class SCANVI(
         unlabeled_category: str,
         labels_key: str | None = None,
         adata: AnnData | None = None,
+        registry: dict | None = None,
         **scanvi_kwargs,
     ):
         """Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
@@ -194,6 +215,8 @@ class SCANVI(
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+        registry
+            Registry of the datamodule used to train scANVI model.
         scanvi_kwargs
             kwargs for scANVI model
         """
@@ -223,13 +246,15 @@ class SCANVI(
 
         if adata is None:
             adata = scvi_model.adata
-        else:
+        elif adata:
             if _is_minified(adata):
                 raise ValueError("Please provide a non-minified `adata` to initialize scANVI.")
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
+        else:
+            adata = None
 
-        scvi_setup_args = deepcopy(scvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
+        scvi_setup_args = deepcopy(scvi_model.registry[_SETUP_ARGS_KEY])
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
             raise ValueError(
@@ -237,13 +262,15 @@ class SCANVI(
             )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})
-        cls.setup_anndata(
-            adata,
-            unlabeled_category=unlabeled_category,
-            use_minified=False,
-            **scvi_setup_args,
-        )
-        scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
+        if adata is not None:
+            cls.setup_anndata(
+                adata,
+                unlabeled_category=unlabeled_category,
+                use_minified=False,
+                **scvi_setup_args,
+            )
+
+        scanvi_model = cls(adata, scvi_model.registry, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
         scanvi_model.was_pretrained = True
@@ -290,9 +317,117 @@ class SCANVI(
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         # register new fields if the adata is minified
-        adata_minify_type = _get_adata_minify_type(adata)
-        if adata_minify_type is not None and use_minified:
-            anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
+        if adata:
+            adata_minify_type = _get_adata_minify_type(adata)
+            if adata_minify_type is not None and use_minified:
+                anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
+            adata_manager = AnnDataManager(
+                fields=anndata_fields, setup_method_args=setup_method_args
+            )
+            adata_manager.register_fields(adata, **kwargs)
+            cls.register_manager(adata_manager)
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_datamodule(
+        cls,
+        datamodule: LightningDataModule | None = None,
+        source_registry=None,
+        layer: str | None = None,
+        batch_key: list[str] | None = None,
+        labels_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        **kwargs,
+    ):
+        """%(summary)s.
+
+        Parameters
+        ----------
+        %(param_datamodule)s
+        %(param_source_registry)s
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        """
+        if datamodule.__class__.__name__ == "CensusSCVIDataModule":
+            # CZI
+            batch_mapping = datamodule.datapipe.obs_encoders["batch"].classes_
+            labels_mapping = datamodule.datapipe.obs_encoders["label"].classes_
+            features_names = list(
+                datamodule.datapipe.var_query.coords[0]
+                if datamodule.datapipe.var_query is not None
+                else range(datamodule.n_vars)
+            )
+            n_batch = datamodule.n_batch
+            n_label = datamodule.n_label
+
+        else:
+            # Anndata -> CZI
+            # if we are here and datamodule is actually an AnnData object
+            # it means we init the custom dataloder model with anndata
+            batch_mapping = source_registry["field_registries"]["batch"]["state_registry"][
+                "categorical_mapping"
+            ]
+            labels_mapping = source_registry["field_registries"]["label"]["state_registry"][
+                "categorical_mapping"
+            ]
+            features_names = datamodule.var.soma_joinid.values
+            n_batch = source_registry["field_registries"]["batch"]["summary_stats"]["n_batch"]
+            n_label = 1  # need to change
+
+        datamodule.registry = {
+            "scvi_version": scvi.__version__,
+            "model_name": "SCVI",
+            "setup_args": {
+                "layer": layer,
+                "batch_key": batch_key,
+                "labels_key": labels_key,
+                "size_factor_key": size_factor_key,
+                "categorical_covariate_keys": categorical_covariate_keys,
+                "continuous_covariate_keys": continuous_covariate_keys,
+            },
+            "field_registries": {
+                "X": {
+                    "data_registry": {"attr_name": "X", "attr_key": None},
+                    "state_registry": {
+                        "n_obs": datamodule.n_obs,
+                        "n_vars": datamodule.n_vars,
+                        "column_names": [str(i) for i in features_names],
+                    },
+                    "summary_stats": {"n_vars": datamodule.n_vars, "n_cells": datamodule.n_obs},
+                },
+                "batch": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+                    "state_registry": {
+                        "categorical_mapping": batch_mapping,
+                        "original_key": "batch",
+                    },
+                    "summary_stats": {"n_batch": n_batch},
+                },
+                "labels": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+                    "state_registry": {
+                        "categorical_mapping": labels_mapping,
+                        "original_key": "label",
+                        "unlabeled_category": datamodule.unlabeled_category,
+                    },
+                    "summary_stats": {"n_labels": n_label},
+                },
+                "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
+                "extra_categorical_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_categorical_covs": 0},
+                },
+                "extra_continuous_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_continuous_covs": 0},
+                },
+            },
+            "setup_method_name": "setup_datamodule",
+        }
