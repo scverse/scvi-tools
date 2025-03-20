@@ -17,6 +17,18 @@ notebooks/atac/PoissonVI
 
 ```{tutorialcard}
 :link: notebooks/atac/PeakVI
-:desciption: test description ...
+:description: test description ...
 :tags: Analysis
+```
+
+```{tutorialcard}
+:link: notebooks/atac/peakvi_in_R
+:description: test description ...
+:tags: Analysis, R
+```
+
+```{tutorialcard}
+:link: notebooks/atac/scbasset
+:description: test description ...
+:tags: Analysis, Test
 ```
