@@ -169,10 +169,6 @@ class nicheVAE(VAE):
         cell_rec_weight: float = 1.0,
         latent_kl_weight: float = 1.0,
         spatial_weight: float = 1.0,
-        niche_rec_weight: float = 1.0,
-        compo_rec_weight: float = 1.0,
-        ##############################
-        n_hidden_dist_decoder: int | None = None,
         ##############################
         prior_mixture: bool = False,
         prior_mixture_k: int = 20,
@@ -227,13 +223,9 @@ class nicheVAE(VAE):
         self.cell_rec_weight = cell_rec_weight
         self.spatial_weight = spatial_weight
         ##############################
-        self.niche_rec_weight = niche_rec_weight
-        self.compo_rec_weight = compo_rec_weight
-        ##############################
         self.n_output_niche = n_output_niche
         self.niche_likelihood = niche_likelihood
         self.prior_mixture = prior_mixture
-        self.n_hidden_dist_decoder = n_hidden_dist_decoder
         self.semisupervised = semisupervised
 
         self.batch_representation = batch_representation
@@ -497,7 +489,6 @@ class nicheVAE(VAE):
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, torch.Tensor | Distribution | None],
         kl_weight: float = 1.0,
-        spatial_weight: float = 1.0,
         classification_ratio=50,
         epsilon: float = 1e-6,
         n_samples_mixture: int = 30,
@@ -572,10 +563,8 @@ class nicheVAE(VAE):
         composition_loss = -reconst_niche_composition.log_prob(true_niche_composition)
 
         _weighted_reconst_loss_cell = self.cell_rec_weight * reconst_loss_cell
-        _weighted_reconst_loss_niche = (
-            spatial_weight * self.niche_rec_weight * masked_reconst_loss_niche
-        )
-        _weighted_composition_loss = spatial_weight * self.compo_rec_weight * composition_loss
+        _weighted_reconst_loss_niche = self.spatial_weight * masked_reconst_loss_niche
+        _weighted_composition_loss = self.spatial_weight * composition_loss
         _weighted_kl_local = self.latent_kl_weight * weighted_kl_local
 
         loss = torch.mean(
@@ -602,7 +591,6 @@ class nicheVAE(VAE):
                 NICHEVI_MODULE_KEYS.NLL_NICHE_EXPRESSION_KEY: torch.mean(
                     masked_reconst_loss_niche
                 ),
-                NICHEVI_MODULE_KEYS.SPATIAL_WEIGHT_KEY: spatial_weight,
             },
         )
 
