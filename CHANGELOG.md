@@ -20,6 +20,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
 - Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
+- Updated Scvi-Tools AWS hub to Weizmann instead of Berkeley. {pr}`3246`.
 
 #### Changed
 
