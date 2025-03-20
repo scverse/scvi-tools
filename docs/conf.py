@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
 
-sys.path.append(str(Path('_ext').resolve()))
+sys.path.append(str(Path("_ext").resolve()))
 
 # -- Project information -----------------------------------------------------
 
@@ -60,7 +60,7 @@ extensions = [
     "sphinx_design",
     "sphinxext.opengraph",
     "hoverxref.extension",
-    "tutorial_filter"
+    "tutorial_filter",
 ]
 
 
