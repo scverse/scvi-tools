@@ -66,8 +66,6 @@ class TutorialListDirective(SphinxDirective):
 
 # HTML template for tutorial list header
 TUTORIAL_LIST_START = """
-.. raw:: html
-
    <div id="tutorial-cards-container">
 
    <nav class="navbar navbar-expand-lg navbar-light tutorials-nav col-12">
@@ -86,18 +84,10 @@ TUTORIAL_LIST_START = """
 
    <div id="tutorial-cards">
    <div class="list">
-
-.. Tutorial cards below this line
-
 """
 
 # HTML template for tutorial list footer
 TUTORIAL_LIST_END = """
-
-.. End of tutorial card section
-
-.. raw:: html
-
    </div>
 
    <div class="pagination d-flex justify-content-center"></div>
@@ -162,8 +152,6 @@ class TutorialCardDirective(SphinxDirective):
 
 # HTML template for each tutorial card
 TUTORIAL_CARD_TEMPLATE = """
-.. raw:: html
-
     <div class="tutorial-card-container">
         <div class="tutorial-card">
             <a href="{link}" style="text-decoration: none;">
