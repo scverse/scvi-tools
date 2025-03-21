@@ -128,6 +128,9 @@ class TutorialCardDirective(SphinxDirective):
             tags = self.options["tags"]
 
         # TODO: remove, for debugging
+        print(tags)
+
+        # TODO: remove, for debugging
         print(self.env.titles.keys())
 
         # Try to get the title from the environment's titles dictionary
@@ -151,7 +154,7 @@ class TutorialCardDirective(SphinxDirective):
             link=link,
             header=title,
             card_description=description,
-            tags=tags,
+            # tags=tags,
             model_group=model_group,
         )
         tutorial_card_list = StringList(tutorial_card_rst.split("\n"))
@@ -172,8 +175,9 @@ TUTORIAL_CARD_TEMPLATE = """
         <div class="tutorial-card">
             <a href="{link}" style="text-decoration: none;">
                 <div class="tutorial-card-body">
-                    <h4 class="tutorial-card-title">{header} {beta}</h4>
+                    <h4 class="tutorial-card-title">{header}</h4>
                     <p class="tutorial-card-description">{card_description}</p>
+                    <p class="tutorial-card-model-group">{model_group}</p>
                 </div>
             </a>
         </div>
