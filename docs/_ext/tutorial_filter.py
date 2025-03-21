@@ -129,10 +129,12 @@ class TutorialCardDirective(SphinxDirective):
 
         doctree = self.env.get_doctree(link)
 
-        # Get the header of the tutorial
-        for section in doctree.traverse(nodes.section):
-            title = section[0].astext()
-            break
+        # Try to get the title from the environment's titles dictionary
+        title_node = self.env.titles.get(link)
+        if title_node:
+            title = title_node.astext()  # Get the text of the title node
+        else:
+            title = "Untitled"  # Fallback if the title isn't found
 
         # Get the model group (scRNA-seq, scATAC-seq, etc.)
         doctree = self.env.get_doctree(self.env.docname)
