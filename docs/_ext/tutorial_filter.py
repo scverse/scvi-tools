@@ -127,7 +127,8 @@ class TutorialCardDirective(SphinxDirective):
         if "tags" in self.options:  # TODO: how should these be processed?
             tags = self.options["tags"]
 
-        doctree = self.env.get_doctree(link)
+        # TODO: remove, for debugging
+        print(self.env.titles.keys())
 
         # Try to get the title from the environment's titles dictionary
         title_node = self.env.titles.get(link)
