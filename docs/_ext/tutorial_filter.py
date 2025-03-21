@@ -124,14 +124,8 @@ class TutorialCardDirective(SphinxDirective):
         link = self.options["link"]
         description = self.options["description"]
 
-        if "tags" in self.options:  # TODO: how should these be processed?
-            tags = self.options["tags"]
-
-        # TODO: remove, for debugging
-        print(tags)
-
-        # TODO: remove, for debugging
-        print(self.env.titles.keys())
+        # if "tags" in self.options:  # TODO: how should these be processed?
+        #   tags = self.options["tags"]
 
         # Try to get the title from the environment's titles dictionary
         title_node = self.env.titles.get(link)
@@ -147,19 +141,18 @@ class TutorialCardDirective(SphinxDirective):
         else:
             model_group = "Untitled"
 
-        # Create all nodes for tutorial card
-        link = f"{link}.html"
-
-        tutorial_card_rst = TUTORIAL_CARD_TEMPLATE.format(
-            link=link,
+        # Create card html
+        card_html = TUTORIAL_CARD_TEMPLATE.format(
+            link=f"{link}.html",
             header=title,
             card_description=description,
-            # tags=tags,
             model_group=model_group,
         )
-        tutorial_card_list = StringList(tutorial_card_rst.split("\n"))
+
+        # Create tutorial card node and add raw HTML as child
         node = tutorialcardnode()
-        self.state.nested_parse(tutorial_card_list, self.content_offset, node)
+        raw_node = nodes.raw("", card_html, format="html")
+        node += raw_node
 
         if not hasattr(self.env, "tutorial_card_node_list"):
             self.env.tutorial_card_node_list = []
