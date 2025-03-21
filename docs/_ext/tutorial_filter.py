@@ -138,10 +138,11 @@ class TutorialCardDirective(SphinxDirective):
             title = "Untitled"  # Fallback if the title isn't found
 
         # Get the model group (scRNA-seq, scATAC-seq, etc.)
-        doctree = self.env.get_doctree(self.env.docname)
-        for section in doctree.traverse(nodes.section):
-            model_group = section[0].astext()
-            break
+        model_node = self.env.titles.get(self.env.docname)
+        if model_node:
+            model_group = model_node.astext()
+        else:
+            model_group = "Untitled"
 
         # Create all nodes for tutorial card
         link = f"{link}.html"
