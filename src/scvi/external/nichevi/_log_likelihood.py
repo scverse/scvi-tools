@@ -10,27 +10,26 @@ if TYPE_CHECKING:
 
     from torch import Tensor
 
-    from scvi.module.base import LossOutput
+    from ._module import NicheLossOutput
 
 
 def compute_composition_error(
-    module: Callable[[dict[str, Tensor | None], dict], tuple[Any, Any, LossOutput]],
+    module: Callable[[dict[str, Tensor | None], dict], tuple[Any, Any, NicheLossOutput]],
     dataloader: Iterator[dict[str, Tensor | None]],
     return_mean: bool = True,
     **kwargs,
 ) -> float | Tensor[float]:
-    """Compute the composition reconstruction error on the data.
+    """Compute the composition prediction error on the data.
 
-    The reconstruction error is the negative log likelihood of the data given the latent
-    variables. It is different from the marginal log-likelihood, but still gives good insights on
-    the modeling of the data and is fast to compute.
+    The  error is the negative log likelihood of the data (alpha) given the latent
+    variables.
 
     Parameters
     ----------
     module
         A callable (can be a :class:`~torch.nn.Module` instance) that takes a dictionary of
         :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
-        element is an instance of :class:`~scvi.module.base.LossOutput`.
+        element is an instance of :class:`~scvi.external.nichevi._module.NicheLossOutput`.
     dataloader
         An iterator over minibatches of data on which to compute the metric. The minibatches
         should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
@@ -43,9 +42,9 @@ def compute_composition_error(
 
     Returns
     -------
-    The composition reconstruction error of the data.
+    The composition prediction error on the data.
     """
-    # Iterate once over the data and computes the reconstruction error
+    # Iterate once over the data and computes the error
     composition_loss = []
     for tensors in dataloader:
         _, _, losses = module(tensors, **kwargs)
@@ -64,23 +63,22 @@ def compute_composition_error(
 
 
 def compute_niche_error(
-    module: Callable[[dict[str, Tensor | None], dict], tuple[Any, Any, LossOutput]],
+    module: Callable[[dict[str, Tensor | None], dict], tuple[Any, Any, NicheLossOutput]],
     dataloader: Iterator[dict[str, Tensor | None]],
     return_mean: bool = True,
     **kwargs,
 ) -> float | Tensor[float]:
-    """Compute the niche reconstruction error on the data.
+    """Compute the niche state prediction error on the data.
 
-    The reconstruction error is the negative log likelihood of the data given the latent
-    variables. It is different from the marginal log-likelihood, but still gives good insights on
-    the modeling of the data and is fast to compute.
+    The  error is the negative log likelihood of the data (eta) given the latent
+    variables.
 
     Parameters
     ----------
     module
         A callable (can be a :class:`~torch.nn.Module` instance) that takes a dictionary of
         :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
-        element is an instance of :class:`~scvi.module.base.LossOutput`.
+        element is an instance of :class:`~scvi.external.nichevi._module.NicheLossOutput`.
     dataloader
         An iterator over minibatches of data on which to compute the metric. The minibatches
         should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
@@ -93,9 +91,9 @@ def compute_niche_error(
 
     Returns
     -------
-    The niche reconstruction error of the data.
+    The niche state prediction error of the data.
     """
-    # Iterate once over the data and computes the reconstruction error
+    # Iterate once over the data and computes the error
     niche_loss = []
     for tensors in dataloader:
         _, _, losses = module(tensors, **kwargs)

@@ -54,6 +54,8 @@ if TYPE_CHECKING:
         BaseAnnDataField,
     )
 
+    from .differential_expression import DifferentialExpressionResults
+
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
@@ -64,7 +66,6 @@ logger = logging.getLogger(__name__)
 
 class nicheSCVI(
     EmbeddingMixin,
-    # NicheRNASeqMixin,
     RNASeqMixin,
     VAEMixin,
     ArchesMixin,
@@ -112,20 +113,28 @@ class nicheSCVI(
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.SCVI(adata)
+    >>> scvi.external.NICHEVI.preprocessing_anndata(
+        adata,
+        k_nn = 20,
+        sample_key = 'slide_ID',
+        labels_key = "cell_type",
+        cell_coordinates_key = "spatial",
+        expression_embedding_key = "X_scVI",
+        **kwargs
+    )
+    >>> scvi.external.NICHEVI.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.external.NICHEVI(adata)
     >>> vae.train()
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+    >>> adata.obsm["X_NicheVI"] = vae.get_latent_representation()
+    >>> adata.obsm["X_normalized_NicheVI"] = vae.get_normalized_expression()
 
     Notes
     -----
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
-    2. :doc:`/tutorials/notebooks/scrna/harmonization`
-    3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scrna/scvi_in_R`
+    2. :doc`/tutorials/notebooks/spatial/nicheVI_tutorial`
+
 
     See Also
     --------
@@ -223,7 +232,8 @@ class nicheSCVI(
         niche_indexes_key: str = "niche_indexes",
         niche_distances_key: str = "niche_distances",
         log1p: bool = False,
-    ):
+    ) -> None:
+        """Preprocess anndata object for NicheVI."""
         get_niche_indexes(
             adata=adata,
             sample_key=sample_key,
@@ -392,7 +402,7 @@ class nicheSCVI(
         adata: AnnData | None = None,
         indices: np.ndarray | None = None,
         batch_size: int | None = 1024,
-    ):
+    ) -> np.ndarray:
         """
         Predict the cell type composition of each cell niche in the dataset.
 
@@ -409,6 +419,7 @@ class nicheSCVI(
         -------
         ct_prediction
             Predicted cell type composition of each cell niche in the dataset.
+            It is computed as the expectation of the Dirichlet distribution.
         """
         self._check_if_trained(warn=False)
 
@@ -448,7 +459,24 @@ class nicheSCVI(
         adata: AnnData | None = None,
         indices: np.ndarray | None = None,
         batch_size: int | None = 1024,
-    ):
+    ) -> np.ndarray:
+        """
+        Predict the activation of each cell niche in the dataset.
+
+        Parameters
+        ----------
+        adata
+            AnnData object. If ``None``, the model's ``adata`` will be used.
+        indices
+            Indices of cells to use. If ``None``, all cells will be used.
+        batch_size
+            Minibatch size to use during inference.
+
+        Returns
+        -------
+        niche_activation
+            Predicted activation of each cell niche in the dataset.
+        """
         self._check_if_trained(warn=False)
 
         adata = self._validate_anndata(adata)
@@ -495,17 +523,18 @@ class nicheSCVI(
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         importance_weighting_kwargs: dict | None = None,
-        ###### NicheSCVI specific ######
+        ###### NICHEVI specific ######
+        niche_mode: bool = True,
         radius: int | None = 50,
         k_nn: int | None = None,
-        niche_mode: bool = True,
         n_restarts_optimizer_gpc: int = 10,
         path_to_save: str | None = None,
         **kwargs,
-    ) -> pd.DataFrame:
+    ) -> DifferentialExpressionResults:
         r"""A unified method for differential expression analysis.
 
         Implements ``'vanilla'`` DE :cite:p:`Lopez18` and ``'change'`` mode DE :cite:p:`Boyeau19`.
+        Adds a neighborhood component to the DE analysis :cite:p:`Levy25`.
 
         Parameters
         ----------
@@ -532,18 +561,22 @@ class nicheSCVI(
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
-        radius
-            Radius for NicheSCVI DE.
-        k_nn
-            Number of nearest neighbors for NicheSCVI DE.
         niche_mode
-            Whether to use NicheSCVI DE or SCVI DE.
+            Whether to use NICHEVI DE or SCVI DE.
+        radius
+            Radius for NICHEVI DE.
+        k_nn
+            Number of nearest neighbors for NICHEVI DE.
+        n_restarts_optimizer_gpc
+            Number of restarts for the Gaussian Process Classifier optimization.
+        path_to_save
+            Path to save the results to, as a pickle file.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
         Returns
         -------
-        Differential expression DataFrame.
+        Differential expression dataclass.
         """
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
@@ -623,12 +656,11 @@ class nicheSCVI(
         return_mean: bool = True,
         **kwargs,
     ) -> dict[str, float]:
-        r"""Compute the reconstruction error on the data.
+        r"""Compute the composition prediction error on the data.
 
-        The reconstruction error is the negative log likelihood of the data given the latent
-        variables. It is different from the marginal log-likelihood, but still gives good insights
-        on the modeling of the data and is fast to compute. This is typically written as
-        :math:`p(x \mid z)`, the likelihood term given one posterior sample.
+        The error is the negative log likelihood of the data (alpha) given the latent
+        variables. This is typically written as
+        :math:`p(alpha \mid z)`, the likelihood term given one posterior sample.
 
         Parameters
         ----------
@@ -654,7 +686,7 @@ class nicheSCVI(
 
         Returns
         -------
-        Reconstruction error for the data.
+        The composition prediction error on the data.
 
         Notes
         -----
@@ -686,12 +718,11 @@ class nicheSCVI(
         return_mean: bool = True,
         **kwargs,
     ) -> dict[str, float]:
-        r"""Compute the reconstruction error on the data.
+        r"""Compute the niche state prediction error on the data.
 
-        The reconstruction error is the negative log likelihood of the data given the latent
-        variables. It is different from the marginal log-likelihood, but still gives good insights
-        on the modeling of the data and is fast to compute. This is typically written as
-        :math:`p(x \mid z)`, the likelihood term given one posterior sample.
+        The  error is the negative log likelihood of the data (eta) given the latent
+        variables. This is typically written as
+        :math:`p(eta \mid z)`, the likelihood term given one posterior sample.
 
         Parameters
         ----------
@@ -717,7 +748,7 @@ class nicheSCVI(
 
         Returns
         -------
-        Reconstruction error for the data.
+        The niche state prediction error of the data.
 
         Notes
         -----
@@ -743,8 +774,33 @@ def get_niche_indexes(
     niche_indexes_key: str,
     cell_coordinates_key: str,
     k_nn: int,
-    niche_distances_key: str | None = None,
-):
+    niche_distances_key: str,
+) -> None:
+    """Get the k nearest neighbors of each cell in the dataset, grouped per sample.
+
+    The indexes of the neighbors are stored in adata.obsm[niche_indexes_key] and the distances to
+    the neighbors are stored in adata.obsm[niche_distances_key].
+
+    Parameters
+    ----------
+    adata
+        Anndata object
+    sample_key
+        Key in adata.obs that contains the sample of each cell (i.e. the donor slice)
+    niche_indexes_key
+        Key in adata.obsm where the indexes of the neighbors will be stored
+    cell_coordinates_key
+        Key in adata.obsm that contains the spatial coordinates of each cell
+    k_nn
+        Number of nearest neighbors to compute
+    niche_distances_key
+        Key in adata.obsm where the distances to the neighbors will be stored
+
+    Returns
+    -------
+    None
+
+    """
     from sklearn.neighbors import NearestNeighbors
 
     adata.obsm[niche_indexes_key] = np.zeros(
@@ -791,7 +847,8 @@ def get_neighborhood_composition(
     cell_type_column: str,
     indices_key: str = "niche_indexes",
     niche_composition_key: str = "niche_composition",
-):
+) -> None:
+    """Get the composition of each neighborhood in the dataset (alpha)."""
     n_cell_types = len(adata.obs[cell_type_column].unique())  # number of cell types
     adata.obsm[niche_composition_key] = np.zeros(
         (adata.n_obs, n_cell_types)
@@ -842,28 +899,42 @@ def get_average_latent_per_celltype(
     adata: AnnData,
     labels_key: str,
     niche_indexes_key: str,
-    latent_mean_key: str | None = None,
+    latent_mean_key: str,
     latent_mean_ct_key: str = "qz1_m_niche_ct",
     log1p: bool = False,
-):
-    # for each cell, take the average of the latent space for each label, namely the label-averaged
-    # latent_mean obsm
+) -> None:
+    """Get the average embedding per cell type in the dataset.
 
-    if latent_mean_key is None:
-        adata.obsm["qz1_m_niche_ct"] = np.empty(
-            (adata.n_obs, adata.obsm[latent_mean_key].shape[1])
-        )
+    For this one needs to provide the cell type of each cell in the
+    dataset and an embedding for each cell, computed for instance with PCA, or scVI.
 
-        return None
+    Parameters
+    ----------
+    adata
+        Anndata object
+    labels_key
+        Key in adata.obs that contains the cell type of each cell
+    niche_indexes_key
+        Key in adata.obsm that contains the indexes of the neighbors of each cell
+    latent_mean_key
+        Key in adata.obsm that contains the expression embedding of each cell
+    latent_mean_ct_key
+        Key in adata.obsm where the average embedding per cell type will be stored
+    log1p
+        Whether the latent space is log-transformed
 
+    Returns
+    -------
+    None
+
+    """
     n_cells = adata.n_obs
     n_cell_types = len(adata.obs[labels_key].unique())
     n_latent_z1 = adata.obsm[latent_mean_key].shape[1]
     niche_indexes = adata.obsm[niche_indexes_key]
 
     if log1p:
-        z1_mean_niches = np.log1p(adata.obsm[latent_mean_key])[niche_indexes]
-
+        z1_mean_niches = np.log1p(adata.obsm[latent_mean_key][niche_indexes])
     else:
         z1_mean_niches = adata.obsm[latent_mean_key][niche_indexes]
 
@@ -890,8 +961,6 @@ def get_average_latent_per_celltype(
             result_dict.setdefault(row_idx, []).append(col_idx)
 
         dict_of_cell_type_indices[cell_type] = result_dict
-
-    # print(dict_of_cell_type_indices)
 
     latent_mean_ct_prior = np.zeros((n_cell_types, n_latent_z1))
 
