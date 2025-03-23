@@ -25,3 +25,6 @@ index_dev
 
 [forum]: https://discourse.scverse.org/
 [ecosystem]: https://scvi-tools.org/ecosystem
+
+```{tutoriallist}
+```
