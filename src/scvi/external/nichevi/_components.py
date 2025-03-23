@@ -170,7 +170,7 @@ class DirichletDecoder(Decoder):
 
 
 class NicheDecoder(nn.Module):
-    """Decodes data from latent space to LATENT NICHE space.
+    """Decodes data from latent space to niche embedding space.
 
     ``n_input`` dimensions to ``n_output``
     dimensions using a fully-connected neural network of ``n_hidden`` layers.
@@ -230,7 +230,7 @@ class NicheDecoder(nn.Module):
         """The forward computation for a single sample.
 
          #. Decodes the data from the latent space using the decoder network
-         #. Returns tensors for the mean and variance of a multivariate distribution
+         #. Returns tensors for the mean and variance of a multivariate normal distribution
 
         Parameters
         ----------
