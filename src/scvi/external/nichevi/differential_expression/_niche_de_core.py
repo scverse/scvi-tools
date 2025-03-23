@@ -63,6 +63,7 @@ def _niche_de_core(
     cell_labels = adata_manager.get_from_registry(REGISTRY_KEYS.LABELS_KEY)
     cell_coordinates = adata_manager.get_from_registry(NICHEVI_REGISTRY_KEYS.CELL_COORDINATES_KEY)
 
+    # don't compute adjusted nearest neighbors if already computed
     if "adjusted_A" in adata.uns.keys():
         A = adata.uns["adjusted_A"]
     else:

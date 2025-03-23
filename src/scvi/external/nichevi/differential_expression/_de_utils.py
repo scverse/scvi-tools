@@ -12,6 +12,29 @@ def adjusted_nearest_neighbors(
     k_nn: int | None = None,
     return_sparse: bool = True,
 ) -> np.ndarray | csr_matrix:
+    """Compute the adjacency matrix for the neighborhood of each sample."
+
+    Parameters
+    ----------
+    cell_samples
+        Array of sample id for each cell.
+    cell_coordinates
+        Array of cell coordinates.
+    cell_labels
+        Array of cell labels.
+    radius
+        Radius for the nearest neighbors search.
+    k_nn
+        Number of nearest neighbors to consider.
+    return_sparse
+        Whether to return a sparse matrix.
+
+    Returns
+    -------
+    np.ndarray | csr_matrix
+        Adjacency matrix for the neighborhood of each sample,
+        without connections to cells of the same type.
+    """
     from scipy.sparse import block_diag
     from sklearn.neighbors import NearestNeighbors
 

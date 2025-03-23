@@ -16,7 +16,37 @@ def _gaussian_process_classifier(
     save_data: bool = True,
     restrict_to_upregulated: bool = True,
 ) -> GaussianProcessClassifier:
-    """Train a Gaussian Process Classifier on the log fold change values of two groups."""
+    """Train a Gaussian Process Classifier on the log fold change values of two groups.
+
+    Parameters
+    ----------
+    lfc_g1_g2
+        Log fold change values of group 1 vs group 2.
+    lfc_n1_g2
+        Log fold change values of neighbors 1 vs group 2.
+    fdr_g1_n1
+        FDR values of group 1 vs neighbors 1 (boolean).
+    lenght_scale_init
+        Initial value for the length scale hyperparameter.
+    lenght_scale_bounds
+        Bounds for the length scale hyperparameter.
+    alpha_init
+        Initial value for the alpha hyperparameter.
+    alpha_bounds
+        Bounds for the alpha hyperparameter.
+    n_restarts_optimizer
+        Number of restarts for the optimizer.
+    save_data
+        If True, save the input data to the classifier.
+    restrict_to_upregulated
+        If True, restrict the classifier to upregulated genes,
+        for the group 1 versus group 2 comparison.
+
+    Returns
+    -------
+    GaussianProcessClassifier
+        Trained Gaussian Process Classifier.
+    """
     from sklearn.gaussian_process.kernels import (
         ConstantKernel as C,
     )
@@ -86,6 +116,41 @@ def plot_DE_results(
     margin: float = 0.1,
     manual_limits: tuple | None = None,
 ) -> None:
+    """Plot the results of the differential expression analysis.
+
+    Parameters
+    ----------
+    gpc
+        Trained Gaussian Process Classifier.
+    X
+        Design matrix: log fold changes for group 1 vs group 2 and neighbors 1 vs group 2.
+        If None, the design matrix from the classifier is used.
+    y
+        Labels: FDR values for group 1 vs neighbors 1.
+        If None, the labels from the classifier are used.
+    filter
+        Genes to include in the plot.
+    background_filter
+        Genes to include in the plot as background.
+    markersize
+        Size of the markers.
+    fontsize
+        Font size for the gene names.
+    chosen_colormap
+        Colormap to use for the decision boundary.
+    path_to_save
+        Path to save the plot.
+    dpi
+        Resolution of the saved plot.
+    margin
+        Margin to add to the plot limits.
+    manual_limits
+        Manual limits for the plot.
+
+    Returns
+    -------
+    None
+    """
     import matplotlib.cm as cm
     import matplotlib.colors as mcolors
     import matplotlib.pyplot as plt
