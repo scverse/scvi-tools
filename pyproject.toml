@@ -96,7 +96,7 @@ scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
 file_sharing = ["pooch"]
 # for parallelization engine
-parallel = ["dask[array]>=2023.5.1,<2024.8.0"]
+parallel = ["dask[array]>=2023.5.1,<2024.8.0","zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum","shap"]
 # for custom dataloders
