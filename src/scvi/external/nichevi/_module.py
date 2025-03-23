@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 class nicheVAE(VAE):
-    """Variational auto-encoder :cite:p:`Lopez18`.
+    """Variational auto-encoder with niche decoders :cite:p:`Levy25`.
 
     Parameters
     ----------
@@ -49,6 +49,14 @@ class nicheVAE(VAE):
     n_layers
         Number of hidden layers. Passed into :class:`~scvi.nn.Encoder` and
         :class:`~scvi.nn.DecoderSCVI`.
+    n_layers_niche
+        Number of hidden layers in the niche state decoder.
+    n_layers_compo
+        Number of hidden layers in the composition decoder.
+    n_hidden_niche
+        Number of nodes per hidden layer in the niche state decoder.
+    n_hidden_compo
+        Number of nodes per hidden layer in the composition decoder.
     n_continuous_cov
         Number of continuous covariates.
     n_cats_per_cov
@@ -77,6 +85,28 @@ class nicheVAE(VAE):
 
         * ``"normal"``: isotropic normal.
         * ``"ln"``: logistic normal with normal params N(0, 1).
+    niche_likelihood
+        Distribution to use for the niche state. One of the following:
+
+        * ``"poisson"``: :class:`~torch.distributions.Poisson`.
+        * ``"gaussian"``: :class:`~torch.distributions.Normal`.
+        Default is ``"gaussian"`` and Poisson should be used if the niche state is count data.
+    cell_rec_weight
+        Weight of the cell reconstruction loss.
+    latent_kl_weight
+        Weight of the latent KL divergence.
+    spatial_weight
+        Weight of the spatial losses
+    prior_mixture
+        If ``True``, use a mixture of Gaussians for the latent space. Else, use unimodal Gaussian.
+    prior_mixture_k
+        Number of components in the Gaussian mixture.
+    semisupervised
+        If ``True``, use a classifier to predict cell type labels from the latent space.
+    linear_classifier
+        If ``True``, use a linear classifier. Else, use a neural network.
+    inpute_covariates_niche_decoder
+        If ``True``, covariates are concatenated to the input of the niche state decoder.
     encode_covariates
         If ``True``, covariates are concatenated to gene expression prior to passing through
         the encoder(s). Else, only gene expression is used.
@@ -597,6 +627,8 @@ class nicheVAE(VAE):
 
 @flax.struct.dataclass
 class NicheLossOutput(LossOutput):
+    """Modify loss output to record niche losses."""
+
     composition_loss: LossRecord | None = None
     niche_loss: LossRecord | None = None
 
