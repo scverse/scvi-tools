@@ -81,7 +81,7 @@ datamodule = CensusSCVIDataModule(
 )
 
 
-# basicaly we should mimiC everything below to any model census in scvi
+# basicaly we should mimic everything below to any model census in scvi
 adata_orig = synthetic_iid()
 scvi.model.SCVI.setup_anndata(adata_orig, batch_key="batch")
 model = scvi.model.SCVI(adata_orig)

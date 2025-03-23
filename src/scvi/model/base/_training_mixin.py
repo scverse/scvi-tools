@@ -111,7 +111,7 @@ class UnsupervisedTrainingMixin:
             if datamodule is None:
                 max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
             elif hasattr(datamodule, "n_obs"):
-                max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
+                max_epochs = get_max_epochs_heuristic(datamodule.n_obs)
             else:
                 raise ValueError(
                     "If `datamodule` does not have `n_obs` attribute, `max_epochs` must be "
@@ -130,6 +130,15 @@ class UnsupervisedTrainingMixin:
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
+            )
+        elif self.module is None:
+            self.module = self._module_cls(
+                datamodule.n_vars,
+                n_batch=datamodule.n_batch,
+                n_labels=getattr(datamodule, "n_labels", 1),
+                n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
+                n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
+                **self._module_kwargs,
             )
 
         plan_kwargs = plan_kwargs or {}
@@ -167,6 +176,7 @@ class SemisupervisedTrainingMixin:
                 self.adata,
                 self.adata_manager.data_registry.labels.attr_name,
                 self.original_label_key,
+                mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
             ).ravel()
         else:
             self.labels_ = datamodule.labels.ravel()
