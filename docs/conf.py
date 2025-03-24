@@ -159,7 +159,7 @@ pygments_style = "default"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/override.css", "css/custom.css"]
-html_js_files = ["js/custom.js", "filter_tutorials.js"]
+html_js_files = ["js/custom.js", "js/filter_tutorial_tags.js"]
 html_show_sphinx = False
 
 
