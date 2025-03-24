@@ -521,7 +521,7 @@ class nicheVAE(VAE):
         kl_weight: float = 1.0,
         classification_ratio=50,
         epsilon: float = 1e-6,
-        n_samples_mixture: int = 30,
+        n_samples_mixture: int = 10,
     ) -> NicheLossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence
