@@ -23,6 +23,25 @@ function createTagMenu() {
 
 createTagMenu();
 
+$(".tags").each(function(){
+    var tags = $(this).text().split(",");
+    tags.forEach(function(tag, i ) {
+       tags[i] = tags[i].replaceAll('-', ' ')
+    })
+    $(this).html(tags.join(", "));
+});
+
+$(".tutorial-filter").each(function(){
+    var tag = $(this).text();
+    $(this).html(tag.replaceAll('-', ' '))
+})
+
+$("#tutorial-cards p").each(function(index, item) {
+    if(!$(item).text().trim()) {
+        $(item).remove();
+    }
+});
+
 $(document).on("click", ".page", function() {
     $('html, body').animate(
       {scrollTop: $("#dropdown-filter-tags").position().top},
