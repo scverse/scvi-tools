@@ -115,7 +115,7 @@ class TutorialCardDirective(SphinxDirective):
         description = self.options["description"]
 
         # if "tags" in self.options:  # TODO: how should these be processed?
-        #   tags = self.options["tags"]
+        tags = self.options["tags"]
 
         # Try to get the title from the environment's titles dictionary
         title_node = self.env.titles.get(f"tutorials/{link}")
@@ -133,6 +133,7 @@ class TutorialCardDirective(SphinxDirective):
 
         # Create card html
         card_html = TUTORIAL_CARD_TEMPLATE.format(
+            tags=tags,
             link=f"{link}.html",
             header=title,
             card_description=description,

@@ -22,3 +22,10 @@ function createTagMenu() {
 }
 
 createTagMenu();
+
+$(document).on("click", ".page", function() {
+    $('html, body').animate(
+      {scrollTop: $("#dropdown-filter-tags").position().top},
+      'slow'
+    );
+});
