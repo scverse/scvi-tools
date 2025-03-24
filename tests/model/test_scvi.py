@@ -1131,6 +1131,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_batch = n_batches
 
     model = SCVI(adata=None, n_latent=n_latent)  # model with no adata
+    model = SCVI(adata=None, n_latent=n_latent)
     assert model._module_init_on_train
     assert model.module is None
 
