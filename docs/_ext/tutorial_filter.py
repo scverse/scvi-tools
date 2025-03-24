@@ -158,7 +158,7 @@ TUTORIAL_CARD_TEMPLATE = """
             <a href="{link}">
                 <div class="card-body">
                     <div class="card-title-container">
-                        <h4>{title}</h4>
+                        <h4>{header}</h4>
                     </div>
                     <p class="card-summary">{card_description}</p>
                 </div>
