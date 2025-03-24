@@ -90,6 +90,7 @@ def test_hub_modelcardhelper(request, save_path):
             "dispersion": "gene",
             "gene_likelihood": "zinb",
             "latent_distribution": "normal",
+            "use_observed_lib_size": True,
         },
     }
     assert hmch.model_setup_anndata_args == {
