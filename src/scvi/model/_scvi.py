@@ -69,6 +69,9 @@ class SCVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
         * ``'normal'`` - ``EXPERIMENTAL`` Normal distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     latent_distribution
         One of:
 
@@ -113,6 +116,7 @@ class SCVI(
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
+        use_observed_lib_size: bool = True,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **kwargs,
     ):
@@ -155,6 +159,7 @@ class SCVI(
             if (
                 not use_size_factor_key
                 and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+                and not use_observed_lib_size
             ):
                 library_log_means, library_log_vars = _init_library_size(
                     self.adata_manager, n_batch
@@ -171,6 +176,7 @@ class SCVI(
                 dropout_rate=dropout_rate,
                 dispersion=dispersion,
                 gene_likelihood=gene_likelihood,
+                use_observed_lib_size=use_observed_lib_size,
                 latent_distribution=latent_distribution,
                 use_size_factor_key=use_size_factor_key,
                 library_log_means=library_log_means,
