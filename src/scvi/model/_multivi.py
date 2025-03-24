@@ -12,6 +12,7 @@ import torch
 from mudata import MuData
 from scipy.sparse import csr_matrix, vstack
 from torch.distributions import Normal
+from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -691,7 +692,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         exprs = []
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in tqdm(transform_batch):
                 if batch is not None:
                     batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
                     tensors[REGISTRY_KEYS.BATCH_KEY] = torch.ones_like(batch_indices) * batch
@@ -1021,7 +1022,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for _ in transform_batch:
+            for _ in tqdm(transform_batch):
                 # generative_kwargs = dict(transform_batch=b)
                 generative_kwargs = {"use_z_mean": use_z_mean}
                 inference_kwargs = {"n_samples": n_samples}

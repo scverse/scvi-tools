@@ -21,7 +21,7 @@ from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
-    "scvi_version": "0.0.0",
+    "scvi_version": scvi.__version__,
     "categorical_mappings": {
         "_scvi_batch": {
             "original_key": "testbatch",
@@ -687,6 +687,35 @@ def test_early_stopping():
     )
     model = SCVI(adata)
     model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
+    assert len(model.history["elbo_train"]) < n_epochs
+
+
+@pytest.mark.parametrize("early_stopping_patience", [5, 50])
+@pytest.mark.parametrize("early_stopping_warmup_epochs", [0, 25])
+@pytest.mark.parametrize("early_stopping_min_delta", [0.0, 2])
+def test_early_stopping_with_parameters(
+    early_stopping_patience, early_stopping_warmup_epochs, early_stopping_min_delta
+):
+    early_stopping_kwargs = {
+        "early_stopping": True,
+        "early_stopping_monitor": "elbo_validation",
+        "early_stopping_patience": early_stopping_patience,
+        "early_stopping_warmup_epochs": early_stopping_warmup_epochs,
+        "early_stopping_mode": "min",
+        "early_stopping_min_delta": early_stopping_min_delta,
+        "check_val_every_n_epoch": 1,
+    }
+
+    n_epochs = 100
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(n_epochs, plan_kwargs={"lr": 0}, **early_stopping_kwargs)
     assert len(model.history["elbo_train"]) < n_epochs
 
 
