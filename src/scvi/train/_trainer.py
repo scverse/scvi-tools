@@ -68,6 +68,8 @@ class Trainer(pl.Trainer):
         i.e. an absolute change of less than min_delta, will count as no improvement.
     early_stopping_patience
         Number of validation epochs with no improvement after which training will be stopped.
+    early_stopping_warmup_epochs
+        Wait for a certain number of warm-up epochs before the early stopping starts monitoring
     early_stopping_mode
         In 'min' mode, training will stop when the quantity monitored has stopped decreasing
         and in 'max' mode it will stop when the quantity monitored has stopped increasing.
@@ -106,6 +108,7 @@ class Trainer(pl.Trainer):
         ] = "elbo_validation",
         early_stopping_min_delta: float = 0.00,
         early_stopping_patience: int = 45,
+        early_stopping_warmup_epochs: int = 0,
         early_stopping_mode: Literal["min", "max"] = "min",
         enable_progress_bar: bool = True,
         progress_bar_refresh_rate: int = 1,
@@ -135,6 +138,7 @@ class Trainer(pl.Trainer):
                 min_delta=early_stopping_min_delta,
                 patience=early_stopping_patience,
                 mode=early_stopping_mode,
+                warmup_epochs=early_stopping_warmup_epochs,
             )
             callbacks.append(early_stopping_callback)
             check_val_every_n_epoch = 1
