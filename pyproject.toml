@@ -55,6 +55,7 @@ dependencies = [
     "torchmetrics>=0.11.0",
     "tqdm",
     "xarray>=2023.2.0",
+    "setuptools<78.0.0"
 ]
 
 [project.optional-dependencies]
