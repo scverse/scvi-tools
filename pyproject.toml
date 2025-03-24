@@ -98,7 +98,7 @@ parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum", "shap"]
 # for custom dataloders
-dataloaders = ["lamindb>=1.3.0", "biomart", "bionty", "cellxgene_lamin", "cellxgene-census", "numpy<2.0"]
+dataloaders = ["lamindb>=1.3.0", "biomart", "bionty", "cellxgene_lamin", "cellxgene-census", "numpy<2.0", "tiledbsoma", "tiledb", "tiledbsoma_ml"]
 
 
 optional = [
