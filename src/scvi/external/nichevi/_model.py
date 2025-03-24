@@ -227,7 +227,7 @@ class nicheSCVI(
         labels_key: str = "cell_type",
         cell_coordinates_key: str = "spatial",
         expression_embedding_key: str = "X_scVI",
-        expression_embedding_niche_key: str = "X_scVI_niche",
+        expression_embedding_niche_key: str = "niche_activation",
         niche_composition_key: str = "niche_composition",
         niche_indexes_key: str = "niche_indexes",
         niche_distances_key: str = "niche_distances",
@@ -837,7 +837,9 @@ def get_niche_indexes(
 
         adata.obsm[niche_distances_key][adata.obs[sample_key] == sample] = distances[:, 1:]
 
-    print("[bold cyan]Saved niche_indexes and niche_distances in adata.obsm[/bold cyan]")
+    print(
+        f"[bold cyan]Saved {niche_indexes_key} and {niche_distances_key} in adata.obsm[/bold cyan]"
+    )
 
     return None
 
@@ -890,7 +892,7 @@ def get_neighborhood_composition(
 
     adata.obsm[niche_composition_key] = neighborhood_composition_df
 
-    print("[bold green]Saved niche_composition in adata.obsm[/bold green]")
+    print(f"[bold green]Saved {niche_composition_key} in adata.obsm[/bold green]")
 
     return None
 
@@ -900,7 +902,7 @@ def get_average_latent_per_celltype(
     labels_key: str,
     niche_indexes_key: str,
     latent_mean_key: str,
-    latent_mean_ct_key: str = "qz1_m_niche_ct",
+    latent_mean_ct_key: str = "niche_activation",
     log1p: bool = False,
 ) -> None:
     """Get the average embedding per cell type in the dataset.
@@ -979,6 +981,6 @@ def get_average_latent_per_celltype(
 
     adata.obsm[latent_mean_ct_key] = z1_mean_niches_ct
 
-    print("[bold green]Saved qz1_m_niche_ct in adata.obsm[/bold green]")
+    print(f"[bold green]Saved {latent_mean_ct_key} in adata.obsm[/bold green]")
 
     return None
