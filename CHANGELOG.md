@@ -15,11 +15,13 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
+- Add Early stopping KL warmup steps. {pr}`3262`.
 
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
 - Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
+- Add support for IntegratedGradients for multimodal models. {pr}`3264`.
 
 #### Changed
 
