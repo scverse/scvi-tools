@@ -53,7 +53,7 @@ jobs:
           DISPLAY: :42
           COLUMNS: 120
         run: |
-          coverage run -m pytest -v --color=yes -m "not custom_dataloader"
+          coverage run -m pytest -v --color=yes
           coverage report
 
       - uses: codecov/codecov-action@v4

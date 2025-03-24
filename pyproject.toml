@@ -85,8 +85,6 @@ docsbuild = ["scvi-tools[docs,optional]"]
 autotune = ["hyperopt>=0.2", "ray[tune]","scib-metrics"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
-# scvi.data.cellxgene
-census = ["cellxgene-census", "numpy<2.0"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
@@ -100,7 +98,7 @@ parallel = ["dask[array]>=2023.5.1,<2024.8.0","zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum","shap"]
 # for custom dataloders
-dataloaders = ["lamindb","biomart","bionty","cellxgene_lamin"]
+dataloaders = ["lamindb","biomart","bionty","cellxgene_lamin","cellxgene-census", "numpy<2.0"]
 
 
 optional = [

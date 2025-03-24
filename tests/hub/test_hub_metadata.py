@@ -11,7 +11,6 @@ def prep_model():
     scvi.model.SCVI.setup_anndata(adata)
     model = scvi.model.SCVI(adata)
     model.train(1)
-    # model.init_params_["non_kwargs"].pop("datamodule") # scvi hub not supporting customdatamodule
     return model
 
 

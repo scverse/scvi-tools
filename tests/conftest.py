@@ -98,7 +98,7 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_custom_dataloader)
         # Skip all tests not marked with `pytest.mark.custom_dataloader`
         # if `--custom-dataloader-tests` passed
-        elif run_internet and ("dataloader" not in item.keywords):
+        elif run_custom_dataloader and ("dataloader" not in item.keywords):
             item.add_marker(skip_non_custom_dataloader)
 
     run_optional = config.getoption("--optional")
