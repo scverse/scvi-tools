@@ -16,7 +16,7 @@ from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.utils import attrdict, is_package_installed
+from scvi.utils import is_package_installed
 
 from . import _constants
 
@@ -149,14 +149,6 @@ def _set_data_in_registry(
         else:
             attribute[attr_key] = data
         setattr(adata, attr_name, attribute)
-
-
-def _get_summary_stats_from_registry(registry: dict) -> attrdict:
-    summary_stats = {}
-    for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
-        field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
-        summary_stats.update(field_summary_stats)
-    return attrdict(summary_stats)
 
 
 def _verify_and_correct_data_format(adata: AnnData, attr_name: str, attr_key: str | None):

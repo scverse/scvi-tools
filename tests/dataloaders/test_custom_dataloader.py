@@ -11,7 +11,7 @@ from scvi.dataloaders import MappedCollectionDataModule
 from scvi.utils import dependencies
 
 
-@pytest.mark.custom_dataloader
+@pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scvi_scanvi(save_path: str):
     os.system("lamin init --storage ./test-registries")

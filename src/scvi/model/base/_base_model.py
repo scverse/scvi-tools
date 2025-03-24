@@ -37,7 +37,6 @@ from scvi.data._utils import (
     _assign_adata_uuid,
     _check_if_view,
     _get_adata_minify_type,
-    _get_summary_stats_from_registry,
 )
 from scvi.dataloaders import AnnDataLoader
 from scvi.model._utils import parse_device_args
@@ -127,13 +126,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             self._register_manager_for_instance(self.adata_manager)
             # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = self._adata_manager._registry
-            self.summary_stats = _get_summary_stats_from_registry(self.registry_)
+            self.summary_stats = AnnDataManager._get_summary_stats_from_registry(self.registry_)
         elif registry is not None:
             self._adata = None
             self._adata_manager = None
             # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
-            self.summary_stats = _get_summary_stats_from_registry(registry)
+            self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
         elif (self.__class__.__name__ == "GIMVI") or (self.__class__.__name__ == "SCVI"):
             # note some models do accept empty registry/adata (e.g: gimvi)
             pass
@@ -1004,7 +1003,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         force_jupyter = None if not in_colab else True
         console = rich.console.Console(force_jupyter=force_jupyter)
 
-        ss = _get_summary_stats_from_registry(self._registry)
+        ss = AnnDataManager._get_summary_stats_from_registry(self._registry)
         dr = self._get_data_registry_from_registry(self._registry)
         console.print(self._view_summary_stats(ss))
         console.print(self._view_data_registry(dr))
