@@ -1,27 +1,119 @@
-.filter-btn {
+/* TODO: add source for below styling
+inpired by pytorch lightning sphinx theme */
+
+/* Tutorial cards container */
+#tutorial-cards-container {
+    width: 100%;
+  }
+
+  #tutorial-cards {
+    width: 100%;
+  }
+
+  .tutorials-nav {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+  }
+
+  .tutorials-hr {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Individual tutorial card */
+  .card.tutorials-card {
+    border: 1px solid #cfcfcf;
+    border-radius: 5px;
+    height: 98px;
+    margin-bottom: 30px;
     cursor: pointer;
-    padding: 5px 10px;
-    margin: 5px;
-    border: 1px solid #ccc;
+  }
+
+  /* Styles for when screen size is larger (like for desktop) */
+  @media (min-width: 1024px) {
+    .card.tutorials-card {
+      height: 200px;
+    }
+
+    p.card-summary,
+    .card-title-container,
+    p.tags {
+      overflow: hidden;
+    }
+
+  }
+
+  /* Card content */
+  .card-title-container {
+    display: inline-flex;
+  }
+
+  .card-title-container h4 {
+    margin-bottom: 1.125rem;
+    margin-top: 0;
+    font-size: 1.5rem;
+  }
+
+  p.card-summary, .card-title-container {
+    white-space: nowrap;
+    overflow-x: scroll;
+  }
+
+  p.card-summary {
+    color: #6c6c6d;
+    font-weight: 400;
+    margin-bottom: 0;
+    line-height: 24px;
+    font-size: 15px;
+  }
+
+  /* Filter buttons */
+  .tutorial-filter {
+    cursor: pointer;
+  }
+
+  .filter-btn {
+    color: #979797;
+    border: 1px solid #979797;
     border-radius: 3px;
     display: inline-block;
-}
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: middle;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    margin-bottom: 5px;
+  }
 
-.filter-btn.selected {
-    background-color: #007bff;
-    color: white;
-}
+  .filter-btn:hover {
+    border: 1px solid #792ee5;
+    color: #792ee5;
+  }
 
-.tutorial-card-container {
-    margin: 10px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    background-color: #f9f9f9;
-}
+  .filter-btn.selected {
+    background-color: #792ee5;
+    border: 1px solid #792ee5;
+    color: #ffffff;
+  }
 
-.tutorial-card-model-group {
-    font-size: 0.9em;
-    color: #555;
-    margin-top: 5px;
-}
+  .filter-btn.all-tag-selected {
+    background-color: #979797;
+    color: #ffffff;
+  }
+
+  .filter-btn.all-tag-selected:hover {
+    border-color: #979797;
+    color: #ffffff;
+  }
+
+  /* Pagination */
+  .pagination .page {
+    border: 1px solid #dee2e6;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .pagination .active .page {
+    background-color: #dee2e6;
+  }

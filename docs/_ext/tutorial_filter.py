@@ -153,7 +153,7 @@ class TutorialCardDirective(SphinxDirective):
 
 # HTML template for each tutorial card
 TUTORIAL_CARD_TEMPLATE = """
-    <div class="col-md-12 tutorials-card-container" data-tags={tags}>
+    <div class="col-md-12 tutorials-cards-container" data-tags={tags}>
         <div class="card tutorials-card">
             <a href="{link}">
                 <div class="card-body">
