@@ -118,7 +118,7 @@ class TutorialCardDirective(SphinxDirective):
         #   tags = self.options["tags"]
 
         # Try to get the title from the environment's titles dictionary
-        title_node = self.env.titles.get(link)
+        title_node = self.env.titles.get(f"tutorials/{link}")
         if title_node:
             title = title_node.astext()  # Get the text of the title node
         else:
@@ -129,7 +129,7 @@ class TutorialCardDirective(SphinxDirective):
         if model_node:
             model_group = model_node.astext()
         else:
-            model_group = "Untitled"
+            model_group = f"debug test {self.env.docname}"
 
         # Create card html
         card_html = TUTORIAL_CARD_TEMPLATE.format(
