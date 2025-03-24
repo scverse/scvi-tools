@@ -23,7 +23,8 @@ inpired by pytorch lightning sphinx theme */
 
   /* Individual tutorial card */
   .card.tutorials-card {
-    border: 1px solid #cfcfcf;
+    border: 1px solid var(--sd-color-card-border);
+    background-color: var(--sd-color-primary);
     border-radius: 5px;
     height: 98px;
     margin-bottom: 30px;
@@ -47,6 +48,7 @@ inpired by pytorch lightning sphinx theme */
   /* Card content */
   .card-title-container {
     display: inline-flex;
+    color: var(--sd-color-primary-text)
   }
 
   .card-title-container h4 {
@@ -61,7 +63,7 @@ inpired by pytorch lightning sphinx theme */
   }
 
   p.card-summary {
-    color: #6c6c6d;
+    color: var(--sd-color-secondary-text);
     font-weight: 400;
     margin-bottom: 0;
     line-height: 24px;
@@ -74,8 +76,9 @@ inpired by pytorch lightning sphinx theme */
   }
 
   .filter-btn {
-    color: #979797;
-    border: 1px solid #979797;
+    background-color: var(--sd-color-secondary);
+    color: var(--sd-color-primary-text);
+    border: 1px solid var(--sd-color-muted);
     border-radius: 3px;
     display: inline-block;
     text-align: center;
@@ -88,32 +91,33 @@ inpired by pytorch lightning sphinx theme */
   }
 
   .filter-btn:hover {
-    border: 1px solid #792ee5;
-    color: #792ee5;
+    border: 1px solid var(--sd-color-primary-highlight);
+    color: var(--sd-color-primary-highlight);
   }
 
   .filter-btn.selected {
-    background-color: #792ee5;
-    border: 1px solid #792ee5;
-    color: #ffffff;
+    background-color: var(--sd-color-primary-highlight);
+    border: 1px solid var(--sd-color-primary-highlight);
+    color: var(--sd-color-secondary);
   }
 
   .filter-btn.all-tag-selected {
-    background-color: #979797;
-    color: #ffffff;
+    background-color: var(--sd-color-muted-highlight);
+    color: var(--sd-color-secondary);
   }
 
   .filter-btn.all-tag-selected:hover {
-    border-color: #979797;
-    color: #ffffff;
+    border-color: var(--sd-color-muted-highlight);
+    color: var(--sd-color-secondary);
   }
 
   /* Pagination */
   .pagination .page {
-    border: 1px solid #dee2e6;
+    background-color: var(--sd-color-muted);
+    border: 1px solid var(--sd-color-dark);
     padding: 0.5rem 0.75rem;
   }
 
   .pagination .active .page {
-    background-color: #dee2e6;
+    background-color: var(--sd-color-muted-highlight);
   }
