@@ -25,6 +25,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Updated Scvi-Tools AWS hub to Weizmann instead of Berkeley. {pr}`3246`.
+
 #### Removed
 
 ### 1.3.0 (2025-02-28)
