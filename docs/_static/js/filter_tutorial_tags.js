@@ -30,7 +30,9 @@ window.filterTags = {
         if (item.values().tags == null) {
           cardTags = [""];
         } else {
-          cardTags = item.values().tags.split(",");
+          //cardTags = item.values().tags.split(",");
+          cardTags = item.values().tags.split(",").map(tag => tag.trim());
+
         }
 
         if (selectedTags.length == 0) {
