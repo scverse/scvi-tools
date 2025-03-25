@@ -66,37 +66,37 @@ class TutorialListDirective(SphinxDirective):
 
 # HTML template for tutorial list header
 TUTORIAL_LIST_START = """
-   <div id="tutorial-cards-container">
+<div id="tutorial-cards-container">
 
-   <nav class="navbar navbar-expand-lg navbar-light tutorials-nav col-12">
-     <div class="tutorial-tags-container">
-         <div id="dropdown-filter-tags">
-             <div class="tutorial-filter-menu">
-                 <div class="tutorial-filter filter-btn all-tag-selected" data-tag="all">All</div>
-             </div>
-         </div>
-     </div>
-   </nav>
+<nav class="navbar navbar-expand-lg navbar-light tutorials-nav col-12">
+    <div class="tutorial-tags-container">
+        <div id="dropdown-filter-tags">
+            <div class="tutorial-filter-menu">
+                <div class="tutorial-filter filter-btn all-tag-selected" data-tag="all">All</div>
+            </div>
+        </div>
+    </div>
+</nav>
 
-   <hr class="tutorials-hr">
+<hr class="tutorials-hr">
 
-   <div class="row">
+<div class="row">
 
-   <div id="tutorial-cards">
-   <div class="list">
+<div id="tutorial-cards">
+<div class="list">
 """
 
 # HTML template for tutorial list footer
 TUTORIAL_LIST_END = """
-   </div>
+</div>
 
-   <div class="pagination d-flex justify-content-center"></div>
+<div class="pagination d-flex justify-content-center"></div>
 
-   </div>
+</div>
 
-   </div>
-   <br>
-   <br>
+</div>
+<br>
+<br>
 """
 
 
