@@ -142,7 +142,7 @@ class TutorialCardDirective(SphinxDirective):
 
         # Create tutorial card node and add raw HTML as child
         node = tutorialcardnode()
-        raw_node = nodes.raw("", card_html, format="html")
+        raw_node = nodes.raw("", card_html, format="html", is_block_level=True)
         node += raw_node
 
         if not hasattr(self.env, "tutorial_card_node_list"):
@@ -153,18 +153,18 @@ class TutorialCardDirective(SphinxDirective):
 
 # HTML template for each tutorial card
 TUTORIAL_CARD_TEMPLATE = """
-    <div class="col-md-12 tutorial-cards-container" data-tags={tags}>
-        <div class="card tutorials-card">
-            <a href="{link}">
-                <div class="card-body">
-                    <div class="card-title-container">
-                        <h4>{header}</h4>
-                    </div>
-                    <p class="card-summary">{card_description}</p>
+<div class="col-md-12 tutorial-cards-container" data-tags={tags}>
+    <div class="card tutorials-card">
+        <a href="{link}">
+            <div class="card-body">
+                <div class="card-title-container">
+                    <h4>{header}</h4>
                 </div>
-            </a>
-        </div>
+                <p class="card-summary">{card_description}</p>
+            </div>
+        </a>
     </div>
+</div>
 """
 
 
