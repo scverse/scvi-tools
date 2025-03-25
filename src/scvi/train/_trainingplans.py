@@ -695,6 +695,10 @@ class AdversarialTrainingPlan(TrainingPlan):
             self.manual_backward(loss)
             opt2.step()
 
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
+
     def on_train_epoch_end(self):
         """Update the learning rate via scheduler steps."""
         if "validation" in self.lr_scheduler_metric or not self.reduce_lr_on_plateau:
@@ -1163,6 +1167,10 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
             opt2.zero_grad()
             self.manual_backward(loss)
             opt2.step()
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "training")
 
     def on_train_epoch_end(self):
         """Update the learning rate via scheduler steps."""

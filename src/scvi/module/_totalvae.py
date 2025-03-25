@@ -757,7 +757,16 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             "kl_div_back_pro": kl_div_back_pro,
         }
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_losses,
+            kl_local=kl_local,
+            extra_metrics={
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            },
+        )
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):

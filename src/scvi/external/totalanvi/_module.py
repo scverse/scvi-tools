@@ -466,9 +466,19 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
                 classification_loss=ce_loss,
                 true_labels=true_labels,
                 logits=logits,
+                extra_metrics={
+                    "z": inference_outputs["z"],
+                    "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                    "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+                },
             )
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_losses,
             kl_local=kl_locals,
+            extra_metrics={
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            },
         )
