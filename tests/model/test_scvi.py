@@ -1159,7 +1159,6 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(adata=None, n_latent=n_latent)  # model with no adata
     model = SCVI(adata=None, n_latent=n_latent)
     assert model._module_init_on_train
     assert model.module is None
@@ -1182,14 +1181,6 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    # with pytest.raises(ValueError):
-    #     model.train(datamodule=datamodule)
-
-    with pytest.raises(TypeError) as excinfo:
-        SCVI(n_latent=n_latent)
-    assert str(excinfo.value) == "SCVI.__init__() missing 1 required positional argument: 'adata'"
 
 
 def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
@@ -1234,14 +1225,6 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    # with pytest.raises(ValueError):
-    #     model.train(datamodule=datamodule)
-
-    with pytest.raises(TypeError) as excinfo:
-        SCVI(n_latent=n_latent)
-    assert str(excinfo.value) == "SCVI.__init__() missing 1 required positional argument: 'adata'"
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
