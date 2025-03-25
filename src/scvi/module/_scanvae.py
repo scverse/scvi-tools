@@ -63,6 +63,9 @@ class SCANVAE(SupervisedModuleClass, VAE):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     y_prior
         If None, initialized to uniform probability over cell types
     labels_groups
@@ -99,6 +102,7 @@ class SCANVAE(SupervisedModuleClass, VAE):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb"] = "zinb",
+        use_observed_lib_size: bool = True,
         y_prior: torch.Tensor | None = None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
@@ -120,6 +124,7 @@ class SCANVAE(SupervisedModuleClass, VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            use_observed_lib_size=use_observed_lib_size,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             **vae_kwargs,

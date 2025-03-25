@@ -208,7 +208,7 @@ def _validate_var_names(
 
     if not valid_load_var_names:
         warnings.warn(
-            "`var_names` for the loaded `adata` does not match those of the `adata` used to "
+            "`var_names` for the loaded `model` does not match those used to "
             "train the model. For valid results, the former should match the latter.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
