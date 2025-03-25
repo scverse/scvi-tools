@@ -402,7 +402,7 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
     # model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
 
-# @pytest.mark.dataloader
+@pytest.mark.dataloader
 @dependencies("tiledbsoma")
 @dependencies("cellxgene_census")
 def test_census_custom_dataloader_scvi(save_path: str = "."):
