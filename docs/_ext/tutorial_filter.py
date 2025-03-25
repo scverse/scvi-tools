@@ -140,10 +140,10 @@ class TutorialCardDirective(SphinxDirective):
             model_group=model_group,
         )
 
-        # Create tutorial card node and add raw HTML as child
+        # new version of adding node
+        card_list = StringList(card_html.split("\n"))
         node = tutorialcardnode()
-        raw_node = nodes.raw("", card_html, format="html", is_block_level=True)
-        node += raw_node
+        self.state.nested_parse(card_list, self.content_offset, node)
 
         if not hasattr(self.env, "tutorial_card_node_list"):
             self.env.tutorial_card_node_list = []
@@ -153,7 +153,7 @@ class TutorialCardDirective(SphinxDirective):
 
 # HTML template for each tutorial card
 TUTORIAL_CARD_TEMPLATE = """
-<div class="col-md-12 tutorial-cards-container" data-tags={tags}>
+<div class="col-md-12 tutorials-card-container" data-tags={tags}>
     <div class="card tutorials-card">
         <a href="{link}">
             <div class="card-body">
