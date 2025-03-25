@@ -75,6 +75,9 @@ class SCANVI(
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     linear_classifier
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
@@ -113,6 +116,7 @@ class SCANVI(
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        use_observed_lib_size: bool = True,
         linear_classifier: bool = False,
         **model_kwargs,
     ):
@@ -135,6 +139,7 @@ class SCANVI(
         if (
             not use_size_factor_key
             and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            and not use_observed_lib_size
         ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
@@ -151,6 +156,7 @@ class SCANVI(
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
             use_size_factor_key=use_size_factor_key,
+            use_observed_lib_size=use_observed_lib_size,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             linear_classifier=linear_classifier,
