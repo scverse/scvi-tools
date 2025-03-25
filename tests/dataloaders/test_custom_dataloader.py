@@ -21,10 +21,10 @@ def test_lamindb_dataloader_scvi_scanvi(save_path: str):
     os.system("lamin init --storage ./test-registries")
     import lamindb as ln
 
-    ln.setup.init(name="lamindb_instance_name", storage=save_path)
+    # ln.setup.init(name="lamindb_instance_name", storage=save_path)  # is this need in github test
+    # create synthetic data and than a collection of it
 
-    # a test for mapped collection
-    collection = ln.Collection.get(name="covid_normal_lung")
+    collection = ln.Collection.get(name="3TNCsZZcnIBv2WGb0001")
     artifacts = collection.artifacts.all()
     artifacts.df()
 
@@ -100,28 +100,12 @@ def test_czi_custom_dataloader_scvi(save_path: str):
     import cellxgene_census
     import tiledbsoma as soma
     from cellxgene_census.experimental.ml import experiment_dataloader
-    # from cellxgene_census.experimental.pp import highly_variable_genes
 
     # this test checks the local custom dataloder made by CZI and run several tests with it
     census = cellxgene_census.open_soma(census_version="stable")
 
     experiment_name = "mus_musculus"
-    obs_value_filter = 'is_primary_data == True and tissue_general in ["kidney"] and nnz >= 3000'
-
-    # This is under comments just to save time (selecting highly varkable genes):
-    # top_n_hvg = 8000
-    # hvg_batch = ["assay", "suspension_type"]
-    #
-    # # For HVG, we can use the `highly_variable_genes` function provided in the Census,
-    # # which can compute HVGs in constant memory:
-    #
-    # query = census["census_data"][experiment_name].axis_query(
-    #     measurement_name="RNA", obs_query=soma.AxisQuery(value_filter=obs_value_filter)
-    # )
-    # hvgs_df = highly_variable_genes(query, n_top_genes=top_n_hvg, batch_key=hvg_batch)
-    #
-    # hv = hvgs_df.highly_variable
-    # hv_idx = hv[hv].index
+    obs_value_filter = 'is_primary_data == True and tissue_general in ["kidney"] and nnz >= 4000'
 
     hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
 
@@ -300,30 +284,14 @@ def test_czi_custom_dataloader_scvi(save_path: str):
 def test_czi_custom_dataloader_scanvi(save_path: str):
     import cellxgene_census
     import tiledbsoma as soma
-    # from cellxgene_census.experimental.pp import highly_variable_genes
 
     # this test checks the local custom dataloder made by CZI and run several tests with it
     census = cellxgene_census.open_soma(census_version="stable")
 
     experiment_name = "mus_musculus"
     obs_value_filter = (
-        'is_primary_data == True and tissue_general in ["kidney","liver"] and nnz >= 3000'
+        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 4000'
     )
-
-    # This is under comments just to save time (selecting highly varkable genes):
-    # top_n_hvg = 8000
-    # hvg_batch = ["assay", "suspension_type"]
-    #
-    # # For HVG, we can use the `highly_variable_genes` function provided in the Census,
-    # # which can compute HVGs in constant memory:
-    #
-    # query = census["census_data"][experiment_name].axis_query(
-    #     measurement_name="RNA", obs_query=soma.AxisQuery(value_filter=obs_value_filter)
-    # )
-    # hvgs_df = highly_variable_genes(query, n_top_genes=top_n_hvg, batch_key=hvg_batch)
-    #
-    # hv = hvgs_df.highly_variable
-    # hv_idx = hv[hv].index
 
     hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
 
@@ -405,30 +373,21 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
 @pytest.mark.dataloader
 @dependencies("tiledbsoma")
 @dependencies("cellxgene_census")
-def test_census_custom_dataloader_scvi(save_path: str = "."):
+def test_census_custom_dataloader_scvi(save_path: str):
     import cellxgene_census
     import tiledbsoma as soma
-    from cellxgene_census.experimental.pp import highly_variable_genes
 
     # load census
     census = cellxgene_census.open_soma(census_version="2023-12-15")
 
-    # do filtering
+    # do obs filtering (in this test we take a small dataset)
     experiment_name = "mus_musculus"
     obs_value_filter = (
-        'is_primary_data == True and tissue_general in ["spleen", "kidney"] and nnz >= 300'
+        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 4000'
     )
-    top_n_hvg = 8000
-    hvg_batch = ["assay", "suspension_type"]
-    hvgs_df = highly_variable_genes(
-        census["census_data"][experiment_name].axis_query(
-            measurement_name="RNA", obs_query=soma.AxisQuery(value_filter=obs_value_filter)
-        ),
-        n_top_genes=top_n_hvg,
-        batch_key=hvg_batch,
-    )
-    hv = hvgs_df.highly_variable
-    hv_idx = hv[hv].index
+
+    # in order to save time in this test we manulay filter var
+    hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
 
     # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
     # which can compute HVGs in constant memory:
@@ -439,37 +398,33 @@ def test_census_custom_dataloader_scvi(save_path: str = "."):
     )
 
     # We will now use class SCVIDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
+    # batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
     datamodule = CensusSCVIDataModule(
         hvg_query,
         layer_name="raw",
         batch_size=1024,
         shuffle=True,
         seed=42,
+        # batch_keys=batch_keys,
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
-    # (datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
-
-    n_layers = 1
-    n_latent = 50
+    print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
+    # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
 
     # We can now create the scVI model object and train it:
-    model = scvi.model.SCVI(
-        n_layers=n_layers, n_latent=n_latent, gene_likelihood="nb", encode_covariates=False
-    )
+    model = scvi.model.SCVI()
 
-    model.train(
-        datamodule=datamodule,
-        max_epochs=1,
-        batch_size=1024,
-        train_size=0.9,
-        early_stopping=False,
-    )
+    model.train(datamodule=datamodule, max_epochs=1)
 
+    user_attributes = model._get_user_attributes()
+    pprint(user_attributes)
+
+    # what was on the notebook:
     # We can now save the trained model. As of the current writing, scvi-tools doesn't support
     # saving a model that wasn't generated through an AnnData loader, so we'll use some custom code
     model_state_dict = model.module.state_dict()
-    var_names = hv_idx.to_numpy()
+    var_names = hv_idx
     user_attributes = model._get_user_attributes()
     user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
 
@@ -527,8 +482,6 @@ def test_census_custom_dataloader_scvi(save_path: str = "."):
             n_continuous_cov=n_extra_continuous_covs,
             n_cats_per_cov=None,
             n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_layers=n_layers,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,

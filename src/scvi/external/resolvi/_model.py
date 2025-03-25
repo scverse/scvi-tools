@@ -98,7 +98,7 @@ class RESOLVI(
 
     def __init__(
         self,
-        adata: AnnData | None,
+        adata: AnnData | None = None,
         registry: dict | None = None,
         n_hidden: int = 32,
         n_hidden_encoder: int = 128,

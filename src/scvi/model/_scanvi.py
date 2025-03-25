@@ -115,7 +115,7 @@ class SCANVI(
 
     def __init__(
         self,
-        adata: AnnData | None,
+        adata: AnnData | None = None,
         registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
