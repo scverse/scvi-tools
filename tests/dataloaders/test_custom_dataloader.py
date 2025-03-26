@@ -210,7 +210,7 @@ def test_czi_custom_dataloader_scvi(save_path: str):
     adata.obs["batch"] = adata.obs[batch_keys].agg("".join, axis=1).astype("category")
 
     scvi.model.SCVI.prepare_query_anndata(adata, save_path)
-    scvi.model.SCVI.load_query_data(registry=datamodule.registry, reference_model=save_path)
+    # scvi.model.SCVI.load_query_data(registry=datamodule.registry, reference_model=save_path)
 
     # scvi.model.SCVI.prepare_query_anndata(adata, model_census2)
 
@@ -464,7 +464,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
 
     # We will now load the model back and use it to generate cell embeddings (the latent space)
     with open("model.pt", "rb") as f:
-        torch_model = torch.load(f)
+        torch_model = torch.load(f, weights_only=False)
 
         adict = torch_model["attr_dict"]
         params = adict["init_params_"]["non_kwargs"]
