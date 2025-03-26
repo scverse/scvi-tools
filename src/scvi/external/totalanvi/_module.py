@@ -456,6 +456,16 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
             + kl_weight * kl_divergence_class
         )
 
+        # a payload to be used during autotune
+        if self.extra_payload_autotune:
+            extra_metrics_payload = {
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            }
+        else:
+            extra_metrics_payload = None
+
         if labelled_tensors is not None:
             ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
             loss += ce_loss * classification_ratio
@@ -466,19 +476,11 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
                 classification_loss=ce_loss,
                 true_labels=true_labels,
                 logits=logits,
-                extra_metrics={
-                    "z": inference_outputs["z"],
-                    "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                    "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
-                },
+                extra_metrics=extra_metrics_payload,
             )
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_losses,
             kl_local=kl_locals,
-            extra_metrics={
-                "z": inference_outputs["z"],
-                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
-            },
+            extra_metrics=extra_metrics_payload,
         )

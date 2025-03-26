@@ -142,8 +142,8 @@ if is_package_installed("ray"):
                 x = x[rand_idx]
                 z = z[rand_idx]
 
-                # beucase originaly those classes are frozen we cant just set the metric to True
-                # Need to do it manualy unfortunatley
+                # because originally those classes are frozen we cant just set the metric to True
+                # Need to do it manually unfortunately
                 if self.metric == "silhouette_label":
                     self.bio_conservation_metrics = BioConservation(
                         True, False, False, False, False
@@ -783,6 +783,7 @@ def _trainable(
             ScibCallback(),
             experiment.scib_metrics_callback,
         ]
+        model_params["extra_payload_autotune"] = True
     else:
         tune_callback = [experiment.metrics_callback]
     train_params = {

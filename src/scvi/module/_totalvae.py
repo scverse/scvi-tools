@@ -95,6 +95,8 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    extra_payload_autotune
+        If ``True``, will return extra matrices in the loss output to be used during autotune
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -136,6 +138,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         protein_background_prior_scale: np.ndarray | None = None,
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
+        extra_payload_autotune: bool = False,
         library_log_means: np.ndarray | None = None,
         library_log_vars: np.ndarray | None = None,
         n_panel: int | None = None,
@@ -164,6 +167,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         self.protein_batch_mask = protein_batch_mask
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
+        self.extra_payload_autotune = extra_payload_autotune
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
@@ -757,15 +761,21 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
             "kl_div_back_pro": kl_div_back_pro,
         }
 
+        # a payload to be used during autotune
+        if self.extra_payload_autotune:
+            extra_metrics_payload = {
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            }
+        else:
+            extra_metrics_payload = None
+
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_losses,
             kl_local=kl_local,
-            extra_metrics={
-                "z": inference_outputs["z"],
-                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
-            },
+            extra_metrics=extra_metrics_payload,
         )
 
     @torch.inference_mode()
