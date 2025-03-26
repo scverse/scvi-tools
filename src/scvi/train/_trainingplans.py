@@ -433,7 +433,7 @@ class TrainingPlan(pl.LightningModule):
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
 
         # next part is for the usage of scib-metrics autotune with scvi
-        if scvi_loss.extra_metrics is not None:
+        if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
 
         return scvi_loss.loss
@@ -453,7 +453,7 @@ class TrainingPlan(pl.LightningModule):
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
 
         # next part is for the usage of scib-metrics autotune with scvi
-        if scvi_loss.extra_metrics is not None:
+        if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(scvi_loss.extra_metrics, "validation")
 
     def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
@@ -696,7 +696,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             opt2.step()
 
         # next part is for the usage of scib-metrics autotune with scvi
-        if scvi_loss.extra_metrics is not None:
+        if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
 
     def on_train_epoch_end(self):
@@ -932,7 +932,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
 
         # next part is for the usage of scib-metrics autotune with scvi
-        if loss_output.extra_metrics is not None:
+        if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(loss_output.extra_metrics, "training")
 
         return loss
@@ -962,7 +962,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
         # next part is for the usage of scib-metrics autotune with scvi
-        if loss_output.extra_metrics is not None:
+        if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(loss_output.extra_metrics, "validation")
 
 
@@ -1169,7 +1169,7 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
             opt2.step()
 
         # next part is for the usage of scib-metrics autotune with scvi
-        if loss_output.extra_metrics is not None:
+        if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(loss_output.extra_metrics, "training")
 
     def on_train_epoch_end(self):

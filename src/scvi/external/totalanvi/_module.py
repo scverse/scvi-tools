@@ -464,7 +464,7 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
                 "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
             }
         else:
-            extra_metrics_payload = None
+            extra_metrics_payload = {}
 
         if labelled_tensors is not None:
             ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)

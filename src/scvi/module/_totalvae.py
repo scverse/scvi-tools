@@ -769,7 +769,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
                 "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
             }
         else:
-            extra_metrics_payload = None
+            extra_metrics_payload = {}
 
         return LossOutput(
             loss=loss,
