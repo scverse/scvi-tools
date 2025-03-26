@@ -276,7 +276,7 @@ class nicheSCVI(
         labels_key: str = "cell_type",
         cell_coordinates_key: str = "spatial",
         expression_embedding_key: str = "X_scVI",
-        expression_embedding_niche_key: str = "X_scVI_niche",
+        expression_embedding_niche_key: str = "niche_activation",
         niche_composition_key: str = "niche_composition",
         niche_indexes_key: str = "niche_indexes",
         niche_distances_key: str = "niche_distances",

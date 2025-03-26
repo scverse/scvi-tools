@@ -72,13 +72,14 @@ Last, we assume that the neighboring cells' average expression profiles are obta
 ```{math}
 :nowrap: true
 \begin{equation}
-\eta_{nt} &\sim \begin{cases}
-\mathcal{N}\left(g_{\nu}^{t}(z_n)
-      \right) , & \text{if $\alpha_{t} > 0$}\\
-            0 & \text{otherwise}
-    \end{cases}
+\eta_{nt} \sim
+\begin{cases}
+\mathcal{N} \left(g_{\nu}^{t}(z_n) \right), & \text{if } \alpha_{t} > 0 \\
+0, & \text{otherwise}
+\end{cases}
 \end{equation}
 ```
+
 where $t=1,...,T$. $w$, $\omega$ and $\nu$ are neural network parameters.
 
 
@@ -128,11 +129,12 @@ In {meth}`~scvi.external.NICHEVI.get_normalized_expression` NicheVI returns the 
 
 ### Differential expression
 
-Differential expression analysis is achieved with {meth}`~scvi.external.NICHEVI.differential_expression`. We leverage the lvm-DE method (see {doc}`/user_guide/background/differential_expression`) and adapt it to spatial data by taking into account cell neighborhood expression in a bid to discard false positives due to contamination.
+Differential expression analysis is achieved with {meth}`~scvi.external.NICHEVI.differential_expression`. \
+We leverage the lvm-DE method (see {doc}`/user_guide/background/differential_expression`) and adapt it to spatial data by taking into account cell neighborhood expression in a bid to discard false positives due to contamination. \
 Considering two groups $\textit{G1}$ and $\textit{G2}$ corresponding to different spatial contexts (for instance, astrocytes in two brain regions), the goal is to determine which genes have different expression levels between the two groups. When setting `niche_mode="true"`, we compute the group spatial neighborhoods $\textit{N1}$ and $\textit{N2}$, which are the spatial nearest neighbors of a different type than the cells in $\textit{G1}$, and $\textit{G2}$ respectively.
 
 
-To determine the upregulated genes of $\textit{G1 vs G2}$, we compute DE between $\{\textit{G1, G2}\}$, $\{\textit{N1, G2}\}$ and $\{\textit{G1, N1}\}$: using lvm-DE, we test differences in expression levels $\rho_{n}$.
+To determine the upregulated genes of $\textit{G1 vs G2}$, we compute DE between $\{\textit{G1, G2}\}$, $\{\textit{N1, G2}\}$ and $\{\textit{G1, N1}\}$: using lvm-DE, we test differences in expression levels $\rho_{n}$. \
 The upregulated genes for $\textit{G1, N1}$ define a set of local cell type markers, denoted $\mathcal{S}_1$. Conversely, if a gene is both higher expressed in $\textit{N1}$ compared to $\textit{G1}$ and $\textit{G1}$ compared to $\textit{G2}$, it is likely that the increased expression in $\textit{G1}$ is spurious.
 We argue that the probability of a gene being a $\textit{local marker}$ could be a relevant score to filter spurious genes. To compute this score, we considered the upregulation of a gene in one group relative to the upregulation in its neighborhood: a local marker $g$ should verify
 
@@ -143,6 +145,6 @@ We argue that the probability of a gene being a $\textit{local marker}$ could be
 \end{align}
 ```
 
-which means that the signal comes from cells in $\textit{G1}$ rather than their neighbors $\textit{N1}$. \\
-We select genes for which $\mathit{LFC_{G1~vs~G2}} > 0$ and use the genes $\mathcal{S}_1$ as truely differentially expressed. We also define $\mathcal{N}_1 = \{g|\mathit{LFC^{~g}_{G1~vs~G2}} > 0,~g \notin \mathcal{S}_1 \}$.
+which means that the signal comes from cells in $\textit{G1}$ rather than their neighbors $\textit{N1}$. \
+We select genes for which $\mathit{LFC_{G1~vs~G2}} > 0$ and use the genes $\mathcal{S}_1$ as truely differentially expressed. We also define $\mathcal{N}_1 = \{g|\mathit{LFC^{~g}_{G1~vs~G2}} > 0,~g \notin \mathcal{S}_1 \}$. \
 We train a Gaussian process classifier on $\mathbf{X} = [LFC_{G1~vs~G2}~,~LFC_{N1~vs~G2}]$  to classify between the $\textit{local markers}$ $\mathcal{S}_1$ and the $\textit{neighborhood genes}$ $\mathcal{N}_1$. Once fitted, the classifier returns a local marker probability $p_g=\mathit{p}(g \in \mathcal{S}_1 | \mathbf{X})$ for each gene $g$, that we can compare to a given threshold $\tau$ to filter the neighborhood genes.
