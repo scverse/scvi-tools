@@ -86,6 +86,8 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    extra_payload_autotune
+        If ``True``, will return extra matrices in the loss output to be used during autotune
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -127,6 +129,7 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         protein_background_prior_scale: np.ndarray | None = None,
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
+        extra_payload_autotune: bool = False,
         library_log_means: np.ndarray | None = None,
         library_log_vars: np.ndarray | None = None,
         n_panel: int | None = None,
@@ -167,6 +170,7 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
             protein_background_prior_scale=protein_background_prior_scale,
             use_size_factor_key=use_size_factor_key,
             use_observed_lib_size=use_observed_lib_size,
+            extra_payload_autotune=extra_payload_autotune,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             use_batch_norm=use_batch_norm,
