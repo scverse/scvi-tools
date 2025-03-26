@@ -5,6 +5,7 @@ from sphinx.util.docutils import SphinxDirective
 from docutils.statemachine import StringList
 
 import os
+import json
 
 
 class cardnode(nodes.container, nodes.Element):
@@ -117,26 +118,28 @@ class CardDirective(SphinxDirective):
         return [card_node]
 
     def get_notebook_title(self, path):
-        """
-        Retrieve the title of the notebook from its top-level header.
+        """Retrieve the title of the notebook directly from the `.ipynb` file."""
+        # Determine the actual file path (before processing)
+        docs_root = self.env.srcdir  # Root directory of the source docs
+        notebook_path = os.path.join(docs_root, path)
 
-        Args:
-            path (str): The path to the notebook.
+        # Ensure the path has the `.ipynb` extension
+        notebook_path += ".ipynb"
 
-        Returns
-        -------
-            str: The title of the notebook, or "No title found" if unavailable.
-        """
-        # First get parent directory of where the card is, so we can get the full path
-        doc_path = self.env.docname
-        parent_dir = os.path.dirname(doc_path)
+        if not os.path.exists(notebook_path):
+            print(f"Notebook file {notebook_path} not found.")
+            return "No title found"
 
-        # Get the title from the notebook's top level header
-        doctree = self.env.get_doctree(f"{parent_dir}/{path}")
+        # Read the notebook JSON
+        with open(notebook_path, encoding="utf-8") as f:
+            notebook_data = json.load(f)
 
-        # get the first title node
-        for node in doctree.traverse(nodes.title):
-            return node.astext()
+        # Extract the first markdown or heading cell
+        for cell in notebook_data.get("cells", []):
+            if cell["cell_type"] == "markdown" and cell.get("source"):
+                first_line = cell["source"][0].strip()
+                if first_line.startswith("# "):  # Assuming Markdown-style header
+                    return first_line.lstrip("#").strip()
 
         return "No title found"
 
