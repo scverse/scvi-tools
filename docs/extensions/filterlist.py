@@ -7,12 +7,16 @@ from docutils.statemachine import StringList
 import os
 
 
-class cardnode(nodes.Container, nodes.Element):
+class cardnode(nodes.container, nodes.Element):
     """A custom node representing a card in the documentation."""
+
+    pass
 
 
 class listnode(nodes.General, nodes.Element):
     """A custom node representing a list of cards in the documentation."""
+
+    pass
 
 
 def visit_card_node(self, node):
