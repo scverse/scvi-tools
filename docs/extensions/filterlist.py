@@ -152,7 +152,7 @@ class CardDirective(SphinxDirective):
             str: The title of the model group index, or "No title found" if unavailable.
         """
         # Get the title from the model group index's top level header (such as scATAC-seq)
-        doctree = self.env.get_doctree(self.env.docname)
+        doctree = self.state.document
 
         # get the first title node
         for node in doctree.traverse(nodes.title):
