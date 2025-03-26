@@ -91,7 +91,7 @@ class CardDirective(SphinxDirective):
             list: A list containing the card node.
         """
         path = self.options.get("path", [])
-        # tags = self.options.get("tags", [])
+        tags = self.options.get("tags", [])
 
         # Get the tutorial's title
         title = self.get_notebook_title(path)
@@ -103,7 +103,7 @@ class CardDirective(SphinxDirective):
 
         # Insert HTML content into the card node
         card_html = CARD_HTML.format(
-            link=path, header=title, card_description=self.content[0], group=group
+            tags=tags, link=path, header=title, card_description=self.content[0], group=group
         )
 
         card_list = StringList(card_html.split("\n"))
@@ -215,7 +215,7 @@ def setup(app):
 # html templates for list and cards
 
 CARD_HTML = """
-<div class="card-container">
+<div class="card-container" data-tags="{tags}">
     <div class="card">
         <a href="{link}">
             <div class="card-body">
