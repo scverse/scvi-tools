@@ -8,11 +8,9 @@ from typing import TYPE_CHECKING
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.data._constants import _SETUP_ARGS_KEY
-from scvi.dataloaders import SemiSupervisedDataSplitter
 from scvi.model import TOTALVI
 from scvi.model._utils import _init_library_size
 from scvi.model.base import SemisupervisedTrainingMixin
-from scvi.train import SemiSupervisedAdversarialTrainingPlan, TrainRunner
 from scvi.utils._docstrings import setup_anndata_dsp
 
 from ._module import TOTALANVAE
@@ -93,9 +91,6 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
     """
 
     _module_cls = TOTALANVAE
-    _data_splitter_cls = SemiSupervisedDataSplitter
-    _training_plan_cls = SemiSupervisedAdversarialTrainingPlan
-    _train_runner_cls = TrainRunner
 
     def __init__(
         self,

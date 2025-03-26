@@ -123,3 +123,18 @@ def test_totalanvi():
     assert totalvi_pxr is not None
     assert totalanvi_pxr is not totalvi_pxr
     totalanvi_model.train(1)
+
+    totalanvi = TOTALANVI.from_totalvi_model(
+        model, unlabeled_category="unlabeled", labels_key="labels", linear_classifier=True
+    )
+    totalanvi.train(
+        max_epochs=1,
+        adversarial_classifier=False,
+        plan_kwargs={
+            "pro_recons_weight": 0.3,
+            "n_epochs_kl_warmup": 10.0,
+            "lr": 3e-3,
+            "classification_ratio": 1000.0,
+            "max_kl_weight": 1.0,
+        },
+    )
