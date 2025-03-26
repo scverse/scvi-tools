@@ -104,10 +104,6 @@ class UnsupervisedTrainingMixin:
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            # if self.adata is not None:
-            #     max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
-            # else:
-            #     max_epochs = get_max_epochs_heuristic(self.summary_stats.n_obs)
             if datamodule is None:
                 max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
             elif hasattr(datamodule, "n_obs"):
@@ -119,7 +115,6 @@ class UnsupervisedTrainingMixin:
                 )
 
         if datamodule is None:
-            # In the general case we enter here
             datasplitter_kwargs = datasplitter_kwargs or {}
             datamodule = self._data_splitter_cls(
                 self.adata_manager,

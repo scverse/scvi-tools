@@ -104,8 +104,7 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData | None = None,
-        registry: dict | None = None,
+        adata: AnnData,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,

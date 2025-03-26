@@ -59,8 +59,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData | None = None,
-        registry: dict | None = None,
+        adata: AnnData,
         n_hidden: int = 128,
         n_latent: int = 10,
         dropout_rate: float = 0.1,

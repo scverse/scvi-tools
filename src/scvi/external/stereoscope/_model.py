@@ -53,8 +53,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
 
     def __init__(
         self,
-        sc_adata: AnnData | None = None,
-        registry: dict | None = None,
+        sc_adata: AnnData,
         **model_kwargs,
     ):
         super().__init__(sc_adata)
