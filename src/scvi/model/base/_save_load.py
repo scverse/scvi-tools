@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import warnings
@@ -136,7 +137,10 @@ def _initialize_model(cls, adata, registry, attr_dict):
     if not adata:
         adata = None
 
-    model = cls(adata, registry=registry, **non_kwargs, **kwargs)
+    if "registry" in inspect.signature(cls).parameters:
+        model = cls(adata, registry=registry, **non_kwargs, **kwargs)
+    else:
+        model = cls(adata, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
 

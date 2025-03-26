@@ -6,18 +6,17 @@ from time import time
 
 import numpy as np
 import pandas as pd
-import pytest
 import torch
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.dataloaders import CensusSCVIDataModule, MappedCollectionDataModule
+from scvi.dataloaders import CensusSCVIDataModule, MappedCollectionDataModule, SCVIDataModule
 from scvi.utils import dependencies
 
 
-@pytest.mark.dataloader
+# @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_scanvi(save_path: str):
+def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
     os.system("lamin init --storage ./test-registries")
     import lamindb as ln
 
@@ -94,9 +93,10 @@ def test_lamindb_dataloader_scvi_scanvi(save_path: str):
     )
 
 
-@pytest.mark.dataloader
+# @pytest.mark.dataloader
 @dependencies("tiledbsoma")
-def test_czi_custom_dataloader_scvi(save_path: str):
+@dependencies("cellxgene_census")
+def test_czi_custom_dataloader_scvi(save_path: str = "."):
     import cellxgene_census
     import tiledbsoma as soma
     from cellxgene_census.experimental.ml import experiment_dataloader
@@ -105,9 +105,9 @@ def test_czi_custom_dataloader_scvi(save_path: str):
     census = cellxgene_census.open_soma(census_version="stable")
 
     experiment_name = "mus_musculus"
-    obs_value_filter = 'is_primary_data == True and tissue_general in ["kidney"] and nnz >= 4000'
+    obs_value_filter = 'is_primary_data == True and tissue_general in ["kidney"] and nnz >= 5000'
 
-    hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
+    hv_idx = np.arange(10)  # just ot make it smaller and faster for debug
 
     # this is CZI part to be taken once all is ready
     batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
@@ -149,7 +149,7 @@ def test_czi_custom_dataloader_scvi(save_path: str):
     user_attributes = model._get_user_attributes()
     pprint(user_attributes)
 
-    scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
+    scvi.model._scvi.SCVI.setup_datamodule(datamodule)
     model_census = scvi.model.SCVI(
         adata=None,
         registry=datamodule.registry,
@@ -169,8 +169,9 @@ def test_czi_custom_dataloader_scvi(save_path: str):
 
     user_attributes_model_census = model_census._get_user_attributes()
     # # TODO: do we need to put inside
-    # user_attributes_model_census = \
-    #     {a[0]: a[1] for a in user_attributes_model_census if a[0][-1] == "_"}
+    user_attributes_model_census = {
+        a[0]: a[1] for a in user_attributes_model_census if a[0][-1] == "_"
+    }
     pprint(user_attributes_model_census)
     # dataloader_census = model_census._make_data_loader(datamodule.datapipe)
     # # this casus errors
@@ -197,7 +198,6 @@ def test_czi_custom_dataloader_scvi(save_path: str):
     # _ = model_census2.get_reconstruction_error()
     # _ = model_census2.get_latent_representation()
 
-    # takes time
     adata = cellxgene_census.get_anndata(
         census,
         organism=experiment_name,
@@ -279,9 +279,10 @@ def test_czi_custom_dataloader_scvi(save_path: str):
     # sc.pl.umap(adata, color="cell_type", title="SCVI")
 
 
-@pytest.mark.dataloader
+# @pytest.mark.dataloader
 @dependencies("tiledbsoma")
-def test_czi_custom_dataloader_scanvi(save_path: str):
+@dependencies("cellxgene_census")
+def test_czi_custom_dataloader_scanvi(save_path: str = "."):
     import cellxgene_census
     import tiledbsoma as soma
 
@@ -290,10 +291,10 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
 
     experiment_name = "mus_musculus"
     obs_value_filter = (
-        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 4000'
+        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 5000'
     )
 
-    hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
+    hv_idx = np.arange(10)  # just ot make it smaller and faster for debug
 
     # this is CZI part to be taken once all is ready
     batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
@@ -304,8 +305,8 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
         X_name="raw",
         obs_query=soma.AxisQuery(value_filter=obs_value_filter),
         var_query=soma.AxisQuery(coords=(list(hv_idx),)),
-        batch_size=1024,
         shuffle=True,
+        batch_size=1024,
         batch_keys=batch_keys,
         label_keys=label_keys,
         unlabeled_category="label_0",
@@ -319,7 +320,7 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
     #     list(datamodule.datapipe.var_query.coords[0] if datamodule.datapipe.var_query is not None
     #          else range(datamodule.n_vars)))]
 
-    # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
+    # scvi.model._scvi.SCVI.setup_datamodule(datamodule)
     # model_census = scvi.model.SCVI(adata=None,
     #     registry=datamodule.registry,
     #     gene_likelihood="nb",
@@ -337,7 +338,7 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
     # )
 
     scvi.model.SCANVI.setup_datamodule(datamodule)
-    pprint(datamodule.registry)
+    # pprint(datamodule.registry)
     model = scvi.model.SCANVI(adata=None, registry=datamodule.registry, datamodule=datamodule)
     model.view_anndata_setup(datamodule)
     adata_manager = model.adata_manager
@@ -370,10 +371,10 @@ def test_czi_custom_dataloader_scanvi(save_path: str):
     # model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
 
 
-@pytest.mark.dataloader
+# @pytest.mark.dataloader
 @dependencies("tiledbsoma")
 @dependencies("cellxgene_census")
-def test_census_custom_dataloader_scvi(save_path: str):
+def test_census_custom_dataloader_scvi(save_path: str = "."):
     import cellxgene_census
     import tiledbsoma as soma
 
@@ -383,11 +384,11 @@ def test_census_custom_dataloader_scvi(save_path: str):
     # do obs filtering (in this test we take a small dataset)
     experiment_name = "mus_musculus"
     obs_value_filter = (
-        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 4000'
+        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 5000'
     )
 
     # in order to save time in this test we manulay filter var
-    hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
+    hv_idx = np.arange(10)  # just ot make it smaller and faster for debug
 
     # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
     # which can compute HVGs in constant memory:
@@ -398,24 +399,35 @@ def test_census_custom_dataloader_scvi(save_path: str):
     )
 
     # We will now use class SCVIDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
-    # batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
-    datamodule = CensusSCVIDataModule(
+    batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
+    datamodule = SCVIDataModule(
         hvg_query,
         layer_name="raw",
         batch_size=1024,
         shuffle=True,
         seed=42,
-        # batch_keys=batch_keys,
+        batch_column_names=batch_keys,
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
     print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
-    # scvi.model._scvi.SCVI.setup_datamodule(datamodule)  # takes time
+    # scvi.model._scvi.SCVI.setup_datamodule(datamodule)
+
+    n_layers = 1
+    n_latent = 5
 
     # We can now create the scVI model object and train it:
-    model = scvi.model.SCVI()
+    model = scvi.model.SCVI(
+        n_layers=n_layers, n_latent=n_latent, gene_likelihood="nb", encode_covariates=False
+    )
 
-    model.train(datamodule=datamodule, max_epochs=1)
+    model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=0.9,
+        early_stopping=False,
+    )
 
     user_attributes = model._get_user_attributes()
     pprint(user_attributes)
@@ -482,6 +494,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
             n_continuous_cov=n_extra_continuous_covs,
             n_cats_per_cov=None,
             n_hidden=n_hidden,
+            n_latent=n_latent,
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
@@ -498,19 +511,23 @@ def test_census_custom_dataloader_scvi(save_path: str):
         model.is_trained = True
 
     # Generate cell embeddings
-    inference_datamodule = CensusSCVIDataModule(
+    inference_datamodule = SCVIDataModule(
         hvg_query,
         layer_name="raw",
         batch_labels=adict["batch_labels"],
         batch_size=1024,
         shuffle=False,
+        batch_column_names=batch_keys,
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
+
     inference_datamodule.setup()
+
     inference_dataloader = (
         inference_datamodule.on_before_batch_transfer(batch, None)
         for batch in inference_datamodule.train_dataloader()
     )
+
     latent = model.get_latent_representation(dataloader=inference_dataloader)
     # latent.shape
 
