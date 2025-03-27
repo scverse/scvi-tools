@@ -5,6 +5,7 @@ from pprint import pprint
 from time import time
 
 import numpy as np
+import pytest
 import torch
 
 import scvi
@@ -12,9 +13,9 @@ from scvi.dataloaders import MappedCollectionDataModule, SCVIDataModule
 from scvi.utils import dependencies
 
 
-# @pytest.mark.dataloader
+@pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
+def test_lamindb_dataloader_scvi_scanvi(save_path: str):
     os.system("lamin init --storage ./test-registries")
     import lamindb as ln
 
@@ -91,10 +92,10 @@ def test_lamindb_dataloader_scvi_scanvi(save_path: str = "."):
     )
 
 
-# @pytest.mark.dataloader
+@pytest.mark.dataloader
 @dependencies("tiledbsoma")
 @dependencies("cellxgene_census")
-def test_census_custom_dataloader_scvi(save_path: str = "."):
+def test_census_custom_dataloader_scvi(save_path: str):
     import cellxgene_census
     import tiledbsoma as soma
 
@@ -319,10 +320,10 @@ def test_census_custom_dataloader_scvi(save_path: str = "."):
     scvi.model.SCVI.load_query_data(adata, model_census3)
 
 
-# @pytest.mark.dataloader
+@pytest.mark.dataloader
 @dependencies("tiledbsoma")
 @dependencies("cellxgene_census")
-def test_census_custom_dataloader_scanvi(save_path: str = "."):
+def test_census_custom_dataloader_scanvi(save_path: str):
     import cellxgene_census
     import tiledbsoma as soma
 
