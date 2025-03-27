@@ -525,7 +525,7 @@ class nicheSCVI(
         importance_weighting_kwargs: dict | None = None,
         ###### NICHEVI specific ######
         niche_mode: bool = True,
-        radius: int | None = 50,
+        radius: int | None = None,
         k_nn: int | None = None,
         n_restarts_optimizer_gpc: int = 10,
         path_to_save: str | None = None,

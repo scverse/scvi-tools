@@ -43,6 +43,9 @@ def adjusted_nearest_neighbors(
     sample_names = np.unique(cell_samples)
     print(f"Using {len(sample_names)} samples")
 
+    if (radius is None) and (k_nn is None):
+        raise ValueError("Either radius or k_nn must be provided")
+
     for sample in sample_names:
         mask = np.squeeze(cell_samples == sample, axis=1)  # n_cells
         sample_coord = cell_coordinates[mask]  # n_cells_sample_i x 2
@@ -79,6 +82,9 @@ def adjusted_nearest_neighbors(
     row_counts = np.diff(adjacency_matrix.indptr)
     # print mean and std of number of neighbors, round to 2 decimals:
     print(f"Mean number of neighbors: {np.mean(row_counts):.1f} ± {np.std(row_counts):.1f}")
+
+    if radius is None:
+        assert np.mean(row_counts) <= k_nn, "Mean number of neighbors is greater than k_nn"
 
     if return_sparse:
         return adjacency_matrix

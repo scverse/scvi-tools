@@ -34,7 +34,7 @@ def _niche_de_core(
     fdr,
     silent,
     ###### NicheVI specific ######
-    radius=50,
+    radius=None,
     k_nn=None,
     lfc_select: str = "lfc_median",
     n_restarts_optimizer_gpc: int = 10,
