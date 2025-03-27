@@ -192,7 +192,7 @@ class nicheVAE(VAE):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "poisson",
         latent_distribution: Literal["normal", "ln"] = "normal",
         ##############################
         niche_likelihood: Literal["poisson", "gaussian"] = "gaussian",
