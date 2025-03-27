@@ -237,8 +237,8 @@ LIST_START_HTML = """
 <nav class="navbar tutorials-nav">
     <div class="tags-container">
         <div id="dropdown-filter-tags">
-            <div class="filter-menu">
-                <div class="filter filter-btn all-tag-selected" data-tag="all">All</div>
+            <div class="filter-menu all-tag-selected">
+                <div class="filter filter-btn" data-tag="all">All</div>
             </div>
         </div>
     </div>
