@@ -21,8 +21,12 @@ Pros:
 - Optimized for ML Workflows: If your dataset is structured as tables (rows and columns), LamindDB’s format aligns well with SCVI's expectations, potentially reducing the need for complex transformations.
 
 ```python
-os.system("lamin init --storage ./test-registries")
 import lamindb as ln
+from scvi.dataloaders import MappedCollectionDataModule
+import scvi
+import os
+
+os.system("lamin init --storage ./test-registries")
 
 ln.setup.init(name="lamindb_instance_name", storage=save_path)
 
@@ -52,9 +56,10 @@ Scalability: Handles large datasets that exceed your system's memory capacity, m
 ```python
 import cellxgene_census
 import tiledbsoma as soma
-from cellxgene_census.experimental.ml import experiment_dataloader
-from cellxgene_census.experimental.ml.datamodule import CensusSCVIDataModule
+import tiledbsoma_ml
+from scvi.dataloaders import SCVIDataModule
 import numpy as np
+import scvi
 
 # this test checks the local custom dataloder made by CZI and run several tests with it
 census = cellxgene_census.open_soma(census_version="stable")
@@ -66,25 +71,48 @@ obs_value_filter = (
 
 hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
 
-# this is CZI part to be taken once all is ready
-batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
-datamodule = CensusSCVIDataModule(
-    census["census_data"][experiment_name],
+# For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
+# which can compute HVGs in constant memory:
+hvg_query = census["census_data"][experiment_name].axis_query(
     measurement_name="RNA",
-    X_name="raw",
     obs_query=soma.AxisQuery(value_filter=obs_value_filter),
     var_query=soma.AxisQuery(coords=(list(hv_idx),)),
+)
+
+# this is CZI part to be taken once all is ready
+batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
+label_keys = ["tissue_general"]
+datamodule = SCVIDataModule(
+    hvg_query,
+    layer_name="raw",
     batch_size=1024,
     shuffle=True,
-    batch_keys=batch_keys,
+    seed=42,
+    batch_column_names=batch_keys,
+    label_keys=label_keys,
+    train_size=0.9,
+    unlabeled_category="label_0",
     dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
 )
 
+# Setup the datamodule
+scvi.model._scvi.SCVI.setup_datamodule(datamodule)
 
-# basicaly we should mimic everything below to any model census in scvi
-adata_orig = synthetic_iid()
-scvi.model.SCVI.setup_anndata(adata_orig, batch_key="batch")
-model = scvi.model.SCVI(adata_orig)
+# We can now create the scVI model object and train it:
+model = scvi.model.SCVI(
+    adata=None,
+    registry=datamodule.registry,
+    gene_likelihood="nb",
+    encode_covariates=False,
+)
+
+model.train(
+    datamodule=datamodule,
+    max_epochs=1,
+    batch_size=1024,
+    train_size=0.9,
+    early_stopping=False,
+)
 ...
 ```
 Key Differences between them in terms of Custom Dataloaders:

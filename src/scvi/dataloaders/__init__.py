@@ -3,7 +3,7 @@ from scvi.data import AnnTorchDataset
 
 from ._ann_dataloader import AnnDataLoader
 from ._concat_dataloader import ConcatDataLoader
-from ._custom_dataloders import CensusSCVIDataModule, MappedCollectionDataModule, SCVIDataModule
+from ._custom_dataloders import MappedCollectionDataModule, SCVIDataModule
 from ._data_splitting import (
     DataSplitter,
     DeviceBackedDataSplitter,
@@ -22,6 +22,5 @@ __all__ = [
     "SemiSupervisedDataSplitter",
     "BatchDistributedSampler",
     "MappedCollectionDataModule",
-    "CensusSCVIDataModule",
     "SCVIDataModule",
 ]

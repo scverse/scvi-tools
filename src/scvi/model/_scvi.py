@@ -277,12 +277,12 @@ class SCVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
-        if datamodule.__class__.__name__ == "CensusSCVIDataModule":
-            # CZI
-            categorical_mapping = datamodule.datapipe.obs_encoders["batch"].classes_
+        if datamodule.__class__.__name__ == "SCVIDataModule":
+            # TileDBSOMA
+            categorical_mapping = datamodule.batch_labels
             column_names = list(
-                datamodule.datapipe.var_query.coords[0]
-                if datamodule.datapipe.var_query is not None
+                datamodule.query.var_joinids().tolist()
+                if datamodule.query is not None
                 else range(datamodule.n_vars)
             )
             n_batch = datamodule.n_batch

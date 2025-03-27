@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-import functools
 from typing import TYPE_CHECKING
 
-import numpy as np
 import psutil
 import torch
-from cellxgene_census.experimental.ml import Encoder, ExperimentDataPipe, experiment_dataloader
 from lightning.pytorch import LightningDataModule
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader
@@ -17,7 +14,7 @@ from scvi.utils import dependencies
 if TYPE_CHECKING:
     from typing import Any
 
-    import numpy.typing as npt
+    import numpy as np
     import pandas as pd
 
 
@@ -33,6 +30,7 @@ class MappedCollectionDataModule(LightningDataModule):
         batch_size: int = 128,
         **kwargs,
     ):
+        super().__init__()
         self._batch_size = batch_size
         self._batch_key = batch_key
         self._label_key = label_key
@@ -164,13 +162,13 @@ class MappedCollectionDataModule(LightningDataModule):
         }
 
     @property
-    def batch_keys(self) -> int:
+    def batch_keys(self) -> int | None:
         if self._batch_key is None:
             return None
         return self._dataset.encoders[self._batch_key]
 
     @property
-    def label_keys(self) -> int:
+    def label_keys(self) -> int | None:
         if self._label_key is None:
             return None
         return self._dataset.encoders[self._label_key]
@@ -223,6 +221,10 @@ class SCVIDataModule(LightningDataModule):
         *args,
         batch_column_names: list[str] | None = None,
         batch_labels: list[str] | None = None,
+        label_keys: list[str] | None = None,
+        unlabeled_category: str | None = "Unknown",
+        train_size: float | None = 1.0,
+        split_seed: int | None = None,
         dataloader_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ):
@@ -230,14 +232,13 @@ class SCVIDataModule(LightningDataModule):
         Args:
 
         query: tiledbsoma.ExperimentAxisQuery
-                        Defines the desired result set from a SOMA Expeirement.
+                        Defines the desired result set from a SOMA Experiment.
         *args, **kwargs:
         Additional arguments passed through to `tiledbsoma_ml.ExperimentDataset`.
 
         batch_column_names: List[str], optional
         List of obs column names, the tuple of which defines the scVI batch label
-        (not to to be confused with a batch of training data). Defaults to
-        `["dataset_id", "assay", "suspension_type", "donor_id"]`.
+        (not to be confused with a batch of training data).
 
         batch_labels: List[str], optional
         List of possible values of the batch label, for mapping to label tensors. By default,
@@ -248,6 +249,16 @@ class SCVIDataModule(LightningDataModule):
         for the trained model, even if the second query doesn't return examples of every
         training batch label.
 
+        label_keys
+            List of obs column names concatenated to form the label column.
+        unlabeled_category
+            Value used for unlabeled cells in `labels_key` used to set up CZI datamodule with scvi.
+
+        train_size
+            Fraction of data to use for training.
+        split_seed
+            Seed for data split.
+
         dataloader_kwargs: dict, optional
         Keyword arguments passed to `tiledbsoma_ml.experiment_dataloader()`, e.g. `num_workers`.
         """
@@ -256,9 +267,13 @@ class SCVIDataModule(LightningDataModule):
         self.dataset_args = args
         self.dataset_kwargs = kwargs
         self.dataloader_kwargs = dataloader_kwargs if dataloader_kwargs is not None else {}
+        self.train_size = train_size
+        self.split_seed = split_seed
+
+        # deal with batches
         self.batch_column_names = batch_column_names
         self.batch_colsep = "//"
-        self.batch_colname = "scvi_batch"
+        self.batch_colname = "_scvi_batch"
         # prepare LabelEncoder for the scVI batch label:
         #   1. read obs DataFrame for the whole query result set
         #   2. add scvi_batch column
@@ -269,6 +284,18 @@ class SCVIDataModule(LightningDataModule):
             batch_labels = obs_df[self.batch_colname].unique()
         self.batch_labels = batch_labels
         self.batch_encoder = LabelEncoder().fit(self.batch_labels)
+
+        # deal with labels
+        self.unlabeled_category = unlabeled_category
+        self.label_keys = label_keys
+        self.labels_colsep = "//"
+        self.label_colname = "_scvi_labels"
+        if label_keys is not None:
+            obs_label_df = self.query.obs(column_names=self.label_keys).concat().to_pandas()
+            self._add_label_col(obs_label_df, inplace=True)
+            labels = obs_label_df[self.label_colname].unique()
+            self.labels = labels
+            self.label_encoder = LabelEncoder().fit(self.labels)
 
     def setup(self, stage: str | None = None) -> None:
         # Instantiate the ExperimentDataset with the provided args and kwargs.
@@ -284,6 +311,15 @@ class SCVIDataModule(LightningDataModule):
             **self.dataset_kwargs,
         )
 
+        if self.validation_size > 0.0:
+            datapipes = self.train_dataset.random_split(
+                self.train_size, self.validation_size, seed=self.split_seed
+            )
+            self.train_dataset = datapipes[0]
+            self.val_dataset = datapipes[1]
+        else:
+            self.val_dataset = None
+
     def train_dataloader(self) -> DataLoader:
         import tiledbsoma_ml
 
@@ -291,6 +327,15 @@ class SCVIDataModule(LightningDataModule):
             self.train_dataset,
             **self.dataloader_kwargs,
         )
+
+    def val_dataloader(self) -> DataLoader:
+        import tiledbsoma_ml
+
+        if self.val_dataset is not None:
+            return tiledbsoma_ml.experiment_dataloader(
+                self.val_dataset,
+                **self.dataloader_kwargs,
+            )
 
     def _add_batch_col(self, obs_df: pd.DataFrame, inplace: bool = False):
         # synthesize a new column for obs_df by concatenating the self.batch_column_names columns
@@ -300,6 +345,16 @@ class SCVIDataModule(LightningDataModule):
             obs_df[self.batch_column_names].astype(str).agg(self.batch_colsep.join, axis=1)
         )
         return obs_df
+
+    def _add_label_col(self, obs_label_df: pd.DataFrame, inplace: bool = False):
+        # synthesize a new column for obs_label_df by concatenating
+        # the self.batch_column_names columns
+        if not inplace:
+            obs_label_df = obs_label_df.copy()
+        obs_label_df[self.label_colname] = (
+            obs_label_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
+        )
+        return obs_label_df
 
     def on_before_batch_transfer(
         self,
@@ -322,146 +377,6 @@ class SCVIDataModule(LightningDataModule):
     # scVI code expects these properties on the DataModule:
 
     @property
-    def n_obs(self) -> int:
-        return len(self.query.obs_joinids())
-
-    @property
-    def n_vars(self) -> int:
-        return len(self.query.var_joinids())
-
-    @property
-    def n_batch(self) -> int:
-        return len(self.batch_encoder.classes_)
-
-
-class BatchEncoder(Encoder):
-    """An encoder that concatenates and encodes several obs columns."""
-
-    def __init__(self, cols: list[str], name: str = "batch"):
-        self.cols = cols
-        from sklearn.preprocessing import LabelEncoder
-
-        self._name = name
-        self._encoder = LabelEncoder()
-
-    def _join_cols(self, df: pd.DataFrame) -> pd.Series[str]:
-        return functools.reduce(lambda a, b: a + b, [df[c].astype(str) for c in self.cols])
-
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Transform the obs DataFrame into a DataFrame of encoded values."""
-        arr = self._join_cols(df)
-        return self._encoder.transform(arr)  # type: ignore
-
-    def inverse_transform(self, encoded_values: npt.ArrayLike) -> npt.ArrayLike:
-        """Inverse transform the encoded values back to the original values."""
-        return self._encoder.inverse_transform(encoded_values)  # type: ignore
-
-    def fit(self, obs: pd.DataFrame) -> None:
-        """Fit the encoder with obs."""
-        arr = self._join_cols(obs)
-        self._encoder.fit(arr.unique())
-
-    @property
-    def columns(self) -> list[str]:
-        """Columns in `obs` that the encoder will be applied to."""
-        return self.cols
-
-    @property
-    def name(self) -> str:
-        """Name of the encoder."""
-        return self._name
-
-    @property
-    def classes_(self) -> list[str]:
-        """Classes of the encoder."""
-        return self._encoder.classes_
-
-
-class LabelEncoderNew(BatchEncoder):
-    """An encoder that concatenates and encodes several obs columns as label +
-
-    uses a string as missing observation label.
-    """
-
-    def __init__(self, cols: list[str], unlabeled_category: str = "Unknown", name: str = "label"):
-        super().__init__(cols, name)
-        self._unlabeled_category = unlabeled_category
-
-    @property
-    def unlabeled_category(self) -> str:
-        """Name of the unlabeled_category."""
-        return self._unlabeled_category
-
-    def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Transform the obs DataFrame into a DataFrame of encoded values + unlabeled category."""
-        arr = self._join_cols(df)
-        for unique_item in arr.unique():
-            if unique_item not in self._encoder.classes_:
-                arr = [self.unlabeled_category if x == unique_item else x for x in arr]
-        return self._encoder.transform(arr)  # type: ignore
-
-    def inverse_transform(self, encoded_values: npt.ArrayLike) -> npt.ArrayLike:
-        """Inverse transform the encoded values back to the original values."""
-        return self._encoder.inverse_transform(encoded_values)  # type: ignore
-
-    def fit(self, obs: pd.DataFrame) -> None:
-        """Fit the encoder with obs + unlabeled category."""
-        arr = self._join_cols(obs)
-        self._encoder.fit(np.append(arr.unique(), self.unlabeled_category))
-
-
-class CensusSCVIDataModule(LightningDataModule):
-    """Lightning data module for training an scVI model using the ExperimentDataPipe.
-
-    Parameters
-    ----------
-    *args
-        Positional arguments passed to
-        :class:`~cellxgene_census.experimental.ml.pytorch.ExperimentDataPipe`.
-    batch_keys
-        List of obs column names concatenated to form the batch column.
-    label_keys
-        List of obs column names concatenated to form the label column.
-    unlabeled_category
-        Value used for unlabeled cells in `labels_key` used to set up CZI datamodule with scvi.
-    train_size
-        Fraction of data to use for training.
-    split_seed
-        Seed for data split.
-    dataloader_kwargs
-        Keyword arguments passed into
-        :func:`~cellxgene_census.experimental.ml.pytorch.experiment_dataloader`.
-    **kwargs
-        Additional keyword arguments passed into
-        :class:`~cellxgene_census.experimental.ml.pytorch.ExperimentDataPipe`. Must not include
-        ``obs_column_names``.
-    """
-
-    _TRAIN_KEY = "train"
-    _VALIDATION_KEY = "validation"
-
-    def __init__(
-        self,
-        *args,
-        batch_keys: list[str] | None = None,
-        label_keys: list[str] | None = None,
-        unlabeled_category: str | None = "Unknown",
-        train_size: float | None = None,
-        split_seed: int | None = None,
-        dataloader_kwargs: dict[str, any] | None = None,
-        **kwargs,
-    ):
-        super().__init__()
-        self.datapipe_args = args
-        self.datapipe_kwargs = kwargs
-        self.batch_keys = batch_keys
-        self.label_keys = label_keys
-        self.unlabeled_category = unlabeled_category
-        self.train_size = train_size
-        self.split_seed = split_seed
-        self.dataloader_kwargs = dataloader_kwargs or {}
-
-    @property
     def unlabeled_category(self) -> str:
         """String assigned to unlabeled cells."""
         if not hasattr(self, "_unlabeled_category"):
@@ -473,58 +388,6 @@ class CensusSCVIDataModule(LightningDataModule):
         if not (value is None or isinstance(value, str)):
             raise ValueError("`unlabeled_category` must be a string or None.")
         self._unlabeled_category = value
-
-    @property
-    def label_keys(self) -> list[str]:
-        """List of obs column names concatenated to form the label column."""
-        if not hasattr(self, "_label_keys"):
-            raise AttributeError("`label_keys` not set.")
-        return self._label_keys
-
-    @label_keys.setter
-    def label_keys(self, value: list[str] | None):
-        if not (value is None or isinstance(value, list)):
-            raise ValueError("`label_keys` must be a list of strings or None.")
-        self._label_keys = value
-
-    @property
-    def batch_keys(self) -> list[str]:
-        """List of obs column names concatenated to form the batch column."""
-        if not hasattr(self, "_batch_keys"):
-            raise AttributeError("`batch_keys` not set.")
-        return self._batch_keys
-
-    @batch_keys.setter
-    def batch_keys(self, value: list[str] | None):
-        if value is None or not isinstance(value, list):
-            raise ValueError("`batch_keys` must be a list of strings.")
-        self._batch_keys = value
-
-    @property
-    def obs_column_names(self) -> list[str]:
-        """Passed to :class:`~cellxgene_census.experimental.ml.pytorch.ExperimentDataPipe`."""
-        if hasattr(self, "_obs_column_names"):
-            return self._obs_column_names
-
-        obs_column_names = []
-        if self.batch_keys is not None:
-            obs_column_names.extend(self.batch_keys)
-
-        self._obs_column_names = obs_column_names
-        return self._obs_column_names
-
-    @property
-    def obs_label_names(self) -> list[str]:
-        """Passed to :class:`~cellxgene_census.experimental.ml.pytorch.ExperimentDataPipe`."""
-        if hasattr(self, "_obs_label_names"):
-            return self._obs_label_names
-
-        obs_label_names = []
-        if self.label_keys is not None:
-            obs_label_names.extend(self.label_keys)
-
-        self._obs_label_names = obs_label_names
-        return self._obs_label_names
 
     @property
     def split_seed(self) -> int:
@@ -562,98 +425,20 @@ class CensusSCVIDataModule(LightningDataModule):
         return 1.0 - self.train_size
 
     @property
-    def weights(self) -> dict[str, float]:
-        """Passed to :meth:`~cellxgene_census.experimental.ml.ExperimentDataPipe.random_split`."""
-        if not hasattr(self, "_weights"):
-            self._weights = {self._TRAIN_KEY: self.train_size}
-            if self.validation_size > 0.0:
-                self._weights[self._VALIDATION_KEY] = self.validation_size
-        return self._weights
-
-    @property
-    def datapipe(self) -> ExperimentDataPipe:
-        """Experiment data pipe."""
-        if not hasattr(self, "_datapipe"):
-            batch_encoder = BatchEncoder(self.obs_column_names)
-            encoders_list = [batch_encoder]
-            if self.label_keys is not None:
-                label_encoder = LabelEncoderNew(self.obs_label_names, self.unlabeled_category)
-                encoders_list.append(label_encoder)
-            self._datapipe = ExperimentDataPipe(
-                *self.datapipe_args,
-                encoders=encoders_list,
-                **self.datapipe_kwargs,
-            )
-        return self._datapipe
-
-    def setup(self, stage: str | None = None):
-        """Set up the train and validation data pipes."""
-        datapipes = self.datapipe.random_split(weights=self.weights, seed=self.split_seed)
-        self._train_datapipe = datapipes[0]
-        if self.validation_size > 0.0:
-            self._validation_datapipe = datapipes[1]
-        else:
-            self._validation_datapipe = None
-
-    def train_dataloader(self):
-        """Training data loader."""
-        return experiment_dataloader(self._train_datapipe, **self.dataloader_kwargs)
-
-    def val_dataloader(self):
-        """Validation data loader."""
-        if self._validation_datapipe is not None:
-            return experiment_dataloader(self._validation_datapipe, **self.dataloader_kwargs)
-
-    @property
     def n_obs(self) -> int:
-        """Number of observations in the query.
-
-        Necessary in scvi-tools to compute a heuristic of ``max_epochs``.
-        """
-        return self.datapipe.shape[0]
+        return len(self.query.obs_joinids())
 
     @property
     def n_vars(self) -> int:
-        """Number of features in the query.
-
-        Necessary in scvi-tools to initialize the actual layers in the model.
-        """
-        return self.datapipe.shape[1]
+        return len(self.query.var_joinids())
 
     @property
     def n_batch(self) -> int:
-        """Number of unique batches (after concatenation of ``batch_keys``).
-
-        Necessary in scvi-tools so that the model knows how to one-hot encode batches.
-        """
-        return self.get_n_classes("batch")
+        return len(self.batch_encoder.classes_)
 
     @property
     def n_label(self) -> int:
-        """Number of unique labels (after concatenation of ``label_keys``).
-
-        Necessary in scvi-tools so that the model knows how to one-hot encode labels.
-        """
-        return self.get_n_classes("label")
-
-    def get_n_classes(self, key: str) -> int:
-        """Return the number of classes for a given obs column."""
-        return len(self.datapipe.obs_encoders[key].classes_)
-
-    def on_before_batch_transfer(
-        self,
-        batch: tuple[torch.Tensor, torch.Tensor],
-        dataloader_idx: int,
-    ) -> dict[str, torch.Tensor | None]:
-        """Format the datapipe output with registry keys for scvi-tools."""
-        X, obs = batch
-
-        X_KEY: str = "X"
-        BATCH_KEY: str = "batch"
-        LABELS_KEY: str = "labels"
-
-        return {
-            X_KEY: X,
-            BATCH_KEY: obs,
-            LABELS_KEY: torch.empty(0),  # None,
-        }
+        if self.label_keys is not None:
+            return len(self.label_encoder.classes_)
+        else:
+            return 1

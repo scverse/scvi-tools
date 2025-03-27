@@ -353,13 +353,13 @@ class SCANVI(
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
-        if datamodule.__class__.__name__ == "CensusSCVIDataModule":
-            # CZI
-            batch_mapping = datamodule.datapipe.obs_encoders["batch"].classes_
-            labels_mapping = datamodule.datapipe.obs_encoders["label"].classes_
+        if datamodule.__class__.__name__ == "SCVIDataModule":
+            # TILEDBSOMA
+            batch_mapping = datamodule.batch_labels
+            labels_mapping = datamodule.labels
             features_names = list(
-                datamodule.datapipe.var_query.coords[0]
-                if datamodule.datapipe.var_query is not None
+                datamodule.query.var_joinids().tolist()
+                if datamodule.query is not None
                 else range(datamodule.n_vars)
             )
             n_batch = datamodule.n_batch
@@ -377,7 +377,7 @@ class SCANVI(
             ]
             features_names = datamodule.var.soma_joinid.values
             n_batch = source_registry["field_registries"]["batch"]["summary_stats"]["n_batch"]
-            n_label = 1  # need to change
+            n_label = source_registry["field_registries"]["label"]["summary_stats"]["n_label"]
 
         datamodule.registry = {
             "scvi_version": scvi.__version__,
