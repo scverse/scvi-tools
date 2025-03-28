@@ -5,4 +5,27 @@
 .filter-btn {
     pointer-events: auto;
     cursor: pointer;
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 2px solid var(--pst-color-border);
+    color: var(--pst-color-base);
+    font-size: 14px;
+    transition: all 0.3s ease-in-out;
+    background-color: var(--pst-color-background);
+}
+
+.filter-btn:hover {
+    color: var(--pst-color-table-row-hover);
+    border-color: var(--pst-color-table-row-hover);
+}
+
+.filter-btn:active {
+    background-color: var(--pst-color-table-row-hover);
+    border-color: var(--pst-color-table-row-hover);
+    color: var(--pst-color-background);
+}
+
+.filter-menu {
+    display: flex;
 }
