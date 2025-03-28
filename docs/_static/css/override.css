@@ -6,12 +6,12 @@
     pointer-events: auto;
     cursor: pointer;
     display: inline-block;
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 2px solid var(--pst-color-border);
+    padding: 20px 20px;
+    border-radius: 5px;
+    border: 1px solid var(--pst-color-border);
     color: var(--pst-color-base);
     font-size: 14px;
-    transition: all 0.3s ease-in-out;
+    transition: all 0.2s ease-in-out;
     background-color: var(--pst-color-background);
 }
 
@@ -20,7 +20,7 @@
     border-color: var(--pst-color-table-row-hover);
 }
 
-.filter-btn:active {
+.filter-btn.selected {
     background-color: var(--pst-color-table-row-hover);
     border-color: var(--pst-color-table-row-hover);
     color: var(--pst-color-background);
@@ -28,4 +28,37 @@
 
 .filter-menu {
     display: flex;
+}
+
+a div {
+    all: unset;
+    display: block;
+}
+
+.card {
+    border-radius: 20px;
+    border: 1px solid var(--pst-color-border);
+    transition: all 0.3s ease-in-out;
+    background-color: var(--pst-color-background);
+}
+
+.card:hover {
+    border-color: var(--pst-color-secondary);
+    background-color: var(--pst-color-on-background);
+}
+
+.card-title-container {
+    color: var(--pst-color-text-base);
+}
+
+.card-description {
+    color: var(--pst-color-text-muted);
+}
+
+.card-description:hover {
+    color: var(--pst-color-text-base);
+}
+
+.model-group-name {
+    color: var(--pst-color-text-base);
 }
