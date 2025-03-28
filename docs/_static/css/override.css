@@ -6,7 +6,7 @@
     pointer-events: auto;
     cursor: pointer;
     display: inline-block;
-    padding: 20px 20px;
+    padding: 10px 15px;
     border-radius: 5px;
     border: 1px solid var(--pst-color-border);
     color: var(--pst-color-base);
@@ -28,11 +28,30 @@
 
 .filter-menu {
     display: flex;
+    pointer-events: none;
+    row-gap: 5px;
+    column-gap: 10px;
 }
 
-a div {
-    all: unset;
+.dropdown-filter-tags {
+    pointer-events: none;
+}
+
+.tags-container {
+    pointer-events: none;
+}
+
+.tutorials-nav {
+    pointer-events: none;
+}
+
+.card a {
+    text-decoration: none;
     display: block;
+}
+
+.card a .card-body {
+    all: unset;
 }
 
 .card {
