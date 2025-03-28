@@ -198,7 +198,7 @@ class nicheVAE(VAE):
         niche_likelihood: Literal["poisson", "gaussian"] = "gaussian",
         cell_rec_weight: float = 1.0,
         latent_kl_weight: float = 1.0,
-        spatial_weight: float = 1.0,
+        spatial_weight: float = 10,
         ##############################
         prior_mixture: bool = False,
         prior_mixture_k: int = 20,
