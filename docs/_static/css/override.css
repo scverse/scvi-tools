@@ -1,3 +1,8 @@
 .hidden {
     display: none;
 }
+
+.filter-btn {
+    pointer-events: auto;
+    cursor: pointer;
+}
