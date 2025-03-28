@@ -21,3 +21,24 @@ notebooks/scrna/sysVI
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 ```
+
+```{customcard}
+:path: notebooks/scrna/harmonization
+:tags: tag1, tag2, tag3
+
+This is a test description. Put the description as the main content of the customcard directive.
+```
+
+```{customcard}
+:path: notebooks/scrna/scvi_in_R
+:tags: tag7, tag0, tag5
+
+This is a test description. Put the description as the main content of the customcard directive.
+```
+
+```{customcard}
+:path: notebooks/scrna/tabula_muris
+:tags: tag2, tag6, tag4
+
+This is a test description. Put the description as the main content of the customcard directive.
+```
