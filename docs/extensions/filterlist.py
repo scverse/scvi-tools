@@ -5,7 +5,7 @@ from sphinx.util.docutils import SphinxDirective
 from docutils.statemachine import StringList
 
 import os
-import json
+from bs4 import BeautifulSoup
 
 
 class cardnode(nodes.container, nodes.Element):
@@ -103,7 +103,11 @@ class CardDirective(SphinxDirective):
 
         # Insert HTML content into the card node
         card_html = CARD_HTML.format(
-            tags=tags, link=path, header=title, card_description=self.content[0], group=group
+            tags=tags,
+            link=f"{path}.html",
+            header=title,
+            card_description=self.content[0],
+            group=group,
         )
 
         card_list = StringList(card_html.split("\n"))
@@ -124,23 +128,20 @@ class CardDirective(SphinxDirective):
         notebook_path = os.path.join(docs_root, path)
 
         # Ensure the path has the `.ipynb` extension
-        notebook_path += ".ipynb"
+        notebook_path += ".html"
 
         if not os.path.exists(notebook_path):
             print(f"Notebook file {notebook_path} not found.")
             return "No title found"
 
-        # Read the notebook JSON
+        # Read the HTML content
         with open(notebook_path, encoding="utf-8") as f:
-            notebook_data = json.load(f)
+            soup = BeautifulSoup(f, "html.parser")
 
-        # Extract the first markdown or heading cell
-        for cell in notebook_data.get("cells", []):
-            if cell["cell_type"] == "markdown" and cell.get("source"):
-                first_line = cell["source"][0].strip()
-                if first_line.startswith("# "):  # Assuming Markdown-style header
-                    return first_line.lstrip("#").strip()
-
+        # Find the first <h1> element
+        title_tag = soup.find("h1")
+        if title_tag:
+            return title_tag.get_text(strip=True)
         return "No title found"
 
     def get_index_header(self):
