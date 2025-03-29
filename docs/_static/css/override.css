@@ -6,7 +6,7 @@
     pointer-events: auto;
     cursor: pointer;
     display: inline-block;
-    padding: 10px 15px;
+    padding: 5px 10px;
     border-radius: 5px;
     border: 1px solid var(--pst-color-border);
     color: var(--pst-color-base);
