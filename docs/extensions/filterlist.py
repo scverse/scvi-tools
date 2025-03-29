@@ -104,7 +104,7 @@ class CardDirective(SphinxDirective):
         # Insert HTML content into the card node
         card_html = CARD_HTML.format(
             tags=tags,
-            link=f"{path}.html",
+            link=(f"{path}.html"),
             header=title,
             card_description=self.content[0],
             group=group,
