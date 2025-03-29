@@ -33,18 +33,6 @@
     column-gap: 10px;
 }
 
-.dropdown-filter-tags {
-    pointer-events: none;
-}
-
-.tags-container {
-    pointer-events: none;
-}
-
-.tutorials-nav {
-    pointer-events: none;
-}
-
 .card a {
     text-decoration: none;
 }

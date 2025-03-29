@@ -34,7 +34,7 @@ $(document).ready(function() {
 let selectedTagSet = new Set();
 
 // Handle tag button selection and filtering
-$(".filter-btn").on("click", function () {
+$(document).on("click", ".filter-btn", function () {
     console.log("button clicked!"); // for debugging
     let parent = $(this).closest(".filter-menu");
     let tag = $(this).data("tag");
