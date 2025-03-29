@@ -47,11 +47,6 @@
 
 .card a {
     text-decoration: none;
-    display: block;
-}
-
-.card a .card-body {
-    all: unset;
 }
 
 .card {
@@ -64,6 +59,7 @@
 .card:hover {
     border-color: var(--pst-color-secondary);
     background-color: var(--pst-color-on-background);
+    color: var(--pst-color-text-base)
 }
 
 .card-title-container {
@@ -72,10 +68,6 @@
 
 .card-description {
     color: var(--pst-color-text-muted);
-}
-
-.card-description:hover {
-    color: var(--pst-color-text-base);
 }
 
 .model-group-name {
