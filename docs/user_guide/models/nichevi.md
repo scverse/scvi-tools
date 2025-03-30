@@ -134,7 +134,7 @@ We leverage the lvm-DE method (see {doc}`/user_guide/background/differential_exp
 Considering two groups $\textit{G1}$ and $\textit{G2}$ corresponding to different spatial contexts (for instance, astrocytes in two brain regions), the goal is to determine which genes have different expression levels between the two groups. When setting `niche_mode="true"`, we compute the group spatial neighborhoods $\textit{N1}$ and $\textit{N2}$, which are the spatial nearest neighbors of a different type than the cells in $\textit{G1}$, and $\textit{G2}$ respectively.
 
 
-To determine the upregulated genes of $\textit{G1 vs G2}$, we compute DE between $\{\textit{G1, G2}\}$, $\{\textit{N1, G2}\}$ and $\{\textit{G1, N1}\}$: using lvm-DE, we test differences in expression levels $\rho_{n}$. \
+To determine the upregulated genes of $\textit{G1 vs G2}$, we compute DE between $\{\textit{G1, G2}\}$, $\{\textit{N1, G2}\}$ and $\{\textit{G1, N1}\}$: using lvm-DE, we test differences in expression levels $\rho_{n}$ to compute Log-Fold Changes (LFC). \
 The upregulated genes for $\textit{G1, N1}$ define a set of local cell type markers, denoted $\mathcal{S}_1$. Conversely, if a gene is both higher expressed in $\textit{N1}$ compared to $\textit{G1}$ and $\textit{G1}$ compared to $\textit{G2}$, it is likely that the increased expression in $\textit{G1}$ is spurious.
 We argue that the probability of a gene being a $\textit{local marker}$ could be a relevant score to filter spurious genes. To compute this score, we considered the upregulation of a gene in one group relative to the upregulation in its neighborhood: a local marker $g$ should verify
 
