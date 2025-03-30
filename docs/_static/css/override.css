@@ -21,14 +21,11 @@
 }
 
 .filter-btn.selected {
-    background-color: var(--pst-color-table-row-hover);
-    border-color: var(--pst-color-table-row-hover);
-    color: var(--pst-color-background);
+    background-color: var(--pst-color-on-background);
 }
 
 .filter-menu {
     display: flex;
-    pointer-events: none;
     row-gap: 5px;
     column-gap: 10px;
 }
