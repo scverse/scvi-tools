@@ -128,12 +128,17 @@ class CardDirective(SphinxDirective):
         docs_root = self.env.srcdir  # Root directory of the source docs
         notebook_path = os.path.join(docs_root, path)
 
+        # for debugging
+        files_in_dir = os.listdir(docs_root)
+
         # Ensure the path has the `.ipynb` extension
         notebook_path += ".html"
 
         if not os.path.exists(notebook_path):
             print(f"Notebook file {notebook_path} not found.")
-            return "No title found"
+            return (
+                f"notebook not found, path tried: {notebook_path}, available files: {files_in_dir}"
+            )
 
         # Read the HTML content
         with open(notebook_path, encoding="utf-8") as f:
@@ -143,7 +148,7 @@ class CardDirective(SphinxDirective):
         title_tag = soup.find("h1")
         if title_tag:
             return title_tag.get_text(strip=True)
-        return "No title found"
+        return f"debug: title_tag: {title_tag}, "
 
     def get_index_header(self):
         """
