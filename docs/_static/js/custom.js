@@ -15,6 +15,25 @@ function getUniqueTags() {
     return uniqueTags;
 }
 
+// Get all of the tutorial group names
+function getUniqueGroups() {
+    let groupSet = new Set();
+
+    $(".card-container").each(function() {
+        let group = $(this).data('model-group-name')
+
+        if (group && group.trim() !== "") {
+            groupSet.add(group.trim());
+        }
+
+        groupSet.add(group)
+    });
+
+    let uniqueGroups = Array.from(groupSet);
+    uniqueGroups.sort();
+    return uniqueGroups;
+}
+
 // Create the tag button menu
 function createMenu() {
     let tags = getUniqueTags();
@@ -25,8 +44,19 @@ function createMenu() {
     });
 }
 
+// Populate the tab menu for tutorial groups
+function populateTabs() {
+    let groups = getUniqueGroups();
+
+    groups.forEach(item => {
+        $("#tab-menu")
+        .append("<div class='tab' data-group='" + item + "'>" + item + "</div>")
+    });
+}
+
 $(document).ready(function() {
     createMenu();
+    populateTabs();
 });
 
 // Now add filtering functionality to the tag buttons
@@ -63,18 +93,31 @@ $(document).on("click", ".filter-btn", function () {
     filterCards(); // Trigger filtering immediately
 });
 
-// Function to filter cards
+// Function to filter cards based on both tags and groups
 function filterCards() {
-    if ($(".filter-menu").hasClass("all-tag-selected")) {
-        $(".card").removeClass("hidden"); // Show all cards
-    } else {
-        $(".card").each(function () {
-            let cardTags = $(this).data("tags").split(",").map(tag => tag.trim());
+    $(".card").each(function () {
+        let cardTags = $(this).data("tags").split(",").map(tag => tag.trim());
+        let groupName = $(this).data("model-group-name");
 
-            // Show only if the card contains all selected tags
-            let shouldShow = [...selectedTagSet].every(tag => cardTags.includes(tag));
+        let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
+        let matchesGroup = selectedGroup === "all" || groupName === selectedGroup;
 
-            $(this).toggleClass("hidden", !shouldShow);
-        });
-    }
+        $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
+    });
 }
+
+// Add similar filtering functionality to the model group tabs (but only single select)
+let selectedGroup = "all"
+
+// Handle tab selection and filtering
+$(document).on("click", ".tab", function () {
+    let group = $(this).data("group");
+
+    if (group !== selectedGroup) {
+        $(".tab").removeClass("tab-selected"); // deselect current tab
+        $(this).addClass("tab-selected");
+        selectedGroup = group
+    }
+
+    filterCards(); // Trigger filtering immediately
+});

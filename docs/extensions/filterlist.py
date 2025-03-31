@@ -114,6 +114,7 @@ class CardDirective(SphinxDirective):
         self.state.nested_parse(card_list, self.content_offset, card_node)
 
         env = self.state.document.settings.env
+
         if not hasattr(env, "all_cards"):
             env.all_cards = []
 
@@ -241,6 +242,12 @@ LIST_START_HTML = """
             <div class="filter-menu all-tag-selected">
                 <div class="filter filter-btn" data-tag="all">All</div>
             </div>
+        </div>
+    </div>
+
+    <div class="tabs-container">
+        <div id="tab-menu">
+            <div class="tab" data-group="all">All</div>
         </div>
     </div>
 </nav>

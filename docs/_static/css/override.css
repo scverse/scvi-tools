@@ -59,3 +59,27 @@
 .model-group-name {
     color: var(--pst-color-text-base);
 }
+
+#tab-menu {
+    display: flex;
+    row-gap: 5px;
+    column-gap: 10px;
+}
+
+.tab {
+    pointer-events: auto;
+    cursor: pointer;
+    display: inline-block;
+    padding: 5px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--pst-color-border);
+    color: var(--pst-color-base);
+    font-size: 18px;
+    transition: all 0.1s ease-in-out;
+    background-color: var(--pst-color-background);
+}
+
+.tab.tab-selected {
+    border-bottom: none;
+    transition: border-bottom 0.3s ease-in-out;
+}
