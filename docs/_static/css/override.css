@@ -22,6 +22,7 @@
 
 .filter-btn.selected {
     background-color: var(--pst-color-on-background);
+    color: var(--pst-color-text-muted);
 }
 
 .filter-menu {
