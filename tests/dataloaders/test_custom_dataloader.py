@@ -18,10 +18,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
     os.system("lamin init --storage ./lamindb_collection")  # one time for github runner
     import lamindb as ln
 
-    # from scipy.sparse import csc_matrix, csr_matrix
-    # import dask
-    # import spatialdata
-    ln.setup.init()  # one time for github runner
+    # ln.setup.init()  # one time for github runner
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -112,9 +109,6 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     # os.system("lamin init --storage ./lamindb_collection")
     import lamindb as ln
 
-    # from scipy.sparse import csc_matrix, csr_matrix
-    # import dask
-    # import spatialdata
     # ln.setup.init()
 
     # prepare test data
@@ -441,6 +435,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
 
     latent = model.get_latent_representation(dataloader=inference_dataloader)
     print(latent.shape)
+    # each metric needs to init the inference_dataloader
     # elbo = model.get_elbo(dataloader=inference_dataloader)
     # marginal_ll = model.get_marginal_ll(dataloader=inference_dataloader)
     # get_reconstruction_error = model.get_reconstruction_error(dataloader=inference_dataloader)

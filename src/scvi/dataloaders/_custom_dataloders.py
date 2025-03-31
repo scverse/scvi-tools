@@ -38,9 +38,14 @@ class MappedCollectionDataModule(LightningDataModule):
         self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
         # here we initialize MappedCollection to use in a pytorch DataLoader
-        self._dataset = collection.mapped(
-            obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
-        )
+        if self._label_key is not None:
+            self._dataset = collection.mapped(
+                obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
+            )
+        else:
+            self._dataset = collection.mapped(
+                obs_keys=self._batch_key, parallel=self._parallel, **kwargs
+            )
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
