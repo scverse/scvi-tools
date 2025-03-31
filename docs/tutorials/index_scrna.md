@@ -24,21 +24,21 @@ notebooks/scrna/velovi
 
 ```{customcard}
 :path: notebooks/scrna/harmonization
-:tags: tag1, tag2, tag3
+:tags: Analysis, Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance
 
 This is a test description. Put the description as the main content of the customcard directive.
 ```
 
 ```{customcard}
 :path: notebooks/scrna/scvi_in_R
-:tags: tag7, tag0, tag5
+:tags: Analysis, Integration, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
 This is a test description. Put the description as the main content of the customcard directive.
 ```
 
 ```{customcard}
 :path: notebooks/scrna/tabula_muris
-:tags: tag2, tag6, tag4
+:tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance
 
 This is a test description. Put the description as the main content of the customcard directive.
 ```
