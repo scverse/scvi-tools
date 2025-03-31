@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import warnings
 from copy import deepcopy
@@ -134,14 +135,15 @@ class ArchesMixin:
                     "Cannot load the original setup."
                 )
 
-            setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
-            setup_method(
-                adata,
-                source_registry=registry,
-                extend_categories=True,
-                allow_missing_labels=True,
-                **registry[_SETUP_ARGS_KEY],
-            )
+            if registry[_SETUP_METHOD_NAME] != "setup_datamodule":
+                setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+                setup_method(
+                    adata,
+                    source_registry=registry,
+                    extend_categories=True,
+                    allow_missing_labels=True,
+                    **registry[_SETUP_ARGS_KEY],
+                )
 
         model = _initialize_model(cls, adata, registry, attr_dict)
 
@@ -153,6 +155,19 @@ class ArchesMixin:
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        if method_name == "setup_datamodule":
+            attr_dict["n_input"] = attr_dict["n_vars"]
+            module_exp_params = inspect.signature(model._module_cls).parameters.keys()
+            common_keys1 = list(attr_dict.keys() & module_exp_params)
+            common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
+            common_items1 = {key: attr_dict[key] for key in common_keys1}
+            common_items2 = {key: model.init_params_["non_kwargs"][key] for key in common_keys2}
+            module = model._module_cls(**common_items1, **common_items2)
+            model.module = module
+
+            model.module.load_state_dict(load_state_dict)
 
         model.to_device(device)
 

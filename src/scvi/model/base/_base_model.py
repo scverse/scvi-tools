@@ -57,6 +57,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     import pandas as pd
+    from lightning import LightningDataModule
 
     from scvi._types import AnnOrMuData, MinifiedDataType
 
@@ -646,6 +647,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         save_anndata: bool = False,
         save_kwargs: dict | None = None,
         legacy_mudata_format: bool = False,
+        datamodule: LightningDataModule | None = None,
         **anndata_write_kwargs,
     ):
         """Save the state of the model.
@@ -673,6 +675,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             variable names across all modalities concatenated, while the new format is a dictionary
             with keys corresponding to the modality names and values corresponding to the variable
             names for each modality.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         anndata_write_kwargs
             Kwargs for :meth:`~anndata.AnnData.write`
         """
@@ -709,6 +715,23 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         user_attributes = self._get_user_attributes()
         # only save the public attributes with _ at the very end
         user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+        method_name = self.registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        if method_name == "setup_datamodule":
+            user_attributes.update(
+                {
+                    "n_batch": datamodule.n_batch,
+                    "n_extra_categorical_covs": datamodule.registry["field_registries"][
+                        "extra_categorical_covs"
+                    ]["summary_stats"]["n_extra_categorical_covs"],
+                    "n_extra_continuous_covs": datamodule.registry["field_registries"][
+                        "extra_continuous_covs"
+                    ]["summary_stats"]["n_extra_continuous_covs"],
+                    "n_labels": datamodule.n_labels,
+                    "n_vars": datamodule.n_vars,
+                    "batch_labels": datamodule.batch_labels,
+                }
+            )
 
         torch.save(
             {
@@ -796,14 +819,30 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 )
             _validate_var_names(adata, var_names)
             method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
-            getattr(cls, method_name)(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
+            if method_name != "setup_datamodule":
+                getattr(cls, method_name)(
+                    adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+                )
 
         model = _initialize_model(cls, adata, registry, attr_dict)
         pyro_param_store = model_state_dict.pop("pyro_param_store", None)
+
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        if method_name == "setup_datamodule":
+            attr_dict["n_input"] = attr_dict["n_vars"]
+            module_exp_params = inspect.signature(model._module_cls).parameters.keys()
+            common_keys1 = list(attr_dict.keys() & module_exp_params)
+            common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
+            common_items1 = {key: attr_dict[key] for key in common_keys1}
+            common_items2 = {key: model.init_params_["non_kwargs"][key] for key in common_keys2}
+            module = model._module_cls(**common_items1, **common_items2)
+            model.module = module
+
         model.module.on_load(model, pyro_param_store=pyro_param_store)
         model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
+
         model.module.eval()
         if adata:
             model._validate_anndata(adata)

@@ -27,6 +27,7 @@ class MappedCollectionDataModule(LightningDataModule):
         collection: ln.Collection,
         batch_key: str | None = None,
         label_key: str | None = None,
+        unlabeled_category: str | None = "Unknown",
         batch_size: int = 128,
         **kwargs,
     ):
@@ -34,6 +35,7 @@ class MappedCollectionDataModule(LightningDataModule):
         self._batch_size = batch_size
         self._batch_key = batch_key
         self._label_key = label_key
+        self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
         # here we initialize MappedCollection to use in a pytorch DataLoader
         self._dataset = collection.mapped(
@@ -103,6 +105,19 @@ class MappedCollectionDataModule(LightningDataModule):
         return self._dataset[self._label_key]
 
     @property
+    def unlabeled_category(self) -> str:
+        """String assigned to unlabeled cells."""
+        if not hasattr(self, "_unlabeled_category"):
+            raise AttributeError("`unlabeled_category` not set.")
+        return self._unlabeled_category
+
+    @unlabeled_category.setter
+    def unlabeled_category(self, value: str | None):
+        if not (value is None or isinstance(value, str)):
+            raise ValueError("`unlabeled_category` must be a string or None.")
+        self._unlabeled_category = value
+
+    @property
     def registry(self) -> dict:
         return {
             "scvi_version": scvi.__version__,
@@ -128,7 +143,7 @@ class MappedCollectionDataModule(LightningDataModule):
                 "batch": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
                     "state_registry": {
-                        "categorical_mapping": self.batch_keys,
+                        "categorical_mapping": self.batch_labels,
                         "original_key": self._batch_key,
                     },
                     "summary_stats": {"n_batch": self.n_batch},
@@ -138,7 +153,7 @@ class MappedCollectionDataModule(LightningDataModule):
                     "state_registry": {
                         "categorical_mapping": self.label_keys,
                         "original_key": self._label_key,
-                        "unlabeled_category": self._unlabeled_category,
+                        "unlabeled_category": self.unlabeled_category,
                     },
                     "summary_stats": {"n_labels": self.n_labels},
                 },
@@ -158,11 +173,11 @@ class MappedCollectionDataModule(LightningDataModule):
                     "summary_stats": {"n_extra_continuous_covs": 0},
                 },
             },
-            "setup_method_name": "setup_anndata",
+            "setup_method_name": "setup_datamodule",
         }
 
     @property
-    def batch_keys(self) -> int | None:
+    def batch_labels(self) -> int | None:
         if self._batch_key is None:
             return None
         return self._dataset.encoders[self._batch_key]
@@ -205,7 +220,7 @@ class MappedCollectionDataModule(LightningDataModule):
 
 @dependencies("tiledbsoma")
 @dependencies("tiledbsoma_ml")
-class SCVIDataModule(LightningDataModule):
+class TileDBDataModule(LightningDataModule):
     import tiledbsoma as soma
 
     """PyTorch Lightning DataModule for training scVI models from SOMA data
@@ -244,7 +259,7 @@ class SCVIDataModule(LightningDataModule):
         List of possible values of the batch label, for mapping to label tensors. By default,
         this will be derived from the unique labels in the given query results (given
         `batch_column_names`), making the label mapping depend on the query. The `batch_labels`
-        attribute in the `SCVIDataModule` used for training may be saved and here restored in
+        attribute in the `TileDBDataModule` used for training may be saved and here restored in
         another instance for a different query. That ensures the label mapping will be correct
         for the trained model, even if the second query doesn't return examples of every
         training batch label.
@@ -290,6 +305,8 @@ class SCVIDataModule(LightningDataModule):
         self.label_keys = label_keys
         self.labels_colsep = "//"
         self.label_colname = "_scvi_labels"
+        self.labels = None
+        self.label_encoder = None
         if label_keys is not None:
             obs_label_df = self.query.obs(column_names=self.label_keys).concat().to_pandas()
             self._add_label_col(obs_label_df, inplace=True)
@@ -301,9 +318,6 @@ class SCVIDataModule(LightningDataModule):
         # Instantiate the ExperimentDataset with the provided args and kwargs.
         import tiledbsoma_ml
 
-        # dataset_kwargs = self.dataset_kwargs
-        # if 'batch_keys' in dataset_kwargs.keys():
-        #    dataset_kwargs.pop('batch_keys')
         self.train_dataset = tiledbsoma_ml.ExperimentDataset(
             self.query,
             *self.dataset_args,
@@ -437,8 +451,68 @@ class SCVIDataModule(LightningDataModule):
         return len(self.batch_encoder.classes_)
 
     @property
-    def n_label(self) -> int:
+    def n_labels(self) -> int:
         if self.label_keys is not None:
             return len(self.label_encoder.classes_)
         else:
             return 1
+
+    @property
+    def registry(self) -> dict:
+        batch_mapping = self.batch_labels
+        labels_mapping = self.labels
+        features_names = list(
+            self.query.var_joinids().tolist() if self.query is not None else range(self.n_vars)
+        )
+        return {
+            "scvi_version": scvi.__version__,
+            "model_name": "SCVI",
+            "setup_args": {
+                "layer": None,
+                "batch_key": self.batch_colname,
+                "labels_key": self.label_colname,
+                "size_factor_key": None,
+                "categorical_covariate_keys": None,
+                "continuous_covariate_keys": None,
+            },
+            "field_registries": {
+                "X": {
+                    "data_registry": {"attr_name": "X", "attr_key": None},
+                    "state_registry": {
+                        "n_obs": self.n_obs,
+                        "n_vars": self.n_vars,
+                        "column_names": [str(i) for i in features_names],
+                    },
+                    "summary_stats": {"n_vars": self.n_vars, "n_cells": self.n_obs},
+                },
+                "batch": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+                    "state_registry": {
+                        "categorical_mapping": batch_mapping,
+                        "original_key": "batch",
+                    },
+                    "summary_stats": {"n_batch": self.n_batch},
+                },
+                "labels": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+                    "state_registry": {
+                        "categorical_mapping": labels_mapping,
+                        "original_key": "label",
+                        "unlabeled_category": self.unlabeled_category,
+                    },
+                    "summary_stats": {"n_labels": self.n_labels},
+                },
+                "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
+                "extra_categorical_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_categorical_covs": 0},
+                },
+                "extra_continuous_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_continuous_covs": 0},
+                },
+            },
+            "setup_method_name": "setup_datamodule",
+        }
