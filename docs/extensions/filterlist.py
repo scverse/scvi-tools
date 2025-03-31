@@ -246,8 +246,8 @@ LIST_START_HTML = """
     </div>
 
     <div class="tabs-container">
-        <div id="tab-menu">
-            <div class="tab" data-group="all">All</div>
+        <div class="tab-menu">
+            <div class="tab" data-group="all">All-testing</div>
         </div>
     </div>
 </nav>

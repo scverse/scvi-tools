@@ -49,7 +49,7 @@ function populateTabs() {
     let groups = getUniqueGroups();
 
     groups.forEach(item => {
-        $("#tab-menu")
+        $(".tab-menu")
         .append("<div class='tab' data-group='" + item + "'>" + item + "</div>")
     });
 }
@@ -101,6 +101,11 @@ function filterCards() {
 
         let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
         let matchesGroup = selectedGroup === "all" || groupName === selectedGroup;
+
+        console.log("Card tags:", cardTags);  // Log card tags
+        console.log("Selected tags:", selectedTagSet);  // Log selected tags
+        console.log("Matches tags:", matchesTags);  // Log matchesTags
+        console.log("Matches group:", matchesGroup);  // Log matchesGroup
 
         $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
     });
