@@ -17,9 +17,11 @@ from scvi.utils import dependencies
 def test_lamindb_dataloader_scvi_small(save_path: str):
     os.system("lamin init --storage ./lamindb_collection")
     import lamindb as ln
+
     # from scipy.sparse import csc_matrix, csr_matrix
     # import dask
     # import spatialdata
+    ln.setup.init()
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -109,9 +111,11 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 def test_lamindb_dataloader_scanvi_small(save_path: str):
     os.system("lamin init --storage ./lamindb_collection")
     import lamindb as ln
+
     # from scipy.sparse import csc_matrix, csr_matrix
     # import dask
     # import spatialdata
+    ln.setup.init()
 
     # prepare test data
     adata1 = synthetic_iid()
