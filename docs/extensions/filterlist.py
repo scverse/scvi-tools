@@ -246,6 +246,8 @@ LIST_START_HTML = """
     </div>
 </nav>
 
+<hr class="tutorials-hr">
+
 <nav class="navbar">
     <div class="tabs-container">
         <div class="tab-menu">
@@ -253,8 +255,6 @@ LIST_START_HTML = """
         </div>
     </div>
 </nav>
-
-<hr class="tutorials-hr">
 
 <div class="row">
 

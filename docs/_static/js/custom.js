@@ -95,7 +95,7 @@ $(document).on("click", ".filter-btn", function () {
 
 // Function to filter cards based on both tags and groups
 function filterCards() {
-    $(".card").each(function () {
+    $(".card-container").each(function () {
         let tagsData = $(this).attr("data-tags") || "";
         let cardTags = tagsData.split(",").map(tag => tag.trim());
         let groupName = $(this).attr("data-group");
@@ -104,6 +104,7 @@ function filterCards() {
         let matchesGroup = selectedGroup === "all" || groupName === selectedGroup;
 
         console.log("Card tags:", cardTags);  // Log card tags
+        console.log("Model group:", groupName) // group name
         console.log("Selected tags:", selectedTagSet);  // Log selected tags
         console.log("Matches tags:", matchesTags);  // Log matchesTags
         console.log("Matches group:", matchesGroup);  // Log matchesGroup
