@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 import psutil
 import torch
 from lightning.pytorch import LightningDataModule
@@ -14,7 +15,6 @@ from scvi.utils import dependencies
 if TYPE_CHECKING:
     from typing import Any
 
-    import numpy as np
     import pandas as pd
 
 
@@ -39,7 +39,7 @@ class MappedCollectionDataModule(LightningDataModule):
         self._parallel = kwargs.pop("parallel", True)
         # here we initialize MappedCollection to use in a pytorch DataLoader
         self._dataset = collection.mapped(
-            obs_keys=self._batch_key, parallel=self._parallel, **kwargs
+            obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
         )
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
@@ -102,7 +102,7 @@ class MappedCollectionDataModule(LightningDataModule):
 
     @property
     def labels(self) -> np.ndarray:
-        return self._dataset[self._label_key]
+        return np.array(list(self._dataset.encoders[self._label_key].keys()))
 
     @property
     def unlabeled_category(self) -> str:

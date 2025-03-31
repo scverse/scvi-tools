@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pprint import pprint
 
 import numpy as np
@@ -13,8 +14,8 @@ from scvi.utils import dependencies
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_scanvi_small(save_path: str):
-    # os.system("lamin init --storage ./lamindb_collection")
+def test_lamindb_dataloader_scvi_small(save_path: str):
+    os.system("lamin init --storage ./lamindb_collection")
     import lamindb as ln
     # from scipy.sparse import csc_matrix, csr_matrix
     # import dask
@@ -101,6 +102,92 @@ def test_lamindb_dataloader_scvi_scanvi_small(save_path: str):
     model_adata.load_query_data(
         adata=adata, reference_model="lamin_model_anndata", registry=datamodule.registry
     )
+
+
+@pytest.mark.dataloader
+@dependencies("lamindb")
+def test_lamindb_dataloader_scanvi_small(save_path: str):
+    os.system("lamin init --storage ./lamindb_collection")
+    import lamindb as ln
+    # from scipy.sparse import csc_matrix, csr_matrix
+    # import dask
+    # import spatialdata
+
+    # prepare test data
+    adata1 = synthetic_iid()
+    adata2 = synthetic_iid()
+
+    artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
+    artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
+
+    collection = ln.Collection([artifact1, artifact2], key="gather")
+    # test mapped without saving first
+    with collection.mapped() as ls_ds:
+        assert ls_ds.__class__.__name__ == "MappedCollection"
+    collection.save()
+
+    artifacts = collection.artifacts.all()
+    artifacts.df()
+
+    # large data example
+    # ln.track("d1kl7wobCO1H0005")
+    # ln.setup.init(name="lamindb_instance_name", storage=save_path)  # is this need in github test
+    # ln.setup.init()
+    # collection = ln.Collection.using("laminlabs/cellxgene").get(name="covid_normal_lung")
+    # artifacts = collection.artifacts.all()
+    # artifacts.df()
+
+    datamodule = MappedCollectionDataModule(
+        collection,
+        label_key="labels",
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
+        unlabeled_category="label_0",
+    )
+
+    # We can now create the scVI model object and train it:
+    model = scvi.model.SCANVI(
+        adata=None,
+        registry=datamodule.registry,
+        encode_covariates=False,
+        datamodule=datamodule,
+    )
+
+    model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        check_val_every_n_epoch=1,
+        early_stopping=False,
+    )
+
+    user_attributes = model._get_user_attributes()
+    pprint(user_attributes)
+
+    # save the model
+    # model.save(save_path, save_anndata=False, overwrite=True, datamodule=datamodule)
+    # load it back and do downstream analysis (not working)
+    # model_census2 = scvi.model.SCVI.load(save_path, adata=False)
+
+    inference_dataloader = datamodule.inference_dataloader()
+
+    _ = model.get_elbo(dataloader=inference_dataloader)
+    _ = model.get_marginal_ll(dataloader=inference_dataloader)
+    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model.get_latent_representation(dataloader=inference_dataloader)
+
+    logged_keys = model.history.keys()
+    # assert "elbo_validation" in logged_keys
+    # assert "reconstruction_loss_validation" in logged_keys
+    # assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    # assert "validation_classification_loss" in logged_keys
+    # assert "validation_accuracy" in logged_keys
+    # assert "validation_f1_score" in logged_keys
+    # assert "validation_calibration_error" in logged_keys
 
 
 @pytest.mark.dataloader
