@@ -3,7 +3,7 @@ function getUniqueTags() {
     let tagSet = new Set();
 
     $(".card-container").each(function() {
-        let tags = $(this).data('tags').split(",")
+        let tags = $(this).attr('data-tags').split(",")
         .map(tag => tag.trim()) // Get rid of whitespace
         .filter(tag => tag !== ""); // Make sure there are no empty tags
 
@@ -20,7 +20,7 @@ function getUniqueGroups() {
     let groupSet = new Set();
 
     $(".card-container").each(function() {
-        let group = $(this).data('model-group-name')
+        let group = $(this).attr('data-group')
 
         if (group && group.trim() !== "") {
             groupSet.add(group.trim());
@@ -67,7 +67,7 @@ let selectedTagSet = new Set();
 $(document).on("click", ".filter-btn", function () {
     console.log("button clicked!"); // for debugging
     let parent = $(this).closest(".filter-menu");
-    let tag = $(this).data("tag");
+    let tag = $(this).attr("data-tag");
 
     if (tag === "all") {
         if (!parent.hasClass("all-tag-selected")) {
@@ -96,9 +96,9 @@ $(document).on("click", ".filter-btn", function () {
 // Function to filter cards based on both tags and groups
 function filterCards() {
     $(".card").each(function () {
-        let tagsData = $(this).data("tags") ?? "";
+        let tagsData = $(this).attr("data-tags") || "";
         let cardTags = tagsData.split(",").map(tag => tag.trim());
-        let groupName = $(this).data("model-group-name");
+        let groupName = $(this).attr("data-group");
 
         let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
         let matchesGroup = selectedGroup === "all" || groupName === selectedGroup;
@@ -117,7 +117,7 @@ let selectedGroup = "all"
 
 // Handle tab selection and filtering
 $(document).on("click", ".tab", function () {
-    let group = $(this).data("group");
+    let group = $(this).attr("data-group");
 
     if (group !== selectedGroup) {
         $(".tab").removeClass("tab-selected"); // deselect current tab

@@ -217,7 +217,7 @@ def setup(app):
 # html templates for list and cards
 
 CARD_HTML = """
-<div class="card-container" data-tags="{tags}">
+<div class="card-container" data-tags="{tags}" data-group="{group}">
     <div class="card">
         <a href="{link}">
             <div class="card-body">
