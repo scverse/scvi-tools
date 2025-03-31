@@ -96,7 +96,8 @@ $(document).on("click", ".filter-btn", function () {
 // Function to filter cards based on both tags and groups
 function filterCards() {
     $(".card").each(function () {
-        let cardTags = $(this).data("tags").split(",").map(tag => tag.trim());
+        let tagsData = $(this).data("tags") ?? "";
+        let cardTags = tagsData.split(",").map(tag => tag.trim());
         let groupName = $(this).data("model-group-name");
 
         let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
