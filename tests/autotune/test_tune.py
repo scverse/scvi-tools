@@ -178,7 +178,7 @@ def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str = "
                 "max_epochs": 1,
             },
         },
-        num_samples=1,
+        num_samples=2,
         scib_indices_list=[1, 2, 3],
         seed=0,
         scheduler="asha",

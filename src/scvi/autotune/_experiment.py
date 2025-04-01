@@ -49,7 +49,7 @@ if is_package_installed("ray"):
 
     @PublicAPI
     class ScibTuneReportCheckpointCallback(TuneReportCheckpointCallback):
-        """Ray based PyTorch Lightning report and checkpoint callback, suitd for Scib-Metrics
+        """Ray based PyTorch Lightning report and checkpoint callback, suited for Scib-Metrics
 
         Saves checkpoints after each validation step. Also reports metrics to Tune,
         which is needed for checkpoint registration.
@@ -57,7 +57,7 @@ if is_package_installed("ray"):
         Args:
             metrics: Metrics to report to Tune. If this is a list,
                 each item describes the metric key reported to PyTorch Lightning,
-                and it will reported under the same name to Tune. If this is a
+                and it will be reported under the same name to Tune. If this is a
                 dict, each key will be the name reported to Tune and the respective
                 value will be the metric key reported to PyTorch Lightning.
             filename: Filename of the checkpoint within the checkpoint
@@ -72,7 +72,7 @@ if is_package_installed("ray"):
             num_rows_to_select: select number of rows to subsample (5000 default).
                 This is important to save Scib computation time
             indices_list: If not empty will be used to select the indices to calc the scib metric
-                on, therwise will use the random indices selection in size of scib_subsample_rows
+                on, otherwise will use the random indices selection in size of scib_subsample_rows
 
         """
 
@@ -195,9 +195,9 @@ if is_package_installed("ray"):
                         False, False, False, False, True
                     )
                 # else:
-                # its an aggregative metric
+                # it's an aggregation metric
                 elif self.metric == "Total":
-                    # we jsut run them all, which is the default
+                    # we just run them all, which is the default
                     self.bio_conservation_metrics = BioConservation()
                     self.batch_correction_metrics = BatchCorrection()
                 elif self.metric == "Batch correction":
@@ -239,7 +239,7 @@ class AutotuneExperiment:
         Model class on which to tune hyperparameters. Must implement a constructor and a ``train``
         method.
     data
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been set up with
         ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is

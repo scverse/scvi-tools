@@ -1041,6 +1041,7 @@ class TOTALVI(
         transform_batch: Sequence[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
+        silent: bool = True,
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
@@ -1068,6 +1069,7 @@ class TOTALVI(
             One of "pearson", "spearman".
         log_transform
             Whether to log transform denoised values prior to correlation calculation.
+        %(de_silent)s
 
         Returns
         -------
@@ -1086,7 +1088,7 @@ class TOTALVI(
         )
 
         corr_mats = []
-        for b in track(transform_batch):
+        for b in track(transform_batch, disable=silent):
             denoised_data = self._get_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,
