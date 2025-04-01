@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -28,6 +27,7 @@ from scvi.model._utils import (
 from scvi.model.base._de_core import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import (
@@ -409,6 +409,7 @@ class TOTALVI(
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ) -> tuple[np.ndarray | pd.DataFrame, np.ndarray | pd.DataFrame]:
         r"""Returns the normalized gene expression and protein expression.
 
@@ -459,6 +460,7 @@ class TOTALVI(
             Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
             names as columns. If either n_samples=1 or return_mean=True, defaults to False.
             Otherwise, it defaults to True.
+        %(de_silent)s
 
         Returns
         -------
@@ -516,7 +518,7 @@ class TOTALVI(
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
-            for b in tqdm(transform_batch):
+            for b in track(transform_batch, disable=silent):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -593,6 +595,7 @@ class TOTALVI(
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -626,6 +629,7 @@ class TOTALVI(
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
             to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -666,7 +670,7 @@ class TOTALVI(
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for b in tqdm(transform_batch):
+            for b in track(transform_batch, disable=silent):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -716,6 +720,7 @@ class TOTALVI(
         include_protein_background=False,
         protein_prior_count=0.5,
         use_field: list = None,
+        **kwargs,
     ):
         if use_field is None:
             use_field = ["rna", "protein"]  # Initialize the list inside the function
@@ -740,6 +745,7 @@ class TOTALVI(
             include_protein_background=include_protein_background,
             gene_list=gene_list,
             protein_list=protein_list,
+            **kwargs,
         )
         protein += protein_prior_count
 
@@ -1080,7 +1086,7 @@ class TOTALVI(
         )
 
         corr_mats = []
-        for b in tqdm(transform_batch):
+        for b in track(transform_batch):
             denoised_data = self._get_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,

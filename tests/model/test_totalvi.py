@@ -135,7 +135,7 @@ def test_backup_url(save_path):
     m.train(1)
 
 
-def test_totalvi(save_path="."):
+def test_totalvi(save_path):
     adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
