@@ -54,7 +54,7 @@ We assume that the observed counts for cell $n$ and gene $g$, $x_{ng}$, are gene
 :nowrap: true
 \begin{align}
  \rho _n &= f_{w}\left( z_n, s_n \right) \\
- x_{ng} &\sim \mathrm{NegativeBinomial}(\ell_n \rho_n, \theta_g),
+ x_{ng} &\sim \mathbf{NegativeBinomial}(\ell_n \rho_n, \theta_g),
  \end{align}
 ```
 where $\rho_n$ is the normalized gene expression, $\ell_n$ is the library size of cell $n$ and $\theta_g$ is the dispersion parameter for gene $g$. See {doc}`/user_guide/models/scvi` for more details.
