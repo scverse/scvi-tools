@@ -18,7 +18,7 @@ def test_totalanvi():
     )
     model = TOTALANVI(adata)
     model.train(1, train_size=0.5)
-    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", pseudocounts=3e-5)
 
     adata = synthetic_iid()
     adata.obs["label_names"] = adata.obs["labels"]

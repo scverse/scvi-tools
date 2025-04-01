@@ -769,6 +769,7 @@ class TOTALVI(
         sample_protein_mixing: bool = False,
         include_protein_background: bool = False,
         use_field: list = None,
+        pseudocounts: float | None = 1e-5,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -803,6 +804,9 @@ class TOTALVI(
             Include the protein background component as part of the protein expression
         use_field
             By default uses protein and RNA field disable here to perform only RNA or protein DE.
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -856,7 +860,7 @@ class TOTALVI(
             batch_correction,
             fdr_target,
             silent,
-            pseudocounts=1e-5,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 

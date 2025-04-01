@@ -135,7 +135,7 @@ def test_backup_url(save_path):
     m.train(1)
 
 
-def test_totalvi(save_path):
+def test_totalvi(save_path="."):
     adata = synthetic_iid()
     TOTALVI.setup_anndata(
         adata,
@@ -243,7 +243,7 @@ def test_totalvi(save_path):
     del adata2.obsm["protein_expression"]
     with pytest.raises(KeyError):
         model.get_elbo(adata2)
-    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", pseudocounts=7e-5)
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
