@@ -5,7 +5,7 @@ from sphinx.util.docutils import SphinxDirective
 from docutils.statemachine import StringList
 
 import os
-from bs4 import BeautifulSoup
+import json
 
 
 class cardnode(nodes.container, nodes.Element):
@@ -129,27 +129,30 @@ class CardDirective(SphinxDirective):
         tutorials_dir = os.path.join(docs_root, "tutorials/")
         notebook_path = os.path.join(tutorials_dir, path)
 
-        # for debugging
-        files_in_dir = os.listdir(f"{tutorials_dir}notebooks/atac")
-
         # Ensure the path has the `.ipynb` extension
-        notebook_path += ".html"
+        if not notebook_path.endswith(".ipynb"):
+            notebook_path += ".ipynb"
 
         if not os.path.exists(notebook_path):
             print(f"Notebook file {notebook_path} not found.")
-            return (
-                f"notebook not found, path tried: {notebook_path}, available files: {files_in_dir}"
-            )
+            return f"Notebook not found, path tried: {notebook_path}"
 
-        # Read the HTML content
-        with open(notebook_path, encoding="utf-8") as f:
-            soup = BeautifulSoup(f, "html.parser")
+        # Read the JSON content of the notebook
+        try:
+            with open(notebook_path, encoding="utf-8") as f:
+                notebook_data = json.load(f)
 
-        # Find the first <h1> element
-        title_tag = soup.find("h1")
-        if title_tag:
-            return title_tag.get_text(strip=True)
-        return f"debug: title_tag: {title_tag}, "
+            # Extract the first-level heading from the notebook cells
+            for cell in notebook_data.get("cells", []):
+                if cell.get("cell_type") == "markdown":
+                    for line in cell.get("source", []):
+                        if line.startswith("# "):  # First-level heading
+                            return line.lstrip("# ").strip()
+        except Exception as e:
+            print(f"Error reading notebook file {notebook_path}: {e}")
+            return f"Error reading notebook: {e}"
+
+        return "No title found"
 
     def get_index_header(self):
         """
