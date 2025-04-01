@@ -38,3 +38,8 @@ def test_methylanvi():
     vae.get_latent_representation()
     vae.differential_methylation(groupby="mod1:labels", group1="label_1")
     vae.predict()
+
+    predictions, attributions = vae.predict(ig_interpretability=True)
+    # let's see an avg of score of top 5 markers for all samples put together
+    ig_top_features = attributions.head(5)
+    print(ig_top_features)

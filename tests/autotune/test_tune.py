@@ -1,9 +1,6 @@
 import pytest
-from ray import tune
-from ray.tune import ResultGrid
 
 from scvi import settings
-from scvi.autotune import AutotuneExperiment, run_autotune
 from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter
 from scvi.model import SCANVI, SCVI
@@ -11,6 +8,11 @@ from scvi.model import SCANVI, SCVI
 
 @pytest.mark.autotune
 def test_run_autotune_scvi_basic(save_path: str):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
@@ -41,6 +43,11 @@ def test_run_autotune_scvi_basic(save_path: str):
 
 @pytest.mark.autotune
 def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
     settings.logging_dir = save_path
     adata = synthetic_iid(n_batches=n_batches)
     SCVI.setup_anndata(adata, batch_key="batch")
@@ -78,6 +85,11 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
 @pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
 def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
     settings.logging_dir = save_path
     adata = synthetic_iid()
     if model_cls == SCANVI:
@@ -122,6 +134,11 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
 
 @pytest.mark.autotune
 def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str = "iLISI"):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCANVI.setup_anndata(
@@ -144,7 +161,7 @@ def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str = "
                 "max_epochs": 1,
             },
         },
-        num_samples=1,
+        num_samples=2,
         scib_indices_list=[1, 2, 3],
         seed=0,
         scheduler="asha",

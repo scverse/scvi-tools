@@ -290,14 +290,17 @@ class SemisupervisedTrainingMixin:
                 hard_pred = pred.argmax(dim=1) if soft else pred
                 ig_args = ig_args or {}
                 attribution = ig.attribute(
-                    tuple(data_inputs.values()), target=hard_pred, **ig_args
+                    tuple(data_inputs.values()),
+                    target=hard_pred,
+                    additional_forward_args=(batch, cat_covs, cont_covs),
+                    **ig_args,
                 )
-                attributions.append(attribution[0])
+                attributions.append(torch.cat(attribution, dim=1))
 
         if ig_interpretability:
             if attributions is not None and len(attributions) > 0:
                 attributions = torch.cat(attributions, dim=0).detach().numpy()
-                attributions = self.get_ranked_genes(adata, attributions)
+                attributions = self.get_ranked_markers(adata, attributions)
 
         if len(y_pred) > 0:
             y_pred = torch.cat(y_pred).numpy()
@@ -414,7 +417,7 @@ class SemisupervisedTrainingMixin:
         )
         return runner()
 
-    def get_ranked_genes(
+    def get_ranked_markers(
         self, adata: AnnOrMuData | None = None, attrs: np.ndarray | None = None
     ) -> pd.DataFrame:
         """Get the ranked gene list based on highest attributions.
@@ -434,7 +437,7 @@ class SemisupervisedTrainingMixin:
 
         Examples
         --------
-        >>> attrs_df = model.get_ranked_genes(attrs)
+        >>> attrs_df = model.get_ranked_markers(attrs)
         """
         if attrs is None:
             Warning("Missing Attributions matrix")
@@ -442,16 +445,77 @@ class SemisupervisedTrainingMixin:
 
         adata = self._validate_anndata(adata)
 
+        # IG results
         mean_attrs = attrs.mean(axis=0)
-        idx = mean_attrs.argsort()[::-1]
+        std_attrs = attrs.std(axis=0)
+        idx = mean_attrs.argsort()[::-1] - 1  # their rank
+
+        # check how to populate this markers table
+        # self.view_anndata_setup(adata)
+        # self._model_summary_string
+        # self._get_user_attributes()
+        # self.registry_['field_registries']
+        if type(adata).__name__ == "MuData":
+            # a multimodality in mudata format
+            mod_list = adata.mod_names
+            markes_list = np.array([])
+            modality = np.array([])
+            for mod in mod_list:
+                for layer in adata[mod].layers:
+                    tmp_mod = mod + "_" + layer
+                    markes_list = np.concatenate(
+                        (
+                            markes_list,
+                            self.registry_["field_registries"][tmp_mod]["state_registry"][
+                                "column_names"
+                            ],
+                        )
+                    )
+                    modality = np.concatenate(
+                        (
+                            modality,
+                            [tmp_mod]
+                            * len(
+                                self.registry_["field_registries"][tmp_mod]["state_registry"][
+                                    "column_names"
+                                ]
+                            ),
+                        )
+                    )
+            markes_list = markes_list[idx]
+            modality = modality[idx]
+        else:
+            # a single modality in adata format
+            modality = None
+            markes_list = np.array([])
+            if "X" in self.registry_["field_registries"].keys():
+                markes_list = np.concatenate(
+                    (
+                        markes_list,
+                        self.registry_["field_registries"]["X"]["state_registry"]["column_names"],
+                    )
+                )
+            if "proteins" in self.registry_["field_registries"].keys():
+                markes_list = np.concatenate(
+                    (
+                        markes_list,
+                        self.registry_["field_registries"]["proteins"]["state_registry"][
+                            "column_names"
+                        ],
+                    )
+                )
+            markes_list = markes_list[idx]
+
         df = {
-            "gene": np.array(adata.var_names)[idx],
-            "gene_idx": idx,
+            "marker": markes_list,
+            "marker_idx": idx,
+            "modality": modality,
             "attribution_mean": mean_attrs[idx],
-            "attribution_std": attrs.std(axis=0)[idx],
+            "attribution_std": std_attrs[idx],
             "cells": attrs.shape[0],
         }
-        return pd.DataFrame(df)
+        df = pd.DataFrame(df).sort_values("attribution_mean", ascending=False)
+        return df
 
     def shap_adata_predict(
         self,
@@ -476,7 +540,10 @@ class SemisupervisedTrainingMixin:
         return self.predict(adata_to_pred, soft=True)
 
     def shap_predict(
-        self, adata: AnnOrMuData | None = None, max_size: int = 100
+        self,
+        adata: AnnOrMuData | None = None,
+        indices: Sequence[int] | None = None,
+        shap_args: dict | None = None,
     ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
         """Run SHAP interpreter for a trained model and gives back shap values"""
         missing_modules = []
@@ -488,8 +555,13 @@ class SemisupervisedTrainingMixin:
             raise ModuleNotFoundError("Please install shap to use this functionality.")
         import shap
 
+        shap_args = shap_args or {}
+
         adata_orig = self._validate_anndata()
         adata = self._validate_anndata(adata)
+        if indices is not None:
+            adata = adata[indices]
+            adata = self._validate_anndata(adata)
 
         if type(adata_orig.X).__name__ == "csr_matrix":
             feature_matrix_background = pd.DataFrame.sparse.from_spmatrix(
@@ -503,8 +575,8 @@ class SemisupervisedTrainingMixin:
             )
         else:
             feature_matrix = pd.DataFrame(adata.X, columns=adata_orig.var_names)
-        feature_matrix_background = shap.sample(feature_matrix_background, max_size)
-        feature_matrix = shap.sample(feature_matrix, max_size)
-        explainer = shap.KernelExplainer(self.shap_adata_predict, feature_matrix_background)
-        shap_values = explainer.shap_values(feature_matrix)
+        explainer = shap.KernelExplainer(
+            self.shap_adata_predict, feature_matrix_background, **shap_args
+        )
+        shap_values = explainer.shap_values(feature_matrix, **shap_args)
         return shap_values

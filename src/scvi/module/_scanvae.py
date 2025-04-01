@@ -63,6 +63,9 @@ class SCANVAE(SupervisedModuleClass, VAE):
 
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     y_prior
         If None, initialized to uniform probability over cell types
     labels_groups
@@ -99,6 +102,7 @@ class SCANVAE(SupervisedModuleClass, VAE):
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb"] = "zinb",
+        use_observed_lib_size: bool = True,
         y_prior: torch.Tensor | None = None,
         labels_groups: Sequence[int] = None,
         use_labels_groups: bool = False,
@@ -120,6 +124,7 @@ class SCANVAE(SupervisedModuleClass, VAE):
             dispersion=dispersion,
             log_variational=log_variational,
             gene_likelihood=gene_likelihood,
+            use_observed_lib_size=use_observed_lib_size,
             use_batch_norm=use_batch_norm,
             use_layer_norm=use_layer_norm,
             **vae_kwargs,
@@ -271,6 +276,16 @@ class SCANVAE(SupervisedModuleClass, VAE):
 
         loss = torch.mean(reconst_loss + kl_divergence * kl_weight)
 
+        # a payload to be used during autotune
+        if self.extra_payload_autotune:
+            extra_metrics_payload = {
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            }
+        else:
+            extra_metrics_payload = {}
+
         if labelled_tensors is not None:
             ce_loss, true_labels, logits = self.classification_loss(labelled_tensors)
 
@@ -282,10 +297,11 @@ class SCANVAE(SupervisedModuleClass, VAE):
                 classification_loss=ce_loss,
                 true_labels=true_labels,
                 logits=logits,
-                extra_metrics={
-                    "z": inference_outputs["z"],
-                    "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                    "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
-                },
+                extra_metrics=extra_metrics_payload,
             )
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_loss,
+            kl_local=kl_divergence,
+            extra_metrics=extra_metrics_payload,
+        )

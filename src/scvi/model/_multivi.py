@@ -39,6 +39,7 @@ from scvi.model.base._de_core import _de_core
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
 from scvi.train._callbacks import SaveBestState
+from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
@@ -629,6 +630,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool = False,
+        silent: bool = True,
     ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -663,6 +665,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Whether to return the mean of the samples.
         return_numpy
             Return a numpy array instead of a pandas DataFrame.
+        %(de_silent)s
 
         Returns
         -------
@@ -690,7 +693,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         exprs = []
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 if batch is not None:
                     batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
                     tensors[REGISTRY_KEYS.BATCH_KEY] = torch.ones_like(batch_indices) * batch
@@ -947,6 +950,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         use_z_mean: bool = True,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -980,6 +984,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either ``n_samples=1`` or ``return_mean=True``,
             defaults to ``False``. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -1020,7 +1025,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for _ in transform_batch:
+            for _ in track(transform_batch, disable=silent):
                 # generative_kwargs = dict(transform_batch=b)
                 generative_kwargs = {"use_z_mean": use_z_mean}
                 inference_kwargs = {"n_samples": n_samples}

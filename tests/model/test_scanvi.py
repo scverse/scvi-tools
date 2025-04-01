@@ -580,7 +580,7 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 
 
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
-def test_scanvi_interpertability_ig(unlabeled_cat: str):
+def test_scanvi_interpretability_ig(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -614,9 +614,8 @@ def test_scanvi_interpertability_ig(unlabeled_cat: str):
     print(ig_top_features_3_samples)
 
 
-@pytest.mark.optional
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
-def test_scanvi_interpertability_shap(unlabeled_cat: str):
+def test_scanvi_interpretability_shap(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
@@ -633,7 +632,7 @@ def test_scanvi_interpertability_shap(unlabeled_cat: str):
     model = SCANVI(adata, n_latent=10)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
-    # new data ig prediction specific for samples, top 5 genes
+    # new data for shap prediction specific for samples, top 5 genes
     adata2 = synthetic_iid(batch_size=10)
     adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
     adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
@@ -642,14 +641,18 @@ def test_scanvi_interpertability_shap(unlabeled_cat: str):
 
     # now run shap values and compare to previous results
     # (here, the more labels the more time it will take to run)
-    shap_values = model.shap_predict()
+    shap_values = model.shap_predict(shap_args={"nsamples": 100})
     # select the label we want to understand (usually the '1' class)
-    shap_top_features = model.get_ranked_genes(attrs=shap_values[:, :, 1]).head(5)
+    shap_top_features = model.get_ranked_markers(attrs=shap_values[:, :, 1]).head(5)
     print(shap_top_features)
 
-    # now run shap values for the test set
+    # now run shap values for the test set (can be specific class or indices and with params)
     # (here, the more labels the more time it will take to run)
-    shap_values_test = model.shap_predict(adata2)
+    shap_values_test = model.shap_predict(
+        adata2,
+        indices=[1, 2, 3],
+        shap_args={"link": "identity", "silent": True, "gc_collect": True, "nsamples": 300},
+    )
     # # select the label we want to understand (usually the '1' class)
-    shap_top_features_test = model.get_ranked_genes(attrs=shap_values_test[:, :, 1]).head(5)
+    shap_top_features_test = model.get_ranked_markers(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)
