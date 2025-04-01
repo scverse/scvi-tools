@@ -3,13 +3,16 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-import flax.linen as nn
+# import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import numpyro.distributions as dist
+import torch
+import torch.nn as nn
+import torch.nn.init as init
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
+from scvi.distributions import NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
@@ -72,73 +75,108 @@ class DecoderZXAttention(nn.Module):
         Activation function for the MLP.
     """
 
-    n_in: int
-    n_out: int
-    n_batch: int
-    n_latent_sample: int = 16
-    h_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.softmax
-    n_channels: int = 4
-    n_heads: int = 2
-    dropout_rate: float = 0.1
-    stop_gradients: bool = False
-    stop_gradients_mlp: bool = False
-    training: bool | None = None
-    n_hidden: int = 32
-    n_layers: int = 1
-    training: bool | None = None
-    low_dim_batch: bool = True
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        z: jax.typing.ArrayLike,
-        batch_covariate: jax.typing.ArrayLike,
-        size_factor: jax.typing.ArrayLike,
+        n_in: int,
+        n_out: int,
+        n_batch: int,
+        n_latent_sample: int = 16,
+        h_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.softmax,
+        n_channels: int = 4,
+        n_heads: int = 2,
+        dropout_rate: float = 0.1,
+        stop_gradients: bool = False,
+        stop_gradients_mlp: bool = False,
+        n_hidden: int = 32,
+        n_layers: int = 1,
+        training: bool | None = None,
+        low_dim_batch: bool = True,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+    ):
+        super().__init__()
+        self.n_in = n_in
+        self.n_out = n_out
+        self.n_batch = n_batch
+        self.n_latent_sample = n_latent_sample
+        self.h_activation = h_activation
+        self.n_channels = n_channels
+        self.n_heads = n_heads
+        self.dropout_rate = dropout_rate
+        self.stop_gradients = stop_gradients
+        self.stop_gradients_mlp = stop_gradients_mlp
+        self.training = training
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.training = training
+        self.low_dim_batch = low_dim_batch
+        self.activation = activation
+
+        self.layer_norm = nn.LayerNorm(self.n_in)
+        self.batch_embedding = nn.Embedding(self.n_batch, self.n_latent_sample)
+        # TODO: check below works. for jax, we use a normal initializer
+        # Lower stddev leads to better initial loss values
+        init.normal_(self.batch_embedding.weight, std=0.1)
+
+        self.res_dim = self.n_in if self.low_dim_batch else self.n_out
+
+        self.attention_block = AttentionBlock(
+            query_dim=self.n_in,
+            out_dim=self.res_dim,
+            outerprod_dim=self.n_latent_sample,
+            n_channels=self.n_channels,
+            n_heads=self.n_heads,
+            dropout_rate=self.dropout_rate,
+            n_hidden_mlp=self.n_hidden,
+            n_layers_mlp=self.n_layers,
+            stop_gradients_mlp=self.stop_gradients_mlp,
+            training=self.training,
+            activation=self.activation,
+        )
+
+        self.fc = nn.Linear(self.n_in, self.n_out)
+
+        self.px_r = nn.Parameter(
+            torch.zeros(
+                self.n_out,
+            ),
+            requires_grad=True,  # TODO: check
+        )
+        init.normal_(self.px_r)
+        self.register_parameter("px_r", self.px_r)  # TODO: not sure if this is needed
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        batch_covariate: torch.Tensor,
+        size_factor: torch.Tensor,
         training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
-        z_stop = z if not self.stop_gradients else jax.lax.stop_gradient(z)
-        z_ = nn.LayerNorm(name="u_ln")(z_stop)
+        z_stop = z if not self.stop_gradients else z.detach()  # TODO: check this is correct
+        z_ = self.layer_norm(z_stop)
 
         batch_covariate = batch_covariate.astype(int).flatten()
 
         if self.n_batch >= 2:
-            batch_embed = nn.Embed(
-                self.n_batch, self.n_latent_sample, embedding_init=_normal_initializer
-            )(batch_covariate)  # (batch, n_latent_sample)
-            batch_embed = nn.LayerNorm(name="batch_embed_ln")(batch_embed)
+            batch_embed = self.batch_embedding(batch_covariate)
+            batch_embed = nn.LayerNorm(batch_embed)
             if has_mc_samples:
-                batch_embed = jnp.tile(batch_embed, (z_.shape[0], 1, 1))
-
-            res_dim = self.n_in if self.low_dim_batch else self.n_out
+                batch_embed = batch_embed.repeat(z_.shape[0], 1, 1)
 
             query_embed = z_
             kv_embed = batch_embed
-            residual = AttentionBlock(
-                query_dim=self.n_in,
-                out_dim=res_dim,
-                outerprod_dim=self.n_latent_sample,
-                n_channels=self.n_channels,
-                n_heads=self.n_heads,
-                dropout_rate=self.dropout_rate,
-                n_hidden_mlp=self.n_hidden,
-                n_layers_mlp=self.n_layers,
-                stop_gradients_mlp=self.stop_gradients_mlp,
-                training=training,
-                activation=self.activation,
-            )(query_embed=query_embed, kv_embed=kv_embed)
-
+            residual = self.attention_block(query_embed=query_embed, kv_embed=kv_embed)
             if self.low_dim_batch:
-                mu = nn.Dense(self.n_out)(z + residual)
+                mu = self.fc(z + residual)
             else:
-                mu = nn.Dense(self.n_out)(z) + residual
+                mu = self.fc(z) + residual
         else:
-            mu = nn.Dense(self.n_out)(z_)
+            mu = self.fc(z_)
         mu = self.h_activation(mu)
         return NegativeBinomial(
-            mean=mu * size_factor,
-            inverse_dispersion=jnp.exp(self.param("px_r", jax.random.normal, (self.n_out,))),
+            mu=mu * size_factor,
+            # TODO: need to check theta, if I translated correctly from Jax
+            theta=torch.exp(self.px_r),
         )
 
 
