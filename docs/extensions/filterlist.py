@@ -130,7 +130,7 @@ class CardDirective(SphinxDirective):
         notebook_path = os.path.join(tutorials_dir, path)
 
         # for debugging
-        files_in_dir = os.listdir(f"{tutorials_dir}notebooks")
+        files_in_dir = os.listdir(f"{tutorials_dir}notebooks/atac")
 
         # Ensure the path has the `.ipynb` extension
         notebook_path += ".html"
