@@ -33,12 +33,14 @@
 
 .filter-menu {
     display: flex;
+    flex-wrap: wrap;
     row-gap: 0.5rem; /* Use relative spacing */
     column-gap: 1rem;
-    justify-content: space-between; /* Improve alignment */
+    justify-content: center;
     max-width: 100%; /* Restrict width to page */
     margin: 0 auto; /* Center the menu */
     padding: 0 1rem; /* Add padding for spacing */
+    overflow: hidden;
 }
 
 .card a {
