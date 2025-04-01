@@ -126,7 +126,8 @@ class CardDirective(SphinxDirective):
         """Retrieve the title of the notebook directly from the `.ipynb` file."""
         # Determine the actual file path (before processing)
         docs_root = self.env.srcdir  # Root directory of the source docs
-        notebook_path = os.path.join(docs_root, path)
+        tutorials_dir = os.path.join(docs_root, "tutorials/")
+        notebook_path = os.path.join(tutorials_dir, path)
 
         # for debugging
         files_in_dir = os.listdir(docs_root)
