@@ -53,7 +53,7 @@ We assume that the observed counts for cell $n$ and gene $g$, $x_{ng}$, are gene
 ```{math}
 :nowrap: true
 \begin{align}
- \rho _n &= g_{w}\left( z_n, s_n \right) \\
+ \rho _n &= f_{w}\left( z_n, s_n \right) \\
  x_{ng} &\sim \mathrm{NegativeBinomial}(\ell_n \rho_n, \theta_g),
  \end{align}
 ```
@@ -63,7 +63,7 @@ The cell-type proportions of the cell's $K$ nearest neighbors are obtained as
 ```{math}
 :nowrap: true
 \begin{align}
-    \alpha_n &\sim \mathbf{Dirichlet}\left( g_{\omega}(z_n) \right),
+    \alpha_n &\sim \mathbf{Dirichlet}\left( f_{\omega}(z_n) \right),
 \end{align}
 ```
 
@@ -74,7 +74,7 @@ Last, we assume that the neighboring cells' average expression profiles are obta
 \begin{equation}
 \eta_{nt} \sim
 \begin{cases}
-\mathcal{N} \left(g_{\nu}^{t}(z_n) \right), & \text{if } \alpha_{t} > 0 \\
+\mathcal{N} \left(f_{\nu}^{t}(z_n) \right), & \text{if } \alpha_{t} > 0 \\
 0, & \text{otherwise}
 \end{cases}
 \end{equation}
@@ -112,7 +112,7 @@ This is achieved using the method:
 >>> adata.obsm["X_nichevi"] = model.get_latent_representation()
 ```
 
-$\phi$ is a set of parameters corresponding to inference neural networks (encoders)
+$\phi$ is a set of parameters corresponding to inference neural networks (encoders).
 Users may also return samples from this distribution, as opposed to the mean, by passing the argument `give_mean=False`.
 
 ### Estimation of normalized expression
@@ -123,7 +123,7 @@ In {meth}`~scvi.external.NICHEVI.get_normalized_expression` NicheVI returns the 
 :nowrap: true
 
 \begin{align}
-   \mathbb{E}_{q_\phi(z_n \mid x_n)}\left[f_{\theta}\left(z_{n}, s_n \right) \right]
+   \mathbb{E}_{q_\phi(z_n \mid x_n)}\left[f_{w}\left(z_{n}, s_n \right) \right]
 \end{align}
 ```
 
