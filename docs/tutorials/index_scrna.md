@@ -21,3 +21,24 @@ notebooks/scrna/sysVI
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
 ```
+
+```{customcard}
+:path: notebooks/scrna/harmonization
+:tags: Analysis, Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance
+
+This is a test description. Put the description as the main content of the customcard directive.
+```
+
+```{customcard}
+:path: notebooks/scrna/scvi_in_R
+:tags: Analysis, Integration, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+This is a test description. Put the description as the main content of the customcard directive.
+```
+
+```{customcard}
+:path: notebooks/scrna/tabula_muris
+:tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance
+
+This is a test description. Put the description as the main content of the customcard directive.
+```
