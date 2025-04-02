@@ -224,7 +224,8 @@ class SemisupervisedTrainingMixin:
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
         elif (
-            "setup_method_name" in self.registry.keys()
+            hasattr(self, "registry")
+            and "setup_method_name" in self.registry.keys()
             and self.registry["setup_method_name"] == "setup_datamodule"
             and dataloader is None
         ):

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import logging
+import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -227,9 +228,10 @@ class RNASeqMixin:
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
         elif (
-            "setup_method_name" in self.registry.keys()
-            and self.registry["setup_method_name"] == "setup_datamodule"
-            and dataloader is None
+            (hasattr(self, "registry"))
+            and ("setup_method_name" in self.registry.keys())
+            and (self.registry["setup_method_name"] == "setup_datamodule")
+            and (dataloader is None)
         ):
             raise ValueError("`dataloader` must be provided.")
 
@@ -271,7 +273,7 @@ class RNASeqMixin:
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                raise Warning(
+                warnings.warn(
                     "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
                     "is`False`, returning an `np.ndarray`.",
                     UserWarning,
@@ -507,7 +509,8 @@ class RNASeqMixin:
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
         elif (
-            "setup_method_name" in self.registry.keys()
+            hasattr(self, "registry")
+            and "setup_method_name" in self.registry.keys()
             and self.registry["setup_method_name"] == "setup_datamodule"
             and dataloader is None
         ):
@@ -595,7 +598,8 @@ class RNASeqMixin:
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
         elif (
-            "setup_method_name" in self.registry.keys()
+            hasattr(self, "registry")
+            and "setup_method_name" in self.registry.keys()
             and self.registry["setup_method_name"] == "setup_datamodule"
             and dataloader is None
         ):
@@ -779,7 +783,8 @@ class RNASeqMixin:
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
         elif (
-            "setup_method_name" in self.registry.keys()
+            hasattr(self, "registry")
+            and "setup_method_name" in self.registry.keys()
             and self.registry["setup_method_name"] == "setup_datamodule"
             and dataloader is None
         ):
@@ -886,7 +891,8 @@ class RNASeqMixin:
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
         elif (
-            "setup_method_name" in self.registry.keys()
+            hasattr(self, "registry")
+            and "setup_method_name" in self.registry.keys()
             and self.registry["setup_method_name"] == "setup_datamodule"
             and dataloader is None
         ):

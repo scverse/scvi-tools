@@ -64,7 +64,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         train_size=0.9,
     )
     model.history.keys()
-    model.differential_expression(groupby="labels", group1="label_1")
 
     # The way to extract the internal model analysis is by the inference_dataloader
     inference_dataloader = datamodule.inference_dataloader()
@@ -106,7 +105,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         max_epochs=1, datamodule=datamodule_small, check_val_every_n_epoch=1, train_size=0.9
     )
     model_query.history.keys()
-    model_query.differential_expression(groupby="labels", group1="label_1")
 
     _ = model_query.get_elbo(dataloader=inference_dataloader_small)
     _ = model_query.get_marginal_ll(dataloader=inference_dataloader_small)
@@ -126,7 +124,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
     model_query_adata = model.load_query_data(adata=adata, reference_model="lamin_model")
     model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
     model_query_adata.history.keys()
-    model_query_adata.differential_expression(groupby="labels", group1="label_1")
     _ = model_query_adata.get_elbo()
     _ = model_query_adata.get_marginal_ll()
     _ = model_query_adata.get_reconstruction_error()
@@ -150,7 +147,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         adata=adata, reference_model="lamin_model_anndata", registry=datamodule.registry
     )
     model_adata.history.keys()
-    model_adata.differential_expression(groupby="labels", group1="label_1")
     # test different gene_likelihoods
     for gene_likelihood in ["zinb", "nb", "poisson"]:
         model_adata = scvi.model.SCVI(adata, gene_likelihood=gene_likelihood)

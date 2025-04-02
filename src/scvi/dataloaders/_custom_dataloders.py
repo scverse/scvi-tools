@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import psutil
+import torch
 from lightning.pytorch import LightningDataModule
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader
@@ -377,6 +378,24 @@ class TileDBDataModule(LightningDataModule):
             obs_label_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
         )
         return obs_label_df
+
+    def on_before_batch_transfer(
+        self,
+        batch,
+        dataloader_idx: int,
+    ) -> dict[str, torch.Tensor | None]:
+        # DataModule hook: transform the ExperimentDataset data batch
+        # (X: ndarray, obs_df: DataFrame)
+        # into X & batch variable tensors for scVI (using batch_encoder on scvi_batch)
+        batch_X, batch_obs = batch
+        self._add_batch_col(batch_obs, inplace=True)
+        return {
+            "X": torch.from_numpy(batch_X).float(),
+            "batch": torch.from_numpy(
+                self.batch_encoder.transform(batch_obs[self.batch_colname])
+            ).unsqueeze(1),
+            "labels": torch.empty(0),
+        }
 
     # scVI code expects these properties on the DataModule:
 

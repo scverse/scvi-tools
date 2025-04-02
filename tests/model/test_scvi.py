@@ -204,6 +204,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     # Test without observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
 
     # tests __repr__
     print(model)
