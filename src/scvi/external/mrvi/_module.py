@@ -155,6 +155,8 @@ class DecoderZXAttention(nn.Module):
         z_stop = z if not self.stop_gradients else z.detach()  # TODO: check this is correct
         z_ = self.layer_norm(z_stop)
 
+        # TODO: do we need to update self.training here? Not done in JAX version
+
         batch_covariate = batch_covariate.astype(int).flatten()
 
         if self.n_batch >= 2:
@@ -165,7 +167,9 @@ class DecoderZXAttention(nn.Module):
 
             query_embed = z_
             kv_embed = batch_embed
-            residual = self.attention_block(query_embed=query_embed, kv_embed=kv_embed)
+            residual = self.attention_block(
+                query_embed=query_embed, kv_embed=kv_embed, training=training
+            )
             if self.low_dim_batch:
                 mu = self.fc(z + residual)
             else:
@@ -181,79 +185,46 @@ class DecoderZXAttention(nn.Module):
 
 
 class EncoderUZ(nn.Module):
-    """Attention-based encoder from ``u`` to ``z``.
-
-    Parameters
-    ----------
-    n_latent
-        Number of latent variables.
-    n_sample
-        Number of samples.
-    n_latent_u
-        Number of latent variables for ``u``.
-    n_latent_sample
-        Number of latent samples.
-    n_channels
-        Number of channels in the attention block.
-    n_heads
-        Number of heads in the attention block.
-    dropout_rate
-        Dropout rate.
-    stop_gradients
-        Whether to stop gradients to ``u``.
-    stop_gradients_mlp
-        Whether to stop gradients to the MLP in the attention block.
-    use_map
-        Whether to use the MAP estimate to approximate the posterior of ``z`` given ``u``
-    n_hidden
-        Number of hidden units in the MLP.
-    n_layers
-        Number of layers in the MLP.
-    training
-        Whether the model is in training mode.
-    activation
-        Activation function for the MLP.
-    """
-
-    n_latent: int
-    n_sample: int
-    n_latent_u: int | None = None
-    n_latent_sample: int = 16
-    n_channels: int = 4
-    n_heads: int = 2
-    dropout_rate: float = 0.0
-    stop_gradients: bool = False
-    stop_gradients_mlp: bool = False
-    use_map: bool = True
-    n_hidden: int = 32
-    n_layers: int = 1
-    training: bool | None = None
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        u: jax.typing.ArrayLike,
-        sample_covariate: jax.typing.ArrayLike,
+        n_latent: int,
+        n_sample: int,
+        n_latent_u: int | None = None,
+        n_latent_sample: int = 16,
+        n_channels: int = 4,
+        n_heads: int = 2,
+        dropout_rate: float = 0.0,
+        stop_gradients: bool = False,
+        stop_gradients_mlp: bool = False,
+        use_map: bool = True,
+        n_hidden: int = 32,
+        n_layers: int = 1,
         training: bool | None = None,
-    ) -> tuple[jax.Array, jax.Array]:
-        training = nn.merge_param("training", self.training, training)
-        sample_covariate = sample_covariate.astype(int).flatten()
-        self.n_latent_u if self.n_latent_u is not None else self.n_latent  # noqa: B018
-        has_mc_samples = u.ndim == 3
-        u_stop = u if not self.stop_gradients else jax.lax.stop_gradient(u)
-        u_ = nn.LayerNorm(name="u_ln")(u_stop)
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+    ):
+        super().__init__()
+        self.n_latent = n_latent
+        self.n_sample = n_sample
+        self.n_latent_u = n_latent_u if n_latent_u is not None else n_latent
+        self.n_latent_sample = n_latent_sample
+        self.n_channels = n_channels
+        self.n_heads = n_heads
+        self.dropout_rate = dropout_rate
+        self.stop_gradients = stop_gradients
+        self.stop_gradients_mlp = stop_gradients_mlp
+        self.use_map = use_map
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.training = training
+        self.activation = activation
 
-        sample_embed = nn.Embed(
-            self.n_sample, self.n_latent_sample, embedding_init=_normal_initializer
-        )(sample_covariate)  # (batch, n_latent_sample)
-        sample_embed = nn.LayerNorm(name="sample_embed_ln")(sample_embed)
-        if has_mc_samples:
-            sample_embed = jnp.tile(sample_embed, (u_.shape[0], 1, 1))
+        self.layer_norm = nn.LayerNorm(self.n_latent_u)
+        self.embedding = nn.Embedding(self.n_sample, self.n_latent_sample)
+        self.layer_norm_embed = nn.LayerNorm(self.n_latent_sample)
 
         n_outs = 1 if self.use_map else 2
-        residual = AttentionBlock(
-            query_dim=self.n_latent,
+        self.attention_block = AttentionBlock(
+            query_dim=self.n_latent,  # TODO: why is this not n_latent_u?
             out_dim=n_outs * self.n_latent,
             outerprod_dim=self.n_latent_sample,
             n_channels=self.n_channels,
@@ -262,12 +233,34 @@ class EncoderUZ(nn.Module):
             stop_gradients_mlp=self.stop_gradients_mlp,
             n_hidden_mlp=self.n_hidden,
             n_layers_mlp=self.n_layers,
-            training=training,
+            training=self.training,
             activation=self.activation,
-        )(query_embed=u_, kv_embed=sample_embed)
+        )
 
         if self.n_latent_u is not None:
-            z_base = nn.Dense(self.n_latent)(u_stop)
+            self.fc = nn.Linear(self.n_latent_u, self.n_latent)
+
+    def forward(
+        self,
+        u: torch.Tensor,
+        sample_covariate: torch.Tensor,
+        training: bool | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        training = training if training is not None else self.training
+        sample_covariate = sample_covariate.astype(int).flatten()
+        has_mc_samples = u.ndim == 3
+        u_stop = u if not self.stop_gradients else u.detach()
+        u_ = self.layer_norm(u_stop)
+
+        sample_embed = self.embedding(sample_covariate)
+        nn.init.normal_(sample_embed.weight, std=0.1)
+        if has_mc_samples:
+            sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
+
+        residual = self.attention_block(query_embed=u_, kv_embed=sample_embed, training=training)
+
+        if self.n_latent_u is not None:
+            z_base = self.fc(u_stop)
             return z_base, residual
         else:
             return u, residual

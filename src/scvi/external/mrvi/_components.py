@@ -12,6 +12,8 @@ from torch.distributions import Normal
 
 PYTORCH_DEFAULT_SCALE = 1 / 3
 
+# TODO: need to add merge training wherever I missed it (look at jax version)
+
 
 class Dense(nn.Linear):
     def __init__(self, *args, **kwargs):
