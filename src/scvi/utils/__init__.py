@@ -4,6 +4,8 @@ from ._dependencies import dependencies, error_on_missing_dependencies, is_packa
 from ._docstrings import de_dsp, setup_anndata_dsp
 from ._jax import device_selecting_PRNGKey
 from ._track import track
+from .fastshap.fastshap import FastSHAP
+from .fastshap.surrogate import Surrogate
 
 __all__ = [
     "track",
@@ -15,4 +17,6 @@ __all__ = [
     "error_on_missing_dependencies",
     "is_package_installed",
     "dependencies",
+    "Surrogate",
+    "FastSHAP",
 ]
