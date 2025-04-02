@@ -18,12 +18,12 @@ from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Sequence
 
     from lightning import LightningDataModule
+    from torch import Tensor
 
     from scvi._types import AnnOrMuData
-
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +191,7 @@ class SemisupervisedTrainingMixin:
         use_posterior_mean: bool = True,
         ig_interpretability: bool = False,
         ig_args: dict | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> (np.ndarray | pd.DataFrame, None | np.ndarray):
         """Return cell label predictions.
 
@@ -215,11 +216,43 @@ class SemisupervisedTrainingMixin:
             sample prediction
         ig_args
             Keyword args for IntegratedGradients
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         """
-        adata = self._validate_anndata(adata)
+        if adata is not None and dataloader is not None:
+            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        elif (
+            "setup_method_name" in self.registry.keys()
+            and self.registry["setup_method_name"] == "setup_datamodule"
+            and dataloader is None
+        ):
+            raise ValueError("`dataloader` must be provided.")
 
-        if indices is None:
-            indices = np.arange(adata.n_obs)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+
+            if indices is None:
+                indices = np.arange(adata.n_obs)
+
+            scdl = self._make_data_loader(
+                adata=adata,
+                indices=indices,
+                batch_size=batch_size,
+            )
+        else:
+            scdl = dataloader
+            if indices is not None:
+                Warning(
+                    "Using indices after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected indices",
+                )
+            if batch_size is not None:
+                Warning(
+                    "Using batch_size after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected batch_size",
+                )
 
         attributions = None
         if ig_interpretability:
@@ -236,18 +269,13 @@ class SemisupervisedTrainingMixin:
             attributions = []
 
         # in case of no indices to predict return empty values
-        if len(indices) == 0:
-            pred = []
-            if ig_interpretability:
-                return pred, attributions
-            else:
-                return pred
-
-        scdl = self._make_data_loader(
-            adata=adata,
-            indices=indices,
-            batch_size=batch_size,
-        )
+        if dataloader is None:
+            if len(indices) == 0:
+                pred = []
+                if ig_interpretability:
+                    return pred, attributions
+                else:
+                    return pred
 
         y_pred = []
         for _, tensors in enumerate(scdl):

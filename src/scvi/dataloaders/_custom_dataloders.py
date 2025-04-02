@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import psutil
-import torch
 from lightning.pytorch import LightningDataModule
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader
@@ -59,12 +58,12 @@ class MappedCollectionDataModule(LightningDataModule):
     def train_dataloader(self):
         return self._create_dataloader(shuffle=True)
 
-    def inference_dataloader(self):
+    def inference_dataloader(self, shuffle=False, batch_size=4096, indices=None):
         """Dataloader for inference with `on_before_batch_transfer` applied."""
-        dataloader = self._create_dataloader(shuffle=False, batch_size=4096)
+        dataloader = self._create_dataloader(shuffle, batch_size, indices)
         return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
 
-    def _create_dataloader(self, shuffle, batch_size=None):
+    def _create_dataloader(self, shuffle, batch_size=None, indices=None):
         if self._parallel:
             num_workers = psutil.cpu_count() - 1
             worker_init_fn = self._dataset.torch_worker_init_fn
@@ -73,8 +72,12 @@ class MappedCollectionDataModule(LightningDataModule):
             worker_init_fn = None
         if batch_size is None:
             batch_size = self._batch_size
+        if indices is not None:
+            dataset = self._dataset[indices]  # TODO find a better way
+        else:
+            dataset = self._dataset
         return DataLoader(
-            self._dataset,
+            dataset,
             batch_size=batch_size,
             shuffle=shuffle,
             num_workers=num_workers,
@@ -205,7 +208,7 @@ class MappedCollectionDataModule(LightningDataModule):
         return {
             X_KEY: batch["X"].float(),
             BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
-            LABEL_KEY: 0,
+            LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else 0,
         }
 
     class _InferenceDataloader:
@@ -374,24 +377,6 @@ class TileDBDataModule(LightningDataModule):
             obs_label_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
         )
         return obs_label_df
-
-    def on_before_batch_transfer(
-        self,
-        batch,
-        dataloader_idx: int,
-    ) -> dict[str, torch.Tensor | None]:
-        # DataModule hook: transform the ExperimentDataset data batch
-        # (X: ndarray, obs_df: DataFrame)
-        # into X & batch variable tensors for scVI (using batch_encoder on scvi_batch)
-        batch_X, batch_obs = batch
-        self._add_batch_col(batch_obs, inplace=True)
-        return {
-            "X": torch.from_numpy(batch_X).float(),
-            "batch": torch.from_numpy(
-                self.batch_encoder.transform(batch_obs[self.batch_colname])
-            ).unsqueeze(1),
-            "labels": torch.empty(0),
-        }
 
     # scVI code expects these properties on the DataModule:
 

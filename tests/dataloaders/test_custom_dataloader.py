@@ -52,48 +52,96 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     pprint(datamodule.registry)
 
-    model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
+    model = scvi.model.SCVI(registry=datamodule.registry)
     pprint(model.summary_stats)
     pprint(model.module)
+
+    model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+        check_val_every_n_epoch=1,
+        train_size=0.9,
+    )
+    model.history.keys()
+    model.differential_expression(groupby="labels", group1="label_1")
+
+    # The way to extract the internal model analysis is by the inference_dataloader
     inference_dataloader = datamodule.inference_dataloader()
-
-    model.train(max_epochs=1, batch_size=1024, datamodule=datamodule)
-
     _ = model.get_elbo(dataloader=inference_dataloader)
     _ = model.get_marginal_ll(dataloader=inference_dataloader)
     _ = model.get_reconstruction_error(dataloader=inference_dataloader)
     _ = model.get_latent_representation(dataloader=inference_dataloader)
+    _ = model.posterior_predictive_sample(dataloader=inference_dataloader)
+    _ = model.get_normalized_expression(dataloader=inference_dataloader)
+    _ = model.get_likelihood_parameters(dataloader=inference_dataloader)
+    _ = model._get_denoised_samples(dataloader=inference_dataloader)
+    _ = model.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
 
+    # repeat but with other data with fewer indices and smaller batch size
+    adata1_small = synthetic_iid(batch_size=10)
+    adata2_small = synthetic_iid(batch_size=10)
+    artifact1_small = ln.Artifact.from_anndata(adata1_small, key="part_one_small.h5ad").save()
+    artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
+    collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
+    datamodule_small = MappedCollectionDataModule(
+        collection_small, batch_key="batch", batch_size=1024, join="inner"
+    )
+    inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
+    _ = model.get_elbo(return_mean=False, dataloader=inference_dataloader_small)
+    _ = model.get_marginal_ll(n_mc_samples=3, dataloader=inference_dataloader_small)
+    _ = model.get_reconstruction_error(return_mean=False, dataloader=inference_dataloader_small)
+    _ = model.get_latent_representation(dataloader=inference_dataloader_small)
+    _ = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], dataloader=inference_dataloader_small
+    )
+    _ = model.get_normalized_expression(n_samples=2, dataloader=inference_dataloader_small)
+
+    # load and save and make query with the other data
     model.save("lamin_model", save_anndata=False, overwrite=True, datamodule=datamodule)
     model_query = model.load_query_data(
         adata=False, reference_model="lamin_model", registry=datamodule.registry
     )
-    model_query.train(max_epochs=1, datamodule=datamodule)
-    _ = model_query.get_elbo(dataloader=inference_dataloader)
-    _ = model_query.get_marginal_ll(dataloader=inference_dataloader)
-    _ = model_query.get_reconstruction_error(dataloader=inference_dataloader)
-    _ = model_query.get_latent_representation(dataloader=inference_dataloader)
+    model_query.train(
+        max_epochs=1, datamodule=datamodule_small, check_val_every_n_epoch=1, train_size=0.9
+    )
+    model_query.history.keys()
+    model_query.differential_expression(groupby="labels", group1="label_1")
 
+    _ = model_query.get_elbo(dataloader=inference_dataloader_small)
+    _ = model_query.get_marginal_ll(dataloader=inference_dataloader_small)
+    _ = model_query.get_reconstruction_error(dataloader=inference_dataloader_small)
+    _ = model_query.get_latent_representation(dataloader=inference_dataloader_small)
+    _ = model_query.posterior_predictive_sample(dataloader=inference_dataloader_small)
+    _ = model_query.get_normalized_expression(dataloader=inference_dataloader_small)
+    _ = model_query.get_likelihood_parameters(dataloader=inference_dataloader_small)
+    _ = model_query._get_denoised_samples(dataloader=inference_dataloader_small)
+    _ = model_query.get_latent_library_size(dataloader=inference_dataloader_small, give_mean=False)
+
+    # query again but with the adata of the model, which might bring more functionality
     adata = collection.load(join="inner")
     scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
     with pytest.raises(ValueError):
         model.load_query_data(adata=adata)
     model_query_adata = model.load_query_data(adata=adata, reference_model="lamin_model")
-    model_query_adata.train(max_epochs=1)
+    model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
+    model_query_adata.history.keys()
+    model_query_adata.differential_expression(groupby="labels", group1="label_1")
     _ = model_query_adata.get_elbo()
     _ = model_query_adata.get_marginal_ll()
     _ = model_query_adata.get_reconstruction_error()
     _ = model_query_adata.get_latent_representation()
     _ = model_query_adata.get_latent_representation(dataloader=inference_dataloader)
-
+    _ = model_query_adata.posterior_predictive_sample(indices=[1, 2, 3])
     model.save("lamin_model", save_anndata=False, overwrite=True, datamodule=datamodule)
     model.load("lamin_model", adata=False)
     model.load_query_data(adata=False, reference_model="lamin_model", registry=datamodule.registry)
 
+    # cretae a regular model
     model.load_query_data(adata=adata, reference_model="lamin_model")
     model_adata = model.load("lamin_model", adata=adata)
     scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    model_adata.train(max_epochs=1)
+    model_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
     model_adata.save(
         "lamin_model_anndata", save_anndata=True, overwrite=True, datamodule=datamodule
     )
@@ -101,6 +149,17 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
     model_adata.load_query_data(
         adata=adata, reference_model="lamin_model_anndata", registry=datamodule.registry
     )
+    model_adata.history.keys()
+    model_adata.differential_expression(groupby="labels", group1="label_1")
+    # test different gene_likelihoods
+    for gene_likelihood in ["zinb", "nb", "poisson"]:
+        model_adata = scvi.model.SCVI(adata, gene_likelihood=gene_likelihood)
+        model_adata.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model_adata.posterior_predictive_sample()
+        model_adata.get_latent_representation()
+        model_adata.get_normalized_expression()
+
+    # TODO: validation set of lamindb training
 
 
 @pytest.mark.dataloader
@@ -156,6 +215,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         datamodule=datamodule,
         max_epochs=1,
         batch_size=1024,
+        train_size=0.5,
         check_val_every_n_epoch=1,
         early_stopping=False,
     )
@@ -164,9 +224,9 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     pprint(user_attributes)
 
     # save the model
-    # model.save(save_path, save_anndata=False, overwrite=True, datamodule=datamodule)
+    # model.save("lamin_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
     # load it back and do downstream analysis (not working)
-    # model_census2 = scvi.model.SCVI.load(save_path, adata=False)
+    # model_census2 = scvi.model.SCVI.load("lamin_model_scanvi", adata=False)
 
     inference_dataloader = datamodule.inference_dataloader()
 
@@ -174,6 +234,11 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     _ = model.get_marginal_ll(dataloader=inference_dataloader)
     _ = model.get_reconstruction_error(dataloader=inference_dataloader)
     _ = model.get_latent_representation(dataloader=inference_dataloader)
+    _ = model.posterior_predictive_sample(dataloader=inference_dataloader)
+    _ = model.get_normalized_expression(dataloader=inference_dataloader)
+    _ = model.get_likelihood_parameters(dataloader=inference_dataloader)
+    _ = model._get_denoised_samples(dataloader=inference_dataloader)
+    _ = model.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
 
     logged_keys = model.history.keys()
     # assert "elbo_validation" in logged_keys
@@ -186,6 +251,23 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     # assert "validation_accuracy" in logged_keys
     # assert "validation_f1_score" in logged_keys
     # assert "validation_calibration_error" in logged_keys
+
+    # repeat but with other data with fewer indices and smaller batch size
+    adata1_small = synthetic_iid(batch_size=10)
+    adata2_small = synthetic_iid(batch_size=10)
+    artifact1_small = ln.Artifact.from_anndata(adata1_small, key="part_one_small.h5ad").save()
+    artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
+    collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
+    datamodule_small = MappedCollectionDataModule(
+        collection_small, batch_key="batch", batch_size=1024, join="inner"
+    )
+    inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
+
+    # adata = collection.load(join="inner")
+
+    # TODO: PREDICT OF SCANVI with adata and datamodule
+    # predictions = model.predict(adata=adata)
+    model.predict(dataloader=inference_dataloader_small, soft=False)
 
 
 @pytest.mark.dataloader

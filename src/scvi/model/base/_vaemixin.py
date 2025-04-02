@@ -74,11 +74,29 @@ class VAEMixin:
 
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif dataloader is None:
+        elif (
+            "setup_method_name" in self.registry.keys()
+            and self.registry["setup_method_name"] == "setup_datamodule"
+            and dataloader is None
+        ):
+            raise ValueError("`dataloader` must be provided.")
+
+        if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            if indices is not None:
+                Warning(
+                    "Using indices after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected indices",
+                )
+            if batch_size is not None:
+                Warning(
+                    "Using batch_size after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected batch_size",
+                )
 
         return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
 
@@ -141,12 +159,29 @@ class VAEMixin:
             )
         elif adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        elif (
+            "setup_method_name" in self.registry.keys()
+            and self.registry["setup_method_name"] == "setup_datamodule"
+            and dataloader is None
+        ):
+            raise ValueError("`dataloader` must be provided.")
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            if indices is not None:
+                Warning(
+                    "Using indices after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected indices",
+                )
+            if batch_size is not None:
+                Warning(
+                    "Using batch_size after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected batch_size",
+                )
 
         log_likelihoods: list[float | Tensor] = [
             self.module.marginal_ll(
@@ -212,12 +247,29 @@ class VAEMixin:
 
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        elif (
+            "setup_method_name" in self.registry.keys()
+            and self.registry["setup_method_name"] == "setup_datamodule"
+            and dataloader is None
+        ):
+            raise ValueError("`dataloader` must be provided.")
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            if indices is not None:
+                Warning(
+                    "Using indices after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected indices",
+                )
+            if batch_size is not None:
+                Warning(
+                    "Using batch_size after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected batch_size",
+                )
 
         return compute_reconstruction_error(
             self.module, dataloader, return_mean=return_mean, **kwargs
@@ -279,12 +331,29 @@ class VAEMixin:
         self._check_if_trained(warn=False)
         if adata is not None and dataloader is not None:
             raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        elif (
+            "setup_method_name" in self.registry.keys()
+            and self.registry["setup_method_name"] == "setup_datamodule"
+            and dataloader is None
+        ):
+            raise ValueError("`dataloader` must be provided.")
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            if indices is not None:
+                Warning(
+                    "Using indices after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected indices",
+                )
+            if batch_size is not None:
+                Warning(
+                    "Using batch_size after custom Dataloader was initialize is redundant, "
+                    "please re-initialize with selected batch_size",
+                )
 
         zs: list[Tensor] = []
         qz_means: list[Tensor] = []
