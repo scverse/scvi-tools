@@ -29,6 +29,7 @@ class MappedCollectionDataModule(LightningDataModule):
         label_key: str | None = None,
         unlabeled_category: str | None = "Unknown",
         batch_size: int = 128,
+        collection_val: ln.Collection | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -42,22 +43,35 @@ class MappedCollectionDataModule(LightningDataModule):
             self._dataset = collection.mapped(
                 obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
             )
+            if collection_val is not None:
+                self._validset = collection_val.mapped(
+                    obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
+                )
+            else:
+                self._validset = None
         else:
             self._dataset = collection.mapped(
                 obs_keys=self._batch_key, parallel=self._parallel, **kwargs
             )
+            if collection_val is not None:
+                self._validset = collection_val.mapped(
+                    obs_keys=self._batch_key, parallel=self._parallel, **kwargs
+                )
+            else:
+                self._validset = None
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
 
     def close(self):
         self._dataset.close()
+        self._validset.close()
 
-    def setup(self, stage):
-        pass
-
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader:
         return self._create_dataloader(shuffle=True)
+
+    def val_dataloader(self) -> DataLoader:
+        return self._create_dataloader_val(shuffle=True)
 
     def inference_dataloader(self, shuffle=False, batch_size=4096, indices=None):
         """Dataloader for inference with `on_before_batch_transfer` applied."""
@@ -84,6 +98,30 @@ class MappedCollectionDataModule(LightningDataModule):
             num_workers=num_workers,
             worker_init_fn=worker_init_fn,
         )
+
+    def _create_dataloader_val(self, shuffle, batch_size=None, indices=None):
+        if self._validset is not None:
+            if self._parallel:
+                num_workers = psutil.cpu_count() - 1
+                worker_init_fn = self._validset.torch_worker_init_fn
+            else:
+                num_workers = 0
+                worker_init_fn = None
+            if batch_size is None:
+                batch_size = self._batch_size
+            if indices is not None:
+                validset = self._validset[indices]  # TODO find a better way
+            else:
+                validset = self._validset
+            return DataLoader(
+                validset,
+                batch_size=batch_size,
+                shuffle=shuffle,
+                num_workers=num_workers,
+                worker_init_fn=worker_init_fn,
+            )
+        else:
+            pass
 
     @property
     def n_obs(self) -> int:
@@ -359,6 +397,8 @@ class TileDBDataModule(LightningDataModule):
                 self.val_dataset,
                 **self.dataloader_kwargs,
             )
+        else:
+            pass
 
     def _add_batch_col(self, obs_df: pd.DataFrame, inplace: bool = False):
         # synthesize a new column for obs_df by concatenating the self.batch_column_names columns

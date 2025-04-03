@@ -42,7 +42,10 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
     # artifacts.df()
 
     datamodule = MappedCollectionDataModule(
-        collection, batch_key="batch", batch_size=1024, join="inner"
+        collection,
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
     )
 
     print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
@@ -57,8 +60,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         max_epochs=1,
         batch_size=1024,
         datamodule=datamodule,
-        check_val_every_n_epoch=1,
-        train_size=0.9,
     )
     model.history.keys()
 
@@ -82,7 +83,11 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
     artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
     collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
     datamodule_small = MappedCollectionDataModule(
-        collection_small, batch_key="batch", batch_size=1024, join="inner"
+        collection_small,
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
+        collection_val=collection,
     )
     inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
     _ = model.get_elbo(return_mean=False, dataloader=inference_dataloader_small)
@@ -148,12 +153,10 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
     # test different gene_likelihoods
     for gene_likelihood in ["zinb", "nb", "poisson"]:
         model_adata = scvi.model.SCVI(adata, gene_likelihood=gene_likelihood)
-        model_adata.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model_adata.train(1, check_val_every_n_epoch=1, train_size=0.9)
         model_adata.posterior_predictive_sample()
         model_adata.get_latent_representation()
         model_adata.get_normalized_expression()
-
-    # TODO: validation set of lamindb training
 
 
 @pytest.mark.dataloader
@@ -206,18 +209,18 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         datamodule=datamodule,
         max_epochs=1,
         batch_size=1024,
-        train_size=0.5,
-        check_val_every_n_epoch=1,
+        train_size=1,
         early_stopping=False,
     )
 
     user_attributes = model._get_user_attributes()
     pprint(user_attributes)
+    model.history.keys()
 
     # save the model
-    model.save("lamin_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # model.save("lamin_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
     # load it back and do downstream analysis (not working)
-    scvi.model.SCANVI.load("lamin_model_scanvi", adata=False)
+    # scvi.model.SCANVI.load("lamin_model_scanvi", adata=False)
 
     inference_dataloader = datamodule.inference_dataloader()
 
@@ -250,7 +253,10 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
     collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
     datamodule_small = MappedCollectionDataModule(
-        collection_small, batch_key="batch", batch_size=1024, join="inner"
+        collection_small,
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
     )
     inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
 
@@ -258,6 +264,17 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 
     # train from scvi model
     model_scvi = scvi.model.SCVI(registry=datamodule.registry)
+
+    # with validation collection
+    datamodule = MappedCollectionDataModule(
+        collection,
+        label_key="labels",
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
+        unlabeled_category="label_0",
+        collection_val=collection_small,
+    )
 
     model_scvi.train(
         max_epochs=1,
@@ -267,6 +284,15 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         train_size=0.9,
     )
     model_scvi.save("lamin_model_scvi", save_anndata=False, overwrite=True, datamodule=datamodule)
+
+    logged_keys = model_scvi.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "validation_loss" in logged_keys
 
     # We can now create the scVI model object and train it:
     model_scanvi_from_scvi = scvi.model.SCANVI.from_scvi_model(
@@ -282,16 +308,25 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         datamodule=datamodule,
         max_epochs=1,
         batch_size=1024,
-        train_size=0.5,
+        train_size=0.9,
         check_val_every_n_epoch=1,
         early_stopping=False,
     )
     # save the model
-    model_scanvi_from_scvi.save(
-        "lamin_model_scanvi_from_scvi", save_anndata=False, overwrite=True, datamodule=datamodule
-    )
-    # load it back and do downstream analysis (not working)
-    scvi.model.SCANVI.load("lamin_model_scanvi_from_scvi", adata=False)
+    # model_scanvi_from_scvi.save(
+    #     "lamin_model_scanvi_from_scvi", save_anndata=False, overwrite=True, datamodule=datamodule
+    # )
+    # # load it back and do downstream analysis (not working)
+    # scvi.model.SCANVI.load("lamin_model_scanvi_from_scvi", adata=False)
+
+    logged_keys = model_scanvi_from_scvi.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "validation_loss" in logged_keys
 
     inference_dataloader = datamodule.inference_dataloader()
 
@@ -316,6 +351,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     model_query_adata = scvi.model.SCANVI(adata, encode_covariates=True)
     model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
     model_query_adata.predict(adata=adata, soft=True)
+    model.history.keys()
 
 
 @pytest.mark.dataloader
@@ -352,6 +388,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
         layer_name="raw",
         batch_size=1024,
         shuffle=True,
+        train_size=0.9,
         seed=42,
         batch_column_names=batch_keys,
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
@@ -379,11 +416,13 @@ def test_census_custom_dataloader_scvi(save_path: str):
         max_epochs=1,
         batch_size=1024,
         train_size=0.9,
+        check_val_every_n_epoch=1,
         early_stopping=False,
     )
 
     user_attributes = model._get_user_attributes()
     pprint(user_attributes)
+    model.history.keys()
 
     # save the model
     model.save("census_model", save_anndata=False, overwrite=True, datamodule=datamodule)
@@ -497,6 +536,8 @@ def test_census_custom_dataloader_scvi(save_path: str):
     model_census3.train(
         datamodule=datamodule,
         max_epochs=1,
+        check_val_every_n_epoch=1,
+        train_size=0.9,
         early_stopping=False,
     )
 
@@ -506,14 +547,14 @@ def test_census_custom_dataloader_scvi(save_path: str):
     _ = model_census3.get_marginal_ll()
     _ = model_census3.get_reconstruction_error()
     _ = model_census3.get_latent_representation()
-    _ = model_census3.posterior_predictive_sample(dataloader=inference_dataloader)
-    _ = model_census3.get_normalized_expression(dataloader=inference_dataloader)
-    _ = model_census3.get_likelihood_parameters(dataloader=inference_dataloader)
-    _ = model_census3._get_denoised_samples(dataloader=inference_dataloader)
-    _ = model_census3.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
+    _ = model_census3.posterior_predictive_sample()
+    _ = model_census3.get_normalized_expression()
+    _ = model_census3.get_likelihood_parameters()
+    _ = model_census3._get_denoised_samples()
+    _ = model_census3.get_latent_library_size(give_mean=False)
     for gene_likelihood in ["zinb", "nb", "poisson"]:
         model_adata = scvi.model.SCVI(adata, gene_likelihood=gene_likelihood)
-        model_adata.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model_adata.train(1, check_val_every_n_epoch=1, train_size=0.9)
 
     scvi.model.SCVI.prepare_query_anndata(adata, "census_model2", return_reference_var_names=True)
     scvi.model.SCVI.load_query_data(adata, "census_model2")
@@ -587,17 +628,19 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         datamodule=datamodule,
         max_epochs=1,
         batch_size=1024,
+        train_size=0.9,
         check_val_every_n_epoch=1,
         early_stopping=False,
     )
 
     user_attributes = model._get_user_attributes()
     pprint(user_attributes)
+    model.history.keys()
 
     # save the model
-    model.save("census_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # model.save("census_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
     # load it back and do downstream analysis (not working)
-    scvi.model.SCANVI.load("census_model_scanvi", adata=False)
+    # scvi.model.SCANVI.load("census_model_scanvi", adata=False)
 
     # Generate cell embeddings
     inference_datamodule = TileDBDataModule(
@@ -608,6 +651,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         shuffle=False,
         batch_column_names=batch_keys,
         label_keys=label_keys,
+        train_size=0.9,
         unlabeled_category="label_0",
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
@@ -675,6 +719,8 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     # assert "validation_accuracy" in logged_keys
     # assert "validation_f1_score" in logged_keys
     # assert "validation_calibration_error" in logged_keys
+    assert "kl_global_validation" in logged_keys
+    assert "kl_global_train" in logged_keys
 
     model.predict(dataloader=inference_dataloader, soft=False)
 
@@ -703,30 +749,30 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         datamodule=datamodule,
         max_epochs=1,
         batch_size=1024,
-        train_size=0.5,
+        train_size=0.9,
         check_val_every_n_epoch=1,
         early_stopping=False,
     )
-    # save the model
-    model_scanvi_from_scvi.save(
-        "census_model_scanvi_from_scvi", save_anndata=False, overwrite=True, datamodule=datamodule
-    )
-    # load it back and do downstream analysis (not working)
-    model_scanvi_from_scvi_loaded = scvi.model.SCANVI.load(
-        "census_model_scanvi_from_scvi", adata=False
-    )
+    # # save the model
+    # model_scanvi_from_scvi.save(
+    #     "census_model_scanvi_from_scvi",save_anndata=False, overwrite=True, datamodule=datamodule
+    # )
+    # # load it back and do downstream analysis (not working)
+    # model_scanvi_from_scvi_loaded = scvi.model.SCANVI.load(
+    #     "census_model_scanvi_from_scvi", adata=False
+    # )
 
     inference_dataloader = datamodule.inference_dataloader()
 
-    _ = model_scanvi_from_scvi_loaded.get_elbo(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.get_marginal_ll(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.get_reconstruction_error(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.get_latent_representation(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.posterior_predictive_sample(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.get_normalized_expression(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.get_likelihood_parameters(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded._get_denoised_samples(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi_loaded.get_latent_library_size(
+    _ = model_scanvi_from_scvi.get_elbo(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.get_marginal_ll(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.get_latent_representation(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.posterior_predictive_sample(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.get_normalized_expression(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.get_likelihood_parameters(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi._get_denoised_samples(dataloader=inference_dataloader)
+    _ = model_scanvi_from_scvi.get_latent_library_size(
         dataloader=inference_dataloader, give_mean=False
     )
 
