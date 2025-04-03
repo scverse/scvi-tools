@@ -651,7 +651,6 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         shuffle=False,
         batch_column_names=batch_keys,
         label_keys=label_keys,
-        train_size=0.9,
         unlabeled_category="label_0",
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
