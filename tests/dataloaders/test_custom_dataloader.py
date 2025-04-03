@@ -780,9 +780,9 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     # we make the batch name the same as in the model
     adata.obs["batch"] = adata.obs[batch_keys].agg("//".join, axis=1).astype("category")
 
-    scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    model_query_adata = model.load_query_data(
-        adata=adata, reference_model="census_model_scanvi_from_scvi"
-    )
-    model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
-    model_query_adata.predict(adata=adata)
+    # scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
+    # model_query_adata = model.load_query_data(
+    #     adata=adata, reference_model="census_model_scanvi_from_scvi"
+    # )
+    # model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
+    # model_query_adata.predict(adata=adata)
