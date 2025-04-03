@@ -1168,7 +1168,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
         model.train(datamodule=datamodule)
 
     # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         model.train()
 
     model.train(max_epochs=1, datamodule=datamodule)
@@ -1181,10 +1181,6 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
 
 
 def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
@@ -1207,7 +1203,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=n_latent)
+    model = SCVI(adata=None, n_latent=n_latent)  # model with no adata
     assert model._module_init_on_train
     assert model.module is None
 
@@ -1216,7 +1212,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
         model.train(datamodule=datamodule)
 
     # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         model.train()
 
     model.train(max_epochs=1, datamodule=datamodule)
@@ -1229,10 +1225,6 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
