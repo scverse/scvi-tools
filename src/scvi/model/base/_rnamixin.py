@@ -13,6 +13,7 @@ import torch.distributions as db
 from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
@@ -225,15 +226,7 @@ class RNASeqMixin:
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_genes).
         """
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif (
-            (hasattr(self, "registry"))
-            and ("setup_method_name" in self.registry.keys())
-            and (self.registry["setup_method_name"] == "setup_datamodule")
-            and (dataloader is None)
-        ):
-            raise ValueError("`dataloader` must be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
@@ -253,21 +246,12 @@ class RNASeqMixin:
 
         else:
             scdl = dataloader
-            if indices is not None:
-                Warning(
-                    "Using indices after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
-            if batch_size is not None:
-                Warning(
-                    "Using batch_size after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected batch_size",
-                )
-            if n_samples is not None:
-                Warning(
-                    "Using n_samples after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
             gene_mask = slice(None)
             transform_batch = [None]
 
@@ -506,15 +490,7 @@ class RNASeqMixin:
         """
         import sparse
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif (
-            hasattr(self, "registry")
-            and "setup_method_name" in self.registry.keys()
-            and self.registry["setup_method_name"] == "setup_datamodule"
-            and dataloader is None
-        ):
-            raise ValueError("`dataloader` must be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
@@ -531,21 +507,12 @@ class RNASeqMixin:
                         "None of the provided genes in ``gene_list`` were detected in the data."
                     )
         else:
-            if indices is not None:
-                Warning(
-                    "Using indices after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
-            if batch_size is not None:
-                Warning(
-                    "Using batch_size after custom Dataloader was initialize is redundant,"
-                    "please re-initialize with selected batch_size",
-                )
-            if gene_list is not None:
-                Warning(
-                    "Using gene_list after custom Dataloader was initialize is redundant,"
-                    "please re-initialize with selected gene_list",
-                )
+            for param in [indices, batch_size, gene_list]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
             gene_mask = slice(None)
 
         x_hat = []
@@ -595,36 +562,19 @@ class RNASeqMixin:
         -------
         denoised_samples
         """
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif (
-            hasattr(self, "registry")
-            and "setup_method_name" in self.registry.keys()
-            and self.registry["setup_method_name"] == "setup_datamodule"
-            and dataloader is None
-        ):
-            raise ValueError("`dataloader` must be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         else:
             scdl = dataloader
-            if indices is not None:
-                Warning(
-                    "Using indices after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
-            if batch_size is not None:
-                Warning(
-                    "Using batch_size after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected batch_size",
-                )
-            if n_samples is not None:
-                Warning(
-                    "Using n_samples after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
             transform_batch = None
 
         data_loader_list = []
@@ -780,36 +730,19 @@ class RNASeqMixin:
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
         """
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif (
-            hasattr(self, "registry")
-            and "setup_method_name" in self.registry.keys()
-            and self.registry["setup_method_name"] == "setup_datamodule"
-            and dataloader is None
-        ):
-            raise ValueError("`dataloader` must be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         else:
             scdl = dataloader
-            if indices is not None:
-                Warning(
-                    "Using indices after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
-            if batch_size is not None:
-                Warning(
-                    "Using batch_size after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected batch_size",
-                )
-            if n_samples is not None:
-                Warning(
-                    "Using n_samples after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         dropout_list = []
         mean_list = []
@@ -888,15 +821,7 @@ class RNASeqMixin:
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
         """
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif (
-            hasattr(self, "registry")
-            and "setup_method_name" in self.registry.keys()
-            and self.registry["setup_method_name"] == "setup_datamodule"
-            and dataloader is None
-        ):
-            raise ValueError("`dataloader` must be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             self._check_if_trained(warn=False)
@@ -904,16 +829,12 @@ class RNASeqMixin:
             scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         else:
             scdl = dataloader
-            if indices is not None:
-                Warning(
-                    "Using indices after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
-            if batch_size is not None:
-                Warning(
-                    "Using batch_size after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected batch_size",
-                )
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         libraries = []
         for tensors in scdl:

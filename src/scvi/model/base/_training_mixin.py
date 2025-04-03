@@ -10,7 +10,7 @@ import pandas as pd
 import torch
 
 from scvi import REGISTRY_KEYS
-from scvi.data._utils import get_anndata_attribute
+from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import SemiSupervisedTrainingPlan, TrainingPlan, TrainRunner
@@ -221,15 +221,7 @@ class SemisupervisedTrainingMixin:
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
         """
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif (
-            hasattr(self, "registry")
-            and "setup_method_name" in self.registry.keys()
-            and self.registry["setup_method_name"] == "setup_datamodule"
-            and dataloader is None
-        ):
-            raise ValueError("`dataloader` must be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
@@ -244,16 +236,12 @@ class SemisupervisedTrainingMixin:
             )
         else:
             scdl = dataloader
-            if indices is not None:
-                Warning(
-                    "Using indices after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected indices",
-                )
-            if batch_size is not None:
-                Warning(
-                    "Using batch_size after custom Dataloader was initialize is redundant, "
-                    "please re-initialize with selected batch_size",
-                )
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         attributions = None
         if ig_interpretability:
