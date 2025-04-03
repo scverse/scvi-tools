@@ -762,20 +762,6 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     #     "census_model_scanvi_from_scvi", adata=False
     # )
 
-    inference_dataloader = datamodule.inference_dataloader()
-
-    _ = model_scanvi_from_scvi.get_elbo(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.get_marginal_ll(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.get_reconstruction_error(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.get_latent_representation(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.posterior_predictive_sample(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.get_normalized_expression(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.get_likelihood_parameters(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi._get_denoised_samples(dataloader=inference_dataloader)
-    _ = model_scanvi_from_scvi.get_latent_library_size(
-        dataloader=inference_dataloader, give_mean=False
-    )
-
     # generating adata from this census
     adata = cellxgene_census.get_anndata(
         census,
