@@ -5,7 +5,6 @@
 
 notebooks/quick_start/api_overview
 notebooks/quick_start/data_loading
-notebooks/quick_start/python_in_R
 ```
 
 ```{customcard}
@@ -18,13 +17,6 @@ This is a test description. Put the description as the main content of the custo
 ```{customcard}
 :path: notebooks/quick_start/data_loading
 :tags: Integration
-
-This is a test description. Put the description as the main content of the customcard directive.
-```
-
-```{customcard}
-:path: notebooks/quick_start/python_in_R
-:tags:
 
 This is a test description. Put the description as the main content of the customcard directive.
 ```

@@ -4,7 +4,6 @@
 :maxdepth: 1
 
 notebooks/scrna/harmonization
-notebooks/scrna/scvi_in_R
 notebooks/scrna/tabula_muris
 notebooks/scrna/scarches_scvi_tools
 notebooks/scrna/query_hlca_knn
@@ -29,12 +28,7 @@ notebooks/scrna/velovi
 This is a test description. Put the description as the main content of the customcard directive.
 ```
 
-```{customcard}
-:path: notebooks/scrna/scvi_in_R
-:tags: Analysis, Integration, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
-This is a test description. Put the description as the main content of the customcard directive.
-```
 
 ```{customcard}
 :path: notebooks/scrna/tabula_muris
