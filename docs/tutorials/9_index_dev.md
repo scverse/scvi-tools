@@ -17,3 +17,25 @@ notebooks/dev/model_user_guide
 [forum]: https://discourse.scvi-tools.org/
 [zulip]: https://scverse.zulipchat.com/
 [example]: https://github.com/scverse/simple-scvi
+
+
+```{customcard}
+:path: notebooks/dev/data_tutorial
+:tags:
+
+test
+```
+
+```{customcard}
+:path: notebooks/dev/module_user_guide
+:tags:
+
+test
+```
+
+```{customcard}
+:path: notebooks/dev/model_user_guide
+:tags:
+
+test
+```
