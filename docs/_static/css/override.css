@@ -77,9 +77,9 @@
 }
 
 .model-group-name {
-    color: var(--pst-color-text-base);
-    font-size: 1.125rem; /* Standardize font size */
-    font-weight: bold; /* Emphasize group name */
+    color: var(--pst-color-text-muted);
+    font-size: 1.25rem; /* Standardize font size */
+    font-style: italic; /* Emphasize group name */
     margin-bottom: 0.25rem; /* Reduce spacing below group name */
 }
 

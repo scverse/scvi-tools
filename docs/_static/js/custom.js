@@ -110,6 +110,14 @@ function filterCards() {
         console.log("Matches group:", matchesGroup);  // Log matchesGroup
 
         $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
+
+        // Find the .model-name inside the card and toggle it
+        let modelName = $(this).find(".model-name");
+        if (selectedGroup === "all") {
+            modelName.addClass("hidden");
+        } else {
+            modelName.removeClass("hidden");
+        }
     });
 }
 
