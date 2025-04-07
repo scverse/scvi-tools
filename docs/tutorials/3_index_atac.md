@@ -13,26 +13,26 @@ notebooks/atac/scbasset_batch
 :path: notebooks/atac/PeakVI
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
-This is a test description. Put the description as the main content of the customcard directive.
+Go through the PeakVI workflow to analyze a scATAC-seq dataset
 ```
 
 ```{customcard}
 :path: notebooks/atac/PoissonVI
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
-Description.
+Go through the PoissonVI workflow to analyze scATAC-seq data using quantitative fragment counts
 ```
 
 ```{customcard}
 :path: notebooks/atac/scbasset
 :tags: Analysis, Integration, Dimensionality-reduction, Removal-of-variance
 
-This is a test description. Put the description as the main content of the customcard directive.
+Go through the scBasset workflow to analyze a scATAC-seq dataset
 ```
 
 ```{customcard}
 :path: notebooks/atac/scbasset_batch
 :tags: Integration, Dimensionality-reduction, Removal-of-variance
 
-Description.
+Use scBasset to integrate data across several samples
 ```

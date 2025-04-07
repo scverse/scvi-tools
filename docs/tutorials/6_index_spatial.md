@@ -15,40 +15,40 @@ notebooks/spatial/cell2location_lymph_node_spatial_tutorial
 :path: notebooks/spatial/resolVI_tutorial
 :tags: Analysis, Integration, Transfer-learning, Dimensionality-reduction
 
-This is a test description. Put the description as the main content of the customcard directive.
+TODO: add description
 ```
 
 ```{customcard}
 :path: notebooks/spatial/DestVI_tutorial
 :tags: Deconvolution, Modality-imputation, Differential-comparison
 
-This is a test description. Put the description as the main content of the customcard directive.
+Perform multi-resolution analysis on spatial transcriptomics data with DestVI
 ```
 
 ```{customcard}
 :path: notebooks/spatial/gimvi_tutorial
 :tags: Modality-imputation
 
-This is a test description. Put the description as the main content of the customcard directive.
+Use gimVI to impute missing genes in spatial data
 ```
 
 ```{customcard}
 :path: notebooks/spatial/tangram_scvi_tools
 :tags: Deconvolution
 
-This is a test description. Put the description as the main content of the customcard directive.
+Use Tangram to map spatial transcriptomics data
 ```
 
 ```{customcard}
 :path: notebooks/spatial/stereoscope_heart_LV_tutorial
 :tags: Deconvolution
 
-This is a test description. Put the description as the main content of the customcard directive.
+Go through the Stereoscope workflow to map single-cell data
 ```
 
 ```{customcard}
 :path: notebooks/spatial/cell2location_lymph_node_spatial_tutorial
 :tags:
 
-This is a test description. Put the description as the main content of the customcard directive.
+Spatially map lymph node cell types using Cell2location
 ```

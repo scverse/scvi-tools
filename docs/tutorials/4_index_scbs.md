@@ -10,5 +10,5 @@ notebooks/scbs/MethylVI_batch
 :path: notebooks/scbs/MethylVI_batch
 :tags: Integration, Dimensionality-reduction, Removal-of-variance,
 
-Description.
+Correct batch effects in across different scBS-seq experiments with methylVI
 ```
