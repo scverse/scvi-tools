@@ -6,14 +6,14 @@ from typing import TYPE_CHECKING
 # import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import numpyro.distributions as dist
 import torch
+import torch.distributions as dist
 import torch.nn as nn
 import torch.nn.init as init
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import NegativeBinomial
-from scvi.external.mrvi._components import AttentionBlock, Dense
+from scvi.external.mrvi._components import AttentionBlock
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 if TYPE_CHECKING:
@@ -267,58 +267,58 @@ class EncoderUZ(nn.Module):
 
 
 class EncoderXU(nn.Module):
-    """Encoder from ``x`` to ``u``.
-
-    Parameters
-    ----------
-    n_latent
-        Number of latent variables.
-    n_sample
-        Number of samples.
-    n_hidden
-        Number of hidden units in the MLP.
-    n_layers
-        Number of layers in the MLP.
-    activation
-        Activation function for the MLP.
-    training
-        Whether the model is in training mode.
-    """
-
-    n_latent: int
-    n_sample: int
-    n_hidden: int
-    n_layers: int = 1
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
-    training: bool | None = None
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        x: jax.typing.ArrayLike,
-        sample_covariate: jax.typing.ArrayLike,
+        n_input: int,  # TODO: added this for torch nn linear, not sure if needed
+        n_latent: int,
+        n_sample: int,
+        n_hidden: int = 128,
+        n_layers: int = 1,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
         training: bool | None = None,
-    ) -> dist.Normal:
+    ):
+        super().__init__()
+        self.n_latent = n_latent
+        self.n_sample = n_sample
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.activation = activation
+        self.training = training
+
         from scvi.external.mrvi._components import (
             ConditionalNormalization,
             NormalDistOutputNN,
         )
 
-        training = nn.merge_param("training", self.training, training)
-        x_feat = jnp.log1p(x)
-        for _ in range(2):
-            x_feat = Dense(self.n_hidden)(x_feat)
-            x_feat = ConditionalNormalization(self.n_hidden, self.n_sample)(
-                x_feat, sample_covariate, training=training
-            )
-            x_feat = self.activation(x_feat)
-        sample_effect = nn.Embed(self.n_sample, self.n_hidden, embedding_init=_normal_initializer)(
+        self.conditional_norm = ConditionalNormalization(self.n_hidden, self.n_sample)
+
+        self.fc_layers = nn.Sequential(
+            nn.Linear(self.n_input, self.n_hidden),
+            ConditionalNormalization(self.n_hidden, self.n_sample),
+            self.activation,
+            nn.Linear(self.n_hidden, self.n_hidden),
+            ConditionalNormalization(self.n_hidden, self.n_sample),
+            self.activation,
+        )
+        self.sample_embed = nn.Embedding(self.n_sample, self.n_hidden)
+        init.normal_(self.sample_effect.weight, std=0.1)
+
+        # TODO: need to double check input dimension below is correct
+        self.normal_dist_output = NormalDistOutputNN(
+            self.n_hidden, self.n_latent, self.n_hidden, self.n_layers
+        )  # double check since I added n_in parameter
+
+    def forward(
+        self, x: torch.Tensor, sample_covariate: torch.Tensor, training: bool | None = None
+    ) -> dist.Normal:
+        training = training if training is not None else self.training
+        x_feat = torch.log1p(x)
+        x_feat = self.fc_layers(x_feat)
+        sample_effect = self.sample_embed(
             sample_covariate.squeeze(-1).astype(int)
-        )
+        )  # TODO: double check why we squeeze here
         inputs = x_feat + sample_effect
-        return NormalDistOutputNN(self.n_latent, self.n_hidden, self.n_layers)(
-            inputs, training=training
-        )
+        return self.normal_dist_output(inputs, training=training)
 
 
 @flax_configure
