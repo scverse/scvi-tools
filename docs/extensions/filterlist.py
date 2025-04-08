@@ -249,7 +249,7 @@ LIST_START_HTML = """
     <div class="tags-container">
         <div id="dropdown-filter-tags">
             <div class="filter-menu all-tag-selected">
-                <div class="filter filter-btn" data-tag="all">All</div>
+                <div class="filter filter-btn selected" data-tag="all">All</div>
             </div>
         </div>
     </div>
@@ -260,7 +260,7 @@ LIST_START_HTML = """
 <nav class="navbar">
     <div class="tabs-container">
         <div class="tab-menu">
-            <div class="tab" data-group="all">All</div>
+            <div class="tab tab-selected" data-group="all">All</div>
         </div>
     </div>
 </nav>

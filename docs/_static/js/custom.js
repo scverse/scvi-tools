@@ -82,6 +82,7 @@ $(document).on("click", ".filter-btn", function () {
 
             if (selectedTagSet.size === 0) {
                 parent.addClass("all-tag-selected");
+                $(this).addClass("selected"); // Highlight all button
             }
         } else {
             parent.removeClass("all-tag-selected");
@@ -102,12 +103,6 @@ function filterCards() {
 
         let matchesTags = selectedTagSet.size === 0 || [...selectedTagSet].every(tag => cardTags.includes(tag));
         let matchesGroup = selectedGroup === "all" || groupName === selectedGroup;
-
-        console.log("Card tags:", cardTags);  // Log card tags
-        console.log("Model group:", groupName) // group name
-        console.log("Selected tags:", selectedTagSet);  // Log selected tags
-        console.log("Matches tags:", matchesTags);  // Log matchesTags
-        console.log("Matches group:", matchesGroup);  // Log matchesGroup
 
         $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
 
