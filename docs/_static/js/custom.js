@@ -106,7 +106,7 @@ function filterCards() {
         $(this).toggleClass("hidden", !(matchesTags && matchesGroup));
 
         // Find the .model-name inside the card and toggle it
-        let modelName = $(this).find(".model-name");
+        let modelName = $(this).find(".model-group-name");
         if (selectedGroup === "all") {
             modelName.addClass("hidden");
         } else {
