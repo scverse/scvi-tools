@@ -40,7 +40,7 @@ function createMenu() {
     tags.forEach(item => {
         let displayName = item.replace(/-/g, " "); // Replace underscores with spaces
         $(".filter-menu")
-        .append("<div class='filter filter-btn' data-tag='" + displayName + "'>" + displayName + "</div>")
+        .append("<div class='filter filter-btn' data-tag='" + item + "'>" + displayName + "</div>")
     });
 }
 
