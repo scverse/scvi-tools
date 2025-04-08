@@ -186,6 +186,14 @@ def process_card_nodes(app, doctree, fromdocname):
     if not hasattr(env, "all_cards"):
         env.all_cards = []
 
+    # Sort the cards by source file path and line number
+    env.all_cards.sort(
+        key=lambda card: (
+            card.source,  # Source file path
+            card.line,  # Line number in the source file
+        )
+    )
+
     # Don't want card to render where the directive is, but in the list
     for card in doctree.traverse(cardnode):
         card.parent.remove(card)
