@@ -186,9 +186,19 @@ def process_card_nodes(app, doctree, fromdocname):
     if not hasattr(env, "all_cards"):
         env.all_cards = []
 
+    # Sort the cards by numeric prefix (if present) and then by source file path and line number
+    def extract_numeric_prefix(filename):
+        # Extract the numeric prefix from the file name, default to a large number if no prefix
+        parts = filename.split("_", 1)
+        try:
+            return int(parts[0])
+        except ValueError:
+            return float("inf")  # Treat files without a numeric prefix as the largest
+
     # Sort the cards by source file path and line number
     env.all_cards.sort(
         key=lambda card: (
+            extract_numeric_prefix(card.source),  # Numeric prefix
             card.source,  # Source file path
             card.line,  # Line number in the source file
         )
