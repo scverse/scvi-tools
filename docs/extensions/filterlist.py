@@ -249,7 +249,7 @@ LIST_START_HTML = """
     <div class="tags-container">
         <div id="dropdown-filter-tags">
             <div class="filter-menu all-tag-selected">
-                <div class="filter filter-btn selected" data-tag="all">All</div>
+                <div class="filter filter-btn" data-tag="all">All</div>
             </div>
         </div>
     </div>

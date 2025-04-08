@@ -66,7 +66,6 @@ let selectedTagSet = new Set();
 
 // Handle tag button selection and filtering
 $(document).on("click", ".filter-btn", function () {
-    console.log("button clicked!"); // for debugging
     let parent = $(this).closest(".filter-menu");
     let tag = $(this).attr("data-tag");
 
@@ -83,7 +82,6 @@ $(document).on("click", ".filter-btn", function () {
 
             if (selectedTagSet.size === 0) {
                 parent.addClass("all-tag-selected");
-                $(this).addClass("selected"); // Highlight all button
             }
         } else {
             parent.removeClass("all-tag-selected");

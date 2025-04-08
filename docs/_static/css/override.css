@@ -43,6 +43,13 @@
     overflow: hidden;
 }
 
+/* Highlight the all button when selected */
+.filter-menu.all-tag-selected .filter-btn[data-tag="all"] {
+    background-color: var(--pst-color-on-background);
+    color: var(--pst-color-text-muted);
+    font-weight: bold; /* Highlight selected button */
+}
+
 .card a {
     text-decoration: none;
     }
