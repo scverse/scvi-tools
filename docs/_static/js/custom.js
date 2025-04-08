@@ -30,7 +30,6 @@ function getUniqueGroups() {
     });
 
     let uniqueGroups = Array.from(groupSet);
-    uniqueGroups.sort();
     return uniqueGroups;
 }
 
