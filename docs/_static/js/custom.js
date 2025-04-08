@@ -39,8 +39,9 @@ function createMenu() {
     let tags = getUniqueTags();
 
     tags.forEach(item => {
+        let displayName = item.replace(/-/g, " "); // Replace underscores with spaces
         $(".filter-menu")
-        .append("<div class='filter filter-btn' data-tag='" + item + "'>" + item + "</div>")
+        .append("<div class='filter filter-btn' data-tag='" + displayName + "'>" + displayName + "</div>")
     });
 }
 
