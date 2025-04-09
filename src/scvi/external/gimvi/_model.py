@@ -17,7 +17,7 @@ from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_device_args
-from scvi.model.base import BaseModelClass, VAEMixin
+from scvi.model.base import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.train import Trainer
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -41,7 +41,7 @@ def _unpack_tensors(tensors):
     return x, batch_index, y
 
 
-class GIMVI(VAEMixin, BaseModelClass):
+class GIMVI(VAEMixin, RNASeqMixin, BaseModelClass):
     """Joint VAE for imputing missing genes in spatial data :cite:p:`Lopez19`.
 
     Parameters

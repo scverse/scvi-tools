@@ -17,7 +17,7 @@ from scvi.distributions._utils import DistributionConcatenator, subset_distribut
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
 from scvi.module.base._decorators import _move_data_to_device
-from scvi.utils import de_dsp, dependencies, unsupported_if_adata_minified
+from scvi.utils import de_dsp, dependencies, track, unsupported_if_adata_minified
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -161,6 +161,7 @@ class RNASeqMixin:
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
         **importance_weighting_kwargs,
     ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
@@ -202,6 +203,7 @@ class RNASeqMixin:
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
             to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
@@ -260,7 +262,7 @@ class RNASeqMixin:
         px_store = DistributionConcatenator()
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
                 inference_kwargs = {"n_samples": n_samples}
                 inference_outputs, generative_outputs = self.module.forward(
@@ -269,7 +271,11 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                exp_ = generative_outputs["px"].get_normalized(generative_output_key)
+                px_generative = generative_outputs["px"]
+                if isinstance(px_generative, torch.Tensor):
+                    exp_ = px_generative
+                else:
+                    exp_ = px_generative.get_normalized(generative_output_key)
                 exp_ = exp_[..., gene_mask]
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
@@ -326,7 +332,7 @@ class RNASeqMixin:
         group2: str | None = None,
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
-        mode: Literal["vanilla", "change"] = "vanilla",
+        mode: Literal["vanilla", "change"] = "change",
         delta: float = 0.25,
         batch_size: int | None = None,
         all_stats: bool = True,
@@ -566,6 +572,7 @@ class RNASeqMixin:
         rna_size_factor: int = 1000,
         transform_batch: list[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
+        silent: bool = True,
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
@@ -591,6 +598,7 @@ class RNASeqMixin:
             - list of int, then values are averaged over provided batches.
         correlation_type
             One of "pearson", "spearman".
+        %(de_silent)s
 
         Returns
         -------
@@ -605,7 +613,7 @@ class RNASeqMixin:
         )
 
         corr_mats = []
-        for b in transform_batch:
+        for b in track(transform_batch, disable=silent):
             denoised_data = self._get_denoised_samples(
                 adata=adata,
                 indices=indices,

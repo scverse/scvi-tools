@@ -4,21 +4,63 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.2
+## Version 1.3
 
-### 1.3.0 (2025-XX-XX)
+### 1.3.1 (2025-XX-XX)
+
+#### Added
+
+- Add {class}`scvi.external.METHYLANVI` for modeling methylation labelled data from single-cell
+    bisulfite sequencing (scBS-seq) {pr}`3066`.
+- Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
+- Add get normalized function model property for any generative model {pr}`3238` and changed
+    get_accessibility_estimates to get_normalized_accessibility, where needed.
+- Add Early stopping KL warmup steps. {pr}`3262`.
+
+#### Fixed
+
+- Add consideration for missing monitor set during early stopping. {pr}`3226`.
+- Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
+- Add support for IntegratedGradients for multimodal models. {pr}`3264`.
+
+#### Changed
+
+- Updated Scvi-Tools AWS hub to Weizmann instead of Berkeley. {pr}`3246`.
+
+#### Removed
+
+### 1.3.0 (2025-02-28)
 
 #### Added
 
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
+- Add multiGPU support for {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`,
+    {class}`~scvi.model.CondSCVI` and {class}`~scvi.model.LinearSCVI`, {class}`~scvi.model.TOTALVI`,
+    {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.PEAKVI`. {pr}`3125`.
+- Add an exception callback to {class}`scvi.train._callbacks.SaveCheckpoint` in order to save
+    optimal model during training, in case of failure because of Nan's in gradients. {pr}`3159`.
+- Add {meth}`~scvi.model.SCVI.get_normalized_expression` for models: {class}`~scvi.model.PEAKVI`,
+    {class}`~scvi.external.POISSONVI`, {class}`~scvi.model.CondSCVI`, {class}`~scvi.model.AUTOZI`,
+    {class}`~scvi.external.CellAssign` and {class}`~scvi.external.GIMVI`. {pr}`3121`.
 - Add {class}`scvi.external.RESOLVI` for bias correction in single-cell resolved spatial
     transcriptomics {pr}`3144`.
+- Add semisupervised training mixin class
+    {class}`scvi.model.base.SemisupervisedTrainingMixin`. {pr}`3164`.
+- Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
+    {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
+- Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
+- Add a common use cases section in the docs user guide. {pr}`3200`.
+- Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
 
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 - Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
+- Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
+    out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
+    memory usage {pr}`3146`.
+- Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
 
 #### Changed
 
@@ -29,6 +71,8 @@ to [Semantic Versioning]. Full commit history is available in the
     Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`
 
 #### Removed
+
+## Version 1.2
 
 ### 1.2.2 (2024-12-31)
 
@@ -64,7 +108,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Added adaptive handling for last training minibatch of 1-2 cells in case of
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
     validation set, if available. {pr}`3036`.
-- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
+- Add `batch_key` and `labels_key` to {meth}`scvi.external.SCAR.setup_anndata`. {pr}`3045`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
 - Support for minified mode while retaining counts to skip the encoder.
 - New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
@@ -78,7 +122,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
-- Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix references to `scvi.external` in {meth}`scvi.external.SCAR.setup_anndata`.
 - Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
 
 #### Changed
@@ -90,9 +134,9 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add support for Python 3.12 {pr}`2966`.
-- Add support for categorial covariates in scArches in `scvi.model.archesmixin` {pr}`2936`.
+- Add support for categorial covariates in scArches in {class}`scvi.model.base.ArchesMixin` {pr}`2936`.
 - Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
-- Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
+- Add {meth}`scvi.external.POISSONVI.get_region_factors` {pr}`2940`.
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
     {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`

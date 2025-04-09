@@ -84,6 +84,9 @@ class ArchesMixin:
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
         """
+        if reference_model is None:
+            raise ValueError("Please provide a reference model as string or loaded model.")
+
         _, _, device = parse_device_args(
             accelerator=accelerator,
             devices=device,

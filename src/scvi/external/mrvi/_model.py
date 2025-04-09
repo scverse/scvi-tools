@@ -105,9 +105,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
 
-        obs_df = adata.obs.copy()
-        obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
-        self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
+        self.update_sample_info(adata)
         self.sample_key = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.SAMPLE_KEY
         ).original_key
@@ -309,7 +307,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         adata: AnnData | None = None,
         indices: npt.ArrayLike | None = None,
         batch_size: int | None = None,
-        use_vmap: bool = True,
+        use_vmap: Literal["auto", True, False] = "auto",
         norm: str = "l2",
         mc_samples: int = 10,
     ) -> xr.Dataset:
@@ -330,7 +328,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         batch_size
             Batch size to use for computing the local statistics.
         use_vmap
-            Whether to use vmap to compute the local statistics.
+            Whether to use vmap to compute the local statistics. If "auto", vmap will be used if
+            the number of samples is less than 500.
         norm
             Norm to use for computing the distances.
         mc_samples
@@ -340,6 +339,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         from functools import partial
 
         from scvi.external.mrvi._utils import _parse_local_statistics_requirements
+
+        use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 
         if not reductions or len(reductions) == 0:
             raise ValueError("At least one reduction must be provided.")
@@ -418,15 +419,24 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
             # OK to use stacked rngs here since there is no stochasticity for mean rep.
             if reqs.needs_mean_representations:
-                mean_zs_ = mapped_inference_fn(
-                    stacked_rngs=stacked_rngs,
-                    x=jnp.array(inf_inputs["x"]),
-                    sample_index=jnp.array(inf_inputs["sample_index"]),
-                    cf_sample=jnp.array(cf_sample),
-                    use_mean=True,
-                )
+                try:
+                    mean_zs_ = mapped_inference_fn(
+                        stacked_rngs=stacked_rngs,
+                        x=jnp.array(inf_inputs["x"]),
+                        sample_index=jnp.array(inf_inputs["sample_index"]),
+                        cf_sample=jnp.array(cf_sample),
+                        use_mean=True,
+                    )
+                except jax.errors.JaxRuntimeError as e:
+                    if use_vmap:
+                        raise RuntimeError(
+                            "JAX ran out of memory. Try setting use_vmap=False."
+                        ) from e
+                    else:
+                        raise e
+
                 mean_zs = xr.DataArray(
-                    mean_zs_,
+                    np.array(mean_zs_),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
                         "cell_name": self.adata.obs_names[indices].values,
@@ -445,7 +455,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
                 sampled_zs_ = sampled_zs_.transpose((1, 0, 2, 3))
                 sampled_zs = xr.DataArray(
-                    sampled_zs_,
+                    np.array(sampled_zs_),
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
                         "cell_name": self.adata.obs_names[indices].values,
@@ -456,12 +466,12 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
             if reqs.needs_mean_distances:
                 mean_dists = self._compute_distances_from_representations(
-                    mean_zs_, indices, norm=norm
+                    mean_zs_, indices, norm=norm, return_numpy=True
                 )
 
             if reqs.needs_sampled_distances or reqs.needs_normalized_distances:
                 sampled_dists = self._compute_distances_from_representations(
-                    sampled_zs_, indices, norm=norm
+                    sampled_zs_, indices, norm=norm, return_numpy=True
                 )
 
                 if reqs.needs_normalized_distances:
@@ -570,6 +580,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         reps: jax.typing.ArrayLike,
         indices: jax.typing.ArrayLike,
         norm: Literal["l2", "l1", "linf"] = "l2",
+        return_numpy: bool = True,
     ) -> xr.DataArray:
         if norm not in ("l2", "l1", "linf"):
             raise ValueError(f"`norm` {norm} not supported")
@@ -588,6 +599,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
         if reps.ndim == 3:
             dists = jax.vmap(_compute_distance)(reps)
+            if return_numpy:
+                dists = np.array(dists)
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
@@ -601,6 +614,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         else:
             # Case with sampled representations
             dists = jax.vmap(jax.vmap(_compute_distance))(reps)
+            if return_numpy:
+                dists = np.array(dists)
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "mc_sample", "sample_x", "sample_y"],
@@ -619,7 +634,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         indices: npt.ArrayLike | None = None,
         batch_size: int = 256,
         use_mean: bool = True,
-        use_vmap: bool = True,
+        use_vmap: Literal["auto", True, False] = "auto",
     ) -> xr.DataArray:
         """Compute the local sample representation of the cells in the ``adata`` object.
 
@@ -660,7 +675,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         batch_size: int = 256,
         use_mean: bool = True,
         normalize_distances: bool = False,
-        use_vmap: bool = True,
+        use_vmap: Literal["auto", True, False] = "auto",
         groupby: list[str] | str | None = None,
         keep_cell: bool = True,
         norm: str = "l2",
@@ -698,6 +713,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Number of Monte Carlo samples to use for computing the local sample distances. Only
             relevant if ``use_mean=False``.
         """
+        use_vmap = "auto" if use_vmap == "auto" else use_vmap
+
         input = "mean_distances" if use_mean else "sampled_distances"
         if normalize_distances:
             if use_mean:
@@ -766,7 +783,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         -------
         A mixture distribution of the aggregated posterior.
         """
-        from numpyro.distributions import Categorical, MixtureSameFamily, Normal
+        from numpyro.distributions import (
+            Categorical,
+            MixtureSameFamily,
+            Normal,
+        )
 
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
@@ -789,11 +810,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
 
-        qu_loc = jnp.concatenate(qu_locs, axis=0).T
-        qu_scale = jnp.concatenate(qu_scales, axis=0).T
+        qu_loc = jnp.concatenate(qu_locs, axis=0)  # n_cells x n_latent_u
+        qu_scale = jnp.concatenate(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
-            Categorical(probs=jnp.ones(qu_loc.shape[1]) / qu_loc.shape[1]),
-            Normal(qu_loc, qu_scale),
+            Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            (Normal(qu_loc, qu_scale).to_event(1)),
         )
 
     def differential_abundance(
@@ -802,6 +823,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_cov_keys: list[str] | None = None,
         sample_subset: list[str] | None = None,
         compute_log_enrichment: bool = False,
+        omit_original_sample: bool = True,
         batch_size: int = 128,
     ) -> xr.Dataset:
         """Compute the differential abundance between samples.
@@ -822,6 +844,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Only compute differential abundance for these sample labels.
         compute_log_enrichment
             Whether to compute the log enrichment scores for each covariate value.
+        omit_original_sample
+            If true, each cell's sample-of-origin is discarded to compute aggregate posteriors.
+            Only relevant if sample_cov_keys is not None.
         batch_size
             Minibatch size for computing the differential abundance.
 
@@ -866,7 +891,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             n_splits = max(adata.n_obs // batch_size, 1)
             log_probs_ = []
             for u_rep in np.array_split(us, n_splits):
-                log_probs_.append(jax.device_get(ap.log_prob(u_rep).sum(-1, keepdims=True)))
+                log_probs_.append(jax.device_get(ap.log_prob(u_rep))[..., np.newaxis])
 
             log_probs.append(np.concatenate(log_probs_, axis=0))  # (n_cells, 1)
 
@@ -884,6 +909,23 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         if sample_cov_keys is None or len(sample_cov_keys) == 0:
             return log_probs_arr
 
+        def aggregate_log_probs(log_probs, samples, omit_original_sample=False):
+            sample_log_probs = log_probs.loc[
+                {"sample": samples}
+            ].values  # (n_cells, n_samples_in_group)
+            if omit_original_sample:
+                sample_one_hot = np.zeros((adata.n_obs, len(samples)))
+                for i, sample in enumerate(samples):
+                    sample_one_hot[adata.obs[self.sample_key] == sample, i] = 1
+                log_probs_no_original = np.where(
+                    sample_one_hot, -np.inf, sample_log_probs
+                )  # virtually discards samples-of-origin from aggregate posteriors
+                return logsumexp(log_probs_no_original, axis=1) - np.log(
+                    (1 - sample_one_hot).sum(axis=1)
+                )
+            else:
+                return logsumexp(sample_log_probs, axis=1) - np.log(sample_log_probs.shape[1])
+
         sample_cov_log_probs_map = {}
         sample_cov_log_enrichs_map = {}
         for sample_cov_key in sample_cov_keys:
@@ -899,8 +941,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 if len(cov_samples) == 0:
                     continue
 
-                sel_log_probs = log_probs_arr.log_probs.loc[{"sample": cov_samples}]
-                val_log_probs = logsumexp(sel_log_probs, axis=1) - np.log(sel_log_probs.shape[1])
+                val_log_probs = aggregate_log_probs(
+                    log_probs_arr.log_probs,
+                    cov_samples,
+                    omit_original_sample=omit_original_sample,
+                )
                 per_val_log_probs[sample_cov_value] = val_log_probs
 
                 if compute_log_enrichment:
@@ -913,9 +958,10 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                             stacklevel=2,
                         )
                         continue
-                    rest_log_probs = log_probs_arr.log_probs.loc[{"sample": rest_samples}]
-                    rest_val_log_probs = logsumexp(rest_log_probs, axis=1) - np.log(
-                        rest_log_probs.shape[1]
+                    rest_val_log_probs = aggregate_log_probs(
+                        log_probs_arr.log_probs,
+                        rest_samples,
+                        omit_original_sample=omit_original_sample,
                     )
                     enrichment_scores = val_log_probs - rest_val_log_probs
                     per_val_log_enrichs[sample_cov_value] = enrichment_scores
@@ -1001,8 +1047,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
             in_max_comp_log_probs = ap.component_distribution.log_prob(
-                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)
-            ).sum(axis=1)
+                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap, 1, n_latent_dim)
+            )  # (n_cells_ap, n_cells_ap)
             log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
 
             log_probs_ = []
@@ -1011,10 +1057,12 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 log_probs_.append(
                     jax.device_get(
                         ap.component_distribution.log_prob(
-                            np.expand_dims(u_rep, ap.mixture_dim)
-                        )  # (n_cells_batch, n_cells_ap, n_latent_dim)
-                        .sum(axis=1)  # (n_cells_batch, n_latent_dim)
-                        .max(axis=1, keepdims=True)  # (n_cells_batch, 1)
+                            np.expand_dims(
+                                u_rep, ap.mixture_dim
+                            )  # (n_cells_batch, 1, n_latent_dim)
+                        ).max(  # (n_cells_batch, n_cells_ap)
+                            axis=1, keepdims=True
+                        )  # (n_cells_batch, 1)
                     )
                 )
 
@@ -1053,7 +1101,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         sample_cov_keys: list[str] | None = None,
         sample_subset: list[str] | None = None,
         batch_size: int = 128,
-        use_vmap: bool = True,
+        use_vmap: Literal["auto", True, False] = "auto",
         normalize_design_matrix: bool = True,
         add_batch_specific_offsets: bool = False,
         mc_samples: int = 100,
@@ -1141,6 +1189,8 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         from functools import partial
 
         from scipy.stats import false_discovery_control
+
+        use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 
         if sample_cov_keys is None:
             # Hack: kept as kwarg to maintain order of arguments.
@@ -1371,19 +1421,26 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             Amat = jax.device_put(Amat, self.device)
             prefactor = jax.device_put(prefactor, self.device)
 
-            res = mapped_inference_fn(
-                stacked_rngs=stacked_rngs,
-                x=jnp.array(inf_inputs["x"]),
-                sample_index=jnp.array(inf_inputs["sample_index"]),
-                cf_sample=jnp.array(cf_sample),
-                Amat=Amat,
-                prefactor=prefactor,
-                n_samples_per_cell=n_samples_per_cell,
-                admissible_samples_mat=admissible_samples_mat,
-                use_mean=False,
-                rngs_de=rngs_de,
-                mc_samples=mc_samples,
-            )
+            try:
+                res = mapped_inference_fn(
+                    stacked_rngs=stacked_rngs,
+                    x=jnp.array(inf_inputs["x"]),
+                    sample_index=jnp.array(inf_inputs["sample_index"]),
+                    cf_sample=jnp.array(cf_sample),
+                    Amat=Amat,
+                    prefactor=prefactor,
+                    n_samples_per_cell=n_samples_per_cell,
+                    admissible_samples_mat=admissible_samples_mat,
+                    use_mean=False,
+                    rngs_de=rngs_de,
+                    mc_samples=mc_samples,
+                )
+            except jax.errors.JaxRuntimeError as e:
+                if use_vmap:
+                    raise RuntimeError("JAX ran out of memory. Try setting use_vmap=False.") from e
+                else:
+                    raise e
+
             beta.append(np.array(res["beta"]))
             effect_size.append(np.array(res["effect_size"]))
             pvalue.append(np.array(res["pvalue"]))
@@ -1557,3 +1614,29 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         covariates_require_lfc = jnp.array(covariates_require_lfc)
 
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
+
+    def update_sample_info(self, adata):
+        """Initialize/update metadata in the case where additional covariates are added.
+
+        Parameters
+        ----------
+        adata
+            AnnData object to update the sample info with. Typically, this corresponds to the
+            working dataset, where additional sample-specific covariates have been added.
+
+        Examples
+        --------
+        >>> import scanpy as sc
+        >>> from scvi.external import MRVI
+        >>> MRVI.setup_anndata(adata, sample_key="sample_id")
+        >>> model = MRVI(adata)
+        >>> model.train()
+        >>> # Update sample info with new covariates
+        >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}
+        >>> adata.obs["disease_status"] = adata.obs["sample_id"].map(sample_mapper)
+        >>> model.update_sample_info(adata)
+        """
+        adata = self._validate_anndata(adata)
+        obs_df = adata.obs.copy()
+        obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
+        self.sample_info = obs_df.set_index("_scvi_sample").sort_index()

@@ -15,7 +15,7 @@ class Normal(NormalTorch):
     ----------
     mu
         loc of the Normal distribution.
-    var
+    scale
         scale of the Normal distribution.
     validate_args
         whether to validate input.

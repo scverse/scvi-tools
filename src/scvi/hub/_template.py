@@ -5,7 +5,7 @@ The learned low-dimensional latent representation of the data can be used for vi
 clustering.
 
 scVI takes as input a scRNA-seq gene expression matrix with cells and genes.
-We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_guide/models/scvi.html).
+We provide an extensive [user guide](https://docs.scvi-tools.org/en/stable/user_guide/models/scvi.html).
 
 - See our original manuscript for further details of the model:
 [scVI manuscript](https://www.nature.com/articles/s41592-018-0229-2).
@@ -13,7 +13,7 @@ We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_g
 to leverage pre-trained models.
 
 This model can be used for fine tuning on new data using our Arches framework:
-[Arches tutorial](https://docs.scvi-tools.org/en/1.0.0/tutorials/notebooks/scarches_scvi_tools.html).
+[Arches tutorial](https://docs.scvi-tools.org/en/stable/tutorials/notebooks/scrna/scarches_scvi_tools.html).
 """
 
 scanvi_pretext = """
@@ -26,7 +26,7 @@ clustering.
 
 scANVI takes as input a scRNA-seq gene expression matrix with cells and genes as well as a
 cell-type annotation for a subset of cells.
-We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_guide/models/scanvi.html).
+We provide an extensive [user guide](https://docs.scvi-tools.org/en/stable/user_guide/models/scanvi.html).
 
 - See our original manuscript for further details of the model:
 [scANVI manuscript](https://www.embopress.org/doi/full/10.15252/msb.20209620).
@@ -34,7 +34,7 @@ We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_g
 how to leverage pre-trained models.
 
 This model can be used for fine tuning on new data using our Arches framework:
-[Arches tutorial](https://docs.scvi-tools.org/en/1.0.0/tutorials/notebooks/scarches_scvi_tools.html).
+[Arches tutorial](https://docs.scvi-tools.org/en/stable/tutorials/notebooks/scrna/scarches_scvi_tools.html).
 """
 
 condscvi_pretext = """
@@ -46,7 +46,7 @@ in the spatial data.
 
 CondSCVI takes as input a scRNA-seq gene expression matrix with cells and genes as well as a
 cell-type annotation for all cells.
-We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_guide/models/destvi.html)
+We provide an extensive [user guide](https://docs.scvi-tools.org/en/stable/user_guide/models/destvi.html)
 for DestVI including a description of CondSCVI.
 
 - See our original manuscript for further details of the model:
@@ -64,7 +64,7 @@ predicts the cell-type proportions in the spatial data.
 Stereoscope takes as input a scRNA-seq gene expression matrix with cells and genes as well as a
 cell-type annotation for all cells.
 We provide an extensive for DestVI including a description of CondSCVI
-[user guide](https://docs.scvi-tools.org/en/1.2.0/user_guide/models/destvi.html).
+[user guide](https://docs.scvi-tools.org/en/stable/user_guide/models/destvi.html).
 
 - See our original manuscript for further details of the model:
 [Stereoscope manuscript](https://www.nature.com/articles/s42003-020-01247-y) as well as the
@@ -84,7 +84,7 @@ clustering.
 
 TotalVI takes as input a scRNA-seq gene expression and protein expression matrix with cells and
 genes.
-We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_guide/models/totalvi.html).
+We provide an extensive [user guide](https://docs.scvi-tools.org/en/stable/user_guide/models/totalvi.html).
 
 - See our original manuscript for further details of the model:
 [TotalVI manuscript](https://www.nature.com/articles/s41592-020-01050-x).
@@ -92,7 +92,7 @@ We provide an extensive [user guide](https://docs.scvi-tools.org/en/1.2.0/user_g
 how to leverage pre-trained models.
 
 This model can be used for fine tuning on new data using our Arches framework:
-[Arches tutorial](https://docs.scvi-tools.org/en/1.0.0/tutorials/notebooks/scarches_scvi_tools.html).
+[Arches tutorial](https://docs.scvi-tools.org/en/stable/tutorials/notebooks/scrna/scarches_scvi_tools.html).
 """
 
 

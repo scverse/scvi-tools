@@ -21,7 +21,7 @@ from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
-    "scvi_version": "0.0.0",
+    "scvi_version": scvi.__version__,
     "categorical_mappings": {
         "_scvi_batch": {
             "original_key": "testbatch",
@@ -466,6 +466,14 @@ def test_scvi_sparse(n_latent: int = 5):
     model.differential_expression(groupby="labels", group1="label_1")
 
 
+def test_scvi_error_on_es(n_latent: int = 5):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0, early_stopping=True)
+
+
 def test_scvi_n_obs_error(n_latent: int = 5):
     adata = synthetic_iid()
     adata = adata[0:129].copy()
@@ -679,6 +687,35 @@ def test_early_stopping():
     )
     model = SCVI(adata)
     model.train(n_epochs, early_stopping=True, plan_kwargs={"lr": 0})
+    assert len(model.history["elbo_train"]) < n_epochs
+
+
+@pytest.mark.parametrize("early_stopping_patience", [5, 50])
+@pytest.mark.parametrize("early_stopping_warmup_epochs", [0, 25])
+@pytest.mark.parametrize("early_stopping_min_delta", [0.0, 2])
+def test_early_stopping_with_parameters(
+    early_stopping_patience, early_stopping_warmup_epochs, early_stopping_min_delta
+):
+    early_stopping_kwargs = {
+        "early_stopping": True,
+        "early_stopping_monitor": "elbo_validation",
+        "early_stopping_patience": early_stopping_patience,
+        "early_stopping_warmup_epochs": early_stopping_warmup_epochs,
+        "early_stopping_mode": "min",
+        "early_stopping_min_delta": early_stopping_min_delta,
+        "check_val_every_n_epoch": 1,
+    }
+
+    n_epochs = 100
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(n_epochs, plan_kwargs={"lr": 0}, **early_stopping_kwargs)
     assert len(model.history["elbo_train"]) < n_epochs
 
 
@@ -1122,7 +1159,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
+    model = SCVI(adata=None, n_latent=n_latent)
     assert model._module_init_on_train
     assert model.module is None
 
@@ -1140,7 +1177,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_obs = 100_000_000  # large number for fewer default epochs
     model.train(datamodule=datamodule)
 
-    model = SCVI(adata, n_latent=5)
+    model = SCVI(adata, n_latent=n_latent)
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
@@ -1170,7 +1207,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
+    model = SCVI(n_latent=n_latent)
     assert model._module_init_on_train
     assert model.module is None
 
@@ -1188,7 +1225,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_obs = 100_000_000  # large number for fewer default epochs
     model.train(datamodule=datamodule)
 
-    model = SCVI(adata, n_latent=5)
+    model = SCVI(adata, n_latent=n_latent)
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")

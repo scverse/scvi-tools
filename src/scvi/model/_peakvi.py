@@ -29,7 +29,7 @@ from scvi.module import PEAKVAE
 from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Peak Variational Inference for chromatin accessilibity analysis :cite:p:`Ashuach22`.
 
     Parameters
@@ -114,6 +114,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
             n_input_regions=self.summary_stats.n_vars,
@@ -306,7 +307,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] = None,
@@ -393,7 +394,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            p = generative_outputs["p"].cpu()
+            p = generative_outputs["px"].cpu()
 
             if normalize_cells:
                 p *= inference_outputs["d"].cpu()
@@ -501,7 +502,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
         model_fn = partial(
-            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
+            self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
 
         result = _de_core(

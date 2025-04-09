@@ -22,10 +22,12 @@ from scvi.model._utils import (
     _init_library_size,
     cite_seq_raw_counts_properties,
     get_max_epochs_heuristic,
+    use_distributed_sampler,
 )
 from scvi.model.base._de_core import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import (
@@ -322,6 +324,7 @@ class TOTALVI(
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             batch_size=batch_size,
+            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             external_indexing=external_indexing,
             **datasplitter_kwargs,
         )
@@ -397,6 +400,7 @@ class TOTALVI(
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ) -> tuple[np.ndarray | pd.DataFrame, np.ndarray | pd.DataFrame]:
         r"""Returns the normalized gene expression and protein expression.
 
@@ -447,6 +451,7 @@ class TOTALVI(
             Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
             names as columns. If either n_samples=1 or return_mean=True, defaults to False.
             Otherwise, it defaults to True.
+        %(de_silent)s
 
         Returns
         -------
@@ -504,7 +509,7 @@ class TOTALVI(
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
-            for b in transform_batch:
+            for b in track(transform_batch, disable=silent):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -581,6 +586,7 @@ class TOTALVI(
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -614,6 +620,7 @@ class TOTALVI(
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
             to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -654,7 +661,7 @@ class TOTALVI(
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for b in transform_batch:
+            for b in track(transform_batch, disable=silent):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -992,6 +999,7 @@ class TOTALVI(
         transform_batch: Sequence[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
+        silent: bool = True,
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
@@ -1019,6 +1027,7 @@ class TOTALVI(
             One of "pearson", "spearman".
         log_transform
             Whether to log transform denoised values prior to correlation calculation.
+        %(de_silent)s
 
         Returns
         -------
@@ -1037,7 +1046,7 @@ class TOTALVI(
         )
 
         corr_mats = []
-        for b in transform_batch:
+        for b in track(transform_batch, disable=silent):
             denoised_data = self._get_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,
