@@ -233,6 +233,7 @@ def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
     idx1: list[int] | np.ndarray,
     idx2: list[int] | np.ndarray,
+    use_field: list = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -244,6 +245,8 @@ def cite_seq_raw_counts_properties(
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+    use_field
+        which fields to use during DE function.
 
     Returns
     -------
@@ -252,8 +255,9 @@ def cite_seq_raw_counts_properties(
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized
         expression.
     """
+    if use_field is None:
+        use_field = ["rna", "protein"]
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
-    protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
 
     nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
@@ -263,14 +267,33 @@ def cite_seq_raw_counts_properties(
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
     nonz2_pro = np.asarray((protein_exp[idx2] > 0).mean(0))
-    properties = {
-        "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
-        "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
-        "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
-        "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
-        "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
-        "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
-    }
+    if "rna" in use_field and "protein" in use_field:
+        properties = {
+            "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
+            "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
+            "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+            "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
+            "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
+            "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
+        }
+    elif "rna" in use_field:
+        properties = {
+            "raw_mean1": gp["raw_mean1"],
+            "raw_mean2": gp["raw_mean2"],
+            "non_zeros_proportion1": gp["non_zeros_proportion1"],
+            "non_zeros_proportion2": gp["non_zeros_proportion2"],
+            "raw_normalized_mean1": gp["raw_normalized_mean1"],
+            "raw_normalized_mean2": gp["raw_normalized_mean2"],
+        }
+    elif "protein" in use_field:
+        properties = {
+            "raw_mean1": mean1_pro,
+            "raw_mean2": mean2_pro,
+            "non_zeros_proportion1": nonz1_pro,
+            "non_zeros_proportion2": nonz2_pro,
+            "raw_normalized_mean1": nan,
+            "raw_normalized_mean2": nan,
+        }
 
     return properties
 
