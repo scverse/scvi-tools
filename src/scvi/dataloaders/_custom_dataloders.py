@@ -10,6 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader
 
 import scvi
+from scvi.model._utils import parse_device_args
 from scvi.utils import dependencies
 
 if TYPE_CHECKING:
@@ -30,6 +31,8 @@ class MappedCollectionDataModule(LightningDataModule):
         unlabeled_category: str | None = "Unknown",
         batch_size: int = 128,
         collection_val: ln.Collection | None = None,
+        accelerator: str = "auto",
+        device: int | str = "auto",
         **kwargs,
     ):
         super().__init__()
@@ -62,6 +65,9 @@ class MappedCollectionDataModule(LightningDataModule):
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
+        _, _, self.device = parse_device_args(
+            accelerator=accelerator, devices=device, return_device="torch"
+        )
 
     def close(self):
         self._dataset.close()
@@ -245,9 +251,13 @@ class MappedCollectionDataModule(LightningDataModule):
         LABEL_KEY: str = "labels"
 
         return {
-            X_KEY: batch["X"].float(),
-            BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
-            LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else 0,
+            X_KEY: batch["X"].float().to(self.device),
+            BATCH_KEY: batch[self._batch_key][:, None].to(self.device)
+            if self._batch_key is not None
+            else None,
+            LABEL_KEY: batch[self._label_key][:, None].to(self.device)
+            if self._label_key is not None
+            else 0,
         }
 
     class _InferenceDataloader:
@@ -288,6 +298,8 @@ class TileDBDataModule(LightningDataModule):
         train_size: float | None = 1.0,
         split_seed: int | None = None,
         dataloader_kwargs: dict[str, Any] | None = None,
+        accelerator: str = "auto",
+        device: int | str = "auto",
         **kwargs,
     ):
         """
@@ -322,6 +334,9 @@ class TileDBDataModule(LightningDataModule):
             Seed for data split.
 
         dataloader_kwargs: dict, optional
+        %(param_accelerator)s
+        %(param_device)s
+
         Keyword arguments passed to `tiledbsoma_ml.experiment_dataloader()`, e.g. `num_workers`.
         """
         super().__init__()
@@ -360,6 +375,9 @@ class TileDBDataModule(LightningDataModule):
             labels = obs_label_df[self.label_colname].unique()
             self.labels = labels
             self.label_encoder = LabelEncoder().fit(self.labels)
+        _, _, self.device = parse_device_args(
+            accelerator=accelerator, devices=device, return_device="torch"
+        )
 
     def setup(self, stage: str | None = None) -> None:
         # Instantiate the ExperimentDataset with the provided args and kwargs.
@@ -430,11 +448,11 @@ class TileDBDataModule(LightningDataModule):
         batch_X, batch_obs = batch
         self._add_batch_col(batch_obs, inplace=True)
         return {
-            "X": torch.from_numpy(batch_X).float(),
-            "batch": torch.from_numpy(
-                self.batch_encoder.transform(batch_obs[self.batch_colname])
-            ).unsqueeze(1),
-            "labels": torch.empty(0),
+            "X": torch.from_numpy(batch_X).float().to(self.device),
+            "batch": torch.from_numpy(self.batch_encoder.transform(batch_obs[self.batch_colname]))
+            .unsqueeze(1)
+            .to(self.device),
+            "labels": torch.empty(0).to(self.device),
         }
 
     # scVI code expects these properties on the DataModule:

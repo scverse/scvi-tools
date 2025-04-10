@@ -140,7 +140,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             raise ValueError("adata or registry must be provided.")
 
-        self._module_init_on_train = adata is None
+        self._module_init_on_train = adata is None and registry is None
         self.is_trained_ = False
         self._model_summary_string = ""
         self.train_indices_ = None
