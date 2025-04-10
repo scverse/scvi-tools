@@ -92,7 +92,7 @@ regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
-file_sharing = ["pooch"]
+file_sharing = ["pooch", "cellxgene-census"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
