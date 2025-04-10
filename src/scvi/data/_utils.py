@@ -21,6 +21,8 @@ from scvi.utils import is_package_installed
 from . import _constants
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import numpy.typing as npt
     from pandas.api.types import CategoricalDtype
     from torch import Tensor
@@ -361,3 +363,21 @@ def _check_fragment_counts(
     )  # True if there are more 2s than 1s
     ret = not (non_fragments or binary)
     return ret
+
+
+def _validate_adata_dataloader_input(
+    model,
+    adata: AnnOrMuData | None = None,
+    dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+):
+    """Validate that model uses adata or custom dataloader"""
+    if adata is not None and dataloader is not None:
+        raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+    elif (
+        hasattr(model, "registry")
+        and "setup_method_name" in model.registry.keys()
+        and model.registry["setup_method_name"] == "setup_datamodule"
+        and dataloader is None
+    ):
+        raise ValueError("`dataloader` must be provided.")
+    return
