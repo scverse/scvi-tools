@@ -102,7 +102,6 @@ model = scvi.model.SCVI(
     registry=datamodule.registry,
     gene_likelihood="nb",
     encode_covariates=False,
-    datamodule=datamodule,
 )
 
 model.train(

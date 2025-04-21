@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import numpy as np
-import psutil
 import torch
 from lightning.pytorch import LightningDataModule
 from sklearn.preprocessing import LabelEncoder
@@ -86,7 +86,7 @@ class MappedCollectionDataModule(LightningDataModule):
 
     def _create_dataloader(self, shuffle, batch_size=None, indices=None):
         if self._parallel:
-            num_workers = psutil.cpu_count() - 1
+            num_workers = os.cpu_count() - 1
             worker_init_fn = self._dataset.torch_worker_init_fn
         else:
             num_workers = 0
@@ -108,7 +108,7 @@ class MappedCollectionDataModule(LightningDataModule):
     def _create_dataloader_val(self, shuffle, batch_size=None, indices=None):
         if self._validset is not None:
             if self._parallel:
-                num_workers = psutil.cpu_count() - 1
+                num_workers = os.cpu_count() - 1
                 worker_init_fn = self._validset.torch_worker_init_fn
             else:
                 num_workers = 0
