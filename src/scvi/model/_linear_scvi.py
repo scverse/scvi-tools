@@ -85,8 +85,8 @@ class LinearSCVI(
     """
 
     _module_cls = LDVAE
-    _LATENT_QZM_KEY = "scvi_latent_qzm"
-    _LATENT_QZV_KEY = "scvi_latent_qzv"
+    _LATENT_QZM_KEY = "ldvae_latent_qzm"
+    _LATENT_QZV_KEY = "ldvae_latent_qzv"
 
     def __init__(
         self,
