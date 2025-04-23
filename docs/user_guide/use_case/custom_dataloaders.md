@@ -104,8 +104,15 @@ model = scvi.model.SCVI(
     encode_covariates=False,
 )
 
+# creating the dataloader for trainset
+datamodule.setup()
+training_dataloader = (
+    datamodule.on_before_batch_transfer(batch, None)
+    for batch in datamodule.train_dataloader()
+)
+
 model.train(
-    datamodule=datamodule,
+    datamodule=training_dataloader,
     max_epochs=1,
     batch_size=1024,
     train_size=0.9,

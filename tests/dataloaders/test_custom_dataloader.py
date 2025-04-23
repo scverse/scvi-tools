@@ -401,6 +401,12 @@ def test_census_custom_dataloader_scvi(save_path: str):
 
     pprint(datamodule.registry)
 
+    # creating the dataloader for trainset
+    datamodule.setup()
+    training_dataloader = (
+        datamodule.on_before_batch_transfer(batch, None) for batch in datamodule.train_dataloader()
+    )
+
     # We can now create the scVI model object and train it:
     model = scvi.model.SCVI(
         adata=None,
@@ -412,7 +418,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
     )
 
     model.train(
-        datamodule=datamodule,
+        datamodule=training_dataloader,
         max_epochs=1,
         batch_size=1024,
         train_size=0.9,
@@ -613,6 +619,12 @@ def test_census_custom_dataloader_scanvi(save_path: str):
 
     pprint(datamodule.registry)
 
+    # creating the dataloader for trainset
+    datamodule.setup()
+    training_dataloader = (
+        datamodule.on_before_batch_transfer(batch, None) for batch in datamodule.train_dataloader()
+    )
+
     # We can now create the scVI model object and train it:
     model = scvi.model.SCANVI(
         adata=None,
@@ -625,7 +637,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     )
 
     model.train(
-        datamodule=datamodule,
+        datamodule=training_dataloader,
         max_epochs=1,
         batch_size=1024,
         train_size=0.9,
