@@ -418,6 +418,13 @@ class TileDBDataModule(LightningDataModule):
         else:
             pass
 
+    def inference_dataloader(self):
+        # creating the dataloader for trainset
+        inference_loader = (
+            self.on_before_batch_transfer(batch, None) for batch in self.train_dataloader()
+        )
+        return inference_loader
+
     def _add_batch_col(self, obs_df: pd.DataFrame, inplace: bool = False):
         # synthesize a new column for obs_df by concatenating the self.batch_column_names columns
         if not inplace:
