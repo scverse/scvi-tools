@@ -403,9 +403,6 @@ def test_census_custom_dataloader_scvi(save_path: str):
 
     # creating the dataloader for trainset
     datamodule.setup()
-    # training_dataloader = (
-    #    datamodule.on_before_batch_transfer(batch, None) for batch in datamodule.train_dataloader
-    # )
 
     # We can now create the scVI model object and train it:
     model = scvi.model.SCVI(
@@ -448,61 +445,23 @@ def test_census_custom_dataloader_scvi(save_path: str):
 
     inference_datamodule.setup()
 
-    # creating the dataloader for trainset
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-
     # Datamodule will always require to pass it into all downstream functions.
     # need to init the inference_dataloader before each of those commands:
-    latent = model.get_latent_representation(dataloader=inference_dataloader)
+    latent = model.get_latent_representation(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
     print(latent.shape)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
+    _ = model.get_elbo(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_marginal_ll(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_reconstruction_error(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_latent_representation(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.posterior_predictive_sample(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_normalized_expression(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_likelihood_parameters(dataloader=inference_datamodule.inference_dataloader())
+    _ = model._get_denoised_samples(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_latent_library_size(
+        dataloader=inference_datamodule.inference_dataloader(), give_mean=False
     )
-    _ = model.get_elbo(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_marginal_ll(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_latent_representation(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.posterior_predictive_sample(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_normalized_expression(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_likelihood_parameters(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model._get_denoised_samples(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
 
     # generating data from this census
     adata = cellxgene_census.get_anndata(
@@ -621,9 +580,6 @@ def test_census_custom_dataloader_scanvi(save_path: str):
 
     # creating the dataloader for trainset
     datamodule.setup()
-    # training_dataloader = (
-    #    datamodule.on_before_batch_transfer(batch, None) for batch in datamodule.train_dataloader
-    # )
 
     # We can now create the scVI model object and train it:
     model = scvi.model.SCANVI(
@@ -669,55 +625,20 @@ def test_census_custom_dataloader_scanvi(save_path: str):
 
     inference_datamodule.setup()
 
-    # creating the dataloader
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
+    latent = model.get_latent_representation(
+        dataloader=inference_datamodule.inference_dataloader()
     )
-
-    latent = model.get_latent_representation(dataloader=inference_dataloader)
     print(latent.shape)
-    # each metric needs to init the inference_dataloader
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
+    _ = model.get_elbo(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_marginal_ll(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_reconstruction_error(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.posterior_predictive_sample(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_normalized_expression(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_likelihood_parameters(dataloader=inference_datamodule.inference_dataloader())
+    _ = model._get_denoised_samples(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_latent_library_size(
+        dataloader=inference_datamodule.inference_dataloader(), give_mean=False
     )
-    _ = model.get_elbo(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_marginal_ll(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.posterior_predictive_sample(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_normalized_expression(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_likelihood_parameters(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model._get_denoised_samples(dataloader=inference_dataloader)
-    inference_dataloader = (
-        inference_datamodule.on_before_batch_transfer(batch, None)
-        for batch in inference_datamodule.train_dataloader()
-    )
-    _ = model.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
 
     logged_keys = model.history.keys()
     assert "elbo_validation" in logged_keys
@@ -733,7 +654,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     assert "kl_global_validation" in logged_keys
     assert "kl_global_train" in logged_keys
 
-    model.predict(dataloader=inference_dataloader, soft=False)
+    model.predict(dataloader=inference_datamodule.inference_dataloader(), soft=False)
 
     # train from scvi model
     model_scvi = scvi.model.SCVI(registry=datamodule.registry)
