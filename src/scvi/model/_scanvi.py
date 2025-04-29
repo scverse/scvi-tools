@@ -132,11 +132,8 @@ class SCANVI(
 
         self._set_indices_and_labels(datamodule)
 
-        # ignores unlabeled category if inside the labels
-        if self.unlabeled_category_ is not None and self.unlabeled_category_ in self.labels_:
-            n_labels = self.summary_stats.n_labels - 1
-        else:
-            n_labels = self.summary_stats.n_labels
+        # ignores unlabeled category
+        n_labels = self.summary_stats.n_labels - 1
         if adata is not None:
             n_cats_per_cov = (
                 self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key

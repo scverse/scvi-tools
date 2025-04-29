@@ -159,7 +159,11 @@ class MappedCollectionDataModule(LightningDataModule):
     def n_labels(self) -> int:
         if self._label_key is None:
             return 1
-        return len(self._dataset.encoders[self._label_key])
+        combined = np.concatenate(
+            ([self.unlabeled_category], list(self._dataset.encoders[self._label_key].keys()))
+        )
+        unique_values = np.unique(combined)
+        return len(unique_values)
 
     @property
     def labels(self) -> np.ndarray:
@@ -565,7 +569,9 @@ class TileDBDataModule(LightningDataModule):
     @property
     def n_labels(self) -> int:
         if self.label_keys is not None:
-            return len(self.label_encoder.classes_)
+            combined = np.concatenate(([self.unlabeled_category], self.label_encoder.classes_))
+            unique_values = np.unique(combined)
+            return len(unique_values)
         else:
             return 1
 
