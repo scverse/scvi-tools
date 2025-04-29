@@ -905,8 +905,13 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            full_dataset = batch
-            labelled_dataset = None
+            if list(batch.keys()) == ["X", "batch", "labels"]:
+                # mean we are on batch loading from custom dataloader, TODO: KEEP IT?
+                full_dataset = batch
+                labelled_dataset = batch
+            else:
+                full_dataset = batch
+                labelled_dataset = None
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})

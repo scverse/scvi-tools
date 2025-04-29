@@ -174,7 +174,7 @@ class SemisupervisedTrainingMixin:
                 mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
             ).ravel()
         else:
-            self.labels_ = datamodule.labels.ravel()
+            self.labels_ = datamodule.labels_.ravel()
         self._label_mapping = labels_state_registry.categorical_mapping
 
         # set unlabeled and labeled indices
@@ -418,6 +418,9 @@ class SemisupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         else:
+            # if datamodule.registry["setup_method_name"]=="setup_datamodule":
+            #    sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
+            # else:
             Warning("Warning: SCANVI sampler is not available with custom dataloader")
             sampler_callback = []
 

@@ -33,19 +33,27 @@ class MappedCollectionDataModule(LightningDataModule):
         collection_val: ln.Collection | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
+        shuffle: bool = True,
+        model_name: str = "SCVI",
         **kwargs,
     ):
         super().__init__()
         self._batch_size = batch_size
         self._batch_key = batch_key
         self._label_key = label_key
+        self.model_name = model_name
+        self.shuffle = shuffle
         self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
+        self.labels_ = None
+
         # here we initialize MappedCollection to use in a pytorch DataLoader
         if self._label_key is not None:
             self._dataset = collection.mapped(
                 obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
             )
+            adata = collection.load(join="inner")
+            self.labels_ = adata.obs[self._label_key].values.astype(str)
             if collection_val is not None:
                 self._validset = collection_val.mapped(
                     obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
@@ -74,10 +82,10 @@ class MappedCollectionDataModule(LightningDataModule):
         self._validset.close()
 
     def train_dataloader(self) -> DataLoader:
-        return self._create_dataloader(shuffle=True)
+        return self._create_dataloader(shuffle=self.shuffle)
 
     def val_dataloader(self) -> DataLoader:
-        return self._create_dataloader_val(shuffle=True)
+        return self._create_dataloader_val(shuffle=self.shuffle)
 
     def inference_dataloader(self, shuffle=False, batch_size=4096, indices=None):
         """Dataloader for inference with `on_before_batch_transfer` applied."""
@@ -155,7 +163,9 @@ class MappedCollectionDataModule(LightningDataModule):
 
     @property
     def labels(self) -> np.ndarray:
-        return np.array(list(self._dataset.encoders[self._label_key].keys()))
+        if self._label_key is None:
+            return None
+        return np.array(list(self._dataset.encoders[self._label_key].keys())).astype(object)
 
     @property
     def unlabeled_category(self) -> str:
@@ -174,7 +184,7 @@ class MappedCollectionDataModule(LightningDataModule):
     def registry(self) -> dict:
         return {
             "scvi_version": scvi.__version__,
-            "model_name": "SCVI",
+            "model_name": self.model_name,
             "setup_args": {
                 "layer": None,
                 "batch_key": self._batch_key,
@@ -204,7 +214,7 @@ class MappedCollectionDataModule(LightningDataModule):
                 "labels": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
                     "state_registry": {
-                        "categorical_mapping": self.label_keys,
+                        "categorical_mapping": self.labels,
                         "original_key": self._label_key,
                         "unlabeled_category": self.unlabeled_category,
                     },
@@ -251,13 +261,9 @@ class MappedCollectionDataModule(LightningDataModule):
         LABEL_KEY: str = "labels"
 
         return {
-            X_KEY: batch["X"].float().to(self.device),
-            BATCH_KEY: batch[self._batch_key][:, None].to(self.device)
-            if self._batch_key is not None
-            else None,
-            LABEL_KEY: batch[self._label_key][:, None].to(self.device)
-            if self._label_key is not None
-            else 0,
+            X_KEY: batch["X"].float(),
+            BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
+            LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else 0,
         }
 
     class _InferenceDataloader:
@@ -300,6 +306,7 @@ class TileDBDataModule(LightningDataModule):
         dataloader_kwargs: dict[str, Any] | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
+        model_name: str = "SCVI",
         **kwargs,
     ):
         """
@@ -337,6 +344,9 @@ class TileDBDataModule(LightningDataModule):
         %(param_accelerator)s
         %(param_device)s
 
+        model_name
+            The SCVI-Tools Model we are running
+
         Keyword arguments passed to `tiledbsoma_ml.experiment_dataloader()`, e.g. `num_workers`.
         """
         super().__init__()
@@ -346,6 +356,16 @@ class TileDBDataModule(LightningDataModule):
         self.dataloader_kwargs = dataloader_kwargs if dataloader_kwargs is not None else {}
         self.train_size = train_size
         self.split_seed = split_seed
+        self.model_name = model_name
+
+        # deal with labels if needed
+        self.unlabeled_category = unlabeled_category
+        self.label_keys = label_keys
+        self.labels_colsep = "//"
+        self.label_colname = "_scvi_labels"
+        self.labels = None
+        self.label_encoder = None
+        self.labels_ = None
 
         # deal with batches
         self.batch_column_names = batch_column_names
@@ -356,37 +376,45 @@ class TileDBDataModule(LightningDataModule):
         #   2. add scvi_batch column
         #   3. fit LabelEncoder to the scvi_batch column's unique values
         if batch_labels is None:
-            obs_df = self.query.obs(column_names=self.batch_column_names).concat().to_pandas()
+            cols_sel = (
+                self.batch_column_names
+                if self.label_keys is None
+                else self.batch_column_names + self.label_keys
+            )
+            obs_df = self.query.obs(column_names=cols_sel).concat().to_pandas()
+            obs_df = obs_df[cols_sel]
             self._add_batch_col(obs_df, inplace=True)
             batch_labels = obs_df[self.batch_colname].unique()
         self.batch_labels = batch_labels
         self.batch_encoder = LabelEncoder().fit(self.batch_labels)
 
-        # deal with labels
-        self.unlabeled_category = unlabeled_category
-        self.label_keys = label_keys
-        self.labels_colsep = "//"
-        self.label_colname = "_scvi_labels"
-        self.labels = None
-        self.label_encoder = None
         if label_keys is not None:
             obs_label_df = self.query.obs(column_names=self.label_keys).concat().to_pandas()
+            obs_label_df = obs_label_df[self.label_keys]
             self._add_label_col(obs_label_df, inplace=True)
             labels = obs_label_df[self.label_colname].unique()
             self.labels = labels
             self.label_encoder = LabelEncoder().fit(self.labels)
+            self.labels_ = obs_label_df["_scvi_labels"].values
+
         _, _, self.device = parse_device_args(
             accelerator=accelerator, devices=device, return_device="torch"
         )
 
     def setup(self, stage: str | None = None) -> None:
         # Instantiate the ExperimentDataset with the provided args and kwargs.
-        import tiledbsoma_ml
+        from tiledbsoma_ml import ExperimentDataset
 
-        self.train_dataset = tiledbsoma_ml.ExperimentDataset(
+        cols_sel = (
+            self.batch_column_names
+            if self.label_keys is None
+            else self.batch_column_names + self.label_keys
+        )
+
+        self.train_dataset = ExperimentDataset(
             self.query,
             *self.dataset_args,
-            obs_column_names=self.batch_column_names,
+            obs_column_names=cols_sel,
             **self.dataset_kwargs,
         )
 
@@ -400,18 +428,18 @@ class TileDBDataModule(LightningDataModule):
             self.val_dataset = None
 
     def train_dataloader(self) -> DataLoader:
-        import tiledbsoma_ml
+        from tiledbsoma_ml import experiment_dataloader
 
-        return tiledbsoma_ml.experiment_dataloader(
+        return experiment_dataloader(
             self.train_dataset,
             **self.dataloader_kwargs,
         )
 
     def val_dataloader(self) -> DataLoader:
-        import tiledbsoma_ml
+        from tiledbsoma_ml import experiment_dataloader
 
         if self.val_dataset is not None:
-            return tiledbsoma_ml.experiment_dataloader(
+            return experiment_dataloader(
                 self.val_dataset,
                 **self.dataloader_kwargs,
             )
@@ -432,6 +460,10 @@ class TileDBDataModule(LightningDataModule):
         obs_df[self.batch_colname] = (
             obs_df[self.batch_column_names].astype(str).agg(self.batch_colsep.join, axis=1)
         )
+        if self.labels is not None:
+            obs_df[self.label_colname] = (
+                obs_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
+            )
         return obs_df
 
     def _add_label_col(self, obs_label_df: pd.DataFrame, inplace: bool = False):
@@ -455,11 +487,17 @@ class TileDBDataModule(LightningDataModule):
         batch_X, batch_obs = batch
         self._add_batch_col(batch_obs, inplace=True)
         return {
-            "X": torch.from_numpy(batch_X).float().to(self.device),
-            "batch": torch.from_numpy(self.batch_encoder.transform(batch_obs[self.batch_colname]))
-            .unsqueeze(1)
-            .to(self.device),
-            "labels": torch.empty(0).to(self.device),
+            "X": torch.from_numpy(batch_X).float(),
+            "batch": torch.from_numpy(
+                self.batch_encoder.transform(batch_obs[self.batch_colname])
+            ).unsqueeze(1)
+            if self.batch_column_names is not None
+            else None,
+            "labels": torch.from_numpy(
+                self.label_encoder.transform(batch_obs[self.label_colname])
+            ).unsqueeze(1)
+            if self.label_keys is not None
+            else torch.empty(0),
         }
 
     # scVI code expects these properties on the DataModule:
@@ -540,11 +578,11 @@ class TileDBDataModule(LightningDataModule):
         )
         return {
             "scvi_version": scvi.__version__,
-            "model_name": "SCVI",
+            "model_name": self.model_name,
             "setup_args": {
                 "layer": None,
                 "batch_key": self.batch_colname,
-                "labels_key": self.label_colname,
+                "labels_key": self.label_keys[0] if self.label_keys is not None else "label",
                 "size_factor_key": None,
                 "categorical_covariate_keys": None,
                 "continuous_covariate_keys": None,
@@ -571,7 +609,9 @@ class TileDBDataModule(LightningDataModule):
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
                     "state_registry": {
                         "categorical_mapping": labels_mapping,
-                        "original_key": "label",
+                        "original_key": self.label_keys[0]
+                        if self.label_keys is not None
+                        else "label",
                         "unlabeled_category": self.unlabeled_category,
                     },
                     "summary_stats": {"n_labels": self.n_labels},
