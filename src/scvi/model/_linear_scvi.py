@@ -7,13 +7,15 @@ import pandas as pd
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.model._utils import _init_library_size
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import LDVAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass, RNASeqMixin, VAEMixin
+from .base import BaseMinifiedModeModelClass, RNASeqMixin, VAEMixin
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -23,7 +25,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class LinearSCVI(
+    RNASeqMixin,
+    VAEMixin,
+    UnsupervisedTrainingMixin,
+    BaseMinifiedModeModelClass,
+):
     """Linearly-decoded VAE :cite:p:`Svensson20`.
 
     Parameters
@@ -51,6 +58,9 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         * ``'nb'`` - Negative binomial distribution
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     latent_distribution
         One of:
 
@@ -75,6 +85,8 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
     """
 
     _module_cls = LDVAE
+    _LATENT_QZM_KEY = "ldvae_latent_qzm"
+    _LATENT_QZV_KEY = "ldvae_latent_qzv"
 
     def __init__(
         self,
@@ -85,13 +97,19 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
+        use_observed_lib_size: bool = False,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
         super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+        library_log_means, library_log_vars = None, None
+        if (
+            self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+            and not use_observed_lib_size
+        ):
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -105,6 +123,7 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             latent_distribution=latent_distribution,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
+            use_observed_lib_size=use_observed_lib_size,
             **model_kwargs,
         )
         self._model_summary_string = (
@@ -153,6 +172,10 @@ class LinearSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClas
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
+        # register new fields if the adata is minified
+        adata_minify_type = _get_adata_minify_type(adata)
+        if adata_minify_type is not None:
+            anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
