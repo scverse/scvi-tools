@@ -439,7 +439,7 @@ class MRVAE(BaseModuleClass):
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
         return {"x": x, "sample_index": sample_index}
 
-    @auto_move_data  # TODO: what is this
+    @auto_move_data
     def inference(
         self,
         x: torch.Tensor,

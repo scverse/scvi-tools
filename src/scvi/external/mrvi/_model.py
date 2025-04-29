@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import jax
 import jax.numpy as jnp
 import numpy as np
+import torch
 import xarray as xr
 from tqdm import tqdm
 
@@ -15,7 +16,7 @@ from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
-from scvi.model.base import BaseModelClass, JaxTrainingMixin
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -24,7 +25,9 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
     from anndata import AnnData
-    from numpyro.distributions import Distribution
+    from torch import Tensor
+    from torch.distributions import Distribution
+    # from numpyro.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +48,7 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class MRVI(JaxTrainingMixin, BaseModelClass):
+class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
@@ -113,7 +116,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             REGISTRY_KEYS.SAMPLE_KEY
         ).categorical_mapping
 
-        self.n_obs_per_sample = jnp.array(
+        self.n_obs_per_sample = torch.array(
             adata.obs._scvi_sample.value_counts().sort_index().values
         )
 
@@ -131,7 +134,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         # TODO(jhong): remove this once we have a better way to handle device.
         pass
 
-    def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
+    """def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
         return_1d = isinstance(n_sets, int)
         if return_1d:
             n_sets_1d = n_sets
@@ -152,7 +155,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 key: random_key.reshape(n_sets + random_key.shape[1:])
                 for (key, random_key) in rngs.items()
             }
-        return rngs
+        return rngs"""
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -279,28 +282,37 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         """
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(
+        dataloader = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
         us = []
         zs = []
-        jit_inference_fn = self.module.get_jit_inference_fn(
-            inference_kwargs={"use_mean": use_mean}
-        )
-        for array_dict in tqdm(scdl):
-            outputs = jit_inference_fn(self.module.rngs, array_dict)
+
+        for tensors in dataloader:
+            outputs: dict[str, Tensor | Distribution | None] = self.module.inference(
+                **self.module._get_inference_input(
+                    tensors.update("use_mean", use_mean)
+                )  # TODO: double check this
+            )
 
             if give_z:
-                zs.append(jax.device_get(outputs["z"]))
+                zs.append(outputs["z"].cpu())  # TODO: check if this is how to acces z
             else:
-                us.append(jax.device_get(outputs["u"]))
+                us.append(outputs["u"].cpu())  # TODO: check if this is how to access u
 
         if give_z:
-            return np.array(jnp.concatenate(zs, axis=0))
+            return np.concatenate(zs, axis=0)
         else:
-            return np.array(jnp.concatenate(us, axis=0))
+            return np.concatenate(us, axis=0)
 
+        # TODO: does the above properly cover the case where we want to return the distribution?
+
+    """
+ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROGRESS.
+"""
+
+    # TODO: still have to translate this fn. do last
     def compute_local_statistics(
         self,
         reductions: list[MRVIReduction],
