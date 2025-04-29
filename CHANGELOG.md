@@ -17,6 +17,7 @@ to [Semantic Versioning]. Full commit history is available in the
     get_accessibility_estimates to get_normalized_accessibility, where needed.
 - Add support for using Lamin custom dataloaders with {class}`scvi.model.SCVI`, {pr}`2932`.
 - Add Early stopping KL warmup steps. {pr}`3262`.
+- Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
 
 #### Fixed
 
