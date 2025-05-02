@@ -1,0 +1,124 @@
+.hidden {
+    display: none;
+}
+
+.filter-btn {
+    pointer-events: auto;
+    cursor: pointer;
+    display: inline-block;
+    padding: 0.5rem 1rem; /* Use relative padding */
+    border-radius: 0.5rem; /* Uniform border radius */
+    border: 1px solid var(--pst-color-border);
+    color: var(--pst-color-base);
+    font-size: 1rem; /* Relative font size */
+    transition: all 0.2s ease-in-out;
+    background-color: var(--pst-color-background);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add shadow for contrast */
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden; /* Ensure content stays on one line */
+}
+
+.filter-btn:hover {
+    color: var(--pst-color-table-row-hover);
+    border-color: var(--pst-color-table-row-hover);
+    background-color: var(--pst-color-hover-background); /* Add hover background */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhance shadow on hover */
+}
+
+.filter-btn.selected {
+    background-color: var(--pst-color-on-background);
+    color: var(--pst-color-text-muted);
+    font-weight: bold; /* Highlight selected button */
+}
+
+.filter-menu {
+    display: flex;
+    flex-wrap: wrap;
+    row-gap: 0.5rem; /* Use relative spacing */
+    column-gap: 1rem;
+    justify-content: center;
+    max-width: 100%; /* Restrict width to page */
+    margin: 0 auto; /* Center the menu */
+    padding: 0 1rem; /* Add padding for spacing */
+    overflow: hidden;
+}
+
+/* Highlight the all button when selected */
+.filter-menu.all-tag-selected .filter-btn[data-tag="all"] {
+    background-color: var(--pst-color-on-background);
+    color: var(--pst-color-text-muted);
+    font-weight: bold; /* Highlight selected button */
+}
+
+.card a {
+    text-decoration: none;
+    }
+
+.card {
+    border-radius: 1rem; /* Uniform border radius */
+    border: 1px solid var(--pst-color-border);
+    transition: all 0.3s ease-in-out;
+    background-color: var(--pst-color-background);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); /* Add shadow for contrast */
+    overflow: hidden; /* Prevent content overflow */
+}
+
+.card:hover {
+    border-color: var(--pst-color-secondary);
+    background-color: var(--pst-color-on-background);
+    color: var(--pst-color-text-base);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Enhance shadow on hover */
+    transform: translateY(-2px); /* Add subtle lift effect */
+}
+
+.card-title-container {
+    color: var(--pst-color-text-base);
+    font-weight: bold; /* Emphasize title */
+    margin-bottom: 0.25rem; /* Reduce spacing below title */
+    margin-top: 0.25rem; /* Reduce spacing above title */
+}
+
+.card-description {
+    color: var(--pst-color-text-muted);
+    line-height: 1.5; /* Improve readability */
+}
+
+.model-group-name {
+    color: var(--pst-color-text-muted);
+    font-size: 1rem; /* Standardize font size */
+    font-style: italic; /* Emphasize group name */
+    margin-bottom: 0.25rem; /* Reduce spacing below group name */
+}
+
+#tab-menu {
+    display: flex;
+    row-gap: 0.5rem; /* Use relative spacing */
+    column-gap: 1rem;
+    justify-content: center; /* Center align tabs */
+}
+
+.tab {
+    pointer-events: auto;
+    cursor: pointer;
+    display: inline-block;
+    padding: 0.5rem 1rem; /* Use relative padding */
+    border-radius: 0.5rem; /* Uniform border radius */
+    border: 1px solid var(--pst-color-border);
+    color: var(--pst-color-base);
+    font-size: 1.125rem; /* Relative font size */
+    transition: all 0.1s ease-in-out;
+    background-color: var(--pst-color-background);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add shadow for contrast */
+}
+
+.tab:hover {
+    background-color: var(--pst-color-hover-background); /* Add hover background */
+    color: var(--pst-color-table-row-hover);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhance shadow on hover */
+}
+
+.tab.tab-selected {
+    border-bottom: none;
+    font-weight: bold; /* Highlight selected tab */
+    color: var(--pst-color-secondary); /* Use secondary color for emphasis */
+}
