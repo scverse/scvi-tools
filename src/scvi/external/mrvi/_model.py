@@ -5,7 +5,6 @@ import warnings
 from typing import TYPE_CHECKING
 
 import jax
-import jax.numpy as jnp
 import numpy as np
 import torch
 import xarray as xr
@@ -308,10 +307,6 @@ class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
 
         # TODO: does the above properly cover the case where we want to return the distribution?
 
-    """
-ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROGRESS.
-"""
-
     # TODO: still have to translate this fn. do last
     def compute_local_statistics(
         self,
@@ -348,8 +343,6 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             Number of Monte Carlo samples to use for computing the local statistics. Only applies
             if using sampled representations.
         """
-        from functools import partial
-
         from scvi.external.mrvi._utils import _parse_local_statistics_requirements
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
@@ -370,48 +363,34 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
 
         reqs = _parse_local_statistics_requirements(reductions)
 
-        vars_in = {"params": self.module.params, **self.module.state}
-
-        @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
+        # @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
-            stacked_rngs: dict[str, jax.random.KeyArray],
-            x: jax.typing.ArrayLike,
-            sample_index: jax.typing.ArrayLike,
-            cf_sample: jax.typing.ArrayLike,
+            x: torch.Tensor,
+            sample_index: torch.Tensor,
+            cf_sample: torch.Tensor,
             use_mean: bool,
             mc_samples: int | None = None,
         ):
-            # TODO: use `self.module.get_jit_inference_fn` when it supports traced values.
-            def inference_fn(
-                rngs,
-                cf_sample,
-            ):
-                return self.module.apply(
-                    vars_in,
-                    rngs=rngs,
-                    method=self.module.inference,
+            if use_vmap:
+                return torch.vmap(
+                    self.module.inference, in_axes=(None, None, None, 0, None), out_axes=-2
+                )(  # TODO: need to check axes
+                    x,
+                    sample_index,
+                    mc_samples,
+                    cf_sample,
+                    use_mean,
+                )["z"]
+            else:
+                # TODO: below, unsure if torch parallelizes anyways
+                # If so would defeat the purpose of having the no vmap option. check this
+                return self.module.inference(
                     x=x,
                     sample_index=sample_index,
                     cf_sample=cf_sample,
                     use_mean=use_mean,
                     mc_samples=mc_samples,
-                )["z"]
-
-            if use_vmap:
-                return jax.vmap(inference_fn, in_axes=(0, 0), out_axes=-2)(
-                    stacked_rngs,
-                    cf_sample,
-                )
-            else:
-
-                def per_sample_inference_fn(pair):
-                    rngs, cf_sample = pair
-                    return inference_fn(rngs, cf_sample)
-
-                return jax.lax.transpose(
-                    jax.lax.map(per_sample_inference_fn, (stacked_rngs, cf_sample)),
-                    (1, 0, 2),
-                )
+                )["z"].permute(1, 0, 2)
 
         ungrouped_data_arrs = {}
         grouped_data_arrs = {}
@@ -420,26 +399,22 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         for gr in reqs.grouped_reductions:
             grouped_data_arrs[gr.name] = {}  # Will map group category to running group sum.
 
-        for array_dict in tqdm(scdl):
-            indices = array_dict[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
-            n_cells = array_dict[REGISTRY_KEYS.X_KEY].shape[0]
+        for tensor in tqdm(scdl):
+            indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
+            n_cells = tensor[REGISTRY_KEYS.X_KEY].shape[0]
             cf_sample = np.broadcast_to(np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1))
             inf_inputs = self.module._get_inference_input(
-                array_dict,
+                tensor,
             )
-            stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
-
-            # OK to use stacked rngs here since there is no stochasticity for mean rep.
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
-                        stacked_rngs=stacked_rngs,
-                        x=jnp.array(inf_inputs["x"]),
-                        sample_index=jnp.array(inf_inputs["sample_index"]),
-                        cf_sample=jnp.array(cf_sample),
+                        x=torch.Tensor(inf_inputs["x"]),
+                        sample_index=torch.Tensor(inf_inputs["sample_index"]),
+                        cf_sample=torch.Tensor(cf_sample),
                         use_mean=True,
                     )
-                except jax.errors.JaxRuntimeError as e:
+                except RuntimeError as e:
                     if use_vmap:
                         raise RuntimeError(
                             "JAX ran out of memory. Try setting use_vmap=False."
@@ -458,10 +433,9 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
                 )
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
-                    stacked_rngs=stacked_rngs,
-                    x=jnp.array(inf_inputs["x"]),
-                    sample_index=jnp.array(inf_inputs["sample_index"]),
-                    cf_sample=jnp.array(cf_sample),
+                    x=torch.Tensor(inf_inputs["x"]),
+                    sample_index=torch.Tensor(inf_inputs["sample_index"]),
+                    cf_sample=torch.Tensor(cf_sample),
                     use_mean=False,
                     mc_samples=mc_samples,
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
@@ -495,7 +469,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
                         normalization_means,
                         normalization_vars,
                     ) = self._compute_local_baseline_dists(
-                        array_dict, mc_samples=mc_samples
+                        tensor, mc_samples=mc_samples
                     )  # both are shape (n_cells,)
                     normalization_means = normalization_means.reshape(-1, 1, 1, 1)
                     normalization_vars = normalization_vars.reshape(-1, 1, 1, 1)
@@ -574,43 +548,41 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         mc_samples_per_cell = (
             mc_samples * 2
         )  # need double for pairs of samples to compute distance between
-        jit_inference_fn = self.module.get_jit_inference_fn(
-            inference_kwargs={"use_mean": False, "mc_samples": mc_samples_per_cell}
-        )
 
-        outputs = jit_inference_fn(self.module.rngs, batch)
+        kwargs = self.module._get_inference_input(batch).update(
+            {"use_mean": False, "mc_samples": mc_samples_per_cell}
+        )  # TODO: double check this for getting the kwargs
+        outputs = self.module.inference(**kwargs)
 
-        # figure out how to compute dists here
         z = outputs["z"]
         first_half_z, second_half_z = z[:mc_samples], z[mc_samples:]
-        l2_dists = jnp.sqrt(jnp.sum((first_half_z - second_half_z) ** 2, axis=2)).T
+        l2_dists = torch.sqrt(torch.sum((first_half_z - second_half_z) ** 2, axis=2)).T
 
-        return np.array(jnp.mean(l2_dists, axis=1)), np.array(jnp.var(l2_dists, axis=1))
+        return np.array(torch.mean(l2_dists, axis=1)), np.array(torch.var(l2_dists, axis=1))
 
     def _compute_distances_from_representations(
         self,
-        reps: jax.typing.ArrayLike,
-        indices: jax.typing.ArrayLike,
+        reps: torch.Tensor,
+        indices: torch.Tensor,
         norm: Literal["l2", "l1", "linf"] = "l2",
         return_numpy: bool = True,
     ) -> xr.DataArray:
         if norm not in ("l2", "l1", "linf"):
             raise ValueError(f"`norm` {norm} not supported")
 
-        @jax.jit
-        def _compute_distance(rep: jax.typing.ArrayLike):
-            delta_mat = jnp.expand_dims(rep, 0) - jnp.expand_dims(rep, 1)
+        def _compute_distance(rep: torch.Tensor):
+            delta_mat = torch.unsqueeze(rep, 0) - torch.unsqueeze(rep, 1)
             if norm == "l2":
                 res = delta_mat**2
-                res = jnp.sqrt(res.sum(-1))
+                res = torch.sqrt(res.sum(-1))
             elif norm == "l1":
-                res = jnp.abs(delta_mat).sum(-1)
+                res = torch.abs(delta_mat).sum(-1)
             elif norm == "linf":
-                res = jnp.abs(delta_mat).max(-1)
+                res = torch.abs(delta_mat).max(-1)
             return res
 
         if reps.ndim == 3:
-            dists = jax.vmap(_compute_distance)(reps)
+            dists = torch.vmap(_compute_distance)(reps)
             if return_numpy:
                 dists = np.array(dists)
             return xr.DataArray(
@@ -625,7 +597,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             )
         else:
             # Case with sampled representations
-            dists = jax.vmap(jax.vmap(_compute_distance))(reps)
+            dists = torch.vmap(torch.vmap(_compute_distance))(reps)
             if return_numpy:
                 dists = np.array(dists)
             return xr.DataArray(
@@ -795,7 +767,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         -------
         A mixture distribution of the aggregated posterior.
         """
-        from numpyro.distributions import (
+        from torch.distributions import (
             Categorical,
             MixtureSameFamily,
             Normal,
@@ -809,24 +781,26 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             indices = np.intersect1d(
                 np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
             )
-        scdl = self._make_data_loader(
+        dataloader = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
         qu_locs = []
         qu_scales = []
-        jit_inference_fn = self.module.get_jit_inference_fn(inference_kwargs={"use_mean": True})
-        for array_dict in scdl:
-            outputs = jit_inference_fn(self.module.rngs, array_dict)
+        for tensor in dataloader:
+            inference_inputs = self.module._get_inference_input(tensor).update(
+                {"use_mean": True}
+            )  # TODO: check this
+            outputs = self.module.inference(inference_inputs)
 
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
 
-        qu_loc = jnp.concatenate(qu_locs, axis=0)  # n_cells x n_latent_u
-        qu_scale = jnp.concatenate(qu_scales, axis=0)  # n_cells x n_latent_u
+        qu_loc = torch.cat(qu_locs, axis=0)  # n_cells x n_latent_u
+        qu_scale = torch.cat(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
-            Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
-            (Normal(qu_loc, qu_scale).to_event(1)),
+            Categorical(probs=torch.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            (Normal(qu_loc, qu_scale).to_event(1)),  # TODO: check to_event thing
         )
 
     def differential_abundance(
@@ -903,7 +877,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             n_splits = max(adata.n_obs // batch_size, 1)
             log_probs_ = []
             for u_rep in np.array_split(us, n_splits):
-                log_probs_.append(jax.device_get(ap.log_prob(u_rep))[..., np.newaxis])
+                log_probs_.append(ap.log_prob(u_rep).cpu().numpy()[..., np.newaxis])
 
             log_probs.append(np.concatenate(log_probs_, axis=0))  # (n_cells, 1)
 
@@ -1059,7 +1033,9 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
             in_max_comp_log_probs = ap.component_distribution.log_prob(
-                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap, 1, n_latent_dim)
+                np.expand_dims(
+                    adata_s.obsm["U"], ap.mixture_dim
+                )  # (n_cells_ap, 1, n_latent_dim) # TODO: think I have to fix mixture_dim
             )  # (n_cells_ap, n_cells_ap)
             log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
 
@@ -1067,15 +1043,14 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             n_splits = adata.n_obs // batch_size
             for u_rep in np.array_split(adata.obsm["U"], n_splits):
                 log_probs_.append(
-                    jax.device_get(
-                        ap.component_distribution.log_prob(
-                            np.expand_dims(
-                                u_rep, ap.mixture_dim
-                            )  # (n_cells_batch, 1, n_latent_dim)
-                        ).max(  # (n_cells_batch, n_cells_ap)
-                            axis=1, keepdims=True
-                        )  # (n_cells_batch, 1)
+                    ap.component_distribution.log_prob(
+                        np.expand_dims(u_rep, ap.mixture_dim)  # (n_cells_batch, 1, n_latent_dim)
                     )
+                    .max(  # (n_cells_batch, n_cells_ap)
+                        axis=1, keepdims=True
+                    )
+                    .cpu()
+                    .numpy()  # (n_cells_batch, 1)
                 )
 
             log_probs_ = np.concatenate(log_probs_, axis=0)  # (n_cells, 1)
@@ -1198,8 +1173,6 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         * ``"n_samples"``: Number of admissible samples for each cell, if
             ``filter_inadmissible_samples`` is ``True``.
         """
-        from functools import partial
-
         from scipy.stats import false_discovery_control
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
@@ -1218,7 +1191,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             adata=adata, indices=None, batch_size=batch_size, iter_ndarray=True
         )
         n_sample = self.summary_stats.n_sample
-        vars_in = {"params": self.module.params, **self.module.state}
+        # vars_in = {"params": self.module.params, **self.module.state}
 
         sample_mask = (
             np.isin(self.sample_order, sample_subset)
@@ -1255,77 +1228,67 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         add_batch_specific_offsets = offset_indices is not None
         n_covariates = Xmat.shape[1]
 
-        @partial(jax.jit, backend="cpu")
+        # @partial(jax.jit, backend="cpu") TODO: equivalent of this. what does it do?
         def process_design_matrix(
-            admissible_samples_dmat: jax.typing.ArrayLike,
-            Xmat: jax.typing.ArrayLike,
-        ) -> tuple[jax.Array, jax.Array]:
-            xtmx = jnp.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
-            xtmx += lambd * jnp.eye(n_covariates)
+            admissible_samples_dmat: torch.Tensor,
+            Xmat: torch.Tensor,
+        ) -> tuple[torch.Tensor, torch.Tensor]:
+            xtmx = torch.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
+            xtmx += lambd * torch.eye(n_covariates)
 
-            prefactor = jnp.real(jax.vmap(jax.scipy.linalg.sqrtm)(xtmx))
-            inv_ = jax.vmap(jnp.linalg.pinv)(xtmx)
-            Amat = jnp.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
+            prefactor = torch.real(
+                torch.vmap(torch.scipy.linalg.sqrtm)(xtmx)
+            )  # TODO: don't think there is a torch.scipy so checkt this
+            inv_ = torch.vmap(torch.linalg.pinv)(xtmx)
+            Amat = torch.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
             return Amat, prefactor
 
-        @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
+        # @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
+        # TODO: equivalent of this. what does it do?
         def mapped_inference_fn(
-            stacked_rngs: dict[str, jax.random.KeyArray],
-            x: jax.typing.ArrayLike,
-            sample_index: jax.typing.ArrayLike,
-            cf_sample: jax.typing.ArrayLike,
-            Amat: jax.typing.ArrayLike,
-            prefactor: jax.typing.ArrayLike,
+            x: torch.Tensor,
+            sample_index: torch.Tensor,
+            cf_sample: torch.Tensor,
+            Amat: torch.Tensor,
+            prefactor: torch.Tensor,
             n_samples_per_cell: int,
-            admissible_samples_mat: jax.typing.ArrayLike,
+            admissible_samples_mat: torch.Tensor,
             use_mean: bool,
             mc_samples: int,
-            rngs_de=None,
         ):
-            def inference_fn(
-                rngs,
-                cf_sample,
-            ):
-                return self.module.apply(
-                    vars_in,
-                    rngs=rngs,
-                    method=self.module.inference,
+            if use_vmap:
+                eps_ = torch.vmap(
+                    self.module.inference, in_axes=(None, None, 0, None, None), out_axes=-2
+                )(  # TODO: check params
                     x=x,
                     sample_index=sample_index,
                     cf_sample=cf_sample,
                     use_mean=use_mean,
                     mc_samples=mc_samples,
-                )["eps"]
-
-            if use_vmap:
-                eps_ = jax.vmap(inference_fn, in_axes=(0, 0), out_axes=-2)(
-                    stacked_rngs,
-                    cf_sample,
-                )
+                )["z"]  # TODO: acessing like this might not work since returns a dict
             else:
+                eps_ = self.module.inference(
+                    x=x,
+                    sample_index=sample_index,
+                    cf_sample=cf_sample,
+                    use_mean=use_mean,
+                    mc_samples=mc_samples,
+                )["z"].permute(1, 2, 0, 3)  # TODO: same as above
 
-                def per_sample_inference_fn(pair):
-                    rngs, cf_sample = pair
-                    return inference_fn(rngs, cf_sample)
-
-                # eps_ has shape (mc_samples, n_cells, n_samples, n_latent)
-                eps_ = jax.lax.transpose(
-                    jax.lax.map(per_sample_inference_fn, (stacked_rngs, cf_sample)),
-                    (1, 2, 0, 3),
-                )
             eps_std = eps_.std(axis=2, keepdims=True)
             eps_mean = eps_.mean(axis=2, keepdims=True)
 
             eps = (eps_ - eps_mean) / (1e-6 + eps_std)  # over samples
             # MLE for betas
-            betas = jnp.einsum("nks,ansd->ankd", Amat, eps)
+            betas = torch.einsum("nks,ansd->ankd", Amat, eps)
 
             # Statistical tests
-            betas_norm = jnp.einsum("ankd,nkl->anld", betas, prefactor)
+            def chi2_cdf(x, df):
+                return torch.special.gammainc(df / 2, x / 2)  # TODO: check this
+
+            betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - jnp.nan_to_num(
-                jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0
-            )
+            pvals = 1 - torch.nan_to_num(chi2_cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0)
 
             betas = betas * eps_std
 
@@ -1333,43 +1296,41 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             lfc_std = None
             pde = None
             if store_lfc:
-                betas_ = betas.transpose((0, 2, 1, 3))
-                eps_mean_ = eps_mean.transpose((0, 2, 1, 3))
+                betas_ = betas.permute((0, 2, 1, 3))
+                eps_mean_ = eps_mean.permute((0, 2, 1, 3))
                 betas_covariates = betas_[:, covariates_require_lfc, :, :]
 
                 def h_inference_fn(extra_eps, batch_index_cf, batch_offset_eps):
                     extra_eps += batch_offset_eps
 
-                    return self.module.apply(
-                        vars_in,
-                        rngs=rngs_de,
-                        method=self.module.compute_h_from_x_eps,
+                    return self.module.compute_h_from_x_eps(
                         x=x,
-                        extra_eps=extra_eps,
                         sample_index=sample_index,
+                        extra_eps=extra_eps,
                         batch_index=batch_index_cf,
-                        cf_sample=None,
-                        mc_samples=None,  # mc_samples also taken for eps. vmap over mc_samples
+                        cf_sample=cf_sample,
+                        mc_samples=mc_samples,
+                        # mc_samples also taken for eps. vmap over mc_samples
                     )
 
-                batch_index_ = jnp.arange(self.summary_stats.n_batch)[:, None]
-                batch_index_ = jnp.repeat(batch_index_, repeats=n_cells, axis=1)[
+                batch_index_ = torch.arange(self.summary_stats.n_batch)[:, None]
+                batch_index_ = torch.repeat(batch_index_, repeats=n_cells, axis=1)[
                     ..., None
                 ]  # (n_batch, n_cells, 1)
-                betas_null = jnp.zeros_like(betas_covariates)
+                betas_null = torch.zeros_like(betas_covariates)
 
                 if add_batch_specific_offsets:
-                    batch_weights = jnp.einsum(
+                    batch_weights = torch.einsum(
                         "nd,db->nb", admissible_samples_mat, Xmat[:, offset_indices]
                     ).mean(0)
                     betas_offset_ = betas_[:, offset_indices, :, :] + eps_mean_
                 else:
-                    batch_weights = (1.0 / self.summary_stats.n_batch) * jnp.ones(
+                    batch_weights = (1.0 / self.summary_stats.n_batch) * torch.ones(
                         self.summary_stats.n_batch
                     )
                     mc_samples, _, n_cells_, n_latent = betas_covariates.shape
                     betas_offset_ = (
-                        jnp.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent))
+                        torch.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent))
                         + eps_mean_
                     )
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
@@ -1384,11 +1345,11 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
                 x_1 = h_fn(betas_covariates, batch_index_, betas_offset_)
                 x_0 = h_fn(betas_null, batch_index_, betas_offset_)
 
-                lfcs = jnp.log2(x_1 + eps_lfc) - jnp.log2(x_0 + eps_lfc)
-                lfc_mean = jnp.average(lfcs.mean(1), weights=batch_weights, axis=0)
+                lfcs = torch.log2(x_1 + eps_lfc) - torch.log2(x_0 + eps_lfc)
+                lfc_mean = torch.average(lfcs.mean(1), weights=batch_weights, axis=0)
                 if delta is not None:
-                    lfc_std = jnp.sqrt(jnp.average(lfcs.var(1), weights=batch_weights, axis=0))
-                    pde = (jnp.abs(lfcs) >= delta).mean(1).mean(0)
+                    lfc_std = torch.sqrt(torch.average(lfcs.var(1), weights=batch_weights, axis=0))
+                    pde = (torch.abs(lfcs) >= delta).mean(1).mean(0)
 
             if store_baseline:
                 baseline_expression = x_1.mean(1)
@@ -1411,45 +1372,44 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         lfc_std = []
         pde = []
         baseline_expression = []
-        for array_dict in tqdm(scdl):
-            indices = array_dict[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
-            n_cells = array_dict[REGISTRY_KEYS.X_KEY].shape[0]
+        for tensors in tqdm(scdl):
+            indices = tensors[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
+            n_cells = tensors[REGISTRY_KEYS.X_KEY].shape[0]
             cf_sample = np.broadcast_to(
                 (np.where(sample_mask)[0])[:, None, None], (n_samples_kept, n_cells, 1)
             )
             inf_inputs = self.module._get_inference_input(
-                array_dict,
+                tensors,
             )
-            stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
-
-            rngs_de = self.module.rngs if store_lfc else None
-            admissible_samples_mat = jnp.array(admissible_samples[indices])  # (n_cells, n_samples)
+            admissible_samples_mat = torch.Tensor(
+                admissible_samples[indices]
+            )  # (n_cells, n_samples)
             n_samples_per_cell = admissible_samples_mat.sum(axis=1)
-            admissible_samples_dmat = jax.vmap(jnp.diag)(admissible_samples_mat).astype(
+            admissible_samples_dmat = torch.vmap(torch.diag)(admissible_samples_mat).astype(
                 float
             )  # (n_cells, n_samples, n_samples)
             # element nij is 1 if sample i is admissible and i=j for cell n
             Amat, prefactor = process_design_matrix(admissible_samples_dmat, Xmat)
-            Amat = jax.device_put(Amat, self.device)
-            prefactor = jax.device_put(prefactor, self.device)
+            Amat = Amat.to(self.device)
+            prefactor = prefactor.to(self.device)
 
             try:
                 res = mapped_inference_fn(
-                    stacked_rngs=stacked_rngs,
-                    x=jnp.array(inf_inputs["x"]),
-                    sample_index=jnp.array(inf_inputs["sample_index"]),
-                    cf_sample=jnp.array(cf_sample),
+                    x=torch.Tensor(inf_inputs["x"]),
+                    sample_index=torch.Tensor(inf_inputs["sample_index"]),
+                    cf_sample=torch.Tensor(cf_sample),
                     Amat=Amat,
                     prefactor=prefactor,
                     n_samples_per_cell=n_samples_per_cell,
                     admissible_samples_mat=admissible_samples_mat,
                     use_mean=False,
-                    rngs_de=rngs_de,
                     mc_samples=mc_samples,
                 )
-            except jax.errors.JaxRuntimeError as e:
+            except RuntimeError as e:
                 if use_vmap:
-                    raise RuntimeError("JAX ran out of memory. Try setting use_vmap=False.") from e
+                    raise RuntimeError(
+                        "JAX ran out of memory. Try setting use_vmap=False."
+                    ) from e  # TODO: update error msg
                 else:
                     raise e
 
@@ -1600,7 +1560,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
                 offset_indices = (
                     Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
                 )
-                offset_indices = jnp.array(offset_indices)
+                offset_indices = torch.Tensor(offset_indices)
             else:
                 warnings.warn(
                     """
@@ -1614,7 +1574,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
         else:
             offset_indices = None
 
-        Xmat = jnp.array(Xmat)
+        Xmat = torch.Tensor(Xmat)
         if store_lfc:
             covariates_require_lfc = (
                 np.isin(Xmat_dim_to_key, store_lfc_metadata_subset)
@@ -1623,7 +1583,7 @@ ABOVE IS TRANSLATED TO TORCH, WHILE BELOW IS STILL JAX. MOVE THIS DOWN AS I PROG
             )
         else:
             covariates_require_lfc = np.zeros(len(Xmat_names), dtype=bool)
-        covariates_require_lfc = jnp.array(covariates_require_lfc)
+        covariates_require_lfc = torch.Tensor(covariates_require_lfc)
 
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
 
