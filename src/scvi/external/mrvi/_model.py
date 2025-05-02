@@ -4,7 +4,6 @@ import logging
 import warnings
 from typing import TYPE_CHECKING
 
-import jax
 import numpy as np
 import torch
 import xarray as xr
@@ -1335,12 +1334,11 @@ class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
                     )
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
 
-                f_ = jax.vmap(
+                f_ = torch.vmap(
                     h_inference_fn, in_axes=(0, None, 0), out_axes=0
                 )  # fn over MC samples
-                f_ = jax.vmap(f_, in_axes=(1, None, None), out_axes=1)  # fn over covariates
-                f_ = jax.vmap(f_, in_axes=(None, 0, 1), out_axes=0)  # fn over batches
-                h_fn = jax.jit(f_)
+                f_ = torch.vmap(f_, in_axes=(1, None, None), out_axes=1)  # fn over covariates
+                h_fn = torch.vmap(f_, in_axes=(None, 0, 1), out_axes=0)  # fn over batches
 
                 x_1 = h_fn(betas_covariates, batch_index_, betas_offset_)
                 x_0 = h_fn(betas_null, batch_index_, betas_offset_)
@@ -1491,7 +1489,7 @@ class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
         add_batch_specific_offsets: bool,
         store_lfc: bool,
         store_lfc_metadata_subset: list[str] | None = None,
-    ) -> tuple[jax.Array, npt.NDArray, jax.Array, jax.Array | None]:
+    ) -> tuple[torch.Tensor, npt.NDArray, torch.Tensor, torch.Tensor | None]:
         """Construct a design matrix of samples and covariates.
 
         Starting from a list of sample covariate keys, construct a design matrix of samples and

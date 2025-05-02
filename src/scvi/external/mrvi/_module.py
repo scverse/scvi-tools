@@ -3,8 +3,6 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-# import flax.linen as nn
-import jax
 import torch
 import torch.distributions as dist
 import torch.nn as nn
@@ -33,9 +31,6 @@ DEFAULT_QZ_ATTENTION_KWARGS = {
     "dropout_rate": 0.03,
 }
 DEFAULT_QU_KWARGS = {}
-
-# Lower stddev leads to better initial loss values
-_normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
 class DecoderZXAttention(nn.Module):
