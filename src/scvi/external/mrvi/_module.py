@@ -3,19 +3,20 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
-import flax.linen as nn
-import jax
-import jax.numpy as jnp
-import numpyro.distributions as dist
+import torch
+import torch.distributions as dist
+import torch.nn as nn
+import torch.nn.init as init
 
 from scvi import REGISTRY_KEYS, settings
-from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.external.mrvi._components import AttentionBlock, Dense
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.distributions import NegativeBinomial
+from scvi.external.mrvi._components import AttentionBlock
+
+# from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Any
 
 DEFAULT_PX_KWARGS = {
     "n_hidden": 32,
@@ -30,9 +31,6 @@ DEFAULT_QZ_ATTENTION_KWARGS = {
     "dropout_rate": 0.03,
 }
 DEFAULT_QU_KWARGS = {}
-
-# Lower stddev leads to better initial loss values
-_normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
 class DecoderZXAttention(nn.Module):
@@ -72,150 +70,156 @@ class DecoderZXAttention(nn.Module):
         Activation function for the MLP.
     """
 
-    n_in: int
-    n_out: int
-    n_batch: int
-    n_latent_sample: int = 16
-    h_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.softmax
-    n_channels: int = 4
-    n_heads: int = 2
-    dropout_rate: float = 0.1
-    stop_gradients: bool = False
-    stop_gradients_mlp: bool = False
-    training: bool | None = None
-    n_hidden: int = 32
-    n_layers: int = 1
-    training: bool | None = None
-    low_dim_batch: bool = True
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        z: jax.typing.ArrayLike,
-        batch_covariate: jax.typing.ArrayLike,
-        size_factor: jax.typing.ArrayLike,
+        n_in: int,
+        n_out: int,
+        n_batch: int,
+        n_latent_sample: int = 16,
+        h_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.softmax,
+        n_channels: int = 4,
+        n_heads: int = 2,
+        dropout_rate: float = 0.1,
+        stop_gradients: bool = False,
+        stop_gradients_mlp: bool = False,
+        n_hidden: int = 32,
+        n_layers: int = 1,
+        training: bool | None = None,
+        low_dim_batch: bool = True,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+    ):
+        super().__init__()
+        self.n_in = n_in
+        self.n_out = n_out
+        self.n_batch = n_batch
+        self.n_latent_sample = n_latent_sample
+        self.h_activation = h_activation
+        self.n_channels = n_channels
+        self.n_heads = n_heads
+        self.dropout_rate = dropout_rate
+        self.stop_gradients = stop_gradients
+        self.stop_gradients_mlp = stop_gradients_mlp
+        self.training = training
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.training = training
+        self.low_dim_batch = low_dim_batch
+        self.activation = activation
+
+        self.layer_norm = nn.LayerNorm(self.n_in)
+        self.batch_embedding = nn.Embedding(self.n_batch, self.n_latent_sample)
+        # TODO: check below works. for jax, we use a normal initializer
+        # Lower stddev leads to better initial loss values
+        init.normal_(self.batch_embedding.weight, std=0.1)
+
+        self.res_dim = self.n_in if self.low_dim_batch else self.n_out
+
+        self.attention_block = AttentionBlock(
+            query_dim=self.n_in,
+            out_dim=self.res_dim,
+            outerprod_dim=self.n_latent_sample,
+            n_channels=self.n_channels,
+            n_heads=self.n_heads,
+            dropout_rate=self.dropout_rate,
+            n_hidden_mlp=self.n_hidden,
+            n_layers_mlp=self.n_layers,
+            stop_gradients_mlp=self.stop_gradients_mlp,
+            training=self.training,
+            activation=self.activation,
+        )
+
+        self.fc = nn.Linear(self.n_in, self.n_out)
+
+        self.px_r = nn.Parameter(
+            torch.zeros(
+                self.n_out,
+            ),
+            requires_grad=True,  # TODO: check
+        )
+        init.normal_(self.px_r)
+        self.register_parameter("px_r", self.px_r)  # TODO: not sure if this is needed
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        batch_covariate: torch.Tensor,
+        size_factor: torch.Tensor,
         training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
-        z_stop = z if not self.stop_gradients else jax.lax.stop_gradient(z)
-        z_ = nn.LayerNorm(name="u_ln")(z_stop)
+        z_stop = z if not self.stop_gradients else z.detach()  # TODO: check this is correct
+        z_ = self.layer_norm(z_stop)
+
+        # TODO: do we need to update self.training here? Not done in JAX version
 
         batch_covariate = batch_covariate.astype(int).flatten()
 
         if self.n_batch >= 2:
-            batch_embed = nn.Embed(
-                self.n_batch, self.n_latent_sample, embedding_init=_normal_initializer
-            )(batch_covariate)  # (batch, n_latent_sample)
-            batch_embed = nn.LayerNorm(name="batch_embed_ln")(batch_embed)
+            batch_embed = self.batch_embedding(batch_covariate)
+            batch_embed = nn.LayerNorm(batch_embed)
             if has_mc_samples:
-                batch_embed = jnp.tile(batch_embed, (z_.shape[0], 1, 1))
-
-            res_dim = self.n_in if self.low_dim_batch else self.n_out
+                batch_embed = batch_embed.repeat(z_.shape[0], 1, 1)
 
             query_embed = z_
             kv_embed = batch_embed
-            residual = AttentionBlock(
-                query_dim=self.n_in,
-                out_dim=res_dim,
-                outerprod_dim=self.n_latent_sample,
-                n_channels=self.n_channels,
-                n_heads=self.n_heads,
-                dropout_rate=self.dropout_rate,
-                n_hidden_mlp=self.n_hidden,
-                n_layers_mlp=self.n_layers,
-                stop_gradients_mlp=self.stop_gradients_mlp,
-                training=training,
-                activation=self.activation,
-            )(query_embed=query_embed, kv_embed=kv_embed)
-
+            residual = self.attention_block(
+                query_embed=query_embed, kv_embed=kv_embed, training=training
+            )
             if self.low_dim_batch:
-                mu = nn.Dense(self.n_out)(z + residual)
+                mu = self.fc(z + residual)
             else:
-                mu = nn.Dense(self.n_out)(z) + residual
+                mu = self.fc(z) + residual
         else:
-            mu = nn.Dense(self.n_out)(z_)
+            mu = self.fc(z_)
         mu = self.h_activation(mu)
         return NegativeBinomial(
-            mean=mu * size_factor,
-            inverse_dispersion=jnp.exp(self.param("px_r", jax.random.normal, (self.n_out,))),
+            mu=mu * size_factor,
+            # TODO: need to check theta, if I translated correctly from Jax
+            theta=torch.exp(self.px_r),
         )
 
 
 class EncoderUZ(nn.Module):
-    """Attention-based encoder from ``u`` to ``z``.
-
-    Parameters
-    ----------
-    n_latent
-        Number of latent variables.
-    n_sample
-        Number of samples.
-    n_latent_u
-        Number of latent variables for ``u``.
-    n_latent_sample
-        Number of latent samples.
-    n_channels
-        Number of channels in the attention block.
-    n_heads
-        Number of heads in the attention block.
-    dropout_rate
-        Dropout rate.
-    stop_gradients
-        Whether to stop gradients to ``u``.
-    stop_gradients_mlp
-        Whether to stop gradients to the MLP in the attention block.
-    use_map
-        Whether to use the MAP estimate to approximate the posterior of ``z`` given ``u``
-    n_hidden
-        Number of hidden units in the MLP.
-    n_layers
-        Number of layers in the MLP.
-    training
-        Whether the model is in training mode.
-    activation
-        Activation function for the MLP.
-    """
-
-    n_latent: int
-    n_sample: int
-    n_latent_u: int | None = None
-    n_latent_sample: int = 16
-    n_channels: int = 4
-    n_heads: int = 2
-    dropout_rate: float = 0.0
-    stop_gradients: bool = False
-    stop_gradients_mlp: bool = False
-    use_map: bool = True
-    n_hidden: int = 32
-    n_layers: int = 1
-    training: bool | None = None
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        u: jax.typing.ArrayLike,
-        sample_covariate: jax.typing.ArrayLike,
+        n_latent: int,
+        n_sample: int,
+        n_latent_u: int | None = None,
+        n_latent_sample: int = 16,
+        n_channels: int = 4,
+        n_heads: int = 2,
+        dropout_rate: float = 0.0,
+        stop_gradients: bool = False,
+        stop_gradients_mlp: bool = False,
+        use_map: bool = True,
+        n_hidden: int = 32,
+        n_layers: int = 1,
         training: bool | None = None,
-    ) -> tuple[jax.Array, jax.Array]:
-        training = nn.merge_param("training", self.training, training)
-        sample_covariate = sample_covariate.astype(int).flatten()
-        self.n_latent_u if self.n_latent_u is not None else self.n_latent  # noqa: B018
-        has_mc_samples = u.ndim == 3
-        u_stop = u if not self.stop_gradients else jax.lax.stop_gradient(u)
-        u_ = nn.LayerNorm(name="u_ln")(u_stop)
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+    ):
+        super().__init__()
+        self.n_latent = n_latent
+        self.n_sample = n_sample
+        self.n_latent_u = n_latent_u if n_latent_u is not None else n_latent
+        self.n_latent_sample = n_latent_sample
+        self.n_channels = n_channels
+        self.n_heads = n_heads
+        self.dropout_rate = dropout_rate
+        self.stop_gradients = stop_gradients
+        self.stop_gradients_mlp = stop_gradients_mlp
+        self.use_map = use_map
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.training = training
+        self.activation = activation
 
-        sample_embed = nn.Embed(
-            self.n_sample, self.n_latent_sample, embedding_init=_normal_initializer
-        )(sample_covariate)  # (batch, n_latent_sample)
-        sample_embed = nn.LayerNorm(name="sample_embed_ln")(sample_embed)
-        if has_mc_samples:
-            sample_embed = jnp.tile(sample_embed, (u_.shape[0], 1, 1))
+        self.layer_norm = nn.LayerNorm(self.n_latent_u)
+        self.embedding = nn.Embedding(self.n_sample, self.n_latent_sample)
+        self.layer_norm_embed = nn.LayerNorm(self.n_latent_sample)
 
         n_outs = 1 if self.use_map else 2
-        residual = AttentionBlock(
-            query_dim=self.n_latent,
+        self.attention_block = AttentionBlock(
+            query_dim=self.n_latent,  # TODO: why is this not n_latent_u?
             out_dim=n_outs * self.n_latent,
             outerprod_dim=self.n_latent_sample,
             n_channels=self.n_channels,
@@ -224,145 +228,140 @@ class EncoderUZ(nn.Module):
             stop_gradients_mlp=self.stop_gradients_mlp,
             n_hidden_mlp=self.n_hidden,
             n_layers_mlp=self.n_layers,
-            training=training,
+            training=self.training,
             activation=self.activation,
-        )(query_embed=u_, kv_embed=sample_embed)
+        )
 
         if self.n_latent_u is not None:
-            z_base = nn.Dense(self.n_latent)(u_stop)
+            self.fc = nn.Linear(self.n_latent_u, self.n_latent)
+
+    def forward(
+        self,
+        u: torch.Tensor,
+        sample_covariate: torch.Tensor,
+        training: bool | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        training = training if training is not None else self.training
+        sample_covariate = sample_covariate.astype(int).flatten()
+        has_mc_samples = u.ndim == 3
+        u_stop = u if not self.stop_gradients else u.detach()
+        u_ = self.layer_norm(u_stop)
+
+        sample_embed = self.embedding(sample_covariate)
+        nn.init.normal_(sample_embed.weight, std=0.1)
+        if has_mc_samples:
+            sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
+
+        residual = self.attention_block(query_embed=u_, kv_embed=sample_embed, training=training)
+
+        if self.n_latent_u is not None:
+            z_base = self.fc(u_stop)
             return z_base, residual
         else:
             return u, residual
 
 
 class EncoderXU(nn.Module):
-    """Encoder from ``x`` to ``u``.
-
-    Parameters
-    ----------
-    n_latent
-        Number of latent variables.
-    n_sample
-        Number of samples.
-    n_hidden
-        Number of hidden units in the MLP.
-    n_layers
-        Number of layers in the MLP.
-    activation
-        Activation function for the MLP.
-    training
-        Whether the model is in training mode.
-    """
-
-    n_latent: int
-    n_sample: int
-    n_hidden: int
-    n_layers: int = 1
-    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.gelu
-    training: bool | None = None
-
-    @nn.compact
-    def __call__(
+    def __init__(
         self,
-        x: jax.typing.ArrayLike,
-        sample_covariate: jax.typing.ArrayLike,
+        n_input: int,  # TODO: added this for torch nn linear, not sure if needed
+        n_latent: int,
+        n_sample: int,
+        n_hidden: int = 128,
+        n_layers: int = 1,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
         training: bool | None = None,
-    ) -> dist.Normal:
+    ):
+        super().__init__()
+        self.n_latent = n_latent
+        self.n_sample = n_sample
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
+        self.activation = activation
+        self.training = training
+
         from scvi.external.mrvi._components import (
             ConditionalNormalization,
             NormalDistOutputNN,
         )
 
-        training = nn.merge_param("training", self.training, training)
-        x_feat = jnp.log1p(x)
-        for _ in range(2):
-            x_feat = Dense(self.n_hidden)(x_feat)
-            x_feat = ConditionalNormalization(self.n_hidden, self.n_sample)(
-                x_feat, sample_covariate, training=training
-            )
-            x_feat = self.activation(x_feat)
-        sample_effect = nn.Embed(self.n_sample, self.n_hidden, embedding_init=_normal_initializer)(
+        self.conditional_norm = ConditionalNormalization(self.n_hidden, self.n_sample)
+
+        self.fc_layers = nn.Sequential(
+            nn.Linear(self.n_input, self.n_hidden),
+            ConditionalNormalization(self.n_hidden, self.n_sample),
+            self.activation,
+            nn.Linear(self.n_hidden, self.n_hidden),
+            ConditionalNormalization(self.n_hidden, self.n_sample),
+            self.activation,
+        )
+        self.sample_embed = nn.Embedding(self.n_sample, self.n_hidden)
+        init.normal_(self.sample_effect.weight, std=0.1)
+
+        # TODO: need to double check input dimension below is correct
+        self.normal_dist_output = NormalDistOutputNN(
+            self.n_hidden, self.n_latent, self.n_hidden, self.n_layers
+        )  # double check since I added n_in parameter
+
+    def forward(
+        self, x: torch.Tensor, sample_covariate: torch.Tensor, training: bool | None = None
+    ) -> dist.Normal:
+        training = training if training is not None else self.training
+        x_feat = torch.log1p(x)
+        x_feat = self.fc_layers(x_feat)
+        sample_effect = self.sample_embed(
             sample_covariate.squeeze(-1).astype(int)
-        )
+        )  # TODO: double check why we squeeze here
         inputs = x_feat + sample_effect
-        return NormalDistOutputNN(self.n_latent, self.n_hidden, self.n_layers)(
-            inputs, training=training
-        )
+        return self.normal_dist_output(inputs, training=training)
 
 
-@flax_configure
-class MRVAE(JaxBaseModuleClass):
-    """Multi-resolution Variational Inference (MrVI) module.
+class MRVAE(BaseModuleClass):
+    def __init__(
+        self,
+        n_input: int,
+        n_sample: int,
+        n_batch: int,
+        n_labels: int,
+        n_latent: int = 30,
+        n_latent_u: int = 10,
+        encoder_n_hidden: int = 128,
+        encoder_n_layers: int = 2,
+        z_u_prior: bool = True,
+        z_u_prior_scale: float = 0.0,
+        u_prior_scale: float = 0.0,
+        u_prior_mixture: bool = True,
+        u_prior_mixture_k: int = 20,
+        learn_z_u_prior_scale: bool = False,
+        scale_observations: bool = False,
+        px_kwargs: dict | None = None,
+        qz_kwargs: dict | None = None,
+        qu_kwargs: dict | None = None,
+        training: bool = True,
+        n_obs_per_sample: torch.Tensor | None = None,
+    ):
+        super().__init__()
+        self.n_input = n_input
+        self.n_sample = n_sample
+        self.n_batch = n_batch
+        self.n_labels = n_labels
+        self.n_latent = n_latent
+        self.n_latent_u = n_latent_u
+        self.encoder_n_hidden = encoder_n_hidden
+        self.encoder_n_layers = encoder_n_layers
+        self.z_u_prior = z_u_prior
+        self.z_u_prior_scale = z_u_prior_scale
+        self.u_prior_scale = u_prior_scale
+        self.u_prior_mixture = u_prior_mixture
+        self.u_prior_mixture_k = u_prior_mixture_k
+        self.learn_z_u_prior_scale = learn_z_u_prior_scale
+        self.scale_observations = scale_observations
+        self.px_kwargs = px_kwargs
+        self.qz_kwargs = qz_kwargs
+        self.qu_kwargs = qu_kwargs
+        self.training = training
+        self.n_obs_per_sample = n_obs_per_sample
 
-    Parameters
-    ----------
-    n_input
-        Number of input features.
-    n_sample
-        Number of samples.
-    n_batch
-        Number of batches.
-    n_labels
-        Number of labels.
-    n_latent
-        Number of latent variables for ``z``.
-    n_latent_u
-        Number of latent variables for ``u``.
-    encoder_n_hidden
-        Number of hidden units in the encoder.
-    encoder_n_layers
-        Number of layers in the encoder.
-    z_u_prior
-        Whether to place a Gaussian prior on ``z`` given ``u``.
-    z_u_prior_scale
-        Natural log of the scale parameter of the Gaussian prior placed on ``z`` given ``u``. Only
-        applies of ``learn_z_u_prior_scale`` is ``False``.
-    u_prior_scale
-        Natural log of the scale parameter of the Gaussian prior placed on ``u``. If
-        ``u_prior_mixture`` is ``True``, this scale applies to each mixture component distribution.
-    u_prior_mixture
-        Whether to use a mixture of Gaussians prior for ``u``.
-    u_prior_mixture_k
-        Number of mixture components to use for the mixture of Gaussians prior on ``u``.
-    learn_z_u_prior_scale
-        Whether to learn the scale parameter of the prior distribution of ``z`` given ``u``.
-    scale_observations
-        Whether to scale the loss associated with each observation by the total number of
-        observations linked to the associated sample.
-    px_kwargs
-        Keyword arguments for the generative model.
-    qz_kwargs
-        Keyword arguments for the inference model from ``u`` to ``z``.
-    qu_kwargs
-        Keyword arguments for the inference model from ``x`` to ``u``.
-    training
-        Whether the model is in training mode.
-    n_obs_per_sample
-        Number of observations per sample.
-    """
-
-    n_input: int
-    n_sample: int
-    n_batch: int
-    n_labels: int
-    n_latent: int = 30
-    n_latent_u: int = 10
-    encoder_n_hidden: int = 128
-    encoder_n_layers: int = 2
-    z_u_prior: bool = True
-    z_u_prior_scale: float = 0.0
-    u_prior_scale: float = 0.0
-    u_prior_mixture: bool = True
-    u_prior_mixture_k: int = 20
-    learn_z_u_prior_scale: bool = False
-    scale_observations: bool = False
-    px_kwargs: dict | None = None
-    qz_kwargs: dict | None = None
-    qu_kwargs: dict | None = None
-    training: bool = True
-    n_obs_per_sample: jax.typing.ArrayLike | None = None
-
-    def setup(self):
         px_kwargs = DEFAULT_PX_KWARGS.copy()
         if self.px_kwargs is not None:
             px_kwargs.update(self.px_kwargs)
@@ -413,7 +412,7 @@ class MRVAE(JaxBaseModuleClass):
         )
 
         if self.learn_z_u_prior_scale:
-            self.pz_scale = self.param("pz_scale", nn.initializers.zeros, (self.n_latent,))
+            self.pz_scale = nn.Parameter(torch.zeros(self.n_latent))
         else:
             self.pz_scale = self.z_u_prior_scale
 
@@ -422,42 +421,34 @@ class MRVAE(JaxBaseModuleClass):
                 u_prior_mixture_k = self.n_labels
             else:
                 u_prior_mixture_k = self.u_prior_mixture_k
+
             u_dim = self.n_latent_u if self.n_latent_u is not None else self.n_latent
-            self.u_prior_logits = self.param(
-                "u_prior_logits", nn.initializers.zeros, (u_prior_mixture_k,)
-            )
-            self.u_prior_means = self.param(
-                "u_prior_means", jax.random.normal, (u_prior_mixture_k, u_dim)
-            )
-            self.u_prior_scales = self.param(
-                "u_prior_scales", nn.initializers.zeros, (u_prior_mixture_k, u_dim)
-            )
+            self.u_prior_logits = nn.Parameter(torch.zeros(u_prior_mixture_k))
+            self.u_prior_means = nn.Parameter(
+                torch.randn(u_prior_mixture_k, u_dim)
+            )  # TODO: double check this
+            self.u_prior_scales = nn.Parameter(torch.zeros(u_prior_mixture_k, u_dim))
 
-    @property
-    def required_rngs(self):
-        return ("params", "u", "dropout", "eps")
-
-    def _get_inference_input(self, tensors: dict[str, jax.typing.ArrayLike]) -> dict[str, Any]:
+    def _get_inference_input(self, tensors: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
         return {"x": x, "sample_index": sample_index}
 
+    @auto_move_data
     def inference(
         self,
-        x: jax.typing.ArrayLike,
-        sample_index: jax.typing.ArrayLike,
+        x: torch.Tensor,
+        sample_index: torch.Tensor,
         mc_samples: int | None = None,
-        cf_sample: jax.typing.ArrayLike | None = None,
+        cf_sample: torch.Tensor | None = None,
         use_mean: bool = False,
-    ) -> dict[str, jax.Array | dist.Distribution]:
-        """Latent variable inference."""
+    ) -> dict[str, torch.Tensor]:
         qu = self.qu(x, sample_index, training=self.training)
         if use_mean:
             u = qu.mean
         else:
-            u_rng = self.make_rng("u")
             sample_shape = (mc_samples,) if mc_samples is not None else ()
-            u = qu.rsample(u_rng, sample_shape=sample_shape)
+            u = qu.rsample(sample_shape=sample_shape)
 
         sample_index_cf = sample_index if cf_sample is None else cf_sample
 
@@ -467,10 +458,10 @@ class MRVAE(JaxBaseModuleClass):
         qeps = None
         if qeps_.shape[-1] == 2 * self.n_latent:
             loc_, scale_ = qeps_[..., : self.n_latent], qeps_[..., self.n_latent :]
-            qeps = dist.Normal(loc_, nn.softplus(scale_) + 1e-3)
-            eps = qeps.mean if use_mean else qeps.rsample(self.make_rng("eps"))
+            qeps = dist.Normal(loc_, nn.functional.softplus(scale_) + 1e-3)
+            eps = qeps.mean if use_mean else qeps.rsample()
         z = z_base + eps
-        library = jnp.log(x.sum(1, keepdims=True))
+        library = torch.log(x.sum(1, keepdims=True))
 
         return {
             "qu": qu,
@@ -484,9 +475,9 @@ class MRVAE(JaxBaseModuleClass):
 
     def _get_generative_input(
         self,
-        tensors: dict[str, jax.typing.ArrayLike],
-        inference_outputs: dict[str, jax.Array | dist.Distribution],
-    ) -> dict[str, jax.Array]:
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor],
+    ) -> dict[str, torch.Tensor]:
         z = inference_outputs["z"]
         library = inference_outputs["library"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -498,15 +489,16 @@ class MRVAE(JaxBaseModuleClass):
             "label_index": label_index,
         }
 
+    @auto_move_data  # TODO: what is this
     def generative(
         self,
-        z: jax.typing.ArrayLike,
-        library: jax.typing.ArrayLike,
-        batch_index: jax.typing.ArrayLike,
-        label_index: jax.typing.ArrayLike,
-    ) -> dict[str, jax.Array | dist.Distribution]:
+        z: torch.Tensor,
+        library: torch.Tensor,
+        batch_index: torch.Tensor,
+        label_index: torch.Tensor,
+    ) -> dict[str, torch.Tensor | dist.Distribution]:
         """Generative model."""
-        library_exp = jnp.exp(library)
+        library_exp = torch.exp(library)
         px = self.px(
             z,
             batch_index,
@@ -517,22 +509,26 @@ class MRVAE(JaxBaseModuleClass):
 
         if self.u_prior_mixture:
             offset = (
-                10.0 * jax.nn.one_hot(label_index, self.n_labels) if self.n_labels >= 2 else 0.0
+                10.0 * nn.functional.one_hot(label_index, self.n_labels)
+                if self.n_labels >= 2
+                else 0.0
             )
             cats = dist.Categorical(logits=self.u_prior_logits + offset)
-            normal_dists = dist.Normal(self.u_prior_means, jnp.exp(self.u_prior_scales)).to_event(
+            normal_dists = dist.Normal(
+                self.u_prior_means, torch.exp(self.u_prior_scales)
+            ).to_event(  # TODO: what is to_event
                 1
             )
             pu = dist.MixtureSameFamily(cats, normal_dists)
         else:
-            pu = dist.Normal(0, jnp.exp(self.u_prior_scale))
+            pu = dist.Normal(0, torch.exp(self.u_prior_scale))
         return {"px": px, "pu": pu, "h": h}
 
     def loss(
         self,
-        tensors: dict[str, jax.typing.ArrayLike],
-        inference_outputs: dict[str, jax.Array | dist.Distribution],
-        generative_outputs: dict[str, jax.Array | dist.Distribution],
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor],
+        generative_outputs: dict[str, torch.Tensor],
         kl_weight: float = 1.0,
     ) -> LossOutput:
         """Compute the loss function value."""
@@ -550,7 +546,7 @@ class MRVAE(JaxBaseModuleClass):
         kl_z = 0.0
         eps = inference_outputs["z"] - inference_outputs["z_base"]
         if self.z_u_prior:
-            peps = dist.Normal(0, jnp.exp(self.pz_scale))
+            peps = dist.Normal(0, torch.exp(self.pz_scale))
             kl_z = -peps.log_prob(eps).sum(-1)
 
         weighted_kl_local = kl_weight * (kl_u + kl_z)
@@ -561,7 +557,7 @@ class MRVAE(JaxBaseModuleClass):
             prefactors = self.n_obs_per_sample[sample_index]
             loss = loss / prefactors
 
-        loss = jnp.mean(loss)
+        loss = torch.mean(loss)
 
         return LossOutput(
             loss=loss,
@@ -571,15 +567,15 @@ class MRVAE(JaxBaseModuleClass):
 
     def compute_h_from_x_eps(
         self,
-        x: jax.typing.ArrayLike,
-        sample_index: jax.typing.ArrayLike,
-        batch_index: jax.typing.ArrayLike,
+        x: torch.Tensor,
+        sample_index: torch.Tensor,
+        batch_index: torch.Tensor,
         extra_eps: float,
-        cf_sample: jax.typing.ArrayLike | None = None,
+        cf_sample: torch.Tensor | None = None,
         mc_samples: int = 10,
     ):
         """Compute normalized gene expression from observations using predefined eps"""
-        library = 7.0 * jnp.ones_like(
+        library = 7.0 * torch.ones_like(
             sample_index
         )  # placeholder, has no effect on the value of h.
         inference_outputs = self.inference(
@@ -589,7 +585,7 @@ class MRVAE(JaxBaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": jnp.zeros([x.shape[0], 1]),
+            "label_index": torch.zeros([x.shape[0], 1]),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]
