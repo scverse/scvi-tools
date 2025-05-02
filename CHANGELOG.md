@@ -16,6 +16,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
 - Add Early stopping KL warmup steps. {pr}`3262`.
+- Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
 
 #### Fixed
 
