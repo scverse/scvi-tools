@@ -101,6 +101,13 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     # load and save and make query with the other data
     model.save("lamin_model", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # load it back and do downstream analysis
+    loaded_model = scvi.model.SCVI.load("lamin_model", adata=False)
+    loaded_model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
     model_query = model.load_query_data(
         adata=False, reference_model="lamin_model", registry=datamodule.registry
     )
@@ -158,14 +165,20 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         model_adata.get_latent_representation()
         model_adata.get_normalized_expression()
 
+    scvi.model.SCVI.prepare_query_anndata(adata, "lamin_model", return_reference_var_names=True)
+    scvi.model.SCVI.load_query_data(adata, "lamin_model")
+
+    scvi.model.SCVI.prepare_query_anndata(adata, model_query)
+    scvi.model.SCVI.load_query_data(adata, model_query_adata)
+
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scanvi_small(save_path: str):
-    # os.system("lamin init --storage ./lamindb_collection")
+    # os.system("lamin init --storage ./lamindb_collection") (comment out when runing localy)
     import lamindb as ln
 
-    # ln.setup.init()
+    # ln.setup.init() # (comment out when runing localy)
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -194,7 +207,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         batch_key="batch",
         batch_size=1024,
         join="inner",
-        unlabeled_category="label_0",
+        model_name="SCANVI",
     )
 
     # We can now create the scVI model object and train it:
@@ -218,11 +231,25 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     model.history.keys()
 
     # save the model
-    # model.save("lamin_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
-    # load it back and do downstream analysis (not working)
-    # scvi.model.SCANVI.load("lamin_model_scanvi", adata=False)
+    model.save(
+        "lamin_model_scanvi",
+        save_anndata=False,
+        overwrite=True,
+        datamodule=datamodule,
+    )
+    # load it back and do downstream analysis
+    loaded_model = scvi.model.SCANVI.load("lamin_model_scanvi", adata=False, datamodule=datamodule)
+    loaded_model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=1,
+        early_stopping=False,
+    )
 
     inference_dataloader = datamodule.inference_dataloader()
+
+    model.predict(dataloader=inference_dataloader, soft=False)
 
     _ = model.get_elbo(dataloader=inference_dataloader)
     _ = model.get_marginal_ll(dataloader=inference_dataloader)
@@ -233,18 +260,16 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     _ = model.get_likelihood_parameters(dataloader=inference_dataloader)
     _ = model._get_denoised_samples(dataloader=inference_dataloader)
     _ = model.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
+    _ = loaded_model.get_elbo(dataloader=inference_dataloader)
 
     logged_keys = model.history.keys()
-    # assert "elbo_validation" in logged_keys
-    # assert "reconstruction_loss_validation" in logged_keys
-    # assert "kl_local_validation" in logged_keys
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
-    # assert "validation_classification_loss" in logged_keys
-    # assert "validation_accuracy" in logged_keys
-    # assert "validation_f1_score" in logged_keys
-    # assert "validation_calibration_error" in logged_keys
+    assert "train_classification_loss" in logged_keys
+    assert "train_accuracy" in logged_keys
+    assert "train_f1_score" in logged_keys
+    assert "train_calibration_error" in logged_keys
 
     # repeat but with other data with fewer indices and smaller batch size
     adata1_small = synthetic_iid(batch_size=10)
@@ -257,6 +282,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         batch_key="batch",
         batch_size=1024,
         join="inner",
+        model_name="SCANVI",
     )
     inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
 
@@ -272,7 +298,6 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         batch_key="batch",
         batch_size=1024,
         join="inner",
-        unlabeled_category="label_0",
         collection_val=collection_small,
     )
 
@@ -313,11 +338,11 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
         early_stopping=False,
     )
     # save the model
-    # model_scanvi_from_scvi.save(
-    #     "lamin_model_scanvi_from_scvi", save_anndata=False, overwrite=True, datamodule=datamodule
-    # )
-    # # load it back and do downstream analysis (not working)
-    # scvi.model.SCANVI.load("lamin_model_scanvi_from_scvi", adata=False)
+    model_scanvi_from_scvi.save(
+        "lamin_model_scanvi_from_scvi", save_anndata=False, overwrite=True, datamodule=datamodule
+    )
+    # load it back and do downstream analysis
+    scvi.model.SCANVI.load("lamin_model_scanvi_from_scvi", adata=False, datamodule=datamodule)
 
     logged_keys = model_scanvi_from_scvi.history.keys()
     assert "elbo_validation" in logged_keys
@@ -429,7 +454,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
 
     # save the model
     model.save("census_model", save_anndata=False, overwrite=True, datamodule=datamodule)
-    # load it back and do downstream analysis (not working)
+    # load it back and do downstream analysis
     scvi.model.SCVI.load("census_model", adata=False)
 
     # Generate cell embeddings
@@ -486,7 +511,32 @@ def test_census_custom_dataloader_scvi(save_path: str):
     model_query = model.load_query_data(
         adata=False, reference_model="census_model", registry=datamodule.registry
     )
+    model_query.train(
+        max_epochs=1, datamodule=datamodule, check_val_every_n_epoch=1, train_size=0.9
+    )
     model_query.history.keys()
+
+    _ = model_query.get_elbo(dataloader=inference_datamodule.inference_dataloader())
+    _ = model_query.get_marginal_ll(dataloader=inference_datamodule.inference_dataloader())
+    _ = model_query.get_reconstruction_error(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_query.get_latent_representation(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_query.posterior_predictive_sample(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_query.get_normalized_expression(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_query.get_likelihood_parameters(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_query._get_denoised_samples(dataloader=inference_datamodule.inference_dataloader())
+    _ = model_query.get_latent_library_size(
+        dataloader=inference_datamodule.inference_dataloader(), give_mean=False
+    )
 
     scvi.model.SCVI.prepare_query_anndata(adata, "census_model", return_reference_var_names=True)
     scvi.model.SCVI.load_query_data(registry=datamodule.registry, reference_model="census_model")
@@ -567,7 +617,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         batch_column_names=batch_keys,
         label_keys=label_keys,
         train_size=0.9,
-        unlabeled_category="label_0",
+        model_name="SCANVI",
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
@@ -599,6 +649,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         train_size=0.9,
         check_val_every_n_epoch=1,
         early_stopping=False,
+        n_samples_per_label=100,
     )
 
     user_attributes = model._get_user_attributes()
@@ -606,9 +657,20 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     model.history.keys()
 
     # save the model
-    # model.save("census_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
-    # load it back and do downstream analysis (not working)
-    # scvi.model.SCANVI.load("census_model_scanvi", adata=False)
+    model.save("census_model_scanvi", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # load it back and do downstream analysis
+    loaded_model = scvi.model.SCANVI.load(
+        "census_model_scanvi", adata=False, datamodule=datamodule
+    )
+    loaded_model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=0.9,
+        check_val_every_n_epoch=1,
+        early_stopping=False,
+        n_samples_per_label=100,
+    )
 
     # Generate cell embeddings
     inference_datamodule = TileDBDataModule(
@@ -619,11 +681,13 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         shuffle=False,
         batch_column_names=batch_keys,
         label_keys=label_keys,
-        unlabeled_category="label_0",
+        model_name="SCANVI",
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
     inference_datamodule.setup()
+
+    model.predict(dataloader=inference_datamodule.inference_dataloader(), soft=False)
 
     latent = model.get_latent_representation(
         dataloader=inference_datamodule.inference_dataloader()
@@ -647,10 +711,10 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
-    # assert "validation_classification_loss" in logged_keys
-    # assert "validation_accuracy" in logged_keys
-    # assert "validation_f1_score" in logged_keys
-    # assert "validation_calibration_error" in logged_keys
+    assert "train_classification_loss" in logged_keys
+    assert "train_accuracy" in logged_keys
+    assert "train_f1_score" in logged_keys
+    assert "train_calibration_error" in logged_keys
     assert "kl_global_validation" in logged_keys
     assert "kl_global_train" in logged_keys
 
@@ -686,13 +750,21 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         early_stopping=False,
     )
     # # save the model
-    # model_scanvi_from_scvi.save(
-    #     "census_model_scanvi_from_scvi",save_anndata=False, overwrite=True, datamodule=datamodule
-    # )
-    # # load it back and do downstream analysis (not working)
-    # model_scanvi_from_scvi_loaded = scvi.model.SCANVI.load(
-    #     "census_model_scanvi_from_scvi", adata=False
-    # )
+    model_scanvi_from_scvi.save(
+        "census_model_scanvi_from_scvi", save_anndata=False, overwrite=True, datamodule=datamodule
+    )
+    # # load it back and do downstream analysis
+    model_scanvi_from_scvi_loaded = scvi.model.SCANVI.load(
+        "census_model_scanvi_from_scvi", adata=False, datamodule=datamodule
+    )
+    model_scanvi_from_scvi_loaded.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=0.9,
+        check_val_every_n_epoch=1,
+        early_stopping=False,
+    )
 
     # generating adata from this census
     adata = cellxgene_census.get_anndata(
@@ -713,9 +785,11 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     # we make the batch name the same as in the model
     adata.obs["batch"] = adata.obs[batch_keys].agg("//".join, axis=1).astype("category")
 
-    # scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    # model_query_adata = model.load_query_data(
-    #     adata=adata, reference_model="census_model_scanvi_from_scvi"
-    # )
-    # model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
-    # model_query_adata.predict(adata=adata)
+    scvi.model.SCANVI.setup_anndata(
+        adata, batch_key="batch", labels_key="tissue", unlabeled_category="label_0"
+    )
+    model_query_adata = model.load_query_data(
+        adata=adata, reference_model="census_model_scanvi_from_scvi", datamodule=datamodule
+    )
+    model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
+    model_query_adata.predict(adata=adata)

@@ -103,7 +103,7 @@ def _load_saved_files(
     return attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, registry, attr_dict):
+def _initialize_model(cls, adata, registry, attr_dict, datamodule):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -136,6 +136,9 @@ def _initialize_model(cls, adata, registry, attr_dict):
 
     if not adata:
         adata = None
+
+    if datamodule:
+        non_kwargs["datamodule"] = datamodule
 
     if "registry" in inspect.signature(cls).parameters:
         model = cls(adata, registry=registry, **non_kwargs, **kwargs)

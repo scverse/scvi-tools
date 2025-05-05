@@ -158,18 +158,18 @@ class MappedCollectionDataModule(LightningDataModule):
     @property
     def n_labels(self) -> int:
         if self._label_key is None:
-            return 1
-        combined = np.concatenate(
-            ([self.unlabeled_category], list(self._dataset.encoders[self._label_key].keys()))
-        )
-        unique_values = np.unique(combined)
-        return len(unique_values)
+            return 0
+        return len(self.labels)
 
     @property
     def labels(self) -> np.ndarray:
         if self._label_key is None:
             return None
-        return np.array(list(self._dataset.encoders[self._label_key].keys())).astype(object)
+        combined = np.concatenate(
+            (list(self._dataset.encoders[self._label_key].keys()), [self.unlabeled_category])
+        )
+        unique_values = np.unique(combined)
+        return unique_values.astype(object)
 
     @property
     def unlabeled_category(self) -> str:
@@ -562,16 +562,19 @@ class TileDBDataModule(LightningDataModule):
     @property
     def n_labels(self) -> int:
         if self.label_keys is not None:
-            combined = np.concatenate(([self.unlabeled_category], self.label_encoder.classes_))
-            unique_values = np.unique(combined)
-            return len(unique_values)
+            return len(self.labels_mapping)
         else:
-            return 1
+            return 0
+
+    @property
+    def labels_mapping(self) -> int:
+        if self.label_keys is not None:
+            combined = np.concatenate((self.label_encoder.classes_, [self.unlabeled_category]))
+            unique_values = np.unique(combined).astype(object)
+            return unique_values
 
     @property
     def registry(self) -> dict:
-        batch_mapping = self.batch_labels
-        labels_mapping = self.labels
         features_names = list(
             self.query.var_joinids().tolist() if self.query is not None else range(self.n_vars)
         )
@@ -599,7 +602,7 @@ class TileDBDataModule(LightningDataModule):
                 "batch": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
                     "state_registry": {
-                        "categorical_mapping": batch_mapping,
+                        "categorical_mapping": self.batch_labels,
                         "original_key": "batch",
                     },
                     "summary_stats": {"n_batch": self.n_batch},
@@ -607,7 +610,7 @@ class TileDBDataModule(LightningDataModule):
                 "labels": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
                     "state_registry": {
-                        "categorical_mapping": labels_mapping,
+                        "categorical_mapping": self.labels_mapping,
                         "original_key": self.label_keys[0]
                         if self.label_keys is not None
                         else "label",

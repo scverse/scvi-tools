@@ -29,6 +29,8 @@ from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
+    from lightning import LightningDataModule
+
     from scvi._types import AnnOrMuData
 
     from ._base_model import BaseModelClass
@@ -58,6 +60,7 @@ class ArchesMixin:
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
         freeze_classifier: bool = True,
+        datamodule: LightningDataModule | None = None,
     ):
         """Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
 
@@ -89,6 +92,10 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for decoder
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         """
         if reference_model is None:
             raise ValueError("Please provide a reference model as string or loaded model.")
@@ -145,7 +152,7 @@ class ArchesMixin:
                     **registry[_SETUP_ARGS_KEY],
                 )
 
-        model = _initialize_model(cls, adata, registry, attr_dict)
+        model = _initialize_model(cls, adata, registry, attr_dict, datamodule)
 
         version_split = model.registry[_constants._SCVI_VERSION_KEY].split(".")
 

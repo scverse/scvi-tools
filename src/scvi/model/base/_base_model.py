@@ -730,8 +730,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     "n_labels": datamodule.n_labels,
                     "n_vars": datamodule.n_vars,
                     "batch_labels": datamodule.batch_labels,
+                    "label_keys": datamodule.label_keys,
                 }
             )
+            if "datamodule" in user_attributes["init_params_"]["non_kwargs"]:
+                user_attributes["init_params_"]["non_kwargs"]["datamodule"] = type(
+                    user_attributes["init_params_"]["non_kwargs"]["datamodule"]
+                ).__name__
 
         torch.save(
             {
@@ -753,6 +758,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         device: int | str = "auto",
         prefix: str | None = None,
         backup_url: str | None = None,
+        datamodule: LightningDataModule | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -772,6 +778,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Prefix of saved file names.
         backup_url
             URL to retrieve saved outputs from if not present on disk.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
 
         Returns
         -------
@@ -824,7 +834,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
                 )
 
-        model = _initialize_model(cls, adata, registry, attr_dict)
+        model = _initialize_model(cls, adata, registry, attr_dict, datamodule)
         pyro_param_store = model_state_dict.pop("pyro_param_store", None)
 
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
@@ -837,8 +847,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             common_items2 = {key: model.init_params_["non_kwargs"][key] for key in common_keys2}
             module = model._module_cls(**common_items1, **common_items2)
             model.module = module
-
-        model.module.on_load(model, pyro_param_store=pyro_param_store)
+        else:
+            model.module.on_load(model, pyro_param_store=pyro_param_store)
         model.module.load_state_dict(model_state_dict)
 
         model.to_device(device)
