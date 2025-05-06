@@ -22,7 +22,15 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     # prepare test data
     adata1 = synthetic_iid()
+    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cat2"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
     adata2 = synthetic_iid()
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
 
     artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
     artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
@@ -46,6 +54,8 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         batch_key="batch",
         batch_size=1024,
         join="inner",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
     )
 
     print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
@@ -78,7 +88,15 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     # repeat but with other data with fewer indices and smaller batch size
     adata1_small = synthetic_iid(batch_size=10)
+    adata1_small.obs["cat1"] = np.random.randint(0, 5, size=(adata1_small.shape[0],))
+    adata1_small.obs["cat2"] = np.random.randint(0, 5, size=(adata1_small.shape[0],))
+    adata1_small.obs["cont1"] = np.random.normal(size=(adata1_small.shape[0],))
+    adata1_small.obs["cont2"] = np.random.normal(size=(adata1_small.shape[0],))
     adata2_small = synthetic_iid(batch_size=10)
+    adata2_small.obs["cat1"] = np.random.randint(0, 5, size=(adata2_small.shape[0],))
+    adata2_small.obs["cat2"] = np.random.randint(0, 5, size=(adata2_small.shape[0],))
+    adata2_small.obs["cont1"] = np.random.normal(size=(adata2_small.shape[0],))
+    adata2_small.obs["cont2"] = np.random.normal(size=(adata2_small.shape[0],))
     artifact1_small = ln.Artifact.from_anndata(adata1_small, key="part_one_small.h5ad").save()
     artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
     collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
@@ -88,6 +106,8 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         batch_size=1024,
         join="inner",
         collection_val=collection,
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
     )
     inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
     _ = model.get_elbo(return_mean=False, dataloader=inference_dataloader_small)
@@ -175,7 +195,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scanvi_small(save_path: str):
-    # os.system("lamin init --storage ./lamindb_collection") (comment out when runing localy)
+    # os.system("lamin init --storage ./lamindb_collection") #(comment out when runing localy)
     import lamindb as ln
 
     # ln.setup.init() # (comment out when runing localy)
@@ -184,13 +204,13 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     adata1 = synthetic_iid()
     adata2 = synthetic_iid()
 
-    artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
-    artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
+    artifact1_scanvi = ln.Artifact.from_anndata(adata1, key="part_one_scanvi.h5ad").save()
+    artifact2_scanvi = ln.Artifact.from_anndata(adata2, key="part_two_scanvi.h5ad").save()
 
-    collection = ln.Collection([artifact1, artifact2], key="gather")
-    collection.save()
+    collection_scanvi = ln.Collection([artifact1_scanvi, artifact2_scanvi], key="gather")
+    collection_scanvi.save()
 
-    artifacts = collection.artifacts.all()
+    artifacts = collection_scanvi.artifacts.all()
     artifacts.df()
 
     # large data example
@@ -202,7 +222,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     # artifacts.df()
 
     datamodule = MappedCollectionDataModule(
-        collection,
+        collection_scanvi,
         label_key="labels",
         batch_key="batch",
         batch_size=1024,
@@ -272,13 +292,19 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     assert "train_calibration_error" in logged_keys
 
     # repeat but with other data with fewer indices and smaller batch size
-    adata1_small = synthetic_iid(batch_size=10)
-    adata2_small = synthetic_iid(batch_size=10)
-    artifact1_small = ln.Artifact.from_anndata(adata1_small, key="part_one_small.h5ad").save()
-    artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
-    collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
+    adata1_scanvi_small = synthetic_iid(batch_size=10)
+    adata2_scanvi_small = synthetic_iid(batch_size=10)
+    artifact1_scanvi_small = ln.Artifact.from_anndata(
+        adata1_scanvi_small, key="part_one_small_scanvi.h5ad"
+    ).save()
+    artifact2_scanvi_small = ln.Artifact.from_anndata(
+        adata2_scanvi_small, key="part_two_small_scanvi.h5ad"
+    ).save()
+    collection_scanvi_small = ln.Collection(
+        [artifact1_scanvi_small, artifact2_scanvi_small], key="gather"
+    )
     datamodule_small = MappedCollectionDataModule(
-        collection_small,
+        collection_scanvi_small,
         batch_key="batch",
         batch_size=1024,
         join="inner",
@@ -293,12 +319,12 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 
     # with validation collection
     datamodule = MappedCollectionDataModule(
-        collection,
+        collection_scanvi,
         label_key="labels",
         batch_key="batch",
         batch_size=1024,
         join="inner",
-        collection_val=collection_small,
+        collection_val=collection_scanvi_small,
     )
 
     model_scvi.train(
@@ -368,7 +394,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     )
 
     # create scanvi from adata
-    adata = collection.load(join="inner")  # we can continue to
+    adata = collection_scanvi.load(join="inner")  # we can continue to
 
     scvi.model.SCANVI.setup_anndata(
         adata, batch_key="batch", labels_key="labels", unlabeled_category="label_0"
@@ -416,6 +442,8 @@ def test_census_custom_dataloader_scvi(save_path: str):
         train_size=0.9,
         seed=42,
         batch_column_names=batch_keys,
+        categorical_covariate_keys=["sex"],
+        continuous_covariate_keys=["raw_mean_nnz"],
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
@@ -465,6 +493,8 @@ def test_census_custom_dataloader_scvi(save_path: str):
         batch_size=1024,
         shuffle=False,
         batch_column_names=batch_keys,
+        categorical_covariate_keys=["sex"],
+        continuous_covariate_keys=["raw_mean_nnz"],
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 

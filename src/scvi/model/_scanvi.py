@@ -148,8 +148,20 @@ class SCANVI(
             )
         else:
             # custom datamodule
-            n_cats_per_cov = self.summary_stats[f"n_{REGISTRY_KEYS.CAT_COVS_KEY}"]
-            if n_cats_per_cov == 0:
+            if (
+                len(
+                    self.registry["field_registries"][f"{REGISTRY_KEYS.CAT_COVS_KEY}"][
+                        "state_registry"
+                    ]
+                )
+                > 0
+            ):
+                n_cats_per_cov = tuple(
+                    self.registry["field_registries"][f"{REGISTRY_KEYS.CAT_COVS_KEY}"][
+                        "state_registry"
+                    ]["n_cats_per_key"]
+                )
+            else:
                 n_cats_per_cov = None
 
         n_batch = self.summary_stats.n_batch

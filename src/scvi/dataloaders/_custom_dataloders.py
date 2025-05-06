@@ -35,6 +35,8 @@ class MappedCollectionDataModule(LightningDataModule):
         device: int | str = "auto",
         shuffle: bool = True,
         model_name: str = "SCVI",
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -46,30 +48,43 @@ class MappedCollectionDataModule(LightningDataModule):
         self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
         self.labels_ = None
+        self._categorical_covariate_keys = categorical_covariate_keys
+        self._continuous_covariate_keys = continuous_covariate_keys
 
         # here we initialize MappedCollection to use in a pytorch DataLoader
+        obs_keys = self._batch_key  # we must have batch keys
         if self._label_key is not None:
-            self._dataset = collection.mapped(
-                obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
+            obs_keys = [obs_keys] + [self._label_key]
+        if self._categorical_covariate_keys is not None:
+            obs_keys = (
+                obs_keys + self._categorical_covariate_keys
+                if type(obs_keys).__name__ == "list"
+                else [obs_keys] + self._categorical_covariate_keys
             )
-            adata = collection.load(join="inner")
-            self.labels_ = adata.obs[self._label_key].values.astype(str)
-            if collection_val is not None:
-                self._validset = collection_val.mapped(
-                    obs_keys=[self._batch_key, self._label_key], parallel=self._parallel, **kwargs
-                )
-            else:
-                self._validset = None
+        if self._continuous_covariate_keys is not None:
+            obs_keys = (
+                obs_keys + self._continuous_covariate_keys
+                if type(obs_keys).__name__ == "list"
+                else [obs_keys] + self._continuous_covariate_keys
+            )
+
+        self._dataset = collection.mapped(obs_keys=obs_keys, parallel=self._parallel, **kwargs)
+        if collection_val is not None:
+            self._validset = collection_val.mapped(
+                obs_keys=obs_keys, parallel=self._parallel, **kwargs
+            )
         else:
-            self._dataset = collection.mapped(
-                obs_keys=self._batch_key, parallel=self._parallel, **kwargs
-            )
-            if collection_val is not None:
-                self._validset = collection_val.mapped(
-                    obs_keys=self._batch_key, parallel=self._parallel, **kwargs
-                )
-            else:
-                self._validset = None
+            self._validset = None
+
+        # generate encodings
+        adata = collection.load(join="inner")
+        if self._label_key is not None:
+            self.labels_ = adata.obs[self._label_key].values.astype(str)
+        if self._categorical_covariate_keys is not None:
+            self.categorical_covariate_keys_ = adata.obs[
+                self._categorical_covariate_keys
+            ].values.astype(str)
+
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
         self.allow_zero_length_dataloader_with_multiple_devices = False
@@ -185,6 +200,51 @@ class MappedCollectionDataModule(LightningDataModule):
         self._unlabeled_category = value
 
     @property
+    def extra_categorical_covs(self) -> dict:
+        if self._categorical_covariate_keys is None:
+            out = {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_categorical_covs": 0},
+            }
+        else:
+            # TODO need to adjust this mapping
+            mapping = {
+                "cat1": np.array(self._categorical_covariate_keys),
+                "cat2": np.array(self._categorical_covariate_keys),
+            }
+            out = {
+                "data_registry": {"attr_key": "_scvi_extra_categorical_covs", "attr_name": "obsm"},
+                "state_registry": {
+                    "field_keys": self._categorical_covariate_keys,
+                    "mapping": mapping,
+                    "n_cats_per_key": [len(mapping[map]) for map in mapping.keys()],
+                },
+                "summary_stats": {
+                    "n_extra_categorical_covs": len(self._categorical_covariate_keys)
+                },
+            }
+        return out
+
+    @property
+    def extra_continuous_covs(self) -> dict:
+        if self._continuous_covariate_keys is None:
+            out = {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_continuous_covs": 0},
+            }
+        else:
+            out = {
+                "data_registry": {"attr_key": "_scvi_extra_continuous_covs", "attr_name": "obsm"},
+                "state_registry": {
+                    "columns": np.array(self._continuous_covariate_keys, dtype=object)
+                },
+                "summary_stats": {"n_extra_continuous_covs": len(self._continuous_covariate_keys)},
+            }
+        return out
+
+    @property
     def registry(self) -> dict:
         return {
             "scvi_version": scvi.__version__,
@@ -194,8 +254,8 @@ class MappedCollectionDataModule(LightningDataModule):
                 "batch_key": self._batch_key,
                 "labels_key": self._label_key,
                 "size_factor_key": None,
-                "categorical_covariate_keys": None,
-                "continuous_covariate_keys": None,
+                "categorical_covariate_keys": self._categorical_covariate_keys,
+                "continuous_covariate_keys": self._continuous_covariate_keys,
             },
             "field_registries": {
                 "X": {
@@ -229,16 +289,8 @@ class MappedCollectionDataModule(LightningDataModule):
                     "state_registry": {},
                     "summary_stats": {},
                 },
-                "extra_categorical_covs": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {"n_extra_categorical_covs": 0},
-                },
-                "extra_continuous_covs": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {"n_extra_continuous_covs": 0},
-                },
+                "extra_categorical_covs": self.extra_categorical_covs,
+                "extra_continuous_covs": self.extra_continuous_covs,
             },
             "setup_method_name": "setup_datamodule",
         }
@@ -311,6 +363,8 @@ class TileDBDataModule(LightningDataModule):
         accelerator: str = "auto",
         device: int | str = "auto",
         model_name: str = "SCVI",
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """
@@ -350,6 +404,8 @@ class TileDBDataModule(LightningDataModule):
 
         model_name
             The SCVI-Tools Model we are running
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
 
         Keyword arguments passed to `tiledbsoma_ml.experiment_dataloader()`, e.g. `num_workers`.
         """
@@ -370,6 +426,8 @@ class TileDBDataModule(LightningDataModule):
         self.labels = None
         self.label_encoder = None
         self.labels_ = None
+        self._categorical_covariate_keys = categorical_covariate_keys
+        self._continuous_covariate_keys = continuous_covariate_keys
 
         # deal with batches
         self.batch_column_names = batch_column_names
@@ -574,6 +632,51 @@ class TileDBDataModule(LightningDataModule):
             return unique_values
 
     @property
+    def extra_categorical_covs(self) -> dict:
+        if self._categorical_covariate_keys is None:
+            out = {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_categorical_covs": 0},
+            }
+        else:
+            # TODO need to adjust this mapping
+            mapping = {
+                "cat1": np.array(self._categorical_covariate_keys),
+                "cat2": np.array(self._categorical_covariate_keys),
+            }
+            out = {
+                "data_registry": {"attr_key": "_scvi_extra_categorical_covs", "attr_name": "obsm"},
+                "state_registry": {
+                    "field_keys": self._categorical_covariate_keys,
+                    "mapping": mapping,
+                    "n_cats_per_key": [len(mapping[map]) for map in mapping.keys()],
+                },
+                "summary_stats": {
+                    "n_extra_categorical_covs": len(self._categorical_covariate_keys)
+                },
+            }
+        return out
+
+    @property
+    def extra_continuous_covs(self) -> dict:
+        if self._continuous_covariate_keys is None:
+            out = {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_continuous_covs": 0},
+            }
+        else:
+            out = {
+                "data_registry": {"attr_key": "_scvi_extra_continuous_covs", "attr_name": "obsm"},
+                "state_registry": {
+                    "columns": np.array(self._continuous_covariate_keys, dtype=object)
+                },
+                "summary_stats": {"n_extra_continuous_covs": len(self._continuous_covariate_keys)},
+            }
+        return out
+
+    @property
     def registry(self) -> dict:
         features_names = list(
             self.query.var_joinids().tolist() if self.query is not None else range(self.n_vars)
@@ -586,8 +689,8 @@ class TileDBDataModule(LightningDataModule):
                 "batch_key": self.batch_colname,
                 "labels_key": self.label_keys[0] if self.label_keys is not None else "label",
                 "size_factor_key": None,
-                "categorical_covariate_keys": None,
-                "continuous_covariate_keys": None,
+                "categorical_covariate_keys": self._categorical_covariate_keys,
+                "continuous_covariate_keys": self._continuous_covariate_keys,
             },
             "field_registries": {
                 "X": {
@@ -619,16 +722,8 @@ class TileDBDataModule(LightningDataModule):
                     "summary_stats": {"n_labels": self.n_labels},
                 },
                 "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
-                "extra_categorical_covs": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {"n_extra_categorical_covs": 0},
-                },
-                "extra_continuous_covs": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {"n_extra_continuous_covs": 0},
-                },
+                "extra_categorical_covs": self.extra_categorical_covs,
+                "extra_continuous_covs": self.extra_continuous_covs,
             },
             "setup_method_name": "setup_datamodule",
         }
