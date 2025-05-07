@@ -114,7 +114,7 @@ class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
             REGISTRY_KEYS.SAMPLE_KEY
         ).categorical_mapping
 
-        self.n_obs_per_sample = torch.array(
+        self.n_obs_per_sample = torch.Tensor(
             adata.obs._scvi_sample.value_counts().sort_index().values
         )
 
