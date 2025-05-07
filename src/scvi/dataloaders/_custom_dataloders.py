@@ -81,9 +81,10 @@ class MappedCollectionDataModule(LightningDataModule):
         if self._label_key is not None:
             self.labels_ = adata.obs[self._label_key].values.astype(str)
         if self._categorical_covariate_keys is not None:
-            self.categorical_covariate_keys_ = adata.obs[
-                self._categorical_covariate_keys
-            ].values.astype(str)
+            self.categorical_covariate_keys_ = [
+                self._dataset.encoders[cat_cov_key]
+                for cat_cov_key in self._categorical_covariate_keys
+            ]
 
         # need by scvi and lightning.pytorch
         self._log_hyperparams = False
@@ -209,10 +210,13 @@ class MappedCollectionDataModule(LightningDataModule):
             }
         else:
             # TODO need to adjust this mapping
-            mapping = {
-                "cat1": np.array(self._categorical_covariate_keys),
-                "cat2": np.array(self._categorical_covariate_keys),
-            }
+            mapping = dict(
+                zip(
+                    self._categorical_covariate_keys,
+                    [np.array(list(x.values())) for x in self.categorical_covariate_keys_],
+                    strict=False,
+                )
+            )
             out = {
                 "data_registry": {"attr_key": "_scvi_extra_categorical_covs", "attr_name": "obsm"},
                 "state_registry": {
@@ -315,11 +319,23 @@ class MappedCollectionDataModule(LightningDataModule):
         X_KEY: str = "X"
         BATCH_KEY: str = "batch"
         LABEL_KEY: str = "labels"
+        CAT_COVS_KEY: str = "extra_categorical_covs"
+        CONT_COVS_KEY: str = "extra_continuous_covs"
 
         return {
             X_KEY: batch["X"].float(),
             BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
             LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else 0,
+            CAT_COVS_KEY: torch.cat(
+                [batch[k][:, None] for k in self._categorical_covariate_keys], dim=1
+            )
+            if self._categorical_covariate_keys is not None
+            else None,
+            CONT_COVS_KEY: torch.cat(
+                [batch[k][:, None] for k in self._continuous_covariate_keys], dim=1
+            )
+            if self._continuous_covariate_keys is not None
+            else None,
         }
 
     class _InferenceDataloader:
@@ -428,6 +444,8 @@ class TileDBDataModule(LightningDataModule):
         self.labels_ = None
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
+        self.categ_cov_colsep = "//"
+        self._categorical_covariate_colname = "_scvi_cat_cov"
 
         # deal with batches
         self.batch_column_names = batch_column_names
@@ -443,6 +461,17 @@ class TileDBDataModule(LightningDataModule):
                 if self.label_keys is None
                 else self.batch_column_names + self.label_keys
             )
+            cols_sel = (
+                cols_sel
+                if self._categorical_covariate_keys is None
+                else cols_sel + self._categorical_covariate_keys
+            )
+            cols_sel = (
+                cols_sel
+                if self._continuous_covariate_keys is None
+                else cols_sel + self._continuous_covariate_keys
+            )
+
             obs_df = self.query.obs(column_names=cols_sel).concat().to_pandas()
             obs_df = obs_df[cols_sel]
             self._add_batch_col(obs_df, inplace=True)
@@ -457,7 +486,18 @@ class TileDBDataModule(LightningDataModule):
             labels = obs_label_df[self.label_colname].unique()
             self.labels = labels
             self.label_encoder = LabelEncoder().fit(self.labels)
-            self.labels_ = obs_label_df["_scvi_labels"].values
+            self.labels_ = obs_label_df[self.label_colname].values
+
+        if categorical_covariate_keys is not None:
+            obs_categ_cov_df = (
+                self.query.obs(column_names=self._categorical_covariate_keys).concat().to_pandas()
+            )
+            obs_categ_cov_df = obs_categ_cov_df[self._categorical_covariate_keys]
+            self._add_categ_cov_col(obs_categ_cov_df, inplace=True)
+            categ_cov = obs_categ_cov_df[self._categorical_covariate_colname].unique()
+            self.categ_cov = categ_cov
+            self.categ_cov_encoder = LabelEncoder().fit(self.categ_cov)
+            self.categ_cov_ = obs_categ_cov_df[self._categorical_covariate_colname].values
 
         _, _, self.device = parse_device_args(
             accelerator=accelerator, devices=device, return_device="torch"
@@ -471,6 +511,16 @@ class TileDBDataModule(LightningDataModule):
             self.batch_column_names
             if self.label_keys is None
             else self.batch_column_names + self.label_keys
+        )
+        cols_sel = (
+            cols_sel
+            if self._categorical_covariate_keys is None
+            else cols_sel + self._categorical_covariate_keys
+        )
+        cols_sel = (
+            cols_sel
+            if self._continuous_covariate_keys is None
+            else cols_sel + self._continuous_covariate_keys
         )
 
         self.train_dataset = ExperimentDataset(
@@ -531,6 +581,18 @@ class TileDBDataModule(LightningDataModule):
         )
         return obs_label_df
 
+    def _add_categ_cov_col(self, obs_categ_cov_df: pd.DataFrame, inplace: bool = False):
+        # synthesize a new column for obs_label_df by concatenating
+        # the self.batch_column_names columns
+        if not inplace:
+            obs_categ_cov_df = obs_categ_cov_df.copy()
+        obs_categ_cov_df[self._categorical_covariate_colname] = (
+            obs_categ_cov_df[self._categorical_covariate_keys]
+            .astype(str)
+            .agg(self.categ_cov_colsep.join, axis=1)
+        )
+        return obs_categ_cov_df
+
     def on_before_batch_transfer(
         self,
         batch,
@@ -553,6 +615,24 @@ class TileDBDataModule(LightningDataModule):
             ).unsqueeze(1)
             if self.label_keys is not None
             else torch.empty(0),
+            "extra_categorical_covs": torch.cat(
+                [
+                    torch.from_numpy(self.categ_cov_encoder.transform(batch_obs[k])).unsqueeze(1)
+                    for k in self._categorical_covariate_keys
+                ],
+                dim=1,
+            )
+            if self._categorical_covariate_keys is not None
+            else None,
+            "extra_continuous_covs": torch.cat(
+                [
+                    torch.from_numpy(batch_obs[k].values).float().unsqueeze(1)
+                    for k in self._continuous_covariate_keys
+                ],
+                dim=1,
+            )
+            if self._continuous_covariate_keys is not None
+            else None,
         }
 
     # scVI code expects these properties on the DataModule:
@@ -641,10 +721,13 @@ class TileDBDataModule(LightningDataModule):
             }
         else:
             # TODO need to adjust this mapping
-            mapping = {
-                "cat1": np.array(self._categorical_covariate_keys),
-                "cat2": np.array(self._categorical_covariate_keys),
-            }
+            mapping = dict(
+                zip(
+                    self._categorical_covariate_keys,
+                    [self.categ_cov_encoder.classes_],
+                    strict=False,
+                )
+            )
             out = {
                 "data_registry": {"attr_key": "_scvi_extra_categorical_covs", "attr_name": "obsm"},
                 "state_registry": {

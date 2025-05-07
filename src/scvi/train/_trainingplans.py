@@ -826,6 +826,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         )
         self.loss_kwargs.update({"classification_ratio": classification_ratio})
         self.n_classes = n_classes
+        self.predicted_labels_vec = []
 
     def log_with_mode(self, key: str, value: Any, mode: str, **kwargs):
         """Log with mode."""
@@ -846,6 +847,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         true_labels = loss_output.true_labels.squeeze(-1)
         logits = loss_output.logits
         predicted_labels = torch.argmax(logits, dim=-1)
+        self.predicted_labels_vec = predicted_labels
 
         accuracy = tmf.classification.multiclass_accuracy(
             predicted_labels,
@@ -905,8 +907,14 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            if list(batch.keys()) == ["X", "batch", "labels"]:
-                # mean we are on batch loading from custom dataloader, TODO: KEEP IT?
+            if list(batch.keys()) == [
+                "X",
+                "batch",
+                "labels",
+                "extra_categorical_covs",
+                "extra_continuous_covs",
+            ]:
+                # mean we are on batch loading from custom dataloader, TODO: IS THERE BETTER WAY?
                 full_dataset = batch
                 labelled_dataset = batch
             else:

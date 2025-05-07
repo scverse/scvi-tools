@@ -22,15 +22,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     # prepare test data
     adata1 = synthetic_iid()
-    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],))
-    adata1.obs["cat2"] = np.random.randint(0, 5, size=(adata1.shape[0],))
-    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
-    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
     adata2 = synthetic_iid()
-    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
-    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
-    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
-    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
 
     artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
     artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
@@ -54,8 +46,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
         batch_key="batch",
         batch_size=1024,
         join="inner",
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
     )
 
     print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
@@ -88,26 +78,17 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     # repeat but with other data with fewer indices and smaller batch size
     adata1_small = synthetic_iid(batch_size=10)
-    adata1_small.obs["cat1"] = np.random.randint(0, 5, size=(adata1_small.shape[0],))
-    adata1_small.obs["cat2"] = np.random.randint(0, 5, size=(adata1_small.shape[0],))
-    adata1_small.obs["cont1"] = np.random.normal(size=(adata1_small.shape[0],))
-    adata1_small.obs["cont2"] = np.random.normal(size=(adata1_small.shape[0],))
     adata2_small = synthetic_iid(batch_size=10)
-    adata2_small.obs["cat1"] = np.random.randint(0, 5, size=(adata2_small.shape[0],))
-    adata2_small.obs["cat2"] = np.random.randint(0, 5, size=(adata2_small.shape[0],))
-    adata2_small.obs["cont1"] = np.random.normal(size=(adata2_small.shape[0],))
-    adata2_small.obs["cont2"] = np.random.normal(size=(adata2_small.shape[0],))
     artifact1_small = ln.Artifact.from_anndata(adata1_small, key="part_one_small.h5ad").save()
     artifact2_small = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
     collection_small = ln.Collection([artifact1_small, artifact2_small], key="gather")
+    collection_small.save()
     datamodule_small = MappedCollectionDataModule(
         collection_small,
         batch_key="batch",
         batch_size=1024,
         join="inner",
         collection_val=collection,
-        categorical_covariate_keys=["cat1", "cat2"],
-        continuous_covariate_keys=["cont1", "cont2"],
     )
     inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
     _ = model.get_elbo(return_mean=False, dataloader=inference_dataloader_small)
@@ -195,7 +176,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scanvi_small(save_path: str):
-    # os.system("lamin init --storage ./lamindb_collection") #(comment out when runing localy)
+    # os.system("lamin init --storage ./lamindb_collection_scanvi") #(comment out runing localy)
     import lamindb as ln
 
     # ln.setup.init() # (comment out when runing localy)
@@ -212,14 +193,6 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 
     artifacts = collection_scanvi.artifacts.all()
     artifacts.df()
-
-    # large data example
-    # ln.track("d1kl7wobCO1H0005")
-    # ln.setup.init(name="lamindb_instance_name", storage=save_path)  # is this need in github test
-    # ln.setup.init()
-    # collection = ln.Collection.using("laminlabs/cellxgene").get(name="covid_normal_lung")
-    # artifacts = collection.artifacts.all()
-    # artifacts.df()
 
     datamodule = MappedCollectionDataModule(
         collection_scanvi,
@@ -303,6 +276,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     collection_scanvi_small = ln.Collection(
         [artifact1_scanvi_small, artifact2_scanvi_small], key="gather"
     )
+    collection_scanvi_small.save()
     datamodule_small = MappedCollectionDataModule(
         collection_scanvi_small,
         batch_key="batch",
@@ -406,6 +380,110 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 
 
 @pytest.mark.dataloader
+@dependencies("lamindb")
+def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
+    # os.system("lamin init --storage ./lamindb_collection_cov")  # one time for github runner
+    import lamindb as ln
+
+    # ln.setup.init()  # one time for github runner (comment out when runing localy)
+
+    # prepare test data
+    adata1 = synthetic_iid()
+    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cat2"] = np.random.randint(0, 5, size=(adata1.shape[0],))
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
+    adata2 = synthetic_iid()
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+
+    artifact1_cov = ln.Artifact.from_anndata(adata1, key="part_one_cov.h5ad").save()
+    artifact2_cov = ln.Artifact.from_anndata(adata2, key="part_two_cov.h5ad").save()
+
+    collection_cov = ln.Collection([artifact1_cov, artifact2_cov], key="gather")
+    collection_cov.save()
+
+    artifacts_cov = collection_cov.artifacts.all()
+    artifacts_cov.df()
+
+    datamodule = MappedCollectionDataModule(
+        collection_cov,
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+
+    print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
+
+    pprint(datamodule.registry)
+
+    model = scvi.model.SCVI(registry=datamodule.registry)
+    pprint(model.summary_stats)
+    pprint(model.module)
+
+    model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
+    model.history.keys()
+
+    # The way to extract the internal model analysis is by the inference_dataloader
+    # Datamodule will always require to pass it into all downstream functions.
+    inference_dataloader = datamodule.inference_dataloader()
+    _ = model.get_elbo(dataloader=inference_dataloader)
+    _ = model.get_marginal_ll(dataloader=inference_dataloader)
+    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model.get_latent_representation(dataloader=inference_dataloader)
+    _ = model.posterior_predictive_sample(dataloader=inference_dataloader)
+    _ = model.get_normalized_expression(dataloader=inference_dataloader)
+    _ = model.get_likelihood_parameters(dataloader=inference_dataloader)
+    _ = model._get_denoised_samples(dataloader=inference_dataloader)
+    _ = model.get_latent_library_size(dataloader=inference_dataloader, give_mean=False)
+
+    # repeat but with other data with fewer indices and smaller batch size
+    adata1_small = synthetic_iid(batch_size=10)
+    adata1_small.obs["cat1"] = np.random.randint(0, 5, size=(adata1_small.shape[0],))
+    adata1_small.obs["cat2"] = np.random.randint(0, 5, size=(adata1_small.shape[0],))
+    adata1_small.obs["cont1"] = np.random.normal(size=(adata1_small.shape[0],))
+    adata1_small.obs["cont2"] = np.random.normal(size=(adata1_small.shape[0],))
+    adata2_small = synthetic_iid(batch_size=10)
+    adata2_small.obs["cat1"] = np.random.randint(0, 5, size=(adata2_small.shape[0],))
+    adata2_small.obs["cat2"] = np.random.randint(0, 5, size=(adata2_small.shape[0],))
+    adata2_small.obs["cont1"] = np.random.normal(size=(adata2_small.shape[0],))
+    adata2_small.obs["cont2"] = np.random.normal(size=(adata2_small.shape[0],))
+    artifact1_small_cov = ln.Artifact.from_anndata(adata1_small, key="part_one_small.h5ad").save()
+    artifact2_small_cov = ln.Artifact.from_anndata(adata2_small, key="part_two_small.h5ad").save()
+    collection_small_cov = ln.Collection([artifact1_small_cov, artifact2_small_cov], key="gather")
+    collection_small_cov.save()
+    datamodule_small = MappedCollectionDataModule(
+        collection_small_cov,
+        batch_key="batch",
+        batch_size=1024,
+        join="inner",
+        collection_val=collection_cov,
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+    inference_dataloader_small = datamodule_small.inference_dataloader(batch_size=128)
+    _ = model.get_elbo(return_mean=False, dataloader=inference_dataloader_small)
+    _ = model.get_marginal_ll(n_mc_samples=3, dataloader=inference_dataloader_small)
+    _ = model.get_reconstruction_error(return_mean=False, dataloader=inference_dataloader_small)
+    _ = model.get_latent_representation(dataloader=inference_dataloader_small)
+    _ = model.posterior_predictive_sample(
+        indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], dataloader=inference_dataloader_small
+    )
+    _ = model.get_normalized_expression(n_samples=2, dataloader=inference_dataloader_small)
+
+    # load and save and make query with the other data
+    model.save("lamin_model_cov", save_anndata=False, overwrite=True, datamodule=datamodule)
+
+
+@pytest.mark.dataloader
 @dependencies("tiledbsoma")
 @dependencies("cellxgene_census")
 def test_census_custom_dataloader_scvi(save_path: str):
@@ -442,8 +520,6 @@ def test_census_custom_dataloader_scvi(save_path: str):
         train_size=0.9,
         seed=42,
         batch_column_names=batch_keys,
-        categorical_covariate_keys=["sex"],
-        continuous_covariate_keys=["raw_mean_nnz"],
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
@@ -493,8 +569,6 @@ def test_census_custom_dataloader_scvi(save_path: str):
         batch_size=1024,
         shuffle=False,
         batch_column_names=batch_keys,
-        categorical_covariate_keys=["sex"],
-        continuous_covariate_keys=["raw_mean_nnz"],
         dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
     )
 
@@ -823,3 +897,134 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     )
     model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
     model_query_adata.predict(adata=adata)
+
+
+@pytest.mark.dataloader
+@dependencies("tiledbsoma")
+@dependencies("cellxgene_census")
+def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
+    import cellxgene_census
+    import tiledbsoma as soma
+
+    # load census
+    census = cellxgene_census.open_soma(census_version="2023-12-15")
+
+    # do obs filtering (in this test we take a small dataset)
+    experiment_name = "mus_musculus"
+    obs_value_filter = (
+        'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 5000'
+    )
+
+    # in order to save time in this test we manulay filter var
+    hv_idx = np.arange(10)  # just to make it smaller and faster for debug
+
+    # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
+    # which can compute HVGs in constant memory:
+    hvg_query = census["census_data"][experiment_name].axis_query(
+        measurement_name="RNA",
+        obs_query=soma.AxisQuery(value_filter=obs_value_filter),
+        var_query=soma.AxisQuery(coords=(list(hv_idx),)),
+    )
+
+    # We will now use class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
+    batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
+    datamodule = TileDBDataModule(
+        hvg_query,
+        layer_name="raw",
+        batch_size=1024,
+        shuffle=True,
+        train_size=0.9,
+        seed=42,
+        batch_column_names=batch_keys,
+        categorical_covariate_keys=["sex"],
+        continuous_covariate_keys=["raw_mean_nnz"],
+        dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
+    )
+
+    print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
+
+    n_layers = 1
+    n_latent = 5
+
+    pprint(datamodule.registry)
+
+    # creating the dataloader for trainset
+    datamodule.setup()
+
+    # We can now create the scVI model object and train it:
+    model = scvi.model.SCVI(
+        adata=None,
+        registry=datamodule.registry,
+        n_layers=n_layers,
+        n_latent=n_latent,
+        gene_likelihood="nb",
+        encode_covariates=False,
+    )
+
+    model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=0.9,
+        check_val_every_n_epoch=1,
+        early_stopping=False,
+    )
+
+    user_attributes = model._get_user_attributes()
+    pprint(user_attributes)
+    model.history.keys()
+
+    # save the model
+    model.save("census_model_cov", save_anndata=False, overwrite=True, datamodule=datamodule)
+
+    # Generate cell embeddings
+    inference_datamodule = TileDBDataModule(
+        hvg_query,
+        layer_name="raw",
+        batch_labels=datamodule.batch_labels,
+        batch_size=1024,
+        shuffle=False,
+        batch_column_names=batch_keys,
+        categorical_covariate_keys=["sex"],
+        continuous_covariate_keys=["raw_mean_nnz"],
+        dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
+    )
+
+    inference_datamodule.setup()
+
+    # Datamodule will always require to pass it into all downstream functions.
+    # need to init the inference_dataloader before each of those commands:
+    latent = model.get_latent_representation(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    print(latent.shape)
+    _ = model.get_elbo(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_marginal_ll(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_reconstruction_error(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_latent_representation(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.posterior_predictive_sample(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_normalized_expression(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_likelihood_parameters(dataloader=inference_datamodule.inference_dataloader())
+    _ = model._get_denoised_samples(dataloader=inference_datamodule.inference_dataloader())
+    _ = model.get_latent_library_size(
+        dataloader=inference_datamodule.inference_dataloader(), give_mean=False
+    )
+
+    # generating data from this census
+    adata = cellxgene_census.get_anndata(
+        census,
+        organism=experiment_name,
+        obs_value_filter=obs_value_filter,
+        var_coords=hv_idx,
+    )
+    # verify cell order:
+    assert np.array_equal(
+        np.array(adata.obs["soma_joinid"]),
+        inference_datamodule.train_dataset.query_ids.obs_joinids,
+    )
+
+    adata.obsm["scvi"] = latent
+
+    # Additional things we would like to check
+    # we make the batch name the same as in the model
+    adata.obs["batch"] = adata.obs[batch_keys].agg("//".join, axis=1).astype("category")
