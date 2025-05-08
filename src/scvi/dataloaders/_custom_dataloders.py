@@ -184,7 +184,8 @@ class MappedCollectionDataModule(LightningDataModule):
         combined = np.concatenate(
             (list(self._dataset.encoders[self._label_key].keys()), [self.unlabeled_category])
         )
-        unique_values = np.unique(combined)
+        unique_values, idx = np.unique(combined, return_index=True)
+        unique_values = unique_values[np.argsort(idx)]
         return unique_values.astype(object)
 
     @property
@@ -708,8 +709,9 @@ class TileDBDataModule(LightningDataModule):
     def labels_mapping(self) -> int:
         if self.label_keys is not None:
             combined = np.concatenate((self.label_encoder.classes_, [self.unlabeled_category]))
-            unique_values = np.unique(combined).astype(object)
-            return unique_values
+            unique_values, idx = np.unique(combined, return_index=True)
+            unique_values = unique_values[np.argsort(idx)]
+            return unique_values.astype(object)
 
     @property
     def extra_categorical_covs(self) -> dict:
