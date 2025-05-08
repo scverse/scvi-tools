@@ -23,10 +23,13 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
 - Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
 - Add support for IntegratedGradients for multimodal models. {pr}`3264`.
+- Fix bug in resolVI get_normalized expression function. {pr}`3308`.
+- Fix bug in resolVI gene-assay dispersion. {pr}`3308`.
 
 #### Changed
 
 - Updated Scvi-Tools AWS hub to Weizmann instead of Berkeley. {pr}`3246`.
+- Updated resolVI to use rapids-singlecell. {pr}`3308`.
 
 #### Removed
 
