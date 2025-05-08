@@ -56,15 +56,9 @@ def test_resolvi_downstream(adata):
     )
     latent = model.get_latent_representation()
     assert latent.shape == (adata.n_obs, model.module.n_latent)
-    counts = model.get_normalized_expression(
-        n_samples=31,
-        library_size=10000
-    )
-    counts = model.get_normalized_expression_importance(
-        n_samples=30,
-        library_size=10000
-    )
-    print('FFFFFF', counts.shape)
+    counts = model.get_normalized_expression(n_samples=31, library_size=10000)
+    counts = model.get_normalized_expression_importance(n_samples=30, library_size=10000)
+    print("FFFFFF", counts.shape)
     model.differential_expression(groupby="labels")
     model.differential_expression(groupby="labels", weights="importance")
     model.sample_posterior(
@@ -72,12 +66,11 @@ def test_resolvi_downstream(adata):
         num_samples=30,
         return_samples=False,
         return_sites=None,
-        batch_size=1000)
+        batch_size=1000,
+    )
     model.sample_posterior(
-        model=model.module.model_residuals,
-        num_samples=30,
-        return_samples=False,
-        batch_size=1000)
+        model=model.module.model_residuals, num_samples=30, return_samples=False, batch_size=1000
+    )
     model_query = model.load_query_data(reference_model=model, adata=adata)
     model_query = model.load_query_data(reference_model="test_resolvi", adata=adata)
     model_query.train(
