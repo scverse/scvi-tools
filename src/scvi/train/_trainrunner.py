@@ -109,7 +109,16 @@ class TrainRunner:
         if hasattr(self.data_splitter, "n_val"):
             self.training_plan.n_obs_validation = self.data_splitter.n_val
 
-        self.trainer.fit(self.training_plan, self.data_splitter)
+        try:
+            self.trainer.fit(self.training_plan, self.data_splitter)
+        except NameError:
+            import gc
+
+            gc.collect()
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         self._update_history()
 
         # data splitter only gets these attrs after fit

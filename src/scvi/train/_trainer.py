@@ -211,4 +211,13 @@ class Trainer(pl.Trainer):
                     category=UserWarning,
                     message="`LightningModule.configure_optimizers` returned `None`",
                 )
-            super().fit(*args, **kwargs)
+            try:
+                super().fit(*args, **kwargs)
+            except NameError:
+                import gc
+
+                gc.collect()
+                import torch
+
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
