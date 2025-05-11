@@ -491,7 +491,6 @@ class TrainingPlan(pl.LightningModule):
                 threshold=self.lr_threshold,
                 min_lr=self.lr_min,
                 threshold_mode="abs",
-                verbose=True,
             )
             config.update(
                 {
@@ -728,7 +727,6 @@ class AdversarialTrainingPlan(TrainingPlan):
                 threshold=self.lr_threshold,
                 min_lr=self.lr_min,
                 threshold_mode="abs",
-                verbose=True,
             )
             config1.update(
                 {
