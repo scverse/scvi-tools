@@ -36,10 +36,14 @@ artifacts = collection.artifacts.all()
 artifacts.df()
 
 datamodule = MappedCollectionDataModule(
-    collection, batch_key="assay", batch_size=1024, join="inner"
+    collection,
+    batch_key="assay",
+    batch_size=1024,
+    join="inner",
+    shuffle=True,
 )
 model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
-model.train(max_epochs=1, batch_size=1024, datamodule=datamodule)
+model.train(max_epochs=1, batch_size=1024, datamodule=datamodule.inference_dataloader())
 ...
 ```
 LamindDB may not be as efficient or flexible as TileDB for handling complex multi-dimensional data
@@ -106,13 +110,9 @@ model = scvi.model.SCVI(
 
 # creating the dataloader for trainset
 datamodule.setup()
-training_dataloader = (
-    datamodule.on_before_batch_transfer(batch, None)
-    for batch in datamodule.train_dataloader()
-)
 
 model.train(
-    datamodule=training_dataloader,
+    datamodule=datamodule,
     max_epochs=1,
     batch_size=1024,
     train_size=0.9,
