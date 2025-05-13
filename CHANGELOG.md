@@ -30,6 +30,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
+- Removed Jax version constraint for mrVI training. {pr}`3309`.
+
 ### 1.3.0 (2025-02-28)
 
 #### Added
