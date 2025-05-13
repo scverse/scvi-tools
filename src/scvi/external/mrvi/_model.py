@@ -10,7 +10,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
@@ -248,6 +248,14 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
+        from packaging import version
+
+        if version.parse(jax.__version__) > version.parse("0.4.35"):
+            warnings.warn(
+                "Running mrVI with Jax version larger 0.4.35 can cause performance issues",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         super().train(**train_kwargs)
 
     def get_latent_representation(
