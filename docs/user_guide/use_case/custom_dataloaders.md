@@ -21,25 +21,34 @@ Pros:
 - Optimized for ML Workflows: If your dataset is structured as tables (rows and columns), LamindDB’s format aligns well with SCVI's expectations, potentially reducing the need for complex transformations.
 
 ```python
-os.system("lamin init --storage ./test-registries")
 import lamindb as ln
+from scvi.dataloaders import MappedCollectionDataModule
+import scvi
+import os
+
+os.system("lamin init --storage ./test-registries")
 
 ln.setup.init(name="lamindb_instance_name", storage=save_path)
 
 # a test for mapped collection
-collection = ln.Collection.get(name="covid_normal_lung")
+collection = ln.Collection.using("laminlabs/cellxgene").get(name="covid_normal_lung")
 artifacts = collection.artifacts.all()
 artifacts.df()
 
 datamodule = MappedCollectionDataModule(
-    collection, batch_key="assay", batch_size=1024, join="inner"
+    collection,
+    batch_key="assay",
+    batch_size=1024,
+    join="inner",
+    shuffle=True,
 )
 model = scvi.model.SCVI(adata=None, registry=datamodule.registry)
+model.train(max_epochs=1, batch_size=1024, datamodule=datamodule.inference_dataloader())
 ...
 ```
 LamindDB may not be as efficient or flexible as TileDB for handling complex multi-dimensional data
 
-2. [CZI](https://chanzuckerberg.com/) based [tiledb](https://tiledb.com/) custom dataloader is based on CensusSCVIDataModule and can run a large multi-dimensional datasets that are stored in TileDB’s format.
+2. [CZI](https://chanzuckerberg.com/) based [tiledb](https://tiledb.com/) custom dataloader is based on TileDBDataModule and can run a large multi-dimensional datasets that are stored in TileDB’s format.
 
 TileDB is a general-purpose, multi-dimensional array storage engine designed for high-performance, scalable data access. It supports various data types, including dense and sparse arrays, and is optimized for handling large datasets efficiently. TileDB’s strength lies in its ability to store and query data across multiple dimensions and scale efficiently with large volumes of data.
 
@@ -52,9 +61,10 @@ Scalability: Handles large datasets that exceed your system's memory capacity, m
 ```python
 import cellxgene_census
 import tiledbsoma as soma
-from cellxgene_census.experimental.ml import experiment_dataloader
-from cellxgene_census.experimental.ml.datamodule import CensusSCVIDataModule
+import tiledbsoma_ml
+from scvi.dataloaders import TileDBDataModule
 import numpy as np
+import scvi
 
 # this test checks the local custom dataloder made by CZI and run several tests with it
 census = cellxgene_census.open_soma(census_version="stable")
@@ -66,25 +76,48 @@ obs_value_filter = (
 
 hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
 
-# this is CZI part to be taken once all is ready
-batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
-datamodule = CensusSCVIDataModule(
-    census["census_data"][experiment_name],
+# For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
+# which can compute HVGs in constant memory:
+hvg_query = census["census_data"][experiment_name].axis_query(
     measurement_name="RNA",
-    X_name="raw",
     obs_query=soma.AxisQuery(value_filter=obs_value_filter),
     var_query=soma.AxisQuery(coords=(list(hv_idx),)),
+)
+
+# this is CZI part to be taken once all is ready
+batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
+label_keys = ["tissue_general"]
+datamodule = TileDBDataModule(
+    hvg_query,
+    layer_name="raw",
     batch_size=1024,
     shuffle=True,
-    batch_keys=batch_keys,
+    seed=42,
+    batch_column_names=batch_keys,
+    label_keys=label_keys,
+    train_size=0.9,
+    unlabeled_category="label_0",
     dataloader_kwargs={"num_workers": 0, "persistent_workers": False},
 )
 
+# We can now create the scVI model object and train it:
+model = scvi.model.SCVI(
+    adata=None,
+    registry=datamodule.registry,
+    gene_likelihood="nb",
+    encode_covariates=False,
+)
 
-# basicaly we should mimiC everything below to any model census in scvi
-adata_orig = synthetic_iid()
-scvi.model.SCVI.setup_anndata(adata_orig, batch_key="batch")
-model = scvi.model.SCVI(adata_orig)
+# creating the dataloader for trainset
+datamodule.setup()
+
+model.train(
+    datamodule=datamodule,
+    max_epochs=1,
+    batch_size=1024,
+    train_size=0.9,
+    early_stopping=False,
+)
 ...
 ```
 Key Differences between them in terms of Custom Dataloaders:
@@ -110,6 +143,8 @@ When to Use Each:
 Writing custom dataloaders requires a good understanding of PyTorch’s DataLoader class and how to integrate it with SCVI, which may be difficult for beginners.
 It will also requite maintenance: If the data format or preprocessing needs change, you’ll have to modify and maintain the custom dataloader code, But it can be a greate addition to the model pipeline, in terms of runtime and how much data we can digest.
 
+See relevant tutorials in this subject for further examples.
+
 :::{note}
-As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental.
+As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental and only supported for adata and SCVI and SCANVI models
 :::

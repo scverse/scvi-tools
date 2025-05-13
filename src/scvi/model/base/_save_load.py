@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import warnings
@@ -102,7 +103,7 @@ def _load_saved_files(
     return attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict):
+def _initialize_model(cls, adata, registry, attr_dict, datamodule):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -133,7 +134,16 @@ def _initialize_model(cls, adata, attr_dict):
     if "pretrained_model" in non_kwargs.keys():
         non_kwargs.pop("pretrained_model")
 
-    model = cls(adata, **non_kwargs, **kwargs)
+    if not adata:
+        adata = None
+
+    if datamodule:
+        non_kwargs["datamodule"] = datamodule
+
+    if "registry" in inspect.signature(cls).parameters:
+        model = cls(adata, registry=registry, **non_kwargs, **kwargs)
+    else:
+        model = cls(adata, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
 
@@ -177,7 +187,9 @@ def _get_var_names(
 
 
 def _validate_var_names(
-    adata: AnnOrMuData, source_var_names: npt.NDArray | dict[str, npt.NDArray]
+    adata: AnnOrMuData | None,
+    source_var_names: npt.NDArray | dict[str, npt.NDArray],
+    load_var_names: npt.NDArray | dict[str, npt.NDArray] | None = None,
 ) -> None:
     """Validate that source and loaded variable names match.
 
@@ -188,15 +200,19 @@ def _validate_var_names(
     source_var_names
         Variable names from a saved model file corresponding to the variable names used during
         training.
+    load_var_names
+        Variable names from the loaded registry.
     """
     from numpy import array_equal
 
-    is_anndata = isinstance(adata, AnnData)
     source_per_mod_var_names = isinstance(source_var_names, dict)
-    load_var_names = _get_var_names(
-        adata,
-        legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
-    )
+
+    if load_var_names is None:
+        is_anndata = isinstance(adata, AnnData)
+        load_var_names = _get_var_names(
+            adata,
+            legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
+        )
 
     if source_per_mod_var_names:
         valid_load_var_names = all(

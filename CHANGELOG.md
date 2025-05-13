@@ -16,6 +16,9 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
 - Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
+- Add Custom Dataloaders registry support, {pr}`2932`.
+- Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
+    and {class}`scvi.model.SCANVI`, {pr}`2932`.
 - Add Early stopping KL warmup steps. {pr}`3262`.
 - Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
 

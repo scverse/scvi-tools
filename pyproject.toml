@@ -82,11 +82,9 @@ docs = [
 docsbuild = ["scvi-tools[docs,optional]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]","scib-metrics"]
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
-# scvi.data.cellxgene
-census = ["cellxgene-census", "numpy<2.0"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
@@ -96,13 +94,15 @@ scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
 file_sharing = ["pooch", "cellxgene-census"]
 # for parallelization engine
-parallel = ["dask[array]>=2023.5.1,<2024.8.0"]
+parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
-interpretability = ["captum","shap"]
+interpretability = ["captum", "shap"]
+# for custom dataloders
+dataloaders = ["lamindb>=1.3.0", "biomart", "bionty", "cellxgene_lamin", "cellxgene-census", "numpy<2.0", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata==0.9.0"]
 
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability,dataloaders]"
 ]
 tutorials = [
     "cell2location",
@@ -137,6 +137,7 @@ markers = [
     "private: mark tests that uses private keys, like HF",
     "multigpu: mark tests that are used to check multi GPU performance",
     "autotune: mark tests that are used to check ray autotune capabilities",
+    "custom dataloaders: mark tests that are used to check different custom data loaders",
 ]
 
 [tool.ruff]
