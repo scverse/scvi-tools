@@ -60,7 +60,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
     {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
 - Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
-- Add a {doc}`/user_guide/use_case` section in the docs, {pr}`3200`.
+- Add a common use cases section in the docs user guide. {pr}`3200`.
 - Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
@@ -118,7 +118,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Added adaptive handling for last training minibatch of 1-2 cells in case of
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
     validation set, if available. {pr}`3036`.
-- Add `batch_key` and `labels_key` to `scvi.external.SCAR.setup_anndata`. {pr}`3045`.
+- Add `batch_key` and `labels_key` to {meth}`scvi.external.SCAR.setup_anndata`. {pr}`3045`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
 - Support for minified mode while retaining counts to skip the encoder.
 - New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
@@ -132,7 +132,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
     to correctly compute the maxmimum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
-- Fix references to `scvi.external` in `scvi.external.SCAR.setup_anndata`.
+- Fix references to `scvi.external` in {meth}`scvi.external.SCAR.setup_anndata`.
 - Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
 
 #### Changed
@@ -144,9 +144,9 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add support for Python 3.12 {pr}`2966`.
-- Add support for categorial covariates in scArches in `scvi.model.archesmixin` {pr}`2936`.
+- Add support for categorial covariates in scArches in {class}`scvi.model.base.ArchesMixin` {pr}`2936`.
 - Add assertion error in cellAssign for checking duplicates in celltype markers {pr}`2951`.
-- Add `scvi.external.poissonvi.get_region_factors` {pr}`2940`.
+- Add {meth}`scvi.external.POISSONVI.get_region_factors` {pr}`2940`.
 - {attr}`scvi.settings.dl_persistent_workers` allows using persistent workers in
     {class}`scvi.dataloaders.AnnDataLoader` {pr}`2924`.
 - Add option for using external indexes in data splitting classes that are under `scvi.dataloaders`
