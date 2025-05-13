@@ -1,3 +1,6 @@
+import os
+
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -138,3 +141,47 @@ def test_totalanvi():
             "max_kl_weight": 1.0,
         },
     )
+
+
+def test_totalanvi_scarches(save_path):
+    # test transfer_anndata_setup + view
+    adata1 = synthetic_iid()
+    TOTALANVI.setup_anndata(
+        adata1,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        labels_key="labels",
+        unlabeled_category="label_0",
+    )
+    model = TOTALANVI(adata1)
+    model.train(1, train_size=0.5)
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata2 has more genes and a perfect subset of adata1
+    adata2 = synthetic_iid(n_genes=110)
+    adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    TOTALANVI.prepare_query_anndata(adata2, dir_path)
+    TOTALANVI_query = TOTALANVI.load_query_data(adata2, dir_path)
+    TOTALANVI_query.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata3 = TOTALANVI.prepare_query_anndata(adata2, dir_path, inplace=False)
+    TOTALANVI_query2 = TOTALANVI.load_query_data(adata3, dir_path)
+    TOTALANVI_query2.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    # adata4 has more genes and missing 10 genes from adata1
+    adata4 = synthetic_iid(n_genes=110)
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
+    adata4.var_names = new_var_names
+
+    TOTALANVI.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
+    TOTALANVI_query3 = TOTALANVI.load_query_data(adata4, dir_path)
+    TOTALANVI_query3.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata5 = TOTALANVI.prepare_query_anndata(adata4, dir_path, inplace=False)
+    TOTALANVI_query4 = TOTALANVI.load_query_data(adata5, dir_path)
+    TOTALANVI_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
