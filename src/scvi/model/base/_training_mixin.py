@@ -13,7 +13,12 @@ from scvi import REGISTRY_KEYS
 from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
-from scvi.train import SemiSupervisedTrainingPlan, TrainingPlan, TrainRunner
+from scvi.train import (
+    SemiSupervisedAdversarialTrainingPlan,
+    SemiSupervisedTrainingPlan,
+    TrainingPlan,
+    TrainRunner,
+)
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp
 
@@ -24,6 +29,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
     from scvi._types import AnnOrMuData
+
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +165,8 @@ class SemisupervisedTrainingMixin:
     """General purpose semisupervised train, predict and interoperability methods."""
 
     _training_plan_cls = SemiSupervisedTrainingPlan
+    _data_splitter_cls = SemiSupervisedDataSplitter
+    _train_runner_cls = TrainRunner
 
     def _set_indices_and_labels(self, datamodule=None):
         """Set indices for labeled and unlabeled cells."""
@@ -275,7 +283,7 @@ class SemisupervisedTrainingMixin:
             data_inputs = {
                 key: inference_inputs[key]
                 for key in inference_inputs.keys()
-                if key not in ["batch_index", "cont_covs", "cat_covs"]
+                if key not in ["batch_index", "cont_covs", "cat_covs", "panel_index"]
             }
 
             batch = tensors[REGISTRY_KEYS.BATCH_KEY]
@@ -348,6 +356,7 @@ class SemisupervisedTrainingMixin:
         batch_size: int = 128,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
+        adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         datamodule: LightningDataModule | None = None,
@@ -379,6 +388,10 @@ class SemisupervisedTrainingMixin:
             Minibatch size to use during training.
         %(param_accelerator)s
         %(param_devices)s
+        adversarial_classifier
+            Whether to use adversarial classifier in the latent space. This helps mixing when
+            there are missing proteins in any of the batches. Defaults to `True` is missing
+            proteins are detected.
         datasplitter_kwargs
             Additional keyword arguments passed into
             :class:`~scvi.dataloaders.SemiSupervisedDataSplitter`.
@@ -393,6 +406,17 @@ class SemisupervisedTrainingMixin:
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
+        # A totalanvi patch
+        if type(self).__name__ == "TOTALANVI":
+            self._training_plan_cls = SemiSupervisedAdversarialTrainingPlan
+            if adversarial_classifier is None:
+                adversarial_classifier = self._use_adversarial_classifier  # from totalvi
+            update_dict = {"adversarial_classifier": adversarial_classifier}
+            if plan_kwargs is not None:
+                plan_kwargs.update(update_dict)
+            else:
+                plan_kwargs = update_dict
+
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
@@ -409,7 +433,7 @@ class SemisupervisedTrainingMixin:
             sampler_callback = [SubSampleLabels()] if len(self._labeled_indices) != 0 else []
 
             datasplitter_kwargs = datasplitter_kwargs or {}
-            datamodule = SemiSupervisedDataSplitter(
+            datamodule = self._data_splitter_cls(
                 adata_manager=self.adata_manager,
                 datamodule=datamodule,
                 train_size=train_size,
@@ -431,7 +455,7 @@ class SemisupervisedTrainingMixin:
         else:
             trainer_kwargs["callbacks"] = sampler_callback
 
-        runner = TrainRunner(
+        runner = self._train_runner_cls(
             self,
             training_plan=training_plan,
             data_splitter=datamodule,
