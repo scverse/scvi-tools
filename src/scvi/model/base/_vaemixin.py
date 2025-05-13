@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.utils import unsupported_if_adata_minified
 
 if TYPE_CHECKING:
@@ -72,13 +73,20 @@ class VAEMixin:
         """
         from scvi.model.base._log_likelihood import compute_elbo
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif dataloader is None:
+        _validate_adata_dataloader_input(self, adata, dataloader)
+
+        if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
 
@@ -139,14 +147,21 @@ class VAEMixin:
                 "The model's module must implement `marginal_ll` to compute the marginal "
                 "log-likelihood."
             )
-        elif adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        else:
+            _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         log_likelihoods: list[float | Tensor] = [
             self.module.marginal_ll(
@@ -210,14 +225,20 @@ class VAEMixin:
         """
         from scvi.model.base._log_likelihood import compute_reconstruction_error
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         return compute_reconstruction_error(
             self.module, dataloader, return_mean=return_mean, **kwargs
@@ -277,14 +298,20 @@ class VAEMixin:
         from scvi.module._constants import MODULE_KEYS
 
         self._check_if_trained(warn=False)
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         zs: list[Tensor] = []
         qz_means: list[Tensor] = []
