@@ -766,6 +766,20 @@ class SupervisedModuleClass:
     """General purpose supervised classify and loss calculations methods."""
 
     @auto_move_data
+    def classify_helper(self, z):
+        if self.use_labels_groups:
+            w_g = self.classifier_groups(z)
+            unw_y = self.classifier(z)
+            w_y = torch.zeros_like(unw_y)
+            for i, group_index in enumerate(self.groups_index):
+                unw_y_g = unw_y[:, group_index]
+                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
+                w_y[:, group_index] *= w_g[:, [i]]
+        else:
+            w_y = self.classifier(z)
+        return w_y
+
+    @auto_move_data
     def classify(
         self,
         x: torch.Tensor,
@@ -811,17 +825,7 @@ class SupervisedModuleClass:
         qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
         z = qz.loc if use_posterior_mean else z
 
-        if self.use_labels_groups:
-            w_g = self.classifier_groups(z)
-            unw_y = self.classifier(z)
-            w_y = torch.zeros_like(unw_y)
-            for i, group_index in enumerate(self.groups_index):
-                unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
-                w_y[:, group_index] *= w_g[:, [i]]
-        else:
-            w_y = self.classifier(z)
-        return w_y
+        return self.classify_helper(z)
 
     @auto_move_data
     def classification_loss(
@@ -831,7 +835,7 @@ class SupervisedModuleClass:
         data_inputs = {
             key: inference_inputs[key]
             for key in inference_inputs.keys()
-            if key not in ["batch_index", "cont_covs", "cat_covs"]
+            if key not in ["batch_index", "cont_covs", "cat_covs", "panel_index"]
         }
 
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
