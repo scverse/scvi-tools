@@ -10,7 +10,7 @@ import json
 # Here we define the order of the model groups
 # as they should appear in the list
 GROUP_ORDER = [
-    "R Tutorials",
+    "Quick start",
     "scRNA-seq",
     "ATAC-seq",
     "scBS-seq",
@@ -18,8 +18,8 @@ GROUP_ORDER = [
     "Spatial transcriptomics",
     "Model hub",
     "Common Modelling Use Cases",
-    "Quick start",
     "Development",
+    "R Tutorials",
 ]
 
 
