@@ -6,17 +6,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.2 (2025-XX-XX)
-
-#### Added
-
-#### Fixed
-
-#### Changed
-
-#### Removed
-
-### 1.3.1 (2025-05-15)
+### 1.3.1 (2025-XX-XX)
 
 #### Added
 
