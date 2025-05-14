@@ -7,6 +7,21 @@ from docutils.statemachine import StringList
 import os
 import json
 
+# Here we define the order of the model groups
+# as they should appear in the list
+GROUP_ORDER = [
+    "R Tutorials",
+    "scRNA-seq",
+    "ATAC-seq",
+    "scBS-seq",
+    "Multimodal",
+    "Spatial transcriptomics",
+    "Model hub",
+    "Common Modelling Use Cases",
+    "Quick start",
+    "Development",
+]
+
 
 class cardnode(nodes.container, nodes.Element):
     """A custom node representing a card in the documentation."""
@@ -186,23 +201,18 @@ def process_card_nodes(app, doctree, fromdocname):
     if not hasattr(env, "all_cards"):
         env.all_cards = []
 
-    # Sort the cards by numeric prefix (if present) and then by source file path and line number
-    def extract_numeric_prefix(filename):
-        # Extract the numeric prefix from the file name, default to a large number if no prefix
-        parts = filename.split("_", 1)
-        try:
-            return int(parts[0])
-        except ValueError:
-            return float("inf")  # Treat files without a numeric prefix as the largest
+    # Sort the cards by group name based on the GROUP_ORDER
+    def group_sort_key(card):
+        # Find group name (header of the page)
+        group = "No group found"
+        for node in doctree.traverse(nodes.title):
+            group = node.astext()
 
-    # Sort the cards by source file path and line number
-    env.all_cards.sort(
-        key=lambda card: (
-            extract_numeric_prefix(card.source),  # Numeric prefix
-            card.source,  # Source file path
-            card.line,  # Line number in the source file
-        )
-    )
+        group_index = GROUP_ORDER.index(group) if group in GROUP_ORDER else len(GROUP_ORDER)
+        return (group_index, card.source, card.line)
+
+    # Sort the cards by group name
+    env.all_cards.sort(key=group_sort_key)
 
     # Don't want card to render where the directive is, but in the list
     for card in doctree.traverse(cardnode):
