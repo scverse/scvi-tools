@@ -77,9 +77,8 @@ class MappedCollectionDataModule(LightningDataModule):
             self._validset = None
 
         # generate encodings
-        adata = collection.load(join="inner")
         if self._label_key is not None:
-            self.labels_ = adata.obs[self._label_key].values.astype(str)
+            self.labels_ = self._dataset.get_merged_labels(self._label_key).astype(str)
         if self._categorical_covariate_keys is not None:
             self.categorical_covariate_keys_ = [
                 self._dataset.encoders[cat_cov_key]
