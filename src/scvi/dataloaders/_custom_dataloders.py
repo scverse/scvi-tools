@@ -16,15 +16,12 @@ from scvi.utils import dependencies
 if TYPE_CHECKING:
     from typing import Any
 
+    import lamindb as ln
     import pandas as pd
+    import tiledbsoma as soma
 
 
 class MappedCollectionDataModule(LightningDataModule):
-    try:
-        import lamindb as ln
-    except ImportError as err:
-        raise ImportError("Please install lamindb -- `pip install lamindb`") from err
-
     def __init__(
         self,
         collection: ln.Collection,
@@ -356,11 +353,6 @@ class MappedCollectionDataModule(LightningDataModule):
 
 
 class TileDBDataModule(LightningDataModule):
-    try:
-        import tiledbsoma as soma
-    except ImportError as err:
-        raise ImportError("Please install tiledbsoma -- `pip install tiledbsoma`") from err
-
     """PyTorch Lightning DataModule for training scVI models from SOMA data
 
     Wraps a `tiledbsoma_ml.ExperimentDataset` to stream the results of a SOMA
