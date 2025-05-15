@@ -4,6 +4,10 @@
 This page is under construction.
 :::
 
+:::{note}
+In order to run scvi-tools with custom dataloaders support, use: pip install scvi-tools[dataloaders]
+:::
+
 In SCVI, custom dataloaders allow you to create a tailored data pipeline that can handle unique formats or complex datasets not covered by the default loaders. A custom dataloader can be useful when you have a specific structure for your data or need to preprocess it in a particular way before feeding it into the model, in order to gain some advantage.
 
 For example, we offer custom dataloaders that do not necessarily store the data on memory while training, thus enable us to expand the sizes of dataset that we can train our models based on while not being limited by the amount of memory that we have.
