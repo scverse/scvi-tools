@@ -19,9 +19,11 @@ if TYPE_CHECKING:
     import pandas as pd
 
 
-@dependencies("lamindb")
 class MappedCollectionDataModule(LightningDataModule):
-    import lamindb as ln
+    try:
+        import lamindb as ln
+    except ImportError as err:
+        raise ImportError("Please install lamindb -- `pip install lamindb`") from err
 
     def __init__(
         self,
@@ -353,10 +355,11 @@ class MappedCollectionDataModule(LightningDataModule):
             return len(self.dataloader)
 
 
-@dependencies("tiledbsoma")
-@dependencies("tiledbsoma_ml")
 class TileDBDataModule(LightningDataModule):
-    import tiledbsoma as soma
+    try:
+        import tiledbsoma as soma
+    except ImportError as err:
+        raise ImportError("Please install tiledbsoma -- `pip install tiledbsoma`") from err
 
     """PyTorch Lightning DataModule for training scVI models from SOMA data
 
@@ -503,6 +506,7 @@ class TileDBDataModule(LightningDataModule):
             accelerator=accelerator, devices=device, return_device="torch"
         )
 
+    @dependencies("tiledbsoma_ml")
     def setup(self, stage: str | None = None) -> None:
         # Instantiate the ExperimentDataset with the provided args and kwargs.
         from tiledbsoma_ml import ExperimentDataset
@@ -539,6 +543,7 @@ class TileDBDataModule(LightningDataModule):
         else:
             self.val_dataset = None
 
+    @dependencies("tiledbsoma_ml")
     def train_dataloader(self) -> DataLoader:
         from tiledbsoma_ml import experiment_dataloader
 
@@ -547,6 +552,7 @@ class TileDBDataModule(LightningDataModule):
             **self.dataloader_kwargs,
         )
 
+    @dependencies("tiledbsoma_ml")
     def val_dataloader(self) -> DataLoader:
         from tiledbsoma_ml import experiment_dataloader
 
