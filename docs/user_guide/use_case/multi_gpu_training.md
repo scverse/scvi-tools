@@ -1,5 +1,8 @@
 # Train SCVI model with multi GPU support
 
+:::{note}
+In order to run scvi-tools with mulyi-GPU support, use: pip install scvi-tools[cuda]
+:::
 
 SCVI-Tools v1.3.0 now support training on a **multi GPU system**, which can significantly speed up training and allow you to handle larger datasets. It is supported only on Nvidia GPUs and DDP with CUDA backend.
 
