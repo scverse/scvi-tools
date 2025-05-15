@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 
 class MappedCollectionDataModule(LightningDataModule):
+    @dependencies("lamindb")
     def __init__(
         self,
         collection: ln.Collection,
@@ -360,6 +361,7 @@ class TileDBDataModule(LightningDataModule):
     training. Also handles deriving the scVI batch label as a tuple of obs columns.
     """
 
+    @dependencies("tiledbsoma")
     def __init__(
         self,
         query: soma.ExperimentAxisQuery,
