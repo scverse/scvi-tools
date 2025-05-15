@@ -6,8 +6,8 @@
 notebooks/use_cases/autotune_scvi
 notebooks/use_cases/minification
 notebooks/use_cases/interpretability
-notebooks/use_cases/tiledb
-notebooks/use_cases/lamin
+notebooks/use_cases/custom_dl/tiledb
+notebooks/use_cases/custom_dl/lamin
 ```
 
 ```{customcard}
@@ -32,14 +32,14 @@ Interpret a model to improve its performance
 ```
 
 ```{customcard}
-:path: notebooks/use_cases/tiledb
+:path: notebooks/use_cases/custom_dl/tiledb
 :tags:
 
 Description: TODO
 ```
 
 ```{customcard}
-:path: notebooks/use_cases/lamin
+:path: notebooks/use_cases/custom_dl/lamin
 :tags:
 
 Description: TODO
