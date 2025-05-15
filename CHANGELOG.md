@@ -21,6 +21,7 @@ to [Semantic Versioning]. Full commit history is available in the
     and {class}`scvi.model.SCANVI`, {pr}`2932`.
 - Add Early stopping KL warmup steps. {pr}`3262`.
 - Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
+- Update Read the docs tutorials index page with interactive filterable options {pr}`3276`.
 
 #### Fixed
 
