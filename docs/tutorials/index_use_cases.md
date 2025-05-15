@@ -6,6 +6,8 @@
 notebooks/use_cases/autotune_scvi
 notebooks/use_cases/minification
 notebooks/use_cases/interpretability
+notebooks/use_cases/tiledb
+notebooks/use_cases/lamin
 ```
 
 ```{customcard}
@@ -27,4 +29,18 @@ Minify a dataset by replacing count data with the model’s estimated parameters
 :tags:
 
 Interpret a model to improve its performance
+```
+
+```{customcard}
+:path: notebooks/use_cases/tiledb
+:tags:
+
+Description: TODO
+```
+
+```{customcard}
+:path: notebooks/use_cases/lamin
+:tags:
+
+Description: TODO
 ```
