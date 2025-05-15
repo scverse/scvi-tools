@@ -16,13 +16,13 @@ from scvi.utils import dependencies
 if TYPE_CHECKING:
     from typing import Any
 
-    import pandas as pd
-
-
-@dependencies("lamindb")
-class MappedCollectionDataModule(LightningDataModule):
     import lamindb as ln
+    import pandas as pd
+    import tiledbsoma as soma
 
+
+class MappedCollectionDataModule(LightningDataModule):
+    @dependencies("lamindb")
     def __init__(
         self,
         collection: ln.Collection,
@@ -77,9 +77,8 @@ class MappedCollectionDataModule(LightningDataModule):
             self._validset = None
 
         # generate encodings
-        adata = collection.load(join="inner")
         if self._label_key is not None:
-            self.labels_ = adata.obs[self._label_key].values.astype(str)
+            self.labels_ = self._dataset.get_merged_labels(self._label_key).astype(str)
         if self._categorical_covariate_keys is not None:
             self.categorical_covariate_keys_ = [
                 self._dataset.encoders[cat_cov_key]
@@ -354,11 +353,7 @@ class MappedCollectionDataModule(LightningDataModule):
             return len(self.dataloader)
 
 
-@dependencies("tiledbsoma")
-@dependencies("tiledbsoma_ml")
 class TileDBDataModule(LightningDataModule):
-    import tiledbsoma as soma
-
     """PyTorch Lightning DataModule for training scVI models from SOMA data
 
     Wraps a `tiledbsoma_ml.ExperimentDataset` to stream the results of a SOMA
@@ -366,6 +361,7 @@ class TileDBDataModule(LightningDataModule):
     training. Also handles deriving the scVI batch label as a tuple of obs columns.
     """
 
+    @dependencies("tiledbsoma")
     def __init__(
         self,
         query: soma.ExperimentAxisQuery,
@@ -504,6 +500,7 @@ class TileDBDataModule(LightningDataModule):
             accelerator=accelerator, devices=device, return_device="torch"
         )
 
+    @dependencies("tiledbsoma_ml")
     def setup(self, stage: str | None = None) -> None:
         # Instantiate the ExperimentDataset with the provided args and kwargs.
         from tiledbsoma_ml import ExperimentDataset
@@ -540,6 +537,7 @@ class TileDBDataModule(LightningDataModule):
         else:
             self.val_dataset = None
 
+    @dependencies("tiledbsoma_ml")
     def train_dataloader(self) -> DataLoader:
         from tiledbsoma_ml import experiment_dataloader
 
@@ -548,6 +546,7 @@ class TileDBDataModule(LightningDataModule):
             **self.dataloader_kwargs,
         )
 
+    @dependencies("tiledbsoma_ml")
     def val_dataloader(self) -> DataLoader:
         from tiledbsoma_ml import experiment_dataloader
 
