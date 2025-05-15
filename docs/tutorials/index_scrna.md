@@ -123,12 +123,12 @@ Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
 :path: notebooks/scrna/decipher_tutorial
 :tags:
 
-TODO: add description
+Use Decipher to jointly analyze samples from distinct conditions.
 ```
 
 ```{customcard}
 :path: notebooks/scrna/velovi
 :tags:
 
-TODO: add description
+Use VeloVI to estimate RNA velocity.
 ```

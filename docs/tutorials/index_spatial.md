@@ -15,7 +15,7 @@ notebooks/spatial/cell2location_lymph_node_spatial_tutorial
 :path: notebooks/spatial/resolVI_tutorial
 :tags: Analysis, Integration, Transfer-learning, Dimensionality-reduction
 
-TODO: add description
+Use resolVI to correct cellular-resolved spatial transcriptomics data.
 ```
 
 ```{customcard}

@@ -26,21 +26,21 @@ Minify a dataset by replacing count data with the model’s estimated parameters
 
 ```{customcard}
 :path: notebooks/use_cases/interpretability
-:tags:
+:tags: Analysis
 
 Interpret a model to improve its performance
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/custom_dl/tiledb
-:tags:
+:tags: Analysis
 
-Description: TODO
+Learn a scalable approach to training an scVI model on Census data.
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/custom_dl/lamin
-:tags:
+:tags: Analysis
 
-Description: TODO
+Use the Lamin dataloader for a scalable approach to training an scVI model on Census data.
 ```
