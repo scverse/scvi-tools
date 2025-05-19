@@ -25,7 +25,7 @@ Use totalVI to train a reference model and map CITE-seq query data
 ```
 
 ```{customcard}
-:path: notebooks/scrna/scarches_scvi_tools
+:path: notebooks/multimodal/scarches_scvi_tools
 :tags: Integration, Transfer-learning, Dimensionality-reduction, Removal-of-variance, Analysis, Modality-imputation
 
 Map cells from a query dataset to the latent space of a reference dataset with the scArches method

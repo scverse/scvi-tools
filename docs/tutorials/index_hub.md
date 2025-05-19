@@ -32,7 +32,7 @@ Perform analysis of a CELLxGENE dataset using a pretrained model from scVI-hub
 ```
 
 ```{customcard}
-:path: notebooks/scrna/query_hlca_knn
+:path: notebooks/hub/query_hlca_knn
 :tags: Integration, Transfer-learning, Minification, Analysis
 
 Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
