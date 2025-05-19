@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 import logging
 from functools import partial
 from typing import TYPE_CHECKING
@@ -343,7 +342,11 @@ class RESOLVI(
         cls.register_manager(adata_manager)
 
     @staticmethod
-    def _prepare_data(adata, n_neighbors=10, spatial_rep="X_spatial", batch_key=None, **kwargs):
+    def _prepare_data(
+        adata, n_neighbors=10, spatial_rep="X_spatial", batch_key=None, slice_key=None, **kwargs
+    ):
+        if slice_key is not None:
+            batch_key = slice_key
         try:
             import scanpy
             from sklearn.neighbors._base import _kneighbors_from_graph
@@ -365,13 +368,15 @@ class RESOLVI(
 
         for index in indices:
             sub_data = adata[index].copy()
-            if importlib.util.find_spec("cuml") is not None:
-                method = "rapids"
-            else:
-                method = "umap"
-            scanpy.pp.neighbors(
-                sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep, method=method
-            )
+            try:
+                import rapids_singlecell
+
+                print("RAPIDS SingleCell is installed and can be imported")
+                rapids_singlecell.pp.neighbors(
+                    sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep
+                )
+            except ImportError:
+                scanpy.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             distances = sub_data.obsp["distances"] ** 2
 
             distance_neighbor[index, :], index_neighbor_batch = _kneighbors_from_graph(
