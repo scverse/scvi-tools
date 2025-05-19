@@ -6,7 +6,7 @@
 notebooks/hub/scvi_hub_intro_and_download
 notebooks/hub/scvi_hub_upload_and_large_files
 notebooks/hub/cellxgene_census_model
-notebooks/scrna/query_hlca_knn
+notebooks/hub/query_hlca_knn
 
 ```
 

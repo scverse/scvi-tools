@@ -3,11 +3,11 @@
 ```{toctree}
 :maxdepth: 1
 
-notebooks/quick_start/python_in_R
-notebooks/scrna/scvi_in_R
-notebooks/multimodal/totalvi_in_R
-notebooks/atac/peakvi_in_R
-notebooks/spatial/DestVI_in_R
+notebooks/r/python_in_R
+notebooks/r/scvi_in_R
+notebooks/r/totalvi_in_R
+notebooks/r/peakvi_in_R
+notebooks/r/DestVI_in_R
 ```
 
 ```{customcard}

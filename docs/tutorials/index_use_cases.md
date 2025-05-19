@@ -8,6 +8,7 @@ notebooks/use_cases/minification
 notebooks/use_cases/interpretability
 notebooks/use_cases/custom_dl/tiledb
 notebooks/use_cases/custom_dl/lamin
+notebooks/use_cases/multiGPU
 ```
 
 ```{customcard}
@@ -43,4 +44,11 @@ Learn a scalable approach using custom dataloader to training an scVI model on C
 :tags: Analysis, Custom-Dataloaders, Integration, Dev
 
 Use the Lamin dataloader for a scalable approach to training an scVI model on multiple adata's.
+```
+
+```{customcard}
+:path: notebooks/use_cases/multiGPU
+:tags: Analysis
+
+Example of how to train an SCVI model using multi GPU settings
 ```

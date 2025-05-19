@@ -5,7 +5,7 @@
 
 notebooks/multimodal/totalVI
 notebooks/multimodal/totalVI_reference_mapping
-notebooks/scrna/scarches_scvi_tools
+notebooks/multimodal/scarches_scvi_tools
 notebooks/multimodal/cite_scrna_integration_w_totalVI
 notebooks/multimodal/MultiVI_tutorial
 ```
