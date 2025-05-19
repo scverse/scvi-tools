@@ -21,21 +21,21 @@ notebooks/dev/model_user_guide
 
 ```{customcard}
 :path: notebooks/dev/data_tutorial
-:tags:
+:tags: Dev
 
 Learn about how data is handled in scvi-tools
 ```
 
 ```{customcard}
 :path: notebooks/dev/module_user_guide
-:tags:
+:tags: Dev
 
 Implement a novel statistical method for single-cell omics data as a module
 ```
 
 ```{customcard}
 :path: notebooks/dev/model_user_guide
-:tags:
+:tags: Dev
 
 Implement an scvi-tools model class to provide a convenient interface for the lower-level module objects
 ```
