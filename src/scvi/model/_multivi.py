@@ -113,6 +113,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         covariates will only be included in the input layer.
     fully_paired
         allows the simplification of the model if the data is fully paired. Currently ignored.
+    override_missing_proteins
+        If `True`, will not treat proteins with all 0 expression in a particular batch as missing.
     **model_kwargs
         Keyword args for :class:`~scvi.module.MULTIVAE`
 
@@ -166,9 +168,30 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         encode_covariates: bool = False,
         fully_paired: bool = False,
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
+        override_missing_proteins: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
+        self.protein_state_registry = self.adata_manager.get_state_registry(
+            REGISTRY_KEYS.PROTEIN_EXP_KEY
+        )
+        if (
+            fields.ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
+            and not override_missing_proteins
+        ):
+            batch_mask = self.protein_state_registry.protein_batch_mask
+            msg = (
+                "Some proteins have all 0 counts in some batches. "
+                "These proteins will be treated as missing measurements; however, "
+                "this can occur due to experimental design/biology. "
+                "Reinitialize the model with `override_missing_proteins=True`,"
+                "to override this behavior."
+            )
+            warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
+            self._use_adversarial_classifier = True
+        else:
+            batch_mask = None
+            self._use_adversarial_classifier = False
 
         if n_genes is None or n_regions is None:
             assert isinstance(adata, MuData), (
@@ -689,6 +712,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:
             all_genes = adata.var_names[: self.n_genes]
             gene_mask = [gene in gene_list for gene in all_genes]
+        if indices is None:
+            indices = np.arange(adata.n_obs)
 
         exprs = []
         for tensors in scdl:
@@ -903,6 +928,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
+        adata_manager = self.get_anndata_manager(adata, required=True)
 
         col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
@@ -914,7 +940,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             var_idx=np.arange(adata.shape[1])[: self.n_genes],
         )
         result = _de_core(
-            adata_manager=self.get_anndata_manager(adata, required=True),
+            adata_manager=adata_manager,
             model_fn=model_fn,
             representation_fn=None,
             groupby=groupby,
@@ -1025,9 +1051,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for _ in track(transform_batch, disable=silent):
+            for b in track(transform_batch, disable=silent):
                 # generative_kwargs = dict(transform_batch=b)
-                generative_kwargs = {"use_z_mean": use_z_mean}
+                generative_kwargs = {"use_z_mean": use_z_mean, "transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
