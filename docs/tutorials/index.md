@@ -21,6 +21,7 @@ index_multimodal
 index_spatial
 index_hub
 index_use_cases
+index_r
 index_dev
 ```
 
