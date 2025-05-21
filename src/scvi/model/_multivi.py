@@ -113,8 +113,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         covariates will only be included in the input layer.
     fully_paired
         allows the simplification of the model if the data is fully paired. Currently ignored.
-    override_missing_proteins
-        If `True`, will not treat proteins with all 0 expression in a particular batch as missing.
     **model_kwargs
         Keyword args for :class:`~scvi.module.MULTIVAE`
 
@@ -168,7 +166,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         encode_covariates: bool = False,
         fully_paired: bool = False,
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
-        override_missing_proteins: bool = False,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -910,7 +907,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        adata_manager = self.get_anndata_manager(adata, required=True)
 
         col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
@@ -922,7 +918,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             var_idx=np.arange(adata.shape[1])[: self.n_genes],
         )
         result = _de_core(
-            adata_manager=adata_manager,
+            adata_manager=self.get_anndata_manager(adata, required=True),
             model_fn=model_fn,
             representation_fn=None,
             groupby=groupby,
