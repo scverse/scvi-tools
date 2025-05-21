@@ -63,7 +63,7 @@ jobs:
           DISPLAY: :42
           COLUMNS: 120
         run: |
-          coverage run -m pytest -v --color=yes
+          coverage run -m pytest -v -n 0 --color=yes
           coverage report
 
       - uses: codecov/codecov-action@v4
