@@ -8,39 +8,47 @@ notebooks/use_cases/minification
 notebooks/use_cases/interpretability
 notebooks/use_cases/custom_dl/tiledb
 notebooks/use_cases/custom_dl/lamin
+notebooks/use_cases/multiGPU
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/autotune_scvi
-:tags:
+:tags: Analysis, Integration, Dev
 
-Automatically find a good set of hyperparameters using autotune.
+Automatically find optimal set of hyperparameters using autotune.
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/minification
-:tags:
+:tags: Minification, Dev
 
 Minify a dataset by replacing count data with the model’s estimated parameters of the latent posterior distribution
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/interpretability
-:tags:
+:tags: Analysis
 
-Interpret a model to improve its performance
+Use integrated gradient or SHAP values for model explainability
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/custom_dl/tiledb
-:tags:
+:tags: Analysis, Custom-Dataloaders, Integration, Dev
 
-Description: TODO
+Learn a scalable approach using custom dataloader to training an scVI model on Census data.
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/custom_dl/lamin
-:tags:
+:tags: Analysis, Custom-Dataloaders, Integration, Dev
 
-Description: TODO
+Use the Lamin dataloader for a scalable approach to training an scVI model on multiple adata's.
+```
+
+```{customcard}
+:path: notebooks/use_cases/multiGPU
+:tags: Analysis
+
+Example of how to train an SCVI model using multi GPU settings
 ```
