@@ -696,8 +696,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:
             all_genes = adata.var_names[: self.n_genes]
             gene_mask = [gene in gene_list for gene in all_genes]
-        if indices is None:
-            indices = np.arange(adata.n_obs)
 
         exprs = []
         for tensors in scdl:
