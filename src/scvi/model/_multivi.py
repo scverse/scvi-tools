@@ -172,26 +172,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         **model_kwargs,
     ):
         super().__init__(adata)
-        self.protein_state_registry = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.PROTEIN_EXP_KEY
-        )
-        if (
-            fields.ProteinObsmField.PROTEIN_BATCH_MASK in self.protein_state_registry
-            and not override_missing_proteins
-        ):
-            batch_mask = self.protein_state_registry.protein_batch_mask
-            msg = (
-                "Some proteins have all 0 counts in some batches. "
-                "These proteins will be treated as missing measurements; however, "
-                "this can occur due to experimental design/biology. "
-                "Reinitialize the model with `override_missing_proteins=True`,"
-                "to override this behavior."
+        if "n_proteins" in self.summary_stats:
+            self.protein_state_registry = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY
             )
-            warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
-            self._use_adversarial_classifier = True
-        else:
-            batch_mask = None
-            self._use_adversarial_classifier = False
 
         if n_genes is None or n_regions is None:
             assert isinstance(adata, MuData), (
