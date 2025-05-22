@@ -4,7 +4,6 @@ from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
-from .nichevi import nicheSCVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -35,5 +34,4 @@ __all__ = [
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
-    "nicheSCVI",
 ]
