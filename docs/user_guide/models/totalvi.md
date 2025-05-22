@@ -17,7 +17,7 @@ The limitations of totalVI include:
 
 -   {doc}`/tutorials/notebooks/multimodal/totalVI`
 -   {doc}`/tutorials/notebooks/multimodal/cite_scrna_integration_w_totalVI`
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
 ```
 
 ## Preliminaries

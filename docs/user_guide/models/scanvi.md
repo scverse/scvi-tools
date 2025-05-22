@@ -18,7 +18,7 @@ The limitations of scANVI include:
 ```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/scrna/harmonization`
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
 ```
 
 ## Preliminaries
