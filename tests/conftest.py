@@ -157,7 +157,7 @@ def save_path(tmp_path_factory):
     path = str(dir)
     copy_tree("tests/test_data", path)
     yield path + "/"
-    shutil.rmtree(str(tmp_path_factory.getbasetemp()))
+    shutil.rmtree(str(tmp_path_factory.getbasetemp()), ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
