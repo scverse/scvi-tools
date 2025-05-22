@@ -13,6 +13,12 @@ In SCVI, custom dataloaders allow you to create a tailored data pipeline that ca
 For example, we offer custom dataloaders that do not necessarily store the data on memory while training, thus enable us to expand the sizes of dataset that we can train our models based on while not being limited by the amount of memory that we have.
 Without dataloader large data can be on disk but inefficient. We increase efficiency for data on disk and enable data on cloud storage.
 
+```{topic} Tutorials:
+
+-   {doc}`/tutorials/notebooks/use_cases/custom_dl/tiledb`
+-   {doc}`/tutorials/notebooks/use_cases/custom_dl/lamin`
+```
+
 In SCVI, we work with several collaborators in order to construct efficient custom dataloaders:
 1. [lamin.ai](https://lamin.ai/) custom dataloader is based on MappedCollectionDataModule and can run a collection of adata based on lamindb backend.
 
