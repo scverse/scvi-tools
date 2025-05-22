@@ -12,7 +12,8 @@ The core logic for scArches is implemented in {class}`~scvi.model.base.ArchesMix
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/totalVI_reference_mapping`
 ```
 
 ### Preliminaries
