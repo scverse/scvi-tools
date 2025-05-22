@@ -156,5 +156,5 @@ It will also requite maintenance: If the data format or preprocessing needs chan
 See relevant tutorials in this subject for further examples.
 
 :::{note}
-As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental and only supported for adata and SCVI and SCANVI models
+As for SCVI-Tools v1.3.0 Custom Dataloaders are experimental and only supported for SCVI and SCANVI models (although extension should be straightforward)
 :::
