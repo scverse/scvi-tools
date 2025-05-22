@@ -18,8 +18,8 @@ GROUP_ORDER = [
     "Spatial transcriptomics",
     "Model hub",
     "Common Modelling Use Cases",
-    "Development",
     "R Tutorials",
+    "Development",
 ]
 
 
@@ -115,6 +115,7 @@ class CardDirective(SphinxDirective):
         group = self.get_index_header()
 
         card_node = cardnode()
+        card_node["group"] = group  # we will use this to sort the cards
 
         # Insert HTML content into the card node
         card_html = CARD_HTML.format(
@@ -203,11 +204,7 @@ def process_card_nodes(app, doctree, fromdocname):
 
     # Sort the cards by group name based on the GROUP_ORDER
     def group_sort_key(card):
-        # Find group name (header of the page)
-        group = "No group found"
-        for node in doctree.traverse(nodes.title):
-            group = node.astext()
-
+        group = getattr(card, "group", None) or card.get("group", "No group found")
         group_index = GROUP_ORDER.index(group) if group in GROUP_ORDER else len(GROUP_ORDER)
         return (group_index, card.source, card.line)
 
