@@ -719,12 +719,16 @@ class MULTIVAE(BaseModuleClass):
         libsize_expr=None,
         use_z_mean=False,
         label: torch.Tensor = None,
+        transform_batch: int | None = None,
     ):
         """Runs the generative model."""
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:

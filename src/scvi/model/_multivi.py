@@ -169,6 +169,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         **model_kwargs,
     ):
         super().__init__(adata)
+        if "n_proteins" in self.summary_stats:
+            self.protein_state_registry = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY
+            )
 
         if n_genes is None or n_regions is None:
             assert isinstance(adata, MuData), (
@@ -1025,9 +1029,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for _ in track(transform_batch, disable=silent):
+            for b in track(transform_batch, disable=silent):
                 # generative_kwargs = dict(transform_batch=b)
-                generative_kwargs = {"use_z_mean": use_z_mean}
+                generative_kwargs = {"use_z_mean": use_z_mean, "transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
