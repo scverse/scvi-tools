@@ -59,6 +59,7 @@ class SPAGLUE(BaseModelClass):
             f"n_inputs_spa: {n_inputs[1]} , n_batches_seq: {n_batches[0]}, "
             f"n_batches_spa: {n_batches[1]} , generative distributions: {generative_distributions}"
         )
+        self._module_class = SPAGLUEVAE
 
     def train(
         self,
