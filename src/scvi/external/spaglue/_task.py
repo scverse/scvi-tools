@@ -25,6 +25,10 @@ class SPAGLUETrainingPlan(TrainingPlan):
             "train_loss_seq": [],
             "avg_train_loss_spa": [],
             "train_loss_spa": [],
+            "bias_params_diss": [],
+            "dispersion_params_diss": [],
+            "bias_params_spa": [],
+            "dispersion_params_spa": [],
         }
 
         self.automatic_optimization = False  # important for adversarial setup
@@ -161,6 +165,18 @@ class SPAGLUETrainingPlan(TrainingPlan):
             self.history["avg_train_loss_spa"].append(avg_train_loss_spa)
 
             self.log("avg_train_loss", avg_train_loss, prog_bar=True)
+
+        # Extract and log model parameters
+        bias_params_diss = self.module.z_decoder_diss.bias.detach().cpu().numpy()
+        dispersion_params_diss = self.module.z_decoder_diss.log_theta.exp().detach().cpu().numpy()
+
+        bias_params_spa = self.module.z_decoder_spa.bias.detach().cpu().numpy()
+        dispersion_params_spa = self.module.z_decoder_spa.log_theta.exp().detach().cpu().numpy()
+
+        self.history["bias_params_diss"].append(bias_params_diss)
+        self.history["dispersion_params_diss"].append(dispersion_params_diss)
+        self.history["bias_params_spa"].append(bias_params_spa)
+        self.history["dispersion_params_spa"].append(dispersion_params_spa)
 
         self.history["train_loss"].clear()
         self.history["train_loss_rec"].clear()

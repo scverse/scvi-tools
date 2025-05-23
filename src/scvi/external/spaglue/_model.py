@@ -24,7 +24,7 @@ class SPAGLUE(BaseModelClass):
         adata_seq: AnnData,
         adata_spatial: AnnData,
         generative_distributions: list[str] | None = None,
-        **model_kwargs: dict,
+        # **model_kwargs: dict,
     ) -> None:
         super().__init__()
         self.adatas = [adata_seq, adata_spatial]
@@ -41,11 +41,9 @@ class SPAGLUE(BaseModelClass):
             self.registries_.append(adm.registry)
 
         sum_stats = [adm.summary_stats for adm in self.adata_managers.values()]
-        # number of features per modality
+
         n_inputs = [s["n_vars"] for s in sum_stats]
-        # number of batches per modality
         n_batches = [s["n_batch"] for s in sum_stats]
-        print(n_batches)
 
         generative_distributions = generative_distributions or ["nb", "nb"]  ## for now
 
@@ -53,7 +51,7 @@ class SPAGLUE(BaseModelClass):
             n_inputs=n_inputs,
             n_batches=n_batches,
             gene_likelihoods=generative_distributions,
-            **model_kwargs,
+            # **model_kwargs,
         )
 
         self._model_summary_string = (
@@ -70,9 +68,9 @@ class SPAGLUE(BaseModelClass):
         train_size: float = 0.9,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
-        datasplitter_kwargs: dict | None = None,
+        # datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        **kwargs: dict,
+        # **kwargs: dict,
     ) -> None:
         if torch.backends.mps.is_available():
             accelerator = "mps"
@@ -87,7 +85,7 @@ class SPAGLUE(BaseModelClass):
             return_device="torch",  #  make returned device pytorch compatible
         )
 
-        datasplitter_kwargs = datasplitter_kwargs or {}
+        # datasplitter_kwargs = datasplitter_kwargs or {}
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -97,7 +95,7 @@ class SPAGLUE(BaseModelClass):
             early_stopping_monitor="validation_loss",
             accelerator=accelerator,
             devices=devices,
-            **kwargs,
+            # **kwargs,
         )
 
         validation_size = 1 - train_size
@@ -112,7 +110,7 @@ class SPAGLUE(BaseModelClass):
                 validation_size=validation_size,
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
-                **datasplitter_kwargs,
+                # **datasplitter_kwargs,
             )
             ds.setup()
             train_dls.append(ds.train_dataloader())
@@ -155,7 +153,7 @@ class SPAGLUE(BaseModelClass):
         batch_key: str | None = None,
         labels_key: str | None = None,
         layer: str | None = None,
-        **kwargs: dict,
+        # **kwargs: dict,
     ) -> None:
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
@@ -167,7 +165,8 @@ class SPAGLUE(BaseModelClass):
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
+        # adata_manager.register_fields(adata, **kwargs)
+        adata_manager.register_fields(adata)
         cls.register_manager(adata_manager)
 
     @torch.inference_mode()
@@ -177,10 +176,7 @@ class SPAGLUE(BaseModelClass):
         adata_spatial: AnnData | None = None,
         indices_seq: Sequence[int] | None = None,
         indices_spatial: Sequence[int] | None = None,
-        give_mean: bool = True,
-        mc_samples: int = 5000,
         batch_size: int | None = None,
-        return_dist: bool = False,
     ) -> dict[str, np.ndarray]:
         self._check_if_trained(warn=False)
 
@@ -216,21 +212,16 @@ class SPAGLUE(BaseModelClass):
                 **self.module._get_inference_input(batch), mode=mode
             )["z"]
 
-            # outputs = self.module.inference(
-            #     **self.module._get_inference_input(tensors), mode=mode
-            # )
-
             latent_tensor = latent_tensor.cpu().numpy()
 
-            # z = outputs["z"]
             zs.append(latent_tensor)
 
         return np.concatenate(zs, axis=0)
-        # return torch.cat(zs).numpy()
 
 
 class TrainDL(DataLoader):  # creates batch structure for training process
-    def __init__(self, data_loader_list, **kwargs):
+    # def __init__(self, data_loader_list, **kwargs):
+    def __init__(self, data_loader_list):
         self.data_loader_list = data_loader_list  # list of individual dls
         self.largest_train_dl_idx = np.argmax(
             [len(dl.indices) for dl in data_loader_list]
@@ -238,7 +229,8 @@ class TrainDL(DataLoader):  # creates batch structure for training process
         self.largest_dl = self.data_loader_list[
             self.largest_train_dl_idx
         ]  # dl corresponding to the largest dataset
-        super().__init__(self.largest_dl, **kwargs)
+        # super().__init__(self.largest_dl, **kwargs)
+        super().__init__(self.largest_dl)
 
     # number of batches per epoch is determined by the larger dataset
     def __len__(self):
