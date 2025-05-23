@@ -62,6 +62,7 @@ import scvi
    external.METHYLVI
    external.METHYLANVI
    external.Decipher
+   external.TOTALANVI
    external.RESOLVI
    external.SysVI
 ```

@@ -28,6 +28,12 @@ def pytest_addoption(parser):
         help="Run tests that are designed for Ray Autotune.",
     )
     parser.addoption(
+        "--custom-dataloader-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that deals with custom dataloaders. This increases test time.",
+    )
+    parser.addoption(
         "--optional",
         action="store_true",
         default=False,
@@ -77,6 +83,23 @@ def pytest_collection_modifyitems(config, items):
         # Skip all tests not marked with `pytest.mark.internet` if `--internet-tests` passed
         elif run_internet and ("internet" not in item.keywords):
             item.add_marker(skip_non_internet)
+
+    run_custom_dataloader = config.getoption("--custom-dataloader-tests")
+    skip_custom_dataloader = pytest.mark.skip(
+        reason="need ---custom-dataloader-tests option to run"
+    )
+    skip_non_custom_dataloader = pytest.mark.skip(
+        reason="test not having a pytest.mark.custom_dataloader decorator"
+    )
+    for item in items:
+        # All tests marked with `pytest.mark.custom_dataloader` get skipped unless
+        # `--custom_dataloader-tests` passed
+        if not run_custom_dataloader and ("dataloader" in item.keywords):
+            item.add_marker(skip_custom_dataloader)
+        # Skip all tests not marked with `pytest.mark.custom_dataloader`
+        # if `--custom-dataloader-tests` passed
+        elif run_custom_dataloader and ("dataloader" not in item.keywords):
+            item.add_marker(skip_non_custom_dataloader)
 
     run_optional = config.getoption("--optional")
     skip_optional = pytest.mark.skip(reason="need --optional option to run")
@@ -134,7 +157,7 @@ def save_path(tmp_path_factory):
     path = str(dir)
     copy_tree("tests/test_data", path)
     yield path + "/"
-    shutil.rmtree(str(tmp_path_factory.getbasetemp()))
+    shutil.rmtree(str(tmp_path_factory.getbasetemp()), ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
