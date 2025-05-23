@@ -49,11 +49,20 @@ scvi-tools depends on PyTorch and JAX for accelerated computing. If you don't pl
 an accelerated device, we recommend installing scvi-tools directly and letting these dependencies
 be installed automatically by your package manager of choice.
 
-If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon), we
-recommend installing PyTorch and JAX _before_ installing scvi-tools. Please follow the respective
-installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
-[JAX](https://jax.readthedocs.io/en/latest/installation.html) compatible with your system and
-device type.
+If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon), scvi-tools supports it.
+In order to install scvi-tools with Nvidia GPU CUDA support use:
+```bash
+pip install -U scvi-tools[cuda]
+```
+And for Apple Silicon metal (MPS) support:
+```bash
+pip install -U scvi-tools[metal]
+```
+
+However, there might be cases where the GPU HW is not supporting the latest installation of PyTorch and Jax.
+In this case we recommend installing PyTorch and JAX _before_ installing scvi-tools.
+Please follow the respective installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
+[JAX](https://jax.readthedocs.io/en/latest/installation.html) compatible with your system and device type.
 
 ## Optional dependencies
 
