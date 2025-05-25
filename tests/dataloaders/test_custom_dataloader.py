@@ -50,11 +50,11 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
     print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
 
-    pprint(datamodule.registry)
+    # pprint(datamodule.registry)
 
     model = scvi.model.SCVI(registry=datamodule.registry)
-    pprint(model.summary_stats)
-    pprint(model.module)
+    # pprint(model.summary_stats)
+    # pprint(model.module)
 
     model.train(
         max_epochs=1,
@@ -419,11 +419,11 @@ def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
 
     print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
 
-    pprint(datamodule.registry)
+    # pprint(datamodule.registry)
 
     model = scvi.model.SCVI(registry=datamodule.registry)
-    pprint(model.summary_stats)
-    pprint(model.module)
+    # pprint(model.summary_stats)
+    # pprint(model.module)
 
     model.train(
         max_epochs=1,
@@ -528,7 +528,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
     n_layers = 1
     n_latent = 5
 
-    pprint(datamodule.registry)
+    # pprint(datamodule.registry)
 
     # creating the dataloader for trainset
     datamodule.setup()
@@ -730,7 +730,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     n_layers = 1
     n_latent = 5
 
-    pprint(datamodule.registry)
+    # pprint(datamodule.registry)
 
     # creating the dataloader for trainset
     datamodule.setup()
@@ -946,7 +946,7 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
     n_layers = 1
     n_latent = 5
 
-    pprint(datamodule.registry)
+    # pprint(datamodule.registry)
 
     # creating the dataloader for trainset
     datamodule.setup()
