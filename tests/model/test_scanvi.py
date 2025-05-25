@@ -579,7 +579,7 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
     check_no_logits_and_softmax(model)
 
 
-def test_scanvi_scarches_from_scvi(save_path="."):
+def test_scanvi_scarches_from_scvi(save_path):
     # test transfer_anndata_setup + view
     adata1 = synthetic_iid()
 
