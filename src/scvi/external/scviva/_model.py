@@ -151,7 +151,7 @@ class SCVIVA(
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        gene_likelihood: Literal["zinb", "nb", "poisson"] = "poisson",
         latent_distribution: Literal["normal", "ln"] = "normal",
         **kwargs,
     ):
