@@ -9,7 +9,7 @@ notebooks/spatial/gimvi_tutorial
 notebooks/spatial/tangram_scvi_tools
 notebooks/spatial/stereoscope_heart_LV_tutorial
 notebooks/spatial/cell2location_lymph_node_spatial_tutorial
-notebooks/spatial/NicheVI_tutorial
+notebooks/spatial/scVIVA_tutorial
 ```
 
 ```{customcard}
@@ -17,6 +17,13 @@ notebooks/spatial/NicheVI_tutorial
 :tags: Analysis, Integration, Transfer-learning, Dimensionality-reduction
 
 TODO: add description
+```
+
+```{customcard}
+:path: notebooks/spatial/scVIVA_tutorial
+:tags: Analysis, Integration, Dimensionality-reduction, Differential-comparison
+
+Stratify spatial transcriptomics data into niche-aware cell states with scVIVA
 ```
 
 ```{customcard}
