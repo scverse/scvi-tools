@@ -10,6 +10,11 @@ CUDA (Compute Unified Device Architecture) is used to enable high-performance pa
 
 Using **CUDA** with **DDP** for multi-GPU training can significantly boost the performance and scalability of your model training, especially with large datasets and models. However, it also comes with its own set of challenges, such as the need for proper configuration, higher hardware costs, and potential software compatibility issues.
 
+```{topic} Tutorials:
+
+-   {doc}`/tutorials/notebooks/use_cases/multiGPU`
+```
+
 ## Some of the benfits of using MultiGPU training
 
 ### 1. **Faster Training**

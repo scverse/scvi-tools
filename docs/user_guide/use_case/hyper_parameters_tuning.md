@@ -6,6 +6,11 @@ In order to run scvi-tools with hyperparameters tuning support, use: pip install
 
 Hyperparameter tuning is the process of adjusting the parameters that control the training process of a machine learning model to find the best configuration for achieving optimal performance. These hyperparameters could include learning rate, batch size, the number of layers, and more. In PyTorch Lightning, when using Ray for hyperparameter tuning, you can leverage [Ray Tune](https://docs.ray.io/en/latest/tune/index.html), which is a scalable library for distributed hyperparameter optimization. To perform hyperparameter tuning in PyTorch Lightning with Ray, you first define a search space for the hyperparameters you want to tune (such as learning rate or batch size). Then, you set up a TuneReportCallback to track the performance of each training run and report the results back to Ray Tune. Ray will then automatically run multiple trials with different hyperparameter combinations and help you find the best-performing set.
 
+```{topic} Tutorials:
+
+-   {doc}`/tutorials/notebooks/use_cases/autotune_scvi`
+```
+
 There are several common parameters that need to be entered when running hyper parameters tuning with ray:
 - model_cls: Model class on which to tune hyperparameters.
 - metrics: Either a single metric or a list of metrics to track during the experiment and select the best hyperparamters based on.
