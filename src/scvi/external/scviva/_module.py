@@ -15,7 +15,7 @@ from scvi.module.base import (
 )
 
 from ._components import DirichletDecoder, Encoder, NicheDecoder
-from ._constants import NICHEVI_MODULE_KEYS, NICHEVI_REGISTRY_KEYS
+from ._constants import SCVIVA_MODULE_KEYS, SCVIVA_REGISTRY_KEYS
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -507,10 +507,10 @@ class nicheVAE(VAE):
             MODULE_KEYS.PX_KEY: px,
             MODULE_KEYS.PL_KEY: pl,
             MODULE_KEYS.PZ_KEY: pz,
-            NICHEVI_MODULE_KEYS.NICHE_MEAN: niche_mean,
-            NICHEVI_MODULE_KEYS.NICHE_VARIANCE: niche_variance,
-            NICHEVI_MODULE_KEYS.P_NICHE_EXPRESSION: niche_expression,
-            NICHEVI_MODULE_KEYS.P_NICHE_COMPOSITION: niche_composition,
+            SCVIVA_MODULE_KEYS.NICHE_MEAN: niche_mean,
+            SCVIVA_MODULE_KEYS.NICHE_VARIANCE: niche_variance,
+            SCVIVA_MODULE_KEYS.P_NICHE_EXPRESSION: niche_expression,
+            SCVIVA_MODULE_KEYS.P_NICHE_COMPOSITION: niche_composition,
         }
 
     def loss(
@@ -567,28 +567,28 @@ class nicheVAE(VAE):
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
-        niche_weights = tensors[NICHEVI_REGISTRY_KEYS.NICHE_COMPOSITION_KEY]
+        niche_weights = tensors[SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY]
         niche_weights = (niche_weights > 0).float()
 
         z1_mean_niche = tensors[
-            NICHEVI_REGISTRY_KEYS.Z1_MEAN_CT_KEY
+            SCVIVA_REGISTRY_KEYS.Z1_MEAN_CT_KEY
         ]  # batch times cell_types times n_latent
 
         reconst_loss_niche = (
-            -generative_outputs[NICHEVI_MODULE_KEYS.P_NICHE_EXPRESSION]
+            -generative_outputs[SCVIVA_MODULE_KEYS.P_NICHE_EXPRESSION]
             .log_prob(z1_mean_niche)
             .sum(dim=(-1))
         )
 
         masked_reconst_loss_niche = (reconst_loss_niche * niche_weights).sum(dim=-1)
 
-        true_niche_composition = tensors[NICHEVI_REGISTRY_KEYS.NICHE_COMPOSITION_KEY] + epsilon
+        true_niche_composition = tensors[SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY] + epsilon
         true_niche_composition = true_niche_composition / true_niche_composition.sum(
             dim=-1,
             keepdim=True,
         )
 
-        reconst_niche_composition = generative_outputs[NICHEVI_MODULE_KEYS.P_NICHE_COMPOSITION]
+        reconst_niche_composition = generative_outputs[SCVIVA_MODULE_KEYS.P_NICHE_COMPOSITION]
 
         composition_loss = -reconst_niche_composition.log_prob(true_niche_composition)
 
@@ -617,10 +617,8 @@ class nicheVAE(VAE):
             composition_loss=composition_loss,
             niche_loss=masked_reconst_loss_niche,
             extra_metrics={
-                NICHEVI_MODULE_KEYS.NLL_NICHE_COMPOSITION_KEY: torch.mean(composition_loss),
-                NICHEVI_MODULE_KEYS.NLL_NICHE_EXPRESSION_KEY: torch.mean(
-                    masked_reconst_loss_niche
-                ),
+                SCVIVA_MODULE_KEYS.NLL_NICHE_COMPOSITION_KEY: torch.mean(composition_loss),
+                SCVIVA_MODULE_KEYS.NLL_NICHE_EXPRESSION_KEY: torch.mean(masked_reconst_loss_niche),
             },
         )
 

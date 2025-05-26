@@ -4,7 +4,7 @@ import pandas as pd
 from rich import print
 
 from scvi import REGISTRY_KEYS
-from scvi.external.nichevi import NICHEVI_REGISTRY_KEYS
+from scvi.external.scviva import SCVIVA_REGISTRY_KEYS
 from scvi.model.base._de_core import _fdr_de_prediction, _prepare_obs
 from scvi.model.base._differential import DifferentialComputation
 from scvi.utils import track
@@ -33,7 +33,7 @@ def _niche_de_core(
     batch_correction,
     fdr,
     silent,
-    ###### NicheVI specific ######
+    ###### scVIVA specific ######
     radius=None,
     k_nn=None,
     lfc_select: str = "lfc_median",
@@ -59,9 +59,9 @@ def _niche_de_core(
         adata.obs[temp_key] = obs_col
         groupby = temp_key
 
-    cell_samples = adata_manager.get_from_registry(NICHEVI_REGISTRY_KEYS.SAMPLE_KEY)
+    cell_samples = adata_manager.get_from_registry(SCVIVA_REGISTRY_KEYS.SAMPLE_KEY)
     cell_labels = adata_manager.get_from_registry(REGISTRY_KEYS.LABELS_KEY)
-    cell_coordinates = adata_manager.get_from_registry(NICHEVI_REGISTRY_KEYS.CELL_COORDINATES_KEY)
+    cell_coordinates = adata_manager.get_from_registry(SCVIVA_REGISTRY_KEYS.CELL_COORDINATES_KEY)
 
     # don't compute adjusted nearest neighbors if already computed
     if "adjusted_A" in adata.uns.keys():

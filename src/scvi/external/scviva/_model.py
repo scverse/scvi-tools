@@ -38,7 +38,7 @@ from scvi.model.base._de_core import _de_core
 from scvi.model.utils import get_minified_adata_scrna
 from scvi.utils import de_dsp, setup_anndata_dsp, unsupported_if_adata_minified
 
-from ._constants import NICHEVI_REGISTRY_KEYS
+from ._constants import SCVIVA_REGISTRY_KEYS
 from ._module import nicheVAE
 from .differential_expression import _niche_de_core
 
@@ -64,7 +64,7 @@ _SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
 logger = logging.getLogger(__name__)
 
 
-class nicheSCVI(
+class SCVIVA(
     EmbeddingMixin,
     RNASeqMixin,
     VAEMixin,
@@ -72,12 +72,12 @@ class nicheSCVI(
     UnsupervisedTrainingMixin,
     BaseMinifiedModeModelClass,
 ):
-    """single-cell Variational Inference :cite:p:`Lopez18`.
+    """scVIVA: variational auto-encoder with niche decoders for ST:cite:p:`Levy25`.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`. If
+        AnnData object that has been registered via :meth:`~scvi.external.SCVIVA.setup_anndata`. If
         ``None``, then the underlying module will not be initialized until training, and a
         :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training
         (``EXPERIMENTAL``).
@@ -113,7 +113,7 @@ class nicheSCVI(
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.external.NICHEVI.preprocessing_anndata(
+    >>> scvi.external.SCVIVA.preprocessing_anndata(
         adata,
         k_nn = 20,
         sample_key = 'slide_ID',
@@ -122,23 +122,23 @@ class nicheSCVI(
         expression_embedding_key = "X_scVI",
         **kwargs
     )
-    >>> scvi.external.NICHEVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.external.NICHEVI(adata)
+    >>> scvi.external.SCVIVA.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.external.SCVIVA(adata)
     >>> vae.train()
-    >>> adata.obsm["X_NicheVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_NicheVI"] = vae.get_normalized_expression()
+    >>> adata.obsm["X_scVIVA"] = vae.get_latent_representation()
+    >>> adata.obsm["X_normalized_scVIVA"] = vae.get_normalized_expression()
 
     Notes
     -----
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
-    2. :doc`/tutorials/notebooks/spatial/nicheVI_tutorial`
+    2. :doc`/tutorials/notebooks/spatial/scVIVA_tutorial`
 
 
     See Also
     --------
-    :class:`~scvi.module.VAE`
+    :class:`~scvi.module.nicheVAE`
     """
 
     _module_cls = nicheVAE
@@ -170,7 +170,7 @@ class nicheSCVI(
             **kwargs,
         }
         self._model_summary_string = (
-            "nicheVI model with the following parameters: \n"
+            "scVIVA model with the following parameters: \n"
             f"n_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
             f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
             f"gene_likelihood: {gene_likelihood}, latent_distribution: {latent_distribution}."
@@ -233,7 +233,7 @@ class nicheSCVI(
         niche_distances_key: str = "niche_distances",
         log1p: bool = False,
     ) -> None:
-        """Preprocess anndata object for NicheVI."""
+        """Preprocess anndata object for scVIVA."""
         get_niche_indexes(
             adata=adata,
             sample_key=sample_key,
@@ -302,13 +302,13 @@ class nicheSCVI(
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            CategoricalObsField(NICHEVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
-            ObsmField(NICHEVI_REGISTRY_KEYS.NICHE_COMPOSITION_KEY, niche_composition_key),
-            ObsmField(NICHEVI_REGISTRY_KEYS.CELL_COORDINATES_KEY, cell_coordinates_key),
-            ObsmField(NICHEVI_REGISTRY_KEYS.NICHE_INDEXES_KEY, niche_indexes_key),
-            ObsmField(NICHEVI_REGISTRY_KEYS.NICHE_DISTANCES_KEY, niche_distances_key),
-            ObsmField(NICHEVI_REGISTRY_KEYS.Z1_MEAN_KEY, expression_embedding_key),
-            ObsmField(NICHEVI_REGISTRY_KEYS.Z1_MEAN_CT_KEY, expression_embedding_niche_key),
+            CategoricalObsField(SCVIVA_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
+            ObsmField(SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY, niche_composition_key),
+            ObsmField(SCVIVA_REGISTRY_KEYS.CELL_COORDINATES_KEY, cell_coordinates_key),
+            ObsmField(SCVIVA_REGISTRY_KEYS.NICHE_INDEXES_KEY, niche_indexes_key),
+            ObsmField(SCVIVA_REGISTRY_KEYS.NICHE_DISTANCES_KEY, niche_distances_key),
+            ObsmField(SCVIVA_REGISTRY_KEYS.Z1_MEAN_KEY, expression_embedding_key),
+            ObsmField(SCVIVA_REGISTRY_KEYS.Z1_MEAN_CT_KEY, expression_embedding_niche_key),
         ]
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
@@ -523,7 +523,7 @@ class nicheSCVI(
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         importance_weighting_kwargs: dict | None = None,
-        ###### NICHEVI specific ######
+        ###### scVIVA specific ######
         niche_mode: bool = True,
         radius: int | None = None,
         k_nn: int | None = None,

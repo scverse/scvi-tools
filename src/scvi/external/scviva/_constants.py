@@ -1,7 +1,7 @@
 from typing import NamedTuple
 
 
-class _NICHEVI_REGISTRY_KEYS_NT(NamedTuple):
+class _SCVIVA_REGISTRY_KEYS_NT(NamedTuple):
     SAMPLE_KEY: str = "sample"
     Z1_MEAN_KEY: str = "latent_mean"
     NICHE_INDEXES_KEY: str = "niche_indexes"
@@ -11,10 +11,10 @@ class _NICHEVI_REGISTRY_KEYS_NT(NamedTuple):
     CELL_COORDINATES_KEY: str = "spatial"
 
 
-NICHEVI_REGISTRY_KEYS = _NICHEVI_REGISTRY_KEYS_NT()
+SCVIVA_REGISTRY_KEYS = _SCVIVA_REGISTRY_KEYS_NT()
 
 
-class _NICHEVI_MODULE_KEYS(NamedTuple):
+class _SCVIVA_MODULE_KEYS(NamedTuple):
     # generative model
     NICHE_MEAN: str = "niche_mean"
     NICHE_VARIANCE: str = "niche_variance"
@@ -27,4 +27,4 @@ class _NICHEVI_MODULE_KEYS(NamedTuple):
     SPATIAL_WEIGHT_KEY: str = "spatial_weight"
 
 
-NICHEVI_MODULE_KEYS = _NICHEVI_MODULE_KEYS()
+SCVIVA_MODULE_KEYS = _SCVIVA_MODULE_KEYS()

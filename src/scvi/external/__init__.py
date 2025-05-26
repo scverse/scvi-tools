@@ -4,11 +4,11 @@ from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
-from .nichevi import nicheSCVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
+from .scviva import SCVIVA
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
@@ -35,5 +35,5 @@ __all__ = [
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
-    "nicheSCVI",
+    "SCVIVA",
 ]
