@@ -3,7 +3,7 @@ import pytest
 from anndata import AnnData
 
 from scvi.data import synthetic_iid
-from scvi.external import nicheSCVI
+from scvi.external import SCVIVA
 
 N_LATENT = 10
 K_NN = 5
@@ -43,19 +43,19 @@ def adata():
 
 
 def test_nichevi_train(adata: AnnData):
-    nicheSCVI.preprocessing_anndata(
+    SCVIVA.preprocessing_anndata(
         adata,
         k_nn=K_NN,
         **setup_kwargs,
     )
 
-    nicheSCVI.setup_anndata(
+    SCVIVA.setup_anndata(
         adata,
         layer="counts",
         batch_key="batch",
         **setup_kwargs,
     )
-    nichevae = nicheSCVI(
+    nichevae = SCVIVA(
         adata,
         prior_mixture=False,
         semisupervised=True,
@@ -75,19 +75,19 @@ def test_nichevi_train(adata: AnnData):
 
 
 def test_nichevi_save_load(adata):
-    nicheSCVI.preprocessing_anndata(
+    SCVIVA.preprocessing_anndata(
         adata,
         k_nn=K_NN,
         **setup_kwargs,
     )
 
-    nicheSCVI.setup_anndata(
+    SCVIVA.setup_anndata(
         adata,
         layer="counts",
         batch_key="batch",
         **setup_kwargs,
     )
-    nichevae = nicheSCVI(
+    nichevae = SCVIVA(
         adata,
         prior_mixture=False,
         semisupervised=True,
@@ -105,8 +105,8 @@ def test_nichevi_save_load(adata):
     hist_elbo = nichevae.history["elbo_train"]
     latent = nichevae.get_latent_representation()
     assert latent.shape == (adata.n_obs, nichevae.module.n_latent)
-    nichevae.save("test_nichevi", save_anndata=True, overwrite=True)
-    model2 = nichevae.load("test_nichevi")
+    nichevae.save("test_scVIVA", save_anndata=True, overwrite=True)
+    model2 = nichevae.load("test_scVIVA")
     np.testing.assert_array_equal(model2.history_["elbo_train"], hist_elbo)
     latent2 = model2.get_latent_representation()
     assert np.allclose(latent, latent2, atol=1e-5)
@@ -123,19 +123,19 @@ def test_nichevi_save_load(adata):
 
 
 def test_nichevi_differential(adata):
-    nicheSCVI.preprocessing_anndata(
+    SCVIVA.preprocessing_anndata(
         adata,
         k_nn=K_NN,
         **setup_kwargs,
     )
 
-    nicheSCVI.setup_anndata(
+    SCVIVA.setup_anndata(
         adata,
         layer="counts",
         batch_key="batch",
         **setup_kwargs,
     )
-    nichevae = nicheSCVI(
+    nichevae = SCVIVA(
         adata,
         prior_mixture=False,
         semisupervised=True,
