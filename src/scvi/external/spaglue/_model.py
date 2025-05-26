@@ -2,6 +2,7 @@ from collections.abc import Iterator, Sequence
 from itertools import cycle
 
 import numpy as np
+import scipy.sparse
 import torch
 from anndata import AnnData
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -132,8 +133,8 @@ class SPAGLUE(BaseModelClass):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        train_dl = TrainDL(train_dls)  # combine the list of TRAINING dataloaders
-        val_dl = TrainDL(val_dls)
+        train_dl = TrainDL(train_dls, num_workers=9)  # combine the list of TRAINING dataloaders
+        val_dl = TrainDL(val_dls, num_workers=9)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         self._training_plan = SPAGLUETrainingPlan(
@@ -166,6 +167,15 @@ class SPAGLUE(BaseModelClass):
         layer: str | None = None,
         # **kwargs: dict,
     ) -> None:
+        if not isinstance(adata.X, scipy.sparse.csr_matrix):
+            adata.X = adata.X.tocsr()
+
+        # For a specific layer (e.g., "counts")
+        if "counts" in adata.layers and not isinstance(
+            adata.layers["counts"], scipy.sparse.csr_matrix
+        ):
+            adata.layers["counts"] = adata.layers["counts"].tocsr()
+
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
             **locals()
@@ -285,7 +295,7 @@ class SPAGLUE(BaseModelClass):
 
 class TrainDL(DataLoader):  # creates batch structure for training process
     # def __init__(self, data_loader_list, **kwargs):
-    def __init__(self, data_loader_list):
+    def __init__(self, data_loader_list, num_workers=0):
         self.data_loader_list = data_loader_list  # list of individual dls
         self.largest_train_dl_idx = np.argmax(
             [len(dl.indices) for dl in data_loader_list]
@@ -294,7 +304,7 @@ class TrainDL(DataLoader):  # creates batch structure for training process
             self.largest_train_dl_idx
         ]  # dl corresponding to the largest dataset
         # super().__init__(self.largest_dl, **kwargs)
-        super().__init__(self.largest_dl)
+        super().__init__(self.largest_dl, num_workers=num_workers)
 
     # number of batches per epoch is determined by the larger dataset
     def __len__(self):
