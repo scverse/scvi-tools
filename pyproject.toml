@@ -79,7 +79,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,optional]"]
+docsbuild = ["scvi-tools[docs,autotune,hub]"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
@@ -106,6 +106,7 @@ optional = [
 ]
 tutorials = [
     "cell2location",
+    "dataloaders",
     "jupyter",
     "leidenalg",
     "muon",
