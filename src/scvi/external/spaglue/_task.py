@@ -48,7 +48,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ):  # contains data from all datasets - mode is either 0 or 1
             n_obs = tensors[REGISTRY_KEYS.X_KEY].shape[0]
             n_var = tensors[REGISTRY_KEYS.X_KEY].shape[1]
-            self.loss_kwargs.update({"mode": i})
+            # self.loss_kwargs.update({"mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
             _, _, loss_output = self.forward(  # perform inf and gen steps
@@ -100,7 +100,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             n_obs = tensors[REGISTRY_KEYS.X_KEY].shape[0]
             n_var = tensors[REGISTRY_KEYS.X_KEY].shape[1]
 
-            self.loss_kwargs.update({"mode": i})
+            # self.loss_kwargs.update({"mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
             _, _, loss_output = self.forward(  # perform inf and gen steps

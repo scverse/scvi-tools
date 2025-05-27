@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import kl_divergence
+from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
@@ -12,7 +12,7 @@ from scvi.nn import Encoder
 EPS = 1e-8
 
 
-class NBDataDecoderWB(nn.Module):  # integrate the batch index
+class NBDataDecoderWB(nn.Module):
     def __init__(
         self,
         n_output: int,
@@ -40,9 +40,7 @@ class NBDataDecoderWB(nn.Module):  # integrate the batch index
         # bring batch index in the right dimension
         if batch_index.dim() > 1:
             batch_index = batch_index.squeeze(-1)
-        # print("scale_shape: ", self.scale_lin.shape)
-        # print("bias_shape: ", self.bias.shape)
-        # bring scale and bias in dimension [batch_size, n_genes] - row corresponds to batch index
+
         scale = F.softplus(self.scale_lin[batch_index])
         bias = self.bias[batch_index]
         log_theta = self.log_theta[batch_index]
@@ -119,8 +117,6 @@ class SPAGLUEVAE(BaseModuleClass):
     def _get_generative_input(
         self, tensors: dict[str, torch.Tensor], inference_outputs: dict[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
-        from scvi.module._constants import MODULE_KEYS
-
         return {
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
@@ -134,7 +130,7 @@ class SPAGLUEVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
-        from scvi.module._constants import MODULE_KEYS
+        # from scvi.module._constants import MODULE_KEYS
 
         x_ = x
 
@@ -159,10 +155,6 @@ class SPAGLUEVAE(BaseModuleClass):
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
         """Run the generative model."""
-        from torch.distributions import Normal
-
-        from scvi.module._constants import MODULE_KEYS
-
         EPS = 1e-8
 
         # diss data
@@ -203,7 +195,6 @@ class SPAGLUEVAE(BaseModuleClass):
         inference_outputs: dict[str, torch.Tensor],
         generative_outputs: dict[str, torch.Tensor],
         kl_weight: torch.Tensor | float = 1.0,
-        mode: int | None = None,
     ) -> LossOutput:
         x = tensors[REGISTRY_KEYS.X_KEY]
 
@@ -220,7 +211,5 @@ class SPAGLUEVAE(BaseModuleClass):
         kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
 
         loss = reconstruction_loss_norm + kl_local_norm
-
-        print("Total Loss: ", loss)
 
         return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_local_norm)
