@@ -511,7 +511,7 @@ class SCVIVA(
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
-        delta: float | list[float] = 0.25,
+        delta: float | list[float] = 0.15,
         batch_size: int | None = None,
         all_stats: bool = True,
         batch_correction: bool = False,
