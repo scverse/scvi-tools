@@ -5,6 +5,7 @@ from anndata import AnnData
 from scvi.data import synthetic_iid
 from scvi.external import SCVIVA
 
+N_LATENT_INTRINSIC = 20
 N_LATENT = 10
 K_NN = 5
 N_EPOCHS_NICHEVI = 2
@@ -36,7 +37,7 @@ def adata():
         return_mudata=False,
     )
 
-    adata.obsm["qz1_m"] = np.random.normal(size=(adata.shape[0], N_LATENT))
+    adata.obsm["qz1_m"] = np.random.normal(size=(adata.shape[0], N_LATENT_INTRINSIC))
     adata.layers["counts"] = adata.X.copy()
 
     return adata
@@ -119,7 +120,7 @@ def test_nichevi_save_load(adata):
     assert predicted_alpha.shape == (adata.n_obs, nichevae.n_labels)
     assert np.allclose(predicted_alpha.sum(), adata.n_obs, atol=1e-5)
     predicted_eta = nichevae.predict_niche_activation()
-    assert predicted_eta.shape == (adata.n_obs, nichevae.n_labels, N_LATENT)
+    assert predicted_eta.shape == (adata.n_obs, nichevae.n_labels, N_LATENT_INTRINSIC)
 
 
 def test_nichevi_differential(adata):
