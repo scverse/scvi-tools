@@ -271,7 +271,6 @@ class SCVIVA(
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
-        ############################
         sample_key: str | None = None,
         labels_key: str = "cell_type",
         cell_coordinates_key: str = "spatial",
@@ -562,11 +561,11 @@ class SCVIVA(
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
         niche_mode
-            Whether to use NICHEVI DE or SCVI DE.
+            Whether to use scVIVA DE or SCVI DE.
         radius
-            Radius for NICHEVI DE.
+            Radius for scVIVA DE.
         k_nn
-            Number of nearest neighbors for NICHEVI DE.
+            Number of nearest neighbors for scVIVA DE.
         n_restarts_optimizer_gpc
             Number of restarts for the Gaussian Process Classifier optimization.
         path_to_save

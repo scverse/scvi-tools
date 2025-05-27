@@ -252,7 +252,6 @@ class nicheVAE(VAE):
         self.latent_kl_weight = latent_kl_weight
         self.cell_rec_weight = cell_rec_weight
         self.spatial_weight = spatial_weight
-        ##############################
         self.n_output_niche = n_output_niche
         self.niche_likelihood = niche_likelihood
         self.prior_mixture = prior_mixture
