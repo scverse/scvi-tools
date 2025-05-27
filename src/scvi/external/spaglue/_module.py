@@ -143,7 +143,7 @@ class SPAGLUEVAE(BaseModuleClass):
 
         self.graph_encoder = GraphEncoder(
             in_dim=n_inputs[0] + n_inputs[1],
-            hidden_dim=128,
+            hidden_dim=32,
             out_dim=10,
         )
 

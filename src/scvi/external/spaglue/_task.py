@@ -88,8 +88,24 @@ class SPAGLUETrainingPlan(TrainingPlan):
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
 
+            if i == 0:
+                self.logger.experiment.add_scalars(
+                    "nll", {"seq": reconstruction_loss}, self.global_step
+                )
+            elif i == 1:
+                self.logger.experiment.add_scalars(
+                    "nll", {"spatial": reconstruction_loss}, self.global_step
+                )
+
             kl_divergence = loss_output.kl_local["kl_local"]
             kl_divergence = torch.sum(kl_divergence) / (n_obs * n_var)
+
+            if i == 0:
+                self.logger.experiment.add_scalars("kl", {"seq": kl_divergence}, self.global_step)
+            elif i == 1:
+                self.logger.experiment.add_scalars(
+                    "kl", {"spatial": kl_divergence}, self.global_step
+                )
 
             loss = loss_output.loss
 
@@ -110,6 +126,9 @@ class SPAGLUETrainingPlan(TrainingPlan):
         graph = loss_output.extra_metrics["guidance_graph"]
         feature_embeddings = loss_output_objs[0]["graph_v"]
         graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
+        self.logger.experiment.add_scalars(
+            "nll", {"graph": graph_likelihood_loss}, self.global_step
+        )
 
         ### graph kl
         graph_kl_loss = kl_divergence_graph(
@@ -118,6 +137,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         )
         # in glue: extra normalization with batch size
         graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
+        self.logger.experiment.add_scalars("kl", {"graph": graph_kl_loss_norm}, self.global_step)
 
         graph_loss = graph_likelihood_loss + graph_kl_loss_norm
 

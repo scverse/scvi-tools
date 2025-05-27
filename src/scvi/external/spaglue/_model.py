@@ -79,12 +79,12 @@ class SPAGLUE(BaseModelClass):
         plan_kwargs: dict | None = None,
         # **kwargs: dict,
     ) -> None:
-        if torch.backends.mps.is_available():
-            accelerator = "mps"
-            devices = 1  # Use a single MPS device
-            print("Using MPS accelerator for training.")
-        else:
-            print("MPS not available. Falling back to default accelerator.")
+        # if torch.backends.mps.is_available():
+        #     accelerator = "mps"
+        #     devices = 1  # Use a single MPS device
+        #     print("Using MPS accelerator for training.")
+        # else:
+        #     print("MPS not available. Falling back to default accelerator.")
 
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
