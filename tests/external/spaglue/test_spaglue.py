@@ -118,7 +118,7 @@ def test_spaglue_loss(adata_seq, adata_spatial):
         batch_index=tensors["batch"],
         mode=0,
     )
-    loss = model.module.loss(tensors, inference_outputs, generative_outputs, mode=0)
+    loss = model.module.loss(tensors, inference_outputs, generative_outputs)
 
     assert loss.loss is not None
     assert loss.reconstruction_loss is not None
