@@ -1128,7 +1128,7 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            full_dataset = batch[0]
+            full_dataset = batch
             labelled_dataset = None
 
         if "kl_weight" in self.loss_kwargs:

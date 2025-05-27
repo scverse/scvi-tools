@@ -822,8 +822,6 @@ def test_census_custom_dataloader_scanvi(save_path: str):
     assert "kl_global_validation" in logged_keys
     assert "kl_global_train" in logged_keys
 
-    model.predict(dataloader=inference_datamodule.inference_dataloader(), soft=False)
-
     # train from scvi model
     model_scvi = scvi.model.SCVI(registry=datamodule.registry)
 
@@ -869,6 +867,53 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         check_val_every_n_epoch=1,
         early_stopping=False,
     )
+
+    model_scanvi_from_scvi_loaded.predict(
+        dataloader=inference_datamodule.inference_dataloader(), soft=False
+    )
+
+    latent = model_scanvi_from_scvi_loaded.get_latent_representation(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    print(latent.shape)
+    _ = model_scanvi_from_scvi_loaded.get_elbo(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded.get_marginal_ll(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded.get_reconstruction_error(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded.posterior_predictive_sample(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded.get_normalized_expression(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded.get_likelihood_parameters(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded._get_denoised_samples(
+        dataloader=inference_datamodule.inference_dataloader()
+    )
+    _ = model_scanvi_from_scvi_loaded.get_latent_library_size(
+        dataloader=inference_datamodule.inference_dataloader(), give_mean=False
+    )
+
+    logged_keys = model_scanvi_from_scvi_loaded.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "train_classification_loss" in logged_keys
+    assert "train_accuracy" in logged_keys
+    assert "train_f1_score" in logged_keys
+    assert "train_calibration_error" in logged_keys
+    assert "kl_global_validation" in logged_keys
+    assert "kl_global_train" in logged_keys
 
     # generating adata from this census
     adata = cellxgene_census.get_anndata(

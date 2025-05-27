@@ -13,7 +13,11 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Added getting protein probabilities in multivi {pr}`3341`.
+
 #### Fixed
+
+- Fix bug in TOTALANVI scarches. {pr}`3355`.
 
 #### Changed
 
