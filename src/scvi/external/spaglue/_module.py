@@ -182,6 +182,7 @@ class SPAGLUEVAE(BaseModuleClass):
         self, tensors: dict[str, torch.Tensor], inference_outputs: dict[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
         from scvi.module._constants import MODULE_KEYS
+
         return {
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
@@ -196,7 +197,6 @@ class SPAGLUEVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
-
         from scvi.module._constants import MODULE_KEYS
 
         x_ = x
