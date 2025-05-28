@@ -2,9 +2,12 @@ from collections.abc import Iterator, Sequence
 from itertools import cycle
 
 import numpy as np
+import scipy.sparse
 import torch
 from anndata import AnnData
+from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
+from torch_geometric.data import Data
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -47,10 +50,14 @@ class SPAGLUE(BaseModelClass):
 
         generative_distributions = generative_distributions or ["nb", "nb"]  ## for now
 
+
+        self.guidance_graph = self._construct_guidance_graph(adata_seq, adata_spatial)
+
         self.module = SPAGLUEVAE(
             n_inputs=n_inputs,
             n_batches=n_batches,
             gene_likelihoods=generative_distributions,
+            guidance_graph=self.guidance_graph,
             # **model_kwargs,
         )
 
@@ -73,6 +80,7 @@ class SPAGLUE(BaseModelClass):
         plan_kwargs: dict | None = None,
         # **kwargs: dict,
     ) -> None:
+
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
             devices=devices,  # auto, 1 0r [0,1]
@@ -81,14 +89,20 @@ class SPAGLUE(BaseModelClass):
 
         # datasplitter_kwargs = datasplitter_kwargs or {}
 
+        logger = TensorBoardLogger(
+            "lightning_logs", name="spaglue"
+        )  # wie machen das andere modelle?
+
         self.trainer = Trainer(
             max_epochs=max_epochs,
             enable_progress_bar=True,
-            log_every_n_steps=1,
+            progress_bar_refresh_rate=1,
+            # log_every_n_steps=1,
             early_stopping=True,
             early_stopping_monitor="validation_loss",
             accelerator=accelerator,
             devices=devices,
+            logger=logger,
             # **kwargs,
         )
 
@@ -115,8 +129,8 @@ class SPAGLUE(BaseModelClass):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        train_dl = TrainDL(train_dls)  # combine the list of TRAINING dataloaders
-        val_dl = TrainDL(val_dls)
+        train_dl = TrainDL(train_dls, num_workers=9)  # combine the list of TRAINING dataloaders
+        val_dl = TrainDL(val_dls, num_workers=9)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         self._training_plan = SPAGLUETrainingPlan(
@@ -149,6 +163,16 @@ class SPAGLUE(BaseModelClass):
         layer: str | None = None,
         # **kwargs: dict,
     ) -> None:
+
+        if not isinstance(adata.X, scipy.sparse.csr_matrix):
+            adata.X = adata.X.tocsr()
+
+        # For a specific layer (e.g., "counts")
+        if "counts" in adata.layers and not isinstance(
+            adata.layers["counts"], scipy.sparse.csr_matrix
+        ):
+            adata.layers["counts"] = adata.layers["counts"].tocsr()
+
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
             **locals()
@@ -194,7 +218,7 @@ class SPAGLUE(BaseModelClass):
 
         return results
 
-    def _compute_latent(
+    def _compute_latent(  # commmon latent space (modality: overlap, celltype: sep)
         self,
         dataloader: Iterator[dict[str, torch.Tensor | None]],
         mode: int,
@@ -213,9 +237,63 @@ class SPAGLUE(BaseModelClass):
         return np.concatenate(zs, axis=0)
 
 
+    def _construct_guidance_graph(self, adata_seq, adata_spatial, weight=1.0, sign=1):
+        shared_features = set(adata_seq.var_names) & set(adata_spatial.var_names)
+        if not shared_features:
+            raise ValueError("No overlapping features between the two modalities.")
+
+        features_seq = [f"{f}_seq" for f in adata_seq.var_names]
+        features_spatial = [f"{f}_spatial" for f in adata_spatial.var_names]
+
+        # Build node list
+        all_features = features_seq + features_spatial
+        feature_to_index = {f: i for i, f in enumerate(all_features)}
+
+        # Edges for matching features
+        edge_index = []
+        edge_weight = []
+        edge_sign = []
+
+        for feature in shared_features:
+            i = feature_to_index[feature + "_seq"]
+            j = feature_to_index[feature + "_spatial"]
+
+            edge_index += [[i, j], [j, i]]
+            edge_weight += [weight, weight]
+            edge_sign += [sign, sign]
+
+        # Add self-loops
+        for feature in all_features:
+            i = feature_to_index[feature]
+            edge_index.append([i, i])
+            edge_weight.append(1.0)
+            edge_sign.append(1)
+
+        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+        edge_weight = torch.tensor(edge_weight, dtype=torch.float)
+        edge_sign = torch.tensor(edge_sign, dtype=torch.float)
+
+        x = torch.eye(len(all_features))  # node features as identity for simplicity
+
+        # Extract seq/spa indices
+        seq_indices = torch.tensor([feature_to_index[f] for f in features_seq], dtype=torch.long)
+        spa_indices = torch.tensor(
+            [feature_to_index[f] for f in features_spatial], dtype=torch.long
+        )
+
+        return Data(
+            x=x,
+            edge_index=edge_index,
+            edge_weight=edge_weight,
+            edge_sign=edge_sign,
+            seq_indices=seq_indices,  # attach as attributes
+            spa_indices=spa_indices,
+        )
+
+
 class TrainDL(DataLoader):  # creates batch structure for training process
     # def __init__(self, data_loader_list, **kwargs):
-    def __init__(self, data_loader_list):
+    def __init__(self, data_loader_list, num_workers=0):
         self.data_loader_list = data_loader_list  # list of individual dls
         self.largest_train_dl_idx = np.argmax(
             [len(dl.indices) for dl in data_loader_list]
@@ -224,7 +302,7 @@ class TrainDL(DataLoader):  # creates batch structure for training process
             self.largest_train_dl_idx
         ]  # dl corresponding to the largest dataset
         # super().__init__(self.largest_dl, **kwargs)
-        super().__init__(self.largest_dl)
+        super().__init__(self.largest_dl, num_workers=num_workers)
 
     # number of batches per epoch is determined by the larger dataset
     def __len__(self):
