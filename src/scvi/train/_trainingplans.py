@@ -725,17 +725,21 @@ class AdversarialTrainingPlan(TrainingPlan):
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
         if opt2 is not None:
-            for _ in range(self.adversarial_steps):
+            loss = 0.
+            for i in range(self.adversarial_steps):
                 qz = inference_outputs["qz"]
                 z = qz.sample().detach()
-                loss = self.loss_adversarial_classifier(z, batch_tensor, True)
+                loss_ = kappa * self.loss_adversarial_classifier(z, batch_tensor, True)
                 if isinstance(self.module.prior, MogPrior) or isinstance(self.module.prior, VampPrior):
                     qz_m, qz_v = qz.loc.detach(), qz.scale.detach()
-                    loss += self.module.prior.kl(
+                    loss_ += self.module.prior.kl(
                         qz=Normal(qz_m, qz_v),
                         z=z,
-                        labels=batch[REGISTRY_KEYS.LABELS_KEY].long(),
+                        labels=batch.get(REGISTRY_KEYS.LABELS_KEY, torch.tensor(0)).long(),
                     ).mean()
+                if i>1 and (loss - loss_)/loss < 1e-3:
+                    break
+                loss = loss_
                 opt2.zero_grad()
                 self.manual_backward(loss)
                 opt2.step()

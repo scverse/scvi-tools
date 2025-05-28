@@ -180,10 +180,7 @@ class SCVI(
                     n_cats_per_cov = None
 
             n_batch = self.summary_stats.n_batch
-            n_assay = self.summary_stats.n_assay
-            use_size_factor_key = self.registry_["setup_args"][
-                f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"
-            ]
+            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
             library_log_means, library_log_vars = None, None
             if (
                 not use_size_factor_key
@@ -196,7 +193,6 @@ class SCVI(
             self.module = self._module_cls(
                 n_input=self.summary_stats.n_vars,
                 n_batch=n_batch,
-                n_assay=n_assay,
                 n_labels=self.summary_stats.n_labels,
                 n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
                 n_cats_per_cov=n_cats_per_cov,
@@ -224,7 +220,6 @@ class SCVI(
         adata: AnnData,
         layer: str | None = None,
         batch_key: str | None = None,
-        assay_key: str | None = None,
         labels_key: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
@@ -247,7 +242,6 @@ class SCVI(
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.ASSAY_KEY, assay_key),
             CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),

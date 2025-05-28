@@ -528,7 +528,7 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         from torch.distributions import kl_divergence
 
         x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        y = tensors.get(REGISTRY_KEYS.LABELS_KEY, None)
 
         kl_divergence_z = self.prior.kl(
             qz=inference_outputs[MODULE_KEYS.QZ_KEY],

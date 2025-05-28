@@ -11,6 +11,7 @@ from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
+    LabelsWithUnlabeledObsField,
     LayerField,
     NumericalJointObsField,
 )
@@ -130,7 +131,6 @@ class ASSAYVI(
         **kwargs,
     ):
         super().__init__(adata)
-        print('22222211')
 
         self._module_kwargs = {
             "n_hidden": n_hidden,
@@ -177,7 +177,7 @@ class ASSAYVI(
             n_input=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
             n_assay=self.summary_stats.n_assay,
-            n_labels=self.summary_stats.n_labels,
+            n_labels=self.summary_stats.get("n_labels", 1),
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
             n_hidden=n_hidden,
@@ -328,6 +328,7 @@ class ASSAYVI(
         batch_key: str | None = None,
         assay_key: str | None = None,
         labels_key: str | None = None,
+        unlabeled_category: str = "unlabeled",
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
         **kwargs,
@@ -341,7 +342,8 @@ class ASSAYVI(
         %(param_batch_key)s
         assay_key
             Key in ``adata.obs`` that corresponds to the assay of the data.
-        %(param_label_key)s
+        %(param_labels_key)s
+        %(param_unlabeled_category)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         """
@@ -350,10 +352,13 @@ class ASSAYVI(
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(REGISTRY_KEYS.ASSAY_KEY, assay_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
+        if labels_key is not None:
+            anndata_fields.append(
+                LabelsWithUnlabeledObsField(
+                    REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category))
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:

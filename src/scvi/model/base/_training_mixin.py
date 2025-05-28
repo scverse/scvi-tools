@@ -41,7 +41,7 @@ class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
     _data_splitter_cls = DataSplitter
-    _training_plan_cls = AdversarialTrainingPlan
+    _training_plan_cls = TrainingPlan
     _train_runner_cls = TrainRunner
 
     @devices_dsp.dedent
