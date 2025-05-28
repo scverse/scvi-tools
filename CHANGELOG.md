@@ -19,6 +19,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Fix bug in TOTALANVI scarches. {pr}`3355`.
 
+- Fix bug in MrVI down stream analysis use of external adata. {pr}`3324`.
+
 #### Changed
 
 #### Removed
