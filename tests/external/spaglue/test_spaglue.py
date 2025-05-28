@@ -87,6 +87,7 @@ def test_spaglue_generative_model(adata_seq, adata_spatial):
         inference_outputs["z"],
         inference_outputs["library"],
         batch_index=tensors["batch"],
+        v=inference_outputs["v"],
         mode=0,
     )
 
@@ -116,6 +117,7 @@ def test_spaglue_loss(adata_seq, adata_spatial):
         inference_outputs["z"],
         inference_outputs["library"],
         batch_index=tensors["batch"],
+        v=inference_outputs["v"],
         mode=0,
     )
     loss = model.module.loss(tensors, inference_outputs, generative_outputs)

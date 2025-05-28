@@ -161,7 +161,7 @@ class SPAGLUE(BaseModelClass):
         layer: str | None = None,
         # **kwargs: dict,
     ) -> None:
-        if not isinstance(adata.X, scipy.sparse.csr_matrix):
+        if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
 
         # For a specific layer (e.g., "counts")
