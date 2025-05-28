@@ -29,7 +29,6 @@ class NBDataDecoderWB(nn.Module):  # integrate the batch index
         self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
 
         self.px_dropout_param = nn.Parameter(torch.randn(n_output) * 0.01)
-
         # self.v = nn.Parameter(torch.randn(n_output, n_latent) * 0.01)
 
     def forward(
@@ -42,9 +41,7 @@ class NBDataDecoderWB(nn.Module):  # integrate the batch index
         # bring batch index in the right dimension
         if batch_index.dim() > 1:
             batch_index = batch_index.squeeze(-1)
-        # print("scale_shape: ", self.scale_lin.shape)
-        # print("bias_shape: ", self.bias.shape)
-        # bring scale and bias in dimension [batch_size, n_genes] - row corresponds to batch index
+
         scale = F.softplus(self.scale_lin[batch_index])
         bias = self.bias[batch_index]
         log_theta = self.log_theta[batch_index]
@@ -185,7 +182,6 @@ class SPAGLUEVAE(BaseModuleClass):
         self, tensors: dict[str, torch.Tensor], inference_outputs: dict[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
         from scvi.module._constants import MODULE_KEYS
-
         return {
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
@@ -200,6 +196,7 @@ class SPAGLUEVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
+
         from scvi.module._constants import MODULE_KEYS
 
         x_ = x
@@ -307,6 +304,7 @@ class SPAGLUEVAE(BaseModuleClass):
         kl_divergence_z = kl_divergence(
             inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
         ).sum(dim=-1)
+
         kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
 
         loss = reconstruction_loss_norm + kl_local_norm

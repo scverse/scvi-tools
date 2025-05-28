@@ -50,6 +50,7 @@ class SPAGLUE(BaseModelClass):
 
         generative_distributions = generative_distributions or ["nb", "nb"]  ## for now
 
+
         self.guidance_graph = self._construct_guidance_graph(adata_seq, adata_spatial)
 
         self.module = SPAGLUEVAE(
@@ -79,12 +80,6 @@ class SPAGLUE(BaseModelClass):
         plan_kwargs: dict | None = None,
         # **kwargs: dict,
     ) -> None:
-        # if torch.backends.mps.is_available():
-        #     accelerator = "mps"
-        #     devices = 1  # Use a single MPS device
-        #     print("Using MPS accelerator for training.")
-        # else:
-        #     print("MPS not available. Falling back to default accelerator.")
 
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
@@ -168,6 +163,7 @@ class SPAGLUE(BaseModelClass):
         layer: str | None = None,
         # **kwargs: dict,
     ) -> None:
+
         if not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
 
@@ -239,6 +235,7 @@ class SPAGLUE(BaseModelClass):
             zs.append(latent_tensor)
 
         return np.concatenate(zs, axis=0)
+
 
     def _construct_guidance_graph(self, adata_seq, adata_spatial, weight=1.0, sign=1):
         shared_features = set(adata_seq.var_names) & set(adata_spatial.var_names)

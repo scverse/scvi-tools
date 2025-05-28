@@ -89,6 +89,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         # batch contains both data loader outputs (list of 2 train_dl)
         loss_output_objs = []
+
         for i, tensors in enumerate(
             batch
         ):  # contains data from all datasets - mode is either 0 or 1
