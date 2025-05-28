@@ -94,8 +94,9 @@ class SPAGLUE(BaseModelClass):
 
         # datasplitter_kwargs = datasplitter_kwargs or {}
 
-        logger = TensorBoardLogger("lightning_logs", name="spaglue")
-        print(type(logger))
+        logger = TensorBoardLogger(
+            "lightning_logs", name="spaglue"
+        )  # wie machen das andere modelle?
 
         self.trainer = Trainer(
             max_epochs=max_epochs,
@@ -221,7 +222,7 @@ class SPAGLUE(BaseModelClass):
 
         return results
 
-    def _compute_latent(
+    def _compute_latent(  # commmon latent space (modality: overlap, celltype: sep)
         self,
         dataloader: Iterator[dict[str, torch.Tensor | None]],
         mode: int,

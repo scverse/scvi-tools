@@ -88,6 +88,28 @@ class GraphEncoder(nn.Module):
         return z, mu, logvar
 
 
+class GraphEncoder_glue(nn.Module):
+    def __init__(self, vnum: int, out_features: int):
+        super().__init__()
+        self.vrepr = nn.Parameter(torch.zeros(vnum, out_features))
+        self.conv = GCNConv(out_features, out_features)  # evtl auch GAT - user parameter
+        self.loc = nn.Linear(out_features, out_features)
+        self.std_lin = nn.Linear(out_features, out_features)
+
+    def forward(self, edge_index):
+        h = self.conv(self.vrepr, edge_index)
+        loc = self.loc(h)
+        std = F.softplus(self.std_lin(h)) + EPS
+
+        dist = torch.distributions.Normal(loc, std)
+        mu = dist.loc
+        std = dist.scale
+        logvar = torch.log(std**2)
+        z = dist.rsample()
+
+        return z, mu, logvar
+
+
 class SPAGLUEVAE(BaseModuleClass):
     def __init__(
         self,
@@ -141,11 +163,16 @@ class SPAGLUEVAE(BaseModuleClass):
             n_batches=n_batches[1],
         )
 
-        self.graph_encoder = GraphEncoder(
-            in_dim=n_inputs[0] + n_inputs[1],
-            hidden_dim=32,
-            out_dim=10,
+        self.graph_encoder = GraphEncoder_glue(
+            vnum=n_inputs[0] + n_inputs[1],
+            out_features=10,
         )
+
+        # self.graph_encoder = GraphEncoder(
+        #     in_dim=n_inputs[0] + n_inputs[1],
+        #     hidden_dim=32,
+        #     out_dim=10,
+        # )
 
     def _get_inference_input(
         self, tensors: dict[str, torch.Tensor]
@@ -183,7 +210,8 @@ class SPAGLUEVAE(BaseModuleClass):
         graph = graph.to(device)
 
         # whole embedding is calculated
-        v_all, mu_all, logvar_all = self.graph_encoder(graph.x, graph.edge_index)
+        v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
+        # v_all, mu_all, logvar_all = self.graph_encoder(graph.x, graph.edge_index)
 
         # embedding for modality is extracted to be used for decoder input
         if mode == 0:
@@ -283,12 +311,19 @@ class SPAGLUEVAE(BaseModuleClass):
 
         loss = reconstruction_loss_norm + kl_local_norm
 
+        if mode == 0:
+            print("x_rna_kl: ", kl_local_norm)
+            print("x_rna_nll: ", reconstruction_loss_norm)
+            print("x_rna_elbo: ", loss)
+        else:
+            print("x_seqfish_kl: ", kl_local_norm)
+            print("x_seqfish_nll: ", reconstruction_loss_norm)
+            print("x_seqfish_elbo: ", loss)
+
         ## graph inference
         mu_all = inference_outputs["mu_all"]
         logvar_all = inference_outputs["logvar_all"]
         v_all = inference_outputs["v_all"]
-
-        print("Total Loss: ", loss)
 
         return LossOutput(
             loss=loss,
