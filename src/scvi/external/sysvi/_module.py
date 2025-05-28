@@ -9,7 +9,7 @@ from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
 
 from ._base_components import EncoderDecoder
-from ._priors import StandardPrior, VampPrior
+from ._priors import GaussianPrior, VampPrior
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -137,7 +137,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         )
 
         if prior == "standard_normal":
-            self.prior = StandardPrior()
+            self.prior = GaussianPrior()
         elif prior == "vamp":
             assert pseudoinput_data is not None, (
                 "Pseudoinput data must be specified if using VampPrior"

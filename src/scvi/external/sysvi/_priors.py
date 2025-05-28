@@ -35,7 +35,7 @@ class Prior(torch.nn.Module, abc.ABC):
         pass
 
 
-class StandardPrior(Prior):
+class GaussianPrior(Prior):
     """Standard prior distribution."""
 
     def kl(self, qz: torch.Tensor, z: None = None) -> torch.Tensor:

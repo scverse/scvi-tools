@@ -15,8 +15,8 @@ from scvi.module.base import (
     BaseMinifiedModeModuleClass,
     EmbeddingModuleMixin,
     LossOutput,
+    GaussianPrior,
     MogPrior,
-    StandardPrior,
     VampPrior,
     auto_move_data,
 )
@@ -285,7 +285,7 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 **cls_parameters,
             )
         if prior == "gaussian":
-            self.prior = StandardPrior()
+            self.prior = GaussianPrior()
         elif prior == "vamp":
             assert pseudoinput_data is not None, (
                 "Pseudoinput data must be specified if using VampPrior"
