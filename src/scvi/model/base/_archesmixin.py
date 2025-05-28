@@ -414,7 +414,6 @@ def _set_params_online_update(
     if not freeze_classifier:
         mod_no_hooks_yes_grad.add("classifier")
     parameters_yes_grad = {"background_pro_alpha", "background_pro_log_beta"}
-    parameters_yes_grad = {"background_pro_alpha", "background_pro_log_beta"}
 
     def no_hook_cond(key):
         one = (not freeze_expression) and "encoder" in key
