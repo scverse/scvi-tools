@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from anndata import AnnData
 
 logger = logging.getLogger(__name__)
+print(2)
 
 
 class ASSAYVI(
