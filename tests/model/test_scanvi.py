@@ -709,7 +709,7 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     # (here, the more labels the more time it will take to run)
     shap_values = model.shap_predict(shap_args={"nsamples": 100})
     # select the label we want to understand (usually the '1' class)
-    shap_top_features = model.get_ranked_markers(attrs=shap_values[:, :, 1]).head(5)
+    shap_top_features = model.get_ranked_features(attrs=shap_values[:, :, 1]).head(5)
     print(shap_top_features)
 
     # now run shap values for the test set (can be specific class or indices and with params)
@@ -720,5 +720,5 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
         shap_args={"link": "identity", "silent": True, "gc_collect": True, "nsamples": 300},
     )
     # # select the label we want to understand (usually the '1' class)
-    shap_top_features_test = model.get_ranked_markers(attrs=shap_values_test[:, :, 1]).head(5)
+    shap_top_features_test = model.get_ranked_features(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)
