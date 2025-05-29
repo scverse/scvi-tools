@@ -29,7 +29,7 @@ def compute_composition_error(
     module
         A callable (can be a :class:`~torch.nn.Module` instance) that takes a dictionary of
         :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
-        element is an instance of :class:`~scvi.external.nichevi._module.NicheLossOutput`.
+        element is an instance of :class:`~scvi.external.scviva._module.NicheLossOutput`.
     dataloader
         An iterator over minibatches of data on which to compute the metric. The minibatches
         should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
@@ -78,7 +78,7 @@ def compute_niche_error(
     module
         A callable (can be a :class:`~torch.nn.Module` instance) that takes a dictionary of
         :class:`~torch.Tensor`s as input and returns a tuple of three elements, where the last
-        element is an instance of :class:`~scvi.external.nichevi._module.NicheLossOutput`.
+        element is an instance of :class:`~scvi.external.scviva._module.NicheLossOutput`.
     dataloader
         An iterator over minibatches of data on which to compute the metric. The minibatches
         should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by

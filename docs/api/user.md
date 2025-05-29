@@ -65,7 +65,7 @@ import scvi
    external.TOTALANVI
    external.RESOLVI
    external.SysVI
-   external.NICHEVI
+   external.SCVIVA
 ```
 
 ## Data loading

@@ -8,7 +8,7 @@ from scvi.external import SCVIVA
 N_LATENT_INTRINSIC = 20
 N_LATENT = 10
 K_NN = 5
-N_EPOCHS_NICHEVI = 2
+N_EPOCHS_SCVIVA = 2
 
 setup_kwargs = {
     "sample_key": "batch",
@@ -64,7 +64,7 @@ def test_nichevi_train(adata: AnnData):
     )
 
     nichevae.train(
-        max_epochs=N_EPOCHS_NICHEVI,
+        max_epochs=N_EPOCHS_SCVIVA,
         train_size=0.8,
         validation_size=0.2,
         early_stopping=True,
@@ -96,7 +96,7 @@ def test_nichevi_save_load(adata):
     )
 
     nichevae.train(
-        max_epochs=N_EPOCHS_NICHEVI,
+        max_epochs=N_EPOCHS_SCVIVA,
         train_size=0.8,
         validation_size=0.2,
         early_stopping=True,
@@ -144,7 +144,7 @@ def test_nichevi_differential(adata):
     )
 
     nichevae.train(
-        max_epochs=N_EPOCHS_NICHEVI,
+        max_epochs=N_EPOCHS_SCVIVA,
         train_size=0.8,
         validation_size=0.2,
         early_stopping=True,
