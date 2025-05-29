@@ -4,6 +4,7 @@
 :maxdepth: 1
 
 notebooks/spatial/resolVI_tutorial
+notebooks/spatial/scVIVA_tutorial
 notebooks/spatial/DestVI_tutorial
 notebooks/spatial/gimvi_tutorial
 notebooks/spatial/tangram_scvi_tools
@@ -16,6 +17,13 @@ notebooks/spatial/cell2location_lymph_node_spatial_tutorial
 :tags: Analysis, Integration, Transfer-learning, Dimensionality-reduction
 
 Use resolVI to correct cellular-resolved spatial transcriptomics data.
+```
+
+```{customcard}
+:path: notebooks/spatial/scVIVA_tutorial
+:tags: Analysis, Integration, Dimensionality-reduction, Differential-comparison
+
+Stratify spatial transcriptomics data into niche-aware cell states with scVIVA
 ```
 
 ```{customcard}
