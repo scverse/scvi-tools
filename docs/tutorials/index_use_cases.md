@@ -8,6 +8,7 @@ notebooks/use_cases/minification
 notebooks/use_cases/interpretability
 notebooks/use_cases/custom_dl/tiledb
 notebooks/use_cases/custom_dl/lamin
+notebooks/use_cases/custom_dl/ann_collection
 notebooks/use_cases/multiGPU
 ```
 
@@ -36,14 +37,21 @@ Use integrated gradient or SHAP values for model explainability
 :path: notebooks/use_cases/custom_dl/tiledb
 :tags: Analysis, Custom-Dataloaders, Integration, Dev
 
-Learn a scalable approach using custom dataloader to training an scVI model on Census data.
+Learn a scalable approach using TileDBDataModule dataloader to training an scVI model on Census data.
 ```
 
 ```{customcard}
 :path: notebooks/use_cases/custom_dl/lamin
 :tags: Analysis, Custom-Dataloaders, Integration, Dev
 
-Use the Lamin dataloader for a scalable approach to training an scVI model on multiple adata's.
+Use the Lamin MappedCollectionDataModule for a scalable approach to training an scVI model on multiple adata's.
+```
+
+```{customcard}
+:path: notebooks/use_cases/custom_dl/ann_collection
+:tags: Analysis, Custom-Dataloaders, Integration, Dev
+
+Use the AnnCollection dataloader for a scalable approach to training an scVI model on multiple adata's.
 ```
 
 ```{customcard}
