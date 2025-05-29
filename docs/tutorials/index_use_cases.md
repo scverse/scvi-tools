@@ -3,12 +3,20 @@
 ```{toctree}
 :maxdepth: 1
 
+notebooks/use_cases/preprocessing
 notebooks/use_cases/autotune_scvi
 notebooks/use_cases/minification
 notebooks/use_cases/interpretability
 notebooks/use_cases/custom_dl/tiledb
 notebooks/use_cases/custom_dl/lamin
 notebooks/use_cases/multiGPU
+```
+
+```{customcard}
+:path: notebooks/use_cases/preprocessing
+:tags:
+
+Learn how to preprocess various types of data for use with scvi-tools models.
 ```
 
 ```{customcard}
