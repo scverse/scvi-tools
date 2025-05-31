@@ -26,42 +26,6 @@ def compute_graph_loss(graph, feature_embeddings):
 
     total_loss = -(pos_loss + neg_loss) / 2
 
-    # edge_weight = graph.edge_weight
-    # edge_index = graph.edge_index
-    # edge_sign = graph.edge_sign
-    # num_nodes = feature_embeddings.size(0)
-
-    # probs = edge_weight / edge_weight.sum()
-    # num_samples = edge_index.size(1)
-    # # randomly samples from [0, len(probs)-1]
-    # sampled_indices = torch.multinomial(probs, num_samples, replacement=True)
-
-    # pos_i = edge_index[0, sampled_indices]
-    # pos_j = edge_index[1, sampled_indices]
-    # pos_s = edge_sign[sampled_indices]
-
-    # vi = feature_embeddings[pos_i]
-    # vj = feature_embeddings[pos_j]
-
-    # pos_logits = pos_s * (vi * vj).sum(dim=1)
-    # pos_loss = F.logsigmoid(pos_logits).mean()
-
-    # num_negative = 1
-
-    # # Negative sampling
-    # # draw num_samples random ints between 0 and num nodes
-    # neg_j = torch.randint(0, num_nodes, (num_negative * num_samples,))
-    # neg_i = pos_i.repeat(num_negative)  # if num_negative = 1 just copy the original vector
-    # neg_s = pos_s.repeat(num_negative)
-
-    # vi_neg = feature_embeddings[neg_i]
-    # vj_neg = feature_embeddings[neg_j]
-
-    # neg_logits = neg_s * (vi_neg * vj_neg).sum(dim=1)
-    # neg_loss = F.logsigmoid(-neg_logits).mean()
-
-    # total_loss = -(pos_loss + neg_loss) / 2  # negate the likelihood to get the loss!
-    # compute avg
     return total_loss
 
 
@@ -93,9 +57,6 @@ class SPAGLUETrainingPlan(TrainingPlan):
         for i, tensors in enumerate(
             batch
         ):  # contains data from all datasets - mode is either 0 or 1
-            n_obs = tensors[REGISTRY_KEYS.X_KEY].shape[0]
-            n_var = tensors[REGISTRY_KEYS.X_KEY].shape[1]
-
             self.loss_kwargs.update({"mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
@@ -120,7 +81,6 @@ class SPAGLUETrainingPlan(TrainingPlan):
                 )
 
             kl_divergence = loss_output.kl_local["kl_local"]
-            kl_divergence = torch.sum(kl_divergence) / (n_obs * n_var)
 
             if i == 0:
                 self.logger.experiment.add_scalars("kl", {"seq": kl_divergence}, self.global_step)
@@ -165,9 +125,12 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
+        print("data loss: ", data_loss)
 
-        K = 1
+        # set parameter to glue default for now
+        K = 0.04
         total_loss = K * graph_loss + data_loss
+        print("total_loss: ", total_loss)
 
         self.train_losses.append(total_loss.item())
 
@@ -237,7 +200,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
-        K = 1
+        K = 0.02
         total_loss = K * graph_loss + data_loss
 
         self.validation_losses.append(total_loss.item())

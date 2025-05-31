@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.distributions import kl_divergence
+from torch.distributions import Normal, kl_divergence
 from torch_geometric.nn import GCNConv
 
 from scvi import REGISTRY_KEYS
@@ -98,7 +98,7 @@ class GraphEncoder_glue(nn.Module):
         loc = self.loc(h)
         std = F.softplus(self.std_lin(h)) + EPS
 
-        dist = torch.distributions.Normal(loc, std)
+        dist = Normal(loc, std)
         mu = dist.loc
         std = dist.scale
         logvar = torch.log(std**2)
@@ -114,9 +114,9 @@ class SPAGLUEVAE(BaseModuleClass):
         n_batches: list[int],
         gene_likelihoods: list[str],
         guidance_graph,
-        n_latent_seq: int = 10,
-        n_latent_spatial: int = 10,
-        n_hidden: int = 128,
+        n_latent_seq: int = 50,
+        n_latent_spatial: int = 50,
+        n_hidden: int = 256,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
         # **kwargs: dict,
@@ -162,7 +162,7 @@ class SPAGLUEVAE(BaseModuleClass):
 
         self.graph_encoder = GraphEncoder_glue(
             vnum=n_inputs[0] + n_inputs[1],
-            out_features=10,
+            out_features=50,
         )
 
         # self.graph_encoder = GraphEncoder(
@@ -181,8 +181,6 @@ class SPAGLUEVAE(BaseModuleClass):
     def _get_generative_input(
         self, tensors: dict[str, torch.Tensor], inference_outputs: dict[str, torch.Tensor]
     ) -> dict[str, torch.Tensor]:
-        from scvi.module._constants import MODULE_KEYS
-
         return {
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
@@ -197,8 +195,6 @@ class SPAGLUEVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
-        from scvi.module._constants import MODULE_KEYS
-
         x_ = x
         library = torch.log(x.sum(1)).unsqueeze(1)
 
@@ -208,7 +204,6 @@ class SPAGLUEVAE(BaseModuleClass):
 
         # whole embedding is calculated
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
-        # v_all, mu_all, logvar_all = self.graph_encoder(graph.x, graph.edge_index)
 
         # embedding for modality is extracted to be used for decoder input
         if mode == 0:
@@ -246,10 +241,6 @@ class SPAGLUEVAE(BaseModuleClass):
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
         """Run the generative model."""
-        from torch.distributions import Normal
-
-        from scvi.module._constants import MODULE_KEYS
-
         EPS = 1e-8
 
         # diss data
@@ -308,15 +299,6 @@ class SPAGLUEVAE(BaseModuleClass):
         kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
 
         loss = reconstruction_loss_norm + kl_local_norm
-
-        if mode == 0:
-            print("x_rna_kl: ", kl_local_norm)
-            print("x_rna_nll: ", reconstruction_loss_norm)
-            print("x_rna_elbo: ", loss)
-        else:
-            print("x_seqfish_kl: ", kl_local_norm)
-            print("x_seqfish_nll: ", reconstruction_loss_norm)
-            print("x_seqfish_elbo: ", loss)
 
         ## graph inference
         mu_all = inference_outputs["mu_all"]

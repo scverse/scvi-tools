@@ -74,7 +74,7 @@ class SPAGLUE(BaseModelClass):
         devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
         shuffle_set_split: bool = True,
-        batch_size: int = 128,
+        batch_size: int = 256,
         # datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         # **kwargs: dict,
