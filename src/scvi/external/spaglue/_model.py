@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Iterator, Sequence
 from itertools import cycle
 
@@ -5,7 +6,6 @@ import numpy as np
 import scipy.sparse
 import torch
 from anndata import AnnData
-from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
@@ -20,6 +20,8 @@ from scvi.train import Trainer
 from ._module import SPAGLUEVAE
 from ._task import SPAGLUETrainingPlan
 
+logger = logging.getLogger(__name__)
+
 
 class SPAGLUE(BaseModelClass):
     def __init__(
@@ -27,7 +29,7 @@ class SPAGLUE(BaseModelClass):
         adata_seq: AnnData,
         adata_spatial: AnnData,
         generative_distributions: list[str] | None = None,
-        # **model_kwargs: dict,
+        **model_kwargs: dict,
     ) -> None:
         super().__init__()
         self.adatas = [adata_seq, adata_spatial]
@@ -38,7 +40,6 @@ class SPAGLUE(BaseModelClass):
         }
 
         self.registries_ = []
-        # register data_manager for this specific instance
         for adm in self.adata_managers.values():
             self._register_manager_for_instance(adm)
             self.registries_.append(adm.registry)
@@ -65,7 +66,7 @@ class SPAGLUE(BaseModelClass):
             f"n_inputs_spa: {n_inputs[1]} , n_batches_seq: {n_batches[0]}, "
             f"n_batches_spa: {n_batches[1]} , generative distributions: {generative_distributions}"
         )
-        self._module_class = SPAGLUEVAE
+        # self._module_class = SPAGLUEVAE
 
     def train(
         self,
@@ -76,8 +77,9 @@ class SPAGLUE(BaseModelClass):
         shuffle_set_split: bool = True,
         batch_size: int = 256,
         # datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
-        # **kwargs: dict,
+        plan_kwargs: dict | None = None,  # kwargs passed to trainingplan
+        # graph_loss_weight = self.graph_loss_weight,
+        **kwargs,
     ) -> None:
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
@@ -85,23 +87,15 @@ class SPAGLUE(BaseModelClass):
             return_device="torch",  #  make returned device pytorch compatible
         )
 
-        # datasplitter_kwargs = datasplitter_kwargs or {}
-
-        logger = TensorBoardLogger(
-            "lightning_logs", name="spaglue"
-        )  # wie machen das andere modelle?
-
         self.trainer = Trainer(
             max_epochs=max_epochs,
             enable_progress_bar=True,
             progress_bar_refresh_rate=1,
-            # log_every_n_steps=1,
             early_stopping=True,
             early_stopping_monitor="validation_loss",
             accelerator=accelerator,
             devices=devices,
-            logger=logger,
-            # **kwargs,
+            **kwargs,
         )
 
         validation_size = 1 - train_size
@@ -131,21 +125,25 @@ class SPAGLUE(BaseModelClass):
         val_dl = TrainDL(val_dls, num_workers=9)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        print(plan_kwargs)
         self._training_plan = SPAGLUETrainingPlan(
             self.module,  # JVAE module (defined in __init__)
             **plan_kwargs,
         )
 
         if train_size == 1.0:  # avoid issue with empty train/val dataloaders
-            # circumvent the empty data loader problem if all dataset used for training
             self.trainer.fit(
                 self._training_plan, train_dl
             )  # calling trainer.fit uses train_df and val_dl
         else:
-            # accepts list of val dataloaders
             self.trainer.fit(
                 self._training_plan, train_dataloaders=train_dl, val_dataloaders=val_dl
             )
+        try:
+            self.history_ = self.trainer.logger.history
+        except AttributeError:
+            self.history_ = None
+        self.module.eval()
 
         self.module.eval()  # set model to evaluation mode (di)
 
@@ -215,7 +213,7 @@ class SPAGLUE(BaseModelClass):
 
         return results
 
-    def _compute_latent(  # commmon latent space (modality: overlap, celltype: sep)
+    def _compute_latent(
         self,
         dataloader: Iterator[dict[str, torch.Tensor | None]],
         mode: int,

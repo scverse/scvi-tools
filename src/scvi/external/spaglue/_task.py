@@ -36,11 +36,11 @@ def kl_divergence_graph(mu, logvar):
 
 
 class SPAGLUETrainingPlan(TrainingPlan):
-    def __init__(self, *args: tuple, **kwargs: dict) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, module, lam_graph=1.0, lam_kl=1.0, *args, **kwargs) -> None:
+        super().__init__(module, *args, **kwargs)
 
-        self.train_losses = []
-        self.validation_losses = []
+        self.lam_graph = lam_graph
+        self.lam_kl = lam_kl
 
         self.automatic_optimization = False  # important for adversarial setup
 
@@ -50,172 +50,134 @@ class SPAGLUETrainingPlan(TrainingPlan):
         # (can be used e.g. for gradient accumulation)
         """Training step."""
         opt = self.optimizers()
-
-        # batch contains both data loader outputs (list of 2 train_dl)
         loss_output_objs = []
 
-        for i, tensors in enumerate(
-            batch
-        ):  # contains data from all datasets - mode is either 0 or 1
-            self.loss_kwargs.update({"mode": i})
+        for i, tensors in enumerate(batch):
+            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+
+            self.loss_kwargs.update({"lam_kl": self.lam_kl, "mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
 
-            _, _, loss_output = self.forward(  # perform inf and gen steps
+            _, _, loss_output = self.forward(
                 tensors,
                 loss_kwargs=self.loss_kwargs,
                 inference_kwargs=inference_kwargs,
                 generative_kwargs=generative_kwargs,
             )
 
+            # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
-
             if i == 0:
-                self.logger.experiment.add_scalars(
-                    "nll", {"seq": reconstruction_loss}, self.global_step
-                )
+                self.log("nll_seq", reconstruction_loss, batch_size=batch_size)
             elif i == 1:
-                self.logger.experiment.add_scalars(
-                    "nll", {"spatial": reconstruction_loss}, self.global_step
-                )
-
+                self.log("nll_spatial", reconstruction_loss, batch_size=batch_size)
             kl_divergence = loss_output.kl_local["kl_local"]
-
             if i == 0:
-                self.logger.experiment.add_scalars("kl", {"seq": kl_divergence}, self.global_step)
+                self.log("kl_seq", kl_divergence, batch_size=batch_size)
             elif i == 1:
-                self.logger.experiment.add_scalars(
-                    "kl", {"spatial": kl_divergence}, self.global_step
-                )
+                self.log("kl_spatial", kl_divergence, batch_size=batch_size)
 
             loss = loss_output.loss
 
             loss_dict = {
-                "modality_reconstruction_loss": reconstruction_loss,
-                "modality_kl_divergence": kl_divergence,
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
-                "graph_v_mu": loss_output.extra_metrics["mu_all"],
-                "graph_v_logvar": loss_output.extra_metrics["logvar_all"],
             }
 
             loss_output_objs.append(loss_dict)
-
-        assert torch.equal(loss_output_objs[0]["graph_v_mu"], loss_output_objs[1]["graph_v_mu"])
 
         ### graph nll
         graph = loss_output.extra_metrics["guidance_graph"]
         feature_embeddings = loss_output_objs[0]["graph_v"]
         graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
-        self.logger.experiment.add_scalars(
-            "nll", {"graph": graph_likelihood_loss}, self.global_step
-        )
 
-        ### graph kl
+        ### graph kl - mu_all and mu_logvar is the same for both modalities
         graph_kl_loss = kl_divergence_graph(
             loss_output.extra_metrics["mu_all"],
             loss_output.extra_metrics["logvar_all"],
         )
-        # in glue: extra normalization with batch size
         graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
-        self.logger.experiment.add_scalars("kl", {"graph": graph_kl_loss_norm}, self.global_step)
 
+        # log individual graph losses
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch)
+        self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size)
+        self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size)
+
+        ### graph loss
         graph_loss = graph_likelihood_loss + graph_kl_loss_norm
 
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
-        print("data loss: ", data_loss)
 
-        # set parameter to glue default for now
-        K = 0.04
-        total_loss = K * graph_loss + data_loss
-        print("total_loss: ", total_loss)
+        ### total loss
+        total_loss = self.lam_graph * graph_loss + data_loss
 
-        self.train_losses.append(total_loss.item())
+        self.log(
+            "training_loss",
+            total_loss,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+            batch_size=total_batch_size,
+        )
 
-        opt.zero_grad()  # zero out gradient
-        self.manual_backward(total_loss)  # recompute gradients via backpropagation
-        opt.step()  # updates the model weights
-
+        opt.zero_grad()
+        self.manual_backward(total_loss)
+        opt.step()
         return {"loss": total_loss}
 
     def validation_step(self, batch: list[dict[str, torch.Tensor]]) -> None:
         """Validation step."""
-        print("validating")
         loss_output_objs = []
 
-        for i, tensors in enumerate(
-            batch
-        ):  # contains data from all datasets - mode is either 0 or 1
-            n_obs = tensors[REGISTRY_KEYS.X_KEY].shape[0]
-            n_var = tensors[REGISTRY_KEYS.X_KEY].shape[1]
-
-            self.loss_kwargs.update({"mode": i})
+        for i, tensors in enumerate(batch):
+            self.loss_kwargs.update({"lam_kl": self.lam_kl, "mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
-            _, _, loss_output = self.forward(  # perform inf and gen steps
+
+            _, _, loss_output = self.forward(
                 tensors,
                 loss_kwargs=self.loss_kwargs,
                 inference_kwargs=inference_kwargs,
                 generative_kwargs=generative_kwargs,
             )
 
-            # per modality nll
-            reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
-            reconstruction_loss = torch.mean(reconstruction_loss)
-
-            # per modality kl
-            kl_divergence = loss_output.kl_local["kl_local"]
-            kl_divergence = torch.sum(kl_divergence) / (n_obs * n_var)
-
             loss = loss_output.loss
 
             loss_dict = {
-                "modality_reconstruction_loss": reconstruction_loss,
-                "modality_kl_divergence": kl_divergence,
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
-                "graph_v_mu": loss_output.extra_metrics["mu_all"],
-                "graph_v_logvar": loss_output.extra_metrics["logvar_all"],
             }
 
             loss_output_objs.append(loss_dict)
 
-        ### graph nll
+            ### graph nll
         graph = loss_output.extra_metrics["guidance_graph"]
-        feature_embeddings = loss_output_objs[0]["graph_v"]
+        feature_embeddings = loss_output_objs[0]["graph_v"]  # 0 or 1 is same
         graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
 
-        ### graph kl
         graph_kl_loss = kl_divergence_graph(
             loss_output.extra_metrics["mu_all"],
             loss_output.extra_metrics["logvar_all"],
         )
-        # in glue: extra normalization with batch size
         graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
 
+        ### graph loss
         graph_loss = graph_likelihood_loss + graph_kl_loss_norm
 
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
-        K = 0.02
-        total_loss = K * graph_loss + data_loss
+        ### total loss
+        total_loss = self.lam_graph * graph_loss + data_loss
 
-        self.validation_losses.append(total_loss.item())
-        self.log("validation_loss", total_loss, prog_bar=True, logger=False, on_epoch=True)
-
-    def on_train_epoch_end(self) -> None:
-        """Log training loss at the end of each epoch."""
-        avg_train_loss = sum(self.train_losses) / len(self.train_losses)
-        self.logger.experiment.add_scalars("loss", {"train": avg_train_loss}, self.current_epoch)
-        self.train_losses.clear()
-
-    def on_validation_epoch_end(self) -> None:
-        """Log validation loss at the end of each epoch."""
-        avg_validation_loss = sum(self.validation_losses) / len(self.train_losses)
-        self.logger.experiment.add_scalars(
-            "loss", {"validation": avg_validation_loss}, self.current_epoch
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch)
+        self.log(
+            "validation_loss",
+            total_loss,
+            prog_bar=True,
+            on_epoch=True,
+            batch_size=total_batch_size,
         )
-        self.validation_losses.clear()

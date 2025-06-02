@@ -280,7 +280,7 @@ class SPAGLUEVAE(BaseModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor],
         generative_outputs: dict[str, torch.Tensor],
-        kl_weight: torch.Tensor | float = 1.0,
+        lam_kl: torch.Tensor | float = 1.0,
         mode: int | None = None,
     ) -> LossOutput:
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -298,7 +298,7 @@ class SPAGLUEVAE(BaseModuleClass):
 
         kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
 
-        loss = reconstruction_loss_norm + kl_local_norm
+        loss = reconstruction_loss_norm + lam_kl * kl_local_norm
 
         ## graph inference
         mu_all = inference_outputs["mu_all"]
