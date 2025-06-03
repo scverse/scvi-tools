@@ -36,11 +36,12 @@ def kl_divergence_graph(mu, logvar):
 
 
 class SPAGLUETrainingPlan(TrainingPlan):
-    def __init__(self, module, lam_graph=1.0, lam_kl=1.0, *args, **kwargs) -> None:
+    def __init__(self, module, lam_graph=1.0, lam_kl=1.0, lam_data=1.0, *args, **kwargs) -> None:
         super().__init__(module, *args, **kwargs)
 
         self.lam_graph = lam_graph
         self.lam_kl = lam_kl
+        self.lam_data = lam_data
 
         self.automatic_optimization = False  # important for adversarial setup
 
@@ -55,7 +56,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         for i, tensors in enumerate(batch):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
 
-            self.loss_kwargs.update({"lam_kl": self.lam_kl, "mode": i})
+            self.loss_kwargs.update({"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
 
@@ -70,14 +71,14 @@ class SPAGLUETrainingPlan(TrainingPlan):
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
             if i == 0:
-                self.log("nll_seq", reconstruction_loss, batch_size=batch_size)
+                self.log("nll_0", reconstruction_loss, batch_size=batch_size)
             elif i == 1:
-                self.log("nll_spatial", reconstruction_loss, batch_size=batch_size)
+                self.log("nll_1", reconstruction_loss, batch_size=batch_size)
             kl_divergence = loss_output.kl_local["kl_local"]
             if i == 0:
-                self.log("kl_seq", kl_divergence, batch_size=batch_size)
+                self.log("kl_0", kl_divergence, batch_size=batch_size)
             elif i == 1:
-                self.log("kl_spatial", kl_divergence, batch_size=batch_size)
+                self.log("kl_1", kl_divergence, batch_size=batch_size)
 
             loss = loss_output.loss
 
@@ -133,7 +134,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         loss_output_objs = []
 
         for i, tensors in enumerate(batch):
-            self.loss_kwargs.update({"lam_kl": self.lam_kl, "mode": i})
+            self.loss_kwargs.update({"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": i})
             inference_kwargs = {"mode": i}
             generative_kwargs = {"mode": i}
 

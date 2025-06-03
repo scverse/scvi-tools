@@ -9,12 +9,13 @@ from anndata import AnnData
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
+from scvi.external.spaglue._utils import _construct_guidance_graph
 from scvi.model._utils import parse_device_args
-from scvi.model.base import BaseModelClass
+from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.train import Trainer
 
 from ._module import SPAGLUEVAE
@@ -23,12 +24,13 @@ from ._task import SPAGLUETrainingPlan
 logger = logging.getLogger(__name__)
 
 
-class SPAGLUE(BaseModelClass):
+class SPAGLUE(BaseModelClass, VAEMixin):
     def __init__(
         self,
         adata_seq: AnnData,
         adata_spatial: AnnData,
         generative_distributions: list[str] | None = None,
+        guidance_graph: Data | None = None,
         **model_kwargs: dict,
     ) -> None:
         super().__init__()
@@ -51,7 +53,10 @@ class SPAGLUE(BaseModelClass):
 
         generative_distributions = generative_distributions or ["nb", "nb"]  ## for now
 
-        self.guidance_graph = self._construct_guidance_graph(adata_seq, adata_spatial)
+        if guidance_graph is not None:
+            self.guidance_graph = guidance_graph
+        else:
+            self.guidance_graph = _construct_guidance_graph(adata_seq, adata_spatial)
 
         self.module = SPAGLUEVAE(
             n_inputs=n_inputs,
@@ -121,11 +126,14 @@ class SPAGLUE(BaseModelClass):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        train_dl = TrainDL(train_dls, num_workers=9)  # combine the list of TRAINING dataloaders
-        val_dl = TrainDL(val_dls, num_workers=9)
+        # train_dl = TrainDL(train_dls, num_workers=9)  # combine the list of TRAINING dataloaders
+        # val_dl = TrainDL(val_dls, num_workers=9)
+
+        train_dl = TrainDL(train_dls)  # combine the list of TRAINING dataloaders
+        val_dl = TrainDL(val_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
-        print(plan_kwargs)
+
         self._training_plan = SPAGLUETrainingPlan(
             self.module,  # JVAE module (defined in __init__)
             **plan_kwargs,
@@ -231,63 +239,10 @@ class SPAGLUE(BaseModelClass):
 
         return np.concatenate(zs, axis=0)
 
-    def _construct_guidance_graph(self, adata_seq, adata_spatial, weight=1.0, sign=1):
-        shared_features = set(adata_seq.var_names) & set(adata_spatial.var_names)
-        if not shared_features:
-            raise ValueError("No overlapping features between the two modalities.")
-
-        features_seq = [f"{f}_seq" for f in adata_seq.var_names]
-        features_spatial = [f"{f}_spatial" for f in adata_spatial.var_names]
-
-        # Build node list
-        all_features = features_seq + features_spatial
-        feature_to_index = {f: i for i, f in enumerate(all_features)}
-
-        # Edges for matching features
-        edge_index = []
-        edge_weight = []
-        edge_sign = []
-
-        for feature in shared_features:
-            i = feature_to_index[feature + "_seq"]
-            j = feature_to_index[feature + "_spatial"]
-
-            edge_index += [[i, j], [j, i]]
-            edge_weight += [weight, weight]
-            edge_sign += [sign, sign]
-
-        # Add self-loops
-        for feature in all_features:
-            i = feature_to_index[feature]
-            edge_index.append([i, i])
-            edge_weight.append(1.0)
-            edge_sign.append(1)
-
-        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
-        edge_weight = torch.tensor(edge_weight, dtype=torch.float)
-        edge_sign = torch.tensor(edge_sign, dtype=torch.float)
-
-        x = torch.eye(len(all_features))  # node features as identity for simplicity
-
-        # Extract seq/spa indices
-        seq_indices = torch.tensor([feature_to_index[f] for f in features_seq], dtype=torch.long)
-        spa_indices = torch.tensor(
-            [feature_to_index[f] for f in features_spatial], dtype=torch.long
-        )
-
-        return Data(
-            x=x,
-            edge_index=edge_index,
-            edge_weight=edge_weight,
-            edge_sign=edge_sign,
-            seq_indices=seq_indices,  # attach as attributes
-            spa_indices=spa_indices,
-        )
-
 
 class TrainDL(DataLoader):  # creates batch structure for training process
-    # def __init__(self, data_loader_list, **kwargs):
-    def __init__(self, data_loader_list, num_workers=0):
+    def __init__(self, data_loader_list):
+        # def __init__(self, data_loader_list, num_workers=0):
         self.data_loader_list = data_loader_list  # list of individual dls
         self.largest_train_dl_idx = np.argmax(
             [len(dl.indices) for dl in data_loader_list]
@@ -295,8 +250,12 @@ class TrainDL(DataLoader):  # creates batch structure for training process
         self.largest_dl = self.data_loader_list[
             self.largest_train_dl_idx
         ]  # dl corresponding to the largest dataset
-        # super().__init__(self.largest_dl, **kwargs)
-        super().__init__(self.largest_dl, num_workers=num_workers)
+        # super().__init__(self.largest_dl, num_workers=num_workers)
+        super().__init__(
+            self.largest_dl,
+            num_workers=settings.dl_num_workers,
+            persistent_workers=getattr(settings, "dl_persistent_workers", False),
+        )
 
     # number of batches per epoch is determined by the larger dataset
     def __len__(self):

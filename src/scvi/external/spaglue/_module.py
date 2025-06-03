@@ -1,110 +1,12 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions import Normal, kl_divergence
-from torch_geometric.nn import GCNConv
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.external.spaglue import GraphEncoder_glue, NBDataDecoderWB
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
-
-EPS = 1e-8
-
-
-class NBDataDecoderWB(nn.Module):  # integrate the batch index
-    def __init__(
-        self,
-        n_output: int,
-        n_latent: int,
-        n_batches: int,
-    ):
-        super().__init__()
-        self.n_output = n_output
-        self.n_batches = n_batches
-
-        self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output))
-        self.bias = nn.Parameter(torch.zeros(n_batches, n_output))
-        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
-
-        self.px_dropout_param = nn.Parameter(torch.randn(n_output) * 0.01)
-        # self.v = nn.Parameter(torch.randn(n_output, n_latent) * 0.01)
-
-    def forward(
-        self,
-        u: torch.Tensor,
-        l: torch.Tensor,
-        batch_index: torch.Tensor,
-        v: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        # bring batch index in the right dimension
-        if batch_index.dim() > 1:
-            batch_index = batch_index.squeeze(-1)
-
-        scale = F.softplus(self.scale_lin[batch_index])
-        bias = self.bias[batch_index]
-        log_theta = self.log_theta[batch_index]
-
-        raw_px_scale = scale * (u @ v.T) + bias
-        px_scale = torch.softmax(raw_px_scale, dim=-1)
-        px_rate = torch.exp(l) * px_scale
-
-        px_dropout = F.softplus(self.px_dropout_param)
-
-        px_r = log_theta
-
-        return px_scale, px_r, px_rate, px_dropout
-
-
-class GraphEncoder(nn.Module):
-    def __init__(self, in_dim, hidden_dim, out_dim):
-        super().__init__()
-
-        # GCN layers for computing mu and logvar
-        self.gcn_mu_1 = GCNConv(in_dim, hidden_dim)
-        self.gcn_mu_2 = GCNConv(hidden_dim, out_dim)
-
-        self.gcn_logvar_1 = GCNConv(in_dim, hidden_dim)
-        self.gcn_logvar_2 = GCNConv(hidden_dim, out_dim)
-
-    def forward(self, x, edge_index):
-        # First pass for mean
-        mu = torch.relu(self.gcn_mu_1(x, edge_index))
-        mu = self.gcn_mu_2(mu, edge_index)
-
-        # Second pass for log-variance
-        logvar = torch.relu(self.gcn_logvar_1(x, edge_index))
-        logvar = self.gcn_logvar_2(logvar, edge_index)
-
-        # Reparameterization trick
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
-        z = mu + eps * std
-
-        return z, mu, logvar
-
-
-class GraphEncoder_glue(nn.Module):
-    def __init__(self, vnum: int, out_features: int):
-        super().__init__()
-        self.vrepr = nn.Parameter(torch.zeros(vnum, out_features))
-        self.conv = GCNConv(out_features, out_features)  # evtl auch GAT - user parameter
-        self.loc = nn.Linear(out_features, out_features)
-        self.std_lin = nn.Linear(out_features, out_features)
-
-    def forward(self, edge_index):
-        h = self.conv(self.vrepr, edge_index)
-        loc = self.loc(h)
-        std = F.softplus(self.std_lin(h)) + EPS
-
-        dist = Normal(loc, std)
-        mu = dist.loc
-        std = dist.scale
-        logvar = torch.log(std**2)
-        z = dist.rsample()
-
-        return z, mu, logvar
 
 
 class SPAGLUEVAE(BaseModuleClass):
@@ -164,12 +66,6 @@ class SPAGLUEVAE(BaseModuleClass):
             vnum=n_inputs[0] + n_inputs[1],
             out_features=50,
         )
-
-        # self.graph_encoder = GraphEncoder(
-        #     in_dim=n_inputs[0] + n_inputs[1],
-        #     hidden_dim=32,
-        #     out_dim=10,
-        # )
 
     def _get_inference_input(
         self, tensors: dict[str, torch.Tensor]
@@ -281,6 +177,7 @@ class SPAGLUEVAE(BaseModuleClass):
         inference_outputs: dict[str, torch.Tensor],
         generative_outputs: dict[str, torch.Tensor],
         lam_kl: torch.Tensor | float = 1.0,
+        lam_data: torch.Tensor | float = 1.0,
         mode: int | None = None,
     ) -> LossOutput:
         x = tensors[REGISTRY_KEYS.X_KEY]
@@ -298,7 +195,7 @@ class SPAGLUEVAE(BaseModuleClass):
 
         kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
 
-        loss = reconstruction_loss_norm + lam_kl * kl_local_norm
+        loss = lam_data * reconstruction_loss_norm + lam_kl * kl_local_norm
 
         ## graph inference
         mu_all = inference_outputs["mu_all"]
