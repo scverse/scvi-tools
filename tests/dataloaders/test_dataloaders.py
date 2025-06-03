@@ -1,5 +1,6 @@
 import os
 
+import anndata
 import numpy as np
 import pytest
 import torch
@@ -191,8 +192,9 @@ def test_anncollection(save_path: str):
     assert np.all(np.mod(adata2.X[:10].toarray(), 1) == 0)
 
     # create an AnnCollection on a subset of the data
+    adatas = [adata1, adata2]
     adata = AnnCollection(
-        [adata1, adata2],
+        adatas,
         join_vars="inner",
         join_obs="inner",
         label="dataset",
@@ -213,9 +215,9 @@ def test_anncollection(save_path: str):
     # we're only training for a few epochs to show it works
     model.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9, early_stopping=True)
 
-    # Generate cell representations # TODO: Not worknig yet
-    # latent = model.get_latent_representation()
-    # collection_adapter.obsm["X_scVI"] = latent
+    # Generate cell representations
+    latent = model.get_latent_representation()
+    print(latent.shape)
 
     # Save model (note we DONT save anndatas - as they are already on disk))
     dir_path = save_path + "/model_scvi_anncollection"
@@ -224,7 +226,7 @@ def test_anncollection(save_path: str):
     # Load model again
     loaded_model = SCVI.load(dir_path, adata=collection_adapter)
 
-    # create and prepare query data (TODO: need to support not same num of gene  for anncollection)
+    # create and prepare query data
     adata3 = scvi.data.synthetic_iid()
     adata3.X = csr_matrix(adata3.X)
     adata4 = scvi.data.synthetic_iid()
@@ -273,10 +275,64 @@ def test_anncollection(save_path: str):
     # we're only training for a few epochs to show it works
     model.train(max_epochs=1)
 
-    # TODO: Not worknig yet
-    # latent = model.get_latent_representation()
+    latent = model.get_latent_representation()
     # collection_adapter_query.obsm["X_scanVI"] = latent
+    print(latent.shape)
 
     predictions, attributions = model.predict(collection_adapter, ig_interpretability=True)
     ig_top_features_samples = attributions.head(5)
     print(ig_top_features_samples)
+
+    # Return to the original model and perform minimization
+    # Generate cell representations
+    print("Training finished, creating representations...")
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+
+    # Manually create minified AnnData
+    all_zeros = csr_matrix(model.adata.shape)
+
+    new_adata = anndata.AnnData(X=all_zeros, obs=model.adata.obs, var=adatas[0].var)
+    new_adata.layers["test"] = all_zeros
+
+    new_adata = model._validate_anndata(new_adata)
+
+    use_latent_qzm_key = "X_latent_qzm"
+    use_latent_qzv_key = "X_latent_qzv"
+
+    new_adata.obsm[use_latent_qzm_key] = qzm
+    new_adata.obsm[use_latent_qzv_key] = qzv
+
+    _ADATA_MINIFY_TYPE = scvi.data._constants.ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+
+    mini_fields = model._get_fields_for_adata_minification(_ADATA_MINIFY_TYPE)
+
+    _LATENT_QZM_KEY = mini_fields[0].attr_key
+    _LATENT_QZV_KEY = mini_fields[1].attr_key
+    _OBSERVED_LIB_SIZE_KEY = mini_fields[2].attr_key
+    _ADATA_MINIFY_TYPE_UNS_KEY = mini_fields[3].attr_key
+
+    new_adata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = _ADATA_MINIFY_TYPE
+    new_adata.obsm[_LATENT_QZM_KEY] = new_adata.obsm[use_latent_qzm_key]
+    new_adata.obsm[_LATENT_QZV_KEY] = new_adata.obsm[use_latent_qzv_key]
+
+    new_adata.obs["tscp_count"] = np.concatenate(
+        [
+            np.squeeze(np.asarray(adata1.X.sum(axis=-1))),
+            np.squeeze(np.asarray(adata2.X.sum(axis=-1))),
+        ]
+    )
+
+    new_adata.obs[_OBSERVED_LIB_SIZE_KEY] = new_adata.obs["tscp_count"]
+
+    del new_adata.uns["_scvi_uuid"]
+
+    model._update_adata_and_manager_post_minification(new_adata, _ADATA_MINIFY_TYPE)
+    model.module.minified_data_type = _ADATA_MINIFY_TYPE
+
+    print(model)
+    print(model.adata)
+
+    # Save model and minified AnnData
+    model.save(save_path + "/model.minified", save_anndata=True, overwrite=True)
+
+    print(f"Model saved at {save_path}/model.minified")
