@@ -12,7 +12,10 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
-from scvi.external.spaglue._utils import _construct_guidance_graph
+from scvi.external.spaglue._utils import (
+    _check_guidance_graph_consisteny,
+    _construct_guidance_graph,
+)
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
@@ -57,6 +60,8 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.guidance_graph = guidance_graph
         else:
             self.guidance_graph = _construct_guidance_graph(adata_seq, adata_spatial)
+
+        _check_guidance_graph_consisteny(self.guidance_graph, self.adatas)
 
         self.module = SPAGLUEVAE(
             n_inputs=n_inputs,

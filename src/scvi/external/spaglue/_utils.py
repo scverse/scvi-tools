@@ -1,4 +1,5 @@
 import torch
+from anndata import AnnData
 from torch_geometric.data import Data
 
 
@@ -52,3 +53,39 @@ def _construct_guidance_graph(adata_seq, adata_spatial, weight=1.0, sign=1):
         seq_indices=seq_indices,  # attach as attributes
         spa_indices=spa_indices,
     )
+
+
+def _check_guidance_graph_consisteny(graph: Data, adatas: list[AnnData]):
+    n_expected = sum(adata.shape[1] for adata in adatas)
+
+    # 1. Check variable coverage via counts
+    if graph.num_nodes != n_expected:
+        raise ValueError(
+            f"Graph node count {graph.num_nodes} does not match expected {n_expected}."
+        )
+
+    # 2. Check edge attributes
+    for attr in ["edge_weight", "edge_sign"]:
+        if not hasattr(graph, attr):
+            raise ValueError(f"Graph missing required edge attribute: {attr}")
+        if getattr(graph, attr).shape[0] != graph.edge_index.shape[1]:
+            raise ValueError(f"Edge attribute {attr} does not match number of edges.")
+
+    # 3. Check self-loops
+    src, tgt = graph.edge_index
+    self_loops = src == tgt
+    n_self_loops = self_loops.sum().item()
+    if n_self_loops < graph.num_nodes:
+        raise ValueError("Graph is missing self-loops for some nodes.")
+
+    # 4. Check symmetry (for undirected graphs)
+    # For every edge (i, j), check that (j, i) exists
+    edge_set = {(i.item(), j.item()) for i, j in zip(src, tgt, strict=False)}
+    for i, j in zip(src, tgt, strict=False):
+        if (j.item(), i.item()) not in edge_set:
+            raise ValueError(
+                f"Graph is not symmetric: edge ({i.item()}, {j.item()}) has no counterpart."
+            )
+
+    # If all checks pass
+    print("Guidance graph consistency checks passed.")

@@ -61,11 +61,9 @@ def test_spaglue_latent_representation(adata_seq, adata_spatial):
     model = SPAGLUE(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
 
-    latent = model.get_latent_representation(adata_seq=adata_seq, adata_spatial=adata_spatial)
-    assert "seq" in latent
-    assert "spatial" in latent
-    assert latent["seq"].shape[0] == adata_seq.shape[0]
-    assert latent["spatial"].shape[0] == adata_spatial.shape[0]
+    latent = model.get_latent_representation([adata_seq, adata_spatial])
+    assert latent[0].shape[0] == adata_seq.shape[0]
+    assert latent[1].shape[0] == adata_spatial.shape[0]
 
 
 # Test generative model
