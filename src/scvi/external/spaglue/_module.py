@@ -83,6 +83,7 @@ class SPAGLUEVAE(BaseModuleClass):
             MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
             MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
             "v": inference_outputs["v"],
+            "v_other": inference_outputs["v_other"],
         }
 
     @auto_move_data
@@ -104,8 +105,10 @@ class SPAGLUEVAE(BaseModuleClass):
         # embedding for modality is extracted to be used for decoder input
         if mode == 0:
             v = v_all[graph.seq_indices]
+            v_other_mod = v_all[graph.spa_indices]
         elif mode == 1:
             v = v_all[graph.spa_indices]
+            v_other_mod = v_all[graph.seq_indices]
         else:
             raise ValueError("Invalid mode: must be 0 or 1.")
 
@@ -121,6 +124,7 @@ class SPAGLUEVAE(BaseModuleClass):
             MODULE_KEYS.Z_KEY: z,
             MODULE_KEYS.LIBRARY_KEY: library,
             "v": v,
+            "v_other": v_other_mod,
             "v_all": v_all,
             "mu_all": mu_all,
             "logvar_all": logvar_all,
@@ -134,6 +138,7 @@ class SPAGLUEVAE(BaseModuleClass):
         batch_index: torch.Tensor | None = None,
         y: torch.Tensor | None = None,
         v: torch.Tensor | None = None,
+        v_other: torch.Tensor | None = None,
         mode: int | None = 0,
     ) -> dict[str, torch.Tensor]:
         """Run the generative model."""
@@ -169,6 +174,7 @@ class SPAGLUEVAE(BaseModuleClass):
             MODULE_KEYS.PX_KEY: px,
             MODULE_KEYS.PL_KEY: pl,
             MODULE_KEYS.PZ_KEY: pz,
+            "px_rate": px_rate,
         }
 
     def loss(

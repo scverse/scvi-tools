@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Iterator, Sequence
 from itertools import cycle
 
 import numpy as np
@@ -12,10 +11,11 @@ from torch_geometric.data import Data
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.dataloaders import DataSplitter
+from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.external.spaglue._utils import _construct_guidance_graph
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
+from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
 
 from ._module import SPAGLUEVAE
@@ -190,54 +190,122 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         adata_manager.register_fields(adata)
         cls.register_manager(adata_manager)
 
+    def _make_scvi_dls(
+        self, adatas: list[AnnData] = None, batch_size: int = 128
+    ) -> list[AnnDataLoader]:
+        if adatas is None:
+            adatas = self.adatas
+        post_list = [self._make_data_loader(ad, batch_size=batch_size) for ad in adatas]
+        for i, dl in enumerate(post_list):
+            dl.mode = i
+
+        return post_list
+
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adata_seq: AnnData | None = None,
-        adata_spatial: AnnData | None = None,
-        indices_seq: Sequence[int] | None = None,
-        indices_spatial: Sequence[int] | None = None,
-        batch_size: int | None = None,
-    ) -> dict[str, np.ndarray]:
-        self._check_if_trained(warn=False)
+        adatas: list[AnnData] = None,
+        deterministic: bool = True,
+        batch_size: int = 128,
+    ) -> list[np.ndarray]:
+        """Return the latent space embedding for each dataset.
 
-        results = {}
+        Parameters
+        ----------
+        adatas
+            List of adata seq and adata spatial.
+        deterministic
+            If true, use the mean of the encoder instead of a Gaussian sample.
+        batch_size
+            Minibatch size for data loading into model.
+        """
+        if adatas is None:
+            adatas = self.adatas
+        scdls = self._make_scvi_dls(adatas, batch_size=batch_size)
+        self.module.eval()
+        latents = []
+        for mode, scdl in enumerate(scdls):
+            latent = []
+            for tensors in scdl:
+                latent.append(
+                    self.module.inference(**self.module._get_inference_input(tensors), mode=mode)[
+                        "z"
+                    ]
+                    .cpu()
+                    .detach()
+                )
 
-        # Compute latent space for sequencing data if provided
-        if adata_seq is not None:
-            adata_seq = self._validate_anndata(adata_seq)
-            dataloader_seq = self._make_data_loader(
-                adata=adata_seq, indices=indices_seq, batch_size=batch_size
-            )
-            results["seq"] = self._compute_latent(dataloader_seq, mode=0)
+            latent = torch.cat(latent).numpy()
+            latents.append(latent)
 
-        # Compute latent space for spatial data if provided
-        if adata_spatial is not None:
-            adata_spatial = self._validate_anndata(adata_spatial)
-            dataloader_spatial = self._make_data_loader(
-                adata=adata_spatial, indices=indices_spatial, batch_size=batch_size
-            )
-            results["spatial"] = self._compute_latent(dataloader_spatial, mode=1)
+        return latents
 
-        return results
-
-    def _compute_latent(
+    @torch.inference_mode()
+    def get_imputed_values(
         self,
-        dataloader: Iterator[dict[str, torch.Tensor | None]],
-        mode: int,
-    ) -> np.ndarray:
-        zs: list[torch.Tensor] = []
+        source_mode: int,
+        source_adata: AnnData | None = None,
+        batch_size: int = 128,
+        target_batch: int | None = None,
+        target_libsize: float | None = None,
+    ) -> list[np.ndarray]:
+        # choose source adata according to mode
+        if source_mode not in (0, 1):
+            raise ValueError("`source_mode` must be 0 or 1!")
 
-        for batch in dataloader:
-            latent_tensor = self.module.inference(
-                **self.module._get_inference_input(batch), mode=mode
-            )["z"]
+        if source_adata is None:
+            source_adata = self.adatas[source_mode]
 
-            latent_tensor = latent_tensor.cpu().numpy()
+        self.module.eval()
+        dl = self._make_data_loader(source_adata, batch_size=batch_size)
 
-            zs.append(latent_tensor)
+        reconstructed_counts = []
+        for tensor in dl:
+            inference_output = self.module.inference(
+                **self.module._get_inference_input(tensor), mode=source_mode
+            )
 
-        return np.concatenate(zs, axis=0)
+            # keep all spatial except the embedded features
+            inference_output["v"] = inference_output["v_other"]
+
+            generative_input = self.module._get_generative_input(
+                tensor,
+                inference_output,
+            )
+
+            # choose batch 0 by default
+            if target_batch is None:
+                target_batch = 0
+
+            if not isinstance(target_batch, int):
+                raise TypeError("`target_batch` must be an integer.")
+
+            generative_input[MODULE_KEYS.BATCH_INDEX_KEY] = torch.full(
+                (generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0], 1),  # batch_size x 1
+                fill_value=target_batch,
+                dtype=torch.long,
+                device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
+            )
+
+            # Overwrite library size if needed
+            if target_libsize is not None:
+                if not isinstance(target_libsize, float):
+                    raise TypeError("`target_libsize` must be an integer.")
+
+                generative_input[MODULE_KEYS.LIBRARY_KEY] = torch.tensor(
+                    target_libsize,
+                    dtype=generative_input[MODULE_KEYS.LIBRARY_KEY].dtype,
+                    device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
+                )
+
+            target_mode = 1 - source_mode
+
+            generative_output = self.module.generative(**generative_input, mode=target_mode)
+
+            reconstructed_counts.append(generative_output["px_rate"].cpu().detach())
+
+        reconstructed_count = torch.cat(reconstructed_counts).numpy()
+        return reconstructed_count
 
 
 class TrainDL(DataLoader):  # creates batch structure for training process
