@@ -14,6 +14,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Added getting protein probabilities in multivi {pr}`3341`.
+- Added posterior predictive samples batch projection. {pr}`33XX`.
 
 #### Fixed
 
