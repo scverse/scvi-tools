@@ -605,6 +605,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         n_samples: int = 1,
         max_poisson_rate: float = 1e8,
+        generative_kwargs: dict | None = None,
     ) -> torch.Tensor:
         r"""Generate predictive samples from the posterior predictive distribution.
 
@@ -625,6 +626,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             The maximum value to which to clip the ``rate`` parameter of
             :class:`~scvi.distributions.Poisson`. Avoids numerical sampling issues when the
             parameter is very large due to the variance of the distribution.
+        generative_kwargs
+            Keyword args for ``generative()`` in fwd pass
 
         Returns
         -------
@@ -635,7 +638,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         inference_kwargs = {"n_samples": n_samples}
         _, generative_outputs = self.forward(
-            tensors, inference_kwargs=inference_kwargs, compute_loss=False
+            tensors,
+            inference_kwargs=inference_kwargs,
+            generative_kwargs=generative_kwargs,
+            compute_loss=False,
         )
 
         dist = generative_outputs[MODULE_KEYS.PX_KEY]

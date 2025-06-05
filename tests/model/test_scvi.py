@@ -250,7 +250,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"]
     )
     assert denoised.shape == (3, adata2.n_vars)
-    sample = model.posterior_predictive_sample(adata2)
+    sample = model.posterior_predictive_sample(adata2, transform_batch=["batch_1", "batch_0"])
     assert sample.shape == adata2.shape
     sample = model.posterior_predictive_sample(
         adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
@@ -260,6 +260,15 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], n_samples=3
     )
     assert sample.shape == (3, 2, 3)
+    # additional down stream tests for posterior_predictive_sample with transform_batch
+    model.posterior_predictive_sample(
+        adata2,
+        indices=[1, 2, 3],
+        gene_list=["gene_1", "gene_2"],
+        n_samples=3,
+        transform_batch=["batch_1"],
+    )
+    model.posterior_predictive_sample(adata2, transform_batch=["batch_1", "batch_0"])
 
     model.get_feature_correlation_matrix(correlation_type="pearson")
     model.get_feature_correlation_matrix(
@@ -373,6 +382,14 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         model.posterior_predictive_sample()
         model.get_latent_representation()
         model.get_normalized_expression()
+        # additional down stream tests for posterior_predictive_sample with transform_batch
+        model.posterior_predictive_sample(
+            indices=[1, 2, 3],
+            gene_list=["gene_1", "gene_2"],
+            n_samples=3,
+            transform_batch=["batch_1"],
+        )
+        model.posterior_predictive_sample(transform_batch=["batch_1", "batch_0"])
 
     # test train callbacks work
     a = synthetic_iid()

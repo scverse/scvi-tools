@@ -182,9 +182,9 @@ class RNASeqMixin:
         transform_batch
             Batch to condition on.
             If transform_batch is:
-
             - None, then real observed batch is used.
             - int, then batch transform_batch is used.
+            - Otherwise based on string
         gene_list
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
@@ -446,10 +446,12 @@ class RNASeqMixin:
         self,
         adata: AnnData | None = None,
         indices: list[int] | None = None,
+        transform_batch: list[Number | str] | None = None,
         n_samples: int = 1,
         gene_list: list[str] | None = None,
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        silent: bool = True,
     ) -> GCXS:
         r"""Generate predictive samples from the posterior predictive distribution.
 
@@ -469,6 +471,12 @@ class RNASeqMixin:
         indices
             Indices of the observations in ``adata`` to use. If ``None``, defaults to all the
             observations.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+            - None, then real observed batch is used.
+            - int, then batch transform_batch is used.
+            - Otherwise based on string
         n_samples
             Number of Monte Carlo samples to draw from the posterior predictive distribution for
             each observation.
@@ -498,6 +506,10 @@ class RNASeqMixin:
                 adata=adata, indices=indices, batch_size=batch_size
             )
 
+            transform_batch = _get_batch_code_from_category(
+                self.get_anndata_manager(adata, required=True), transform_batch
+            )
+
             if gene_list is None:
                 gene_mask = slice(None)
             else:
@@ -514,12 +526,24 @@ class RNASeqMixin:
                         f"please re-initialize with selected {param}",
                     )
             gene_mask = slice(None)
+            transform_batch = [None]
 
         x_hat = []
         for tensors in dataloader:
-            # (batch_size, n_vars) if n_samples == 1, else (batch_size, n_vars, n_samples)
-            samples = self.module.sample(tensors, n_samples=n_samples)[:, gene_mask]
-            x_hat.append(sparse.GCXS.from_numpy(samples.numpy()))
+            per_batch_exprs = []
+            for batch in track(transform_batch, disable=silent):
+                # (batch_size, n_vars) if n_samples == 1, else (batch_size, n_vars, n_samples)
+                generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
+                samples = self.module.sample(
+                    tensors, n_samples=n_samples, generative_kwargs=generative_kwargs
+                )[:, gene_mask]
+                per_batch_exprs.append(samples)
+            per_batch_exprs = (
+                torch.cat(per_batch_exprs, dim=0)
+                if len(transform_batch) == 1
+                else torch.stack(per_batch_exprs, dim=0).mean(0)
+            )
+            x_hat.append(sparse.GCXS.from_numpy(per_batch_exprs.numpy()))
 
         # (n_minibatches, batch_size, n_vars) -> (n_obs, n_vars) if n_samples == 1, else
         # (n_minibatches, batch_size, n_vars, n_samples) -> (n_obs, n_vars, n_samples)
