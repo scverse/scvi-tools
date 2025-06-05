@@ -16,6 +16,7 @@ to [Semantic Versioning]. Full commit history is available in the
     transcriptomics {pr}`3172`.
 - Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
     {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+- Add support for Python 3.13 {pr}`3247`.
 
 #### Fixed
 
