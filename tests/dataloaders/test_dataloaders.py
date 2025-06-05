@@ -172,7 +172,7 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     torch.distributed.destroy_process_group()
 
 
-def test_anncollection(save_path: str = "."):
+def test_anncollection(save_path: str):
     adata1 = scvi.data.synthetic_iid()
     adata1.X = csr_matrix(adata1.X)
 
