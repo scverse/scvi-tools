@@ -18,7 +18,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Fix bug in {class}`scvi.external.TOTALANVI` scarches. {pr}`3355`.
 - Fix bug in {class}`scvi.external.MRVI` down stream analysis use of external adata. {pr}`3324`.
-- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3370`.
+- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3373`.
 
 #### Changed
 
