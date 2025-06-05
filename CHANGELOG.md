@@ -10,16 +10,18 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Added posterior predictive samples batch projection. {pr}`3369`.
 - Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
+- Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
+    transcriptomics {pr}`3172`.
 - Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
     {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
-- Add {class}`scvi.external.SCVIVA` for representation of cells and
-    their environments in spatial transcriptomics {pr}`3172`.
 
 #### Fixed
 
 - Fix bug in {class}`scvi.external.TOTALANVI` scarches. {pr}`3355`.
 - Fix bug in {class}`scvi.external.MRVI` down stream analysis use of external adata. {pr}`3324`.
+- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3373`.
 
 #### Changed
 
@@ -36,9 +38,8 @@ to [Semantic Versioning]. Full commit history is available in the
     get_accessibility_estimates to get_normalized_accessibility, where needed.
 - Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
 - Add Custom Dataloaders registry support, {pr}`2932`.
-- Add support for using Census {class}`scvi.dataloader.TileDBDataModule` and LaminDB
-    {class}`scvi.dataloader.MappedCollectionDataModule` custom dataloaders for
-    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`2932`.
+- Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
+    and {class}`scvi.model.SCANVI`, {pr}`2932`.
 - Add Early stopping KL warmup steps. {pr}`3262`.
 - Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
 - Update Read the docs tutorials index page with interactive filterable options {pr}`3276`.
@@ -46,19 +47,19 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
-- Fix bug in {class}`scvi.external.SysVI` get_normalized_expression function. {pr}`3255`.
+- Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
 - Add support for IntegratedGradients for multimodal models. {pr}`3264`.
-- Fix bug in {class}`scvi.external.RESOLVI` get_normalized expression function. {pr}`3308`.
-- Fix bug in {class}`scvi.external.RESOLVI` gene-assay dispersion. {pr}`3308`.
+- Fix bug in resolVI get_normalized expression function. {pr}`3308`.
+- Fix bug in resolVI gene-assay dispersion. {pr}`3308`.
 
 #### Changed
 
 - Updated Scvi-Tools AWS hub to Weizmann instead of Berkeley. {pr}`3246`.
-- Updated {class}`scvi.external.RESOLVI` to use rapids-singlecell. {pr}`3308`.
+- Updated resolVI to use rapids-singlecell. {pr}`3308`.
 
 #### Removed
 
-- Removed Jax version constraint for {class}`scvi.external.MRVI` training. {pr}`3309`.
+- Removed Jax version constraint for mrVI training. {pr}`3309`.
 
 ### 1.3.0 (2025-02-28)
 
@@ -67,7 +68,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.Decipher` for dimensionality reduction and interpretable
     representation learning in single-cell RNA sequencing data {pr}`3015`, {pr}`3091`.
 - Add multiGPU support for {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`,
-    {class}`~scvi.model.CondSCVI` and {class}`~scvi.model.LinearSCVI`, {class}`~scvi.model.TOTALVI`
+    {class}`~scvi.model.CondSCVI` and {class}`~scvi.model.LinearSCVI`, {class}`~scvi.model.TOTALVI`,
     {class}`~scvi.model.MULTIVI` and {class}`~scvi.model.PEAKVI`. {pr}`3125`.
 - Add an exception callback to {class}`scvi.train._callbacks.SaveCheckpoint` in order to save
     optimal model during training, in case of failure because of Nan's in gradients. {pr}`3159`.
