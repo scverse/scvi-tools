@@ -8,18 +8,17 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ### 1.3.2 (2025-XX-XX)
 
-- Add {class}`scvi.external.SCVIVA` for representation of cells and
-    their environments in spatial transcriptomics {pr}`3172`.
-
 #### Added
 
-- Added getting protein probabilities in multivi {pr}`3341`.
+- Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
+- Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
+    transcriptomics {pr}`3172`.
 
 #### Fixed
 
-- Fix bug in TOTALANVI scarches. {pr}`3355`.
-
-- Fix bug in MrVI down stream analysis use of external adata. {pr}`3324`.
+- Fix bug in {class}`scvi.external.TOTALANVI` scarches. {pr}`3355`.
+- Fix bug in {class}`scvi.external.MRVI` down stream analysis use of external adata. {pr}`3324`.
+- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3373`.
 
 #### Changed
 
