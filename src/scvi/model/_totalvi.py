@@ -27,6 +27,7 @@ from scvi.model._utils import (
 from scvi.model.base._de_core import _de_core
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import (
@@ -130,7 +131,7 @@ class TOTALVI(
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        empirical_protein_background_prior: bool | None = None,
+        empirical_protein_background_prior: str | bool | None = None,
         override_missing_proteins: bool = False,
         **model_kwargs,
     ):
@@ -175,6 +176,13 @@ class TOTALVI(
         )
 
         n_batch = self.summary_stats.n_batch
+        if "n_panel" in self.summary_stats:
+            n_panel = self.summary_stats.n_panel
+            panel_key = "panel"
+        else:
+            n_panel = self.summary_stats.n_batch
+            panel_key = REGISTRY_KEYS.BATCH_KEY
+
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if (
@@ -200,6 +208,8 @@ class TOTALVI(
             use_size_factor_key=use_size_factor_key,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
+            n_panel=n_panel,
+            panel_key=panel_key,
             **model_kwargs,
         )
         self.module.minified_data_type = self.minified_data_type
@@ -399,6 +409,7 @@ class TOTALVI(
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ) -> tuple[np.ndarray | pd.DataFrame, np.ndarray | pd.DataFrame]:
         r"""Returns the normalized gene expression and protein expression.
 
@@ -449,6 +460,7 @@ class TOTALVI(
             Return a `np.ndarray` instead of a `pd.DataFrame`. Includes gene
             names as columns. If either n_samples=1 or return_mean=True, defaults to False.
             Otherwise, it defaults to True.
+        %(de_silent)s
 
         Returns
         -------
@@ -506,7 +518,7 @@ class TOTALVI(
             if n_samples > 1:
                 px_scale = torch.stack(n_samples * [px_scale])
                 py_scale = torch.stack(n_samples * [py_scale])
-            for b in transform_batch:
+            for b in track(transform_batch, disable=silent):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -583,6 +595,7 @@ class TOTALVI(
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -616,6 +629,7 @@ class TOTALVI(
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
             to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -656,7 +670,7 @@ class TOTALVI(
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for b in transform_batch:
+            for b in track(transform_batch, disable=silent):
                 generative_kwargs = {"transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
@@ -705,7 +719,19 @@ class TOTALVI(
         sample_protein_mixing=False,
         include_protein_background=False,
         protein_prior_count=0.5,
+        use_field: list = None,
+        **kwargs,
     ):
+        if use_field is None:
+            use_field = ["rna", "protein"]  # Initialize the list inside the function
+        if "rna" in use_field:
+            gene_list = None
+        else:
+            gene_list = []
+        if "protein" in use_field:
+            protein_list = None
+        else:
+            protein_list = []
         rna, protein = self.get_normalized_expression(
             adata=adata,
             indices=indices,
@@ -717,6 +743,9 @@ class TOTALVI(
             scale_protein=scale_protein,
             sample_protein_mixing=sample_protein_mixing,
             include_protein_background=include_protein_background,
+            gene_list=gene_list,
+            protein_list=protein_list,
+            **kwargs,
         )
         protein += protein_prior_count
 
@@ -745,6 +774,8 @@ class TOTALVI(
         scale_protein: bool = False,
         sample_protein_mixing: bool = False,
         include_protein_background: bool = False,
+        use_field: list = None,
+        pseudocounts: float | None = 1e-5,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -777,6 +808,11 @@ class TOTALVI(
             that determines if expression is from foreground/background.
         include_protein_background
             Include the protein background component as part of the protein expression
+        use_field
+            By default uses protein and RNA field disable here to perform only RNA or protein DE.
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -784,6 +820,8 @@ class TOTALVI(
         -------
         Differential expression DataFrame.
         """
+        if use_field is None:
+            use_field = ["rna", "protein"]
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata, required=True)
         model_fn = partial(
@@ -793,13 +831,22 @@ class TOTALVI(
             include_protein_background=include_protein_background,
             protein_prior_count=protein_prior_count,
             batch_size=batch_size,
+            use_field=use_field,
         )
-        col_names = np.concatenate(
-            [
-                np.asarray(_get_var_names_from_manager(adata_manager)),
-                self.protein_state_registry.column_names,
-            ]
+        all_stats_fn = partial(
+            cite_seq_raw_counts_properties,
+            use_field=use_field,
         )
+
+        col_names = []
+        if "rna" in use_field:
+            col_names.append(np.asarray(_get_var_names_from_manager(adata_manager)))
+        if "protein" in use_field:
+            col_names.append(
+                [str(i) + "_protein" for i in self.protein_state_registry.column_names]
+            )
+
+        col_names = np.concatenate(col_names)
         result = _de_core(
             adata_manager,
             model_fn,
@@ -810,7 +857,7 @@ class TOTALVI(
             idx1,
             idx2,
             all_stats,
-            cite_seq_raw_counts_properties,
+            all_stats_fn,
             col_names,
             mode,
             batchid1,
@@ -819,7 +866,7 @@ class TOTALVI(
             batch_correction,
             fdr_target,
             silent,
-            pseudocounts=1e-5,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 
@@ -994,6 +1041,7 @@ class TOTALVI(
         transform_batch: Sequence[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
         log_transform: bool = False,
+        silent: bool = True,
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
@@ -1021,6 +1069,7 @@ class TOTALVI(
             One of "pearson", "spearman".
         log_transform
             Whether to log transform denoised values prior to correlation calculation.
+        %(de_silent)s
 
         Returns
         -------
@@ -1039,7 +1088,7 @@ class TOTALVI(
         )
 
         corr_mats = []
-        for b in transform_batch:
+        for b in track(transform_batch, disable=silent):
             denoised_data = self._get_denoised_samples(
                 n_samples=n_samples,
                 batch_size=batch_size,
@@ -1137,10 +1186,16 @@ class TOTALVI(
             batch_mask = adata_manager.get_state_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY).get(
                 fields.ProteinObsmField.PROTEIN_BATCH_MASK
             )
-            batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
-            cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
-                fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
-            ]
+            if "n_panel" in self.summary_stats:
+                batch = adata_manager.get_from_registry("panel").ravel()
+                cats = adata_manager.get_state_registry("panel")[
+                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                ]
+            else:
+                batch = adata_manager.get_from_registry(REGISTRY_KEYS.BATCH_KEY).ravel()
+                cats = adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
+                    fields.CategoricalObsField.CATEGORICAL_MAPPING_KEY
+                ]
             codes = np.arange(len(cats))
 
             batch_avg_mus, batch_avg_scales = [], []
@@ -1229,6 +1284,7 @@ class TOTALVI(
         protein_expression_obsm_key: str,
         protein_names_uns_key: str | None = None,
         batch_key: str | None = None,
+        panel_key: str | None = None,
         layer: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
@@ -1247,6 +1303,8 @@ class TOTALVI(
             `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
             sequential names to proteins.
         %(param_batch_key)s
+        panel_key
+            key in 'adata.obs' for the various panels used to measure proteins.
         %(param_layer)s
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
@@ -1263,13 +1321,16 @@ class TOTALVI(
             stacklevel=settings.warnings_stacklevel,
         )
         setup_method_args = cls._get_setup_method_args(**locals())
-        batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
+        if panel_key is not None:
+            batch_field = fields.CategoricalObsField("panel", panel_key)
+        else:
+            batch_field = fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             fields.CategoricalObsField(
                 REGISTRY_KEYS.LABELS_KEY, None
             ),  # Default labels field for compatibility with TOTALVAE
-            batch_field,
+            fields.CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             fields.NumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
             ),
@@ -1286,6 +1347,9 @@ class TOTALVI(
                 is_count_data=True,
             ),
         ]
+        if panel_key is not None:
+            anndata_fields.insert(0, fields.CategoricalObsField("panel", panel_key))
+
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
@@ -1298,6 +1362,7 @@ class TOTALVI(
         rna_layer: str | None = None,
         protein_layer: str | None = None,
         batch_key: str | None = None,
+        panel_key: str | None = None,
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
@@ -1314,6 +1379,8 @@ class TOTALVI(
         protein_layer
             Protein layer key. If `None`, will use `.X` of specified modality key.
         %(param_batch_key)s
+        panel_key
+            key in 'adata.obs' for the various panels used to measure proteins.
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
@@ -1333,11 +1400,19 @@ class TOTALVI(
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
 
-        batch_field = fields.MuDataCategoricalObsField(
-            REGISTRY_KEYS.BATCH_KEY,
-            batch_key,
-            mod_key=modalities.batch_key,
-        )
+        if panel_key is not None:
+            batch_field = fields.MuDataCategoricalObsField(
+                "panel",
+                panel_key,
+                mod_key=modalities.batch_key,
+            )
+        else:
+            batch_field = fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.BATCH_KEY,
+                batch_key,
+                mod_key=modalities.batch_key,
+            )
+
         mudata_fields = [
             fields.MuDataLayerField(
                 REGISTRY_KEYS.X_KEY,
@@ -1351,7 +1426,11 @@ class TOTALVI(
                 None,
                 mod_key=None,
             ),  # Default labels field for compatibility with TOTALVAE
-            batch_field,
+            fields.MuDataCategoricalObsField(
+                REGISTRY_KEYS.BATCH_KEY,
+                batch_key,
+                mod_key=modalities.batch_key,
+            ),
             fields.MuDataNumericalObsField(
                 REGISTRY_KEYS.SIZE_FACTOR_KEY,
                 size_factor_key,
@@ -1378,9 +1457,21 @@ class TOTALVI(
                 mod_required=True,
             ),
         ]
+
+        if panel_key:
+            mudata_fields.insert(
+                0,
+                fields.MuDataCategoricalObsField(
+                    "panel",
+                    panel_key,
+                    mod_key=modalities.batch_key,
+                ),
+            )
+
         mdata_minify_type = _get_adata_minify_type(mdata)
         if mdata_minify_type is not None:
             mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
+
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)

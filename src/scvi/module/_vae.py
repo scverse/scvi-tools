@@ -120,6 +120,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     use_observed_lib_size
         If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
         conditional distribution.
+    extra_payload_autotune
+        If ``True``, will return extra matrices in the loss output to be used during autotune
     library_log_means
         :class:`~numpy.ndarray` of shape ``(1, n_batch)`` of means of the log library sizes that
         parameterize the prior on library size if ``use_size_factor_key`` is ``False`` and
@@ -166,6 +168,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
+        extra_payload_autotune: bool = False,
         library_log_means: np.ndarray | None = None,
         library_log_vars: np.ndarray | None = None,
         var_activation: Callable[[torch.Tensor], torch.Tensor] = None,
@@ -187,6 +190,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        self.extra_payload_autotune = extra_payload_autotune
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
@@ -575,6 +579,16 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         loss = torch.mean(reconst_loss + weighted_kl_local)
 
+        # a payload to be used during autotune
+        if self.extra_payload_autotune:
+            extra_metrics_payload = {
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            }
+        else:
+            extra_metrics_payload = {}
+
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_loss,
@@ -582,11 +596,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 MODULE_KEYS.KL_L_KEY: kl_divergence_l,
                 MODULE_KEYS.KL_Z_KEY: kl_divergence_z,
             },
-            extra_metrics={
-                "z": inference_outputs["z"],
-                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
-                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
-            },
+            extra_metrics=extra_metrics_payload,
         )
 
     @torch.inference_mode()
@@ -595,6 +605,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         n_samples: int = 1,
         max_poisson_rate: float = 1e8,
+        generative_kwargs: dict | None = None,
     ) -> torch.Tensor:
         r"""Generate predictive samples from the posterior predictive distribution.
 
@@ -615,6 +626,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             The maximum value to which to clip the ``rate`` parameter of
             :class:`~scvi.distributions.Poisson`. Avoids numerical sampling issues when the
             parameter is very large due to the variance of the distribution.
+        generative_kwargs
+            Keyword args for ``generative()`` in fwd pass
 
         Returns
         -------
@@ -625,7 +638,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         inference_kwargs = {"n_samples": n_samples}
         _, generative_outputs = self.forward(
-            tensors, inference_kwargs=inference_kwargs, compute_loss=False
+            tensors,
+            inference_kwargs=inference_kwargs,
+            generative_kwargs=generative_kwargs,
+            compute_loss=False,
         )
 
         dist = generative_outputs[MODULE_KEYS.PX_KEY]

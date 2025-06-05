@@ -1,11 +1,19 @@
 # Train SCVI model with multi GPU support
 
+:::{note}
+In order to run scvi-tools with mulyi-GPU support, use: pip install scvi-tools[cuda]
+:::
 
 SCVI-Tools v1.3.0 now support training on a **multi GPU system**, which can significantly speed up training and allow you to handle larger datasets. It is supported only on Nvidia GPUs and DDP with CUDA backend.
 
 CUDA (Compute Unified Device Architecture) is used to enable high-performance parallel computing on NVIDIA GPUs. DDP (Distributed Data Parallel) is a popular backend for training models on multiple GPUs simultaneously.
 
 Using **CUDA** with **DDP** for multi-GPU training can significantly boost the performance and scalability of your model training, especially with large datasets and models. However, it also comes with its own set of challenges, such as the need for proper configuration, higher hardware costs, and potential software compatibility issues.
+
+```{topic} Tutorials:
+
+-   {doc}`/tutorials/notebooks/use_cases/multiGPU`
+```
 
 ## Some of the benfits of using MultiGPU training
 

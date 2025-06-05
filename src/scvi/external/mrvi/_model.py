@@ -10,7 +10,7 @@ import numpy as np
 import xarray as xr
 from tqdm import tqdm
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
@@ -248,6 +248,14 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
+        from packaging import version
+
+        if version.parse(jax.__version__) > version.parse("0.4.35"):
+            warnings.warn(
+                "Running mrVI with Jax version larger 0.4.35 can cause performance issues",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         super().train(**train_kwargs)
 
     def get_latent_representation(
@@ -439,7 +447,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                     np.array(mean_zs_),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
-                        "cell_name": self.adata.obs_names[indices].values,
+                        "cell_name": adata.obs_names[indices].values,
                         "sample": self.sample_order,
                     },
                     name="sample_representations",
@@ -458,7 +466,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                     np.array(sampled_zs_),
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
-                        "cell_name": self.adata.obs_names[indices].values,
+                        "cell_name": adata.obs_names[indices].values,
                         "sample": self.sample_order,
                     },
                     name="sample_representations",
@@ -509,11 +517,11 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
                 outputs = r.fn(inputs)
 
                 if r.group_by is not None:
-                    group_by = self.adata.obs[r.group_by].iloc[indices]
+                    group_by = adata.obs[r.group_by].iloc[indices]
                     group_by_cats = group_by.unique()
                     for cat in group_by_cats:
                         cat_summed_outputs = outputs.sel(
-                            cell_name=self.adata.obs_names[indices][group_by == cat].values
+                            cell_name=adata.obs_names[indices][group_by == cat].values
                         ).sum(dim="cell_name")
                         cat_summed_outputs = cat_summed_outputs.assign_coords(
                             {f"{r.group_by}_name": cat}
@@ -792,7 +800,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
         if indices is None:
-            indices = np.arange(self.adata.n_obs)
+            indices = np.arange(adata.n_obs)
         if sample is not None:
             indices = np.intersect1d(
                 np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]

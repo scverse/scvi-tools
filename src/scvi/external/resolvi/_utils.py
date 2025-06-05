@@ -11,6 +11,7 @@ from pyro import infer
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
+from scvi.utils import track
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,7 @@ class ResolVIPredictiveMixin:
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -227,7 +229,7 @@ class ResolVIPredictiveMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent library size.
+            magnitude.
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
@@ -240,6 +242,7 @@ class ResolVIPredictiveMixin:
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
              to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -284,7 +287,7 @@ class ResolVIPredictiveMixin:
 
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 _, kwargs = self.module._get_fn_args_from_batch(tensors)
                 kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
 
@@ -298,18 +301,14 @@ class ResolVIPredictiveMixin:
                     kwargs["batch_index"],
                     *categorical_input,
                 )
-                z = torch.distributions.Normal(qz_m, qz_v.sqrt()).sample(
-                    [
-                        n_samples,
-                    ]
-                )
+                z = torch.distributions.Normal(qz_m, qz_v.sqrt()).sample([n_samples])
 
                 if kwargs["cat_covs"] is not None:
                     categorical_input = list(torch.split(kwargs["cat_covs"], 1, dim=1))
                 else:
                     categorical_input = ()
                 if batch is not None:
-                    batch = torch.full_like(kwargs["batch"], batch)
+                    batch = torch.full_like(kwargs["batch_index"], batch)
                 else:
                     batch = kwargs["batch_index"]
 
@@ -317,13 +316,13 @@ class ResolVIPredictiveMixin:
                     self.module.model.dispersion, z, kwargs["library"], batch, *categorical_input
                 )
                 if library_size is not None:
-                    exp_ = library_size * px_scale.reshape(-1, px_scale.shape[-1])
+                    exp_ = library_size * px_scale
                 else:
-                    exp_ = px_rate.reshape(-1, px_scale.shape[-1])
+                    exp_ = px_rate
 
                 exp_ = exp_[..., gene_mask]
                 per_batch_exprs.append(exp_[None].cpu())
-            per_batch_exprs = torch.cat(per_batch_exprs, dim=0).numpy()
+            per_batch_exprs = torch.cat(per_batch_exprs, dim=0).mean(0).numpy()
             exprs.append(per_batch_exprs)
 
         exprs = np.concatenate(exprs, axis=1)
