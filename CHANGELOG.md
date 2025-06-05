@@ -8,14 +8,13 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ### 1.3.2 (2025-XX-XX)
 
-- Add {class}`scvi.external.SCVIVA` for representation of cells and
-    their environments in spatial transcriptomics {pr}`3172`.
-
 #### Added
 
 - Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
 - Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
-    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`33XX`.
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+- Add {class}`scvi.external.SCVIVA` for representation of cells and
+    their environments in spatial transcriptomics {pr}`3172`.
 
 #### Fixed
 
