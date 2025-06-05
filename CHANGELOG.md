@@ -10,6 +10,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Added posterior predictive samples batch projection. {pr}`3369`.
 - Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
 - Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
     transcriptomics {pr}`3172`.
