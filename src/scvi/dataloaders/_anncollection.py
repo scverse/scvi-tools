@@ -41,42 +41,6 @@ class ArrayFakerSparse(sparse.csr_matrix):
 
         return nnz
 
-    def _mul_vector(self, other):
-        """Included to try and trick issparse"""
-        raise NotImplementedError("This should basically never be called.")
-        return self._data.dot(other)
-
-    def _mul_multivector(self, other):
-        """Included to try and trick issparse"""
-        raise NotImplementedError("This should basically never be called.")
-        return self._data.dot(other)
-
-    def toarray(
-        self,
-    ):
-        """Convert to a dense array.
-
-        Notes
-        -----
-        Ths would require full dense representation in memory. It shouldn't be
-        used.
-        """
-        raise NotImplementedError("This should basically never be called.")
-        return self.collection[:].layers[self.key].toarray()
-
-    def transpose(
-        self,
-    ):
-        """Transpose the entire array.
-
-        Notes
-        -----
-        Ths would require full dense representation in memory. It shouldn't be
-        used.
-        """
-        raise NotImplementedError("This should basically never be called.")
-        return self.collection[:].layers[self.key].transpose()
-
     def __repr__(self):
         return f"ArrayFakerSparse(collection={self.collection}, key={self.key})"
 
@@ -91,7 +55,7 @@ class ArrayFakerSparse(sparse.csr_matrix):
         supported.
 
         """
-        return self.collection[:64].layers[self.key].data
+        return self.collection[: np.min([64, len(self.collection)])].layers[self.key].data
 
     def getformat(self):
         """Extract the relevant format (CSR, CSC, COO)"""

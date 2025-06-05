@@ -133,11 +133,10 @@ model.train(
 ...
 ```
 
-3. In addition to those we also added a {class}`scvi.dataloaders.CollectionAdapter` dataloader which is a scvi-tools wrapper for Anndata's AnnCollection.
-Anncollection API is intended for training models consist of several adata files. It is disk-based backed with lazy concatenate and jointly subset AnnData objects along the observations axis (unlike just concatenating adata with anndata.concat)
-This wrapper mimic the anndata.AnnData API in all the ways scvi-tools expects. So in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal.
-Hence, the annCollection loader is not considered as a custom dataloader.
-Note that is order to use it count data should be in sparse form (sparse.csr_matrix).
+3. In addition to those we also added a {class}`scvi.dataloaders.CollectionAdapter` dataloader which is an scvi-tools wrapper for AnnData's AnnCollection.
+This API is intended for training models on a set of AnnData files. AnnCollection creates a layy concatenation of disk-backed files. The dataloader jointly subsets these datasets along the observations axis.
+This wrapper mimics the standard API, soo in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
+Note that in order to use it count data should be in sparse form (sparse.csr_matrix).
 
 Key Differences between Lamin and TileDb in terms of Custom Dataloaders:
 1. Data Format:

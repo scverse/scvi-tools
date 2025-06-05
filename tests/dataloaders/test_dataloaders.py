@@ -172,7 +172,7 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     torch.distributed.destroy_process_group()
 
 
-def test_anncollection(save_path: str):
+def test_anncollection(save_path: str = "."):
     adata1 = scvi.data.synthetic_iid()
     adata1.X = csr_matrix(adata1.X)
 
@@ -225,6 +225,7 @@ def test_anncollection(save_path: str):
 
     # Load model again
     loaded_model = SCVI.load(dir_path, adata=collection_adapter)
+    print(loaded_model.registry)
 
     # create and prepare query data
     adata3 = scvi.data.synthetic_iid()
