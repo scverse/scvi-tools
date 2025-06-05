@@ -14,12 +14,11 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Added getting protein probabilities in multivi {pr}`3341`.
-- Added posterior predictive samples batch projection. {pr}`33XX`.
+- Added posterior predictive samples batch projection. {pr}`3369`.
 
 #### Fixed
 
 - Fix bug in TOTALANVI scarches. {pr}`3355`.
-
 - Fix bug in MrVI down stream analysis use of external adata. {pr}`3324`.
 
 #### Changed
