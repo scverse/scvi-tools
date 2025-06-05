@@ -14,6 +14,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
 - Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
     transcriptomics {pr}`3172`.
+- Add support for Python 3.13 {pr}`3247`.
 
 #### Fixed
 
@@ -34,7 +35,6 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
-- Add support for Python 3.13 {pr}`32xx`.
 - Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
 - Add Custom Dataloaders registry support, {pr}`2932`.
 - Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
