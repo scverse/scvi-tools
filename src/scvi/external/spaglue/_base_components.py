@@ -37,6 +37,12 @@ class NBDataDecoderWB(nn.Module):  # integrate the batch index
             batch_index = batch_index.squeeze(-1)
 
         scale = F.softplus(self.scale_lin[batch_index])
+
+        if (batch_index.max() >= self.bias.shape[0]) or (batch_index.min() < 0):
+            raise IndexError(
+                f"Batch index out of bounds: valid range is [0, {self.bias.shape[0] - 1}]"
+            )
+
         bias = self.bias[batch_index]
         log_theta = self.log_theta[batch_index]
 

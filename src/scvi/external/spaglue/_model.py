@@ -40,8 +40,8 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         self.adatas = [adata_seq, adata_spatial]
 
         self.adata_managers = {
-            "seq": self._get_most_recent_anndata_manager(adata_seq, required=True),
-            "spatial": self._get_most_recent_anndata_manager(adata_spatial, required=True),
+            "modality_0": self._get_most_recent_anndata_manager(adata_seq, required=True),
+            "modality_1": self._get_most_recent_anndata_manager(adata_spatial, required=True),
         }
 
         self.registries_ = []
@@ -257,9 +257,13 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         # choose source adata according to mode
         if source_mode not in (0, 1):
             raise ValueError("`source_mode` must be 0 or 1!")
-
         if source_adata is None:
             source_adata = self.adatas[source_mode]
+
+        batch_manager = self.adata_managers["modality_0" if source_mode == 1 else "modality_1"]
+        batch_categories = batch_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
+            "categorical_mapping"
+        ]
 
         self.module.eval()
         dl = self._make_data_loader(source_adata, batch_size=batch_size)
@@ -272,33 +276,57 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
             # keep all spatial except the embedded features
             inference_output["v"] = inference_output["v_other"]
-
             generative_input = self.module._get_generative_input(
                 tensor,
                 inference_output,
             )
 
-            # choose batch 0 by default
-            if target_batch is None:
-                target_batch = 0
+            # --- Handle target batch ---
+            batch_size_ = generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0]
+            if target_batch is not None:
+                b = np.asarray(target_batch)
+                if b.size == 1:  # if size 1: broadcast to array of length Batch size
+                    b = np.full(batch_size_, b.item())
+                elif b.size != batch_size_:  # raise error if wrong size
+                    raise ValueError("`target_batch` must have the same size as adata!")
+                # Map categorical names to indices if needed
+                if batch_categories is not None and not np.issubdtype(b.dtype, np.integer):
+                    b = np.array([np.where(batch_categories == lbl)[0][0] for lbl in b])
+            # use batch index zero if no target batch is provided
+            else:
+                b = np.zeros(batch_size_, dtype=int)
+            b = np.asarray(b, dtype=int).reshape(-1, 1)
 
-            if not isinstance(target_batch, int):
-                raise TypeError("`target_batch` must be an integer.")
-
-            generative_input[MODULE_KEYS.BATCH_INDEX_KEY] = torch.full(
-                (generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0], 1),  # batch_size x 1
-                fill_value=target_batch,
+            generative_input[MODULE_KEYS.BATCH_INDEX_KEY] = torch.tensor(
+                b,
                 dtype=torch.long,
                 device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
             )
 
-            # Overwrite library size if needed
+            # --- Handle target libsize ---
             if target_libsize is not None:
-                if not isinstance(target_libsize, float):
-                    raise TypeError("`target_libsize` must be an integer.")
+                l = target_libsize
+                if not isinstance(l, np.ndarray):
+                    l = np.asarray(l)
+                l = l.squeeze()
 
+                if l.ndim == 0:  # Scalar
+                    l = l[np.newaxis]
+                elif l.ndim > 1:
+                    raise ValueError("`target_libsize` cannot be >1 dimensional")
+
+                if l.size == 1:
+                    l = np.repeat(l, batch_size_)
+
+                if l.size != batch_size_:
+                    raise ValueError("`target_libsize` must have the same size as the batch!")
+
+                ### TODO? Make it possible to pass full library array
+                ### split/slice avccording to batches
+
+                l = l.reshape((-1, 1))
                 generative_input[MODULE_KEYS.LIBRARY_KEY] = torch.tensor(
-                    target_libsize,
+                    l,
                     dtype=generative_input[MODULE_KEYS.LIBRARY_KEY].dtype,
                     device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
                 )
