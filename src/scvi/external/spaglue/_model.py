@@ -106,30 +106,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         validation_size = 1 - train_size
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
-        """
-        train_dls, test_dls, val_dls = [], [], []
-        for _i, adm in enumerate(
-            self.adata_managers.values()
-        ):  # one adata manager for each modality
-            ds = DataSplitter(  # creates dataloaders as part of ds setup process
-                adm,
-                train_size=train_size,  # train_size = None defaults to 0.9
-                validation_size=validation_size,
-                batch_size=batch_size,
-                shuffle_set_split=shuffle_set_split,
-                # **datasplitter_kwargs,
-            )
-            ds.setup()
-            train_dls.append(ds.train_dataloader())
-            test_dls.append(ds.test_dataloader())
-            val_dls.append(ds.val_dataloader())
-
-            self.train_indices_.append(ds.train_idx)
-            self.test_indices_.append(ds.test_idx)
-            self.validation_indices_.append(ds.val_idx)
-
-        """
-
         train_dls, test_dls, val_dls = {}, {}, {}
         for mod, adm in self.adata_managers.items():  # mod is the modality name
             ds = DataSplitter(
@@ -147,11 +123,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.train_indices_.append(ds.train_idx)
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
-
-        ### now we also have to change the traindl class!!!!
-
-        # train_dl = TrainDL(train_dls, num_workers=9)  # combine the list of TRAINING dataloaders
-        # val_dl = TrainDL(val_dls, num_workers=9)
 
         train_dl = TrainDL(train_dls)  # combine the list of TRAINING dataloaders
         val_dl = TrainDL(val_dls)
@@ -175,7 +146,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
-        # self.module.eval()
 
         self.module.eval()  # set model to evaluation mode (di)
 
@@ -255,7 +225,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         else:
             modality_names = self.modality_names
             adata_list = adatas
-        print(adata_list)
 
         scdls = self._make_scvi_dls(adata_list, batch_size=batch_size)
 
@@ -338,8 +307,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             )
 
             # --- Handle target libsize ---
-            # take empirical libsize of one of the modalities
-
             if target_libsize is not None:
                 l = target_libsize
                 if not isinstance(l, np.ndarray):
@@ -376,45 +343,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         reconstructed_count = torch.cat(reconstructed_counts).numpy()
         return reconstructed_count
-
-
-"""
-class TrainDL(DataLoader):  # creates batch structure for training process
-    def __init__(self, data_loader_list):
-        # def __init__(self, data_loader_list, num_workers=0):
-        self.data_loader_list = data_loader_list  # list of individual dls
-        self.largest_train_dl_idx = np.argmax(
-            [len(dl.indices) for dl in data_loader_list]
-        )  # index of dl with largest num of samples
-        self.largest_dl = self.data_loader_list[
-            self.largest_train_dl_idx
-        ]  # dl corresponding to the largest dataset
-        # super().__init__(self.largest_dl, num_workers=num_workers)
-        super().__init__(
-            self.largest_dl,
-            num_workers=settings.dl_num_workers,
-            persistent_workers=getattr(settings, "dl_persistent_workers", False),
-        )
-
-    # number of batches per epoch is determined by the larger dataset
-    def __len__(self):
-        return len(self.largest_dl)
-
-    # cyclic iteration
-    def __iter__(self):
-        # produces batches by zipping together
-        # ensures that smaller datasets are repeated indefinitely
-        train_dls = [
-            (
-                dl if i == self.largest_train_dl_idx else cycle(dl)
-            )  # repeat smaller dataset indefinitely
-            for i, dl in enumerate(self.data_loader_list)
-        ]
-        return zip(
-            *train_dls, strict=False
-        )  # zips iterators together - one batch for each dataset each time
-        # until larger one runs out
-"""
 
 
 class TrainDL(DataLoader):  # creates batch structure for training process

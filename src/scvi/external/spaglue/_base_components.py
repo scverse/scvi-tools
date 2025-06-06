@@ -23,7 +23,6 @@ class NBDataDecoderWB(nn.Module):  # integrate the batch index
         self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
 
         self.px_dropout_param = nn.Parameter(torch.randn(n_output) * 0.01)
-        # self.v = nn.Parameter(torch.randn(n_output, n_latent) * 0.01)
 
     def forward(
         self,
