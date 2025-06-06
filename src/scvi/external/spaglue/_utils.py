@@ -3,16 +3,22 @@ from anndata import AnnData
 from torch_geometric.data import Data
 
 
-def _construct_guidance_graph(adata_seq, adata_spatial, weight=1.0, sign=1):
-    shared_features = set(adata_seq.var_names) & set(adata_spatial.var_names)
+### anpassen!!!
+def _construct_guidance_graph(adatas, weight=1.0, sign=1):
+    if len(adatas) != 2:
+        raise ValueError("Exactly two modalities are required.")
+    modality_names = list(adatas.keys())
+    adata1, adata2 = adatas[modality_names[0]], adatas[modality_names[1]]
+
+    shared_features = set(adata1.var_names) & set(adata2.var_names)
     if not shared_features:
         raise ValueError("No overlapping features between the two modalities.")
 
-    features_seq = [f"{f}_seq" for f in adata_seq.var_names]
-    features_spatial = [f"{f}_spatial" for f in adata_spatial.var_names]
+    features1 = [f"{f}_{modality_names[0]}" for f in adata1.var_names]
+    features2 = [f"{f}_{modality_names[1]}" for f in adata2.var_names]
 
     # Build node list
-    all_features = features_seq + features_spatial
+    all_features = features1 + features2
     feature_to_index = {f: i for i, f in enumerate(all_features)}
 
     # Edges for matching features
@@ -21,8 +27,8 @@ def _construct_guidance_graph(adata_seq, adata_spatial, weight=1.0, sign=1):
     edge_sign = []
 
     for feature in shared_features:
-        i = feature_to_index[feature + "_seq"]
-        j = feature_to_index[feature + "_spatial"]
+        i = feature_to_index[f"{feature}_{modality_names[0]}"]
+        j = feature_to_index[f"{feature}_{modality_names[1]}"]
 
         edge_index += [[i, j], [j, i]]
         edge_weight += [weight, weight]
@@ -42,16 +48,15 @@ def _construct_guidance_graph(adata_seq, adata_spatial, weight=1.0, sign=1):
     x = torch.eye(len(all_features))  # node features as identity for simplicity
 
     # Extract seq/spa indices
-    seq_indices = torch.tensor([feature_to_index[f] for f in features_seq], dtype=torch.long)
-    spa_indices = torch.tensor([feature_to_index[f] for f in features_spatial], dtype=torch.long)
+    indices1 = torch.tensor([feature_to_index[f] for f in features1], dtype=torch.long)
+    indices2 = torch.tensor([feature_to_index[f] for f in features2], dtype=torch.long)
 
     return Data(
         x=x,
         edge_index=edge_index,
         edge_weight=edge_weight,
         edge_sign=edge_sign,
-        seq_indices=seq_indices,  # attach as attributes
-        spa_indices=spa_indices,
+        **{f"{modality_names[0]}_indices": indices1, f"{modality_names[1]}_indices": indices2},
     )
 
 

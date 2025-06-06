@@ -45,20 +45,21 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         self.automatic_optimization = False  # important for adversarial setup
 
-    def training_step(self, batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
+    def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         # batch contains output of both dataloaders
         # There is a possibility to give batch_idx argument
         # (can be used e.g. for gradient accumulation)
         """Training step."""
         opt = self.optimizers()
         loss_output_objs = []
-
-        for i, tensors in enumerate(batch):
+        for _i, (modality, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
 
-            self.loss_kwargs.update({"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": i})
-            inference_kwargs = {"mode": i}
-            generative_kwargs = {"mode": i}
+            self.loss_kwargs.update(
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
+            )
+            inference_kwargs = {"mode": modality}
+            generative_kwargs = {"mode": modality}
 
             _, _, loss_output = self.forward(
                 tensors,
@@ -70,15 +71,10 @@ class SPAGLUETrainingPlan(TrainingPlan):
             # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
-            if i == 0:
-                self.log("nll_0", reconstruction_loss, batch_size=batch_size)
-            elif i == 1:
-                self.log("nll_1", reconstruction_loss, batch_size=batch_size)
+            self.log("nll_{modality}", reconstruction_loss, batch_size=batch_size)
+
             kl_divergence = loss_output.kl_local["kl_local"]
-            if i == 0:
-                self.log("kl_0", kl_divergence, batch_size=batch_size)
-            elif i == 1:
-                self.log("kl_1", kl_divergence, batch_size=batch_size)
+            self.log("kl_{modality}", kl_divergence, batch_size=batch_size)
 
             loss = loss_output.loss
 
@@ -102,7 +98,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
 
         # log individual graph losses
-        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch)
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
         self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size)
         self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size)
 
@@ -133,10 +129,12 @@ class SPAGLUETrainingPlan(TrainingPlan):
         """Validation step."""
         loss_output_objs = []
 
-        for i, tensors in enumerate(batch):
-            self.loss_kwargs.update({"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": i})
-            inference_kwargs = {"mode": i}
-            generative_kwargs = {"mode": i}
+        for _i, (modality, tensors) in enumerate(batch.items()):
+            self.loss_kwargs.update(
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
+            )
+            inference_kwargs = {"mode": modality}
+            generative_kwargs = {"mode": modality}
 
             _, _, loss_output = self.forward(
                 tensors,
@@ -174,7 +172,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### total loss
         total_loss = self.lam_graph * graph_loss + data_loss
 
-        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch)
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
         self.log(
             "validation_loss",
             total_loss,

@@ -31,7 +31,7 @@ class SPAGLUEVAE(BaseModuleClass):
         self.guidance_graph = guidance_graph
 
         self.z_encoder_diss = Encoder(
-            n_input=n_inputs[0],
+            n_input=n_inputs["diss"],
             n_output=n_latent_seq,
             n_hidden=n_hidden,
             n_layers=n_layers,
@@ -41,7 +41,7 @@ class SPAGLUEVAE(BaseModuleClass):
         )
 
         self.z_encoder_spa = Encoder(
-            n_input=n_inputs[1],
+            n_input=n_inputs["spatial"],
             n_output=n_latent_spatial,
             n_hidden=n_hidden,
             n_layers=n_layers,
@@ -51,19 +51,19 @@ class SPAGLUEVAE(BaseModuleClass):
         )
 
         self.z_decoder_diss = NBDataDecoderWB(
-            n_output=n_inputs[0],
+            n_output=n_inputs["diss"],
             n_latent=n_latent_seq,
-            n_batches=n_batches[0],
+            n_batches=n_batches["diss"],
         )
 
         self.z_decoder_spa = NBDataDecoderWB(
-            n_output=n_inputs[1],
+            n_output=n_inputs["spatial"],
             n_latent=n_latent_spatial,
-            n_batches=n_batches[1],
+            n_batches=n_batches["spatial"],
         )
 
         self.graph_encoder = GraphEncoder_glue(
-            vnum=n_inputs[0] + n_inputs[1],
+            vnum=n_inputs["diss"] + n_inputs["spatial"],
             out_features=50,
         )
 
@@ -89,7 +89,7 @@ class SPAGLUEVAE(BaseModuleClass):
     def inference(
         self,
         x: torch.Tensor,
-        mode: int | None = 0,
+        mode: str | None = None,
     ) -> dict[str, torch.Tensor]:
         x_ = x
         library = torch.log(x.sum(1)).unsqueeze(1)
@@ -102,17 +102,19 @@ class SPAGLUEVAE(BaseModuleClass):
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
 
         # embedding for modality is extracted to be used for decoder input
-        if mode == 0:
-            v = v_all[graph.seq_indices]
-            v_other_mod = v_all[graph.spa_indices]
-        elif mode == 1:
-            v = v_all[graph.spa_indices]
-            v_other_mod = v_all[graph.seq_indices]
+        if mode == "diss":
+            v = v_all[getattr(graph, f"{mode}_indices")]
+            other_mode = [m for m in ["diss", "spatial"] if m != mode][0]
+            v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
+        elif mode == "spatial":
+            v = v_all[getattr(graph, f"{mode}_indices")]
+            other_mode = [m for m in ["diss", "spatial"] if m != mode][0]
+            v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
         else:
-            raise ValueError("Invalid mode: must be 0 or 1.")
+            raise ValueError("Invalid mode: must be diss or spatial.")
 
         # diss data
-        if mode == 0:
+        if mode == "diss":
             qz, z = self.z_encoder_diss(x_)
         # spa data
         else:
@@ -137,17 +139,17 @@ class SPAGLUEVAE(BaseModuleClass):
         batch_index: torch.Tensor | None = None,
         y: torch.Tensor | None = None,
         v: torch.Tensor | None = None,
-        mode: int | None = 0,
+        mode: str | None = 0,
     ) -> dict[str, torch.Tensor]:
         """Run the generative model."""
         EPS = 1e-8
 
         # diss data
-        if mode == 0:
+        if mode == "diss":
             px_scale, px_r, px_rate, px_dropout = self.z_decoder_diss(z, library, batch_index, v)
 
         # spa data
-        else:
+        elif mode == "spatial":
             px_scale, px_r, px_rate, px_dropout = self.z_decoder_spa(z, library, batch_index, v)
 
         px_r = px_r.exp()
@@ -182,7 +184,7 @@ class SPAGLUEVAE(BaseModuleClass):
         generative_outputs: dict[str, torch.Tensor],
         lam_kl: torch.Tensor | float = 1.0,
         lam_data: torch.Tensor | float = 1.0,
-        mode: int | None = None,
+        mode: str | None = None,
     ) -> LossOutput:
         x = tensors[REGISTRY_KEYS.X_KEY]
         n_obs = x.shape[0]
