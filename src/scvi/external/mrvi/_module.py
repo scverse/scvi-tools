@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 import flax.linen as nn
 import jax
@@ -12,6 +12,10 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
 
 DEFAULT_PX_KWARGS = {
     "n_hidden": 32,
@@ -264,7 +268,10 @@ class EncoderXU(nn.Module):
         sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
-        from scvi.external.mrvi._components import ConditionalNormalization, NormalDistOutputNN
+        from scvi.external.mrvi._components import (
+            ConditionalNormalization,
+            NormalDistOutputNN,
+        )
 
         training = nn.merge_param("training", self.training, training)
         x_feat = jnp.log1p(x)
@@ -420,10 +427,10 @@ class MRVAE(JaxBaseModuleClass):
                 "u_prior_logits", nn.initializers.zeros, (u_prior_mixture_k,)
             )
             self.u_prior_means = self.param(
-                "u_prior_means", jax.random.normal, (u_dim, u_prior_mixture_k)
+                "u_prior_means", jax.random.normal, (u_prior_mixture_k, u_dim)
             )
             self.u_prior_scales = self.param(
-                "u_prior_scales", nn.initializers.zeros, (u_dim, u_prior_mixture_k)
+                "u_prior_scales", nn.initializers.zeros, (u_prior_mixture_k, u_dim)
             )
 
     @property
@@ -513,7 +520,9 @@ class MRVAE(JaxBaseModuleClass):
                 10.0 * jax.nn.one_hot(label_index, self.n_labels) if self.n_labels >= 2 else 0.0
             )
             cats = dist.Categorical(logits=self.u_prior_logits + offset)
-            normal_dists = dist.Normal(self.u_prior_means, jnp.exp(self.u_prior_scales))
+            normal_dists = dist.Normal(self.u_prior_means, jnp.exp(self.u_prior_scales)).to_event(
+                1
+            )
             pu = dist.MixtureSameFamily(cats, normal_dists)
         else:
             pu = dist.Normal(0, jnp.exp(self.u_prior_scale))
@@ -532,13 +541,11 @@ class MRVAE(JaxBaseModuleClass):
         )
 
         if self.u_prior_mixture:
-            kl_u = inference_outputs["qu"].log_prob(inference_outputs["u"]) - generative_outputs[
-                "pu"
-            ].log_prob(inference_outputs["u"])
-            kl_u = kl_u.sum(-1)
+            kl_u = inference_outputs["qu"].log_prob(inference_outputs["u"]).sum(
+                -1
+            ) - generative_outputs["pu"].log_prob(inference_outputs["u"])
         else:
             kl_u = dist.kl_divergence(inference_outputs["qu"], generative_outputs["pu"]).sum(-1)
-        inference_outputs["qeps"]
 
         kl_z = 0.0
         eps = inference_outputs["z"] - inference_outputs["z_base"]

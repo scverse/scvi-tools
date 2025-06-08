@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -33,14 +31,19 @@ from scvi.model._utils import (
 from scvi.model.base import BaseModelClass
 from scvi.model.base._de_core import _de_core
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils import setup_anndata_dsp
+from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import devices_dsp
 
 from ._contrastive_data_splitting import ContrastiveDataSplitter
 from ._module import ContrastiveVAE
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from anndata import AnnData
+
 logger = logging.getLogger(__name__)
-Number = Union[int, float]
+Number = int | float
 
 
 class ContrastiveVI(BaseModelClass):
@@ -133,7 +136,7 @@ class ContrastiveVI(BaseModelClass):
         max_epochs: int | None = None,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
@@ -329,6 +332,7 @@ class ContrastiveVI(BaseModelClass):
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ) -> dict[str, np.ndarray | pd.DataFrame]:
         """Returns the normalized (decoded) gene expression.
 
@@ -363,6 +367,7 @@ class ContrastiveVI(BaseModelClass):
             Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
             DataFrame includes gene names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -416,7 +421,7 @@ class ContrastiveVI(BaseModelClass):
             batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
             background_per_batch_exprs = []
             salient_per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 if batch is not None:
                     batch_index = torch.ones_like(batch_index) * batch
                 inference_outputs = self.module._generic_inference(
@@ -742,9 +747,9 @@ class ContrastiveVI(BaseModelClass):
         if target_idx is not None:
             target_idx = np.array(target_idx)
             if target_idx.dtype is np.dtype("bool"):
-                assert (
-                    len(target_idx) == adata.n_obs
-                ), "target_idx mask must be the same length as adata!"
+                assert len(target_idx) == adata.n_obs, (
+                    "target_idx mask must be the same length as adata!"
+                )
                 target_idx = np.arange(adata.n_obs)[target_idx]
             model_fn = partial(
                 self.get_specific_normalized_expression,

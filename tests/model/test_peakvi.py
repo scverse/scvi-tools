@@ -131,14 +131,17 @@ def test_peakvi():
     )
     vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
-    vae.get_accessibility_estimates()
-    vae.get_accessibility_estimates(normalize_cells=True)
-    vae.get_accessibility_estimates(normalize_regions=True)
+    vae.get_normalized_accessibility()
+    vae.get_normalized_accessibility(normalize_cells=True)
+    vae.get_normalized_accessibility(normalize_regions=True)
     vae.get_library_size_factors()
     vae.get_region_factors()
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+    vae.get_normalized_expression()
+    vae.get_normalized_expression(transform_batch="batch_1")
+    vae.get_normalized_expression(n_samples=2)
 
 
 def single_pass_for_online_update(model):

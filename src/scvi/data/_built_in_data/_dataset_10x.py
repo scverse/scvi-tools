@@ -8,6 +8,7 @@ import numpy as np
 
 from scvi import settings
 from scvi.data._download import _download
+from scvi.utils import dependencies
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ group_to_filename_skeleton = {
 }
 
 
+@dependencies("scanpy")
 def _load_dataset_10x(
     dataset_name: str = None,
     filename: str = None,
@@ -83,10 +85,7 @@ def _load_dataset_10x(
     remove_extracted_data: bool = False,
     **scanpy_read_10x_kwargs,
 ):
-    try:
-        import scanpy
-    except ImportError as err:
-        raise ImportError("Please install scanpy -- `pip install scanpy`") from err
+    import scanpy
 
     # form data url and filename unless manual override
     if dataset_name is not None:

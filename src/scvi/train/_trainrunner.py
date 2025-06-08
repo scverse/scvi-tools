@@ -1,6 +1,5 @@
 import logging
 import warnings
-from typing import Union
 
 import lightning.pytorch as pl
 import numpy as np
@@ -58,10 +57,10 @@ class TrainRunner:
         self,
         model: BaseModelClass,
         training_plan: pl.LightningModule,
-        data_splitter: Union[SemiSupervisedDataSplitter, DataSplitter],
+        data_splitter: SemiSupervisedDataSplitter | DataSplitter,
         max_epochs: int,
         accelerator: str = "auto",
-        devices: Union[int, list[int], str] = "auto",
+        devices: int | list[int] | str = "auto",
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
@@ -85,6 +84,22 @@ class TrainRunner:
             devices=lightning_devices,
             **trainer_kwargs,
         )
+
+        # Sanity checks for usage of early Stopping"
+        if self.trainer.early_stopping_callback is not None:
+            if type(data_splitter).__name__ == "DataSplitter":
+                # for other data splitter need to think on something else...
+                if (data_splitter.n_val == 0) and (
+                    "valid" in self.trainer.early_stopping_callback.monitor
+                ):
+                    raise ValueError(
+                        "Cant run Early Stopping with validation monitor with no validation set"
+                    )
+                if (model.adata.n_obs - data_splitter.n_train - data_splitter.n_val) and (
+                    "test" in self.trainer.early_stopping_callback.monitor
+                ):
+                    raise ValueError("Cant run Early Stopping with test monitor with no test set")
+
         self.trainer._model = model  # needed for savecheckpoint callback
 
     def __call__(self):
@@ -94,7 +109,16 @@ class TrainRunner:
         if hasattr(self.data_splitter, "n_val"):
             self.training_plan.n_obs_validation = self.data_splitter.n_val
 
-        self.trainer.fit(self.training_plan, self.data_splitter)
+        try:
+            self.trainer.fit(self.training_plan, self.data_splitter)
+        except NameError:
+            import gc
+
+            gc.collect()
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
         self._update_history()
 
         # data splitter only gets these attrs after fit

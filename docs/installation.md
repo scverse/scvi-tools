@@ -23,14 +23,14 @@ Don't know how to get started with virtual environments or `conda`/`pip`? Check 
 ### Virtual environment
 
 A virtual environment can be created with either `conda` or `venv`. We recommend using `conda`. We
-currently support Python 3.9 - 3.11.
+currently support Python 3.10 - 3.13.
 
 For `conda`, we recommend using the [Miniforge](https://github.com/conda-forge/miniforge)
 distribution, which is generally faster than the official distribution and comes with conda-forge
 as the default channel (where scvi-tools is hosted).
 
 ```bash
-conda create -n scvi-env python=3.11  # any python 3.9 to 3.11
+conda create -n scvi-env python=3.12  # any python 3.10 to 3.13
 conda activate scvi-env
 ```
 
@@ -49,11 +49,20 @@ scvi-tools depends on PyTorch and JAX for accelerated computing. If you don't pl
 an accelerated device, we recommend installing scvi-tools directly and letting these dependencies
 be installed automatically by your package manager of choice.
 
-If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon), we
-recommend installing PyTorch and JAX _before_ installing scvi-tools. Please follow the respective
-installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
-[JAX](https://jax.readthedocs.io/en/latest/installation.html) compatible with your system and
-device type.
+If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon), scvi-tools supports it.
+In order to install scvi-tools with Nvidia GPU CUDA support use:
+```bash
+pip install -U scvi-tools[cuda]
+```
+And for Apple Silicon metal (MPS) support:
+```bash
+pip install -U scvi-tools[metal]
+```
+
+However, there might be cases where the GPU HW is not supporting the latest installation of PyTorch and Jax.
+In this case we recommend installing PyTorch and JAX _before_ installing scvi-tools.
+Please follow the respective installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
+[JAX](https://jax.readthedocs.io/en/latest/installation.html) compatible with your system and device type.
 
 ## Optional dependencies
 
@@ -80,7 +89,7 @@ pip install -U scvi-tools[dev]
 ## Docker
 
 If you plan on running scvi-tools in a containerized environment, we provide various Docker
-[images](https://hub.docker.com/repository/docker/scverse/scvi-tools/general) hosted on Docker Hub.
+[images](https://github.com/scverse/scvi-tools/pkgs/container/scvi-tools) hosted on GHCR.
 
 ## R
 

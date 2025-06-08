@@ -34,8 +34,6 @@ import scvi
    model.MULTIVI
    model.AmortizedLDA
    model.JaxSCVI
-
-
 ```
 
 ```{eval-rst}
@@ -61,7 +59,13 @@ import scvi
    external.POISSONVI
    external.VELOVI
    external.MRVI
-
+   external.METHYLVI
+   external.METHYLANVI
+   external.Decipher
+   external.TOTALANVI
+   external.RESOLVI
+   external.SysVI
+   external.SCVIVA
 ```
 
 ## Data loading
@@ -158,7 +162,6 @@ Here we maintain miscellaneous general methods.
    :toctree: reference/
    :nosignatures:
 
-   model.utils.mde
    model.utils.get_minified_adata_scrna
 ```
 

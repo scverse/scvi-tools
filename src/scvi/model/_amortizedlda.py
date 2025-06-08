@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import collections.abc
 import logging
-from collections.abc import Sequence
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import pyro
 import torch
-from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -16,6 +16,11 @@ from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
 
 from .base import BaseModelClass, PyroSviTrainMixin
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +64,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData,
         n_topics: int = 20,
         n_hidden: int = 128,
-        cell_topic_prior: Optional[Union[float, Sequence[float]]] = None,
-        topic_feature_prior: Optional[Union[float, Sequence[float]]] = None,
+        cell_topic_prior: float | Sequence[float] | None = None,
+        topic_feature_prior: float | Sequence[float] | None = None,
     ):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
@@ -109,9 +114,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
+        layer: str | None = None,
         **kwargs,
-    ) -> Optional[AnnData]:
+    ) -> AnnData | None:
         """%(summary)s.
 
         Parameters
@@ -154,9 +159,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def get_latent_representation(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
         n_samples: int = 5000,
     ) -> pd.DataFrame:
         """Converts a count matrix to an inferred topic distribution.
@@ -197,9 +202,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def get_elbo(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         """Return the ELBO for the data.
 
@@ -234,9 +239,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def get_perplexity(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        batch_size: Optional[int] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
     ) -> float:
         """Computes approximate perplexity for `adata`.
 
@@ -263,5 +268,5 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         total_counts = sum(tensors[REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
         return np.exp(
-            self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
+            -self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
         )

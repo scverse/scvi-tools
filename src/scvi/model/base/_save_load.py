@@ -1,23 +1,29 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import anndata
 import mudata
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import torch
 from anndata import AnnData, read_h5ad
 
 from scvi import settings
-from scvi._types import AnnOrMuData
 from scvi.data._constants import _SETUP_METHOD_NAME
 from scvi.data._download import _download
 from scvi.model.base._constants import SAVE_KEYS
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    import numpy.typing as npt
+
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +41,7 @@ def _load_legacy_saved_files(
         dir_path, f"{file_name_prefix}{SAVE_KEYS.LEGACY_SETUP_DICT_FNAME}"
     )
 
-    model_state_dict = torch.load(model_path, map_location="cpu")
+    model_state_dict = torch.load(model_path, map_location="cpu", weights_only=False)
 
     var_names = np.genfromtxt(var_names_path, delimiter=",", dtype=str)
 
@@ -68,7 +74,7 @@ def _load_saved_files(
     model_path = os.path.join(dir_path, model_file_name)
     try:
         _download(backup_url, dir_path, model_file_name)
-        model = torch.load(model_path, map_location=map_location)
+        model = torch.load(model_path, map_location=map_location, weights_only=False)
     except FileNotFoundError as exc:
         raise ValueError(
             f"Failed to load model file at {model_path}. "
@@ -97,7 +103,7 @@ def _load_saved_files(
     return attr_dict, var_names, model_state_dict, adata
 
 
-def _initialize_model(cls, adata, attr_dict):
+def _initialize_model(cls, adata, registry, attr_dict, datamodule):
     """Helper to initialize a model."""
     if "init_params_" not in attr_dict.keys():
         raise ValueError(
@@ -128,7 +134,16 @@ def _initialize_model(cls, adata, attr_dict):
     if "pretrained_model" in non_kwargs.keys():
         non_kwargs.pop("pretrained_model")
 
-    model = cls(adata, **non_kwargs, **kwargs)
+    if not adata:
+        adata = None
+
+    if datamodule:
+        non_kwargs["datamodule"] = datamodule
+
+    if "registry" in inspect.signature(cls).parameters:
+        model = cls(adata, registry=registry, **non_kwargs, **kwargs)
+    else:
+        model = cls(adata, **non_kwargs, **kwargs)
     for attr, val in attr_dict.items():
         setattr(model, attr, val)
 
@@ -172,7 +187,9 @@ def _get_var_names(
 
 
 def _validate_var_names(
-    adata: AnnOrMuData, source_var_names: npt.NDArray | dict[str, npt.NDArray]
+    adata: AnnOrMuData | None,
+    source_var_names: npt.NDArray | dict[str, npt.NDArray],
+    load_var_names: npt.NDArray | dict[str, npt.NDArray] | None = None,
 ) -> None:
     """Validate that source and loaded variable names match.
 
@@ -183,15 +200,19 @@ def _validate_var_names(
     source_var_names
         Variable names from a saved model file corresponding to the variable names used during
         training.
+    load_var_names
+        Variable names from the loaded registry.
     """
     from numpy import array_equal
 
-    is_anndata = isinstance(adata, AnnData)
     source_per_mod_var_names = isinstance(source_var_names, dict)
-    load_var_names = _get_var_names(
-        adata,
-        legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
-    )
+
+    if load_var_names is None:
+        is_anndata = isinstance(adata, AnnData)
+        load_var_names = _get_var_names(
+            adata,
+            legacy_mudata_format=(not is_anndata and not source_per_mod_var_names),
+        )
 
     if source_per_mod_var_names:
         valid_load_var_names = all(
@@ -203,7 +224,7 @@ def _validate_var_names(
 
     if not valid_load_var_names:
         warnings.warn(
-            "`var_names` for the loaded `adata` does not match those of the `adata` used to "
+            "`var_names` for the loaded `model` does not match those used to "
             "train the model. For valid results, the former should match the latter.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,

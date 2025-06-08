@@ -1,6 +1,6 @@
 import importlib
+from collections.abc import Callable
 from functools import wraps
-from typing import Callable
 
 
 def error_on_missing_dependencies(*modules):
@@ -26,3 +26,11 @@ def dependencies(*modules) -> Callable:
         return wrapper
 
     return decorator
+
+
+def is_package_installed(module):
+    try:
+        importlib.import_module(module)  # Try importing the package
+        return True  # If no exception is raised, the package is installed
+    except ImportError:
+        return False  # If ImportError is raised, the package is not installed

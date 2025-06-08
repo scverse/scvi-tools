@@ -9,14 +9,13 @@ from scvi.train._trainingplans import _compute_kl_weight
 
 
 @pytest.mark.parametrize(
-    "current,n_warm_up,min_kl_weight,max_kl_weight,expected",
+    ("current", "n_warm_up", "min_kl_weight", "max_kl_weight", "expected"),
     [
         (0, 400, 0.0, 1.0, 0.0),
         (200, 400, 0.0, 1.0, 0.5),
         (400, 400, 0.0, 1.0, 1.0),
         (0, 400, 0.5, 1.0, 0.5),
         (200, 400, 0.5, 1.0, 0.75),
-        (400, 400, 0.0, 1.0, 1.0),
         (400, 400, 0.0, 2.0, 2.0),
     ],
 )
@@ -40,7 +39,7 @@ def test_compute_kl_weight_min_greater_max():
 
 
 @pytest.mark.parametrize(
-    "epoch,step,n_epochs_kl_warmup,n_steps_kl_warmup,expected",
+    ("epoch", "step", "n_epochs_kl_warmup", "n_steps_kl_warmup", "expected"),
     [
         (0, 100, 100, 100, 0.0),
         (50, 200, 100, 1000, 0.5),

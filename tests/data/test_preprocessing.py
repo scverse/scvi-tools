@@ -1,6 +1,9 @@
+import pytest
+
+
 def test_poisson_gene_selection():
     import numpy as np
-    from pytest import raises
+    import pytest
 
     from scvi.data import poisson_gene_selection, synthetic_iid
 
@@ -24,13 +27,14 @@ def test_poisson_gene_selection():
 
     X = adata.X
     adata.X = -X
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
     adata.X = 0.25 * X
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
 
 
+@pytest.mark.internet
 def test_add_dna_sequence(save_path: str):
     from scvi.data import add_dna_sequence, synthetic_iid
 

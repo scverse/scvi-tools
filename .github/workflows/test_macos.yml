@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-14]
-        python: ["3.9", "3.10", "3.11"]
+        python: ["3.11", "3.12", "3.13"]
 
     name: integration
 
@@ -62,6 +62,8 @@ jobs:
           PLATFORM: ${{ matrix.os }}
           DISPLAY: :42
           COLUMNS: 120
+          PYTORCH_MPS_HIGH_WATERMARK_RATIO: 0.0
+          PYTORCH_ENABLE_MPS_FALLBACK: 1.0
         run: |
           coverage run -m pytest -v --color=yes
           coverage report

@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 
 import scvi
+from scvi.criticism import create_criticism_report
 from scvi.data import synthetic_iid
 from scvi.hub import HubMetadata, HubModel, HubModelCardHelper
 from scvi.hub._constants import _SCVI_HUB
@@ -24,6 +25,7 @@ def prep_scvi_hub_model(save_path: str) -> HubModel:
     model = prep_model()
     model_path = os.path.join(save_path, "test_scvi")
     model.save(model_path, save_anndata=True, overwrite=True)
+    create_criticism_report(model, save_folder=model_path, n_samples=2)
 
     metadata = HubMetadata.from_dir(model_path, anndata_version=anndata.__version__)
     desc = "scVI model trained on synthetic IID data and uploaded with the full training data."
@@ -91,7 +93,7 @@ def test_hub_model_init(request, save_path):
     assert str(e.value) == "No metadata found"
 
     # metadata, no model card
-    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
+    hm = HubMetadata(scvi.__version__, anndata.__version__, "SCVI")
     with pytest.raises(ValueError) as e:
         HubModel(test_save_path, metadata=hm)
     assert str(e.value) == "No model card found"
@@ -100,7 +102,7 @@ def test_hub_model_init(request, save_path):
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
-        anndata_version="0.8.0",
+        anndata_version=anndata.__version__,
         model_parent_module="other_module",
     )
     with pytest.raises(ValueError) as e:
@@ -134,11 +136,11 @@ def test_hub_model_load(request, save_path):
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True, save_anndata=True)
 
-    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
+    hm = HubMetadata(scvi.__version__, anndata.__version__, "SCVI")
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
-        anndata_version="0.8.0",
+        anndata_version=anndata.__version__,
         model_parent_module="other_module",
     )
 
@@ -186,14 +188,20 @@ def test_hub_model_save(save_anndata: bool, save_path: str):
     hub_model.save(overwrite=True)
 
     card_path = os.path.join(model_path, _SCVI_HUB.MODEL_CARD_FILE_NAME)
-    assert os.path.exists(card_path) and os.path.isfile(card_path)
+    assert os.path.exists(card_path)
+    assert os.path.isfile(card_path)
     metadata_path = os.path.join(model_path, _SCVI_HUB.METADATA_FILE_NAME)
-    assert os.path.exists(metadata_path) and os.path.isfile(metadata_path)
+    assert os.path.exists(metadata_path)
+    assert os.path.isfile(metadata_path)
 
     with pytest.raises(FileExistsError):
         hub_model.save(overwrite=False)
 
     hub_model.save(overwrite=True)
+
+
+def test_prep_scvi_hub_model(save_path: str) -> HubModel:
+    prep_scvi_hub_model(save_path)
 
 
 @pytest.mark.private
@@ -203,11 +211,13 @@ def test_hub_model_large_training_adata(request, save_path):
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True)
 
-    hm = HubMetadata("0.17.4", "0.8.0", "SCVI", training_data_url=training_data_url)
+    hm = HubMetadata(
+        scvi.__version__, anndata.__version__, "SCVI", training_data_url=training_data_url
+    )
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
-        anndata_version="0.8.0",
+        anndata_version=anndata.__version__,
         model_parent_module="other_module",
     )
 
@@ -220,15 +230,19 @@ def test_hub_model_large_training_adata(request, save_path):
 
 @pytest.mark.private
 def test_hub_model_create_repo_hf(save_path: str):
-    from huggingface_hub import delete_repo
+    from huggingface_hub import delete_repo, repo_exists
+
+    if repo_exists("scvi-tools/test-scvi-create"):
+        delete_repo("scvi-tools/test-scvi-create", token=os.environ.get("HF_API_TOKEN", None))
 
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-create",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
+        collection_name="test",
         repo_create=True,
     )
-    delete_repo("scvi-tools/test-scvi-create", token=os.environ["HF_API_TOKEN"])
+    delete_repo("scvi-tools/test-scvi-create", token=os.environ.get("HF_API_TOKEN", None))
 
 
 @pytest.mark.private
@@ -236,23 +250,26 @@ def test_hub_model_push_to_hf(save_path: str):
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
         repo_create=False,
+        collection_name="test",
     )
 
     hub_model = prep_scvi_no_anndata_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-no-anndata",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
         repo_create=False,
         push_anndata=False,
+        collection_name="test",
     )
 
     hub_model = prep_scvi_minified_hub_model(save_path)
     hub_model.push_to_huggingface_hub(
         "scvi-tools/test-scvi-minified",
-        os.environ["HF_API_TOKEN"],
+        os.environ.get("HF_API_TOKEN", None),
         repo_create=False,
+        collection_name="test",
     )
 
 
@@ -267,7 +284,7 @@ def test_hub_model_pull_from_hf():
     assert hub_model.adata is not None
 
     hub_model = HubModel.pull_from_huggingface_hub(repo_name="scvi-tools/test-scvi-no-anndata")
-    with pytest.raises(ValueError):
+    with pytest.raises(FileNotFoundError):
         _ = hub_model.model
 
     adata = synthetic_iid()
@@ -279,15 +296,15 @@ def test_hub_model_pull_from_hf():
 @pytest.mark.private
 def test_hub_model_push_to_s3(save_path: str):
     hub_model = prep_scvi_hub_model(save_path)
-    hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi")
+    hub_model.push_to_s3("scvi-tools-wis", "tests/hub/test-scvi")
 
     hub_model = prep_scvi_no_anndata_hub_model(save_path)
     with pytest.raises(ValueError):
-        hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=True)
-    hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-no-anndata", push_anndata=False)
+        hub_model.push_to_s3("scvi-tools-wis", "tests/hub/test-scvi-no-anndata", push_anndata=True)
+    hub_model.push_to_s3("scvi-tools-wis", "tests/hub/test-scvi-no-anndata", push_anndata=False)
 
     hub_model = prep_scvi_minified_hub_model(save_path)
-    hub_model.push_to_s3("scvi-tools", "tests/hub/test-scvi-minified")
+    hub_model.push_to_s3("scvi-tools-wis", "tests/hub/test-scvi-minified")
 
 
 @pytest.mark.private
@@ -295,21 +312,21 @@ def test_hub_model_pull_from_s3():
     from botocore.exceptions import ClientError
 
     hub_model = HubModel.pull_from_s3(
-        "scvi-tools",
+        "scvi-tools-wis",
         "tests/hub/test-scvi",
     )
     assert hub_model.model is not None
     assert hub_model.adata is not None
 
-    hub_model = HubModel.pull_from_s3("scvi-tools", "tests/hub/test-scvi-minified")
+    hub_model = HubModel.pull_from_s3("scvi-tools-wis", "tests/hub/test-scvi-minified")
     assert hub_model.model is not None
     assert hub_model.adata is not None
 
     with pytest.raises(ClientError):
-        hub_model = HubModel.pull_from_s3("scvi-tools", "tests/hub/test-scvi-no-anndata")
+        hub_model = HubModel.pull_from_s3("scvi-tools-wis", "tests/hub/test-scvi-no-anndata")
 
     hub_model = HubModel.pull_from_s3(
-        "scvi-tools",
+        "scvi-tools-wis",
         "tests/hub/test-scvi-no-anndata",
         pull_anndata=False,
     )

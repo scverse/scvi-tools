@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from mudata import MuData
 from scipy.sparse import issparse
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import (
@@ -17,7 +18,6 @@ from sklearn.metrics import (
 from sparse import GCXS, SparseArray
 from xarray import DataArray, Dataset
 
-from scvi.model.base import BaseModelClass
 from scvi.utils import dependencies
 
 from ._constants import (
@@ -33,6 +33,10 @@ from ._constants import (
     UNS_NAME_RGG_RAW,
 )
 
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
+    from scvi.model.base import BaseModelClass
+
 Dims = Literal["cells", "features"]
 
 
@@ -42,13 +46,6 @@ def _make_dataset_dense(dataset: Dataset) -> Dataset:
     return dataset
 
 
-def _get_precision_recall_f1(ground_truth: np.ndarray, pred: np.ndarray):
-    precision, recall, f1, _ = precision_recall_fscore_support(
-        ground_truth, pred, average="binary"
-    )
-    return precision, recall, f1
-
-
 class PosteriorPredictiveCheck:
     """
     ``EXPERIMENTAL`` Posterior predictive checks for comparing scRNA-seq generative models.
@@ -56,7 +53,7 @@ class PosteriorPredictiveCheck:
     Parameters
     ----------
     adata
-        :class:`~anndata.AnnData` object with raw counts in either ``adata.X`` or ``adata.layers``.
+        :class:`~AnnOrMudata` object with raw counts in either ``adata.X`` or ``adata.layers``.
     models_dict
         Dictionary of models to compare.
     count_layer_key
@@ -66,21 +63,32 @@ class PosteriorPredictiveCheck:
     indices
         Indices of observations in ``adata`` to subset to before generating posterior predictive
         samples and computing metrics. If ``None``, defaults to all observations in ``adata``.
+    modality
+        Modality to use for posterior predictive samples. Needs to be defined if using MuData
     """
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         models_dict: dict[str, BaseModelClass],
         count_layer_key: str | None = None,
         n_samples: int = 10,
         indices: list | None = None,
+        modality: str | None = None,
     ):
         if indices is not None:
             adata = adata[indices]
-        self.adata = adata
         self.count_layer_key = count_layer_key
-        raw_counts = adata.layers[count_layer_key] if count_layer_key is not None else adata.X
+        self.modality = modality
+        if isinstance(adata, MuData):
+            assert modality is not None, "Modality must be defined for MuData."
+            self.adata = adata[modality]
+            raw_counts = (
+                self.adata.layers[count_layer_key] if count_layer_key is not None else self.adata.X
+            )
+        else:
+            self.adata = adata
+            raw_counts = adata.layers[count_layer_key] if count_layer_key is not None else adata.X
         # Compressed axis is rows, like csr
         if isinstance(raw_counts, np.ndarray):
             self.raw_counts = GCXS.from_numpy(raw_counts, compressed_axes=(0,))
@@ -147,17 +155,19 @@ class PosteriorPredictiveCheck:
                 batch_size=self.batch_size,
                 indices=indices,
             )
+            if isinstance(pp_counts, dict):
+                pp_counts = pp_counts[self.modality]
             samples_dict[m] = DataArray(
                 data=pp_counts,
                 coords={
-                    "cells": self.adata.obs_names,
-                    "features": model.adata.var_names,
+                    "cells": list(self.adata.obs_names),
+                    "features": list(self.adata.var_names),
                     "samples": np.arange(self.n_samples),
                 },
             )
         samples_dict[DATA_VAR_RAW] = DataArray(
             data=self.raw_counts,
-            coords={"cells": self.adata.obs_names, "features": self.adata.var_names},
+            coords={"cells": list(self.adata.obs_names), "features": list(self.adata.var_names)},
         )
         self.samples_dataset = Dataset(samples_dict)
 
@@ -251,7 +261,7 @@ class PosteriorPredictiveCheck:
     @dependencies("scanpy")
     def differential_expression(
         self,
-        de_groupby: str,
+        de_groupby: str | None = None,
         de_method: str = "t-test",
         n_samples: int = 1,
         cell_scale_factor: float = 1e4,
@@ -279,6 +289,15 @@ class PosteriorPredictiveCheck:
             The number of top genes to use for the DE analysis if the number of genes
             with a p-value < p_val_thresh is zero.
         """
+        if 10 * n_top_genes_fallback > self.adata.n_vars:
+            warnings.warn(
+                f"n_top_genes_fallback={n_top_genes_fallback} is greater than 10% of n_vars"
+                f" {self.adata.n_vars} in the dataset. Setting it to 10% of n_vars.",
+                UserWarning,
+                stacklevel=2,
+            )
+            n_top_genes_fallback = int(0.1 * self.adata.n_vars)
+
         import scanpy as sc
 
         if n_samples > self.n_samples:
@@ -294,6 +313,11 @@ class PosteriorPredictiveCheck:
         )
         sc.pp.normalize_total(adata_de, target_sum=cell_scale_factor)
         sc.pp.log1p(adata_de)
+        if de_groupby is None:
+            sc.tl.pca(adata_de)
+            sc.pp.neighbors(adata_de)
+            sc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
+            de_groupby = "leiden_scvi_criticism"
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
             sc.tl.rank_genes_groups(
@@ -340,11 +364,12 @@ class PosteriorPredictiveCheck:
                         key_added=key_added,
                     )
 
-        groups = self.adata.obs[de_groupby].astype("category").cat.categories
+        groups = adata_de.obs[de_groupby].astype("category").cat.categories
+        cell_counts = adata_de.obs[de_groupby].value_counts()
         df = pd.DataFrame(
             index=np.arange(len(groups) * len(models)),
             columns=[
-                "gene_overlap_f1",
+                "gene_f1",
                 "lfc_mae",
                 "lfc_pearson",
                 "lfc_spearman",
@@ -352,40 +377,41 @@ class PosteriorPredictiveCheck:
                 "pr_auc",
                 "group",
                 "model",
+                "n_cells",
             ],
         )
-        i = 0
-        self.metrics[METRIC_DIFF_EXP] = {}
-        self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"] = {}
-        for g in groups:
-            raw_group_data = sc.get.rank_genes_groups_df(adata_de, group=g, key=UNS_NAME_RGG_RAW)
+        # Initialize storage for metrics
+        self.metrics[METRIC_DIFF_EXP] = {"lfc_per_model_per_group": {}}
+
+        for i, group in enumerate(groups):
+            raw_group_data = sc.get.rank_genes_groups_df(
+                adata_de, group=group, key=UNS_NAME_RGG_RAW
+            )
             raw_group_data.set_index("names", inplace=True)
-            for model in de_keys.keys():
-                gene_overlap_f1s = []
-                rgds = []
-                sgds = []
-                lfc_maes = []
-                lfc_pearsons = []
-                lfc_spearmans = []
-                roc_aucs = []
-                pr_aucs = []
-                # Now over potential samples
-                for de_key in de_keys[model]:
+
+            for model, model_keys in de_keys.items():
+                # Storage for metrics across samples
+                gene_overlap_f1s, lfc_maes, lfc_pearsons, lfc_spearmans = [], [], [], []
+                roc_aucs, pr_aucs, rgds, sgds = [], [], [], []
+                for de_key in model_keys:
                     sample_group_data = sc.get.rank_genes_groups_df(
-                        adata_approx, group=g, key=de_key
+                        adata_approx, group=group, key=de_key
                     )
                     sample_group_data.set_index("names", inplace=True)
-                    # compute gene overlaps
-                    all_genes = raw_group_data.index  # order doesn't matter here
+
+                    # Gene Overlap F1
+                    all_genes = raw_group_data.index
                     top_genes_raw = raw_group_data[:n_top_genes_fallback].index
                     top_genes_sample = sample_group_data[:n_top_genes_fallback].index
-                    true_genes = np.array([0 if g not in top_genes_raw else 1 for g in all_genes])
-                    pred_genes = np.array(
-                        [0 if g not in top_genes_sample else 1 for g in all_genes]
+                    true_genes = np.isin(all_genes, top_genes_raw).astype(int)
+                    pred_genes = np.isin(all_genes, top_genes_sample).astype(int)
+                    gene_overlap_f1s.append(
+                        precision_recall_fscore_support(true_genes, pred_genes, average="binary")[
+                            2
+                        ]
                     )
-                    gene_overlap_f1s.append(_get_precision_recall_f1(true_genes, pred_genes)[2])
-                    # compute lfc correlations
-                    sample_group_data = sample_group_data.loc[raw_group_data.index]
+                    # Log-fold change (LFC) metrics
+                    sample_group_data = sample_group_data.reindex(raw_group_data.index)
                     rgd, sgd = (
                         raw_group_data["logfoldchanges"],
                         sample_group_data["logfoldchanges"],
@@ -395,34 +421,36 @@ class PosteriorPredictiveCheck:
                     lfc_maes.append(np.mean(np.abs(rgd - sgd)))
                     lfc_pearsons.append(pearsonr(rgd, sgd)[0])
                     lfc_spearmans.append(spearmanr(rgd, sgd)[0])
-                    # compute auPRC and auROC
+
+                    # ROC and PR metrics
                     raw_adj_p_vals = raw_group_data["pvals_adj"]
                     true = raw_adj_p_vals < p_val_thresh
                     pred = sample_group_data["scores"]
-                    if true.sum() == 0:
-                        # if there are no true DE genes, just use the top n genes
+
+                    # Fallback for no true DE genes and most genes DE.
+                    if true.sum() == 0 or true.sum() > (0.5 * len(true)):
                         true = np.zeros_like(pred)
                         true[np.argsort(raw_adj_p_vals)[:n_top_genes_fallback]] = 1
+
                     roc_aucs.append(roc_auc_score(true, pred))
                     pr_aucs.append(average_precision_score(true, pred))
-                # Mean here is over sampled datasets
+
+                # Compute means over samples
                 df.loc[i, "model"] = model
-                df.loc[i, "group"] = g
-                df.loc[i, "gene_overlap_f1"] = np.mean(gene_overlap_f1s)
+                df.loc[i, "group"] = group
+                df.loc[i, "gene_f1"] = np.mean(gene_overlap_f1s)
                 df.loc[i, "lfc_mae"] = np.mean(lfc_maes)
                 df.loc[i, "lfc_pearson"] = np.mean(lfc_pearsons)
                 df.loc[i, "lfc_spearman"] = np.mean(lfc_spearmans)
                 df.loc[i, "roc_auc"] = np.mean(roc_aucs)
                 df.loc[i, "pr_auc"] = np.mean(pr_aucs)
-                rgd, sgd = (
-                    pd.DataFrame(rgds).mean(axis=0),
-                    pd.DataFrame(sgds).mean(axis=0),
+                df.loc[i, "n_cells"] = cell_counts[group]
+
+                # Store LFCs for raw vs approx
+                rgd_avg, sgd_avg = pd.DataFrame(rgds).mean(axis=0), pd.DataFrame(sgds).mean(axis=0)
+                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].setdefault(model, {})
+                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][str(group)] = (
+                    pd.DataFrame([rgd_avg, sgd_avg], index=["raw", "approx"]).T
                 )
-                if model not in self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"].keys():
-                    self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model] = {}
-                self.metrics[METRIC_DIFF_EXP]["lfc_per_model_per_group"][model][g] = pd.DataFrame(
-                    [rgd, sgd], index=["raw", "approx"]
-                ).T
-                i += 1
 
         self.metrics[METRIC_DIFF_EXP]["summary"] = df

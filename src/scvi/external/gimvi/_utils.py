@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -14,13 +14,13 @@ def _load_legacy_saved_gimvi_files(
     file_name_prefix: str,
     load_seq_adata: bool,
     load_spatial_adata: bool,
-) -> tuple[dict, np.ndarray, np.ndarray, dict, Optional[AnnData], Optional[AnnData]]:
+) -> tuple[dict, np.ndarray, np.ndarray, dict, AnnData | None, AnnData | None]:
     model_path = os.path.join(dir_path, f"{file_name_prefix}model_params.pt")
     setup_dict_path = os.path.join(dir_path, f"{file_name_prefix}attr.pkl")
     seq_var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names_seq.csv")
     spatial_var_names_path = os.path.join(dir_path, f"{file_name_prefix}var_names_spatial.csv")
 
-    model_state_dict = torch.load(model_path, map_location="cpu")
+    model_state_dict = torch.load(model_path, map_location="cpu", weights_only=False)
 
     seq_var_names = np.genfromtxt(seq_var_names_path, delimiter=",", dtype=str)
     spatial_var_names = np.genfromtxt(spatial_var_names_path, delimiter=",", dtype=str)
@@ -56,17 +56,17 @@ def _load_saved_gimvi_files(
     dir_path: str,
     load_seq_adata: bool,
     load_spatial_adata: bool,
-    prefix: Optional[str] = None,
-    map_location: Optional[Literal["cpu", "cuda"]] = None,
-    backup_url: Optional[str] = None,
-) -> tuple[dict, dict, np.ndarray, np.ndarray, dict, Optional[AnnData], Optional[AnnData]]:
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
+) -> tuple[dict, dict, np.ndarray, np.ndarray, dict, AnnData | None, AnnData | None]:
     file_name_prefix = prefix or ""
 
     model_file_name = f"{file_name_prefix}model.pt"
     model_path = os.path.join(dir_path, model_file_name)
     try:
         _download(backup_url, dir_path, model_file_name)
-        model = torch.load(model_path, map_location=map_location)
+        model = torch.load(model_path, map_location=map_location, weights_only=False)
     except FileNotFoundError as exc:
         raise ValueError(
             f"Failed to load model file at {model_path}. "

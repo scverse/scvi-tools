@@ -183,7 +183,7 @@ When gene expression data is passed, MultiVI computes denoised gene expression d
 
 ### Denoising/imputation of accessibility
 
-In {func}`~scvi.model.MULTIVI.get_accessibility_estimates` MultiVI returns the expected value of $y_i$ under the
+In {func}`~scvi.model.MULTIVI.get_normalized_accessibility` MultiVI returns the expected value of $y_i$ under the
 approximate posterior. For one cell $i$, this can be written as:
 
 ```{math}
@@ -199,7 +199,7 @@ then, using this value to decode the accessibility probability estimate $p_r$. A
 the variational mean, a number of samples can be passed as an argument in the code:
 
 ```
->>> model.get_accessibility_estimates(n_samples_overall=10)
+>>> model.get_normalized_accessibility(n_samples_overall=10)
 ```
 
 This value is used to compute the mean of the latent variable over these samples. Notably, this function also has

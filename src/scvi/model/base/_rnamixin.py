@@ -4,23 +4,30 @@ import inspect
 import logging
 import warnings
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
 import torch.distributions as db
-from anndata import AnnData
 from pyro.distributions.util import deep_to
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import Number
-from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
 from scvi.model.base._de_core import _de_core
 from scvi.module.base._decorators import _move_data_to_device
-from scvi.utils import de_dsp, dependencies, unsupported_if_adata_minified
+from scvi.utils import de_dsp, dependencies, track, unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from typing import Literal
+
+    from anndata import AnnData
+    from torch import Tensor
+
+    from scvi._types import Number
 
 try:
     from sparse import GCXS
@@ -39,7 +46,6 @@ class RNASeqMixin:
         else:
             raise NotImplementedError("Transforming batches is not implemented for this model.")
 
-    @unsupported_if_adata_minified
     def _get_importance_weights(
         self,
         adata: AnnData | None,
@@ -109,7 +115,7 @@ class RNASeqMixin:
             return_mean=False,
             n_mc_samples=n_mc_samples,
             n_mc_samples_per_pass=n_mc_samples_per_pass,
-        )
+        )  # n_anchors
         mask = torch.tensor(anchor_cells)
         qz_anchor = subset_distribution(qz, mask, 0)  # n_anchors, n_latent
         log_qz = qz_anchor.log_prob(zs.unsqueeze(-2)).sum(dim=-1)  # n_samples, n_cells, n_anchors
@@ -126,7 +132,7 @@ class RNASeqMixin:
             log_px_z.append(
                 distributions_px.log_prob(x_anchor).sum(dim=-1)[..., None].cpu()
             )  # n_samples, n_cells, 1
-        log_px_z = torch.cat(log_px_z, dim=-1)
+        log_px_z = torch.cat(log_px_z, dim=-1)  # n_samples, n_cells, n_anchors
 
         log_pz = log_pz.reshape(-1, 1)
         log_px_z = log_px_z.reshape(-1, len(anchor_cells))
@@ -158,6 +164,8 @@ class RNASeqMixin:
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         **importance_weighting_kwargs,
     ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
@@ -174,9 +182,9 @@ class RNASeqMixin:
         transform_batch
             Batch to condition on.
             If transform_batch is:
-
             - None, then real observed batch is used.
             - int, then batch transform_batch is used.
+            - Otherwise based on string
         gene_list
             Return frequencies of expression for a subset of genes.
             This can save memory when working with large datasets and few genes are
@@ -199,6 +207,11 @@ class RNASeqMixin:
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
             to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
@@ -213,20 +226,34 @@ class RNASeqMixin:
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_genes).
         """
-        adata = self._validate_anndata(adata)
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        if n_samples_overall is not None:
-            assert n_samples == 1  # default value
-            n_samples = n_samples_overall // len(indices) + 1
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
 
-        transform_batch = _get_batch_code_from_category(
-            self.get_anndata_manager(adata, required=True), transform_batch
-        )
+            if indices is None:
+                indices = np.arange(adata.n_obs)
+            if n_samples_overall is not None:
+                assert n_samples == 1  # default value
+                n_samples = n_samples_overall // len(indices) + 1
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
-        gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
+            transform_batch = _get_batch_code_from_category(
+                self.get_anndata_manager(adata, required=True), transform_batch
+            )
+
+            gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
+
+        else:
+            scdl = dataloader
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
+            gene_mask = slice(None)
+            transform_batch = [None]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
@@ -257,7 +284,7 @@ class RNASeqMixin:
         px_store = DistributionConcatenator()
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
                 inference_kwargs = {"n_samples": n_samples}
                 inference_outputs, generative_outputs = self.module.forward(
@@ -266,7 +293,11 @@ class RNASeqMixin:
                     generative_kwargs=generative_kwargs,
                     compute_loss=False,
                 )
-                exp_ = getattr(generative_outputs["px"], generative_output_key)
+                px_generative = generative_outputs["px"]
+                if isinstance(px_generative, torch.Tensor):
+                    exp_ = px_generative
+                else:
+                    exp_ = px_generative.get_normalized(generative_output_key)
                 exp_ = exp_[..., gene_mask]
                 exp_ *= scaling
                 per_batch_exprs.append(exp_[None].cpu())
@@ -305,7 +336,7 @@ class RNASeqMixin:
         elif n_samples > 1 and return_mean:
             exprs = exprs.mean(0)
 
-        if return_numpy is None or return_numpy is False:
+        if (return_numpy is None or return_numpy is False) and dataloader is None:
             return pd.DataFrame(
                 exprs,
                 columns=adata.var_names[gene_mask],
@@ -323,10 +354,10 @@ class RNASeqMixin:
         group2: str | None = None,
         idx1: list[int] | list[bool] | str | None = None,
         idx2: list[int] | list[bool] | str | None = None,
-        mode: Literal["vanilla", "change"] = "change",
+        mode: Literal["vanilla", "change"] = "vanilla",
         delta: float = 0.25,
         batch_size: int | None = None,
-        all_stats: bool | None = None,
+        all_stats: bool = True,
         batch_correction: bool = False,
         batchid1: list[str] | None = None,
         batchid2: list[str] | None = None,
@@ -386,12 +417,6 @@ class RNASeqMixin:
         )
         representation_fn = self.get_latent_representation if filter_outlier_cells else None
 
-        if all_stats is None:
-            all_stats = (
-                getattr(self, "minified_data_type", None)
-                != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
-            )
-
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
             model_fn,
@@ -421,9 +446,12 @@ class RNASeqMixin:
         self,
         adata: AnnData | None = None,
         indices: list[int] | None = None,
+        transform_batch: list[Number | str] | None = None,
         n_samples: int = 1,
         gene_list: list[str] | None = None,
         batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        silent: bool = True,
     ) -> GCXS:
         r"""Generate predictive samples from the posterior predictive distribution.
 
@@ -443,6 +471,12 @@ class RNASeqMixin:
         indices
             Indices of the observations in ``adata`` to use. If ``None``, defaults to all the
             observations.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+            - None, then real observed batch is used.
+            - int, then batch transform_batch is used.
+            - Otherwise based on string
         n_samples
             Number of Monte Carlo samples to draw from the posterior predictive distribution for
             each observation.
@@ -452,6 +486,10 @@ class RNASeqMixin:
             Minibatch size to use for data loading and model inference. Defaults to
             ``scvi.settings.batch_size``. Passed into
             :meth:`~scvi.model.base.BaseModelClass._make_data_loader`.
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------
@@ -460,23 +498,52 @@ class RNASeqMixin:
         """
         import sparse
 
-        adata = self._validate_anndata(adata)
-        dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
-        if gene_list is None:
-            gene_mask = slice(None)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            dataloader = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size
+            )
+
+            transform_batch = _get_batch_code_from_category(
+                self.get_anndata_manager(adata, required=True), transform_batch
+            )
+
+            if gene_list is None:
+                gene_mask = slice(None)
+            else:
+                gene_mask = [gene in gene_list for gene in adata.var_names]
+                if not np.any(gene_mask):
+                    raise ValueError(
+                        "None of the provided genes in ``gene_list`` were detected in the data."
+                    )
         else:
-            gene_mask = [gene in gene_list for gene in adata.var_names]
-            if not np.any(gene_mask):
-                raise ValueError(
-                    "None of the provided genes in ``gene_list`` were detected in the data."
-                )
+            for param in [indices, batch_size, gene_list]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
+            gene_mask = slice(None)
+            transform_batch = [None]
 
         x_hat = []
         for tensors in dataloader:
-            # (batch_size, n_vars) if n_samples == 1, else (batch_size, n_vars, n_samples)
-            samples = self.module.sample(tensors, n_samples=n_samples)[:, gene_mask]
-            x_hat.append(sparse.GCXS.from_numpy(samples.numpy()))
+            per_batch_exprs = []
+            for batch in track(transform_batch, disable=silent):
+                # (batch_size, n_vars) if n_samples == 1, else (batch_size, n_vars, n_samples)
+                generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
+                samples = self.module.sample(
+                    tensors, n_samples=n_samples, generative_kwargs=generative_kwargs
+                )[:, gene_mask]
+                per_batch_exprs.append(samples)
+            per_batch_exprs = (
+                torch.cat(per_batch_exprs, dim=0)
+                if len(transform_batch) == 1
+                else torch.stack(per_batch_exprs, dim=0).mean(0)
+            )
+            x_hat.append(sparse.GCXS.from_numpy(per_batch_exprs.numpy()))
 
         # (n_minibatches, batch_size, n_vars) -> (n_obs, n_vars) if n_samples == 1, else
         # (n_minibatches, batch_size, n_vars, n_samples) -> (n_obs, n_vars, n_samples)
@@ -491,6 +558,7 @@ class RNASeqMixin:
         batch_size: int = 64,
         rna_size_factor: int = 1000,
         transform_batch: list[int] | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> np.ndarray:
         """Return samples from an adjusted posterior predictive.
 
@@ -509,13 +577,29 @@ class RNASeqMixin:
             size factor for RNA prior to sampling gamma distribution.
         transform_batch
             int of which batch to condition on for all cells.
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------
         denoised_samples
         """
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        _validate_adata_dataloader_input(self, adata, dataloader)
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        else:
+            scdl = dataloader
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
+            transform_batch = None
 
         data_loader_list = []
         for tensors in scdl:
@@ -542,15 +626,16 @@ class RNASeqMixin:
             else:
                 px_dispersion = torch.ones_like(x).to(device) * px_r
 
-            # This gamma is really l*w using scVI manuscript notation
+            # This gamma is using scVI manuscript notation
             p = rate / (rate + px_dispersion)
             r = px_dispersion
-            l_train = torch.distributions.Gamma(r, (1 - p) / p).sample()
-            data = l_train.cpu().numpy()
-            # """
-            # In numpy (shape, scale) => (concentration, rate), with scale = p /(1 - p)
-            # rate = (1 - p) / p  # = 1/scale # used in pytorch
-            # """
+            # TODO: NEED TORCH MPS FIX for 'aten::_standard_gamma'
+            l_train = (
+                torch.distributions.Gamma(r.to("cpu"), ((1 - p) / p).to("cpu")).sample()
+                if device.type == "mps"
+                else torch.distributions.Gamma(r, (1 - p) / p).sample().cpu()
+            )
+            data = l_train.numpy()
             data_loader_list += [data]
 
             if n_samples > 1:
@@ -568,6 +653,7 @@ class RNASeqMixin:
         rna_size_factor: int = 1000,
         transform_batch: list[Number | str] | None = None,
         correlation_type: Literal["spearman", "pearson"] = "spearman",
+        silent: bool = True,
     ) -> pd.DataFrame:
         """Generate gene-gene correlation matrix using scvi uncertainty and expression.
 
@@ -593,6 +679,7 @@ class RNASeqMixin:
             - list of int, then values are averaged over provided batches.
         correlation_type
             One of "pearson", "spearman".
+        %(de_silent)s
 
         Returns
         -------
@@ -607,7 +694,7 @@ class RNASeqMixin:
         )
 
         corr_mats = []
-        for b in transform_batch:
+        for b in track(transform_batch, disable=silent):
             denoised_data = self._get_denoised_samples(
                 adata=adata,
                 indices=indices,
@@ -645,6 +732,7 @@ class RNASeqMixin:
         n_samples: int | None = 1,
         give_mean: bool | None = False,
         batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
 
@@ -661,10 +749,24 @@ class RNASeqMixin:
             Return expected value of parameters or a samples
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         """
-        adata = self._validate_anndata(adata)
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        else:
+            scdl = dataloader
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         dropout_list = []
         mean_list = []
@@ -681,34 +783,34 @@ class RNASeqMixin:
             px_rate = px.mu
             if self.module.gene_likelihood == "zinb":
                 px_dropout = px.zi_probs
-
-            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
-
-            px_r = px_r.cpu().numpy()
-            if len(px_r.shape) == 1:
-                dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
-            else:
-                dispersion_list += [px_r]
-            mean_list += [px_rate.cpu().numpy()]
-            if self.module.gene_likelihood == "zinb":
                 dropout_list += [px_dropout.cpu().numpy()]
                 dropout = np.concatenate(dropout_list, axis=-2)
+
+            n_batch = px_rate.size(0) if n_samples == 1 else px_rate.size(1)
+            if self.module.gene_likelihood != "poisson":
+                px_r = px_r.cpu().numpy()
+                if len(px_r.shape) == 1:
+                    dispersion_list += [np.repeat(px_r[np.newaxis, :], n_batch, axis=0)]
+                else:
+                    dispersion_list += [px_r]
+            mean_list += [px_rate.cpu().numpy()]
+
         means = np.concatenate(mean_list, axis=-2)
         dispersions = np.concatenate(dispersion_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":
                 dropout = dropout.mean(0)
+            if self.module.gene_likelihood != "poisson":
+                dispersions = dispersions.mean(0)
             means = means.mean(0)
-            dispersions = dispersions.mean(0)
 
         return_dict = {}
         return_dict["mean"] = means
 
         if self.module.gene_likelihood == "zinb":
             return_dict["dropout"] = dropout
-            return_dict["dispersions"] = dispersions
-        if self.module.gene_likelihood == "nb":
+        if self.module.gene_likelihood != "poisson":
             return_dict["dispersions"] = dispersions
 
         return return_dict
@@ -721,6 +823,7 @@ class RNASeqMixin:
         indices: list[int] | None = None,
         give_mean: bool = True,
         batch_size: int | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> np.ndarray:
         r"""Returns the latent library size for each cell.
 
@@ -737,11 +840,26 @@ class RNASeqMixin:
             Return the mean or a sample from the posterior distribution.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
         """
-        self._check_if_trained(warn=False)
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        if dataloader is None:
+            self._check_if_trained(warn=False)
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        else:
+            scdl = dataloader
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
+
         libraries = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)

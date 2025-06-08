@@ -2,40 +2,36 @@ from __future__ import annotations
 
 import logging
 import warnings
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import h5py
 import numpy as np
-import numpy.typing as npt
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
-
-try:
-    # anndata >= 0.10
-    from anndata.experimental import CSCDataset, CSRDataset
-
-    SparseDataset = (CSRDataset, CSCDataset)
-except ImportError:
-    from anndata._core.sparse_dataset import SparseDataset
-
-# TODO use the experimental api once we lower bound to anndata 0.8
-try:
-    from anndata.experimental import read_elem
-except ImportError:
-    from anndata._io.specs import read_elem
-
+from anndata.abc import CSCDataset, CSRDataset
+from anndata.io import read_elem
 from mudata import MuData
-from pandas.api.types import CategoricalDtype
-from torch import Tensor, as_tensor, sparse_csc_tensor, sparse_csr_tensor
+from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
-from scvi._types import AnnOrMuData, MinifiedDataType
-from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi.utils import is_package_installed
 
 from . import _constants
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    import numpy.typing as npt
+    from pandas.api.types import CategoricalDtype
+    from torch import Tensor
+
+    from scvi._types import AnnOrMuData, MinifiedDataType
+
 logger = logging.getLogger(__name__)
+
+SparseDataset = (CSRDataset, CSCDataset)
 
 
 def registry_key_to_default_dtype(key: str) -> type:
@@ -87,7 +83,7 @@ def scipy_to_torch_sparse(x: sp_sparse.csr_matrix | sp_sparse.csc_matrix) -> Ten
         )
     else:
         raise TypeError(
-            "`x` must be of type `scipy.sparse.csr_matrix` or " "`scipy.sparse.csc_matrix`."
+            "`x` must be of type `scipy.sparse.csr_matrix` or `scipy.sparse.csc_matrix`."
         )
 
 
@@ -254,6 +250,11 @@ def _check_nonnegative_integers(
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
+    elif is_package_installed("dask"):
+        import dask.array as da
+
+        if isinstance(data, da.Array):
+            data = data[:100, :100].compute()
 
     if isinstance(data, np.ndarray):
         data = data
@@ -306,16 +307,15 @@ def _get_adata_minify_type(adata: AnnData) -> MinifiedDataType | None:
     return adata.uns.get(_constants._ADATA_MINIFY_TYPE_UNS_KEY, None)
 
 
-def _is_minified(adata: AnnData | str) -> bool:
+def _is_minified(adata: AnnOrMuData | str) -> bool:
     uns_key = _constants._ADATA_MINIFY_TYPE_UNS_KEY
     if isinstance(adata, AnnData):
-        return adata.uns.get(uns_key, None) == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        return adata.uns.get(uns_key, None) is not None
+    elif isinstance(adata, MuData):
+        return adata.uns.get(uns_key, None) is not None
     elif isinstance(adata, str):
         with h5py.File(adata) as fp:
-            return (
-                read_elem(fp["uns"]).get(uns_key, None)
-                == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
-            )
+            return uns_key in read_elem(fp["uns"]).keys()
     else:
         raise TypeError(f"Unsupported type: {type(adata)}")
 
@@ -331,6 +331,14 @@ def _check_fragment_counts(
             data = data[:400]
         else:
             data = data[:]
+    elif is_package_installed("dask"):
+        import dask.array as da
+
+        if isinstance(data, da.Array):
+            if data.shape[0] >= 400:
+                data = data[:400].compute()
+            else:
+                data = data[:].compute()
 
     # check that n_obs is greater than n_to_check
     if data.shape[0] < n_to_check:
@@ -355,3 +363,21 @@ def _check_fragment_counts(
     )  # True if there are more 2s than 1s
     ret = not (non_fragments or binary)
     return ret
+
+
+def _validate_adata_dataloader_input(
+    model,
+    adata: AnnOrMuData | None = None,
+    dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+):
+    """Validate that model uses adata or custom dataloader"""
+    if adata is not None and dataloader is not None:
+        raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+    elif (
+        hasattr(model, "registry")
+        and "setup_method_name" in model.registry.keys()
+        and model.registry["setup_method_name"] == "setup_datamodule"
+        and dataloader is None
+    ):
+        raise ValueError("`dataloader` must be provided.")
+    return

@@ -3,8 +3,8 @@ from __future__ import annotations
 import io
 import logging
 import warnings
-from collections.abc import Sequence
 from contextlib import redirect_stdout
+from typing import TYPE_CHECKING
 
 import anndata
 import numpy as np
@@ -16,7 +16,6 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.model import SCVI
 from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass
 from scvi.module import Classifier
@@ -24,6 +23,11 @@ from scvi.module.base import auto_move_data
 from scvi.train import ClassifierTrainingPlan, LoudEarlyStopping, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from scvi.model import SCVI
 
 logger = logging.getLogger(__name__)
 
@@ -289,7 +293,7 @@ class SOLO(BaseModelClass):
         lr: float = 1e-3,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 128,
@@ -297,6 +301,7 @@ class SOLO(BaseModelClass):
         plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 30,
+        early_stopping_warmup_epochs: int = 0,
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):
@@ -329,6 +334,8 @@ class SOLO(BaseModelClass):
             Adds callback for early stopping on validation_loss
         early_stopping_patience
             Number of times early stopping metric can not improve over early_stopping_min_delta
+        early_stopping_warmup_epochs
+            Wait for a certain number of warm-up epochs before the early stopping starts monitoring
         early_stopping_min_delta
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -352,6 +359,7 @@ class SOLO(BaseModelClass):
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",
+                    warmup_epochs=early_stopping_warmup_epochs,
                 )
             ]
             if "callbacks" in kwargs:
@@ -386,7 +394,12 @@ class SOLO(BaseModelClass):
         return runner()
 
     @torch.inference_mode()
-    def predict(self, soft: bool = True, include_simulated_doublets: bool = False) -> pd.DataFrame:
+    def predict(
+        self,
+        soft: bool = True,
+        include_simulated_doublets: bool = False,
+        return_logits: bool = False,
+    ) -> pd.DataFrame:
         """Return doublet predictions.
 
         Parameters
@@ -395,6 +408,8 @@ class SOLO(BaseModelClass):
             Return probabilities instead of class label.
         include_simulated_doublets
             Return probabilities for simulated doublets as well.
+        return_logits
+            Whether to return logits instead of probabilities when ``soft`` is ``True``.
 
         Returns
         -------
@@ -403,7 +418,8 @@ class SOLO(BaseModelClass):
         warnings.warn(
             "Prior to scvi-tools 1.1.3, `SOLO.predict` with `soft=True` (the default option) "
             "returned logits instead of probabilities. This behavior has since been corrected to "
-            "return probabiltiies.",
+            "return probabiltiies. The previous behavior can be replicated by passing in "
+            "`return_logits=True`.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -417,8 +433,8 @@ class SOLO(BaseModelClass):
 
         y_pred = []
         for _, tensors in enumerate(scdl):
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            pred = torch.nn.functional.softmax(auto_forward(self.module, x), dim=-1)
+            pred = auto_forward(self.module, tensors[REGISTRY_KEYS.X_KEY])
+            pred = torch.nn.functional.softmax(pred, dim=-1) if not return_logits else pred
             y_pred.append(pred.cpu())
 
         y_pred = torch.cat(y_pred).numpy()

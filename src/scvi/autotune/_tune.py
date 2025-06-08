@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Literal
+from typing import TYPE_CHECKING
 
-from lightning.pytorch import LightningDataModule
-
-from scvi._types import AnnOrMuData
 from scvi.autotune._experiment import AutotuneExperiment
-from scvi.model.base import BaseModelClass
+
+if TYPE_CHECKING:
+    from typing import Any, Literal
+
+    from lightning.pytorch import LightningDataModule
+
+    from scvi._types import AnnOrMuData
+    from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,12 @@ def run_autotune(
     logging_dir: str | None = None,
     scheduler_kwargs: dict | None = None,
     searcher_kwargs: dict | None = None,
+    scib_stage: str | None = "train_end",
+    scib_subsample_rows: int | None = 5000,
+    scib_indices_list: list | None = None,
+    log_to_driver: bool = False,
+    local_mode: bool = False,
+    ignore_reinit_error: bool = False,
 ) -> AutotuneExperiment:
     """``BETA`` Run a hyperparameter sweep.
 
@@ -91,6 +101,23 @@ def run_autotune(
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
         Additional keyword arguments to pass to the search algorithm.
+    scib_stage
+        Used when performing scib-metrics tune, select whether to perform on "validation_end"
+        or "train_end" (default).
+    scib_subsample_rows
+        Used when performing scib-metrics tune, select number of rows to subsample (5000 default).
+        This is important to save computation time
+    scib_indices_list
+        If not empty will be used to select the indices to calc the scib metric on, otherwise will
+        use the random indices selection in size of scib_subsample_rows
+    ignore_reinit_error
+        If true, Ray suppresses errors from calling
+        ray.init() a second time. Ray won't be restarted.
+    local_mode
+        Deprecated: consider using the Ray Debugger instead.
+    log_to_driver
+        If true, the output from all of the worker
+        processes on all nodes will be directed to the driver.
 
     Returns
     -------
@@ -108,12 +135,12 @@ def run_autotune(
     from ray import init
 
     experiment = AutotuneExperiment(
-        model_cls,
-        data,
-        metrics,
-        mode,
-        search_space,
-        num_samples,
+        model_cls=model_cls,
+        data=data,
+        metrics=metrics,
+        mode=mode,
+        search_space=search_space,
+        num_samples=num_samples,
         scheduler=scheduler,
         searcher=searcher,
         seed=seed,
@@ -122,8 +149,13 @@ def run_autotune(
         logging_dir=logging_dir,
         scheduler_kwargs=scheduler_kwargs,
         searcher_kwargs=searcher_kwargs,
+        scib_stage=scib_stage,
+        scib_subsample_rows=scib_subsample_rows,
+        scib_indices_list=scib_indices_list,
     )
     logger.info(f"Running autotune experiment {experiment.name}.")
-    init(log_to_driver=False, ignore_reinit_error=True)
+    init(
+        log_to_driver=log_to_driver, ignore_reinit_error=ignore_reinit_error, local_mode=local_mode
+    )
     experiment.result_grid = experiment.get_tuner().fit()
     return experiment

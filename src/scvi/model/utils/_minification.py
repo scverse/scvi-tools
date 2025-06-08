@@ -1,50 +1,67 @@
-from anndata import AnnData
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from scipy.sparse import csr_matrix
 
-from scvi._types import MinifiedDataType
-from scvi.data._constants import (
-    _ADATA_MINIFY_TYPE_UNS_KEY,
-    _SCVI_UUID_KEY,
-    ADATA_MINIFY_TYPE,
-)
+from scvi import REGISTRY_KEYS
+
+if TYPE_CHECKING:
+    from anndata import AnnData
+    from mudata import MuData
+
+    from scvi.data import AnnDataManager
 
 
 def get_minified_adata_scrna(
-    adata: AnnData,
-    minified_data_type: MinifiedDataType,
+    adata_manager: AnnDataManager,
     keep_count_data: bool = False,
 ) -> AnnData:
-    """Returns a minified adata that works for most scrna models (such as SCVI, SCANVI).
+    """Returns a minified AnnData.
 
     Parameters
     ----------
-    adata
-        Original adata, of which we to create a minified version.
-    minified_data_type
-        How to minify the data.
+    adata_manager
+        Manager with original AnnData, of which we want to create a minified version.
     keep_count_data
-        Whether to keep the count data and only store additionally the latent posterior.
+        If True, the count data is kept in the minified data. If False, the count data is removed.
     """
-    if not ADATA_MINIFY_TYPE.__contains__(minified_data_type):
-        raise NotImplementedError(f"Unknown MinifiedDataType: {minified_data_type}")
-
-    if not keep_count_data:
-        all_zeros = csr_matrix(adata.X.shape)
-        layers = {layer: all_zeros.copy() for layer in adata.layers}
+    adata = adata_manager.adata.copy()
+    if keep_count_data:
+        pass
     else:
-        all_zeros = adata.X
-        layers = adata.layers
-    bdata = AnnData(
-        X=all_zeros,
-        layers=layers,
-        uns=adata.uns.copy(),
-        obs=adata.obs,
-        var=adata.var,
-        varm=adata.varm,
-        obsm=adata.obsm,
-        obsp=adata.obsp,
-    )
-    # Remove scvi uuid key to make bdata fresh w.r.t. the model's manager
-    del bdata.uns[_SCVI_UUID_KEY]
-    bdata.uns[_ADATA_MINIFY_TYPE_UNS_KEY] = minified_data_type
-    return bdata
+        del adata.raw
+        counts = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+        all_zeros = csr_matrix(counts.shape)
+        X = all_zeros
+        layers = {layer: all_zeros.copy() for layer in adata_manager.adata.layers}
+        adata.X = X
+        adata.layers = layers
+    return adata
+
+
+def get_minified_mudata(
+    adata_manager: AnnDataManager,
+    keep_count_data: bool = False,
+) -> MuData:
+    """Returns a minified MuData that works for most multi modality models (MULTIVI, TOTALVI).
+
+    Parameters
+    ----------
+    adata_manager
+        Manager with original MuData, of which we want to create a minified version.
+    keep_count_data
+        If True, the count data is kept in the minified data. If False, the count data is removed.
+    """
+    mdata = adata_manager.adata.copy()
+    if keep_count_data:
+        pass
+    else:
+        for modality in mdata.mod_names:
+            del mdata[modality].raw
+            all_zeros = csr_matrix(mdata[modality].X.shape)
+            mdata[modality].X = all_zeros.copy()
+            if len(mdata[modality].layers) > 0:
+                layers = {layer: all_zeros.copy() for layer in mdata[modality].layers}
+                mdata[modality].layers = layers
+    return mdata

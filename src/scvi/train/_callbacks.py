@@ -1,26 +1,35 @@
 from __future__ import annotations
 
+import logging
 import os
 import warnings
+from collections.abc import Callable
 from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import flax
-import lightning.pytorch as pl
 import numpy as np
+import pyro
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.utilities import rank_zero_info
+from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
-from scvi.dataloaders import AnnDataLoader
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
 
+if TYPE_CHECKING:
+    import lightning.pytorch as pl
+
+    from scvi.dataloaders import AnnDataLoader
+
 MetricCallable = Callable[[BaseModelClass], float]
+
+log = logging.getLogger(__name__)
 
 
 class SaveCheckpoint(ModelCheckpoint):
@@ -51,6 +60,9 @@ class SaveCheckpoint(ModelCheckpoint):
         Metric to monitor for checkpointing.
     load_best_on_end
         If ``True``, loads the best model state into the model at the end of training.
+    check_nan_gradients
+        If ``True``, will use the on exception callback to store best model in case of training
+        exception caused by NaN's in gradients or loss calculations.
     **kwargs
         Additional keyword arguments passed into the constructor for
         :class:`~lightning.pytorch.callbacks.ModelCheckpoint`.
@@ -62,6 +74,7 @@ class SaveCheckpoint(ModelCheckpoint):
         filename: str | None = None,
         monitor: str = "validation_loss",
         load_best_on_end: bool = False,
+        check_nan_gradients: bool = False,
         **kwargs,
     ):
         if dirpath is None:
@@ -86,6 +99,8 @@ class SaveCheckpoint(ModelCheckpoint):
             )
             kwargs.pop("save_last")
         self.load_best_on_end = load_best_on_end
+        self.loss_is_nan = False
+        self.check_nan_gradients = check_nan_gradients
 
         super().__init__(
             dirpath=dirpath,
@@ -150,7 +165,57 @@ class SaveCheckpoint(ModelCheckpoint):
             load_adata=False,
             map_location=pl_module.module.device,
         )
+        pyro_param_store = best_state_dict.pop("pyro_param_store", None)
         pl_module.module.load_state_dict(best_state_dict)
+        if pyro_param_store is not None:
+            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            pyro.get_param_store().set_state(pyro_param_store)
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
+        # Check for NaN in the loss
+        loss = outputs.get("loss") if isinstance(outputs, dict) else outputs
+        if torch.isnan(loss).any():
+            self.loss_is_nan = True
+
+    def on_exception(self, trainer, pl_module, exception) -> None:
+        """Save the model in case of unexpected exceptions, like Nan in loss or gradients"""
+        if (not isinstance(exception, KeyboardInterrupt)) and self.check_nan_gradients:
+            if self.loss_is_nan:
+                self.reason = (
+                    "\033[31m[Warning] NaN detected in the loss. Stopping training. "
+                    "Please verify your model and data. "
+                    "Saving model....Please load it back and continue training\033[0m"
+                )
+            else:
+                self.reason = (
+                    "\033[31m[Warning] Exception occurred during training (Nan or Inf gradients). "
+                    "Please verify your model and data. "
+                    "Saving model....Please load it back and continue training\033[0m"
+                )
+            trainer.should_stop = True
+
+            # Loads the best model state into the model after the exception.
+            _, _, best_state_dict, _ = _load_saved_files(
+                self.best_model_path,
+                load_adata=False,
+                map_location=pl_module.module.device,
+            )
+            pyro_param_store = best_state_dict.pop("pyro_param_store", None)
+            pl_module.module.load_state_dict(best_state_dict)
+            if pyro_param_store is not None:
+                # For scArches shapes are changed and we don't want to overwrite
+                # these changed shapes.
+                pyro.get_param_store().set_state(pyro_param_store)
+            print(self.reason + f". Model saved to {self.best_model_path}")
+            self._log_info(trainer, self.reason, False)
+            return
+
+    @staticmethod
+    def _log_info(trainer: pl.Trainer, message: str, log_rank_zero_only: bool) -> None:
+        rank = trainer.global_rank if trainer.world_size > 1 else None
+        message = rank_prefixed_message(message, rank)
+        if rank is None or not log_rank_zero_only or rank == 0:
+            log.info(message)
 
 
 class SubSampleLabels(Callback):
@@ -220,20 +285,20 @@ class SaveBestState(Callback):
 
         if mode == "min":
             self.monitor_op = np.less
-            self.best_module_metric_val = np.Inf
+            self.best_module_metric_val = np.inf
             self.mode = "min"
         elif mode == "max":
             self.monitor_op = np.greater
-            self.best_module_metric_val = -np.Inf
+            self.best_module_metric_val = -np.inf
             self.mode = "max"
         else:
             if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
                 self.monitor_op = np.greater
-                self.best_module_metric_val = -np.Inf
+                self.best_module_metric_val = -np.inf
                 self.mode = "max"
             else:
                 self.monitor_op = np.less
-                self.best_module_metric_val = np.Inf
+                self.best_module_metric_val = np.inf
                 self.mode = "min"
 
     def check_monitor_top(self, current):
@@ -249,7 +314,7 @@ class SaveBestState(Callback):
 
             if current is None:
                 warnings.warn(
-                    f"Can save best module state only with {self.monitor} available, " "skipping.",
+                    f"Can save best module state only with {self.monitor} available, skipping.",
                     RuntimeWarning,
                     stacklevel=settings.warnings_stacklevel,
                 )
@@ -283,14 +348,24 @@ class LoudEarlyStopping(EarlyStopping):
     """
 
     def __init__(self, **kwargs) -> None:
+        warmup_epochs = kwargs.pop("warmup_epochs")  # a local parameter we added
         super().__init__(**kwargs)
         self.early_stopping_reason = None
+        self.warmup_epochs = warmup_epochs
+        self._current_step = 0  # internal counter of steps to check
 
     def _evaluate_stopping_criteria(self, current: torch.Tensor) -> tuple[bool, str]:
-        should_stop, reason = super()._evaluate_stopping_criteria(current)
-        if should_stop:
-            self.early_stopping_reason = reason
-        return should_stop, reason
+        self._current_step += 1
+        if self._current_step <= self.warmup_epochs:
+            # If we're in the warm-up phase, don't apply early stopping
+            return False, "Early Stop not applied during first " + str(
+                self.warmup_epochs
+            ) + " steps"
+        else:
+            should_stop, reason = super()._evaluate_stopping_criteria(current)
+            if should_stop:
+                self.early_stopping_reason = reason
+            return should_stop, reason
 
     def teardown(
         self,
@@ -319,3 +394,23 @@ class JaxModuleInit(Callback):
         module_init = module.init(module.rngs, next(iter(dl)))
         state, params = flax.core.pop(module_init, "params")
         pl_module.set_train_state(params, state)
+
+
+class ScibCallback(Callback):
+    """A callback to initialize the Scib-Metrics autotune module."""
+
+    def __init__(
+        self,
+    ):
+        super().__init__()
+        self.pl_module = None
+
+    def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        """Exposing the pl_module to the scib-metrics autotune"""
+        self.pl_module = pl_module
+
+    def on_train_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module)
+
+    def on_validation_end(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+        self._get_report_dict(trainer, pl_module)

@@ -2,7 +2,7 @@ import logging
 import warnings
 from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import jax
 import numpy as np
@@ -12,6 +12,7 @@ from lightning.pytorch.strategies import DDPStrategy, Strategy
 from lightning.pytorch.trainer.connectors.accelerator_connector import (
     _AcceleratorConnector,
 )
+from scipy.sparse import issparse
 
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
@@ -21,13 +22,14 @@ from scvi.utils._docstrings import devices_dsp
 logger = logging.getLogger(__name__)
 
 
-def use_distributed_sampler(strategy: Union[str, Strategy]) -> bool:
+def use_distributed_sampler(strategy: str | Strategy) -> bool:
     """``EXPERIMENTAL`` Return whether to use a distributed sampler.
 
     Currently only supports DDP.
     """
     if isinstance(strategy, str):
         # ["ddp", "ddp_spawn", "ddp_find_unused_parameters_true"]
+        # ["ddp_notebook","ddp_notebook_find_unused_parameters_true"] - for jupyter nb run
         return "ddp" in strategy
     return isinstance(strategy, DDPStrategy)
 
@@ -73,8 +75,8 @@ def get_max_epochs_heuristic(
 @devices_dsp.dedent
 def parse_device_args(
     accelerator: str = "auto",
-    devices: Union[int, list[int], str] = "auto",
-    return_device: Optional[Literal["torch", "jax"]] = None,
+    devices: int | list[int] | str = "auto",
+    return_device: Literal["torch", "jax"] | None = None,
     validate_single_device: bool = False,
 ):
     """Parses device-related arguments.
@@ -113,11 +115,19 @@ def parse_device_args(
         connector = _AcceleratorConnector(accelerator="cpu", devices=devices)
         _accelerator = connector._accelerator_flag
         _devices = connector._devices_flag
+        warnings.warn(
+            "`accelerator` has been automatically set to `cpu` although 'mps' exists. If you wish "
+            "to run on mps backend, use explicitly accelerator=='mps' in train function."
+            "In future releases it will become default for mps supported machines.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
     elif _accelerator == "mps" and accelerator != "auto":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
-            "operations are supported with this backend. Refer to "
-            "https://github.com/pytorch/pytorch/issues/77764 for more details.",
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
+            "operations are supported with this backend. as a result, some models might be slower "
+            "and less accurate than usuall. Please verify your analysis!"
+            "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -142,7 +152,10 @@ def parse_device_args(
     elif return_device == "jax":
         device = jax.devices("cpu")[0]
         if _accelerator != "cpu":
-            device = jax.devices(_accelerator)[device_idx]
+            if _accelerator == "mps":
+                device = jax.devices("METAL")[device_idx]  # MPS-JAX
+            else:
+                device = jax.devices(_accelerator)[device_idx]
         return _accelerator, _devices, device
 
     return _accelerator, _devices
@@ -150,9 +163,9 @@ def parse_device_args(
 
 def scrna_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -182,8 +195,8 @@ def scrna_raw_counts_properties(
         data1 = data1[:, var_idx]
         data2 = data2[:, var_idx]
 
-    mean1 = np.asarray((data1).mean(axis=0)).ravel()
-    mean2 = np.asarray((data2).mean(axis=0)).ravel()
+    mean1 = np.asarray(data1.mean(axis=0)).ravel()
+    mean2 = np.asarray(data2.mean(axis=0)).ravel()
     nonz1 = np.asarray((data1 != 0).mean(axis=0)).ravel()
     nonz2 = np.asarray((data2 != 0).mean(axis=0)).ravel()
 
@@ -218,8 +231,9 @@ def scrna_raw_counts_properties(
 
 def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    use_field: list = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -231,6 +245,8 @@ def cite_seq_raw_counts_properties(
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+    use_field
+        which fields to use during DE function.
 
     Returns
     -------
@@ -239,32 +255,54 @@ def cite_seq_raw_counts_properties(
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized
         expression.
     """
+    if use_field is None:
+        use_field = ["rna", "protein"]
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
-    protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
 
     nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
+    if issparse(protein_exp):
+        protein_exp = protein_exp.toarray()
     mean1_pro = np.asarray(protein_exp[idx1].mean(0))
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
     nonz2_pro = np.asarray((protein_exp[idx2] > 0).mean(0))
-    properties = {
-        "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
-        "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
-        "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
-        "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
-        "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
-        "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
-    }
+    if "rna" in use_field and "protein" in use_field:
+        properties = {
+            "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
+            "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
+            "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+            "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
+            "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
+            "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
+        }
+    elif "rna" in use_field:
+        properties = {
+            "raw_mean1": gp["raw_mean1"],
+            "raw_mean2": gp["raw_mean2"],
+            "non_zeros_proportion1": gp["non_zeros_proportion1"],
+            "non_zeros_proportion2": gp["non_zeros_proportion2"],
+            "raw_normalized_mean1": gp["raw_normalized_mean1"],
+            "raw_normalized_mean2": gp["raw_normalized_mean2"],
+        }
+    elif "protein" in use_field:
+        properties = {
+            "raw_mean1": mean1_pro,
+            "raw_mean2": mean2_pro,
+            "non_zeros_proportion1": nonz1_pro,
+            "non_zeros_proportion2": nonz2_pro,
+            "raw_normalized_mean1": nan,
+            "raw_normalized_mean2": nan,
+        }
 
     return properties
 
 
 def scatac_raw_counts_properties(
     adata_manager: AnnDataManager,
-    idx1: Union[list[int], np.ndarray],
-    idx2: Union[list[int], np.ndarray],
-    var_idx: Optional[Union[list[int], np.ndarray]] = None,
+    idx1: list[int] | np.ndarray,
+    idx2: list[int] | np.ndarray,
+    var_idx: list[int] | np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -296,9 +334,7 @@ def scatac_raw_counts_properties(
     return properties
 
 
-def _get_batch_code_from_category(
-    adata_manager: AnnDataManager, category: Sequence[Union[Number, str]]
-):
+def _get_batch_code_from_category(adata_manager: AnnDataManager, category: Sequence[Number | str]):
     if not isinstance(category, IterableClass) or isinstance(category, str):
         category = [category]
 

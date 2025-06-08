@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -63,8 +63,8 @@ class AutoZIVAE(VAE):
     def __init__(
         self,
         n_input: int,
-        alpha_prior: float = 0.5,
-        beta_prior: float = 0.5,
+        alpha_prior: float | None = 0.5,
+        beta_prior: float | None = 0.5,
         minimal_dropout: float = 0.01,
         zero_inflation: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         **kwargs,
@@ -96,11 +96,15 @@ class AutoZIVAE(VAE):
             if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
-                self.register_buffer("alpha_prior_logit", torch.tensor([logit(alpha_prior)]))
+                self.register_buffer(
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.Parameter(torch.randn(1))
             else:
-                self.register_buffer("beta_prior_logit", torch.tensor([logit(alpha_prior)]))
+                self.register_buffer(
+                    "beta_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
 
         elif self.zero_inflation == "gene-batch":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_batch))
@@ -108,11 +112,15 @@ class AutoZIVAE(VAE):
             if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
-                self.register_buffer("alpha_prior_logit", torch.tensor([logit(alpha_prior)]))
+                self.register_buffer(
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_batch))
             else:
-                self.register_buffer("beta_prior_logit", torch.tensor([logit(beta_prior)]))
+                self.register_buffer(
+                    "beta_prior_logit", torch.tensor([logit(beta_prior)], dtype=torch.float32)
+                )
 
         elif self.zero_inflation == "gene-label":
             self.alpha_posterior_logit = torch.nn.Parameter(torch.randn(n_input, self.n_labels))
@@ -120,18 +128,20 @@ class AutoZIVAE(VAE):
             if alpha_prior is None:
                 self.alpha_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
             else:
-                self.register_buffer("alpha_prior_logit", torch.tensor([logit(alpha_prior)]))
+                self.register_buffer(
+                    "alpha_prior_logit", torch.tensor([logit(alpha_prior)], dtype=torch.float32)
+                )
             if beta_prior is None:
                 self.beta_prior_logit = torch.nn.parameter(torch.randn(1, self.n_labels))
             else:
-                self.register_buffer("beta_prior_logit", torch.tensor([logit(beta_prior)]))
+                self.register_buffer(
+                    "beta_prior_logit", torch.tensor([logit(beta_prior)], dtype=torch.float32)
+                )
 
         else:  # gene-cell
             raise Exception("Gene-cell not implemented yet for AutoZI")
 
-    def get_alphas_betas(
-        self, as_numpy: bool = True
-    ) -> dict[str, Union[torch.Tensor, np.ndarray]]:
+    def get_alphas_betas(self, as_numpy: bool = True) -> dict[str, torch.Tensor | np.ndarray]:
         """Get the parameters of the Bernoulli beta prior and posterior distributions."""
         # Return parameters of Bernoulli Beta distributions in a dictionary
         outputs = {}
@@ -163,8 +173,13 @@ class AutoZIVAE(VAE):
         # Warning : use logs and perform logsumexp to avoid numerical issues
 
         # Sample from Gamma
-        sample_x_log = torch.log(Gamma(alpha, 1).rsample() + eps_gamma)
-        sample_y_log = torch.log(Gamma(beta, 1).rsample() + eps_gamma)
+        if alpha.device.type == "mps":
+            # TODO MPS support of Gamma distribution
+            sample_x_log = torch.log(Gamma(alpha.to("cpu"), 1).rsample() + eps_gamma).to("mps")
+            sample_y_log = torch.log(Gamma(beta.to("cpu"), 1).rsample() + eps_gamma).to("mps")
+        else:
+            sample_x_log = torch.log(Gamma(alpha, 1).rsample() + eps_gamma)
+            sample_y_log = torch.log(Gamma(beta, 1).rsample() + eps_gamma)
 
         # Sum using logsumexp (note : eps_gamma is used to prevent numerical issues with perfect
         # 0 and 1 final Beta samples
@@ -181,8 +196,8 @@ class AutoZIVAE(VAE):
     def reshape_bernoulli(
         self,
         bernoulli_params: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Reshape Bernoulli parameters to match the input tensor."""
         if self.zero_inflation == "gene-label":
@@ -214,8 +229,8 @@ class AutoZIVAE(VAE):
 
     def sample_bernoulli_params(
         self,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
         n_samples: int = 1,
     ) -> torch.Tensor:
         """Sample Bernoulli parameters from the posterior distribution."""
@@ -261,13 +276,14 @@ class AutoZIVAE(VAE):
         self,
         z,
         library,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
         size_factor=None,
         cont_covs=None,
         cat_covs=None,
         n_samples: int = 1,
         eps_log: float = 1e-8,
+        transform_batch: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Run the generative model."""
         outputs = super().generative(
@@ -278,6 +294,7 @@ class AutoZIVAE(VAE):
             cat_covs=cat_covs,
             y=y,
             size_factor=size_factor,
+            transform_batch=transform_batch,
         )
         # Rescale dropout
         rescaled_dropout = self.rescale_dropout(outputs["px"].zi_logits, eps_log=eps_log)
@@ -367,7 +384,7 @@ class AutoZIVAE(VAE):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_divergence_l = 0.0
+            kl_divergence_l = torch.zeros_like(kl_divergence_z)
 
         # KL divergence wrt Bernoulli parameters
         kl_divergence_bernoulli = self.compute_global_kl_divergence()

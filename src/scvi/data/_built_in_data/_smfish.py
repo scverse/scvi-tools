@@ -2,10 +2,9 @@ import logging
 import os
 
 import anndata
-import numpy as np
 import pandas as pd
 
-from scvi.data._download import _download
+from scvi.utils import dependencies
 
 logger = logging.getLogger(__name__)
 
@@ -43,39 +42,26 @@ _subtype_to_high_level_mapping = {
 }
 
 
-def _load_smfish(
-    save_path: str = "data/",
-    use_high_level_cluster: bool = True,
-) -> anndata.AnnData:
+@dependencies("pooch")
+def _load_smfish(save_path: str = "data/", use_high_level_cluster=True) -> anndata.AnnData:
+    import pooch
+
     save_path = os.path.abspath(save_path)
-    url = "http://linnarssonlab.org/osmFISH/osmFISH_SScortex_mouse_all_cells.loom"
-    save_fn = "osmFISH_SScortex_mouse_all_cell.loom"
-    _download(url, save_path, save_fn)
-    adata = _load_smfish_data(
-        os.path.join(save_path, save_fn), use_high_level_cluster=use_high_level_cluster
+    adata = anndata.read_h5ad(
+        pooch.retrieve(
+            url="https://figshare.com/ndownloader/files/51096518",
+            known_hash="a6bba682cf6804e4c1db07cbd2cb16a08143e0b814fd1bd1f936596aa1e27fd1",
+            fname="smfish.h5ad",
+            path=save_path,
+            progressbar=True,
+        )
     )
-    adata.obs["batch"] = np.zeros(adata.shape[0], dtype=np.int64)
-    return adata
-
-
-def _load_smfish_data(path_to_file: str, use_high_level_cluster: bool) -> anndata.AnnData:
-    import loompy
-
-    logger.info("Loading smFISH dataset")
-    ds = loompy.connect(path_to_file)
-    x_coord, y_coord = ds.ca["X"], ds.ca["Y"]
-    data = ds[:, :].T
-    gene_names = ds.ra["Gene"].astype(str)
-    labels = ds.ca["ClusterID"]
-    str_labels = np.asarray(ds.ca["ClusterName"])
-    labels_mapping = pd.Categorical(str_labels).categories
-
     if use_high_level_cluster:
+        dataset = adata.obs.copy()
+        dataset.str_labels = dataset.str_labels.astype(str)
         for high_level_cluster, subtypes in _subtype_to_high_level_mapping.items():
-            for subtype in subtypes:
-                idx = np.where(str_labels == subtype)
-                str_labels[idx] = high_level_cluster
-        cell_types_to_keep = [
+            dataset.loc[dataset.str_labels.isin(subtypes), "str_labels"] = high_level_cluster
+        types_to_keep = [
             "Astrocytes",
             "Endothelials",
             "Inhibitory",
@@ -83,27 +69,14 @@ def _load_smfish_data(path_to_file: str, use_high_level_cluster: bool) -> anndat
             "Oligodendrocytes",
             "Pyramidals",
         ]
-        row_indices = [
-            i for i in range(data.shape[0]) if ds.ca["ClusterName"][i] in cell_types_to_keep
-        ]
-        str_labels = str_labels[row_indices]
-        data = data[row_indices, :]
-        x_coord = x_coord[row_indices]
-        y_coord = y_coord[row_indices]
-
-        str_labels = pd.Categorical(str_labels)
-        labels = str_labels.codes
-        labels_mapping = str_labels.categories
-
-    adata = anndata.AnnData(
-        X=data,
-        obs={
-            "x_coord": x_coord,
-            "y_coord": y_coord,
-            "labels": labels,
-            "str_labels": str_labels,
-        },
-        uns={"cell_types": labels_mapping},
-    )
-    adata.var_names = gene_names
+        new_X = adata.X[dataset.str_labels.isin(types_to_keep)]
+        dataset = dataset[dataset.str_labels.isin(types_to_keep)]
+        dataset["str_labels"] = pd.Categorical(dataset["str_labels"])
+        dataset["labels"] = pd.Categorical(dataset["str_labels"]).codes
+        adata = anndata.AnnData(
+            X=new_X,
+            obs=dataset,
+        )
+        adata.var_names = adata.var_names
+    adata.uns = {"cell_types": adata.obs.str_labels.cat.categories}
     return adata

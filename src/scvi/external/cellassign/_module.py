@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from typing import Optional
 
 import torch
 import torch.nn.functional as F
@@ -7,14 +6,15 @@ from torch.distributions import Dirichlet, Normal
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module import VAE
+from scvi.module.base import LossOutput, auto_move_data
 
 LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
 B = 10
 
 
-class CellAssignModule(BaseModuleClass):
+class CellAssignModule(VAE):
     """Model for CellAssign.
 
     Parameters
@@ -46,13 +46,13 @@ class CellAssignModule(BaseModuleClass):
         n_genes: int,
         rho: torch.Tensor,
         basis_means: torch.Tensor,
-        b_g_0: Optional[torch.Tensor] = None,
+        b_g_0: torch.Tensor | None = None,
         random_b_g_0: bool = True,
         n_batch: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         n_continuous_cov: int = 0,
     ):
-        super().__init__()
+        super().__init__(n_genes)
         self.n_genes = n_genes
         self.n_labels = rho.shape[1]
         self.n_batch = n_batch
@@ -102,12 +102,9 @@ class CellAssignModule(BaseModuleClass):
             beta_init = torch.zeros(self.n_genes, design_matrix_col_dim)  # (g, p)
             self.beta = torch.nn.Parameter(beta_init)  # (g, p)
 
-        self.register_buffer("basis_means", torch.tensor(basis_means))
+        self.register_buffer("basis_means", torch.tensor(basis_means, dtype=torch.float32))
 
-    def _get_inference_input(self, tensors):
-        return {}
-
-    def _get_generative_input(self, tensors, inference_outputs):
+    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         x = tensors[REGISTRY_KEYS.X_KEY]
         size_factor = tensors[REGISTRY_KEYS.SIZE_FACTOR_KEY]
 
@@ -122,25 +119,33 @@ class CellAssignModule(BaseModuleClass):
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
         if cat_key in tensors.keys():
             for cat_input, n_cat in zip(
-                torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov
+                torch.split(tensors[cat_key], 1, dim=1), self.n_cats_per_cov, strict=True
             ):
                 to_cat.append(F.one_hot(cat_input.squeeze(-1), n_cat))
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         input_dict = {
             "x": x,
             "size_factor": size_factor,
             "design_matrix": design_matrix,
+            "batch_index": batch_index,
         }
         return input_dict
 
     @auto_move_data
-    def inference(self):
-        return {}
-
-    @auto_move_data
-    def generative(self, x, size_factor, design_matrix=None):
+    def generative(
+        self,
+        x,
+        size_factor,
+        batch_index,
+        design_matrix=None,
+        transform_batch: torch.Tensor | None = None,
+    ):
         """Run the generative model."""
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
@@ -194,12 +199,22 @@ class CellAssignModule(BaseModuleClass):
         normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(n_cells, self.n_labels)
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
+        px = torch.sum(x_log_prob_raw, -1)
+        normalizer_over_c2 = torch.logsumexp(px, 1)
+        normalizer_over_c2 = normalizer_over_c2.unsqueeze(-1).expand(n_cells, self.n_genes)
+        gamma2 = torch.exp(px - normalizer_over_c2)  # (n, g)
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         return {
             "mu": mu_ngc,
             "phi": phi,
             "gamma": gamma,
             "p_x_c": p_x_c,
+            "px": gamma2,
             "s": size_factor,
+            "batch_index": batch_index,
         }
 
     def loss(

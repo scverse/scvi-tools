@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import warnings
+from typing import TYPE_CHECKING
 
-import anndata
-
-from scvi import settings
-from scvi._types import AnnOrMuData
+from scvi.utils import dependencies
 
 from ._built_in_data._brain_large import _load_brainlarge_dataset
 from ._built_in_data._cellxgene import _load_cellxgene_dataset
@@ -27,6 +24,11 @@ from ._built_in_data._loom import (
 from ._built_in_data._pbmc import _load_pbmc_dataset, _load_purified_pbmc_dataset
 from ._built_in_data._smfish import _load_smfish
 from ._built_in_data._synthetic import _generate_synthetic
+
+if TYPE_CHECKING:
+    import anndata
+
+    from scvi._types import AnnOrMuData
 
 
 def pbmc_dataset(
@@ -123,6 +125,7 @@ def dataset_10x(
     )
 
 
+@dependencies("cellxgene_census")
 def cellxgene(
     url: str,
     filename: str | None = None,
@@ -146,14 +149,6 @@ def cellxgene(
     -------
     adata initialized with cellxgene data
     """
-    # TODO: remove in 1.3.0
-    warnings.warn(
-        "The `cellxgene` function is deprecated and will be removed in scvi-tools 1.3. "
-        "Please directly use the `cellxgene_census` package instead.",
-        DeprecationWarning,
-        stacklevel=settings.warnings_stacklevel,
-    )
-
     return _load_cellxgene_dataset(
         url=url,
         filename=filename,

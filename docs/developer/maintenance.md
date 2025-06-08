@@ -2,6 +2,16 @@
 
 This guide includes various sections that are applicable to maintainers of the project.
 
+## Updating tutorials
+
+The [tutorials] repository is included as a git submodule in the main repository under
+`docs/tutorials/notebooks`. This allows us to lower the size of the main repository as the
+notebooks can be quite large. This also means that changes committed to the tutorials repository
+are not immediately reflected in the main repository. In order to update the tutorials in the
+main repository (and subsequently the documentation), run the [update tutorials workflow], which
+will create a PR updating the head reference of the submodule to the latest commit in the
+tutorials repository.
+
 ## Releases
 
 We follow [Semantic Versioning] for naming releases. In short, this means that each release is
@@ -89,9 +99,9 @@ release (see [#2327] for an example). This section provides an overview of the s
 #### (Optional) creating a release branch
 
 As mentioned above, if the release increments the major or minor version, a new release branch
-should be created from `main`. This branch should be named according to the new version, _e.g._,
-`1.0.x`. Our GitHub rulesets will automatically protect this branch from direct pushes and will
-require pull requests for changes.
+should be created from `main`. This branch should be named according to the new version, with the
+literal `x` in place of the patch version, _e.g._, `1.0.x`. Our GitHub rulesets will automatically
+protect this branch from direct pushes and will require pull requests for changes.
 
 #### Bumping the version
 
@@ -121,19 +131,19 @@ Once all relevant tutorials have been updated and merged, create a new release o
 repository targeting `main`. This release should be named according to the new version, _e.g._,
 `1.0.0`.
 
-#### Updating the main repository
+#### Updating the tutorials
 
-Create a new branch off `main` in the main repository and run `git submodule update --remote` (you
-may have to run `git submodule init` if this is the first time you run the command). This is
-necessary as the tutorials repository is included as a git submodule, so this step ensures that
-the latest changes are included in the documentation. This PR should also be backported.
+Then, update the tutorials submodule in the main repository using the [update tutorials workflow].
 
-#### Creating a GitHub release
+#### Run the release workflow
 
-Create a new GitHub release targeting the release branch with the same body as the previous
-release. Once the release is published, this will trigger the [release workflow] that will build
-the package and upload it to PyPI. Note that this workflow will only run if the version tag matches
-the `*.*.*` pattern (this pattern is protected by our GitHub rulesets).
+Once the version is bumped in `pyproject.toml` and the tutorials have been updated, it is time to
+run the [release workflow]. To run the workflow, you will need to provide two arguments: the
+semantic versioning tag (_e.g._ 1.1.5) and the release branch name (_e.g._, `1.0.x`). The workflow
+will fail if the version tag does not match the one in `pyproject.toml`.
+
+The workflow will build the package, tag the version with Git, publish the release on GitHub with
+a default body, and upload the package to PyPI.
 
 At this point, check that the version updates correctly on [PyPI]. If necessary, follow the
 instructions in the next section. Additionally, check that [Read the Docs] builds correctly and
@@ -173,8 +183,7 @@ example).
 
 #### Update Docker images
 
-Finally, build new Docker images with the `stable` and semantic versioning tags using the
-[release image workflow].
+Finally, build new Docker images with the correct branch tag using the [Docker image build].
 
 ## Continuous integration
 
@@ -279,13 +288,13 @@ We use the `BREAKING CHANGE` footer to indicate that a commit introduces a break
 [Semantic Versioning]: https://semver.org/
 [release checklist]: https://github.com/scverse/scvi-tools/blob/main/.github/ISSUE_TEMPLATE/release_checklist.md
 [tutorials]: https://github.com/scverse/scvi-tutorials
-[Docker image build]: https://github.com/YosefLab/scvi-tools-docker/actions/workflows/linux_cuda_manual.yaml
-[run the tutorials]: https://github.com/scverse/scvi-tutorials/actions/workflows/run_linux_cuda_branch.yml
+[Docker image build]: https://github.com/scverse/scvi-tools/actions/workflows/build_image_latest.yaml
+[run the tutorials]: https://github.com/scverse/scvi-tutorials/actions/workflows/run_notebook_individual.yaml
 [tutorial checklist]: https://github.com/scverse/scvi-tutorials/blob/main/.github/ISSUE_TEMPLATE/release_checklist.md
-[release image workflow]: https://github.com/YosefLab/scvi-tools-docker/actions/workflows/linux_cuda_release.yaml
 [release workflow]: https://github.com/scverse/scvi-tools/actions/workflows/release.yml
 [PyPI]: https://pypi.org/project/scvi-tools/
 [feedstock repository]: https://github.com/conda-forge/scvi-tools-feedstock
 [Read the Docs]: https://readthedocs.org/projects/scvi/
 [conventional commits]: https://www.conventionalcommits.org/
 [Angular convention]: https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md#-commit-message-guidelines
+[update tutorials workflow]: https://github.com/scverse/scvi-tools/actions/workflows/tutorials.yaml

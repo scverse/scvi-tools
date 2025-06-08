@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
 import torch
@@ -143,7 +143,7 @@ class PEAKVAE(BaseModuleClass):
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 2,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         model_depth: bool = True,
         region_factors: bool = True,
@@ -152,8 +152,8 @@ class PEAKVAE(BaseModuleClass):
         latent_distribution: Literal["normal", "ln"] = "normal",
         deeply_inject_covariates: bool = False,
         encode_covariates: bool = False,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
 
@@ -303,12 +303,16 @@ class PEAKVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         use_z_mean=False,
+        transform_batch: torch.Tensor | None = None,
     ):
         """Runs the generative model."""
         if cat_covs is not None:
             categorical_input = torch.split(cat_covs, 1, dim=1)
         else:
             categorical_input = ()
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
 
         latent = z if not use_z_mean else qz_m
         if cont_covs is None:
@@ -320,16 +324,16 @@ class PEAKVAE(BaseModuleClass):
         else:
             decoder_input = torch.cat([latent, cont_covs], dim=-1)
 
-        p = self.z_decoder(decoder_input, batch_index, *categorical_input)
+        px = self.z_decoder(decoder_input, batch_index, *categorical_input)
 
-        return {"p": p}
+        return {"px": px}
 
     def loss(self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0):
         """Compute the loss."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         qz = inference_outputs["qz"]
         d = inference_outputs["d"]
-        p = generative_outputs["p"]
+        px = generative_outputs["px"]
 
         kld = kl_divergence(
             qz,
@@ -337,7 +341,7 @@ class PEAKVAE(BaseModuleClass):
         ).sum(dim=1)
 
         f = torch.sigmoid(self.region_factors) if self.region_factors is not None else 1
-        rl = self.get_reconstruction_loss(p, d, f, x)
+        rl = self.get_reconstruction_loss(px, d, f, x)
 
         loss = (rl.sum() + kld * kl_weight).sum()
 

@@ -5,9 +5,12 @@ import re
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
 from importlib.metadata import metadata
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Any
 
 HERE = Path(__file__).parent
 sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
@@ -119,7 +122,6 @@ intersphinx_mapping = {
     "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
     "lightning": ("https://lightning.ai/docs/pytorch/stable/", None),
     "pyro": ("http://docs.pyro.ai/en/stable/", None),
-    "pymde": ("https://pymde.org/", None),
     "flax": ("https://flax.readthedocs.io/en/latest/", None),
     "jax": ("https://jax.readthedocs.io/en/latest/", None),
     "ml_collections": ("https://ml-collections.readthedocs.io/en/latest/", None),
@@ -154,6 +156,7 @@ pygments_style = "default"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/override.css"]
+html_js_files = ["js/custom.js"]
 html_show_sphinx = False
 
 
@@ -220,7 +223,7 @@ def linkcode_resolve(domain, info):
         return None
 
     path = f"{path}#L{lineno}-L{lineno + len(src) - 1}"
-    return f"{repository_url}/blob/{git_ref}/scvi/{path}"
+    return f"{repository_url}/blob/{git_ref}/src/scvi/{path}"
 
 
 # -- Config for hoverxref -------------------------------------------

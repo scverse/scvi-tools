@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -7,7 +9,8 @@ import scipy
 from anndata import AnnData
 from mudata import MuData
 
-from scvi._types import AnnOrMuData
+if TYPE_CHECKING:
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ def _generate_synthetic(
     n_batches: int,
     n_labels: int,
     dropout_ratio: float,
-    sparse_format: Optional[str],
+    sparse_format: str | None,
     generate_coordinates: bool,
     return_mudata: bool,
     batch_key: str = "batch",

@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import os
-from typing import Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from anndata import AnnData
 
 from scvi.data import synthetic_iid
 from scvi.external import MRVI
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from anndata import AnnData
 
 
 @pytest.fixture(scope="session")
@@ -54,7 +58,7 @@ def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
 
 @pytest.mark.optional
 @pytest.mark.parametrize(
-    "setup_kwargs, de_kwargs",
+    ("setup_kwargs", "de_kwargs"),
     [
         (
             {"sample_key": "sample_str", "batch_key": "batch"},
@@ -113,6 +117,7 @@ def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str,
     [
         {"sample_cov_keys": ["meta1_cat"]},
         {"sample_cov_keys": ["meta1_cat", "batch"]},
+        {"sample_cov_keys": ["meta1_cat"], "omit_original_sample": False},
         {"sample_cov_keys": ["meta1_cat"], "compute_log_enrichment": True},
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],

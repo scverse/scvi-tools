@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 import numpy as np
 
 from scvi import REGISTRY_KEYS
@@ -37,12 +35,12 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
     def __init__(
         self,
         adata_manager: AnnDataManager,
-        n_samples_per_label: Optional[int] = None,
-        indices: Optional[list[int]] = None,
+        n_samples_per_label: int | None = None,
+        indices: list[int] | None = None,
         shuffle: bool = False,
         batch_size: int = 128,
-        data_and_attributes: Optional[dict] = None,
-        drop_last: Union[bool, int] = False,
+        data_and_attributes: dict | None = None,
+        drop_last: bool | int = False,
         **data_loader_kwargs,
     ):
         adata = adata_manager.adata
@@ -50,6 +48,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             indices = np.arange(adata.n_obs)
 
         self.indices = np.asarray(indices)
+        self.data_loader_kwargs = data_loader_kwargs
 
         if len(self.indices) == 0:
             return None
@@ -61,6 +60,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
+            mod_key=getattr(adata_manager.data_registry.labels, "mod_key", None),
         ).ravel()
 
         # save a nested list of the indices per labeled category
@@ -79,7 +79,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=batch_size,
             data_and_attributes=data_and_attributes,
             drop_last=drop_last,
-            **data_loader_kwargs,
+            **self.data_loader_kwargs,
         )
 
     def resample_labels(self):
@@ -95,6 +95,7 @@ class SemiSupervisedDataLoader(ConcatDataLoader):
             batch_size=self._batch_size,
             data_and_attributes=self.data_and_attributes,
             drop_last=self._drop_last,
+            **self.data_loader_kwargs,
         )
 
     def subsample_labels(self):

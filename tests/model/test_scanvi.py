@@ -162,7 +162,119 @@ def test_scanvi():
     assert scanvi_model.module.state_dict() is not m.module.state_dict()
     scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
     scvi_pxr = m.module.state_dict().get("px_r", None)
-    assert scanvi_pxr is not None and scvi_pxr is not None
+    assert scanvi_pxr is not None
+    assert scvi_pxr is not None
+    assert scanvi_pxr is not scvi_pxr
+    scanvi_model.train(1)
+
+    # Test without label groups
+    scanvi_model = SCANVI.from_scvi_model(
+        m, "label_0", labels_key="labels", use_labels_groups=False
+    )
+    scanvi_model.train(1)
+
+    # test from_scvi_model with size_factor
+    a = synthetic_iid()
+    a.obs["size_factor"] = np.random.randint(1, 5, size=(a.shape[0],))
+    SCVI.setup_anndata(a, batch_key="batch", labels_key="labels", size_factor_key="size_factor")
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = synthetic_iid()
+    a2.obs["size_factor"] = np.random.randint(1, 5, size=(a2.shape[0],))
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", adata=a2)
+    scanvi_model.train(1)
+
+
+def test_scanvi_with_external_indices():
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        "labels",
+        "label_0",
+        batch_key="batch",
+    )
+    model = SCANVI(adata, n_latent=10)
+    assert len(model._labeled_indices) == sum(adata.obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(adata.obs["labels"] == "label_0")
+    # in this case we will make a stratified version of indexing
+    from sklearn.model_selection import train_test_split
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+    )
+    logged_keys = model.history.keys()
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "validation_classification_loss" in logged_keys
+    assert "validation_accuracy" in logged_keys
+    assert "validation_f1_score" in logged_keys
+    assert "validation_calibration_error" in logged_keys
+    adata2 = synthetic_iid()
+    predictions = model.predict(adata2, indices=[1, 2, 3])
+    assert len(predictions) == 3
+    model.predict()
+    df = model.predict(adata2, soft=True)
+    assert isinstance(df, pd.DataFrame)
+    model.predict(adata2, soft=True, indices=[1, 2, 3])
+    model.get_normalized_expression(adata2)
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+    # test that all data labeled runs
+    unknown_label = "asdf"
+    a = synthetic_iid()
+    SCANVI.setup_anndata(
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
+    )
+    m = SCANVI(a)
+    m.train(1)
+
+    # test mix of labeled and unlabeled data
+    unknown_label = "label_0"
+    a = synthetic_iid()
+    SCANVI.setup_anndata(
+        a,
+        "labels",
+        unknown_label,
+        batch_key="batch",
+    )
+    m = SCANVI(a)
+    m.train(1, train_size=0.9)
+
+    # test from_scvi_model
+    a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
+    m = SCVI(a, use_observed_lib_size=False)
+    a2 = synthetic_iid()
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key="labels", adata=a2)
+    with pytest.raises(ValueError):
+        scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key=None, adata=a2)
+
+    # make sure the state_dicts are different objects for the two models
+    assert scanvi_model.module.state_dict() is not m.module.state_dict()
+    scanvi_pxr = scanvi_model.module.state_dict().get("px_r", None)
+    scvi_pxr = m.module.state_dict().get("px_r", None)
+    assert scanvi_pxr is not None
+    assert scvi_pxr is not None
     assert scanvi_pxr is not scvi_pxr
     scanvi_model.train(1)
 
@@ -231,6 +343,25 @@ def test_multiple_covariates_scanvi():
     m.get_latent_representation()
     m.get_elbo()
     m.get_marginal_ll(n_mc_samples=3)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=1)
+    m.get_marginal_ll(adata, return_mean=True, n_mc_samples=6, n_mc_samples_per_pass=6)
+    m.differential_expression(
+        idx1=np.arange(50), idx2=51 + np.arange(50), mode="vanilla", weights="uniform"
+    )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 1},
+    )
+    m.differential_expression(
+        idx1=np.arange(50),
+        idx2=51 + np.arange(50),
+        mode="vanilla",
+        weights="importance",
+        importance_weighting_kwargs={"n_mc_samples": 10, "n_mc_samples_per_pass": 10},
+    )
     m.get_reconstruction_error()
     m.get_normalized_expression(n_samples=1)
     m.get_normalized_expression(n_samples=2)
@@ -312,7 +443,7 @@ def test_scanvi_online_update(save_path):
     model.get_latent_representation()
     model.predict()
 
-    # Test error on extra categoricals
+    # Test on extra categoricals as well
     adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
     new_labels[0] = "Unknown"
@@ -345,8 +476,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
     adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
     adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
-    with pytest.raises(NotImplementedError):
-        SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
+    SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
 
     # ref has fully-observed labels
     n_latent = 5
@@ -432,8 +562,8 @@ def test_scanvi_logits_backwards_compat(save_path: str):
 
 def test_scanvi_pre_logits_fix_load(save_path: str):
     """See #2310. Check old model saves use the old behavior."""
-    model_path = "tests/test_data/pre_logits_fix_scanvi"
-    model = SCANVI.load(model_path)
+    resave_model_path = os.path.join(save_path, "pre_logits_fix_scanvi")
+    model = SCANVI.load(resave_model_path)
 
     def check_no_logits_and_softmax(model: SCANVI):
         assert not model.module.classifier.logits
@@ -441,10 +571,154 @@ def test_scanvi_pre_logits_fix_load(save_path: str):
 
     check_no_logits_and_softmax(model)
 
-    resave_model_path = os.path.join(save_path, "pre_logits_fix_scanvi")
     model.save(resave_model_path, overwrite=True)
     adata = model.adata
     del model
 
     model = SCANVI.load(resave_model_path, adata)
     check_no_logits_and_softmax(model)
+
+
+def test_scanvi_scarches_from_scvi(save_path):
+    # test transfer_anndata_setup + view
+    adata1 = synthetic_iid()
+
+    SCVI.setup_anndata(
+        adata1,
+        batch_key="batch",
+    )
+    model_scvi = SCVI(
+        adata1, n_latent=10, encode_covariates=True, use_layer_norm="both", use_batch_norm="none"
+    )
+    model_scvi.train(1, train_size=0.9, check_val_every_n_epoch=1)
+
+    model = SCANVI.from_scvi_model(
+        model_scvi, "unlabeled", labels_key="labels", linear_classifier=True
+    )
+
+    model.train(
+        max_epochs=1,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        n_samples_per_label=10,
+        plan_kwargs={
+            "n_epochs_kl_warmup": 10.0,
+            "lr": 3e-3,
+            "classification_ratio": 1000.0,
+            "max_kl_weight": 1.0,
+        },
+    )
+
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # adata2 has more genes and a perfect subset of adata1
+    adata2 = synthetic_iid(n_genes=110)
+    # adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
+    del adata2.obs["labels"]
+    # adata2.raw = adata2
+
+    SCANVI.prepare_query_anndata(adata2, dir_path)
+    SCANVI_query = SCANVI.load_query_data(adata2, dir_path)
+    SCANVI_query.train(1, plan_kwargs={"weight_decay": 0.0})
+
+    adata3 = SCANVI.prepare_query_anndata(adata2, dir_path, inplace=False)
+    SCANVI_query2 = SCANVI.load_query_data(adata3, dir_path)
+    SCANVI_query2.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    # adata4 has more genes and missing 10 genes from adata1
+    adata4 = synthetic_iid(n_genes=110)
+    adata4.obs["protein_panel"] = "panel_0"
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
+    adata4.var_names = new_var_names
+
+    SCANVI.prepare_query_anndata(adata4, dir_path)
+    # should be padded 0s
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
+    SCANVI_query3 = SCANVI.load_query_data(adata4, dir_path)
+    SCANVI_query3.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata5 = SCANVI.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCANVI_query4 = SCANVI.load_query_data(adata5, dir_path)
+    SCANVI_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0"])
+def test_scanvi_interpretability_ig(unlabeled_cat: str):
+    adata = synthetic_iid(batch_size=50)
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+    # get the IG for all data
+    predictions, attributions = model.predict(ig_interpretability=True)  # orignal predictions
+    # let's see an avg of score of top 5 genes for all samples put together
+    ig_top_features = attributions.head(5)
+    print(ig_top_features)
+
+    # new data ig prediction specific for samples, top 5 genes
+    adata2 = synthetic_iid(batch_size=10)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    predictions, attributions = model.predict(adata2, indices=[1, 2, 3], ig_interpretability=True)
+    ig_top_features_3_samples = attributions.head(5)
+    print(ig_top_features_3_samples)
+
+
+@pytest.mark.parametrize("unlabeled_cat", ["label_0"])
+def test_scanvi_interpretability_shap(unlabeled_cat: str):
+    adata = synthetic_iid(batch_size=50)
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    model = SCANVI(adata, n_latent=10)
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1)
+
+    # new data for shap prediction specific for samples, top 5 genes
+    adata2 = synthetic_iid(batch_size=10)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+    adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
+
+    # now run shap values and compare to previous results
+    # (here, the more labels the more time it will take to run)
+    shap_values = model.shap_predict(shap_args={"nsamples": 100})
+    # select the label we want to understand (usually the '1' class)
+    shap_top_features = model.get_ranked_features(attrs=shap_values[:, :, 1]).head(5)
+    print(shap_top_features)
+
+    # now run shap values for the test set (can be specific class or indices and with params)
+    # (here, the more labels the more time it will take to run)
+    shap_values_test = model.shap_predict(
+        adata2,
+        indices=[1, 2, 3],
+        shap_args={"link": "identity", "silent": True, "gc_collect": True, "nsamples": 300},
+    )
+    # # select the label we want to understand (usually the '1' class)
+    shap_top_features_test = model.get_ranked_features(attrs=shap_values_test[:, :, 1]).head(5)
+    print(shap_top_features_test)

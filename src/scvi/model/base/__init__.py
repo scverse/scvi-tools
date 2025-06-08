@@ -1,5 +1,9 @@
 from ._archesmixin import ArchesMixin
-from ._base_model import BaseMinifiedModeModelClass, BaseModelClass
+from ._base_model import (
+    BaseMinifiedModeModelClass,
+    BaseModelClass,
+    BaseMudataMinifiedModeModelClass,
+)
 from ._differential import DifferentialComputation
 from ._embedding_mixin import EmbeddingMixin
 from ._jaxmixin import JaxTrainingMixin
@@ -10,7 +14,7 @@ from ._pyromixin import (
     PyroSviTrainMixin,
 )
 from ._rnamixin import RNASeqMixin
-from ._training_mixin import UnsupervisedTrainingMixin
+from ._training_mixin import SemisupervisedTrainingMixin, UnsupervisedTrainingMixin
 from ._vaemixin import VAEMixin
 
 __all__ = [
@@ -19,6 +23,7 @@ __all__ = [
     "RNASeqMixin",
     "VAEMixin",
     "UnsupervisedTrainingMixin",
+    "SemisupervisedTrainingMixin",
     "PyroSviTrainMixin",
     "PyroSampleMixin",
     "PyroJitGuideWarmup",
@@ -26,5 +31,6 @@ __all__ = [
     "DifferentialComputation",
     "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",
+    "BaseMudataMinifiedModeModelClass",
     "EmbeddingMixin",
 ]

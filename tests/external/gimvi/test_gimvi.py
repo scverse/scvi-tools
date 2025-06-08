@@ -121,13 +121,18 @@ def test_gimvi():
         labels_key="labels",
     )
     model = GIMVI(adata_seq, adata_spatial, n_latent=10)
-    assert hasattr(model.module, "library_log_means_0") and not hasattr(
-        model.module, "library_log_means_1"
-    )
+    assert hasattr(model.module, "library_log_means_0")
+    assert not hasattr(model.module, "library_log_means_1")
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.get_latent_representation()
     model.get_imputed_values()
     model.get_imputed_values(normalized=False)
+    model.get_normalized_expression(adata=adata_seq)
+    model.get_normalized_expression(adata=adata_spatial)
+    model.get_normalized_expression(adata=adata_seq, transform_batch="batch_1")
+    model.get_normalized_expression(adata=adata_spatial, transform_batch="batch_1")
+    # model.get_normalized_expression(adata=adata_seq, n_samples=2)
+    # model.get_normalized_expression(adata=adata_spatial, n_samples=2)
 
     adata_spatial.var_names += "asdf"
     GIMVI.setup_anndata(
@@ -153,9 +158,8 @@ def test_gimvi_model_library_size():
         labels_key="labels",
     )
     model = GIMVI(adata_seq, adata_spatial, model_library_size=[True, True], n_latent=10)
-    assert hasattr(model.module, "library_log_means_0") and hasattr(
-        model.module, "library_log_means_1"
-    )
+    assert hasattr(model.module, "library_log_means_0")
+    assert hasattr(model.module, "library_log_means_1")
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.get_latent_representation()
     model.get_imputed_values()

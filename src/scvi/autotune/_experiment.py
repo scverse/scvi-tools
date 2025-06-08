@@ -1,25 +1,233 @@
 from __future__ import annotations
 
+import inspect
+import logging
 from os.path import join
-from typing import Any, Literal
+from typing import TYPE_CHECKING
 
+import numpy as np
+import torch
 from anndata import AnnData
-from lightning.pytorch import LightningDataModule
 from lightning.pytorch.callbacks import Callback
 from lightning.pytorch.loggers import TensorBoardLogger
 from mudata import MuData
-from ray.tune import ResultGrid, Tuner
-from ray.tune.schedulers import TrialScheduler
-from ray.tune.search import SearchAlgorithm
+from ray.tune import Tuner
+from ray.util.annotations import PublicAPI
 
-from scvi._types import AnnOrMuData
-from scvi.model.base import BaseModelClass
+from scvi.utils import is_package_installed
+
+if TYPE_CHECKING:
+    from typing import Any, Literal
+
+    import lightning.pytorch as pl
+    from lightning.pytorch import LightningDataModule
+    from ray.tune import ResultGrid
+    from ray.tune.schedulers import TrialScheduler
+    from ray.tune.search import SearchAlgorithm
+
+    from scvi._types import AnnOrMuData
+    from scvi.model.base import BaseModelClass
 
 _ASHA_DEFAULT_KWARGS = {
     "max_t": 100,
     "grace_period": 1,
     "reduction_factor": 2,
 }
+
+logger = logging.getLogger(__name__)
+
+# Get all Pytorch Lightning Callback hooks based on whatever PTL version is being used.
+_allowed_hooks = {
+    name
+    for name, fn in inspect.getmembers(Callback, predicate=inspect.isfunction)
+    if name.startswith("on_")
+}
+
+
+if is_package_installed("ray"):
+    from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
+
+    @PublicAPI
+    class ScibTuneReportCheckpointCallback(TuneReportCheckpointCallback):
+        """Ray based PyTorch Lightning report and checkpoint callback, suited for Scib-Metrics
+
+        Saves checkpoints after each validation step. Also reports metrics to Tune,
+        which is needed for checkpoint registration.
+
+        Args:
+            metrics: Metrics to report to Tune. If this is a list,
+                each item describes the metric key reported to PyTorch Lightning,
+                and it will be reported under the same name to Tune. If this is a
+                dict, each key will be the name reported to Tune and the respective
+                value will be the metric key reported to PyTorch Lightning.
+            filename: Filename of the checkpoint within the checkpoint
+                directory. Defaults to "checkpoint".
+            save_checkpoints: If True (default), checkpoints will be saved and
+                reported to Ray. If False, only metrics will be reported.
+            on: When to trigger checkpoint creations and metric reports. Must be one of
+                the PyTorch Lightning event hooks (less the ``on_``), e.g.
+                "train_batch_start", or "train_end". Defaults to "validation_end".
+            bio_conservation_metrics: Specification of which bio conservation metrics to run.
+            batch_correction_metrics: Specification of which batch correction metrics to run.
+            num_rows_to_select: select number of rows to subsample (5000 default).
+                This is important to save Scib computation time
+            indices_list: If not empty will be used to select the indices to calc the scib metric
+                on, otherwise will use the random indices selection in size of scib_subsample_rows
+
+        """
+
+        from scib_metrics.benchmark import BatchCorrection, BioConservation
+
+        def __init__(
+            self,
+            metrics: str | list[str] | dict[str, str] | None = None,
+            filename: str = "checkpoint",
+            save_checkpoints: bool = True,
+            on: str | list[str] = "train_end",
+            bio_conservation_metrics: BioConservation | None = BioConservation(),
+            batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
+            num_rows_to_select: int = 5000,
+            indices_list: list | None = None,
+        ):
+            super().__init__(
+                on=on, metrics=metrics, filename=filename, save_checkpoints=save_checkpoints
+            )
+            if isinstance(metrics, str):
+                metrics = [metrics]
+            self.stage = "training" if on == "train_end" else "validation"
+            self.metric = metrics[0]
+            self.num_rows_to_select = num_rows_to_select
+            self.bio_conservation_metrics = bio_conservation_metrics
+            self.batch_correction_metrics = batch_correction_metrics
+            self.on = on
+            self.indices_list = indices_list
+
+        def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
+            # Don't report if just doing initial validation sanity checks.
+            if trainer.sanity_checking:
+                return
+            if not self._metrics:
+                report_dict = {k: v.item() for k, v in trainer.callback_metrics.items()}
+            else:
+                from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
+
+                # Don't report if just doing initial validation sanity checks.
+                report_dict = {}
+                if self.metric is None:
+                    return
+
+                # we take th pl module from the scib callback
+                pl_module = trainer.callbacks[0].pl_module
+                if not hasattr(pl_module, f"_{self.stage}_epoch_outputs"):
+                    raise ValueError(
+                        f"The training plan must have a `_{self.stage}_epoch_outputs` attribute."
+                    )
+
+                # we have the original adata if needed
+                outputs = getattr(pl_module, f"_{self.stage}_epoch_outputs")
+                z = outputs["z"].numpy()
+                x = np.zeros(z.shape)  # we don't really need x here, we work on z
+                batch = outputs["batch"].numpy()  # (
+                labels = outputs["labels"].numpy()  # (
+
+                # subsample to save time
+                if self.indices_list is None or len(self.indices_list) == 0:
+                    rand_idx = np.random.choice(
+                        z.shape[0], np.min([z.shape[0], self.num_rows_to_select]), replace=False
+                    )
+                else:
+                    rand_idx = self.indices_list
+                batch = batch[rand_idx]
+                labels = labels[rand_idx]
+                x = x[rand_idx]
+                z = z[rand_idx]
+
+                # because originally those classes are frozen we cant just set the metric to True
+                # Need to do it manually unfortunately
+                if self.metric == "silhouette_label":
+                    self.bio_conservation_metrics = BioConservation(
+                        True, False, False, False, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, True, False, False, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, False, True, False, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "Silhouette label":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, False, False, True, False
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "cLISI":
+                    self.bio_conservation_metrics = BioConservation(
+                        False, False, False, False, True
+                    )
+                    self.batch_correction_metrics = None
+                elif self.metric == "Silhouette batch":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        True, False, False, False, False
+                    )
+                elif self.metric == "iLISI":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, True, False, False, False
+                    )
+                elif self.metric == "KBET":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, False, True, False, False
+                    )
+                elif self.metric == "Graph connectivity":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, False, False, True, False
+                    )
+                elif self.metric == "PCR comparison":
+                    self.bio_conservation_metrics = None
+                    self.batch_correction_metrics = BatchCorrection(
+                        False, False, False, False, True
+                    )
+                # else:
+                # it's an aggregation metric
+                elif self.metric == "Total":
+                    # we just run them all, which is the default
+                    self.bio_conservation_metrics = BioConservation()
+                    self.batch_correction_metrics = BatchCorrection()
+                elif self.metric == "Batch correction":
+                    # we run all batch correction and no bio conservation
+                    self.bio_conservation_metrics = None
+                elif self.metric == "Bio conservation":
+                    # we run all bio conservation and no batch corredction
+                    self.batch_correction_metrics = None
+                else:
+                    # an invalid metric!
+                    raise ValueError(
+                        f"`{self.metric}` is an invalid metric in scib-metrics autotune."
+                    )
+
+                adata = AnnData(X=x, obs={"batch": batch, "labels": labels}, obsm={"z": z})
+                benchmarker = Benchmarker(
+                    adata,
+                    batch_key="batch",
+                    label_key="labels",
+                    embedding_obsm_keys=["z"],
+                    bio_conservation_metrics=self.bio_conservation_metrics,
+                    batch_correction_metrics=self.batch_correction_metrics,
+                )
+                benchmarker.benchmark()
+                results = benchmarker.get_results(min_max_scale=False).to_dict()
+                metrics = {f"training {self.metric}": results[self.metric]["z"]}
+                pl_module.logger.log_metrics(metrics, trainer.global_step)
+                trainer.callback_metrics[self.metric] = torch.tensor(results[self.metric]["z"])
+                report_dict[self.metric] = trainer.callback_metrics[self.metric].item()
+            return report_dict
 
 
 class AutotuneExperiment:
@@ -31,7 +239,7 @@ class AutotuneExperiment:
         Model class on which to tune hyperparameters. Must implement a constructor and a ``train``
         method.
     data
-        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
+        :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been set up with
         ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
@@ -85,6 +293,15 @@ class AutotuneExperiment:
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
         Additional keyword arguments to pass to the search algorithm.
+    scib_stage
+        Used when performing scib-metrics tune, select whether to perform on validation (default)
+        or training end.
+    scib_subsample_rows
+        Used when performing scib-metrics tune, select number of rows to subsample (100 default).
+        This is important to save computation time
+    scib_indices_list
+        If not empty will be used to select the indices to calc the scib metric on, otherwise will
+        use the random indices selection in size of scib_subsample_rows
 
     Notes
     -----
@@ -111,6 +328,9 @@ class AutotuneExperiment:
         logging_dir: str | None = None,
         scheduler_kwargs: dict | None = None,
         searcher_kwargs: dict | None = None,
+        scib_stage: str | None = "train_end",
+        scib_subsample_rows: int | None = 5000,
+        scib_indices_list: list | None = None,
     ) -> None:
         self.model_cls = model_cls
         self.data = data
@@ -126,6 +346,9 @@ class AutotuneExperiment:
         self.resources = resources
         self.name = name
         self.logging_dir = logging_dir
+        self.scib_stage = scib_stage
+        self.scib_subsample_rows = scib_subsample_rows
+        self.scib_indices_list = scib_indices_list
 
     @property
     def id(self) -> str:
@@ -160,7 +383,7 @@ class AutotuneExperiment:
             raise AttributeError("Cannot reassign `data`")
 
         self._data = value
-        if isinstance(value, (AnnData, MuData)):
+        if isinstance(value, AnnData | MuData):
             data_manager = self.model_cls._get_most_recent_anndata_manager(value, required=True)
             self._setup_method_name = data_manager._registry.get(
                 _SETUP_METHOD_NAME, "setup_anndata"
@@ -443,7 +666,28 @@ class AutotuneExperiment:
             (TuneReportCheckpointCallback, Callback),
             {},
         )
+
         return callback_cls(metrics=self.metrics, on="validation_end", save_checkpoints=False)
+
+    @property
+    def scib_metrics_callback(self) -> Callback:
+        if not hasattr(self, "_metrics"):
+            raise AttributeError("`scib metrics_callback` not yet available.")
+
+        # this is to get around lightning import changes
+        callback_cls = type(
+            "_ScibTuneReportCheckpointCallback",
+            (ScibTuneReportCheckpointCallback, Callback),
+            {},
+        )
+
+        return callback_cls(
+            metrics=self.metrics,
+            on=self.scib_stage,
+            save_checkpoints=False,
+            num_rows_to_select=self.scib_subsample_rows,
+            indices_list=self.scib_indices_list,
+        )
 
     @property
     def result_grid(self) -> ResultGrid:
@@ -519,25 +763,41 @@ def _trainable(
     for more details.
     """
     from ray.train import get_context
+    from scib_metrics.benchmark._core import metric_name_cleaner
 
     from scvi import settings
+    from scvi.train._callbacks import ScibCallback
+
+    metric_name_cleaner["SCIB_Total"] = "Total"  # manual addition
+    metric_name_cleaner["BatchCorrection"] = "Batch correction"  # manual addition
+    metric_name_cleaner["BioConservation"] = "Bio conservation"  # manual addition
 
     model_params, train_params = (
         param_sample.get("model_params", {}),
         param_sample.get("train_params", {}),
     )
+    if experiment.metrics[0] in metric_name_cleaner.values():
+        # This is how we decide on running a scib tuner
+        tune_callback = [
+            # just to have the data ready
+            ScibCallback(),
+            experiment.scib_metrics_callback,
+        ]
+        model_params["extra_payload_autotune"] = True
+    else:
+        tune_callback = [experiment.metrics_callback]
     train_params = {
         "accelerator": "auto",
         "devices": "auto",
         "check_val_every_n_epoch": 1,
         "enable_progress_bar": False,
         "logger": experiment.get_logger(get_context().get_trial_name()),
-        "callbacks": [experiment.metrics_callback],
+        "callbacks": tune_callback,
         **train_params,
     }
 
     settings.seed = experiment.seed
-    if isinstance(experiment.data, (AnnData, MuData)):
+    if isinstance(experiment.data, AnnData | MuData):
         getattr(experiment.model_cls, experiment.setup_method_name)(
             experiment.data,
             **experiment.setup_method_args,
@@ -545,5 +805,5 @@ def _trainable(
         model = experiment.model_cls(experiment.data, **model_params)
         model.train(**train_params)
     else:
-        model = experiment.model_cls(**train_params)
+        model = experiment.model_cls(**model_params)
         model.train(datamodule=experiment.data, **train_params)

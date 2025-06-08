@@ -1,14 +1,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Sequence
 from functools import partial
-from typing import Literal
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 import torch
-from anndata import AnnData
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -28,6 +25,13 @@ from scvi.model.base._de_core import _de_core
 from scvi.module import VAE
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import de_dsp
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from typing import Literal
+
+    import pandas as pd
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +96,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self._module_cls = VAE
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -131,7 +136,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] = None,
@@ -229,15 +234,16 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             self.module.decoder.px_scale_decoder[-2].bias = torch.nn.Parameter(region_factors)
         return accs
 
-    def get_normalized_expression(
-        self,
-    ):
-        # Refer to function get_accessibility_estimates
-        msg = (
-            f"differential_expression is not implemented for {self.__class__.__name__}, please "
-            f"use {self.__class__.__name__}.get_accessibility_estimates"
-        )
-        raise NotImplementedError(msg)
+    @torch.inference_mode()
+    def get_region_factors(self):
+        """Return region-specific factors. CPU/GPU dependent"""
+        if self.device.type == "cpu":
+            region_factors = self.module.decoder.px_scale_decoder[-2].bias.numpy()
+        else:
+            region_factors = self.module.decoder.px_scale_decoder[-2].bias.cpu().numpy()  # gpu
+        if region_factors is None:
+            raise RuntimeError("region factors were not included in this model")
+        return region_factors
 
     @de_dsp.dedent
     def differential_accessibility(
@@ -329,7 +335,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         col_names = adata.var_names
         importance_weighting_kwargs = importance_weighting_kwargs or {}
         model_fn = partial(
-            self.get_accessibility_estimates,
+            self.get_normalized_accessibility,
             return_numpy=True,
             n_samples=1,
             batch_size=batch_size,

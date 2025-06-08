@@ -1,5 +1,6 @@
 import os
 
+import anndata
 import pytest
 
 import scvi
@@ -15,35 +16,35 @@ def prep_model():
 
 
 def test_hub_metadata(request, save_path):
-    hm = HubMetadata("0.17.4", "0.8.0", "SCVI")
-    assert hm.scvi_version == "0.17.4"
-    assert hm.anndata_version == "0.8.0"
+    hm = HubMetadata(scvi.__version__, anndata.__version__, "SCVI")
+    assert hm.scvi_version == scvi.__version__
+    assert hm.anndata_version == anndata.__version__
     assert hm.training_data_url is None
     assert hm.model_parent_module == "scvi.model"
 
     d = {
-        "scvi_version": "0.15.4",
-        "anndata_version": "0.8.1",
+        "scvi_version": scvi.__version__,
+        "anndata_version": anndata.__version__,
         "model_cls_name": "SCVI",
         "training_data_url": None,
         "model_parent_module": "bar",
     }
     hm = HubMetadata(**d)
-    assert hm.scvi_version == "0.15.4"
-    assert hm.anndata_version == "0.8.1"
+    assert hm.scvi_version == scvi.__version__
+    assert hm.anndata_version == anndata.__version__
     assert hm.training_data_url is None
     assert hm.model_parent_module == "bar"
 
     d = {
-        "scvi_version": "0.15.4",
-        "anndata_version": "0.8.1",
+        "scvi_version": scvi.__version__,
+        "anndata_version": anndata.__version__,
         "foo": "bar",
     }
     with pytest.raises(TypeError):
         hm = HubMetadata(**d)
 
     d = {
-        "scvi_version": "0.15.4",
+        "scvi_version": scvi.__version__,
     }
     with pytest.raises(TypeError):
         hm = HubMetadata(**d)
@@ -51,16 +52,23 @@ def test_hub_metadata(request, save_path):
     model = prep_model()
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True)
-    hm = HubMetadata.from_dir(test_save_path, anndata_version="0.9.0", model_parent_module="foo")
+    hm = HubMetadata.from_dir(
+        test_save_path, anndata_version=anndata.__version__, model_parent_module="foo"
+    )
     assert hm.scvi_version == scvi.__version__
-    assert hm.anndata_version == "0.9.0"
+    assert hm.anndata_version == anndata.__version__
     assert hm.training_data_url is None
     assert hm.model_parent_module == "foo"
 
 
 def test_hub_metadata_invalid_url():
     with pytest.raises(ValueError):
-        HubMetadata("0.17.4", "0.8.0", "SCVI", training_data_url="https//invalid_url.org/")
+        HubMetadata(
+            scvi.__version__,
+            anndata.__version__,
+            "SCVI",
+            training_data_url="https//invalid_url.org/",
+        )
 
 
 def test_hub_modelcardhelper(request, save_path):
@@ -73,8 +81,8 @@ def test_hub_modelcardhelper(request, save_path):
         model_setup_anndata_args=model.adata_manager._get_setup_method_args()["setup_args"],
         model_summary_stats=model.summary_stats,
         model_data_registry=model.adata_manager.data_registry,
-        scvi_version="0.17.8",
-        anndata_version="0.8.0",
+        scvi_version=scvi.__version__,
+        anndata_version=anndata.__version__,
         tissues=["eye"],
     )
 
@@ -90,6 +98,7 @@ def test_hub_modelcardhelper(request, save_path):
             "dispersion": "gene",
             "gene_likelihood": "zinb",
             "latent_distribution": "normal",
+            "use_observed_lib_size": True,
         },
     }
     assert hmch.model_setup_anndata_args == {
@@ -118,8 +127,8 @@ def test_hub_modelcardhelper(request, save_path):
         "attr_key": "_scvi_labels",
         "attr_name": "obs",
     }
-    assert hmch.scvi_version == "0.17.8"
-    assert hmch.anndata_version == "0.8.0"
+    assert hmch.scvi_version == scvi.__version__
+    assert hmch.anndata_version == anndata.__version__
     assert hmch.data_modalities == []
     assert hmch.tissues == ["eye"]
     assert hmch.data_is_annotated is None
@@ -137,8 +146,8 @@ def test_hub_modelcardhelper(request, save_path):
             "genomics",
             "single-cell",
             "model_cls_name:SCVI",
-            "scvi_version:0.17.8",
-            "anndata_version:0.8.0",
+            "scvi_version:" + scvi.__version__,
+            "anndata_version:" + anndata.__version__,
             "tissue:eye",
         ],
     }
@@ -148,7 +157,7 @@ def test_hub_modelcardhelper(request, save_path):
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
-        anndata_version="0.8.0",
+        anndata_version=anndata.__version__,
         model_parent_module="other_module",
     )
 
@@ -161,7 +170,7 @@ def test_hub_modelcardhelper(request, save_path):
     assert hmch.model_summary_stats == dict(model.summary_stats)
     assert hmch.model_data_registry == dict(model.adata_manager.data_registry)
     assert hmch.scvi_version == scvi.__version__
-    assert hmch.anndata_version == "0.8.0"
+    assert hmch.anndata_version == anndata.__version__
     assert hmch.data_modalities == []
     assert hmch.tissues == []
     assert hmch.data_is_annotated is None
@@ -180,6 +189,6 @@ def test_hub_modelcardhelper(request, save_path):
             "single-cell",
             "model_cls_name:SCVI",
             f"scvi_version:{scvi.__version__}",
-            "anndata_version:0.8.0",
+            f"anndata_version:{anndata.__version__}",
         ],
     }

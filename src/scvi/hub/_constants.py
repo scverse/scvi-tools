@@ -11,7 +11,7 @@ class _SCVI_HUB_NT(NamedTuple):
 
     # model card defaults
     DEFAULT_MISSING_FIELD: str = "To be added..."
-    DEFAULT_NA_FIELD: str = "N/A"
+    DEFAULT_NA_FIELD: str = "Not provided by uploader"
     DEFAULT_PARENT_MODULE: str = "scvi.model"
 
     # model card tags

@@ -37,7 +37,7 @@ _ADATA_MINIFY_TYPE_UNS_KEY = "_scvi_adata_minify_type"
 
 class _ADATA_MINIFY_TYPE_NT(NamedTuple):
     LATENT_POSTERIOR: str = "latent_posterior_parameters"
-    ADD_POSTERIOR_PARAMETERS: str = "add_posterior_parameters"
+    LATENT_POSTERIOR_WITH_COUNTS: str = "latent_posterior_parameters_with_counts"
 
 
 ADATA_MINIFY_TYPE = _ADATA_MINIFY_TYPE_NT()

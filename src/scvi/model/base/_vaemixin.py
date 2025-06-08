@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING
 
-import numpy.typing as npt
 import torch
-from anndata import AnnData
-from torch import Tensor
 
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.utils import unsupported_if_adata_minified
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator, Sequence
+
+    import numpy.typing as npt
+    from anndata import AnnData
+    from torch import Tensor
+    from torch.distributions import Distribution
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +30,9 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        return_mean: bool = True,
+        **kwargs,
     ) -> float:
         """Compute the evidence lower bound (ELBO) on the data.
 
@@ -49,6 +58,8 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        return_mean
+            Whether to return the mean of the ELBO or the ELBO for each observation.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -62,15 +73,22 @@ class VAEMixin:
         """
         from scvi.model.base._log_likelihood import compute_elbo
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif dataloader is None:
+        _validate_adata_dataloader_input(self, adata, dataloader)
+
+        if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
-        return -compute_elbo(self.module, dataloader)
+        return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
 
     @torch.inference_mode()
     @unsupported_if_adata_minified
@@ -129,14 +147,21 @@ class VAEMixin:
                 "The model's module must implement `marginal_ll` to compute the marginal "
                 "log-likelihood."
             )
-        elif adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        else:
+            _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         log_likelihoods: list[float | Tensor] = [
             self.module.marginal_ll(
@@ -157,7 +182,8 @@ class VAEMixin:
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: Iterator[dict[str, Tensor | None]] = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        return_mean: bool = True,
         **kwargs,
     ) -> dict[str, float]:
         r"""Compute the reconstruction error on the data.
@@ -183,6 +209,9 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        return_mean
+            Whether to return the mean reconstruction loss or the reconstruction loss
+            for each observation.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -196,16 +225,24 @@ class VAEMixin:
         """
         from scvi.model.base._log_likelihood import compute_reconstruction_error
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
-        return compute_reconstruction_error(self.module, dataloader, **kwargs)
+        return compute_reconstruction_error(
+            self.module, dataloader, return_mean=return_mean, **kwargs
+        )
 
     @torch.inference_mode()
     def get_latent_representation(
@@ -255,20 +292,26 @@ class VAEMixin:
         a tuple of arrays ``(n_obs, n_latent)`` with the mean and variance of the latent
         distribution.
         """
-        from torch.distributions import Distribution, Normal
+        from torch.distributions import Normal
         from torch.nn.functional import softmax
 
         from scvi.module._constants import MODULE_KEYS
 
         self._check_if_trained(warn=False)
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata, indices=indices, batch_size=batch_size
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         zs: list[Tensor] = []
         qz_means: list[Tensor] = []

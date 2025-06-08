@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 import logging
 import tempfile
-from pathlib import Path
-from typing import Optional, Union
+from typing import TYPE_CHECKING
 
-import anndata
 import numpy as np
 import pandas as pd
 import torch
@@ -15,6 +15,11 @@ from scvi.utils._docstrings import devices_dsp
 
 from ._utils import _check_nonnegative_integers
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import anndata
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,17 +27,17 @@ logger = logging.getLogger(__name__)
 @devices_dsp.dedent
 def poisson_gene_selection(
     adata,
-    layer: Optional[str] = None,
+    layer: str | None = None,
     n_top_genes: int = 4000,
     accelerator: str = "auto",
-    device: Union[int, str] = "auto",
+    device: int | str = "auto",
     subset: bool = False,
     inplace: bool = True,
     n_samples: int = 10000,
     batch_key: str = None,
     silent: bool = False,
     minibatch_size: int = 5000,
-) -> Optional[pd.DataFrame]:
+) -> pd.DataFrame | None:
     """Rank and select genes based on the enrichment of zero counts.
 
     Enrichment is considered by comparing data to a Poisson count model.
@@ -118,11 +123,12 @@ def poisson_gene_selection(
 
         # Calculate empirical statistics.
         sum_0 = np.asarray(data.sum(0)).ravel()
-        scaled_means = torch.from_numpy(sum_0 / sum_0.sum()).to(device)
         total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(device)
-
+        # in MPS we need to first change to float 32, as the MPS framework doesn't support float64.
+        # We will thus do it by default for all accelerators
+        scaled_means = torch.from_numpy(np.float32(sum_0 / sum_0.sum())).to(device)
         observed_fraction_zeros = torch.from_numpy(
-            np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel()
+            np.float32(np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel())
         ).to(device)
 
         # Calculate probability of zero for a Poisson model.
@@ -146,8 +152,13 @@ def poisson_gene_selection(
         expected_fraction_zeros /= data.shape[0]
 
         # Compute probability of enriched zeros through sampling from Binomial distributions.
-        observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
-        expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
+        # TODO:  TORCH MPS FIX - 'aten::binomial' is not currently implemented for the MPS device
+        if device.type == "mps":
+            observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros.to("cpu"))
+            expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros.to("cpu"))
+        else:
+            observed_zero = torch.distributions.Binomial(probs=observed_fraction_zeros)
+            expected_zero = torch.distributions.Binomial(probs=expected_fraction_zeros)
 
         extra_zeros = torch.zeros(expected_fraction_zeros.shape, device=device)
         for _ in track(
@@ -156,7 +167,8 @@ def poisson_gene_selection(
             disable=silent,
             style="tqdm",  # do not change
         ):
-            extra_zeros += observed_zero.sample() > expected_zero.sample()
+            obs_exp_bool_mat = observed_zero.sample() > expected_zero.sample()
+            extra_zeros += obs_exp_bool_mat.to("mps") if device.type == "mps" else obs_exp_bool_mat
 
         prob_zero_enrichment = (extra_zeros / n_samples).cpu().numpy()
 
@@ -231,7 +243,7 @@ def poisson_gene_selection(
         return df
 
 
-def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False) -> Optional[anndata.AnnData]:
+def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False) -> anndata.AnnData | None:
     """Organize anndata object loaded from 10x for scvi models.
 
     Parameters
@@ -277,8 +289,8 @@ def organize_cite_seq_10x(adata: anndata.AnnData, copy: bool = False) -> Optiona
 
 def organize_multiome_anndatas(
     multi_anndata: anndata.AnnData,
-    rna_anndata: Optional[anndata.AnnData] = None,
-    atac_anndata: Optional[anndata.AnnData] = None,
+    rna_anndata: anndata.AnnData | None = None,
+    atac_anndata: anndata.AnnData | None = None,
     modality_key: str = "modality",
 ) -> anndata.AnnData:
     """Concatenate multiome and single-modality input anndata objects.
@@ -362,8 +374,8 @@ def add_dna_sequence(
     adata: anndata.AnnData,
     seq_len: int = 1344,
     genome_name: str = "hg38",
-    genome_dir: Optional[Path] = None,
-    genome_provider: Optional[str] = None,
+    genome_dir: Path | None = None,
+    genome_provider: str | None = None,
     install_genome: bool = True,
     chr_var_key: str = "chr",
     start_var_key: str = "start",
@@ -432,7 +444,7 @@ def add_dna_sequence(
         block_ends = block_starts + seq_len
         seqs = []
 
-        for start, end in zip(block_starts, block_ends - 1):
+        for start, end in zip(block_starts, block_ends - 1, strict=True):
             seq = str(g.get_seq(chrom, start, end)).upper()
             seqs.append(list(seq))
 
@@ -441,12 +453,12 @@ def add_dna_sequence(
 
     sequence_df = pd.concat(seq_dfs, axis=0).loc[adata.var_names]
     adata.varm[sequence_varm_key] = sequence_df
-    adata.varm[code_varm_key] = sequence_df.applymap(_dna_to_code)
+    adata.varm[code_varm_key] = sequence_df.map(_dna_to_code)
 
 
 def reads_to_fragments(
     adata: anndata.AnnData,
-    read_layer: Optional[str] = None,
+    read_layer: str | None = None,
     fragment_layer: str = "fragments",
 ) -> None:
     """Convert scATAC-seq read counts to appoximate fragment counts.

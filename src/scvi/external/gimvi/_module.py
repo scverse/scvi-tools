@@ -1,7 +1,5 @@
 """Main module."""
 
-from typing import Optional, Union
-
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -80,11 +78,11 @@ class JVAE(BaseModuleClass):
         self,
         dim_input_list: list[int],
         total_genes: int,
-        indices_mappings: list[Union[np.ndarray, slice]],
+        indices_mappings: list[np.ndarray | slice],
         gene_likelihoods: list[str],
         model_library_bools: list[bool],
-        library_log_means: list[Optional[np.ndarray]],
-        library_log_vars: list[Optional[np.ndarray]],
+        library_log_means: list[np.ndarray | None],
+        library_log_vars: list[np.ndarray | None],
         n_latent: int = 10,
         n_layers_encoder_individual: int = 1,
         n_layers_encoder_shared: int = 1,
@@ -235,9 +233,9 @@ class JVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int,
         batch_index: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
+        y: torch.Tensor | None = None,
         deterministic: bool = False,
-        decode_mode: Optional[int] = None,
+        decode_mode: int | None = None,
     ) -> torch.Tensor:
         """Return the tensor of predicted frequencies of expression.
 
@@ -282,7 +280,7 @@ class JVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int,
         batch_index: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
+        y: torch.Tensor | None = None,
         deterministic: bool = False,
         decode_mode: int = None,
     ) -> dict:
@@ -307,7 +305,7 @@ class JVAE(BaseModuleClass):
         x: torch.Tensor,
         mode: int,
         batch_index: torch.Tensor,
-        y: Optional[torch.Tensor] = None,
+        y: torch.Tensor | None = None,
         deterministic: bool = False,
         decode_mode: int = None,
     ) -> torch.Tensor:
@@ -366,20 +364,31 @@ class JVAE(BaseModuleClass):
             reconstruction_loss = -Poisson(px_rate).log_prob(x).sum(dim=1)
         return reconstruction_loss
 
-    def _get_inference_input(self, tensors):
+    def _get_inference_input(self, tensors) -> dict[str, torch.Tensor | None]:
         """Get the input for the inference model."""
-        return {"x": tensors[REGISTRY_KEYS.X_KEY]}
+        return {
+            "x": tensors[REGISTRY_KEYS.X_KEY],
+            "batch_index": tensors.get(REGISTRY_KEYS.BATCH_KEY, None),
+        }
 
-    def _get_generative_input(self, tensors, inference_outputs):
+    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         """Get the input for the generative model."""
         z = inference_outputs["z"]
         library = inference_outputs["library"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
         return {"z": z, "library": library, "batch_index": batch_index, "y": y}
 
     @auto_move_data
-    def inference(self, x: torch.Tensor, mode: Optional[int] = None) -> dict:
+    def inference(
+        self,
+        x: torch.Tensor,
+        mode: int | None = 0,
+        n_samples: int | None = 1,
+        batch_index: torch.Tensor | None = None,
+    ) -> dict:
         """Run the inference model."""
         x_ = x
         if self.log_variational:
@@ -392,6 +401,11 @@ class JVAE(BaseModuleClass):
         else:
             library = torch.log(torch.sum(x, dim=1)).view(-1, 1)
 
+        if n_samples > 1:
+            # when z is normal, untran_z == z
+            untran_z = qz.sample((n_samples,))
+            z = self.z_encoder.z_transformation(untran_z)
+
         return {"qz": qz, "z": z, "ql": ql, "library": library}
 
     @auto_move_data
@@ -399,9 +413,10 @@ class JVAE(BaseModuleClass):
         self,
         z: torch.Tensor,
         library: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        y: Optional[torch.Tensor] = None,
-        mode: Optional[int] = None,
+        batch_index: torch.Tensor | None = None,
+        y: torch.Tensor | None = None,
+        mode: int | None = 0,
+        transform_batch: torch.Tensor | None = None,
     ) -> dict:
         """Run the generative model."""
         px_scale, px_r, px_rate, px_dropout = self.decoder(
@@ -420,11 +435,18 @@ class JVAE(BaseModuleClass):
         )
         px_rate = px_scale * torch.exp(library)
 
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
+        px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+
         return {
             "px_scale": px_scale,
+            "px": px,
             "px_r": px_r,
             "px_rate": px_rate,
             "px_dropout": px_dropout,
+            "batch_index": batch_index,
         }
 
     def loss(
@@ -432,7 +454,7 @@ class JVAE(BaseModuleClass):
         tensors,
         inference_outputs,
         generative_outputs,
-        mode: Optional[int] = None,
+        mode: int | None = None,
         kl_weight=1.0,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Return the reconstruction loss and the Kullback divergences.

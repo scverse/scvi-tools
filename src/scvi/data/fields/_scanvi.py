@@ -1,5 +1,4 @@
 import warnings
-from typing import Optional, Union
 
 import numpy as np
 from anndata import AnnData
@@ -9,6 +8,7 @@ from scvi import settings
 from scvi.data._utils import _make_column_categorical, _set_data_in_registry
 
 from ._dataframe_field import CategoricalObsField
+from ._mudata import MuDataWrapper
 
 
 class LabelsWithUnlabeledObsField(CategoricalObsField):
@@ -32,8 +32,8 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
     def __init__(
         self,
         registry_key: str,
-        obs_key: Optional[str],
-        unlabeled_category: Union[str, int, float],
+        obs_key: str | None,
+        unlabeled_category: str | int | float,
     ) -> None:
         super().__init__(registry_key, obs_key)
         self._unlabeled_category = unlabeled_category
@@ -108,3 +108,6 @@ class LabelsWithUnlabeledObsField(CategoricalObsField):
         )
         mapping = transfer_state_registry[self.CATEGORICAL_MAPPING_KEY]
         return self._remap_unlabeled_to_final_category(adata_target, mapping)
+
+
+MuDataLabelsWithUnlabeledObsField = MuDataWrapper(LabelsWithUnlabeledObsField)

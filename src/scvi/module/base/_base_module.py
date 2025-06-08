@@ -1,30 +1,37 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from collections.abc import Iterable
 from dataclasses import field
-from typing import Any, Callable
+from typing import TYPE_CHECKING
 
 import flax
 import jax
-import jax.numpy as jnp
 import numpy as np
 import pyro
 import torch
 from flax.training import train_state
 from jax import random
-from jaxlib.xla_extension import Device
-from numpyro.distributions import Distribution
-from pyro.infer.predictive import Predictive
 from torch import nn
+from torch.nn import functional as F
 
-from scvi import settings
-from scvi._types import LossRecord, MinifiedDataType, Tensor
-from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi import REGISTRY_KEYS, settings
+from scvi.data import _constants
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
+    from typing import Any
+
+    import jax.numpy as jnp
+    from jaxlib.xla_extension import Device
+    from numpyro.distributions import Distribution
+    from pyro.infer.predictive import Predictive
+
+    from scvi._types import LossRecord, MinifiedDataType, Tensor
+    from scvi.model.base import BaseModelClass
 
 
 @flax.struct.dataclass
@@ -120,7 +127,7 @@ class LossOutput:
             self.logits is None or self.true_labels is None
         ):
             raise ValueError(
-                "Must provide `logits` and `true_labels` if `classification_loss` is " "provided."
+                "Must provide `logits` and `true_labels` if `classification_loss` is provided."
             )
 
     @staticmethod
@@ -166,7 +173,7 @@ class BaseModuleClass(nn.Module):
             raise RuntimeError("Module tensors on multiple devices.")
         return device[0]
 
-    def on_load(self, model):
+    def on_load(self, model, **kwargs):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`."""
 
     @auto_move_data
@@ -298,9 +305,7 @@ class BaseMinifiedModeModuleClass(BaseModuleClass):
         Branches off to regular or cached inference depending on whether we have a minified adata
         that contains the latent posterior parameters.
         """
-        if self.minified_data_type is not None and ADATA_MINIFY_TYPE.__contains__(
-            self.minified_data_type
-        ):
+        if "qzm" in kwargs.keys() and "qzv" in kwargs.keys():
             return self._cached_inference(*args, **kwargs)
         else:
             return self._regular_inference(*args, **kwargs)
@@ -381,15 +386,18 @@ class PyroBaseModuleClass(nn.Module):
         """
         return {"name": "", "in": [], "sites": {}}
 
-    def on_load(self, model):
+    def on_load(self, model, **kwargs):
         """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
-        old_history = model.history_.copy()
+        pyro.clear_param_store()
+        old_history = model.history_.copy() if model.history_ is not None else None
         model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
-        pyro.clear_param_store()
+        if "pyro_param_store" in kwargs:
+            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            pyro.get_param_store().set_state(kwargs["pyro_param_store"])
 
     def create_predictive(
         self,
@@ -706,7 +714,7 @@ class JaxBaseModuleClass(flax.linen.Module):
         return _run_inference
 
     @staticmethod
-    def on_load(model):
+    def on_load(model, **kwargs):
         """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
 
         Run one training step prior to loading state dict in order to initialize params.
@@ -737,6 +745,9 @@ def _generic_forward(
     loss_kwargs = _get_dict_if_none(loss_kwargs)
     get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
     get_generative_input_kwargs = _get_dict_if_none(get_generative_input_kwargs)
+    if not ("latent_qzm" in tensors.keys() and "latent_qzv" in tensors.keys()):
+        # Remove full_forward_pass if not minified model
+        get_inference_input_kwargs.pop("full_forward_pass", None)
 
     inference_inputs = module._get_inference_input(tensors, **get_inference_input_kwargs)
     inference_outputs = module.inference(**inference_inputs, **inference_kwargs)
@@ -749,3 +760,119 @@ def _generic_forward(
         return inference_outputs, generative_outputs, losses
     else:
         return inference_outputs, generative_outputs
+
+
+class SupervisedModuleClass:
+    """General purpose supervised classify and loss calculations methods."""
+
+    @auto_move_data
+    def classify_helper(self, z):
+        if self.use_labels_groups:
+            w_g = self.classifier_groups(z)
+            unw_y = self.classifier(z)
+            w_y = torch.zeros_like(unw_y)
+            for i, group_index in enumerate(self.groups_index):
+                unw_y_g = unw_y[:, group_index]
+                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
+                w_y[:, group_index] *= w_g[:, [i]]
+        else:
+            w_y = self.classifier(z)
+        return w_y
+
+    @auto_move_data
+    def classify(
+        self,
+        x: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
+        use_posterior_mean: bool = True,
+    ) -> torch.Tensor:
+        """Forward pass through the encoder and classifier.
+
+        Parameters
+        ----------
+        x
+            Tensor of shape ``(n_obs, n_vars)``.
+        batch_index
+            Tensor of shape ``(n_obs,)`` denoting batch indices.
+        cont_covs
+            Tensor of shape ``(n_obs, n_continuous_covariates)``.
+        cat_covs
+            Tensor of shape ``(n_obs, n_categorical_covariates)``.
+        use_posterior_mean
+            Whether to use the posterior mean of the latent distribution for
+            classification.
+
+        Returns
+        -------
+        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
+        Before v1.1, this method by default returned probabilities per label,
+        see #2301 for more details.
+        """
+        if self.log_variational:
+            x = torch.log1p(x)
+
+        if cont_covs is not None and self.encode_covariates:
+            encoder_input = torch.cat((x, cont_covs), dim=-1)
+        else:
+            encoder_input = x
+        if cat_covs is not None and self.encode_covariates:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = ()
+
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        z = qz.loc if use_posterior_mean else z
+
+        return self.classify_helper(z)
+
+    @auto_move_data
+    def classification_loss(
+        self, labelled_dataset: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        inference_inputs = self._get_inference_input(labelled_dataset)  # (n_obs, n_vars)
+        data_inputs = {
+            key: inference_inputs[key]
+            for key in inference_inputs.keys()
+            if key not in ["batch_index", "cont_covs", "cat_covs", "panel_index"]
+        }
+
+        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
+        batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
+
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
+        # NOTE: prior to v1.1, this method returned probabilities per label by
+        # default, see #2301 for more details
+        logits = self.classify(
+            **data_inputs, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
+        )  # (n_obs, n_labels)
+        ce_loss = F.cross_entropy(
+            logits,
+            y.view(-1).long(),
+        )
+        return ce_loss, y, logits
+
+    def on_load(self, model: BaseModelClass, **kwargs):
+        manager = model.get_anndata_manager(model.adata, required=True)
+        source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
+        version_split = source_version.split(".")
+
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 1:
+            return
+
+        # need this if <1.1 model is resaved with >=1.1 as new registry is
+        # updated on setup
+        manager.registry[_constants._SCVI_VERSION_KEY] = source_version
+
+        # pre 1.1 logits fix
+        model_kwargs = model.init_params_.get("model_kwargs", {})
+        cls_params = model_kwargs.get("classifier_parameters", {})
+        user_logits = cls_params.get("logits", False)
+
+        if not user_logits:
+            self.classifier.logits = False
+            self.classifier.classifier.append(torch.nn.Softmax(dim=-1))

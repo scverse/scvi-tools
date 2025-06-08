@@ -1,7 +1,8 @@
 import logging
-from typing import Literal, Optional
+from typing import Literal
 
 import numpy as np
+import pandas as pd
 import rich
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
@@ -34,7 +35,7 @@ class BaseDataFrameField(BaseAnnDataField):
     def __init__(
         self,
         registry_key: str,
-        attr_key: Optional[str],
+        attr_key: str | None,
         field_type: Literal["obs", "var"] = None,
         required: bool = True,
     ) -> None:
@@ -102,7 +103,7 @@ class NumericalDataFrameField(BaseDataFrameField):
         """Get summary stats."""
         return {}
 
-    def view_state_registry(self, _state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, _state_registry: dict) -> rich.table.Table | None:
         """View state registry."""
         return None
 
@@ -145,7 +146,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
     def __init__(
         self,
         registry_key: str,
-        attr_key: Optional[str],
+        attr_key: str | None,
         field_type: Literal["obs", "var"] = None,
     ) -> None:
         self.is_default = attr_key is None
@@ -211,15 +212,17 @@ class CategoricalDataFrameField(BaseDataFrameField):
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY].copy()
 
         # extend mapping for new categories
-        for c in np.unique(self._get_original_column(adata_target)):
-            if c not in mapping:
-                if extend_categories:
-                    mapping = np.concatenate([mapping, [c]])
-                else:
-                    raise ValueError(
-                        f"Category {c} not found in source registry. "
-                        f"Cannot transfer setup without `extend_categories = True`."
-                    )
+        missing_categories = (
+            pd.Index(np.unique(self._get_original_column(adata_target)))
+            .difference(pd.Index(mapping))
+            .to_numpy()
+        )
+        if missing_categories.any() and not extend_categories:
+            raise ValueError(
+                f"Category {missing_categories[0]} not found in source registry. "
+                f"Cannot transfer setup without `extend_categories = True`."
+            )
+        mapping = np.concatenate([mapping, missing_categories])
         cat_dtype = CategoricalDtype(categories=mapping, ordered=True)
         new_mapping = _make_column_categorical(
             getattr(adata_target, self.attr_name),
@@ -238,7 +241,7 @@ class CategoricalDataFrameField(BaseDataFrameField):
         n_categories = len(np.unique(categorical_mapping))
         return {self.count_stat_key: n_categories}
 
-    def view_state_registry(self, state_registry: dict) -> Optional[rich.table.Table]:
+    def view_state_registry(self, state_registry: dict) -> rich.table.Table | None:
         """View state registry."""
         source_key = state_registry[self.ORIGINAL_ATTR_KEY]
         mapping = state_registry[self.CATEGORICAL_MAPPING_KEY]

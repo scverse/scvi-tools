@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
-from anndata import AnnData
 from lightning.pytorch.callbacks import Callback
 
 from scvi import REGISTRY_KEYS
@@ -20,17 +20,20 @@ from scvi.data.fields import (
 from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model._utils import get_max_epochs_heuristic
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
 B = 10
 
 
-class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
+class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
     """Reimplementation of CellAssign for reference-based annotation :cite:p:`Zhang19`.
 
     Original implementation: https://github.com/irrationone/cellassign.
@@ -80,6 +83,11 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             cell_type_markers = cell_type_markers.loc[adata.var_names]
         except KeyError as err:
             raise KeyError("Anndata and cell type markers do not contain the same genes.") from err
+
+        assert not cell_type_markers.index.has_duplicates, (
+            "There are duplicates in cell type markers (rows in cell_type_markers)"
+        )
+
         super().__init__(adata)
 
         self.n_genes = self.summary_stats.n_vars
@@ -135,7 +143,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         lr: float = 3e-3,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
-        train_size: float = 0.9,
+        train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         batch_size: int = 1024,
@@ -143,6 +151,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
         plan_kwargs: dict | None = None,
         early_stopping: bool = True,
         early_stopping_patience: int = 15,
+        early_stopping_warmup_epochs: int = 0,
         early_stopping_min_delta: float = 0.0,
         **kwargs,
     ):
@@ -175,6 +184,8 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
             Adds callback for early stopping on validation_loss
         early_stopping_patience
             Number of times early stopping metric can not improve over early_stopping_min_delta
+        early_stopping_warmup_epochs
+            Wait for a certain number of warm-up epochs before the early stopping starts monitoring
         early_stopping_min_delta
             Threshold for counting an epoch torwards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -201,6 +212,7 @@ class CellAssign(UnsupervisedTrainingMixin, BaseModelClass):
                     min_delta=early_stopping_min_delta,
                     patience=early_stopping_patience,
                     mode="min",
+                    warmup_epochs=early_stopping_warmup_epochs,
                 )
             ]
             if "callbacks" in kwargs:

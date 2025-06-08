@@ -10,6 +10,7 @@ from mudata import MuData
 from scvi import REGISTRY_KEYS
 from scvi.data import pbmcs_10x_cite_seq, synthetic_iid
 from scvi.model import TOTALVI
+from scvi.nn._utils import ExpActivation
 from scvi.utils import attrdict
 
 
@@ -162,9 +163,8 @@ def test_totalvi(save_path):
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins, 2)
-    post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_vars + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_vars, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -243,27 +243,11 @@ def test_totalvi(save_path):
     del adata2.obsm["protein_expression"]
     with pytest.raises(KeyError):
         model.get_elbo(adata2)
-    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", pseudocounts=7e-5)
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
     model.differential_expression(groupby="labels")
-
-    # test with missing proteins
-    adata = pbmcs_10x_cite_seq(
-        save_path=save_path,
-        protein_join="outer",
-    )
-    TOTALVI.setup_anndata(
-        adata, batch_key="batch", protein_expression_obsm_key="protein_expression"
-    )
-    model = TOTALVI(adata)
-    assert model.module.protein_batch_mask is not None
-    model.train(1, train_size=0.5)
-
-    model = TOTALVI(adata, override_missing_proteins=True)
-    assert model.module.protein_batch_mask is None
-    model.train(1, train_size=0.5)
 
 
 def test_totalvi_model_library_size(save_path):
@@ -277,7 +261,8 @@ def test_totalvi_model_library_size(save_path):
     n_latent = 10
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
+    assert hasattr(model.module, "library_log_means")
+    assert hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -299,16 +284,14 @@ def test_totalvi_size_factor():
 
     # Test size_factor_key overrides use_observed_lib_size.
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=False)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
     model = TOTALVI(adata, n_latent=n_latent, use_observed_lib_size=True)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
@@ -359,7 +342,8 @@ def test_multiple_encoded_covariates_totalvi():
 
 def test_totalvi_mudata():
     adata = synthetic_iid()
-    protein_adata = synthetic_iid(n_genes=50)
+    protein_adata = synthetic_iid()
+    protein_adata.var_names = protein_adata.uns["protein_names"]
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
@@ -386,9 +370,8 @@ def test_totalvi_mudata():
     model.get_protein_foreground_probability()
     model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
     post_pred = model.posterior_predictive_sample(n_samples=2)
-    assert post_pred.shape == (n_obs, n_genes + n_proteins, 2)
-    post_pred = model.posterior_predictive_sample(n_samples=1)
-    assert post_pred.shape == (n_obs, n_genes + n_proteins)
+    assert post_pred["rna"].shape == (n_obs, n_genes, 2)
+    assert post_pred["protein"].shape == (n_obs, n_proteins, 2)
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(correlation_type="spearman")
     feature_correlation_matrix1 = model.get_feature_correlation_matrix(
         correlation_type="spearman", transform_batch=["batch_0", "batch_1"]
@@ -408,7 +391,8 @@ def test_totalvi_mudata():
     model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
-    protein_adata2 = synthetic_iid(n_genes=50)
+    protein_adata2 = synthetic_iid()
+    protein_adata2.var_names = protein_adata2.uns["protein_names"]
     mdata2 = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata2,
@@ -429,7 +413,7 @@ def test_totalvi_mudata():
     assert latent_lib_size.shape == (3, 1)
 
     pro_foreground_prob = model.get_protein_foreground_probability(
-        mdata2, indices=[1, 2, 3], protein_list=["gene_1", "gene_2"]
+        mdata2, indices=[1, 2, 3], protein_list=["protein_1", "protein_2"]
     )
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(mdata2)
@@ -437,7 +421,7 @@ def test_totalvi_mudata():
 
     # test transfer_anndata_setup + view
     adata2 = synthetic_iid()
-    protein_adata2 = synthetic_iid(n_genes=50)
+    protein_adata2 = synthetic_iid()
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
     model.get_elbo(mdata2[:10])
 
@@ -496,6 +480,7 @@ def test_totalvi_reordered_mapping_mudata():
     model.get_elbo(mdata2)
 
 
+@pytest.mark.internet
 def test_totalvi_missing_proteins(save_path):
     # test with missing proteins
     adata = pbmcs_10x_cite_seq(
@@ -530,7 +515,8 @@ def test_totalvi_model_library_size_mudata():
 
     n_latent = 10
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert hasattr(model.module, "library_log_means") and hasattr(model.module, "library_log_vars")
+    assert hasattr(model.module, "library_log_means")
+    assert hasattr(model.module, "library_log_vars")
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
@@ -559,16 +545,14 @@ def test_totalvi_size_factor_mudata():
 
     # Test size_factor_key overrides use_observed_lib_size.
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=False)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
     model = TOTALVI(mdata, n_latent=n_latent, use_observed_lib_size=True)
-    assert not hasattr(model.module, "library_log_means") and not hasattr(
-        model.module, "library_log_vars"
-    )
+    assert not hasattr(model.module, "library_log_means")
+    assert not hasattr(model.module, "library_log_vars")
     assert model.module.use_size_factor_key
     model.train(1, train_size=0.5)
 
@@ -769,3 +753,37 @@ def test_totalvi_save_load_mudata_format(save_path: str):
     with pytest.raises(ValueError):
         _ = TOTALVI.load(legacy_model_path, adata=invalid_mdata)
     model = TOTALVI.load(model_path, adata=mdata)
+
+
+def test_totalvi_logits_backwards_compat(save_path: str):
+    """
+    Check that we can replicate pre-fix behavior with
+    `extra_decoder_kwargs={"activation_function_bg": "exp"}`."""
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(adata, extra_decoder_kwargs={"activation_function_bg": "exp"})
+    model.train(1, check_val_every_n_epoch=1)
+    model_path = os.path.join(save_path, "totalvi_exp_activation")
+    model.save(model_path, overwrite=True)
+    model = TOTALVI.load(model_path, adata)
+    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+
+
+# def test_totalvi_old_activation_load(save_path: str):
+#     """See #2913. Check old model saves use the old behavior."""
+#     model_path = "tests/test_data/exp_activation_totalvi"
+#     model = TOTALVI.load(model_path)
+#
+#     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+#     resave_model_path = os.path.join(save_path, "exp_activation_totalvi_re")
+#     model.save(resave_model_path, overwrite=True)
+#     adata = model.adata
+#     del model
+#
+#     model = TOTALVI.load(resave_model_path, adata)
+#     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)

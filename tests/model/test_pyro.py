@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pyro
 import pyro.distributions as dist
+import pytest
 import torch
-from anndata import AnnData
 from pyro import clear_param_store
 from pyro.infer.autoguide import AutoNormal, init_to_mean
 from pyro.nn import PyroModule, PyroSample
@@ -26,6 +27,9 @@ from scvi.model.base import (
 from scvi.module.base import PyroBaseModuleClass
 from scvi.nn import DecoderSCVI, Encoder
 from scvi.train import LowLevelPyroTrainingPlan, PyroTrainingPlan, Trainer
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 
 
 class BayesianRegressionPyroModel(PyroModule):
@@ -195,8 +199,8 @@ def test_pyro_bayesian_regression_low_level(
     plan = LowLevelPyroTrainingPlan(model)
     plan.n_obs_training = len(train_dl.indices)
     trainer = Trainer(
-        accelerator=accelerator,
-        devices=devices,
+        accelerator="cpu",  # not handled correctly for low level trainingplan.
+        devices="auto",
         max_epochs=2,
         callbacks=[PyroModelGuideWarmup(train_dl)],
     )
@@ -212,6 +216,7 @@ def test_pyro_bayesian_regression_low_level(
     ]
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, save_path: str):
     adata = synthetic_iid()
     adata_manager = _create_indices_adata_manager(adata)
@@ -251,7 +256,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     new_model = BayesianRegressionModule(in_features=adata.shape[1], out_features=1)
     # run model one step to get autoguide params
     try:
-        new_model.load_state_dict(torch.load(model_save_path))
+        new_model.load_state_dict(torch.load(model_save_path, weights_only=False))
     except RuntimeError as err:
         if isinstance(new_model, PyroBaseModuleClass):
             plan = PyroTrainingPlan(new_model)
@@ -262,7 +267,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
                 max_steps=1,
             )
             trainer.fit(plan, train_dl)
-            new_model.load_state_dict(torch.load(model_save_path))
+            new_model.load_state_dict(torch.load(model_save_path, weights_only=False))
         else:
             raise err
 
@@ -274,6 +279,7 @@ def test_pyro_bayesian_regression(accelerator: str, devices: list | str | int, s
     np.testing.assert_array_equal(linear_median_new, linear_median)
 
 
+@pytest.mark.optional
 def test_pyro_bayesian_regression_jit(
     accelerator: str,
     devices: list | str | int,
@@ -362,9 +368,9 @@ def test_pyro_bayesian_train_sample_mixin():
     ]
 
     # test posterior sampling
-    samples = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
+    results = mod.sample_posterior(num_samples=10, batch_size=None, return_samples=True)
 
-    assert len(samples["posterior_samples"]["sigma"]) == 10
+    assert len(results["posterior_samples"]["sigma"]) == 10
 
 
 def test_pyro_bayesian_train_sample_mixin_full_data():

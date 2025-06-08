@@ -1,11 +1,13 @@
 import collections
-from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from collections.abc import Callable, Iterable
+from typing import Literal
 
 import torch
 from torch import nn
 from torch.distributions import Normal
 from torch.nn import ModuleList
+
+from scvi.nn._utils import ExpActivation
 
 
 def _identity(x):
@@ -25,6 +27,8 @@ class FCLayers(nn.Module):
         A list containing, for each category of interest,
         the number of categories. Each category will be
         included using a one-hot encoding.
+    n_cont
+        The dimensionality of the continuous covariates
     n_layers
         The number of fully-connected hidden layers
     n_hidden
@@ -50,6 +54,7 @@ class FCLayers(nn.Module):
         n_in: int,
         n_out: int,
         n_cat_list: Iterable[int] = None,
+        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -70,7 +75,8 @@ class FCLayers(nn.Module):
         else:
             self.n_cat_list = []
 
-        cat_dim = sum(self.n_cat_list)
+        self.n_cov = n_cont + sum(self.n_cat_list)
+
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
                 [
@@ -78,7 +84,7 @@ class FCLayers(nn.Module):
                         f"Layer {i}",
                         nn.Sequential(
                             nn.Linear(
-                                n_in + cat_dim * self.inject_into_layer(i),
+                                n_in + self.n_cov * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
                             ),
@@ -94,7 +100,9 @@ class FCLayers(nn.Module):
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:]))
+                    for i, (n_in, n_out) in enumerate(
+                        zip(layers_dim[:-1], layers_dim[1:], strict=True)
+                    )
                 ]
             )
         )
@@ -131,7 +139,7 @@ class FCLayers(nn.Module):
                     b = layer.bias.register_hook(_hook_fn_zero_out)
                     self.hooks.append(b)
 
-    def forward(self, x: torch.Tensor, *cat_list: int):
+    def forward(self, x: torch.Tensor, *cat_list: int, cont: torch.Tensor | None = None):
         """Forward computation on ``x``.
 
         Parameters
@@ -140,17 +148,21 @@ class FCLayers(nn.Module):
             tensor of values with shape ``(n_in,)``
         cat_list
             list of category membership(s) for this sample
+        cont
+            tensor of continuous covariates with shape ``(n_cont,)``
 
         Returns
         -------
         :class:`torch.Tensor`
             tensor of shape ``(n_out,)``
         """
-        one_hot_cat_list = []  # for generality in this list many indices useless.
+        one_hot_cat_list = []  # for generality in this list many idxs useless.
+        cont_list = [cont] if cont is not None else []
+        cat_list = cat_list or []
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
-        for n_cat, cat in zip(self.n_cat_list, cat_list):
+        for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
             if n_cat and cat is None:
                 raise ValueError("cat not provided while n_cat != 0 in init. params.")
             if n_cat > 1:  # n_cat = 1 will be ignored - no additional information
@@ -159,24 +171,34 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
+        cov_list = cont_list + one_hot_cat_list
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
                     if isinstance(layer, nn.BatchNorm1d):
                         if x.dim() == 3:
-                            x = torch.cat([(layer(slice_x)).unsqueeze(0) for slice_x in x], dim=0)
+                            if (
+                                x.device.type == "mps"
+                            ):  # TODO: remove this when MPS supports for loop.
+                                x = torch.cat(
+                                    [(layer(slice_x.clone())).unsqueeze(0) for slice_x in x], dim=0
+                                )
+                            else:
+                                x = torch.cat(
+                                    [layer(slice_x).unsqueeze(0) for slice_x in x], dim=0
+                                )
                         else:
                             x = layer(x)
                     else:
                         if isinstance(layer, nn.Linear) and self.inject_into_layer(i):
                             if x.dim() == 3:
-                                one_hot_cat_list_layer = [
+                                cov_list_layer = [
                                     o.unsqueeze(0).expand((x.size(0), o.size(0), o.size(1)))
-                                    for o in one_hot_cat_list
+                                    for o in cov_list
                                 ]
                             else:
-                                one_hot_cat_list_layer = one_hot_cat_list
-                            x = torch.cat((x, *one_hot_cat_list_layer), dim=-1)
+                                cov_list_layer = cov_list
+                            x = torch.cat((x, *cov_list_layer), dim=-1)
                         x = layer(x)
         return x
 
@@ -227,7 +249,7 @@ class Encoder(nn.Module):
         dropout_rate: float = 0.1,
         distribution: str = "normal",
         var_eps: float = 1e-4,
-        var_activation: Optional[Callable] = None,
+        var_activation: Callable | None = None,
         return_dist: bool = False,
         **kwargs,
     ):
@@ -552,6 +574,7 @@ class MultiEncoder(nn.Module):
         n_layers_individual: int = 1,
         n_layers_shared: int = 2,
         n_cat_list: Iterable[int] = None,
+        distribution: str = "normal",
         dropout_rate: float = 0.1,
         return_dist: bool = False,
         **kwargs,
@@ -583,6 +606,11 @@ class MultiEncoder(nn.Module):
             dropout_rate=dropout_rate,
             **kwargs,
         )
+
+        if distribution == "ln":
+            self.z_transformation = nn.Softmax(dim=-1)
+        else:
+            self.z_transformation = _identity
 
         self.mean_encoder = nn.Linear(n_hidden, n_output)
         self.var_encoder = nn.Linear(n_hidden, n_output)
@@ -715,10 +743,15 @@ class DecoderTOTALVI(nn.Module):
         use_batch_norm: float = True,
         use_layer_norm: float = False,
         scale_activation: Literal["softmax", "softplus"] = "softmax",
+        activation_function_bg: Literal["exp", "softplus"] = "softplus",
     ):
         super().__init__()
         self.n_output_genes = n_output_genes
         self.n_output_proteins = n_output_proteins
+        if activation_function_bg == "exp":
+            self.activation_function_bg = ExpActivation()  # reproducibility remove for totalVI 2.0
+        elif activation_function_bg == "softplus":
+            self.activation_function_bg = nn.Softplus()
 
         linear_args = {
             "n_layers": 1,
@@ -871,7 +904,10 @@ class DecoderTOTALVI(nn.Module):
         py_back_cat_z = torch.cat([py_back, z], dim=-1)
 
         py_["back_alpha"] = self.py_back_mean_log_alpha(py_back_cat_z, *cat_list)
-        py_["back_beta"] = torch.exp(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+        py_["back_beta"] = (
+            self.activation_function_bg(self.py_back_mean_log_beta(py_back_cat_z, *cat_list))
+            + 1e-8
+        )
         log_pro_back_mean = Normal(py_["back_alpha"], py_["back_beta"]).rsample()
         py_["rate_back"] = torch.exp(log_pro_back_mean)
 

@@ -1,7 +1,7 @@
 """Main module."""
 
 from collections.abc import Iterable
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import numpy as np
 import torch
@@ -11,19 +11,24 @@ from torch.distributions import kl_divergence as kl
 from torch.nn.functional import one_hot
 
 from scvi import REGISTRY_KEYS
+from scvi.data import _constants
+from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import (
     NegativeBinomial,
     NegativeBinomialMixture,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.model.base import BaseModelClass
+from scvi.module._constants import MODULE_KEYS
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderTOTALVI, EncoderTOTALVI
+from scvi.nn._utils import ExpActivation
 
 torch.backends.cudnn.benchmark = True
 
 
 # VAE model
-class TOTALVAE(BaseModuleClass):
+class TOTALVAE(BaseMinifiedModeModuleClass):
     """Total variational inference for CITE-seq data.
 
     Implements the totalVI model of :cite:p:`GayosoSteier21`.
@@ -90,6 +95,8 @@ class TOTALVAE(BaseModuleClass):
         distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
+    extra_payload_autotune
+        If ``True``, will return extra matrices in the loss output to be used during autotune
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -117,7 +124,7 @@ class TOTALVAE(BaseModuleClass):
         n_layers_encoder: int = 2,
         n_layers_decoder: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate_decoder: float = 0.2,
         dropout_rate_encoder: float = 0.2,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label"] = "gene",
@@ -125,18 +132,21 @@ class TOTALVAE(BaseModuleClass):
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb"] = "nb",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        protein_batch_mask: dict[Union[str, int], np.ndarray] = None,
+        protein_batch_mask: dict[str | int, np.ndarray] = None,
         encode_covariates: bool = True,
-        protein_background_prior_mean: Optional[np.ndarray] = None,
-        protein_background_prior_scale: Optional[np.ndarray] = None,
+        protein_background_prior_mean: np.ndarray | None = None,
+        protein_background_prior_scale: np.ndarray | None = None,
         use_size_factor_key: bool = False,
         use_observed_lib_size: bool = True,
-        library_log_means: Optional[np.ndarray] = None,
-        library_log_vars: Optional[np.ndarray] = None,
+        extra_payload_autotune: bool = False,
+        library_log_means: np.ndarray | None = None,
+        library_log_vars: np.ndarray | None = None,
+        n_panel: int | None = None,
+        panel_key: str = REGISTRY_KEYS.BATCH_KEY,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
     ):
         super().__init__()
         self.gene_dispersion = gene_dispersion
@@ -145,6 +155,11 @@ class TOTALVAE(BaseModuleClass):
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
         self.n_labels = n_labels
+        if n_panel is not None:
+            self.n_panel = n_panel
+        else:
+            self.n_panel = n_batch
+        self.panel_key = panel_key
         self.n_input_genes = n_input_genes
         self.n_input_proteins = n_input_proteins
         self.protein_dispersion = protein_dispersion
@@ -152,6 +167,7 @@ class TOTALVAE(BaseModuleClass):
         self.protein_batch_mask = protein_batch_mask
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
+        self.extra_payload_autotune = extra_payload_autotune
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_means is None:
@@ -165,20 +181,18 @@ class TOTALVAE(BaseModuleClass):
 
         # parameters for prior on rate_back (background protein mean)
         if protein_background_prior_mean is None:
-            if n_batch > 0:
+            if n_panel > 0:
                 self.background_pro_alpha = torch.nn.Parameter(
-                    torch.randn(n_input_proteins, n_batch)
+                    3.0 * torch.ones(n_input_proteins, n_panel)
                 )
                 self.background_pro_log_beta = torch.nn.Parameter(
-                    torch.clamp(torch.randn(n_input_proteins, n_batch), -10, 1)
+                    torch.zeros(n_input_proteins, n_panel)
                 )
             else:
-                self.background_pro_alpha = torch.nn.Parameter(torch.randn(n_input_proteins))
-                self.background_pro_log_beta = torch.nn.Parameter(
-                    torch.clamp(torch.randn(n_input_proteins), -10, 1)
-                )
+                self.background_pro_alpha = torch.nn.Parameter(torch.ones(n_input_proteins))
+                self.background_pro_log_beta = torch.nn.Parameter(torch.zeros(n_input_proteins))
         else:
-            if protein_background_prior_mean.shape[1] == 1 and n_batch != 1:
+            if protein_background_prior_mean.shape[1] == 1 and n_panel != 1:
                 init_mean = protein_background_prior_mean.ravel()
                 init_scale = protein_background_prior_scale.ravel()
             else:
@@ -190,6 +204,12 @@ class TOTALVAE(BaseModuleClass):
             self.background_pro_log_beta = torch.nn.Parameter(
                 torch.log(torch.from_numpy(init_scale.astype(np.float32)))
             )
+            self.background_pro_log_beta = torch.nn.Parameter(
+                torch.log(torch.from_numpy(init_scale.astype(np.float32)))
+            )
+        self.log_per_batch_efficiency = torch.nn.Parameter(
+            torch.zeros([n_input_proteins, n_batch])
+        )
 
         if self.gene_dispersion == "gene":
             self.px_r = torch.nn.Parameter(torch.randn(n_input_genes))
@@ -252,8 +272,8 @@ class TOTALVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        label: torch.Tensor | None = None,
         n_samples: int = 1,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Returns the tensors of dispersions for genes and proteins.
@@ -287,7 +307,8 @@ class TOTALVAE(BaseModuleClass):
         y: torch.Tensor,
         px_dict: dict[str, torch.Tensor],
         py_dict: dict[str, torch.Tensor],
-        pro_batch_mask_minibatch: Optional[torch.Tensor] = None,
+        pro_batch_mask_minibatch: torch.Tensor | None = None,
+        per_batch_efficiency: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute reconstruction loss."""
         px_ = px_dict
@@ -305,10 +326,16 @@ class TOTALVAE(BaseModuleClass):
             reconst_loss_gene = (
                 -NegativeBinomial(mu=px_["rate"], theta=px_["r"]).log_prob(x).sum(dim=-1)
             )
+        if per_batch_efficiency is not None:
+            mu1 = per_batch_efficiency * py_["rate_back"]
+            mu2 = per_batch_efficiency * py_["rate_fore"]
+        else:
+            mu1 = py_["rate_back"]
+            mu2 = py_["rate_fore"]
 
         py_conditional = NegativeBinomialMixture(
-            mu1=py_["rate_back"],
-            mu2=py_["rate_fore"],
+            mu1=mu1,
+            mu2=mu2,
             theta1=py_["r"],
             mixture_logits=py_["mixing"],
         )
@@ -321,25 +348,38 @@ class TOTALVAE(BaseModuleClass):
 
         return reconst_loss_gene, reconst_loss_protein
 
-    def _get_inference_input(self, tensors):
-        x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+    def _get_inference_input(
+        self,
+        tensors,
+        full_forward_pass: bool = False,
+    ) -> dict[str, torch.Tensor | None]:
+        """Get input tensors for the inference process."""
+        if full_forward_pass or self.minified_data_type is None:
+            loader = "full_data"
+        elif self.minified_data_type in [
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR,
+            ADATA_MINIFY_TYPE.LATENT_POSTERIOR_WITH_COUNTS,
+        ]:
+            loader = "minified_data"
+        else:
+            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
-
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
-
-        input_dict = {
-            "x": x,
-            "y": y,
-            "batch_index": batch_index,
-            "cat_covs": cat_covs,
-            "cont_covs": cont_covs,
-        }
-        return input_dict
+        if loader == "full_data":
+            return {
+                MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
+                MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY],
+                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+                "panel_index": tensors[self.panel_key].long(),
+                MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
+                MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
+            }
+        else:
+            return {
+                MODULE_KEYS.QZM_KEY: tensors[REGISTRY_KEYS.LATENT_QZM_KEY],
+                MODULE_KEYS.QZV_KEY: tensors[REGISTRY_KEYS.LATENT_QZV_KEY],
+                REGISTRY_KEYS.OBSERVED_LIB_SIZE: tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE],
+                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
+            }
 
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
@@ -376,8 +416,9 @@ class TOTALVAE(BaseModuleClass):
         cont_covs=None,
         cat_covs=None,
         size_factor=None,
-        transform_batch: Optional[int] = None,
-    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
+        transform_batch: int | None = None,
+        generate_counts: bool | None = None,
+    ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
         """Run the generative step."""
         if cont_covs is None:
             decoder_input = z
@@ -395,6 +436,13 @@ class TOTALVAE(BaseModuleClass):
 
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
+
+        per_batch_efficiency = torch.exp(
+            F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                self.log_per_batch_efficiency,
+            )
+        )
 
         if not self.use_size_factor_key:
             size_factor = library_gene
@@ -423,23 +471,70 @@ class TOTALVAE(BaseModuleClass):
 
         px_["r"] = px_r
         py_["r"] = py_r
+
+        py_norm_ = py_.copy()
+        if per_batch_efficiency is not None:
+            py_norm_["rate_back"] = per_batch_efficiency * py_["rate_back"]
+            py_norm_["rate_fore"] = per_batch_efficiency * py_["rate_fore"]
+
         return {
             "px_": px_,
             "py_": py_,
+            "py_norm_": py_norm_,
+            "per_batch_efficiency": per_batch_efficiency,
             "log_pro_back_mean": log_pro_back_mean,
         }
 
     @auto_move_data
-    def inference(
+    def _cached_inference(
+        self,
+        qzm: torch.Tensor,
+        qzv: torch.Tensor,
+        batch_index: torch.Tensor,
+        observed_lib_size: torch.Tensor,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
+        """Run the cached inference process."""
+        library = observed_lib_size
+        qz = Normal(qzm, qzv)
+        untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
+        z = self.encoder.z_transformation(untran_z)
+        library = torch.log(observed_lib_size)
+        if n_samples > 1:
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
+
+        if self.n_batch > 0:
+            py_back_alpha_prior = F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
+            )
+            py_back_beta_prior = F.linear(
+                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                torch.exp(self.background_pro_log_beta),
+            )
+        else:
+            py_back_alpha_prior = self.background_pro_alpha
+            py_back_beta_prior = torch.exp(self.background_pro_log_beta)
+        self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
+
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.QL_KEY: None,
+            "library_gene": observed_lib_size,
+        }
+
+    @auto_move_data
+    def _regular_inference(
         self,
         x: torch.Tensor,
         y: torch.Tensor,
-        batch_index: Optional[torch.Tensor] = None,
-        label: Optional[torch.Tensor] = None,
+        batch_index: torch.Tensor | None = None,
+        panel_index: torch.Tensor | None = None,
+        label: torch.Tensor | None = None,
         n_samples=1,
         cont_covs=None,
         cat_covs=None,
-    ) -> dict[str, Union[torch.Tensor, dict[str, torch.Tensor]]]:
+    ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
         """Internal helper function to compute necessary inference quantities.
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
@@ -465,6 +560,8 @@ class TOTALVAE(BaseModuleClass):
             tensor of values with shape ``(batch_size, n_input_proteins)``
         batch_index
             array that indicates which batch the cells belong to with shape ``batch_size``
+        panel_index
+            array that indicates which panel the cells belong to with shape ``batch_size``
         label
             tensor of cell-types labels with shape (batch_size, n_labels)
         n_samples
@@ -474,8 +571,8 @@ class TOTALVAE(BaseModuleClass):
         cat_covs
             Categorical covariates to condition on
         """
-        x_ = x
-        y_ = y
+        x_ = x / (1 + x.mean(1, keepdim=True))
+        y_ = y / (1 + y.mean(1, keepdim=True))
         if self.use_observed_lib_size:
             library_gene = x.sum(1).unsqueeze(1)
         if self.log_variational:
@@ -530,12 +627,13 @@ class TOTALVAE(BaseModuleClass):
         elif self.protein_dispersion == "protein":
             py_r = self.py_r
         py_r = torch.exp(py_r)
-        if self.n_batch > 0:
+
+        if self.n_panel > 0:
             py_back_alpha_prior = F.linear(
-                one_hot(batch_index.squeeze(-1), self.n_batch).float(), self.background_pro_alpha
+                one_hot(panel_index.squeeze(-1), self.n_panel).float(), self.background_pro_alpha
             )
             py_back_beta_prior = F.linear(
-                one_hot(batch_index.squeeze(-1), self.n_batch).float(),
+                one_hot(panel_index.squeeze(-1), self.n_panel).float(),
                 torch.exp(self.background_pro_log_beta),
             )
         else:
@@ -544,12 +642,13 @@ class TOTALVAE(BaseModuleClass):
         self.back_mean_prior = Normal(py_back_alpha_prior, py_back_beta_prior)
 
         return {
-            "qz": qz,
-            "z": z,
-            "untran_z": untran_z,
-            "ql": ql,
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.QL_KEY: ql,
             "library_gene": library_gene,
+            "untran_z": untran_z,
             "untran_l": untran_l,
+            "back_mean_prior": self.back_mean_prior,
         }
 
     def loss(
@@ -582,15 +681,17 @@ class TOTALVAE(BaseModuleClass):
         ql = inference_outputs["ql"]
         px_ = generative_outputs["px_"]
         py_ = generative_outputs["py_"]
+        per_batch_efficiency = generative_outputs["per_batch_efficiency"]
 
         x = tensors[REGISTRY_KEYS.X_KEY]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        panel_index = tensors[self.panel_key]
         y = tensors[REGISTRY_KEYS.PROTEIN_EXP_KEY]
 
         if self.protein_batch_mask is not None:
             pro_batch_mask_minibatch = torch.zeros_like(y)
-            for b in torch.unique(batch_index):
-                b_indices = (batch_index == b).reshape(-1)
+            for b in torch.unique(panel_index):
+                b_indices = (panel_index == b).reshape(-1)
                 pro_batch_mask_minibatch[b_indices] = torch.tensor(
                     self.protein_batch_mask[str(int(b.item()))].astype(np.float32),
                     device=y.device,
@@ -599,7 +700,7 @@ class TOTALVAE(BaseModuleClass):
             pro_batch_mask_minibatch = None
 
         reconst_loss_gene, reconst_loss_protein = self.get_reconstruction_loss(
-            x, y, px_, py_, pro_batch_mask_minibatch
+            x, y, px_, py_, pro_batch_mask_minibatch, per_batch_efficiency
         )
 
         # KL Divergence
@@ -617,19 +718,34 @@ class TOTALVAE(BaseModuleClass):
                 Normal(local_library_log_means, torch.sqrt(local_library_log_vars)),
             ).sum(dim=1)
         else:
-            kl_div_l_gene = 0.0
+            kl_div_l_gene = torch.zeros_like(kl_div_z)
 
         kl_div_back_pro_full = kl(
-            Normal(py_["back_alpha"], py_["back_beta"]), self.back_mean_prior
+            Normal(py_["back_alpha"], py_["back_beta"]), inference_outputs["back_mean_prior"]
         )
+        lkl_back_pro_full = -torch.distributions.LogNormal(
+            torch.tensor([0.0]).to(x.device), torch.tensor([1.0]).to(x.device)
+        ).log_prob(per_batch_efficiency)
+        lkl_protein_expressed = -1e-3 * torch.distributions.Bernoulli(
+            logits=py_["mixing"]
+        ).log_prob(torch.ones_like(py_["mixing"]))
         if pro_batch_mask_minibatch is not None:
             kl_div_back_pro = pro_batch_mask_minibatch.bool() * kl_div_back_pro_full
-            kl_div_back_pro = kl_div_back_pro.sum(dim=1)
+            kl_div_back_pro = (
+                kl_div_back_pro.sum(dim=1)
+                + lkl_back_pro_full.sum(dim=1)
+                + lkl_protein_expressed.sum(dim=1)
+            )
         else:
-            kl_div_back_pro = kl_div_back_pro_full.sum(dim=1)
+            kl_div_back_pro = (
+                kl_div_back_pro_full.sum(dim=1)
+                + lkl_back_pro_full.sum(dim=1)
+                + lkl_protein_expressed.sum(dim=1)
+            )
+
         loss = torch.mean(
             reconst_loss_gene
-            + pro_recons_weight * reconst_loss_protein
+            + kl_weight * pro_recons_weight * reconst_loss_protein
             + kl_weight * kl_div_z
             + kl_div_l_gene
             + kl_weight * kl_div_back_pro
@@ -645,7 +761,22 @@ class TOTALVAE(BaseModuleClass):
             "kl_div_back_pro": kl_div_back_pro,
         }
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_losses, kl_local=kl_local)
+        # a payload to be used during autotune
+        if self.extra_payload_autotune:
+            extra_metrics_payload = {
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            }
+        else:
+            extra_metrics_payload = {}
+
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=reconst_losses,
+            kl_local=kl_local,
+            extra_metrics=extra_metrics_payload,
+        )
 
     @torch.inference_mode()
     def sample(self, tensors, n_samples=1):
@@ -688,13 +819,13 @@ class TOTALVAE(BaseModuleClass):
             # Distribution parameters and sampled variables
             inference_outputs, generative_outputs, losses = self.forward(tensors)
             # outputs = self.module.inference(x, y, batch_index, labels)
-            qz = inference_outputs["qz"]
-            ql = inference_outputs["ql"]
+            qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+            ql = inference_outputs[MODULE_KEYS.QL_KEY]
+            z = inference_outputs[MODULE_KEYS.Z_KEY]
             py_ = generative_outputs["py_"]
-            log_library = inference_outputs["untran_l"]
             # really need not softmax transformed random variable
-            z = inference_outputs["untran_z"]
             log_pro_back_mean = generative_outputs["log_pro_back_mean"]
+            log_library = inference_outputs["untran_l"]
 
             # Reconstruction Loss
             reconst_loss = losses.reconstruction_loss
@@ -705,6 +836,7 @@ class TOTALVAE(BaseModuleClass):
             log_prob_sum = torch.zeros(qz.loc.shape[0]).to(self.device)
 
             if not self.use_observed_lib_size:
+                log_library = inference_outputs["untran_l"]
                 n_batch = self.library_log_means.shape[1]
                 local_library_log_means = F.linear(
                     one_hot(batch_index.squeeze(-1), n_batch).float(), self.library_log_means
@@ -736,3 +868,18 @@ class TOTALVAE(BaseModuleClass):
         if return_mean:
             log_lkl = torch.mean(batch_log_lkl).item()
         return log_lkl
+
+    def on_load(self, model: BaseModelClass, **kwargs):
+        manager = model.get_anndata_manager(model.adata, required=True)
+        source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
+        version_split = source_version.split(".")
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 2:
+            return
+
+        # pre 1.2 activation function
+        manager.registry[_constants._SCVI_VERSION_KEY] = source_version
+        model_kwargs = model.init_params_.get("model_kwargs", {})
+        if model_kwargs.get("extra_decoder_kwargs", False):
+            if model_kwargs["extra_decoder_kwargs"].get("activation_function_bg", False):
+                return
+        self.decoder.activation_function_bg = ExpActivation()  # requires nn.module
