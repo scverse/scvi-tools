@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import requests
 import torch
 
 import scvi
@@ -30,3 +31,12 @@ def test_scipy_to_torch_sparse(sparse_format: str):
         torch_sparse.to_dense().numpy(),
         scipy_sparse.toarray(),
     )
+
+
+def test_colab_link_alive():
+    url = (
+        "https://colab.research.google.com/github/scverse/scvi-tutorials/blob/main/"
+        "quick_start/api_overview.ipynb"
+    )
+    response = requests.get(url, allow_redirects=True)
+    assert response.status_code == 200, f"Link is not reachable, got {response.status_code}"
