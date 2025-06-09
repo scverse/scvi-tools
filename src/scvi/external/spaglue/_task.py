@@ -1,211 +1,182 @@
 import torch
+import torch.nn.functional as F
+from torch_geometric.utils import structured_negative_sampling
 
 from scvi import REGISTRY_KEYS
 from scvi.train import TrainingPlan
 
 
-class SPAGLUETrainingPlan(TrainingPlan):
-    def __init__(self, *args: tuple, **kwargs: dict) -> None:
-        super().__init__(*args, **kwargs)
+def compute_graph_loss(graph, feature_embeddings):
+    edge_index = graph.edge_index
+    edge_index_neg = structured_negative_sampling(edge_index)
 
-        self.history = {
-            "train_loss": [],  # Batch-level training losses
-            "validation_loss": [],  # Batch-level validation losses
-            "train_loss_rec": [],  # Batch-level training losses
-            "validation_loss_rec": [],  # Batch-level validation losses
-            "train_loss_kl": [],  # Batch-level training losses
-            "validation_loss_kl": [],  # Batch-level validation losses
-            "avg_train_loss": [],  # Epoch-level average training losses
-            "avg_validation_loss": [],  # Epoch-level average validation losses
-            "avg_train_loss_rec": [],  # Epoch-level average training losses
-            "avg_validation_loss_rec": [],  # Epoch-level average validation losses
-            "avg_train_loss_kl": [],  # Epoch-level average training losses
-            "avg_validation_loss_kl": [],  # Epoch-level average validation losses
-            "avg_train_loss_seq": [],
-            "train_loss_seq": [],
-            "avg_train_loss_spa": [],
-            "train_loss_spa": [],
-            "bias_params_diss": [],
-            "dispersion_params_diss": [],
-            "bias_params_spa": [],
-            "dispersion_params_spa": [],
-        }
+    pos_i = edge_index_neg[0].cpu().numpy()
+    pos_j = edge_index_neg[1].cpu().numpy()
+    neg_j = edge_index_neg[2].cpu().numpy()
+
+    vi = feature_embeddings[pos_i]
+    vj = feature_embeddings[pos_j]
+    vj_neg = feature_embeddings[neg_j]
+
+    pos_logits = (vi * vj).sum(dim=1)
+    pos_loss = F.logsigmoid(pos_logits).mean()
+
+    neg_logits = (vi * vj_neg).sum(dim=1)
+    neg_loss = F.logsigmoid(-neg_logits).mean()
+
+    total_loss = -(pos_loss + neg_loss) / 2
+
+    return total_loss
+
+
+def kl_divergence_graph(mu, logvar):
+    kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)  # sum over latent dims
+    kl_mean = kl.mean()
+    return kl_mean
+
+
+class SPAGLUETrainingPlan(TrainingPlan):
+    def __init__(self, module, lam_graph=1.0, lam_kl=1.0, lam_data=1.0, *args, **kwargs) -> None:
+        super().__init__(module, *args, **kwargs)
+
+        self.lam_graph = lam_graph
+        self.lam_kl = lam_kl
+        self.lam_data = lam_data
 
         self.automatic_optimization = False  # important for adversarial setup
 
-    def training_step(self, batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
+    def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         # batch contains output of both dataloaders
         # There is a possibility to give batch_idx argument
         # (can be used e.g. for gradient accumulation)
         """Training step."""
         opt = self.optimizers()
-
-        # batch contains both data loader outputs (list of 2 train_dl)
         loss_output_objs = []
-        # n_obs = 0
-        for i, tensors in enumerate(
-            batch
-        ):  # contains data from all datasets - mode is either 0 or 1
-            n_obs = tensors[REGISTRY_KEYS.X_KEY].shape[0]
-            n_var = tensors[REGISTRY_KEYS.X_KEY].shape[1]
-            # self.loss_kwargs.update({"mode": i})
-            inference_kwargs = {"mode": i}
-            generative_kwargs = {"mode": i}
-            _, _, loss_output = self.forward(  # perform inf and gen steps
+        for _i, (modality, tensors) in enumerate(batch.items()):
+            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+
+            self.loss_kwargs.update(
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
+            )
+            inference_kwargs = {"mode": modality}
+            generative_kwargs = {"mode": modality}
+
+            _, _, loss_output = self.forward(
                 tensors,
                 loss_kwargs=self.loss_kwargs,
                 inference_kwargs=inference_kwargs,
                 generative_kwargs=generative_kwargs,
             )
 
+            # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
+            self.log("nll_{modality}", reconstruction_loss, batch_size=batch_size)
 
             kl_divergence = loss_output.kl_local["kl_local"]
-            kl_divergence = torch.sum(kl_divergence) / (n_obs * n_var)
+            self.log("kl_{modality}", kl_divergence, batch_size=batch_size)
 
             loss = loss_output.loss
 
             loss_dict = {
-                "reconstruction_loss": reconstruction_loss,
-                "kl_divergence": kl_divergence,
-                "loss": loss,
+                "modality_loss": loss,
+                "graph_v": loss_output.extra_metrics["v_all"],
             }
 
             loss_output_objs.append(loss_dict)
 
-        loss = sum(i["loss"] for i in loss_output_objs) / 2
-        rec_loss = sum(i["reconstruction_loss"] for i in loss_output_objs) / 2
-        kl_loss = sum(i["kl_divergence"] for i in loss_output_objs) / 2
+        ### graph nll
+        graph = loss_output.extra_metrics["guidance_graph"]
+        feature_embeddings = loss_output_objs[0]["graph_v"]
+        graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
 
-        self.log("train_loss", loss, prog_bar=True, on_step=True)
+        ### graph kl - mu_all and mu_logvar is the same for both modalities
+        graph_kl_loss = kl_divergence_graph(
+            loss_output.extra_metrics["mu_all"],
+            loss_output.extra_metrics["logvar_all"],
+        )
+        graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
 
-        self.history["train_loss"].append(loss.item())
-        self.history["train_loss_rec"].append(rec_loss.item())
-        self.history["train_loss_kl"].append(kl_loss.item())
+        # log individual graph losses
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
+        self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size)
+        self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size)
 
-        opt.zero_grad()  # zero out gradient
-        self.manual_backward(loss)  # recompute gradients via backpropagation
-        opt.step()  # updates the model weights
+        ### graph loss
+        graph_loss = graph_likelihood_loss + graph_kl_loss_norm
 
-        return {"loss": loss}
+        ### data loss
+        data_loss = sum(i["modality_loss"] for i in loss_output_objs)
+
+        ### total loss
+        total_loss = self.lam_graph * graph_loss + data_loss
+
+        self.log(
+            "training_loss",
+            total_loss,
+            prog_bar=True,
+            on_step=False,
+            on_epoch=True,
+            batch_size=total_batch_size,
+        )
+
+        opt.zero_grad()
+        self.manual_backward(total_loss)
+        opt.step()
+        return {"loss": total_loss}
 
     def validation_step(self, batch: list[dict[str, torch.Tensor]]) -> None:
         """Validation step."""
         loss_output_objs = []
 
-        for i, tensors in enumerate(
-            batch
-        ):  # contains data from all datasets - mode is either 0 or 1
-            n_obs = tensors[REGISTRY_KEYS.X_KEY].shape[0]
-            n_var = tensors[REGISTRY_KEYS.X_KEY].shape[1]
+        for _i, (modality, tensors) in enumerate(batch.items()):
+            self.loss_kwargs.update(
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
+            )
+            inference_kwargs = {"mode": modality}
+            generative_kwargs = {"mode": modality}
 
-            # self.loss_kwargs.update({"mode": i})
-            inference_kwargs = {"mode": i}
-            generative_kwargs = {"mode": i}
-            _, _, loss_output = self.forward(  # perform inf and gen steps
+            _, _, loss_output = self.forward(
                 tensors,
                 loss_kwargs=self.loss_kwargs,
                 inference_kwargs=inference_kwargs,
                 generative_kwargs=generative_kwargs,
             )
-            reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
-            reconstruction_loss = torch.mean(reconstruction_loss)
-
-            kl_divergence = loss_output.kl_local["kl_local"]
-            kl_divergence = torch.sum(kl_divergence) / (n_obs * n_var)
 
             loss = loss_output.loss
 
             loss_dict = {
-                "reconstruction_loss": reconstruction_loss,
-                "kl_divergence": kl_divergence,
-                "loss": loss,
+                "modality_loss": loss,
+                "graph_v": loss_output.extra_metrics["v_all"],
             }
 
             loss_output_objs.append(loss_dict)
 
-            # look at the kl divergences for both modalities separately
-            if i == 0:
-                self.history["train_loss_seq"].append(kl_divergence.item())
-            if i == 1:
-                self.history["train_loss_spa"].append(kl_divergence.item())
+            ### graph nll
+        graph = loss_output.extra_metrics["guidance_graph"]
+        feature_embeddings = loss_output_objs[0]["graph_v"]  # 0 or 1 is same
+        graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
 
-        loss = sum(i["loss"] for i in loss_output_objs) / 2
-        rec_loss = sum(i["reconstruction_loss"] for i in loss_output_objs) / 2
-        kl_loss = sum(i["kl_divergence"] for i in loss_output_objs) / 2
+        graph_kl_loss = kl_divergence_graph(
+            loss_output.extra_metrics["mu_all"],
+            loss_output.extra_metrics["logvar_all"],
+        )
+        graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
 
-        self.log("validation_loss", loss, prog_bar=True, on_step=True)
+        ### graph loss
+        graph_loss = graph_likelihood_loss + graph_kl_loss_norm
 
-        self.history["validation_loss"].append(loss.item())
-        self.history["validation_loss_rec"].append(rec_loss.item())
-        self.history["validation_loss_kl"].append(kl_loss.item())
+        ### data loss
+        data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
-    def on_train_epoch_end(self) -> None:
-        """Log training loss at the end of each epoch."""
-        if len(self.history["train_loss"]) > 0:
-            avg_train_loss = sum(self.history["train_loss"]) / len(self.history["train_loss"])
-            avg_train_loss_rec = sum(self.history["train_loss_rec"]) / len(
-                self.history["train_loss_rec"]
-            )
-            avg_train_loss_kl = sum(self.history["train_loss_kl"]) / len(
-                self.history["train_loss_kl"]
-            )
-            avg_train_loss_seq = sum(self.history["train_loss_seq"]) / len(
-                self.history["train_loss_seq"]
-            )
-            avg_train_loss_spa = sum(self.history["train_loss_spa"]) / len(
-                self.history["train_loss_spa"]
-            )
+        ### total loss
+        total_loss = self.lam_graph * graph_loss + data_loss
 
-            self.history["avg_train_loss"].append(avg_train_loss)
-            self.history["avg_train_loss_rec"].append(avg_train_loss_rec)
-            self.history["avg_train_loss_kl"].append(avg_train_loss_kl)
-            self.history["avg_train_loss_seq"].append(avg_train_loss_seq)
-            self.history["avg_train_loss_spa"].append(avg_train_loss_spa)
-
-            self.log("avg_train_loss", avg_train_loss, prog_bar=True)
-
-        # Extract and log model parameters
-        bias_params_diss = self.module.z_decoder_diss.bias.detach().cpu().numpy()
-        dispersion_params_diss = self.module.z_decoder_diss.log_theta.exp().detach().cpu().numpy()
-
-        bias_params_spa = self.module.z_decoder_spa.bias.detach().cpu().numpy()
-        dispersion_params_spa = self.module.z_decoder_spa.log_theta.exp().detach().cpu().numpy()
-
-        self.history["bias_params_diss"].append(bias_params_diss)
-        self.history["dispersion_params_diss"].append(dispersion_params_diss)
-        self.history["bias_params_spa"].append(bias_params_spa)
-        self.history["dispersion_params_spa"].append(dispersion_params_spa)
-
-        self.history["train_loss"].clear()
-        self.history["train_loss_rec"].clear()
-        self.history["train_loss_kl"].clear()
-        self.history["train_loss_seq"].clear()
-        self.history["train_loss_spa"].clear()
-
-    def on_validation_epoch_end(self) -> None:
-        """Log validation loss at the end of each epoch."""
-        if len(self.history["validation_loss"]) > 0:
-            avg_val_loss = sum(self.history["validation_loss"]) / len(
-                self.history["validation_loss"]
-            )
-            avg_val_loss_rec = sum(self.history["validation_loss_rec"]) / len(
-                self.history["validation_loss_rec"]
-            )
-            avg_val_loss_kl = sum(self.history["validation_loss_kl"]) / len(
-                self.history["validation_loss_kl"]
-            )
-
-            self.history["avg_validation_loss"].append(avg_val_loss)
-            self.history["avg_validation_loss_rec"].append(avg_val_loss_rec)
-            self.history["avg_validation_loss_kl"].append(avg_val_loss_kl)
-
-            # Log epoch-level losses
-            self.log("avg_validation_loss", avg_val_loss, prog_bar=True)
-            self.log("avg_validation_loss_rec", avg_val_loss_rec, prog_bar=False)
-            self.log("avg_validation_loss_kl", avg_val_loss_kl, prog_bar=False)
-
-        self.history["validation_loss"].clear()
-        self.history["validation_loss_rec"].clear()
-        self.history["validation_loss_kl"].clear()
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
+        self.log(
+            "validation_loss",
+            total_loss,
+            prog_bar=True,
+            on_epoch=True,
+            batch_size=total_batch_size,
+        )
