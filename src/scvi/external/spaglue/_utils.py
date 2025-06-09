@@ -1,9 +1,12 @@
+import logging
+
 import torch
 from anndata import AnnData
 from torch_geometric.data import Data
 
+logger = logging.getLogger(__name__)
 
-### anpassen!!!
+
 def _construct_guidance_graph(adatas, weight=1.0, sign=1):
     if len(adatas) != 2:
         raise ValueError("Exactly two modalities are required.")
@@ -60,8 +63,8 @@ def _construct_guidance_graph(adatas, weight=1.0, sign=1):
     )
 
 
-def _check_guidance_graph_consisteny(graph: Data, adatas: list[AnnData]):
-    n_expected = sum(adata.shape[1] for adata in adatas)
+def _check_guidance_graph_consisteny(graph: Data, adatas: dict[AnnData]):
+    n_expected = sum(adata.shape[1] for adata in adatas.values())
 
     # 1. Check variable coverage via counts
     if graph.num_nodes != n_expected:
@@ -93,4 +96,4 @@ def _check_guidance_graph_consisteny(graph: Data, adatas: list[AnnData]):
             )
 
     # If all checks pass
-    print("Guidance graph consistency checks passed.")
+    logger.info("Guidance graph consistency checks passed.")
