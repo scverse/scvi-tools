@@ -14,7 +14,12 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
+from scvi.module.base import (
+    BaseMinifiedModeModuleClass,
+    EmbeddingModuleMixin,
+    LossOutput,
+    auto_move_data,
+)
 from scvi.nn import Encoder, FCLayers
 
 
@@ -23,7 +28,7 @@ def identity(x):
     return x
 
 
-class MRDeconv(EmbeddingModuleMixin, BaseModuleClass):
+class MRDeconv(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     """Model for multi-resolution deconvolution of spatial transriptomics.
 
     Parameters

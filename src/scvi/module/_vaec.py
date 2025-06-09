@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal
+from torch.distributions import Categorical, Distribution, Independent, MixtureSameFamily, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
@@ -20,7 +20,6 @@ from ._classifier import Classifier
 torch.backends.cudnn.benchmark = True
 
 
-# Conditional VAE model
 class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     """Conditional Variational auto-encoder model.
 
@@ -31,7 +30,7 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     n_input
         Number of input genes
     n_batch
-        Number of batches
+        Number of batches. If ``0``, no batch correction is performed.
     n_labels
         Number of labels
     n_hidden
@@ -46,6 +45,9 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Multiplicative weight for cell type specific latent space.
     dropout_rate
         Dropout rate for the encoder and decoder neural network.
+    encode_covariates
+        If ``True``, covariates are concatenated to gene expression prior to passing through
+        the encoder(s). Else, only gene expression is used.
     extra_encoder_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Encoder`.
     extra_decoder_kwargs
@@ -62,7 +64,7 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_latent: int = 5,
         n_layers: int = 2,
         log_variational: bool = True,
-        ct_weight: np.ndarray = None,
+        ct_weight: np.ndarray | None = None,
         dropout_rate: float = 0.05,
         encode_covariates: bool = False,
         extra_encoder_kwargs: dict | None = None,
@@ -88,6 +90,10 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.prior = prior
         self.num_classes_mog = num_classes_mog
         self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **{})
+
+        if self.encode_covariates and self.n_batch < 1:
+            raise ValueError("`n_batch` must be greater than 0 if `encode_covariates` is `True`.")
+
         batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
 
         cat_list = [n_labels]
@@ -109,7 +115,7 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             use_batch_norm=False,
             use_layer_norm=True,
             return_dist=True,
-            **_extra_encoder_kwargs,
+            **(extra_encoder_kwargs or {}),
         )
         if n_fine_labels is not None:
             cls_parameters = {
@@ -150,7 +156,7 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             inject_covariates=True,
             use_batch_norm=False,
             use_layer_norm=True,
-            **_extra_decoder_kwargs,
+            **(extra_decoder_kwargs or {}),
         )
         self.px_decoder = torch.nn.Linear(n_hidden, n_input)
         self.per_ct_bias = torch.nn.Parameter(torch.zeros(n_labels, n_input))
@@ -219,7 +225,7 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         x_ = x
         library = x.sum(1).unsqueeze(1)
         if self.log_variational:
-            x_ = torch.log(1 + x_)
+            x_ = torch.log1p(x_)
         if self.encode_covariates:
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             encoder_input = torch.cat([x_, batch_rep], dim=-1)
@@ -278,7 +284,14 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         return w_y
 
     @auto_move_data
-    def generative(self, z, library, y, batch_index):
+    def generative(
+        self,
+        z: torch.Tensor,
+        library: torch.Tensor,
+        y: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        transform_batch: torch.Tensor | None = None,
+    ) -> dict[str, Distribution]:
         """Runs the generative model."""
         batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
         decoder_input = torch.cat([z, batch_rep], dim=-1)
@@ -286,15 +299,16 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         px_scale = torch.nn.Softmax(dim=-1)(self.px_decoder(h) + self.per_ct_bias[y.ravel()])
         px_rate = library * px_scale
         px_r = torch.exp(self.px_r)
-        px = NegativeBinomial(mu=px_rate, theta=px_r)
-        return {"px": px, "px_scale": px_scale}
+        px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
+        return {"px": px}
 
     def loss(
         self,
-        tensors,
-        inference_outputs,
-        generative_outputs,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution],
+        generative_outputs: dict[str, Distribution],
         kl_weight: float = 1.0,
+        labelled_tensors: dict[str, torch.Tensor] | None = None,
         classification_ratio=5.0,
     ):
         """Loss computation."""

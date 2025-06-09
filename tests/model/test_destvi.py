@@ -13,7 +13,7 @@ def test_destvi():
     dataset = synthetic_iid(n_labels=n_labels)
     dataset.obs["overclustering_vamp"] = list(range(dataset.n_obs))
     CondSCVI.setup_anndata(dataset, labels_key="labels")
-    sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers)
+    sc_model = CondSCVI(dataset, n_latent=n_latent, n_layers=n_layers, prior="mog")
     sc_model.train(1, train_size=1)
 
     sc_model.get_normalized_expression(dataset)
