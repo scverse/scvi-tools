@@ -340,7 +340,7 @@ class MRVAE(BaseModuleClass):
         encoder_n_hidden: int = 128,
         encoder_n_layers: int = 2,
         z_u_prior: bool = True,
-        z_u_prior_scale: float = 0.0,
+        z_u_prior_scale: torch.Tensor = torch.zeros(1, dtype=torch.float32),
         u_prior_scale: float = 0.0,
         u_prior_mixture: bool = True,
         u_prior_mixture_k: int = 20,

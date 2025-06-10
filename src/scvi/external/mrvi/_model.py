@@ -29,6 +29,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+# TODO: need to check kwargs below against original mrvi, torch models
 DEFAULT_TRAIN_KWARGS = {
     "max_epochs": 100,
     "early_stopping": True,
@@ -39,7 +41,7 @@ DEFAULT_TRAIN_KWARGS = {
     "plan_kwargs": {
         "lr": 2e-3,
         "n_epochs_kl_warmup": 20,
-        "max_norm": 40,
+        # "max_norm": 40,
         "eps": 1e-8,
         "weight_decay": 1e-8,
     },
