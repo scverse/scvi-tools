@@ -172,7 +172,7 @@ class DecoderZXAttention(nn.Module):
                 mu = self.fc(z) + residual
         else:
             mu = self.fc(z_)
-        mu = self.h_activation(mu)
+        mu = self.h_activation(mu, dim=-1)  # TODO: correct dim?
         return NegativeBinomial(
             mu=mu * size_factor,
             # TODO: need to check theta, if I translated correctly from Jax
