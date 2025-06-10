@@ -31,11 +31,11 @@ class ResnetBlock(nn.Module):
         n_in: int,
         n_out: int,
         n_hidden: int = 128,
-        internal_activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
-        output_activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
+        internal_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
+        output_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
         training: bool | None = None,
     ):
-        super.__init__()
+        super().__init__()
         self.n_in = n_in
         self.n_out = n_out
         self.n_hidden = n_hidden
@@ -43,14 +43,11 @@ class ResnetBlock(nn.Module):
         self.output_activation = output_activation
         self.training = training
 
-        # TODO: figure out what below does (taken from jax code)
-        # training = nn.merge_param("training", self.training, training)
-
         # dense layer
-        self.fc1 = Dense(in_features=n_in, out_features=n_out)
+        self.fc1 = Dense(in_features=n_in, out_features=n_hidden)
 
         # layer norm
-        self.layer_norm1 = nn.LayerNorm(n_out)
+        self.layer_norm1 = nn.LayerNorm(n_hidden)
 
         # internal activation
 
@@ -64,9 +61,8 @@ class ResnetBlock(nn.Module):
         # layer norm
         self.layer_norm2 = nn.LayerNorm(n_out)
 
-        # output activation
-
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
+        self.training = training  # is this sufficients compared to jax version?
         h = self.fc1(inputs)
         h = self.layer_norm1(h)
         h = self.internal_activation(h)
@@ -91,7 +87,7 @@ class MLP(nn.Module):
         activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
         training: bool | None = None,
     ):
-        super.__init__()
+        super().__init__()
         self.n_in = n_in
         self.n_out = n_out
         self.n_hidden = n_hidden
@@ -141,15 +137,14 @@ class NormalDistOutputNN(nn.Module):
         self.scale_eps = scale_eps
         self.training = training
 
-        self.resnet_blocks = nn.Sequential(
-            *[
+        self.resnet_blocks = []
+        for _ in range(n_layers):
+            self.resnet_blocks.append(
                 ResnetBlock(
                     n_in=n_in,
                     n_out=n_hidden,
                 )
-                for _ in range(n_layers)
-            ]
-        )
+            )
 
         self.fc_mean = Dense(in_features=n_hidden, out_features=n_out)
         self.fc_scale = nn.Sequential(
@@ -160,8 +155,9 @@ class NormalDistOutputNN(nn.Module):
     def forward(self, inputs: torch.Tensor, training: bool | None = None) -> Normal:
         # what is below doing?
         # training = nn.merge_param("training", self.training, training)
-
-        h = self.resnet_blocks(inputs, training)
+        h = inputs
+        for block in self.resnet_blocks:
+            h = block(h, training)
         mean = self.fc_mean(h)
         scale = self.fc_scale(h)
         return Normal(mean, scale + self.scale_eps)
@@ -184,16 +180,18 @@ class ConditionalNormalization(nn.Module):
     def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
         # training = nn.merge_param("training", self.training, training)
         if self.normalization_type == "batch":
-            x = nn.functional.batch_norm(
-                x, running_mean=not training, running_var=not training, training=training
-            )
+            x = nn.BatchNorm1d(self.n_features, affine=False, track_running_stats=not training)(
+                x
+            )  # TODO: need to check all params to original
         elif self.normalization_type == "layer":
-            x = nn.functional.layer_norm(x, training=training)
+            x = nn.LayerNorm(x.shape[1:], elementwise_affine=False)(
+                x
+            )  # TODO: need to check all params to original
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
         # TODO: figure out how to initialize embeddings in torch
-        cond_int = condition.squeeze(-1).astype(int)
+        cond_int = condition.squeeze(-1).to(torch.int64)  # TODO: check if 64 or 32
         gamma = nn.Embedding(self.n_conditions, self.n_features)(cond_int)
         beta = nn.Embedding(self.n_conditions, self.n_features)(cond_int)
 
@@ -204,6 +202,7 @@ class AttentionBlock(nn.Module):
     def __init__(
         self,
         query_dim: int,
+        kv_dim: int,  # TODO: added this for torch version, could be wrong
         out_dim: int,
         outerprod_dim: int = 16,
         n_channels: int = 4,
@@ -217,6 +216,7 @@ class AttentionBlock(nn.Module):
     ):
         super().__init__()
         self.query_dim = query_dim
+        self.kv_dim = (kv_dim,)
         self.out_dim = out_dim
         self.outerprod_dim = outerprod_dim
         self.n_channels = n_channels
@@ -228,16 +228,22 @@ class AttentionBlock(nn.Module):
         self.stop_gradients_mlp = stop_gradients_mlp
         self.activation = activation
 
-        self.query_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim)
-        self.kv_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim)
+        self.query_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim, bias=False)
+        self.embed_dim_proj_query = nn.Linear(
+            in_features=1, out_features=n_channels * n_heads, bias=False
+        )
+        self.embed_dim_proj_kv = nn.Linear(
+            in_features=1, out_features=n_channels * n_heads, bias=False
+        )
+        self.kv_proj = nn.Linear(in_features=kv_dim, out_features=outerprod_dim, bias=False)
         self.attention = nn.MultiheadAttention(
             embed_dim=n_channels * n_heads,
             num_heads=n_heads,
-            dropout=dropout_rate,  # I believe dropout is disabled when in eval mode
-            batch_first=True,  # TODO: double check this one specifically
+            dropout=dropout_rate,
+            batch_first=True,
         )
         self.mlp_eps = MLP(
-            n_in=n_channels * n_heads,  # TODO: need to double check this
+            n_in=self.outerprod_dim * n_channels * n_heads,
             n_out=outerprod_dim,
             n_hidden=n_hidden_mlp,
             n_layers=n_layers_mlp,
@@ -245,7 +251,7 @@ class AttentionBlock(nn.Module):
             activation=activation,
         )
         self.mlp_residual = MLP(
-            n_in=outerprod_dim + query_dim,  # TODO: double check
+            n_in=outerprod_dim + query_dim,
             n_out=out_dim,
             n_hidden=n_hidden_mlp,
             n_layers=n_layers_mlp,
@@ -256,24 +262,30 @@ class AttentionBlock(nn.Module):
     def forward(
         self, query_embed: torch.Tensor, kv_embed: torch.Tensor, training: bool | None = None
     ) -> torch.Tensor:
-        # training = nn.merge_param("training", self.training, training)
+        self.training = training
         has_mc_samples = query_embed.ndim == 3
 
         if self.stop_gradients_mlp:
             query_embed_stop = query_embed.detach()
         else:
-            query_embed_stop = query_embed
+            query_embed_stop = query_embed  # (batch_size, query_dim)
 
-        # TODO: do I need to project embeddings like the jax version?
-        query_for_att = self.query_proj(query_embed_stop)
-        kv_for_att = self.kv_proj(kv_embed)
+        # Below, the second projection was not needed in the original JAX code,
+        # but it is needed in the PyTorch version to match the dimensions
+        # of the query and key-value embeddings for the attention mechanism.
+        query_for_att = self.query_proj(query_embed_stop).unsqueeze(
+            -1
+        )  # (batch_size, outerprod_dim, 1)
+        query_for_att = self.embed_dim_proj_query(
+            query_for_att
+        )  # (batch_size, outerprod_dim, n_channels * n_heads)
 
-        # TODO: need to split k and v, maybe just make them two different parameters?
-        # Below is most likeley wrong, just a first guess
-        k_for_att = kv_for_att[:, 0]
-        v_for_att = kv_for_att[:, 1]
+        kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)
+        kv_for_att = self.embed_dim_proj_kv(kv_for_att)
 
-        eps = self.attention(query_for_att, k_for_att, v_for_att)
+        eps = self.attention(query_for_att, kv_for_att, kv_for_att, need_weights=False)[
+            0
+        ]  # (batch_size, outerprod_dim, n_channels * n_heads)
 
         if not has_mc_samples:
             eps = torch.reshape(eps, (eps.shape[0], -1))

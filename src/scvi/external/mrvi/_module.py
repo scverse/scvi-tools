@@ -116,6 +116,7 @@ class DecoderZXAttention(nn.Module):
 
         self.attention_block = AttentionBlock(
             query_dim=self.n_in,
+            kv_dim=self.n_latent_sample,
             out_dim=self.res_dim,
             outerprod_dim=self.n_latent_sample,
             n_channels=self.n_channels,
@@ -152,7 +153,7 @@ class DecoderZXAttention(nn.Module):
 
         # TODO: do we need to update self.training here? Not done in JAX version
 
-        batch_covariate = batch_covariate.astype(int).flatten()
+        batch_covariate = batch_covariate.to(torch.int64).flatten()
 
         if self.n_batch >= 2:
             batch_embed = self.batch_embedding(batch_covariate)
@@ -219,7 +220,8 @@ class EncoderUZ(nn.Module):
 
         n_outs = 1 if self.use_map else 2
         self.attention_block = AttentionBlock(
-            query_dim=self.n_latent,  # TODO: why is this not n_latent_u?
+            query_dim=self.n_latent_u,
+            kv_dim=self.n_latent_sample,
             out_dim=n_outs * self.n_latent,
             outerprod_dim=self.n_latent_sample,
             n_channels=self.n_channels,
@@ -242,13 +244,14 @@ class EncoderUZ(nn.Module):
         training: bool | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         training = training if training is not None else self.training
-        sample_covariate = sample_covariate.astype(int).flatten()
+        sample_covariate = sample_covariate.to(torch.int64).flatten()
         has_mc_samples = u.ndim == 3
         u_stop = u if not self.stop_gradients else u.detach()
         u_ = self.layer_norm(u_stop)
 
-        sample_embed = self.embedding(sample_covariate)
-        nn.init.normal_(sample_embed.weight, std=0.1)
+        sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
+        nn.init.normal_(sample_embed, std=0.1)
+
         if has_mc_samples:
             sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
 
@@ -264,15 +267,18 @@ class EncoderUZ(nn.Module):
 class EncoderXU(nn.Module):
     def __init__(
         self,
-        n_input: int,  # TODO: added this for torch nn linear, not sure if needed
+        n_input: int,  # TODO: added this for torch nn linear, not sure if needed.
         n_latent: int,
         n_sample: int,
         n_hidden: int = 128,
         n_layers: int = 1,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+        activation: Callable[
+            [torch.Tensor], torch.Tensor
+        ] = nn.functional.gelu,  # TODO: check this
         training: bool | None = None,
     ):
         super().__init__()
+        self.n_input = n_input
         self.n_latent = n_latent
         self.n_sample = n_sample
         self.n_hidden = n_hidden
@@ -282,38 +288,44 @@ class EncoderXU(nn.Module):
 
         from scvi.external.mrvi._components import (
             ConditionalNormalization,
-            NormalDistOutputNN,
         )
 
-        self.conditional_norm = ConditionalNormalization(self.n_hidden, self.n_sample)
+        self.fc1 = nn.Linear(self.n_input, self.n_hidden)
+        self.conditional_norm1 = ConditionalNormalization(self.n_hidden, self.n_sample)
+        self.fc2 = nn.Linear(self.n_hidden, self.n_hidden)
+        self.conditional_norm2 = ConditionalNormalization(self.n_hidden, self.n_sample)
 
-        self.fc_layers = nn.Sequential(
+        """self.fc_layers = nn.Sequential(
             nn.Linear(self.n_input, self.n_hidden),
             ConditionalNormalization(self.n_hidden, self.n_sample),
-            self.activation,
+            self.activation(),
             nn.Linear(self.n_hidden, self.n_hidden),
             ConditionalNormalization(self.n_hidden, self.n_sample),
-            self.activation,
-        )
+            self.activation(),
+        )"""
         self.sample_embed = nn.Embedding(self.n_sample, self.n_hidden)
-        init.normal_(self.sample_effect.weight, std=0.1)
-
-        # TODO: need to double check input dimension below is correct
-        self.normal_dist_output = NormalDistOutputNN(
-            self.n_hidden, self.n_latent, self.n_hidden, self.n_layers
-        )  # double check since I added n_in parameter
 
     def forward(
         self, x: torch.Tensor, sample_covariate: torch.Tensor, training: bool | None = None
     ) -> dist.Normal:
+        from scvi.external.mrvi._components import NormalDistOutputNN
+
         training = training if training is not None else self.training
         x_feat = torch.log1p(x)
-        x_feat = self.fc_layers(x_feat)
+        x_feat = self.fc1(x_feat)
+        x_feat = self.conditional_norm1(x_feat, sample_covariate)
+        x_feat = self.activation(x_feat)
+        x_feat = self.fc2(x_feat)
+        x_feat = self.conditional_norm2(x_feat, sample_covariate)
+        x_feat = self.activation(x_feat)
         sample_effect = self.sample_embed(
-            sample_covariate.squeeze(-1).astype(int)
+            sample_covariate.squeeze(-1).to(torch.int64)  # TODO: check if should be int64
         )  # TODO: double check why we squeeze here
+        init.normal_(sample_effect, std=0.1)
         inputs = x_feat + sample_effect
-        return self.normal_dist_output(inputs, training=training)
+        return NormalDistOutputNN(self.n_hidden, self.n_latent, self.n_hidden, self.n_layers)(
+            inputs, training=training
+        )
 
 
 class MRVAE(BaseModuleClass):
@@ -404,6 +416,7 @@ class MRVAE(BaseModuleClass):
 
         # Inference model
         self.qu = EncoderXU(
+            n_input=self.n_input,  # TODO: double check this is correct (sam input dim?)
             n_latent=self.n_latent if is_isomorphic_uz else n_latent_u,
             n_sample=self.n_sample,
             n_hidden=self.encoder_n_hidden,
@@ -514,11 +527,12 @@ class MRVAE(BaseModuleClass):
                 else 0.0
             )
             cats = dist.Categorical(logits=self.u_prior_logits + offset)
-            normal_dists = dist.Normal(
-                self.u_prior_means, torch.exp(self.u_prior_scales)
-            ).to_event(  # TODO: what is to_event
-                1
+
+            # TODO: do I need to use the independent as in below and why? Does jax version do this?
+            normal_dists = dist.Independent(
+                dist.Normal(self.u_prior_means, torch.exp(self.u_prior_scales)), 1
             )
+
             pu = dist.MixtureSameFamily(cats, normal_dists)
         else:
             pu = dist.Normal(0, torch.exp(self.u_prior_scale))
@@ -553,7 +567,7 @@ class MRVAE(BaseModuleClass):
         loss = reconstruction_loss + weighted_kl_local
 
         if self.scale_observations:
-            sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().astype(int)
+            sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().to(torch.int64)
             prefactors = self.n_obs_per_sample[sample_index]
             loss = loss / prefactors
 
