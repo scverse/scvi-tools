@@ -15,6 +15,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
     transcriptomics {pr}`3172`.
 - Add support for Python 3.13 {pr}`3247`.
+- Add {class}`scvi.model.DestVI` for {pr}`3XXX`.
+-
 
 #### Fixed
 
