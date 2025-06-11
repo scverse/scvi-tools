@@ -85,7 +85,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
         shuffle_set_split: bool = True,
-        batch_size: int = 256,
+        batch_size: int = 1024,
         # datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,  # kwargs passed to trainingplan
         **kwargs,
@@ -191,7 +191,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         cls.register_manager(adata_manager)
 
     def _make_scvi_dls(
-        self, adatas: list[AnnData] = None, batch_size: int = 128
+        self, adatas: list[AnnData] = None, batch_size: int = 1024
     ) -> list[AnnDataLoader]:
         if adatas is None:
             adatas = self.adatas
@@ -207,7 +207,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         # adatas: list[AnnData] = None,
         adatas: dict[str, AnnData] | list[AnnData] = None,
         deterministic: bool = True,
-        batch_size: int = 128,
+        batch_size: int = 1024,
     ) -> dict[np.ndarray]:
         """Return the latent space embedding for each dataset.
 
@@ -253,7 +253,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         self,
         source_modality: int,
         source_adata: AnnData | None = None,
-        batch_size: int = 256,
+        batch_size: int = 1024,
         target_batch: int | None = None,
         target_libsize: float | None = None,
     ) -> list[np.ndarray]:
