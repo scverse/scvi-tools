@@ -14,9 +14,8 @@ from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -48,7 +47,7 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
+class MRVI(UnsupervisedTrainingMixin, VAEMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
@@ -196,7 +195,7 @@ class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @devices_dsp.dedent
+    '''@devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -251,7 +250,7 @@ class MRVI(UnsupervisedTrainingMixin, BaseModelClass):
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
-        super().train(**train_kwargs)
+        super().train(**train_kwargs)'''
 
     def get_latent_representation(
         self,
