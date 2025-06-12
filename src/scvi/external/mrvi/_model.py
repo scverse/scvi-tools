@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
     from anndata import AnnData
-    from torch import Tensor
     from torch.distributions import Distribution
     # from numpyro.distributions import Distribution
 
@@ -289,11 +288,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         zs = []
 
         for tensors in dataloader:
-            outputs: dict[str, Tensor | Distribution | None] = self.module.inference(
-                **self.module._get_inference_input(
-                    tensors.update("use_mean", use_mean)
-                )  # TODO: double check this
-            )
+            inference_inputs = self.module._get_inference_input(tensors)
+            inference_inputs["use_mean"] = use_mean
+            outputs = self.module.inference(**inference_inputs)
 
             if give_z:
                 zs.append(outputs["z"].cpu())  # TODO: check if this is how to acces z
