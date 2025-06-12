@@ -47,7 +47,7 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class MRVI(UnsupervisedTrainingMixin, VAEMixin, BaseModelClass):
+class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
@@ -195,7 +195,7 @@ class MRVI(UnsupervisedTrainingMixin, VAEMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    '''@devices_dsp.dedent
+    # ß@devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -250,7 +250,7 @@ class MRVI(UnsupervisedTrainingMixin, VAEMixin, BaseModelClass):
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
-        super().train(**train_kwargs)'''
+        super().train(**train_kwargs)
 
     def get_latent_representation(
         self,
