@@ -216,7 +216,7 @@ class AttentionBlock(nn.Module):
     ):
         super().__init__()
         self.query_dim = query_dim
-        self.kv_dim = (kv_dim,)
+        self.kv_dim = kv_dim
         self.out_dim = out_dim
         self.outerprod_dim = outerprod_dim
         self.n_channels = n_channels
@@ -279,7 +279,6 @@ class AttentionBlock(nn.Module):
         query_for_att = self.embed_dim_proj_query(
             query_for_att
         )  # (batch_size, outerprod_dim, n_channels * n_heads)
-
         kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)
         kv_for_att = self.embed_dim_proj_kv(kv_for_att)
 

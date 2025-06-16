@@ -151,7 +151,7 @@ class DecoderZXAttention(nn.Module):
         z_stop = z if not self.stop_gradients else z.detach()  # TODO: check this is correct
         z_ = self.layer_norm(z_stop)
 
-        # TODO: do we need to update self.training here? Not done in JAX version
+        training = training if training is not None else self.training
 
         batch_covariate = batch_covariate.to(torch.int64).flatten()
 
@@ -159,7 +159,7 @@ class DecoderZXAttention(nn.Module):
             batch_embed = self.batch_embedding(batch_covariate)
             batch_embed = nn.LayerNorm(batch_embed)
             if has_mc_samples:
-                batch_embed = batch_embed.repeat(z_.shape[0], 1, 1)
+                batch_embed = batch_embed.reshape(batch_embed, (z_.shape[0], -1, -1, -1))
 
             query_embed = z_
             kv_embed = batch_embed

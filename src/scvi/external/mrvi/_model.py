@@ -281,7 +281,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
         dataloader = self._make_data_loader(
-            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
+            adata=adata,
+            indices=indices,
+            batch_size=batch_size,
         )
 
         us = []
@@ -293,9 +295,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             outputs = self.module.inference(**inference_inputs)
 
             if give_z:
-                zs.append(outputs["z"].cpu())  # TODO: check if this is how to acces z
+                zs.append(outputs["z"].detach().cpu())  # TODO: check if this is how to acces z
             else:
-                us.append(outputs["u"].cpu())  # TODO: check if this is how to access u
+                us.append(outputs["u"].detach().cpu())  # TODO: check if this is how to access u
 
         if give_z:
             return np.concatenate(zs, axis=0)
@@ -340,6 +342,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of Monte Carlo samples to use for computing the local statistics. Only applies
             if using sampled representations.
         """
+        from functools import partial  # TODO: maybe alternative for this?
+
         from scvi.external.mrvi._utils import _parse_local_statistics_requirements
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
@@ -360,7 +364,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         reqs = _parse_local_statistics_requirements(reductions)
 
-        # @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
             x: torch.Tensor,
             sample_index: torch.Tensor,
@@ -368,26 +371,20 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_mean: bool,
             mc_samples: int | None = None,
         ):
+            inference_partial = partial(
+                self.module.inference, x, sample_index, mc_samples=mc_samples, use_mean=use_mean
+            )
+
             if use_vmap:
-                return torch.vmap(
-                    self.module.inference, in_axes=(None, None, None, 0, None), out_axes=-2
-                )(  # TODO: need to check axes
-                    x,
-                    sample_index,
-                    mc_samples,
-                    cf_sample,
-                    use_mean,
-                )["z"]
+                return torch.vmap(inference_partial, in_dims=0, out_dims=-2)(cf_sample)["z"]
             else:
-                # TODO: below, unsure if torch parallelizes anyways
-                # If so would defeat the purpose of having the no vmap option. check this
-                return self.module.inference(
-                    x=x,
-                    sample_index=sample_index,
-                    cf_sample=cf_sample,
-                    use_mean=use_mean,
-                    mc_samples=mc_samples,
-                )["z"].permute(1, 0, 2)
+
+                def per_sample_inference_fn(cf_sample):
+                    return inference_partial(cf_sample=cf_sample)["z"]
+
+                return torch.stack(
+                    [per_sample_inference_fn(cf_sample=cf_sample_i) for cf_sample_i in cf_sample]
+                ).permute(1, 0, 2)  # (n_cells, n_samples, n_latent)
 
         ungrouped_data_arrs = {}
         grouped_data_arrs = {}
@@ -399,7 +396,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         for tensor in tqdm(scdl):
             indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
             n_cells = tensor[REGISTRY_KEYS.X_KEY].shape[0]
-            cf_sample = np.broadcast_to(np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1))
+            cf_sample = np.broadcast_to(
+                np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1)
+            )  # TODO: fix this!!! incorrect resulting shape
             inf_inputs = self.module._get_inference_input(
                 tensor,
             )
@@ -414,13 +413,14 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 except RuntimeError as e:
                     if use_vmap:
                         raise RuntimeError(
+                            # TODO: update error message
                             "JAX ran out of memory. Try setting use_vmap=False."
                         ) from e
                     else:
                         raise e
 
                 mean_zs = xr.DataArray(
-                    np.array(mean_zs_),
+                    mean_zs_.detach().cpu().numpy(),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
                         "cell_name": self.adata.obs_names[indices].values,
@@ -581,7 +581,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         if reps.ndim == 3:
             dists = torch.vmap(_compute_distance)(reps)
             if return_numpy:
-                dists = np.array(dists)
+                dists = dists.detach().cpu().numpy()
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
@@ -1170,6 +1170,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         * ``"n_samples"``: Number of admissible samples for each cell, if
             ``filter_inadmissible_samples`` is ``True``.
         """
+        from functools import partial
+
         from scipy.stats import false_discovery_control
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
@@ -1233,15 +1235,15 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             xtmx = torch.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
             xtmx += lambd * torch.eye(n_covariates)
 
-            prefactor = torch.real(
-                torch.vmap(torch.scipy.linalg.sqrtm)(xtmx)
-            )  # TODO: don't think there is a torch.scipy so checkt this
-            inv_ = torch.vmap(torch.linalg.pinv)(xtmx)
+            # TODO: find torch equivalent of below (both sqrtm and vmap)
+            # prefactor = jnp.real(jax.vmap(jax.scipy.linalg.sqrtm)(xtmx))
+            # inv_ = jax.vmap(jnp.linalg.pinv)(xtmx)
+
+            prefactor = torch.vmap(torch.linalg.cholesky)(xtmx).inverse().T  # TODO: double check
+            inv_ = torch.vmap(torch.linalg.pinv)(xtmx)  # TODO: double check
             Amat = torch.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
             return Amat, prefactor
 
-        # @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
-        # TODO: equivalent of this. what does it do?
         def mapped_inference_fn(
             x: torch.Tensor,
             sample_index: torch.Tensor,
@@ -1253,24 +1255,32 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_mean: bool,
             mc_samples: int,
         ):
+            inference_partial = partial(
+                self.module.inference,
+                x=x,
+                sample_index=sample_index,
+                Amat=Amat,
+                prefactor=prefactor,
+                n_samples_per_cell=n_samples_per_cell,
+                admissible_samples_mat=admissible_samples_mat,
+                use_mean=use_mean,
+                mc_samples=mc_samples,
+            )
+
+            print(inference_partial)
+
             if use_vmap:
-                eps_ = torch.vmap(
-                    self.module.inference, in_axes=(None, None, 0, None, None), out_axes=-2
-                )(  # TODO: check params
-                    x=x,
-                    sample_index=sample_index,
-                    cf_sample=cf_sample,
-                    use_mean=use_mean,
-                    mc_samples=mc_samples,
-                )["z"]  # TODO: acessing like this might not work since returns a dict
+                eps_ = torch.vmap(inference_partial, in_dims=0, out_dims=-2)(cf_sample=cf_sample)[
+                    "z"
+                ]
             else:
-                eps_ = self.module.inference(
-                    x=x,
-                    sample_index=sample_index,
-                    cf_sample=cf_sample,
-                    use_mean=use_mean,
-                    mc_samples=mc_samples,
-                )["z"].permute(1, 2, 0, 3)  # TODO: same as above
+
+                def per_sample_inference_fn(cf_sample):
+                    return inference_partial(cf_sample=cf_sample)["z"]
+
+                eps_ = torch.stack(
+                    [per_sample_inference_fn(cf_sample=cf_sample_i) for cf_sample_i in cf_sample]
+                ).permute(1, 2, 0, 3)  #
 
             eps_std = eps_.std(axis=2, keepdims=True)
             eps_mean = eps_.mean(axis=2, keepdims=True)
@@ -1381,9 +1391,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 admissible_samples[indices]
             )  # (n_cells, n_samples)
             n_samples_per_cell = admissible_samples_mat.sum(axis=1)
-            admissible_samples_dmat = torch.vmap(torch.diag)(admissible_samples_mat).astype(
-                float
-            )  # (n_cells, n_samples, n_samples)
+            admissible_samples_dmat = torch.vmap(torch.diag)(
+                admissible_samples_mat
+            ).float()  # (n_cells, n_samples, n_samples)
             # element nij is 1 if sample i is admissible and i=j for cell n
             Amat, prefactor = process_design_matrix(admissible_samples_dmat, Xmat)
             Amat = Amat.to(self.device)
