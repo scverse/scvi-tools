@@ -1,3 +1,4 @@
+import geomloss
 import torch
 import torch.nn.functional as F
 from torch_geometric.utils import structured_negative_sampling
@@ -36,37 +37,37 @@ def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
     return distance
 
 
-def unbalanced_ot(z1, z2, reg=0.1, reg_m=1.0):
-    device = z1.device
+# def unbalanced_ot(z1, z2, reg=0.1, reg_m=1.0):
+#     device = z1.device
 
-    n1 = z1.size(0)
-    n2 = z2.size(0)
+#     n1 = z1.size(0)
+#     n2 = z2.size(0)
 
-    M = distance_matrix(z1, z2)
+#     M = distance_matrix(z1, z2)
 
-    p_1 = torch.ones(n1, 1, device=z1.device) / n1
-    p_2 = torch.ones(n2, 1, device=z2.device) / n2
+#     p_1 = torch.ones(n1, 1, device=z1.device) / n1
+#     p_2 = torch.ones(n2, 1, device=z2.device) / n2
 
-    tran = torch.ones(n1, n2, device=device) / (n1 * n2)
+#     tran = torch.ones(n1, n2, device=device) / (n1 * n2)
 
-    a = torch.ones(n1, 1, device=device) / n1
-    f = reg_m / (reg_m + reg)
+#     a = torch.ones(n1, 1, device=device) / n1
+#     f = reg_m / (reg_m + reg)
 
-    for _m in range(10):
-        kernel = torch.exp(-M / (reg * torch.max(torch.abs(M)))) * tran
-        b = p_2 / (torch.t(kernel) @ a)
-        for _i in range(10):
-            a = (p_1 / (kernel @ b)) ** f
-            b = (p_2 / (torch.t(kernel) @ a)) ** f
+#     for _m in range(10):
+#         kernel = torch.exp(-M / (reg * torch.max(torch.abs(M)))) * tran
+#         b = p_2 / (torch.t(kernel) @ a)
+#         for _i in range(10):
+#             a = (p_1 / (kernel @ b)) ** f
+#             b = (p_2 / (torch.t(kernel) @ a)) ** f
 
-        tran = (a @ torch.t(b)) * kernel
+#         tran = (a @ torch.t(b)) * kernel
 
-    if torch.isnan(tran).sum() > 0:
-        tran = torch.ones(n1, n2, device=device) / (n1 * n2)
+#     if torch.isnan(tran).sum() > 0:
+#         tran = torch.ones(n1, n2, device=device) / (n1 * n2)
 
-    d_fgw = (M * tran.detach().data).sum()
+#     d_fgw = (M * tran.detach().data).sum()
 
-    return d_fgw, tran.detach()
+#     return d_fgw, tran.detach()
 
 
 def kl_divergence_graph(mu, logvar):
@@ -76,12 +77,28 @@ def kl_divergence_graph(mu, logvar):
 
 
 class SPAGLUETrainingPlan(TrainingPlan):
-    def __init__(self, module, lam_graph=1.0, lam_kl=1.0, lam_data=1.0, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        module,
+        lam_graph=1.0,
+        lam_kl=1.0,
+        lam_data=1.0,
+        lam_sinkhorn=1.0,
+        sinkhorn_p=2,
+        sinkhorn_blur=1,
+        sinkhorn_reach=1,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(module, *args, **kwargs)
 
         self.lam_graph = lam_graph
         self.lam_kl = lam_kl
         self.lam_data = lam_data
+        self.lam_sinkhorn = lam_sinkhorn
+        self.sinkhorn_p = sinkhorn_p
+        self.sinkhorn_reach = sinkhorn_reach
+        self.sinkhorn_blur = sinkhorn_blur
 
         self.automatic_optimization = False  # important for adversarial setup
 
@@ -153,11 +170,16 @@ class SPAGLUETrainingPlan(TrainingPlan):
         z1 = loss_output_objs[0]["z"]
         z2 = loss_output_objs[1]["z"]
 
-        uot_loss, tran = unbalanced_ot(z1, z2)
-        self.log("uot_loss", uot_loss, batch_size=batch_size)
+        # uot_loss, tran = unbalanced_ot(z1, z2)
+        sinkhorn = geomloss.SamplesLoss(
+            loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
+        )
+        sinkhorn_loss = sinkhorn(z1, z2)
+
+        self.log("uot_loss", sinkhorn_loss, batch_size=batch_size)
 
         ### total loss
-        total_loss = self.lam_graph * graph_loss + data_loss + uot_loss
+        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
 
         self.log(
             "training_loss",
