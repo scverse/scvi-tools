@@ -37,39 +37,6 @@ def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
     return distance
 
 
-# def unbalanced_ot(z1, z2, reg=0.1, reg_m=1.0):
-#     device = z1.device
-
-#     n1 = z1.size(0)
-#     n2 = z2.size(0)
-
-#     M = distance_matrix(z1, z2)
-
-#     p_1 = torch.ones(n1, 1, device=z1.device) / n1
-#     p_2 = torch.ones(n2, 1, device=z2.device) / n2
-
-#     tran = torch.ones(n1, n2, device=device) / (n1 * n2)
-
-#     a = torch.ones(n1, 1, device=device) / n1
-#     f = reg_m / (reg_m + reg)
-
-#     for _m in range(10):
-#         kernel = torch.exp(-M / (reg * torch.max(torch.abs(M)))) * tran
-#         b = p_2 / (torch.t(kernel) @ a)
-#         for _i in range(10):
-#             a = (p_1 / (kernel @ b)) ** f
-#             b = (p_2 / (torch.t(kernel) @ a)) ** f
-
-#         tran = (a @ torch.t(b)) * kernel
-
-#     if torch.isnan(tran).sum() > 0:
-#         tran = torch.ones(n1, n2, device=device) / (n1 * n2)
-
-#     d_fgw = (M * tran.detach().data).sum()
-
-#     return d_fgw, tran.detach()
-
-
 def kl_divergence_graph(mu, logvar):
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)  # sum over latent dims
     kl_mean = kl.mean()
@@ -216,6 +183,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             loss = loss_output.loss
 
             loss_dict = {
+                "z": loss_output.extra_metrics["z"],
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
             }
@@ -239,8 +207,18 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
-        ### total loss
-        total_loss = self.lam_graph * graph_loss + data_loss
+        ### UOT loss
+        z1 = loss_output_objs[0]["z"]
+        z2 = loss_output_objs[1]["z"]
+
+        # uot_loss, tran = unbalanced_ot(z1, z2)
+        sinkhorn = geomloss.SamplesLoss(
+            loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
+        )
+        sinkhorn_loss = sinkhorn(z1, z2)
+
+        ### total loss (lam_kl and lam_data are already included in data_loss)
+        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
 
         total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
         self.log(
