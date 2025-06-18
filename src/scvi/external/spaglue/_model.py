@@ -16,7 +16,7 @@ from scvi.external.spaglue._utils import (
     _check_guidance_graph_consisteny,
     _construct_guidance_graph,
 )
-from scvi.model._utils import parse_device_args
+from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
@@ -49,6 +49,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.registries_.append(adm.registry)
 
         sum_stats = {mod: adm.summary_stats for mod, adm in self.adata_managers.items()}
+        self.summary_stats = sum_stats
 
         n_inputs = {mod: s["n_vars"] for mod, s in sum_stats.items()}
         n_batches = {mod: s["n_batch"] for mod, s in sum_stats.items()}
@@ -90,6 +91,13 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         plan_kwargs: dict | None = None,  # kwargs passed to trainingplan
         **kwargs,
     ) -> None:
+        if max_epochs is None:
+            min_obs = np.max(
+                [self.summary_stats["diss"]["n_cells"], self.summary_stats["spatial"]["n_cells"]]
+            )
+            max_epochs = get_max_epochs_heuristic(min_obs)
+            logger.info(f"max_epochs was approximated to {max_epochs}")
+
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
             devices=devices,  # auto, 1 0r [0,1]

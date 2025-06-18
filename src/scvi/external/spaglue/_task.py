@@ -54,6 +54,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         sinkhorn_p=2,
         sinkhorn_blur=1,
         sinkhorn_reach=1,
+        lr=1e-3,
         *args,
         **kwargs,
     ) -> None:
@@ -66,15 +67,15 @@ class SPAGLUETrainingPlan(TrainingPlan):
         self.sinkhorn_p = sinkhorn_p
         self.sinkhorn_reach = sinkhorn_reach
         self.sinkhorn_blur = sinkhorn_blur
+        self.lr = lr  # scvi handles giving the learning rate to the optimizer
 
-        self.automatic_optimization = False  # important for adversarial setup
+        # self.automatic_optimization = False
 
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
-        # batch contains output of both dataloaders
-        # There is a possibility to give batch_idx argument
-        # (can be used e.g. for gradient accumulation)
         """Training step."""
-        opt = self.optimizers()
+        # opt = self.optimizers()
+        # print(opt)
+
         loss_output_objs = []
         for _i, (modality, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
@@ -157,9 +158,10 @@ class SPAGLUETrainingPlan(TrainingPlan):
             batch_size=total_batch_size,
         )
 
-        opt.zero_grad()
-        self.manual_backward(total_loss)
-        opt.step()
+        # opt.zero_grad()
+        # self.manual_backward(total_loss)
+        # opt.step()
+
         return {"loss": total_loss}
 
     def validation_step(self, batch: list[dict[str, torch.Tensor]]) -> None:
