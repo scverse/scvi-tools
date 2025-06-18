@@ -113,6 +113,8 @@ professional services, travel, workshops, and a variety of other needs.
 </a>
 </div>
 
+Copyright (c) 2025, Yosef Lab, Weizmann Institute of Science
+
 [anndata]: https://anndata.readthedocs.io/en/latest/
 [build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg
 [build-link]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/
@@ -140,5 +142,3 @@ professional services, travel, workshops, and a variety of other needs.
 [scvi-tools]: https://scvi-tools.org/
 [skeleton repository]: https://github.com/scverse/simple-scvi
 [user guide]: https://docs.scvi-tools.org/en/stable/user_guide/index.html
-
-Copyright (c) 2025, Yosef Lab, Weizmann Institute of Science
