@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from torch.nn.functional import one_hot
-from torch import distributions
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data._constants import ADATA_MINIFY_TYPE

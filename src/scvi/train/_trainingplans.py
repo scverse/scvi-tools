@@ -579,6 +579,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         Whether to use adversarial classifier in the latent space
     adversarial_key
         Key in setup args to use for adversarial training.
+    adversarial_steps
+        Number of steps to train the adversarial classifier for each training step.
     scale_adversarial_loss
         Scaling factor on the adversarial components of the loss.
         By default, adversarial loss is scaled from 1 to 0 following the opposite of

@@ -90,7 +90,6 @@ class FCLayers(nn.Module):
         n_out: int,
         n_continuous: int = 0,
         n_cat_list: Iterable[int] = None,
-        n_cont: int = 0,
         n_layers: int = 1,
         n_hidden: int = 128,
         dropout_rate: float = 0.1,
@@ -116,7 +115,7 @@ class FCLayers(nn.Module):
 
         self.cond_cat = conditional_category
 
-        self.n_cov = n_cont + sum(self.n_cat_list)
+        self.n_cov = n_continuous + sum(self.n_cat_list)
 
         self.fc_layers = nn.Sequential(
             collections.OrderedDict(
@@ -226,7 +225,7 @@ class FCLayers(nn.Module):
                         layer, ConditionalLayerNorm):
                         if x.dim() == 3:
                             x = torch.cat(
-                                [(layer(slice_x, cat_list[self.cond_cat])).unsqueeze(0)
+                                [(layer(x=slice_x, y=cat_list[self.cond_cat])).unsqueeze(0)
                                  for slice_x in x],
                                 dim=0
                             )
@@ -342,7 +341,7 @@ class Encoder(nn.Module):
             self,
             x: torch.Tensor,
             *cat_list: int,
-            cont_input: torch.Tensor | None = None,
+            cont: torch.Tensor | None = None,
         ):
         r"""The forward computation for a single sample.
 
@@ -357,7 +356,7 @@ class Encoder(nn.Module):
             tensor with shape (n_input,)
         cat_list
             list of category membership(s) for this sample
-        cont_input
+        cont
             optional tensor with shape (n_continuous,)
 
         Returns
@@ -367,7 +366,7 @@ class Encoder(nn.Module):
 
         """
         # Parameters for latent distribution
-        q = self.encoder(x, *cat_list, cont_input=cont_input)
+        q = self.encoder(x, *cat_list, cont=cont)
         q_m = self.mean_encoder(q)
         q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
         dist = Normal(q_m, q_v.sqrt())
@@ -470,7 +469,7 @@ class DecoderSCVI(nn.Module):
         z: torch.Tensor,
         library: torch.Tensor,
         *cat_list: int,
-        cont_input: torch.Tensor | None = None,
+        cont: torch.Tensor | None = None,
         output_condition: torch.Tensor | None = None,
     ):
         """The forward computation for a single sample.
@@ -494,7 +493,7 @@ class DecoderSCVI(nn.Module):
             library size
         cat_list
             list of category membership(s) for this sample
-        cont_input
+        cont
             tensor with shape ``(n_continuous,)``
         output_condition
             tensor with shape ``(n_input,)`` used for conditioning the output layer
@@ -506,7 +505,7 @@ class DecoderSCVI(nn.Module):
 
         """
         # The decoder returns values for the parameters of the ZINB distribution
-        px = self.px_decoder(z, *cat_list, cont_input=cont_input)
+        px = self.px_decoder(z, *cat_list, cont=cont)
         if output_condition is not None and self.n_conditions_output:
             one_hot_cat = nn.functional.one_hot(
                 output_condition.squeeze(-1),

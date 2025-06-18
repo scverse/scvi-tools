@@ -30,7 +30,7 @@ from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
 
-from ._module import ASSAYVAE
+from ._module import VAEX
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 print(2)
 
 
-class ASSAYVI(
+class SCVIX(
     EmbeddingMixin,
     RNASeqMixin,
     VAEMixin,
@@ -110,9 +110,9 @@ class ASSAYVI(
     :class:`~scvi.module.VAE`
     """
 
-    _module_cls = ASSAYVAE
-    _LATENT_QZM_KEY = "assayvi_latent_qzm"
-    _LATENT_QZV_KEY = "assayvi_latent_qzv"
+    _module_cls = VAEX
+    _LATENT_QZM_KEY = "scvix_latent_qzm"
+    _LATENT_QZV_KEY = "scvix_latent_qzv"
     _data_splitter_cls = DataSplitter
     _training_plan_cls = AdversarialTrainingPlan
     _train_runner_cls = TrainRunner

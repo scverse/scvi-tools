@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
+class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     """Variational auto-encoder :cite:p:`Lopez18`.
 
     Parameters
@@ -162,7 +162,6 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         prior: str | None = None,
         pseudoinput_data: dict | None = None,
         n_prior_components: int | None = 30,
-        mmd_kernel: str = "rbf",
     ):
         from scvi.nn import DecoderSCVI, Encoder
 
@@ -178,6 +177,7 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
         self.use_observed_lib_size = True
+        self.n_hidden = n_hidden
 
 
         if self.dispersion == "gene":
@@ -201,7 +201,7 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **(batch_embedding_kwargs or {}))
             n_continuous += self.get_embedding_dim(REGISTRY_KEYS.BATCH_KEY)
         elif self.batch_representation != "one-hot":
-            raise ValueError("`batch_representation` must be one of 'one-hot', 'embedding'.")
+            raise ValueError("`batch_representation` must be one of 'one-hot' or 'embedding'.")
 
         use_batch_norm_encoder = use_batch_norm == "encoder" or use_batch_norm == "both"
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
@@ -213,7 +213,6 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             cat_list = [n_batch] + n_cats_per_cov_
         self.encode_assay = encode_assay
-        self.batch_representation_encoder = False
         conditional_category = 0
         if encode_assay:
             encode_assay_list = [n_assay]
@@ -229,6 +228,7 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 encoder_cat_list = encode_assay_list + n_cats_per_cov_
                 n_cont_encoder = n_continuous
             else:
+                self.batch_representation_encoder = False
                 encoder_cat_list = encode_assay_list + [n_batch] + n_cats_per_cov_
                 n_cont_encoder = n_continuous_cov
             if conditional_norm and not encode_assay:
@@ -294,7 +294,6 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 pseudoinput_data,
                 full_forward_pass=True
             )
-            print('include training.')
             cat_list = [n_batch] + n_cats_per_cov_ + encode_assay_list
             self.prior = VampPrior(
                 n_components=n_prior_components,
@@ -391,17 +390,18 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.encode_covariates and self.batch_representation_encoder:
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
-            if cont_covs is not None:
-                cont_input = torch.cat([cont_covs, batch_rep], dim=-1)
-            else:
-                cont_input = batch_rep
+            if cont_covs is not None and self.encode_covariates:
+                cont = torch.cat([cont_covs, batch_rep], dim=-1)
         else:
-            cont_input = cont_covs
+            if self.encode_covariates:
+                cont = batch_rep
+            else:
+                cont = None
         if not self.encode_assay:
             assay_index = None
         else:
             assay_index = assay_index.long()
-        qz, z = self.z_encoder(x_, assay_index, batch_index, *categorical_input, cont_input=cont_input)
+        qz, z = self.z_encoder(x_, assay_index, batch_index, *categorical_input, cont=cont)
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
@@ -453,11 +453,11 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.batch_representation == "embedding":
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             if cont_covs is not None:
-                cont_input = torch.cat([cont_covs, batch_rep], dim=-1)
+                cont = torch.cat([cont_covs, batch_rep], dim=-1)
             else:
-                cont_input = batch_rep
+                cont = batch_rep
         else:
-            cont_input = cont_covs
+            cont = cont_covs
 
         px_scale, px_r, px_rate, px_dropout = self.decoder(
             self.dispersion,
@@ -466,7 +466,7 @@ class ASSAYVAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             batch_index,
             *categorical_input,
             y,
-            cont_input=cont_input,
+            cont=cont,
             output_condition=assay_index.long(),
         )
 
