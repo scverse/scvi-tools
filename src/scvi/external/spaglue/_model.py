@@ -92,7 +92,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         **kwargs,
     ) -> None:
         if max_epochs is None:
-            min_obs = np.max(
+            min_obs = np.min(
                 [self.summary_stats["diss"]["n_cells"], self.summary_stats["spatial"]["n_cells"]]
             )
             max_epochs = get_max_epochs_heuristic(min_obs)
