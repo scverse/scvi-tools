@@ -96,10 +96,10 @@ class SPAGLUETrainingPlan(TrainingPlan):
             # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
-            self.log("nll_{modality}", reconstruction_loss, batch_size=batch_size)
+            self.log(f"nll_{modality}", reconstruction_loss, batch_size=batch_size)
 
             kl_divergence = loss_output.kl_local["kl_local"]
-            self.log("kl_{modality}", kl_divergence, batch_size=batch_size)
+            self.log(f"kl_{modality}", kl_divergence, batch_size=batch_size)
 
             loss = loss_output.loss
 
