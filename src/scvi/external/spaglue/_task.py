@@ -96,10 +96,10 @@ class SPAGLUETrainingPlan(TrainingPlan):
             # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
-            self.log(f"nll_{modality}", reconstruction_loss, batch_size=batch_size)
+            self.log(f"nll_{modality}", reconstruction_loss, batch_size=batch_size, on_epoch=True)
 
             kl_divergence = loss_output.kl_local["kl_local"]
-            self.log(f"kl_{modality}", kl_divergence, batch_size=batch_size)
+            self.log(f"kl_{modality}", kl_divergence, batch_size=batch_size, on_epoch=True)
 
             loss = loss_output.loss
 
@@ -125,8 +125,8 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         # log individual graph losses
         total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
-        self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size)
-        self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size)
+        self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size, on_epoch=True)
+        self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size, on_epoch=True)
 
         ### graph loss
         graph_loss = graph_likelihood_loss + graph_kl_loss_norm
