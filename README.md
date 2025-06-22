@@ -140,3 +140,5 @@ professional services, travel, workshops, and a variety of other needs.
 [scvi-tools]: https://scvi-tools.org/
 [skeleton repository]: https://github.com/scverse/simple-scvi
 [user guide]: https://docs.scvi-tools.org/en/stable/user_guide/index.html
+
+Copyright (c) 2025, Yosef Lab, Weizmann Institute of Science
