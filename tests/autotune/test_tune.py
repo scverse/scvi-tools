@@ -121,7 +121,7 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
             unlabeled_category="label_0",
         )
     else:
-        ValueError("No Model")
+        raise ValueError("No Model")
 
     experiment = run_autotune(
         model_cls,
