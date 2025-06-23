@@ -7,6 +7,7 @@ notebooks/hub/scvi_hub_intro_and_download
 notebooks/hub/scvi_hub_upload_and_large_files
 notebooks/hub/cellxgene_census_model
 notebooks/hub/query_hlca_knn
+notebooks/hub/Tahoe100
 
 ```
 
@@ -34,6 +35,13 @@ Perform analysis of a CELLxGENE dataset using a pretrained model from scVI-hub
 ```{customcard}
 :path: notebooks/hub/query_hlca_knn
 :tags: Integration, Transfer-learning, Minification, Analysis
+
+Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
+```
+
+```{customcard}
+:path: notebooks/hub/Tahoe100
+:tags: Integration, Minification, Analysis, Differential-comparison
 
 Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
 ```
