@@ -96,10 +96,22 @@ class SPAGLUETrainingPlan(TrainingPlan):
             # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
-            self.log(f"nll_{modality}", reconstruction_loss, batch_size=batch_size, on_epoch=True)
+            self.log(
+                f"nll_{modality}",
+                reconstruction_loss,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=False,
+            )
 
             kl_divergence = loss_output.kl_local["kl_local"]
-            self.log(f"kl_{modality}", kl_divergence, batch_size=batch_size, on_epoch=True)
+            self.log(
+                f"kl_{modality}",
+                kl_divergence,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=False,
+            )
 
             loss = loss_output.loss
 
@@ -125,8 +137,20 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         # log individual graph losses
         total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
-        self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size, on_epoch=True)
-        self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size, on_epoch=True)
+        self.log(
+            "nll_graph",
+            graph_likelihood_loss,
+            batch_size=total_batch_size,
+            on_epoch=True,
+            on_step=False,
+        )
+        self.log(
+            "kl_graph",
+            graph_kl_loss_norm,
+            batch_size=total_batch_size,
+            on_epoch=True,
+            on_step=False,
+        )
 
         ### graph loss
         graph_loss = graph_likelihood_loss + graph_kl_loss_norm
@@ -144,7 +168,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         )
         sinkhorn_loss = sinkhorn(z1, z2)
 
-        self.log("uot_loss", sinkhorn_loss, batch_size=batch_size)
+        self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
 
         ### total loss
         total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
