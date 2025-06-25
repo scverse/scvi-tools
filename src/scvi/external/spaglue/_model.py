@@ -27,7 +27,6 @@ from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
 
-# from scvi.utils._docstrings import devices_dsp
 from ._module import SPAGLUEVAE
 from ._task import SPAGLUETrainingPlan
 
@@ -36,8 +35,6 @@ logger = logging.getLogger(__name__)
 
 def _load_saved_spaglue_files(
     dir_path: str,
-    # load_seq_adata: bool,
-    # load_spatial_adata: bool,
     prefix: str | None = None,
     map_location: Literal["cpu", "cuda"] | None = None,
     backup_url: str | None = None,
@@ -63,35 +60,15 @@ def _load_saved_spaglue_files(
             adatas[mod] = ad.read_h5ad(adata_path)
             var_names[mod] = adatas[mod].var_names
         else:
-            adatas[mod] = None  # or raise an error if you require it
+            adatas[mod] = None
 
     model_state_dict = model["model_state_dict"]
-    # seq_var_names = model["var_names_diss"]
-    # spatial_var_names = model["var_names_spatial"]
     attr_dict = model["attr_dict"]
-
-    # adata_seq, adata_spatial = None, None
-    # if load_seq_adata:
-    #    seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_diss.h5ad")
-    #    if os.path.exists(seq_data_path):
-    #        adata_seq = ad.read_h5ad(seq_data_path)
-    #    elif not os.path.exists(seq_data_path):
-    #        raise ValueError("Save path contains no saved anndata and no adata was passed.")
-    # if load_spatial_adata:
-    #    spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
-    #    if os.path.exists(spatial_data_path):
-    #        adata_spatial = ad.read_h5ad(spatial_data_path)
-    #    elif not os.path.exists(spatial_data_path):
-    #        raise ValueError("Save path contains no saved anndata and no adata was passed.")
 
     return (
         attr_dict,
         var_names,
-        # seq_var_names,
-        # spatial_var_names,
         model_state_dict,
-        # adata_seq,
-        # adata_spatial,
         adatas,
     )
 
@@ -470,8 +447,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                 "model_state_dict": model_state_dict,
                 "modality_names": self.modality_names,
                 **{f"var_names_{mod}": var_names[mod] for mod in self.modality_names},
-                # f"var_names_{self.modality_names[0]}": var_names[self.modality_names[0]],
-                # f"var_names_{self.modality_names[1]}": var_names[self.modality_names[1]],
                 "attr_dict": user_attributes,
             },
             model_save_path,
@@ -498,26 +473,15 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         (
             attr_dict,
-            # seq_var_names,
-            # spatial_var_names,
             var_names_dict,
             model_state_dict,
             adatas,
-            # loaded_adata_seq,
-            # loaded_adata_spatial,
         ) = _load_saved_spaglue_files(
             dir_path,
-            # adata_seq is None,
-            # adata_spatial is None,
             prefix=prefix,
             map_location=device,
             backup_url=backup_url,
         )
-
-        # adata_seq = loaded_adata_seq or adata_seq
-        # adata_spatial = loaded_adata_spatial or adata_spatial
-        # adatas = [adata_seq, adata_spatial]
-        # var_names = [seq_var_names, spatial_var_names]
 
         for mod in adatas.keys():
             saved_var_names = var_names_dict[mod]
