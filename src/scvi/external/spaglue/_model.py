@@ -36,8 +36,8 @@ logger = logging.getLogger(__name__)
 
 def _load_saved_spaglue_files(
     dir_path: str,
-    load_seq_adata: bool,
-    load_spatial_adata: bool,
+    # load_seq_adata: bool,
+    # load_spatial_adata: bool,
     prefix: str | None = None,
     map_location: Literal["cpu", "cuda"] | None = None,
     backup_url: str | None = None,
@@ -53,32 +53,46 @@ def _load_saved_spaglue_files(
     except FileNotFoundError as exc:
         raise ValueError(f"Failed to load model file at {model_path}. ") from exc
 
+    modality_names = model["modality_names"]
+
+    adatas = {}
+    var_names = {}
+    for mod in modality_names:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata_{mod}.h5ad")
+        if os.path.exists(adata_path):
+            adatas[mod] = ad.read_h5ad(adata_path)
+            var_names[mod] = adatas[mod].var_names
+        else:
+            adatas[mod] = None  # or raise an error if you require it
+
     model_state_dict = model["model_state_dict"]
-    seq_var_names = model["var_names_diss"]
-    spatial_var_names = model["var_names_spatial"]
+    # seq_var_names = model["var_names_diss"]
+    # spatial_var_names = model["var_names_spatial"]
     attr_dict = model["attr_dict"]
 
-    adata_seq, adata_spatial = None, None
-    if load_seq_adata:
-        seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_diss.h5ad")
-        if os.path.exists(seq_data_path):
-            adata_seq = ad.read_h5ad(seq_data_path)
-        elif not os.path.exists(seq_data_path):
-            raise ValueError("Save path contains no saved anndata and no adata was passed.")
-    if load_spatial_adata:
-        spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
-        if os.path.exists(spatial_data_path):
-            adata_spatial = ad.read_h5ad(spatial_data_path)
-        elif not os.path.exists(spatial_data_path):
-            raise ValueError("Save path contains no saved anndata and no adata was passed.")
+    # adata_seq, adata_spatial = None, None
+    # if load_seq_adata:
+    #    seq_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_diss.h5ad")
+    #    if os.path.exists(seq_data_path):
+    #        adata_seq = ad.read_h5ad(seq_data_path)
+    #    elif not os.path.exists(seq_data_path):
+    #        raise ValueError("Save path contains no saved anndata and no adata was passed.")
+    # if load_spatial_adata:
+    #    spatial_data_path = os.path.join(dir_path, f"{file_name_prefix}adata_spatial.h5ad")
+    #    if os.path.exists(spatial_data_path):
+    #        adata_spatial = ad.read_h5ad(spatial_data_path)
+    #    elif not os.path.exists(spatial_data_path):
+    #        raise ValueError("Save path contains no saved anndata and no adata was passed.")
 
     return (
         attr_dict,
-        seq_var_names,
-        spatial_var_names,
+        var_names,
+        # seq_var_names,
+        # spatial_var_names,
         model_state_dict,
-        adata_seq,
-        adata_spatial,
+        # adata_seq,
+        # adata_spatial,
+        adatas,
     )
 
 
@@ -454,8 +468,10 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         torch.save(
             {
                 "model_state_dict": model_state_dict,
-                f"var_names_{self.modality_names[0]}": var_names[self.modality_names[0]],
-                f"var_names_{self.modality_names[1]}": var_names[self.modality_names[1]],
+                "modality_names": self.modality_names,
+                **{f"var_names_{mod}": var_names[mod] for mod in self.modality_names},
+                # f"var_names_{self.modality_names[0]}": var_names[self.modality_names[0]],
+                # f"var_names_{self.modality_names[1]}": var_names[self.modality_names[1]],
                 "attr_dict": user_attributes,
             },
             model_save_path,
@@ -482,28 +498,31 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         (
             attr_dict,
-            seq_var_names,
-            spatial_var_names,
+            # seq_var_names,
+            # spatial_var_names,
+            var_names_dict,
             model_state_dict,
-            loaded_adata_seq,
-            loaded_adata_spatial,
+            adatas,
+            # loaded_adata_seq,
+            # loaded_adata_spatial,
         ) = _load_saved_spaglue_files(
             dir_path,
-            adata_seq is None,
-            adata_spatial is None,
+            # adata_seq is None,
+            # adata_spatial is None,
             prefix=prefix,
             map_location=device,
             backup_url=backup_url,
         )
 
-        adata_seq = loaded_adata_seq or adata_seq
-        adata_spatial = loaded_adata_spatial or adata_spatial
-        adatas = [adata_seq, adata_spatial]
-        var_names = [seq_var_names, spatial_var_names]
+        # adata_seq = loaded_adata_seq or adata_seq
+        # adata_spatial = loaded_adata_spatial or adata_spatial
+        # adatas = [adata_seq, adata_spatial]
+        # var_names = [seq_var_names, spatial_var_names]
 
-        for i, adata in enumerate(adatas):
-            saved_var_names = var_names[i]
-            user_var_names = adata.var_names.astype(str)
+        for mod in adatas.keys():
+            saved_var_names = var_names_dict[mod]
+            user_var_names = adatas[mod].var_names.astype(str)
+
             if not np.array_equal(saved_var_names, user_var_names):
                 warnings.warn(
                     "var_names for adata passed in does not match var_names of adata "
@@ -524,7 +543,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                     "Cannot load the original setup."
                 )
 
-            cls.setup_anndata(adata, source_registry=registry, **registry[_SETUP_ARGS_KEY])
+            cls.setup_anndata(adatas[adata], source_registry=registry, **registry[_SETUP_ARGS_KEY])
 
         # get the parameters for the class init signature
         init_params = attr_dict.pop("init_params_")
@@ -547,7 +566,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         non_kwargs.pop("adatas", None)
         kwargs.pop("adatas", None)
 
-        model = cls({"diss": adata_seq, "spatial": adata_spatial}, **non_kwargs, **kwargs)
+        model = cls(adatas, **non_kwargs, **kwargs)
 
         for attr, val in attr_dict.items():
             setattr(model, attr, val)
