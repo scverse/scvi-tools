@@ -38,7 +38,7 @@ def test_batchdistributedsampler_init(
 @pytest.mark.parametrize("drop_last", [True, False])
 @pytest.mark.parametrize("drop_dataset_tail", [True, False])
 @pytest.mark.parametrize("batch_size", [128])
-@pytest.mark.parametrize("n_batches", [2])
+@pytest.mark.parametrize("n_batches", [3])
 @pytest.mark.parametrize("num_replicas", [2])
 def test_batchdistributedsampler_drop_last(
     drop_last: bool,
