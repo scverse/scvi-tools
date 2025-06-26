@@ -43,13 +43,13 @@ def test_run_autotune_scvi_basic(save_path: str):
 
 
 @pytest.mark.autotune
-def test_run_autotune_scvi_no_anndata(save_path: str):
+@pytest.mark.parametrize("n_batches", [3])
+def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int):
     from ray import tune
     from ray.tune import ResultGrid
 
     from scvi.autotune import AutotuneExperiment, run_autotune
 
-    n_batches = 3
     settings.logging_dir = save_path
     adata = synthetic_iid(n_batches=n_batches)
     SCVI.setup_anndata(adata, batch_key="batch")
@@ -151,13 +151,13 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
 
 
 @pytest.mark.autotune
-def test_run_autotune_scvi_with_scib_ext_indices(save_path: str):
+@pytest.mark.parametrize("metric", ["iLISI"])
+def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str):
     from ray import tune
     from ray.tune import ResultGrid
 
     from scvi.autotune import AutotuneExperiment, run_autotune
 
-    metric = "iLISI"
     settings.logging_dir = save_path
     adata = synthetic_iid()
     SCANVI.setup_anndata(
