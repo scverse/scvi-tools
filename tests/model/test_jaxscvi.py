@@ -9,7 +9,8 @@ from scvi.model import JaxSCVI
 from scvi.utils import attrdict
 
 
-def test_jax_scvi(n_latent=5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_jax_scvi(n_latent: int):
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -28,7 +29,9 @@ def test_jax_scvi(n_latent=5):
     assert z2.shape[0] == 15
 
 
-def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
+@pytest.mark.parametrize("n_latent", [5])
+@pytest.mark.parametrize("dropout_rate", [0.1])
+def test_jax_scvi_training(n_latent: int, dropout_rate: float):
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -52,7 +55,8 @@ def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
         )
 
 
-def test_jax_scvi_save_load(save_path: str, n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_jax_scvi_save_load(save_path: str, n_latent: int):
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,

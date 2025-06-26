@@ -38,6 +38,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
+- Removed default arguments from test function parameters due to ruff pre-commit v0.12.0 with
+    PT028 rule {pr}`3393`.
+
 ### 1.3.1 (2025-05-15)
 
 #### Added
