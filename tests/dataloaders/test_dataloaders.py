@@ -51,19 +51,14 @@ class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
         return super().training_step(batch, batch_idx)
 
 
-def test_semisuperviseddataloader_subsampling(
-    batch_size: int = 128,
-    n_batches: int = 2,
-    n_labels: int = 3,
-    n_samples_per_label: int = 10,
-):
-    adata = scvi.data.synthetic_iid(batch_size=batch_size, n_batches=n_batches, n_labels=n_labels)
+def test_semisuperviseddataloader_subsampling():
+    adata = scvi.data.synthetic_iid(batch_size=128, n_batches=2, n_labels=3)
     adata.obs["indices"] = np.arange(adata.n_obs)
 
     original_training_plan_cls = scvi.model.SCANVI._training_plan_cls
     scvi.model.SCANVI._training_plan_cls = TestSemiSupervisedTrainingPlan
     plan_kwargs = {
-        "n_samples_per_label": n_samples_per_label,
+        "n_samples_per_label": 10,
     }
     scvi.model.SCANVI.setup_anndata(
         adata,
@@ -74,8 +69,8 @@ def test_semisuperviseddataloader_subsampling(
     model = scvi.model.SCANVI(adata)
     model.train(
         max_epochs=10,
-        batch_size=batch_size // 2,
-        n_samples_per_label=n_samples_per_label,
+        batch_size=128 // 2,
+        n_samples_per_label=10,
         plan_kwargs=plan_kwargs,
     )
 

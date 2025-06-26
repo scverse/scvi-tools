@@ -7,11 +7,13 @@ from scvi.module import VAE
 
 @pytest.mark.parametrize("n_samples", [1, 2, 3])
 @pytest.mark.parametrize("gene_likelihood", ["zinb", "nb", "poisson"])
+@pytest.mark.parametrize("n_input", [100])
+@pytest.mark.parametrize("batch_size", [10])
 def test_sample(
     n_samples: int,
     gene_likelihood: str,
-    n_input: int = 100,
-    batch_size: int = 10,
+    n_input: int,
+    batch_size: int,
 ):
     vae = VAE(n_input=n_input, gene_likelihood=gene_likelihood)
     x = torch.randint(0, 100, (batch_size, n_input), dtype=torch.float32)

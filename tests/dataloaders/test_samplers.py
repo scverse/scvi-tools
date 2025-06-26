@@ -8,9 +8,11 @@ import scvi
 from scvi.dataloaders import BatchDistributedSampler
 
 
+@pytest.mark.parametrize("batch_size", [128])
+@pytest.mark.parametrize("n_batches", [2])
 def test_batchdistributedsampler_init(
-    batch_size: int = 128,
-    n_batches: int = 2,
+    batch_size: int,
+    n_batches: int,
 ):
     adata = scvi.data.synthetic_iid(batch_size=batch_size, n_batches=n_batches)
     manager = generic_setup_adata_manager(adata)
@@ -35,12 +37,15 @@ def test_batchdistributedsampler_init(
 
 @pytest.mark.parametrize("drop_last", [True, False])
 @pytest.mark.parametrize("drop_dataset_tail", [True, False])
+@pytest.mark.parametrize("batch_size", [128])
+@pytest.mark.parametrize("n_batches", [3])
+@pytest.mark.parametrize("num_replicas", [2])
 def test_batchdistributedsampler_drop_last(
     drop_last: bool,
     drop_dataset_tail: bool,
-    batch_size: int = 128,
-    n_batches: int = 3,
-    num_replicas: int = 2,
+    batch_size: int,
+    n_batches: int,
+    num_replicas: int,
 ):
     """Expected behavior:
 
@@ -116,10 +121,13 @@ def test_batchdistributedsampler_drop_last(
         check_samplers(samplers, sampler_batch_size)
 
 
+@pytest.mark.parametrize("batch_size", [128])
+@pytest.mark.parametrize("n_batches", [3])
+@pytest.mark.parametrize("num_replicas", [2])
 def test_batchdistributedsampler_indices(
-    batch_size: int = 128,
-    n_batches: int = 3,
-    num_replicas: int = 2,
+    batch_size: int,
+    n_batches: int,
+    num_replicas: int,
 ):
     adata = scvi.data.synthetic_iid(batch_size=batch_size, n_batches=n_batches)
     manager = generic_setup_adata_manager(adata)
