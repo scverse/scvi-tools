@@ -117,7 +117,7 @@ def parse_device_args(
         _devices = connector._devices_flag
         warnings.warn(
             "`accelerator` has been automatically set to `cpu` although 'mps' exists. If you wish "
-            "to run on mps backend, use explicitly accelerator=='mps' in train function."
+            "to run on mps backend, use explicitly accelerator='mps' in train function."
             "In future releases it will become default for mps supported machines.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
