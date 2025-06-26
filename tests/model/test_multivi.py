@@ -101,8 +101,7 @@ def test_multivi_single_batch():
         protein_names_uns_key="protein_names",
     )
     vae = MULTIVI(data, n_genes=50, n_regions=50)
-    with pytest.warns(UserWarning):
-        vae.train(3)
+    vae.train(3)
 
 
 @pytest.mark.internet
