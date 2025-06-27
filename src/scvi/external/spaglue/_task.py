@@ -96,6 +96,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
+
             self.log(
                 f"nll_{modality}",
                 reconstruction_loss,
@@ -114,6 +115,14 @@ class SPAGLUETrainingPlan(TrainingPlan):
             )
 
             loss = loss_output.loss
+
+            self.log(
+                f"train_loss_{modality}",
+                loss,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=True,
+            )
 
             loss_dict = {
                 "z": loss_output.extra_metrics["z"],
@@ -193,6 +202,8 @@ class SPAGLUETrainingPlan(TrainingPlan):
         loss_output_objs = []
 
         for _i, (modality, tensors) in enumerate(batch.items()):
+            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+
             self.loss_kwargs.update(
                 {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
             )
@@ -207,6 +218,14 @@ class SPAGLUETrainingPlan(TrainingPlan):
             )
 
             loss = loss_output.loss
+
+            self.log(
+                f"val_loss_{modality}",
+                loss,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=True,
+            )
 
             loss_dict = {
                 "z": loss_output.extra_metrics["z"],
