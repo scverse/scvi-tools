@@ -1,5 +1,6 @@
 import torch
-from torch.distributions import Normal, kl_divergence
+import torch.nn as nn
+from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
@@ -16,6 +17,8 @@ class SPAGLUEVAE(BaseModuleClass):
         n_batches: list[int],
         gene_likelihoods: list[str],
         guidance_graph,
+        use_gmm_prior: dict[bool],
+        n_mixture_components: dict[int],
         n_latent_seq: int = 50,
         n_latent_spatial: int = 50,
         n_hidden: int = 256,
@@ -24,6 +27,26 @@ class SPAGLUEVAE(BaseModuleClass):
         # **kwargs: dict,
     ) -> None:
         super().__init__()
+
+        self.gmm_logits = nn.ParameterDict()
+        self.gmm_means = nn.ParameterDict()
+        self.gmm_scales = nn.ParameterDict()
+
+        self.use_gmm_prior = use_gmm_prior
+        self.n_mixture_components = n_mixture_components
+        latent_dim = n_latent_seq
+
+        print(self.use_gmm_prior)
+
+        for m in use_gmm_prior.keys():
+            print(m)
+            if self.use_gmm_prior[m]:
+                k = self.n_mixture_components[m]
+                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))
+                self.gmm_means[m] = nn.Parameter(torch.randn(k, latent_dim))
+                self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim))
+
+        print(self.gmm_logits)
 
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
@@ -81,7 +104,7 @@ class SPAGLUEVAE(BaseModuleClass):
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
             MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
-            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            # MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
             "v": inference_outputs["v"],
         }
 
@@ -165,14 +188,23 @@ class SPAGLUEVAE(BaseModuleClass):
                 scale=px_scale,
             )
 
-        # we do not model the library size
-        # pl = None
+        if self.use_gmm_prior[mode]:
+            # select the modality specific parameters
+            logits = self.gmm_logits[mode]
+            means = self.gmm_means[mode]
+            scales = self.gmm_scales[mode]
+
+            cat = Categorical(logits=logits)
+            comp = Independent(Normal(means, torch.exp(scales)), 1)
+            pz = MixtureSameFamily(cat, comp)
+        else:
+            pz = Normal(torch.zeros_like(z), torch.ones_like(z))
+
         # prior
-        pz = Normal(torch.zeros_like(z), torch.ones_like(z))
+        # pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 
         return {
             MODULE_KEYS.PX_KEY: px,
-            # MODULE_KEYS.PL_KEY: pl,
             MODULE_KEYS.PZ_KEY: pz,
             "px_rate": px_rate,
         }
@@ -194,12 +226,17 @@ class SPAGLUEVAE(BaseModuleClass):
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
         reconstruction_loss_norm = torch.mean(reconst_loss)
 
-        # data kl div
-        kl_divergence_z = kl_divergence(
-            inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
-        ).sum(dim=-1)
+        if self.use_gmm_prior[mode]:
+            kl_div = inference_outputs[MODULE_KEYS.QZ_KEY].log_prob(inference_outputs["z"]).sum(
+                -1
+            ) - generative_outputs[MODULE_KEYS.PZ_KEY].log_prob(inference_outputs["z"])
+        else:
+            # data kl div
+            kl_div = kl_divergence(
+                inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
+            ).sum(dim=-1)
 
-        kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
+        kl_local_norm = torch.sum(kl_div) / (n_obs * n_var)
 
         loss = lam_data * reconstruction_loss_norm + lam_kl * kl_local_norm
 

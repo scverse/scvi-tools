@@ -100,15 +100,29 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         n_inputs = {mod: s["n_vars"] for mod, s in sum_stats.items()}
         n_batches = {mod: s["n_batch"] for mod, s in sum_stats.items()}
 
+        # Which generative distributions to use
         generative_distributions = {
             mod: adata.uns["spaglue_likelihood"] for mod, adata in self.adatas.items()
         }
 
+        # Whether to use the Gaussian Mixture Prior
+        gmm_priors = {mod: adata.uns["spaglue_gmm_prior"] for mod, adata in self.adatas.items()}
+
+        # Whether to use the provided label key to guide model development
+        # semi_supervised = {
+        #    mod: adata.uns["spaglue_semi_supervised"] for mod, adata in self.adatas.items()
+        # }
+
+        # How many components to model
+        n_mixture_components = {
+            mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
+        }
+
+        # Compute guidance graph if not provided, do a sanity check
         if guidance_graph is not None:
             self.guidance_graph = guidance_graph
         else:
             self.guidance_graph = _construct_guidance_graph(self.adatas)
-
         _check_guidance_graph_consisteny(self.guidance_graph, adatas)
 
         self.module = SPAGLUEVAE(
@@ -116,6 +130,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             n_batches=n_batches,
             gene_likelihoods=generative_distributions,
             guidance_graph=self.guidance_graph,
+            use_gmm_prior=gmm_priors,
+            # semi_supervised = semi_supervised,
+            n_mixture_components=n_mixture_components,
             **model_kwargs,
         )
 
@@ -221,6 +238,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         labels_key: str | None = None,
         layer: str | None = None,
         likelihood: str = "nb",
+        gmm_prior: bool = False,
+        semi_supervised: bool = False,
+        n_mixture_components: int = 10,
         **kwargs: dict,
     ) -> None:
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
@@ -233,6 +253,12 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             adata.layers["counts"] = adata.layers["counts"].tocsr()
 
         adata.uns["spaglue_likelihood"] = likelihood
+        adata.uns["spaglue_gmm_prior"] = gmm_prior
+        # adata.uns["spaglue_semi_supervised"] = semi_supervised
+        if semi_supervised:
+            adata.uns["spaglue_n_mixture_components"] = len(adata.obs[labels_key].unique())
+        else:
+            adata.uns["spaglue_n_mixture_components"] = n_mixture_components
 
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
@@ -241,7 +267,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            # CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         # adata_manager.register_fields(adata, **kwargs)
