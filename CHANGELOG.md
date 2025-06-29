@@ -6,7 +6,17 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.2 (2025-XX-XX)
+### 1.3.3 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
+### 1.3.2 (2025-06-22)
 
 #### Added
 
@@ -26,7 +36,12 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Update Read the docs tutorials with one main preprocessing tutorial {pr}`3363`.
+
 #### Removed
+
+- Removed default arguments from test function parameters due to ruff pre-commit v0.12.0 with
+    PT028 rule {pr}`3393`.
 
 ### 1.3.1 (2025-05-15)
 
