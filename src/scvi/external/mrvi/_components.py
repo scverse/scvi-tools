@@ -137,14 +137,15 @@ class NormalDistOutputNN(nn.Module):
         self.scale_eps = scale_eps
         self.training = training
 
-        self.resnet_blocks = []
-        for _ in range(n_layers):
-            self.resnet_blocks.append(
+        self.resnet_blocks = nn.ModuleList(
+            [
                 ResnetBlock(
                     n_in=n_in,
                     n_out=n_hidden,
                 )
-            )
+                for _ in range(n_layers)
+            ]
+        )
 
         self.fc_mean = Dense(in_features=n_hidden, out_features=n_out)
         self.fc_scale = nn.Sequential(
@@ -177,23 +178,34 @@ class ConditionalNormalization(nn.Module):
         self.training = training
         self.normalization_type = normalization_type
 
-    def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
-        # training = nn.merge_param("training", self.training, training)
+        # Initialize embedding layers in __init__ instead of forward
+        self.gamma_embedding = nn.Embedding(self.n_conditions, self.n_features)
+        self.beta_embedding = nn.Embedding(self.n_conditions, self.n_features)
+
+        # Initialize normalization layers
         if self.normalization_type == "batch":
-            x = nn.BatchNorm1d(self.n_features, affine=False, track_running_stats=not training)(
-                x
-            )  # TODO: need to check all params to original
+            self.norm_layer = nn.BatchNorm1d(
+                self.n_features, affine=False, track_running_stats=True
+            )
         elif self.normalization_type == "layer":
-            x = nn.LayerNorm(x.shape[1:], elementwise_affine=False)(
-                x
-            )  # TODO: need to check all params to original
+            self.norm_layer = nn.LayerNorm(self.n_features, elementwise_affine=False)
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
-        # TODO: figure out how to initialize embeddings in torch
+    def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
+        # Use pre-initialized normalization layer
+        if self.normalization_type == "batch":
+            # For BatchNorm, we need to set training mode
+            if training is not None:
+                self.norm_layer.training = training
+            x = self.norm_layer(x)
+        else:  # layer norm
+            x = self.norm_layer(x)
+
+        # Use pre-initialized embedding layers
         cond_int = condition.squeeze(-1).to(torch.int64)  # TODO: check if 64 or 32
-        gamma = nn.Embedding(self.n_conditions, self.n_features)(cond_int)
-        beta = nn.Embedding(self.n_conditions, self.n_features)(cond_int)
+        gamma = self.gamma_embedding(cond_int)
+        beta = self.beta_embedding(cond_int)
 
         return gamma * x + beta
 
@@ -282,16 +294,33 @@ class AttentionBlock(nn.Module):
         kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)
         kv_for_att = self.embed_dim_proj_kv(kv_for_att)
 
+        # Unlike with JAX, with torch we can only have one batch dimension
+        # so we flatten the batch and mc samples
+        if has_mc_samples:
+            query_embed_flat_batch = torch.reshape(
+                query_embed, (query_embed.shape[0] * query_embed.shape[1], query_embed.shape[2])
+            )
+            query_for_att = torch.reshape(
+                query_for_att,
+                (query_for_att.shape[0] * query_for_att.shape[1], query_for_att.shape[2], -1),
+            )
+            kv_for_att = torch.reshape(
+                kv_for_att, (kv_for_att.shape[0] * kv_for_att.shape[1], kv_for_att.shape[2], -1)
+            )
+
         eps = self.attention(query_for_att, kv_for_att, kv_for_att, need_weights=False)[
             0
         ]  # (batch_size, outerprod_dim, n_channels * n_heads)
 
-        if not has_mc_samples:
-            eps = torch.reshape(eps, (eps.shape[0], -1))
-        else:
-            eps = torch.reshape(eps, (eps.shape[0], eps.shape[1], -1))
-
+        eps = torch.reshape(eps, (eps.shape[0], -1))
         eps_ = self.mlp_eps(eps, training)
-        inputs = torch.cat([query_embed, eps_], dim=-1)
+        inputs = torch.cat(
+            [query_embed_flat_batch if has_mc_samples else query_embed, eps_], dim=-1
+        )
         residual = self.mlp_residual(inputs, training)
+
+        if has_mc_samples:
+            # Reshape back to the original batch and mc samples dimensions
+            residual = torch.reshape(residual, (query_embed.shape[0], query_embed.shape[1], -1))
+
         return residual

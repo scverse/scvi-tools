@@ -216,6 +216,8 @@ class EncoderUZ(nn.Module):
 
         self.layer_norm = nn.LayerNorm(self.n_latent_u)
         self.embedding = nn.Embedding(self.n_sample, self.n_latent_sample)
+        # Initialize with same standard deviation as JAX version
+        init.normal_(self.embedding.weight, std=0.1)
         self.layer_norm_embed = nn.LayerNorm(self.n_latent_sample)
 
         n_outs = 1 if self.use_map else 2
@@ -250,7 +252,11 @@ class EncoderUZ(nn.Module):
         u_ = self.layer_norm(u_stop)
 
         sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
-        nn.init.normal_(sample_embed, std=0.1)
+        # Add noise to sample embedding using proper random sampling instead of in-place init
+        noise = torch.normal(
+            mean=0.0, std=0.1, size=sample_embed.shape, device=sample_embed.device
+        )
+        sample_embed = sample_embed + noise
 
         if has_mc_samples:
             sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
@@ -288,6 +294,7 @@ class EncoderXU(nn.Module):
 
         from scvi.external.mrvi._components import (
             ConditionalNormalization,
+            NormalDistOutputNN,
         )
 
         self.fc1 = nn.Linear(self.n_input, self.n_hidden)
@@ -304,12 +311,17 @@ class EncoderXU(nn.Module):
             self.activation(),
         )"""
         self.sample_embed = nn.Embedding(self.n_sample, self.n_hidden)
+        # Initialize with same standard deviation as JAX version
+        init.normal_(self.sample_embed.weight, std=0.1)
+
+        # Create the output network in __init__ instead of forward
+        self.output_nn = NormalDistOutputNN(
+            self.n_hidden, self.n_latent, self.n_hidden, self.n_layers
+        )
 
     def forward(
         self, x: torch.Tensor, sample_covariate: torch.Tensor, training: bool | None = None
     ) -> dist.Normal:
-        from scvi.external.mrvi._components import NormalDistOutputNN
-
         training = training if training is not None else self.training
         x_feat = torch.log1p(x)
         x_feat = self.fc1(x_feat)
@@ -321,11 +333,8 @@ class EncoderXU(nn.Module):
         sample_effect = self.sample_embed(
             sample_covariate.squeeze(-1).to(torch.int64)  # TODO: check if should be int64
         )  # TODO: double check why we squeeze here
-        init.normal_(sample_effect, std=0.1)
         inputs = x_feat + sample_effect
-        return NormalDistOutputNN(self.n_hidden, self.n_latent, self.n_hidden, self.n_layers)(
-            inputs, training=training
-        )
+        return self.output_nn(inputs, training=training)
 
 
 class MRVAE(BaseModuleClass):
@@ -461,7 +470,12 @@ class MRVAE(BaseModuleClass):
             u = qu.mean
         else:
             sample_shape = (mc_samples,) if mc_samples is not None else ()
-            u = qu.rsample(sample_shape=sample_shape)
+            # Use functional random sampling instead of rsample to avoid vmap issues
+            noise_shape = sample_shape + qu.mean.shape
+            noise = torch.normal(
+                mean=0.0, std=1.0, size=noise_shape, device=qu.mean.device, dtype=qu.mean.dtype
+            )
+            u = qu.mean + noise * qu.scale
 
         sample_index_cf = sample_index if cf_sample is None else cf_sample
 
@@ -472,7 +486,18 @@ class MRVAE(BaseModuleClass):
         if qeps_.shape[-1] == 2 * self.n_latent:
             loc_, scale_ = qeps_[..., : self.n_latent], qeps_[..., self.n_latent :]
             qeps = dist.Normal(loc_, nn.functional.softplus(scale_) + 1e-3)
-            eps = qeps.mean if use_mean else qeps.rsample()
+            if use_mean:
+                eps = qeps.mean
+            else:
+                # Use functional random sampling instead of rsample to avoid vmap issues
+                noise = torch.normal(
+                    mean=0.0,
+                    std=1.0,
+                    size=qeps.mean.shape,
+                    device=qeps.mean.device,
+                    dtype=qeps.mean.dtype,
+                )
+                eps = qeps.mean + noise * qeps.scale
         z = z_base + eps
         library = torch.log(x.sum(1, keepdims=True))
 

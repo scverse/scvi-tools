@@ -396,9 +396,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         for tensor in tqdm(scdl):
             indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
             n_cells = tensor[REGISTRY_KEYS.X_KEY].shape[0]
-            cf_sample = np.broadcast_to(
-                np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1)
-            )  # TODO: fix this!!! incorrect resulting shape
+            cf_sample = np.broadcast_to(np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1))
             inf_inputs = self.module._get_inference_input(
                 tensor,
             )
@@ -1259,20 +1257,17 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 self.module.inference,
                 x=x,
                 sample_index=sample_index,
-                Amat=Amat,
-                prefactor=prefactor,
-                n_samples_per_cell=n_samples_per_cell,
-                admissible_samples_mat=admissible_samples_mat,
-                use_mean=use_mean,
                 mc_samples=mc_samples,
+                use_mean=use_mean,
             )
 
-            print(inference_partial)
-
-            if use_vmap:
-                eps_ = torch.vmap(inference_partial, in_dims=0, out_dims=-2)(cf_sample=cf_sample)[
-                    "z"
-                ]
+            if (
+                use_vmap
+            ):  # TODO: need to test vmap option still. only have tested the non-vmap option
+                # TODO: why use lambda here but no in the compute local stats one?
+                eps_ = torch.vmap(
+                    lambda cfs: inference_partial(cf_sample=cfs), in_dims=0, out_dims=-2
+                )(cf_sample)["z"]
             else:
 
                 def per_sample_inference_fn(cf_sample):
@@ -1280,7 +1275,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
                 eps_ = torch.stack(
                     [per_sample_inference_fn(cf_sample=cf_sample_i) for cf_sample_i in cf_sample]
-                ).permute(1, 2, 0, 3)  #
+                ).permute(1, 2, 0, 3)
 
             eps_std = eps_.std(axis=2, keepdims=True)
             eps_mean = eps_.mean(axis=2, keepdims=True)
@@ -1308,22 +1303,20 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 betas_covariates = betas_[:, covariates_require_lfc, :, :]
 
                 def h_inference_fn(extra_eps, batch_index_cf, batch_offset_eps):
-                    extra_eps += batch_offset_eps
+                    extra_eps = extra_eps + batch_offset_eps
 
                     return self.module.compute_h_from_x_eps(
                         x=x,
                         sample_index=sample_index,
                         extra_eps=extra_eps,
                         batch_index=batch_index_cf,
-                        cf_sample=cf_sample,
-                        mc_samples=mc_samples,
+                        cf_sample=None,
+                        mc_samples=None,
                         # mc_samples also taken for eps. vmap over mc_samples
                     )
 
                 batch_index_ = torch.arange(self.summary_stats.n_batch)[:, None]
-                batch_index_ = torch.repeat(batch_index_, repeats=n_cells, axis=1)[
-                    ..., None
-                ]  # (n_batch, n_cells, 1)
+                batch_index_ = batch_index_.repeat(1, n_cells)[..., None]  # (n_batch, n_cells, 1)
                 betas_null = torch.zeros_like(betas_covariates)
 
                 if add_batch_specific_offsets:
@@ -1343,19 +1336,32 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
 
                 f_ = torch.vmap(
-                    h_inference_fn, in_axes=(0, None, 0), out_axes=0
+                    h_inference_fn, in_dims=(0, None, 0), out_dims=0, randomness="different"
                 )  # fn over MC samples
-                f_ = torch.vmap(f_, in_axes=(1, None, None), out_axes=1)  # fn over covariates
-                h_fn = torch.vmap(f_, in_axes=(None, 0, 1), out_axes=0)  # fn over batches
+                f_ = torch.vmap(
+                    f_, in_dims=(1, None, None), out_dims=1, randomness="different"
+                )  # fn over covariates
+                f_ = torch.vmap(
+                    f_, in_dims=(None, 0, 1), out_dims=0, randomness="different"
+                )  # fn over batches
+                h_fn = f_
 
                 x_1 = h_fn(betas_covariates, batch_index_, betas_offset_)
                 x_0 = h_fn(betas_null, batch_index_, betas_offset_)
 
                 lfcs = torch.log2(x_1 + eps_lfc) - torch.log2(x_0 + eps_lfc)
-                lfc_mean = torch.average(lfcs.mean(1), weights=batch_weights, axis=0)
+                # Compute weighted average manually: sum(weights * values) / sum(weights)
+                lfcs_mean_over_mc = lfcs.mean(1)  # (n_batch, n_covariates, n_cells, n_genes)
+                lfc_mean = (batch_weights[:, None, None, None] * lfcs_mean_over_mc).sum(
+                    0
+                ) / batch_weights.sum()
                 if delta is not None:
-                    lfc_std = torch.sqrt(torch.average(lfcs.var(1), weights=batch_weights, axis=0))
-                    pde = (torch.abs(lfcs) >= delta).mean(1).mean(0)
+                    lfcs_var_over_mc = lfcs.var(1)  # (n_batch, n_covariates, n_cells, n_genes)
+                    lfc_std = torch.sqrt(
+                        (batch_weights[:, None, None, None] * lfcs_var_over_mc).sum(0)
+                        / batch_weights.sum()
+                    )
+                    pde = (torch.abs(lfcs) >= delta).float().mean(1).mean(0)
 
             if store_baseline:
                 baseline_expression = x_1.mean(1)
@@ -1419,16 +1425,16 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 else:
                     raise e
 
-            beta.append(np.array(res["beta"]))
-            effect_size.append(np.array(res["effect_size"]))
-            pvalue.append(np.array(res["pvalue"]))
+            beta.append(np.array(res["beta"].detach().cpu()))
+            effect_size.append(np.array(res["effect_size"].detach().cpu()))
+            pvalue.append(np.array(res["pvalue"].detach().cpu()))
             if store_lfc:
-                lfc.append(np.array(res["lfc_mean"]))
+                lfc.append(np.array(res["lfc_mean"].detach().cpu()))
                 if delta is not None:
-                    lfc_std.append(np.array(res["lfc_std"]))
-                    pde.append(np.array(res["pde"]))
+                    lfc_std.append(np.array(res["lfc_std"].detach().cpu()))
+                    pde.append(np.array(res["pde"].detach().cpu()))
             if store_baseline:
-                baseline_expression.append(np.array(res["baseline_expression"]))
+                baseline_expression.append(np.array(res["baseline_expression"].detach().cpu()))
         beta = np.concatenate(beta, axis=0)
         effect_size = np.concatenate(effect_size, axis=0)
         pvalue = np.concatenate(pvalue, axis=0)
@@ -1589,8 +1595,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         else:
             covariates_require_lfc = np.zeros(len(Xmat_names), dtype=bool)
-        covariates_require_lfc = torch.Tensor(covariates_require_lfc)
-
+        covariates_require_lfc = torch.Tensor(covariates_require_lfc).bool()
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
 
     def update_sample_info(self, adata):
