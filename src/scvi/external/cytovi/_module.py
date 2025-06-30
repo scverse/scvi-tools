@@ -183,15 +183,15 @@ class CytoVAE(BaseModuleClass):
         self,
         tensors,
     ):
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        batch_index = tensors[CYTOVI_REGISTRY_KEYS.BATCH_KEY]
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+        cont_key = CYTOVI_REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+        cat_key = CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
-        x = tensors[REGISTRY_KEYS.X_KEY]
+        x = tensors[CYTOVI_REGISTRY_KEYS.X_KEY]
 
         if self.encoder_marker_mask is not None:
             x_ = x[..., self.encoder_marker_mask]
@@ -208,13 +208,13 @@ class CytoVAE(BaseModuleClass):
 
     def _get_generative_input(self, tensors, inference_outputs):
         z = inference_outputs["z"]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        batch_index = tensors[CYTOVI_REGISTRY_KEYS.BATCH_KEY]
+        y = tensors[CYTOVI_REGISTRY_KEYS.LABELS_KEY]
 
-        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+        cont_key = CYTOVI_REGISTRY_KEYS.CONT_COVS_KEY
         cont_covs = tensors[cont_key] if cont_key in tensors.keys() else None
 
-        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+        cat_key = CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY
         cat_covs = tensors[cat_key] if cat_key in tensors.keys() else None
 
         input_dict = {
@@ -331,10 +331,10 @@ class CytoVAE(BaseModuleClass):
         kl_weight: float = 1.0,
     ):
         """Computes the loss function for the model."""
-        x = tensors[REGISTRY_KEYS.X_KEY]
+        x = tensors[CYTOVI_REGISTRY_KEYS.X_KEY]
 
-        if REGISTRY_KEYS.PROTEIN_NAN_MASK in tensors.keys():
-            nan_mask = tensors[REGISTRY_KEYS.PROTEIN_NAN_MASK]
+        if CYTOVI_REGISTRY_KEYS.PROTEIN_NAN_MASK in tensors.keys():
+            nan_mask = tensors[CYTOVI_REGISTRY_KEYS.PROTEIN_NAN_MASK]
         else:
             nan_mask = None
 
@@ -413,7 +413,7 @@ class CytoVAE(BaseModuleClass):
     @auto_move_data
     def marginal_ll(self, tensors, n_mc_samples):
         """Computes the marginal log likelihood of the model."""
-        sample_batch = tensors[REGISTRY_KEYS.X_KEY]
+        sample_batch = tensors[CYTOVI_REGISTRY_KEYS.X_KEY]
 
         to_sum = torch.zeros(sample_batch.size()[0], n_mc_samples)
 

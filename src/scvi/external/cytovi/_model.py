@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from collections.abc import Sequence
@@ -138,8 +140,8 @@ class CytoVI(
         super().__init__(adata)
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+            self.adata_manager.get_state_registry(CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            if CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
         n_batch = self.summary_stats.n_batch
@@ -151,7 +153,7 @@ class CytoVI(
         else:
             encoder_marker_mask = None
 
-        if REGISTRY_KEYS.PROTEIN_NAN_MASK in self.adata_manager.data_registry:
+        if CYTOVI_REGISTRY_KEYS.PROTEIN_NAN_MASK in self.adata_manager.data_registry:
             nan_layer = self.adata_manager.get_from_registry("nan_layer")
 
             backbone_markers = list(all_markers[~np.any(nan_layer == 0, axis=0)])
@@ -209,11 +211,11 @@ class CytoVI(
                 )
 
         self.sample_key = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.SAMPLE_KEY
+            CYTOVI_REGISTRY_KEYS.SAMPLE_KEY
             ).original_key
 
         self.batch_key = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.BATCH_KEY
+            CYTOVI_REGISTRY_KEYS.BATCH_KEY
             ).original_key
 
         self._model_summary_string = (  # noqa: UP032
@@ -285,12 +287,12 @@ class CytoVI(
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            CategoricalObsField(REGISTRY_KEYS.SAMPLE_KEY, sample_key),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
+            LayerField(CYTOVI_REGISTRY_KEYS.X_KEY, layer, is_count_data=False),
+            CategoricalObsField(CYTOVI_REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(CYTOVI_REGISTRY_KEYS.LABELS_KEY, labels_key),
+            CategoricalObsField(CYTOVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
+            CategoricalJointObsField(CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(CYTOVI_REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
 
         if nan_layer is None and "_nan_mask" in adata.layers:
@@ -299,7 +301,7 @@ class CytoVI(
             nan_layer = "_nan_mask"
 
         if nan_layer is not None:
-            anndata_fields.append(LayerField(REGISTRY_KEYS.PROTEIN_NAN_MASK, nan_layer))
+            anndata_fields.append(LayerField(CYTOVI_REGISTRY_KEYS.PROTEIN_NAN_MASK, nan_layer))
 
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
