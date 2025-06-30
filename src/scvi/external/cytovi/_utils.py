@@ -160,16 +160,16 @@ def get_balanced_sample_indices(
     threshold = np.percentile(sample_sizes, 10)
 
     small_samples = {k: len(v) for k, v in sample_groups.items() if len(v) < threshold}
+    min_size = min(sample_sizes)
+
     if small_samples:
         warning_msg = (
             f"The following samples have fewer cells than the 10th percentile ({int(threshold)} cells):\n" +
             "\n".join([f"- {k}: {v} cells" for k, v in small_samples.items()]) +
-            f"\n\nAll samples will be subsampled to the minimum number of cells observed ({min_size}) to
-            ensure balanced representation. To change this behavior, set `balance_sample` to False for DE computation."
+            f"\n\nAll samples will be subsampled to the minimum number of cells observed ({min_size}) to " +
+            "ensure balanced representation. To change this behavior, set `balance_sample` to False for DE computation."
         )
         warnings.warn(warning_msg, UserWarning)
-
-    min_size = min(sample_sizes)
 
     balanced_indices = []
     for group, indices in sample_groups.items():
@@ -195,8 +195,8 @@ import numpy as np
 from anndata import AnnData
 from scvi import settings
 
-from cytovi._utils import apply_scaling, validate_layer_key, validate_marker, validate_obs_keys
-from cytovi._constants import CYTOVI_SCATTER_FEATS
+# from ._utils import apply_scaling, validate_layer_key, validate_marker, validate_obs_keys
+from ._constants import CYTOVI_SCATTER_FEATS
 
 def arcsinh(
     adata: AnnData,
@@ -608,8 +608,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from anndata import AnnData
 
-from cytovi._utils import validate_layer_key, validate_marker, validate_obs_keys
-from cytovi.pp.cyto_pp import subsample
+# from cytovi._utils import validate_layer_key, validate_marker, validate_obs_keys
+# from cytovi.pp.cyto_pp import subsample
 
 
 def histogram(

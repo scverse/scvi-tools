@@ -51,7 +51,7 @@ from ._utils import (
 logger = logging.getLogger(__name__)
 
 
-class CytoVI(
+class CYTOVI(
     RNASeqMixin,
     VAEMixin,
     ArchesMixin,
@@ -778,7 +778,7 @@ class CytoVI(
                 kwargs["change_fn"] = change_fn_clp
                 kwargs["test_mode"] = test_mode
 
-        if (len(adata.obs[self.sample_key].unique()) > 1) and (balance_samples is None):    # hacky way for now, write in clean
+        if (len(adata.obs[self.sample_key].unique()) > 1) and (balance_samples is None):    # hacky way for now, write in clean; @Ori: any idea how to write this properly?
             balance_samples = True
 
         if balance_samples is True:
@@ -818,7 +818,7 @@ class CytoVI(
         batch_size: int = None,
         dof: float | None = 3.,
         ) -> dist.Distribution:
-        """Compute the aggregated posterior over the ``u`` latent representations.
+        """Compute the aggregated posterior over the ``z`` latent representations.
 
         Parameters
         ----------
