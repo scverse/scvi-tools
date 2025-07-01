@@ -9,7 +9,7 @@ import torch
 import xarray as xr
 from tqdm import tqdm
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# TODO: need to check kwargs below against original mrvi, torch models
 DEFAULT_TRAIN_KWARGS = {
     "max_epochs": 100,
     "early_stopping": True,
@@ -249,14 +248,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
-        from packaging import version
 
-        if version.parse(jax.__version__) > version.parse("0.4.35"):
-            warnings.warn(
-                "Running mrVI with Jax version larger 0.4.35 can cause performance issues",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
         super().train(**train_kwargs)
 
     def get_latent_representation(
@@ -303,18 +295,15 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             outputs = self.module.inference(**inference_inputs)
 
             if give_z:
-                zs.append(outputs["z"].detach().cpu())  # TODO: check if this is how to acces z
+                zs.append(outputs["z"].detach().cpu())
             else:
-                us.append(outputs["u"].detach().cpu())  # TODO: check if this is how to access u
+                us.append(outputs["u"].detach().cpu())
 
         if give_z:
             return np.concatenate(zs, axis=0)
         else:
             return np.concatenate(us, axis=0)
 
-        # TODO: does the above properly cover the case where we want to return the distribution?
-
-    # TODO: still have to translate this fn. do last
     def compute_local_statistics(
         self,
         reductions: list[MRVIReduction],
@@ -350,7 +339,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of Monte Carlo samples to use for computing the local statistics. Only applies
             if using sampled representations.
         """
-        from functools import partial  # TODO: maybe alternative for this?
+        from functools import partial
 
         from scvi.external.mrvi._utils import _parse_local_statistics_requirements
 
@@ -552,9 +541,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             mc_samples * 2
         )  # need double for pairs of samples to compute distance between
 
-        kwargs = self.module._get_inference_input(batch).update(
-            {"use_mean": False, "mc_samples": mc_samples_per_cell}
-        )  # TODO: double check this for getting the kwargs
+        kwargs = self.module._get_inference_input(batch)
+        kwargs.update({"use_mean": False, "mc_samples": mc_samples_per_cell})
         outputs = self.module.inference(**kwargs)
 
         z = outputs["z"]
@@ -791,10 +779,15 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         qu_locs = []
         qu_scales = []
         for tensor in dataloader:
-            inference_inputs = self.module._get_inference_input(tensor).update(
-                {"use_mean": True}
-            )  # TODO: check this
-            outputs = self.module.inference(inference_inputs)
+            inference_inputs = self.module._get_inference_input(tensor)
+            inference_inputs.update({"use_mean": True, "sample_index": sample})
+            # Extract arguments for inference method
+            x = inference_inputs["x"]
+            sample_index = inference_inputs["sample_index"]
+            use_mean = inference_inputs.get("use_mean", False)
+            mc_samples = inference_inputs.get("mc_samples", None)
+            cf_sample = inference_inputs.get("cf_sample", None)
+            outputs = self.module.inference(x, sample_index, mc_samples, cf_sample, use_mean)
 
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
@@ -1036,9 +1029,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
             in_max_comp_log_probs = ap.component_distribution.log_prob(
-                np.expand_dims(
-                    adata_s.obsm["U"], ap.mixture_dim
-                )  # (n_cells_ap, 1, n_latent_dim) # TODO: think I have to fix mixture_dim
+                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap, 1, n_latent_dim)
             )  # (n_cells_ap, n_cells_ap)
             log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
 
@@ -1196,7 +1187,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata=adata,
             indices=None,
             batch_size=batch_size,
-            iter_ndarray=True,  # TODO: change this, just modified for testing
+            iter_ndarray=True,
         )
         n_sample = self.summary_stats.n_sample
         # vars_in = {"params": self.module.params, **self.module.state}
@@ -1236,7 +1227,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         add_batch_specific_offsets = offset_indices is not None
         n_covariates = Xmat.shape[1]
 
-        # @partial(jax.jit, backend="cpu") TODO: equivalent of this. what does it do?
         def process_design_matrix(
             admissible_samples_dmat: torch.Tensor,
             Xmat: torch.Tensor,
@@ -1244,16 +1234,12 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             xtmx = torch.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
             xtmx += lambd * torch.eye(n_covariates)
 
-            # TODO: find torch equivalent of below (both sqrtm and vmap)
-            # prefactor = jnp.real(jax.vmap(jax.scipy.linalg.sqrtm)(xtmx))
-            # inv_ = jax.vmap(jnp.linalg.pinv)(xtmx)
-
             prefactor = torch.vmap(torch.linalg.cholesky)(
                 xtmx
             )  # Shape: (n_cells, n_covariates, n_covariates)
             prefactor = torch.vmap(torch.linalg.inv)(prefactor)  # Inverse of each matrix
             prefactor = prefactor.transpose(-2, -1)  # Transpose each matrix: (A^-1)^T
-            inv_ = torch.vmap(torch.linalg.pinv)(xtmx)  # TODO: double check
+            inv_ = torch.vmap(torch.linalg.pinv)(xtmx)
             Amat = torch.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
             return Amat, prefactor
 
@@ -1279,7 +1265,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if (
                 use_vmap
             ):  # TODO: need to test vmap option still. only have tested the non-vmap option
-                # TODO: why use lambda here but no in the compute local stats one?
                 eps_ = torch.vmap(
                     lambda cfs: inference_partial(cf_sample=cfs), in_dims=0, out_dims=-2
                 )(cf_sample)["z"]
@@ -1399,7 +1384,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         lfc_std = []
         pde = []
         baseline_expression = []
-        for tensors in tqdm(scdl):  # TODO: fix this, just for testing
+        for tensors in tqdm(scdl):
             indices = tensors[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
             n_cells = tensors[REGISTRY_KEYS.X_KEY].shape[0]
             cf_sample = np.broadcast_to(

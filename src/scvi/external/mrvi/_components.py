@@ -12,15 +12,9 @@ from torch.distributions import Normal
 
 PYTORCH_DEFAULT_SCALE = 1 / 3
 
-# TODO: need to add merge training wherever I missed it (look at jax version)
-
 
 class Dense(nn.Linear):
     def __init__(self, *args, **kwargs):
-        # TODO: Might need to change the kernel initialization.
-        # Not sure if default torch behavior is correct
-        # otherwise can just get rid of this class and use nn.Linear itself
-
         super().__init__(*args, **kwargs)
 
 
@@ -112,8 +106,7 @@ class MLP(nn.Module):
         self.fc = Dense(in_features=n_hidden, out_features=n_out)
 
     def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
-        # TODO: figure out what below is
-        # training = nn.merge_param("training", self.training, training)
+        self.training = training  # is this sufficient compared to jax version?
 
         h = self.resnet_blocks(inputs)
         return self.fc(h)

@@ -108,7 +108,6 @@ class DecoderZXAttention(nn.Module):
 
         self.layer_norm = nn.LayerNorm(self.n_in)
         self.batch_embedding = nn.Embedding(self.n_batch, self.n_latent_sample)
-        # TODO: check below works. for jax, we use a normal initializer
         # Lower stddev leads to better initial loss values
         init.normal_(self.batch_embedding.weight, std=0.1)
 
@@ -135,7 +134,7 @@ class DecoderZXAttention(nn.Module):
             torch.zeros(
                 self.n_out,
             ),
-            requires_grad=True,  # TODO: check
+            requires_grad=True,
         )
         init.normal_(self.px_r)
         self.register_parameter("px_r", self.px_r)  # TODO: not sure if this is needed
@@ -148,7 +147,7 @@ class DecoderZXAttention(nn.Module):
         training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
-        z_stop = z if not self.stop_gradients else z.detach()  # TODO: check this is correct
+        z_stop = z if not self.stop_gradients else z.detach()
         z_ = self.layer_norm(z_stop)
 
         training = training if training is not None else self.training
@@ -172,10 +171,9 @@ class DecoderZXAttention(nn.Module):
                 mu = self.fc(z) + residual
         else:
             mu = self.fc(z_)
-        mu = self.h_activation(mu, dim=-1)  # TODO: correct dim?
+        mu = self.h_activation(mu, dim=-1)
         return NegativeBinomial(
             mu=mu * size_factor,
-            # TODO: need to check theta, if I translated correctly from Jax
             theta=torch.exp(self.px_r),
         )
 
@@ -273,14 +271,12 @@ class EncoderUZ(nn.Module):
 class EncoderXU(nn.Module):
     def __init__(
         self,
-        n_input: int,  # TODO: added this for torch nn linear, not sure if needed.
+        n_input: int,  # TODO: added this for torch nn linear
         n_latent: int,
         n_sample: int,
         n_hidden: int = 128,
         n_layers: int = 1,
-        activation: Callable[
-            [torch.Tensor], torch.Tensor
-        ] = nn.functional.gelu,  # TODO: check this
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
         training: bool | None = None,
     ):
         super().__init__()
@@ -332,7 +328,7 @@ class EncoderXU(nn.Module):
         x_feat = self.activation(x_feat)
         sample_effect = self.sample_embed(
             sample_covariate.squeeze(-1).to(torch.int64)  # TODO: check if should be int64
-        )  # TODO: double check why we squeeze here
+        )
         inputs = x_feat + sample_effect
         return self.output_nn(inputs, training=training)
 
@@ -425,7 +421,7 @@ class MRVAE(BaseModuleClass):
 
         # Inference model
         self.qu = EncoderXU(
-            n_input=self.n_input,  # TODO: double check this is correct (sam input dim?)
+            n_input=self.n_input,
             n_latent=self.n_latent if is_isomorphic_uz else n_latent_u,
             n_sample=self.n_sample,
             n_hidden=self.encoder_n_hidden,
@@ -527,7 +523,7 @@ class MRVAE(BaseModuleClass):
             "label_index": label_index,
         }
 
-    @auto_move_data  # TODO: what is this
+    @auto_move_data
     def generative(
         self,
         z: torch.Tensor,
