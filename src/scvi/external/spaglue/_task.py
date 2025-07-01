@@ -30,11 +30,11 @@ def compute_graph_loss(graph, feature_embeddings):
     return total_loss
 
 
-def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
-    x_col = pts_src.unsqueeze(1)
-    y_row = pts_dst.unsqueeze(0)
-    distance = torch.sum((torch.abs(x_col - y_row)) ** p, 2)
-    return distance
+# def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
+#     x_col = pts_src.unsqueeze(1)
+#     y_row = pts_dst.unsqueeze(0)
+#     distance = torch.sum((torch.abs(x_col - y_row)) ** p, 2)
+#     return distance
 
 
 def kl_divergence_graph(mu, logvar):

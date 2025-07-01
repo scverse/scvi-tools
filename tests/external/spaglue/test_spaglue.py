@@ -110,3 +110,25 @@ def test_spaglue_get_imputed_values(adata_seq, adata_spatial):
     assert isinstance(imputed2, np.ndarray)
     assert imputed2.shape[0] == adata_seq.shape[0]
     assert imputed2.shape[1] == adata_spatial.shape[1]
+
+
+def test_spaglue_save_and_load(adata_seq, adata_spatial, tmp_path):
+    model = make_model(adata_seq, adata_spatial)
+    model.train(max_epochs=1, batch_size=16)
+    save_path = tmp_path / "spaglue_test_model.pt"
+    model.save(save_path, save_anndata=True)
+
+    # Load the model
+    loaded_model = SPAGLUE.load(save_path)
+
+    # compare state dicts
+    model_state = model.module.state_dict()
+    loaded_state = loaded_model.module.state_dict()
+    for key in model_state:
+        assert key in loaded_state
+        assert torch.allclose(model_state[key], loaded_state[key], atol=1e-6), f"Mismatch in {key}"
+
+    # compare output equivalence
+    latents = loaded_model.get_latent_representation()
+    assert latents["diss"].shape[0] == adata_seq.shape[0]
+    assert latents["spatial"].shape[0] == adata_spatial.shape[0]
