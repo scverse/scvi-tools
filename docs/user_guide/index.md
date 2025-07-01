@@ -153,6 +153,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/resolvi`
      - Generative model of single-cell resolved spatial transcriptomics
      - :cite:p:`Ergen25`
+   * - :doc:`/user_guide/models/scviva`
+     - Representation of cells and their environments in spatial transcriptomics
+     - :cite:p:`Levy25`
 ```
 
 ## General purpose analysis

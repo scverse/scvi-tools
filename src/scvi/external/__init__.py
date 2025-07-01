@@ -8,10 +8,12 @@ from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
+from .scviva import SCVIVA
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
 from .tangram import Tangram
+from .totalanvi import TOTALANVI
 from .velovi import VELOVI
 
 __all__ = [
@@ -23,6 +25,7 @@ __all__ = [
     "SpatialStereoscope",
     "CellAssign",
     "Tangram",
+    "TOTALANVI",
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
@@ -32,4 +35,5 @@ __all__ = [
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
+    "SCVIVA",
 ]

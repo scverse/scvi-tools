@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest]
-        python: ["3.10", "3.11", "3.12"]
+        python: ["3.11", "3.12", "3.13"]
 
     name: integration
 

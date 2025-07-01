@@ -6,7 +6,42 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.1 (2025-XX-XX)
+### 1.3.3 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
+### 1.3.2 (2025-06-22)
+
+#### Added
+
+- Added posterior predictive samples batch projection. {pr}`3369`.
+- Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
+- Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
+    transcriptomics {pr}`3172`.
+- Add support for Python 3.13 {pr}`3247`.
+
+#### Fixed
+
+- Fix bug in {class}`scvi.external.TOTALANVI` scarches. {pr}`3355`.
+- Fix bug in {class}`scvi.external.MRVI` down stream analysis use of external adata. {pr}`3324`.
+- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3373`.
+
+#### Changed
+
+- Update Read the docs tutorials with one main preprocessing tutorial {pr}`3363`.
+
+#### Removed
+
+- Removed default arguments from test function parameters due to ruff pre-commit v0.12.0 with
+    PT028 rule {pr}`3393`.
+
+### 1.3.1 (2025-05-15)
 
 #### Added
 
@@ -15,20 +50,30 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
+- Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
+- Add Custom Dataloaders registry support, {pr}`2932`.
+- Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
+    and {class}`scvi.model.SCANVI`, {pr}`2932`.
 - Add Early stopping KL warmup steps. {pr}`3262`.
 - Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
+- Update Read the docs tutorials index page with interactive filterable options {pr}`3276`.
 
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
 - Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
 - Add support for IntegratedGradients for multimodal models. {pr}`3264`.
+- Fix bug in resolVI get_normalized expression function. {pr}`3308`.
+- Fix bug in resolVI gene-assay dispersion. {pr}`3308`.
 
 #### Changed
 
 - Updated Scvi-Tools AWS hub to Weizmann instead of Berkeley. {pr}`3246`.
+- Updated resolVI to use rapids-singlecell. {pr}`3308`.
 
 #### Removed
+
+- Removed Jax version constraint for mrVI training. {pr}`3309`.
 
 ### 1.3.0 (2025-02-28)
 
