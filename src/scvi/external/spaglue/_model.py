@@ -16,7 +16,7 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data._download import _download
-from scvi.data.fields import CategoricalObsField, LayerField
+from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.external.spaglue._utils import (
     _check_guidance_graph_consisteny,
@@ -115,9 +115,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         }
 
         # How many components to model
-        n_mixture_components = {
-            mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
-        }
+        # n_mixture_components = {
+        #    mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
+        # }
 
         # Compute guidance graph if not provided, do a sanity check
         if guidance_graph is not None:
@@ -134,7 +134,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             guidance_graph=self.guidance_graph,
             use_gmm_prior=gmm_priors,
             semi_supervised=semi_supervised,
-            n_mixture_components=n_mixture_components,
+            # n_mixture_components=n_mixture_components,
             **model_kwargs,
         )
 
@@ -243,6 +243,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         gmm_prior: bool = False,
         semi_supervised: bool = False,
         n_mixture_components: int = 10,
+        unlabeled_category: str = "unknown",
         **kwargs: dict,
     ) -> None:
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
@@ -257,19 +258,30 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         adata.uns["spaglue_likelihood"] = likelihood
         adata.uns["spaglue_gmm_prior"] = gmm_prior
         adata.uns["spaglue_semi_supervised"] = semi_supervised
-        if semi_supervised:
-            adata.uns["spaglue_n_mixture_components"] = len(adata.obs[labels_key].unique())
-        else:
-            adata.uns["spaglue_n_mixture_components"] = n_mixture_components
+
+        ### funktioniert so nicht - unlabeled category!!!
+        # if semi_supervised:
+        #    adata.uns["spaglue_n_mixture_components"] = len(adata.obs[labels_key].unique())
+        # else:
+        #    adata.uns["spaglue_n_mixture_components"] = n_mixture_components
 
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
             **locals()
         )  # returns dict organizing the args used to call setup anndata
+
+        if labels_key is None:
+            label_field = CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key)
+        else:
+            label_field = LabelsWithUnlabeledObsField(
+                REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+            )
+
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            # CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            label_field,
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         # adata_manager.register_fields(adata, **kwargs)

@@ -128,6 +128,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
                 "z": loss_output.extra_metrics["z"],
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
+                "classification_loss": loss_output.extra_metrics["classification_loss"],
             }
 
             loss_output_objs.append(loss_dict)
@@ -167,6 +168,12 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
+        ### classification loss
+        classification_loss = sum(i["classification_loss"] for i in loss_output_objs)
+        self.log(
+            "class_loss", classification_loss, batch_size=batch_size, on_epoch=True, on_step=False
+        )
+
         ### UOT loss
         z1 = loss_output_objs[0]["z"]
         z2 = loss_output_objs[1]["z"]
@@ -180,7 +187,12 @@ class SPAGLUETrainingPlan(TrainingPlan):
         self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
 
         ### total loss
-        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
+        total_loss = (
+            self.lam_graph * graph_loss
+            + data_loss
+            + self.lam_sinkhorn * sinkhorn_loss
+            + classification_loss
+        )
 
         self.log(
             "training_loss",

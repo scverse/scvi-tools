@@ -5,6 +5,7 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, Nor
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
 from scvi.external.spaglue import GraphEncoder_glue, NBDataDecoderWB
+from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
@@ -20,7 +21,7 @@ class SPAGLUEVAE(BaseModuleClass):
         guidance_graph,
         use_gmm_prior: dict[bool],
         semi_supervised: dict[bool],
-        n_mixture_components: dict[int],
+        n_mixture_components: int = 100,
         n_latent_seq: int = 50,
         n_latent_spatial: int = 50,
         n_hidden: int = 256,
@@ -40,17 +41,17 @@ class SPAGLUEVAE(BaseModuleClass):
         self.n_labels = n_labels
         latent_dim = n_latent_seq
 
-        print(self.n_labels)
+        # if self.semi_supervised:
+        #    self.n_mixture_components = self.n_labels
 
         for m in use_gmm_prior.keys():
-            print(m)
             if self.use_gmm_prior[m]:
-                k = self.n_mixture_components[m]
+                k = self.n_mixture_components
+                if self.semi_supervised:
+                    k = self.n_labels[m]
                 self.gmm_logits[m] = nn.Parameter(torch.zeros(k))
                 self.gmm_means[m] = nn.Parameter(torch.randn(k, latent_dim))
                 self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim))
-
-        print(self.gmm_logits)
 
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
@@ -93,6 +94,23 @@ class SPAGLUEVAE(BaseModuleClass):
             vnum=n_inputs["diss"] + n_inputs["spatial"],
             out_features=50,
         )
+
+        if self.semi_supervised["diss"]:
+            # Classifier takes n_latent as input
+            cls_parameters = {
+                "n_layers": 0,
+                "n_hidden": 128,
+                "dropout_rate": 0.0,
+            }
+            self.classifier = Classifier(
+                n_latent_seq,
+                n_labels=self.n_labels["diss"],
+                use_batch_norm=False,
+                use_layer_norm=True,
+                **cls_parameters,
+            )
+        else:
+            self.classifier = None
 
     def _get_inference_input(
         self, tensors: dict[str, torch.Tensor]
@@ -224,6 +242,7 @@ class SPAGLUEVAE(BaseModuleClass):
                     .float()
                 )
                 offset = offset + 10 * logits_input
+
             cat = Categorical(logits=logits + offset)
             comp = Independent(Normal(means, scales), 1)
             pz = MixtureSameFamily(cat, comp)
@@ -275,6 +294,13 @@ class SPAGLUEVAE(BaseModuleClass):
         logvar_all = inference_outputs["logvar_all"]
         v_all = inference_outputs["v_all"]
 
+        classification_loss = 0.0
+        if self.classifier is not None and mode == "diss":
+            y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
+            z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
+            y_logits = self.classifier(z_mean)
+            classification_loss += torch.nn.functional.cross_entropy(y_logits, y, reduction="mean")
+
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_loss,
@@ -285,5 +311,6 @@ class SPAGLUEVAE(BaseModuleClass):
                 "logvar_all": logvar_all,
                 "v_all": v_all,
                 "guidance_graph": self.guidance_graph,
+                "classification_loss": classification_loss,
             },
         )
