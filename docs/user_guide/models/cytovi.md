@@ -19,6 +19,7 @@ The limitations of CytoVI include:
 ```{topic} Tutorials:
 
 - {doc}`/tutorials/notebooks/cytometry/CytoVI_tutorial` # note: to populate
+```
 
 ## Preliminaries
 
