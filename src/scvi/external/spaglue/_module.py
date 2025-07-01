@@ -213,6 +213,7 @@ class SPAGLUEVAE(BaseModuleClass):
             reconstruction_loss=reconst_loss,
             kl_local=kl_local_norm,
             extra_metrics={
+                "z": inference_outputs[MODULE_KEYS.Z_KEY],
                 "mu_all": mu_all,
                 "logvar_all": logvar_all,
                 "v_all": v_all,

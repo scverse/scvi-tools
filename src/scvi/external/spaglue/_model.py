@@ -1,6 +1,10 @@
 import logging
+import os
+import warnings
 from itertools import cycle
+from typing import Literal
 
+import anndata as ad
 import numpy as np
 import scipy.sparse
 import torch
@@ -10,13 +14,15 @@ from torch_geometric.data import Data
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
+from scvi.data._download import _download
 from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.external.spaglue._utils import (
     _check_guidance_graph_consisteny,
     _construct_guidance_graph,
 )
-from scvi.model._utils import parse_device_args
+from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
@@ -25,6 +31,46 @@ from ._module import SPAGLUEVAE
 from ._task import SPAGLUETrainingPlan
 
 logger = logging.getLogger(__name__)
+
+
+def _load_saved_spaglue_files(
+    dir_path: str,
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
+) -> tuple[dict, dict, np.ndarray, np.ndarray, dict, AnnData | None, AnnData | None]:
+    file_name_prefix = prefix or ""
+
+    model_file_name = f"{file_name_prefix}model.pt"
+    model_path = os.path.join(dir_path, model_file_name)
+
+    try:
+        _download(backup_url, dir_path, model_file_name)
+        model = torch.load(model_path, map_location=map_location, weights_only=False)
+    except FileNotFoundError as exc:
+        raise ValueError(f"Failed to load model file at {model_path}. ") from exc
+
+    modality_names = model["modality_names"]
+
+    adatas = {}
+    var_names = {}
+    for mod in modality_names:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata_{mod}.h5ad")
+        if os.path.exists(adata_path):
+            adatas[mod] = ad.read_h5ad(adata_path)
+            var_names[mod] = adatas[mod].var_names
+        else:
+            adatas[mod] = None
+
+    model_state_dict = model["model_state_dict"]
+    attr_dict = model["attr_dict"]
+
+    return (
+        attr_dict,
+        var_names,
+        model_state_dict,
+        adatas,
+    )
 
 
 class SPAGLUE(BaseModelClass, VAEMixin):
@@ -49,6 +95,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.registries_.append(adm.registry)
 
         sum_stats = {mod: adm.summary_stats for mod, adm in self.adata_managers.items()}
+        self.summary_stats = sum_stats
 
         n_inputs = {mod: s["n_vars"] for mod, s in sum_stats.items()}
         n_batches = {mod: s["n_batch"] for mod, s in sum_stats.items()}
@@ -69,7 +116,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             n_batches=n_batches,
             gene_likelihoods=generative_distributions,
             guidance_graph=self.guidance_graph,
-            # **model_kwargs,
+            **model_kwargs,
         )
 
         self._model_summary_string = (
@@ -77,6 +124,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             f"n_inputs: {n_inputs}, n_batches: {n_batches}, "
             f"generative distributions: {generative_distributions}"
         )
+        self.init_params_ = self._get_init_params(locals())
 
     def train(
         self,
@@ -85,11 +133,18 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
         shuffle_set_split: bool = True,
-        batch_size: int = 256,
+        batch_size: int = 1024,
         # datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,  # kwargs passed to trainingplan
         **kwargs,
     ) -> None:
+        if max_epochs is None:
+            min_obs = np.min(
+                [self.summary_stats["diss"]["n_cells"], self.summary_stats["spatial"]["n_cells"]]
+            )
+            max_epochs = get_max_epochs_heuristic(min_obs)
+            logger.info(f"max_epochs was approximated to {max_epochs}")
+
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
             devices=devices,  # auto, 1 0r [0,1]
@@ -102,6 +157,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             progress_bar_refresh_rate=1,
             early_stopping=True,
             early_stopping_monitor="validation_loss",
+            early_stopping_min_delta=1,
+            early_stopping_patience=10,
+            early_stopping_mode="min",
             accelerator=accelerator,
             devices=devices,
             **kwargs,
@@ -163,7 +221,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         labels_key: str | None = None,
         layer: str | None = None,
         likelihood: str = "nb",
-        # **kwargs: dict,
+        **kwargs: dict,
     ) -> None:
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
@@ -191,7 +249,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         cls.register_manager(adata_manager)
 
     def _make_scvi_dls(
-        self, adatas: list[AnnData] = None, batch_size: int = 128
+        self, adatas: list[AnnData] = None, batch_size: int = 1024
     ) -> list[AnnDataLoader]:
         if adatas is None:
             adatas = self.adatas
@@ -207,7 +265,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         # adatas: list[AnnData] = None,
         adatas: dict[str, AnnData] | list[AnnData] = None,
         deterministic: bool = True,
-        batch_size: int = 128,
+        batch_size: int = 1024,
     ) -> dict[np.ndarray]:
         """Return the latent space embedding for each dataset.
 
@@ -253,7 +311,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         self,
         source_modality: int,
         source_adata: AnnData | None = None,
-        batch_size: int = 256,
+        batch_size: int = 1024,
         target_batch: int | None = None,
         target_libsize: float | None = None,
     ) -> list[np.ndarray]:
@@ -346,6 +404,144 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         reconstructed_count = torch.cat(reconstructed_counts).numpy()
         return reconstructed_count
+
+    def save(
+        self,
+        dir_path: str,
+        prefix: str | None = None,
+        overwrite: bool = False,
+        save_anndata: bool = False,
+        save_kwargs: dict | None = None,
+        **anndata_write_kwargs,
+    ):
+        if not os.path.exists(dir_path) or overwrite:
+            os.makedirs(dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                f"{dir_path} already exists. Please provide an unexisting directory for saving."
+            )
+
+        file_name_prefix = prefix or ""
+        save_kwargs = save_kwargs or {}
+
+        adatas = self.adatas
+        if save_anndata:
+            for key in self.modality_names:
+                ad = adatas[key]
+                save_path = os.path.join(dir_path, f"adata_{key}.h5ad")
+                ad.write(save_path)
+
+        model_state_dict = self.module.state_dict()
+
+        var_names = {}
+        for key in self.modality_names:
+            var_names[key] = adatas[key].var_names
+
+        # get all the user attributes
+        user_attributes = self._get_user_attributes()
+
+        # only save the public attributes with _ at the very end
+        user_attributes = {a[0]: a[1] for a in user_attributes if a[0][-1] == "_"}
+
+        model_save_path = os.path.join(dir_path, f"{file_name_prefix}model.pt")
+
+        torch.save(
+            {
+                "model_state_dict": model_state_dict,
+                "modality_names": self.modality_names,
+                **{f"var_names_{mod}": var_names[mod] for mod in self.modality_names},
+                "attr_dict": user_attributes,
+            },
+            model_save_path,
+            **save_kwargs,
+        )
+
+    @classmethod
+    # @devices_dsp.dedent
+    def load(
+        cls,
+        dir_path: str,
+        adata_seq: AnnData | None = None,
+        adata_spatial: AnnData | None = None,
+        accelerator: str = "auto",
+        device: int | str = "auto",
+        prefix: str | None = None,
+        backup_url: str | None = None,
+    ):
+        _, _, device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+        )
+
+        (
+            attr_dict,
+            var_names_dict,
+            model_state_dict,
+            adatas,
+        ) = _load_saved_spaglue_files(
+            dir_path,
+            prefix=prefix,
+            map_location=device,
+            backup_url=backup_url,
+        )
+
+        for mod in adatas.keys():
+            saved_var_names = var_names_dict[mod]
+            user_var_names = adatas[mod].var_names.astype(str)
+
+            if not np.array_equal(saved_var_names, user_var_names):
+                warnings.warn(
+                    "var_names for adata passed in does not match var_names of adata "
+                    "used to train the model. For valid results, the vars need to be the"
+                    "same and in the same order as the adata used to train the model.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+
+        registries = attr_dict.pop("registries_")
+        for adata, registry in zip(adatas, registries, strict=True):
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+                raise ValueError("It appears you are loading a model from a different class.")
+
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
+
+            cls.setup_anndata(adatas[adata], source_registry=registry, **registry[_SETUP_ARGS_KEY])
+
+        # get the parameters for the class init signature
+        init_params = attr_dict.pop("init_params_")
+
+        # new saving and loading, enable backwards compatibility
+        if "non_kwargs" in init_params.keys():
+            # grab all the parameters except for kwargs (is a dict)
+            non_kwargs = init_params["non_kwargs"]
+            kwargs = init_params["kwargs"]
+
+            # expand out kwargs
+            kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+        else:
+            # grab all the parameters except for kwargs (is a dict)
+            non_kwargs = {k: v for k, v in init_params.items() if not isinstance(v, dict)}
+            kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
+            kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
+
+        # Remove 'adatas' from non_kwargs and kwargs if present
+        non_kwargs.pop("adatas", None)
+        kwargs.pop("adatas", None)
+
+        model = cls(adatas, **non_kwargs, **kwargs)
+
+        for attr, val in attr_dict.items():
+            setattr(model, attr, val)
+
+        model.module.load_state_dict(model_state_dict)
+        model.module.eval()
+        model.to_device(device)
+        return model
 
 
 class TrainDL(DataLoader):  # creates batch structure for training process

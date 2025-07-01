@@ -1,3 +1,4 @@
+import geomloss
 import torch
 import torch.nn.functional as F
 from torch_geometric.utils import structured_negative_sampling
@@ -29,6 +30,13 @@ def compute_graph_loss(graph, feature_embeddings):
     return total_loss
 
 
+# def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
+#     x_col = pts_src.unsqueeze(1)
+#     y_row = pts_dst.unsqueeze(0)
+#     distance = torch.sum((torch.abs(x_col - y_row)) ** p, 2)
+#     return distance
+
+
 def kl_divergence_graph(mu, logvar):
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)  # sum over latent dims
     kl_mean = kl.mean()
@@ -36,21 +44,38 @@ def kl_divergence_graph(mu, logvar):
 
 
 class SPAGLUETrainingPlan(TrainingPlan):
-    def __init__(self, module, lam_graph=1.0, lam_kl=1.0, lam_data=1.0, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        module,
+        lam_graph=1.0,
+        lam_kl=1.0,
+        lam_data=1.0,
+        lam_sinkhorn=1.0,
+        sinkhorn_p=2,
+        sinkhorn_blur=1,
+        sinkhorn_reach=1,
+        lr=1e-3,
+        *args,
+        **kwargs,
+    ) -> None:
         super().__init__(module, *args, **kwargs)
 
         self.lam_graph = lam_graph
         self.lam_kl = lam_kl
         self.lam_data = lam_data
+        self.lam_sinkhorn = lam_sinkhorn
+        self.sinkhorn_p = sinkhorn_p
+        self.sinkhorn_reach = sinkhorn_reach
+        self.sinkhorn_blur = sinkhorn_blur
+        self.lr = lr  # scvi handles giving the learning rate to the optimizer
 
-        self.automatic_optimization = False  # important for adversarial setup
+        # self.automatic_optimization = False
 
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
-        # batch contains output of both dataloaders
-        # There is a possibility to give batch_idx argument
-        # (can be used e.g. for gradient accumulation)
         """Training step."""
-        opt = self.optimizers()
+        # opt = self.optimizers()
+        # print(opt)
+
         loss_output_objs = []
         for _i, (modality, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
@@ -71,14 +96,36 @@ class SPAGLUETrainingPlan(TrainingPlan):
             # just for logging
             reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
             reconstruction_loss = torch.mean(reconstruction_loss)
-            self.log("nll_{modality}", reconstruction_loss, batch_size=batch_size)
+
+            self.log(
+                f"nll_{modality}",
+                reconstruction_loss,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=False,
+            )
 
             kl_divergence = loss_output.kl_local["kl_local"]
-            self.log("kl_{modality}", kl_divergence, batch_size=batch_size)
+            self.log(
+                f"kl_{modality}",
+                kl_divergence,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=False,
+            )
 
             loss = loss_output.loss
 
+            self.log(
+                f"train_loss_{modality}",
+                loss,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=True,
+            )
+
             loss_dict = {
+                "z": loss_output.extra_metrics["z"],
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
             }
@@ -99,8 +146,20 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         # log individual graph losses
         total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
-        self.log("nll_graph", graph_likelihood_loss, batch_size=total_batch_size)
-        self.log("kl_graph", graph_kl_loss_norm, batch_size=total_batch_size)
+        self.log(
+            "nll_graph",
+            graph_likelihood_loss,
+            batch_size=total_batch_size,
+            on_epoch=True,
+            on_step=False,
+        )
+        self.log(
+            "kl_graph",
+            graph_kl_loss_norm,
+            batch_size=total_batch_size,
+            on_epoch=True,
+            on_step=False,
+        )
 
         ### graph loss
         graph_loss = graph_likelihood_loss + graph_kl_loss_norm
@@ -108,8 +167,20 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
+        ### UOT loss
+        z1 = loss_output_objs[0]["z"]
+        z2 = loss_output_objs[1]["z"]
+
+        # uot_loss, tran = unbalanced_ot(z1, z2)
+        sinkhorn = geomloss.SamplesLoss(
+            loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
+        )
+        sinkhorn_loss = sinkhorn(z1, z2)
+
+        self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
+
         ### total loss
-        total_loss = self.lam_graph * graph_loss + data_loss
+        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
 
         self.log(
             "training_loss",
@@ -120,9 +191,10 @@ class SPAGLUETrainingPlan(TrainingPlan):
             batch_size=total_batch_size,
         )
 
-        opt.zero_grad()
-        self.manual_backward(total_loss)
-        opt.step()
+        # opt.zero_grad()
+        # self.manual_backward(total_loss)
+        # opt.step()
+
         return {"loss": total_loss}
 
     def validation_step(self, batch: list[dict[str, torch.Tensor]]) -> None:
@@ -130,6 +202,8 @@ class SPAGLUETrainingPlan(TrainingPlan):
         loss_output_objs = []
 
         for _i, (modality, tensors) in enumerate(batch.items()):
+            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+
             self.loss_kwargs.update(
                 {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
             )
@@ -145,14 +219,23 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
             loss = loss_output.loss
 
+            self.log(
+                f"val_loss_{modality}",
+                loss,
+                batch_size=batch_size,
+                on_epoch=True,
+                on_step=True,
+            )
+
             loss_dict = {
+                "z": loss_output.extra_metrics["z"],
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
             }
 
             loss_output_objs.append(loss_dict)
 
-            ### graph nll
+        ### graph nll
         graph = loss_output.extra_metrics["guidance_graph"]
         feature_embeddings = loss_output_objs[0]["graph_v"]  # 0 or 1 is same
         graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
@@ -169,8 +252,18 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
-        ### total loss
-        total_loss = self.lam_graph * graph_loss + data_loss
+        ### UOT loss
+        z1 = loss_output_objs[0]["z"]
+        z2 = loss_output_objs[1]["z"]
+
+        # uot_loss, tran = unbalanced_ot(z1, z2)
+        sinkhorn = geomloss.SamplesLoss(
+            loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
+        )
+        sinkhorn_loss = sinkhorn(z1, z2)
+
+        ### total loss (lam_kl and lam_data are already included in data_loss)
+        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
 
         total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
         self.log(
