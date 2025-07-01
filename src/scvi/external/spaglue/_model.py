@@ -99,6 +99,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         n_inputs = {mod: s["n_vars"] for mod, s in sum_stats.items()}
         n_batches = {mod: s["n_batch"] for mod, s in sum_stats.items()}
+        n_labels = {mod: s["n_labels"] for mod, s in sum_stats.items()}
 
         # Which generative distributions to use
         generative_distributions = {
@@ -109,9 +110,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         gmm_priors = {mod: adata.uns["spaglue_gmm_prior"] for mod, adata in self.adatas.items()}
 
         # Whether to use the provided label key to guide model development
-        # semi_supervised = {
-        #    mod: adata.uns["spaglue_semi_supervised"] for mod, adata in self.adatas.items()
-        # }
+        semi_supervised = {
+            mod: adata.uns["spaglue_semi_supervised"] for mod, adata in self.adatas.items()
+        }
 
         # How many components to model
         n_mixture_components = {
@@ -128,10 +129,11 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         self.module = SPAGLUEVAE(
             n_inputs=n_inputs,
             n_batches=n_batches,
+            n_labels=n_labels,
             gene_likelihoods=generative_distributions,
             guidance_graph=self.guidance_graph,
             use_gmm_prior=gmm_priors,
-            # semi_supervised = semi_supervised,
+            semi_supervised=semi_supervised,
             n_mixture_components=n_mixture_components,
             **model_kwargs,
         )
@@ -254,7 +256,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         adata.uns["spaglue_likelihood"] = likelihood
         adata.uns["spaglue_gmm_prior"] = gmm_prior
-        # adata.uns["spaglue_semi_supervised"] = semi_supervised
+        adata.uns["spaglue_semi_supervised"] = semi_supervised
         if semi_supervised:
             adata.uns["spaglue_n_mixture_components"] = len(adata.obs[labels_key].unique())
         else:
@@ -267,7 +269,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            # CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         # adata_manager.register_fields(adata, **kwargs)

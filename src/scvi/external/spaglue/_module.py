@@ -15,9 +15,11 @@ class SPAGLUEVAE(BaseModuleClass):
         self,
         n_inputs: list[int],
         n_batches: list[int],
+        n_labels: list[int],
         gene_likelihoods: list[str],
         guidance_graph,
         use_gmm_prior: dict[bool],
+        semi_supervised: dict[bool],
         n_mixture_components: dict[int],
         n_latent_seq: int = 50,
         n_latent_spatial: int = 50,
@@ -33,10 +35,12 @@ class SPAGLUEVAE(BaseModuleClass):
         self.gmm_scales = nn.ParameterDict()
 
         self.use_gmm_prior = use_gmm_prior
+        self.semi_supervised = semi_supervised
         self.n_mixture_components = n_mixture_components
+        self.n_labels = n_labels
         latent_dim = n_latent_seq
 
-        print(self.use_gmm_prior)
+        print(self.n_labels)
 
         for m in use_gmm_prior.keys():
             print(m)
@@ -104,7 +108,7 @@ class SPAGLUEVAE(BaseModuleClass):
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
             MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
-            # MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
             "v": inference_outputs["v"],
         }
 
@@ -192,10 +196,36 @@ class SPAGLUEVAE(BaseModuleClass):
             # select the modality specific parameters
             logits = self.gmm_logits[mode]
             means = self.gmm_means[mode]
-            scales = self.gmm_scales[mode]
+            # scales = self.gmm_scales[mode]
 
-            cat = Categorical(logits=logits)
-            comp = Independent(Normal(means, torch.exp(scales)), 1)
+            # in scVIVA they do exponentiation
+            scales = torch.exp(self.gmm_scales[mode]) + 1e-4
+
+            # n_celltypes = self.n_labels[mode]
+
+            ### add an offset to make corresponding celltypes more likely
+            # if n_celltypes >= 2:
+            #    offset = 10.0 * torch.nn.functional.one_hot(y, n_celltypes).to(logits.dtype)
+            # else:
+            #    offset = 0.0
+
+            offset = 0.0
+            if self.semi_supervised[mode]:
+                logits_input = (
+                    torch.stack(
+                        [
+                            torch.nn.functional.one_hot(y_i, self.n_labels[mode])
+                            if y_i < self.n_labels[mode]
+                            else torch.zeros(self.n_labels[mode])
+                            for y_i in y.ravel()
+                        ]
+                    )
+                    .to(z.device)
+                    .float()
+                )
+                offset = offset + 10 * logits_input
+            cat = Categorical(logits=logits + offset)
+            comp = Independent(Normal(means, scales), 1)
             pz = MixtureSameFamily(cat, comp)
         else:
             pz = Normal(torch.zeros_like(z), torch.ones_like(z))
