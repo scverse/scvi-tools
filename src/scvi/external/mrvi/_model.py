@@ -1185,7 +1185,10 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
-            adata=adata, indices=None, batch_size=batch_size, iter_ndarray=True
+            adata=adata,
+            indices=None,
+            batch_size=batch_size,
+            iter_ndarray=True,  # TODO: change this, just modified for testing
         )
         n_sample = self.summary_stats.n_sample
         # vars_in = {"params": self.module.params, **self.module.state}
@@ -1237,7 +1240,11 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             # prefactor = jnp.real(jax.vmap(jax.scipy.linalg.sqrtm)(xtmx))
             # inv_ = jax.vmap(jnp.linalg.pinv)(xtmx)
 
-            prefactor = torch.vmap(torch.linalg.cholesky)(xtmx).inverse().T  # TODO: double check
+            prefactor = torch.vmap(torch.linalg.cholesky)(
+                xtmx
+            )  # Shape: (n_cells, n_covariates, n_covariates)
+            prefactor = torch.vmap(torch.linalg.inv)(prefactor)  # Inverse of each matrix
+            prefactor = prefactor.transpose(-2, -1)  # Transpose each matrix: (A^-1)^T
             inv_ = torch.vmap(torch.linalg.pinv)(xtmx)  # TODO: double check
             Amat = torch.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
             return Amat, prefactor
@@ -1384,7 +1391,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         lfc_std = []
         pde = []
         baseline_expression = []
-        for tensors in tqdm(scdl):
+        for tensors in tqdm(scdl):  # TODO: fix this, just for testing
             indices = tensors[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
             n_cells = tensors[REGISTRY_KEYS.X_KEY].shape[0]
             cf_sample = np.broadcast_to(
@@ -1429,15 +1436,21 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             effect_size.append(np.array(res["effect_size"].detach().cpu()))
             pvalue.append(np.array(res["pvalue"].detach().cpu()))
             if store_lfc:
-                lfc.append(np.array(res["lfc_mean"].detach().cpu()))
+                lfc.append(
+                    np.array(res["lfc_mean"].detach().cpu()).transpose(1, 0, 2)
+                )  # Transpose to (n_cells, n_covariates, n_genes)
                 if delta is not None:
-                    lfc_std.append(np.array(res["lfc_std"].detach().cpu()))
-                    pde.append(np.array(res["pde"].detach().cpu()))
+                    lfc_std.append(
+                        np.array(res["lfc_std"].detach().cpu()).transpose(1, 0, 2)
+                    )  # Transpose to (n_cells, n_covariates, n_genes)
+                    pde.append(
+                        np.array(res["pde"].detach().cpu()).transpose(1, 0, 2)
+                    )  # Transpose to (n_cells, n_covariates, n_genes)
             if store_baseline:
                 baseline_expression.append(np.array(res["baseline_expression"].detach().cpu()))
-        beta = np.concatenate(beta, axis=0)
-        effect_size = np.concatenate(effect_size, axis=0)
-        pvalue = np.concatenate(pvalue, axis=0)
+        beta = np.concatenate(beta, axis=0)  # concatenate along cell dimension
+        effect_size = np.concatenate(effect_size, axis=0)  # concatenate along cell dimension
+        pvalue = np.concatenate(pvalue, axis=0)  # concatenate along cell dimension
         pvalue_shape = pvalue.shape
         padj = false_discovery_control(pvalue.flatten(), method="bh").reshape(pvalue_shape)
 
@@ -1472,18 +1485,18 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         if store_lfc:
             if store_lfc_metadata_subset is None and not add_batch_specific_offsets:
-                coords_lfc = ["covariate", "cell_name", "gene"]
+                coords_lfc = ["cell_name", "covariate", "gene"]
             else:
-                coords_lfc = ["covariate_sub", "cell_name", "gene"]
+                coords_lfc = ["cell_name", "covariate_sub", "gene"]
                 coords["covariate_sub"] = (
                     ("covariate_sub"),
                     Xmat_names[covariates_require_lfc],
                 )
-            lfc = np.concatenate(lfc, axis=1)
+            lfc = np.concatenate(lfc, axis=0)  # concatenate along cell dimension
             data_vars["lfc"] = (coords_lfc, lfc)
             if delta is not None:
-                lfc_std = np.concatenate(lfc_std, axis=1)
-                pde = np.concatenate(pde, axis=1)
+                lfc_std = np.concatenate(lfc_std, axis=0)  # concatenate along cell dimension
+                pde = np.concatenate(pde, axis=0)  # concatenate along cell dimension
                 data_vars["lfc_std"] = (coords_lfc, lfc_std)
                 data_vars["pde"] = (coords_lfc, pde)
 
