@@ -997,7 +997,6 @@ class CYTOVI(
         return da_df
 
 
-
     def impute_categories_from_reference(
         self,
         adata_reference: AnnData,
