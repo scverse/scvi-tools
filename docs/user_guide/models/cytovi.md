@@ -17,8 +17,10 @@ The limitations of CytoVI include:
 - Assumes measurements have been corrected for fluorescent spillover and preprocessed according to standard practice.
 
 ```{topic} Tutorials:
-- {doc}`/tutorials/notebooks/cytometry/CytoVI_tutorial` # note: to populate
+- {doc}`/tutorials/notebooks/cytometry/CytoVI_tutorial`
 ```
+
+<!--  note: to populate -->
 
 ## Preliminaries
 CytoVI can process protein expression matrices from the following technologies:
