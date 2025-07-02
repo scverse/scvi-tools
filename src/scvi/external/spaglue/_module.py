@@ -216,7 +216,6 @@ class SPAGLUEVAE(BaseModuleClass):
             means = self.gmm_means[mode]
             # scales = self.gmm_scales[mode]
 
-            # in scVIVA they do exponentiation
             scales = torch.exp(self.gmm_scales[mode]) + 1e-4
 
             # n_celltypes = self.n_labels[mode]
@@ -227,7 +226,7 @@ class SPAGLUEVAE(BaseModuleClass):
             # else:
             #    offset = 0.0
 
-            offset = 0.0
+            # offset = 0.0
             if self.semi_supervised[mode]:
                 logits_input = (
                     torch.stack(
@@ -241,11 +240,18 @@ class SPAGLUEVAE(BaseModuleClass):
                     .to(z.device)
                     .float()
                 )
-                offset = offset + 10 * logits_input
+                # offset = offset + 10 * logits_input
+                logits = logits + 10 * logits_input
+                means = means.expand(y.shape[0], -1, -1)
+                scales = scales.expand(y.shape[0], -1, -1)
 
-            cat = Categorical(logits=logits + offset)
-            comp = Independent(Normal(means, scales), 1)
-            pz = MixtureSameFamily(cat, comp)
+            cats = Categorical(logits=logits)
+            normal_dists = Independent(Normal(means, scales), reinterpreted_batch_ndims=1)
+            pz = MixtureSameFamily(cats, normal_dists)
+
+            # cat = Categorical(logits=logits + offset)
+            # comp = Independent(Normal(means, scales), 1)
+            # pz = MixtureSameFamily(cat, comp)
         else:
             pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 

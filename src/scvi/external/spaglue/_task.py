@@ -30,13 +30,6 @@ def compute_graph_loss(graph, feature_embeddings):
     return total_loss
 
 
-# def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
-#     x_col = pts_src.unsqueeze(1)
-#     y_row = pts_dst.unsqueeze(0)
-#     distance = torch.sum((torch.abs(x_col - y_row)) ** p, 2)
-#     return distance
-
-
 def kl_divergence_graph(mu, logvar):
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)  # sum over latent dims
     kl_mean = kl.mean()
@@ -51,6 +44,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         lam_kl=1.0,
         lam_data=1.0,
         lam_sinkhorn=1.0,
+        lam_class=1.0,
         sinkhorn_p=2,
         sinkhorn_blur=1,
         sinkhorn_reach=1,
@@ -64,6 +58,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         self.lam_kl = lam_kl
         self.lam_data = lam_data
         self.lam_sinkhorn = lam_sinkhorn
+        self.lam_class = lam_class
         self.sinkhorn_p = sinkhorn_p
         self.sinkhorn_reach = sinkhorn_reach
         self.sinkhorn_blur = sinkhorn_blur
@@ -191,7 +186,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             self.lam_graph * graph_loss
             + data_loss
             + self.lam_sinkhorn * sinkhorn_loss
-            + classification_loss
+            + self.lam_class * classification_loss
         )
 
         self.log(

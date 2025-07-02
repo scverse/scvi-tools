@@ -115,9 +115,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         }
 
         # How many components to model
-        # n_mixture_components = {
-        #    mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
-        # }
+        n_mixture_components = {
+            mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
+        }
 
         # Compute guidance graph if not provided, do a sanity check
         if guidance_graph is not None:
@@ -134,7 +134,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             guidance_graph=self.guidance_graph,
             use_gmm_prior=gmm_priors,
             semi_supervised=semi_supervised,
-            # n_mixture_components=n_mixture_components,
+            n_mixture_components=n_mixture_components,
             **model_kwargs,
         )
 
@@ -262,8 +262,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         ### funktioniert so nicht - unlabeled category!!!
         # if semi_supervised:
         #    adata.uns["spaglue_n_mixture_components"] = len(adata.obs[labels_key].unique())
-        # else:
-        #    adata.uns["spaglue_n_mixture_components"] = n_mixture_components
+        adata.uns["spaglue_n_mixture_components"] = n_mixture_components
 
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
