@@ -63,7 +63,7 @@ class CYTOVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~cytovi.CytoVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.CYTOVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -93,13 +93,13 @@ class CYTOVI(
     prior_mixture_k
         Number of mixture components in the MoG prior. Defaults to `n_latent` if None.
     **model_kwargs
-        Keyword arguments passed to :class:`~cytovi.module.CytoVAE`.
+        Keyword arguments passed to :class:`~scvi.external.CYTOVI.module.CytoVAE`.
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> cytovi.CytoVI.setup_anndata(adata, batch_key="batch")
-    >>> model = cytovi.CytoVI(adata)
+    >>> scvi.external.CYTOVI.setup_anndata(adata, batch_key="batch")
+    >>> model = scvi.external.CYTOVI(adata)
     >>> model.train()
     >>> adata.obsm["X_CytoVI"] = model.get_latent_representation()
     >>> adata.layers["imputed"] = model.get_normalized_expression()
@@ -107,7 +107,7 @@ class CYTOVI(
     Notes
     -----
     When analyzing overlapping cytometry panels (i.e., samples with partially shared markers), CytoVI uses the shared "backbone" markers for encoding and reconstructs the full set. An adversarial classifier loss can be used to encourage batch-invariance in the latent space.
-    If the data includes missing values, ensure that `nan_layer` is correctly registered using :meth:`~cytovi.CytoVI.setup_anndata`. This is handled automatically when using cytovi.pp.merge_batches().
+    If the data includes missing values, ensure that `nan_layer` is correctly registered using :meth:`~scvi.external.CYTOVI.setup_anndata`. This is handled automatically when using scvi.external.cytovi.merge_batches().
 
     See further usage examples in the following tutorials:
 
@@ -283,7 +283,8 @@ class CYTOVI(
         %(param_sample_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        %(param_nan_layer)s
+        nan_layer : str, optional
+            Optional layer key containing binary NaN feature mask to handle overlapping antibody panels.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
