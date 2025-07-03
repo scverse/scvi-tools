@@ -277,7 +277,8 @@ class CYTOVI(
         Parameters
         ----------
         %(param_adata)s
-        %(param_layer)s
+        layer : str, optional
+            if not `None`, uses this as the key in `adata.layers` for the transformed protein expression data.
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_sample_key)s
