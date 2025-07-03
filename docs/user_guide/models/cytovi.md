@@ -159,7 +159,7 @@ The latent representation can be used to create a nearest neighbor graph with sc
 
 ### Transfer learning
 
-A CytoVI model can be pre-trained on reference data and updated with query data using {func}`~scvi.external.CYTOVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations.
+A CytoVI model can be pre-trained on reference data and updated with query data using {func}`~scvi.external.CYTOVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations using {func}`~scvi.external.CYTOVI.impute_categories_from_reference`.
 
 ```
 >>> model_query = scvi.external.CYTOVI.load_query_data(adata = adata_query, reference_model=model)
@@ -169,7 +169,7 @@ A CytoVI model can be pre-trained on reference data and updated with query data 
 See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
 ### Label-free differential abundance
-CytoVI supports label-free differential abundance estimation to detect shifts in cellular composition across sample-level covariates (e.g., disease vs. control), as described in [^ref3].
+CytoVI supports label-free differential abundance estimation via {func}`~scvi.external.CYTOVI.differential_abundance` to detect shifts in cellular composition across sample-level covariates (e.g., disease vs. control), as described in [^ref3].
 
 This method:
 - Aggregates the approximate posterior distributions $q(z \mid x_n)$ across all cells within each sample to obtain a sample-level latent density.
@@ -177,6 +177,10 @@ This method:
 - Identifies enriched or depleted regions of latent space without requiring clustering.
 
 This approach enables cluster-free detection of condition-associated cell states by directly comparing their latent representations across groups.
+
+```
+>>> da_res = model.differential_abundance(adata, groupby='group')
+```
 
 ### Normalization/denoising/imputation of expression
 In {func}`~scvi.model.CYTOVI.get_normalized_expression` CytoVI returns the expected value of $x_{n}^{(s)}$ under the approximate posterior. For one cell $n$, this can be written as:
@@ -194,13 +198,17 @@ Differential expression analysis is achieved with {func}`~scvi.external.CYTOVI.d
 
 If a sample_key is provided, CytoVI by default samples equal numbers of cells for each patient for differential expression computation.
 
+```
+>>> de_res = model.differential_expression(adata, groupby='group')
+```
+
 ### Data simulation
 Data can be generated from the model using the posterior predictive distribution in {func}`~scvi.external.CYTOVI.posterior_predictive_sample`.
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters (of $p(x \mid z, s)$), and finally, sampling from this distribution.
 
 ### RNA/modality imputation
-CytoVI enables cross-modal imputation by leveraging a shared latent space between datasets with overlapping protein features. For example, transcriptomic profiles from a CITE-seq reference can be imputed into a flow cytometry dataset.
+CytoVI enables cross-modal imputation by leveraging a shared latent space between datasets with overlapping protein features via {func}`~scvi.external.CYTOVI.impute_rna_from_reference`. For example, transcriptomic profiles from a CITE-seq reference can be imputed into a flow cytometry dataset.
 
 To do this:
 - A joint CytoVI model is trained on both datasets, aligning them in a shared latent space.
