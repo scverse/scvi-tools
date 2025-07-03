@@ -89,6 +89,8 @@ class PosteriorPredictiveCheck:
         if expr_layer_key is not None:
             count_layer_key = expr_layer_key
             self.is_float_layer = True
+        else:
+            self.is_float_layer = False
 
         if indices is not None:
             adata = adata[indices]
