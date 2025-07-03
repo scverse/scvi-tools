@@ -416,14 +416,13 @@ import math
 from typing import Union
 
 import anndata as ad
-import matplotlib.pyplot as plt
-import seaborn as sns
 from anndata import AnnData
 
 from ._utils import validate_layer_key, validate_marker, validate_obs_keys
-# from cytovi.pp.cyto_pp import subsample
+from scvi.utils import dependencies
 
 
+@dependencies("seaborn", "matplotlib")
 def histogram(
     adata: ad.AnnData,
     marker: Union[str, list[str]] = "all",
@@ -492,6 +491,8 @@ def histogram(
     # Plot density plots for all markers
     cytovi.pl.histogram(adata, marker='all', group_by='Batch')
     """
+    import seaborn as sns
+
     if kde_kwargs is None:
         kde_kwargs = {}
 
@@ -542,7 +543,7 @@ def histogram(
     if return_plot:
         return g
 
-
+@dependencies("seaborn", "matplotlib")
 def biaxial(
     adata: AnnData,
     marker_x: Union[str, list[str]] = None,
@@ -618,6 +619,9 @@ def biaxial(
     # Plot biaxial plots for multiple markers
     cytovi.pl.biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
     """
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
     if isinstance(marker_x, str):
         marker_x = [marker_x]
     if isinstance(marker_y, str):

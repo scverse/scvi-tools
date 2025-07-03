@@ -2,13 +2,15 @@ import os
 from typing import Optional, Union, List, Dict
 import anndata as ad
 from anndata import AnnData
-import readfcs
-import fcswrite
+
 
 from pathlib import Path
 import numpy as np
 import warnings
 
+from scvi.utils import dependencies
+
+@dependencies('readfcs')
 def read_fcs(
     path: str,
     return_raw_layer: bool = True,
@@ -57,6 +59,8 @@ def read_fcs(
     - Files with differing marker names will be merged using `join="outer"` (may introduce NaNs).
     - Use the `merge_batches` function to explicitly handle merging of incompatible panels.
     """
+    import readfcs
+
     if path.endswith(".fcs") and os.path.isfile(path):
         fcs_files = [os.path.basename(path)]
         folder = os.path.dirname(path) or "."
@@ -118,7 +122,7 @@ def read_fcs(
     return ad.concat(adata_list, join="outer", label="sample_id", index_unique="-")
 
 
-
+@dependencies('fcswrite')
 def write_fcs(
     adata: ad.AnnData,
     output_path: str,
@@ -177,6 +181,8 @@ def write_fcs(
     >>> write_fcs(adata, "output/", layer="denoised", split_by="batch")
 
     """
+    import fcswrite
+
     if write_kwargs is None:
         write_kwargs = {}
 

@@ -4,10 +4,10 @@ from typing import Union
 import numpy as np
 import pandas as pd
 import warnings
-import pynndescent
 from anndata import AnnData
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 
+from scvi.utils import dependencies
 
 def validate_marker(adata: AnnData, marker: Union[str, list[str]]):
     if isinstance(marker, str):
@@ -80,9 +80,11 @@ def encode_categories(adata, cat_key):
     ohe = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
     return ohe.fit_transform(adata.obs[cat_key].values.reshape(-1, 1)), ohe
 
-
+@dependencies("pynndescent")
 def impute_cats_with_neighbors(rep_query, rep_ref, cat_encoded_ref, n_neighbors=5, compute_uncertainty=False):
     """Use pynndescent to find nearest neighbors and impute missing categories."""
+    import pynndescent
+
     nn_index = pynndescent.NNDescent(rep_ref, n_neighbors=n_neighbors, metric="euclidean")
 
     indices, distances = nn_index.query(rep_query, k=n_neighbors)
@@ -100,8 +102,11 @@ def impute_cats_with_neighbors(rep_query, rep_ref, cat_encoded_ref, n_neighbors=
 
     return imputed_cat_indices, uncertainty
 
+@dependencies("pynndescent")
 def impute_expr_with_neighbors(rep_query, rep_ref, expr_data_ref, n_neighbors=5, compute_uncertainty=False):
     """Use pynndescent to find nearest neighbors and impute missing expression."""
+    import pynndescent
+
     nn_index = pynndescent.NNDescent(rep_ref, n_neighbors=n_neighbors, metric="euclidean")
 
     indices, distances = nn_index.query(rep_query, k=n_neighbors)
