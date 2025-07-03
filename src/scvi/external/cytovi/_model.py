@@ -1092,7 +1092,7 @@ class CYTOVI(
             Parameters
             ----------
             reference_batch : str
-                Identifier for the reference batch in `adata.obs['technology']`.
+                Identifier for the reference batch in `adata.obs[batch_key]`.
             adata_rna : AnnData
                 Annotated data matrix containing the expression data to impute.
             layer_key : str
