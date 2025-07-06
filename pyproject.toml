@@ -111,6 +111,8 @@ tutorials = [
     "jupyter",
     "leidenalg",
     "muon",
+    "gdown",
+    "seaborn",
     "plotnine",
     "pynndescent",
     "igraph",
