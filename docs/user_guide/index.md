@@ -237,3 +237,12 @@ which parameters are optimized, as well as the validation loop to monitor metric
 data to the correct device (CPU/GPU).
 :::
 ::::
+
+
+```{toctree}
+:maxdepth: 3
+
+background
+user_case
+models
+```
