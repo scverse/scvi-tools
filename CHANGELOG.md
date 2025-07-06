@@ -10,6 +10,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
 #### Fixed
 
 #### Changed
