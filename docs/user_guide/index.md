@@ -240,9 +240,9 @@ data to the correct device (CPU/GPU).
 
 
 ```{toctree}
-:maxdepth: 3
+:maxdepth: 2
 
-background
-use_case
-models
+background/index
+use_case/index
+models/index
 ```

@@ -74,7 +74,7 @@ Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the late
 
 ```{toctree}
 :hidden: true
-:maxdepth: 3
+:maxdepth: 2
 :titlesonly: true
 
 installation
