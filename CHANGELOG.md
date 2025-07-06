@@ -10,6 +10,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
 #### Fixed
 
 #### Changed
@@ -24,8 +27,6 @@ to [Semantic Versioning]. Full commit history is available in the
 - Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
 - Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
     transcriptomics {pr}`3172`.
-- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
-    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
 - Add support for Python 3.13 {pr}`3247`.
 
 #### Fixed

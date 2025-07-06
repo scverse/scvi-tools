@@ -1,5 +1,4 @@
 import logging
-import math
 
 import anndata
 import numpy as np
@@ -25,21 +24,21 @@ class ArrayFakerSparse(sparse.csr_matrix):
         """Second layer of `__getitem__` that handles returning an index into a specific layer."""
         return self.collection[idx].layers[self.key]
 
-    def getnnz(self):
-        """Run through the data in minibatches and count non-zero elements."""
-        n_batches = int(math.ceil(self.collection.shape[0] / self.n_batches))  # what is n_batches
-
-        nnz = 0
-
-        start = 0
-        end = self.batch_size
-        for _i in range(n_batches):
-            batch = self.collection[start:end].layers[self.key]
-            nnz += batch.getnnz()
-            start = end
-            end = min(end + self.batch_size, self.collection.shape[0])
-
-        return nnz
+    # def getnnz(self):
+    #     """Run through the data in minibatches and count non-zero elements."""
+    #     n_batches = int(math.ceil(self.collection.shape[0] / self.n_batches))
+    #
+    #     nnz = 0
+    #
+    #     start = 0
+    #     end = self.batch_size
+    #     for _i in range(n_batches):
+    #         batch = self.collection[start:end].layers[self.key]
+    #         nnz += batch.getnnz()
+    #         start = end
+    #         end = min(end + self.batch_size, self.collection.shape[0])
+    #
+    #     return nnz
 
     def __repr__(self):
         return f"ArrayFakerSparse(collection={self.collection}, key={self.key})"
@@ -59,7 +58,7 @@ class ArrayFakerSparse(sparse.csr_matrix):
 
     def getformat(self):
         """Extract the relevant format (CSR, CSC, COO)"""
-        return self.collection[:4].layers[self.key].getformat()
+        return self.collection[: np.min([4, len(self.collection)])].layers[self.key].getformat()
 
 
 class LayerFaker:
@@ -73,7 +72,7 @@ class LayerFaker:
         self.collection = collection
 
     def keys(self):
-        k = self.collection[1:5].layers.keys()
+        k = self.collection[1 : np.min([4, len(self.collection)])].layers.keys()
         return k
 
     def __getitem__(self, key):
@@ -81,7 +80,7 @@ class LayerFaker:
         # determine the array's type
         # we first need to draw an AnnCollectionView to get an object that has
         # access to .layers, which is not provided in AnnCollection
-        sample = self.collection[:4]
+        sample = self.collection[: np.min([4, len(self.collection)])]
         layer = sample.layers[key]
 
         if isinstance(layer, sparse.spmatrix):
@@ -89,7 +88,6 @@ class LayerFaker:
         elif isinstance(layer, np.ndarray):
             # TODO: Not yet implemented
             raise TypeError("ArrayFakerNDarray is not yet implemented")
-            # return ArrayFakerNDarray(self.collection, key)
         else:
             raise TypeError(f"Unknown array type {type(layer)}")
 
