@@ -2,6 +2,8 @@ import re
 
 import requests
 
+from scvi.utils import dependencies
+
 
 def validate_url(url: str, error_format: bool = False, error_response: bool = False) -> bool:
     """Validates a URL.
@@ -34,6 +36,7 @@ def validate_url(url: str, error_format: bool = False, error_response: bool = Fa
     return valid
 
 
+@dependencies("selenium")
 def validate_colab_notebook(colab_url: str) -> bool:
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options

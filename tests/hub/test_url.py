@@ -41,7 +41,3 @@ def test_validate_colab_url():
         + "/quick_start/api_overview.ipynb"
     )
     assert not validate_colab_notebook(colab_url2)
-
-    # colab_url3 = ("https://colab.research.google.com/github/scverse/scvi-tutorials/blob/"+
-    #          "main"+"/quick_start/api_overview.ipynb")
-    # assert validate_colab_notebook(colab_url3)
