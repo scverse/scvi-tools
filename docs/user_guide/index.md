@@ -243,6 +243,6 @@ data to the correct device (CPU/GPU).
 :maxdepth: 3
 
 background
-user_case
+use_case
 models
 ```
