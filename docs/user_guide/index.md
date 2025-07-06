@@ -241,6 +241,7 @@ data to the correct device (CPU/GPU).
 
 ```{toctree}
 :maxdepth: 2
+:includehidden:
 
 background/index
 use_case/index

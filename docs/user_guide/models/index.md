@@ -3,7 +3,7 @@
 ```{toctree}
 :maxdepth: 2
 
-amorizedlda
+amortizedlda
 autozi
 cellassign
 contrastivevi
