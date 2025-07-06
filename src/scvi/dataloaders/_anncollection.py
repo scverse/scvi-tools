@@ -24,22 +24,6 @@ class ArrayFakerSparse(sparse.csr_matrix):
         """Second layer of `__getitem__` that handles returning an index into a specific layer."""
         return self.collection[idx].layers[self.key]
 
-    # def getnnz(self):
-    #     """Run through the data in minibatches and count non-zero elements."""
-    #     n_batches = int(math.ceil(self.collection.shape[0] / self.n_batches))
-    #
-    #     nnz = 0
-    #
-    #     start = 0
-    #     end = self.batch_size
-    #     for _i in range(n_batches):
-    #         batch = self.collection[start:end].layers[self.key]
-    #         nnz += batch.getnnz()
-    #         start = end
-    #         end = min(end + self.batch_size, self.collection.shape[0])
-    #
-    #     return nnz
-
     def __repr__(self):
         return f"ArrayFakerSparse(collection={self.collection}, key={self.key})"
 
