@@ -6,6 +6,19 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
+### 1.3.3 (2025-XX-XX)
+
+#### Added
+
+- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
 ### 1.3.2 (2025-06-22)
 
 #### Added
