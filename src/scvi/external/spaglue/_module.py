@@ -41,17 +41,18 @@ class SPAGLUEVAE(BaseModuleClass):
         self.n_labels = n_labels
         latent_dim = n_latent_seq
 
-        # if self.semi_supervised:
-        #    self.n_mixture_components = self.n_labels
-
         for m in use_gmm_prior.keys():
             if self.use_gmm_prior[m]:
-                k = self.n_mixture_components
-                if self.semi_supervised:
+                k = self.n_mixture_components[m]
+                if self.semi_supervised[m]:
                     k = self.n_labels[m]
-                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))
+                print(k)
+                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))  # maybe rather torch.ones?
+                # self.gmm_logits[m] = nn.Parameter(torch.ones(k))
                 self.gmm_means[m] = nn.Parameter(torch.randn(k, latent_dim))
+                # self.gmm_means[m] = nn.Parameter(torch.zeros(k, latent_dim))
                 self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim))
+                # self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim)) - 1.0
 
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
@@ -214,19 +215,8 @@ class SPAGLUEVAE(BaseModuleClass):
             # select the modality specific parameters
             logits = self.gmm_logits[mode]
             means = self.gmm_means[mode]
-            # scales = self.gmm_scales[mode]
-
             scales = torch.exp(self.gmm_scales[mode]) + 1e-4
 
-            # n_celltypes = self.n_labels[mode]
-
-            ### add an offset to make corresponding celltypes more likely
-            # if n_celltypes >= 2:
-            #    offset = 10.0 * torch.nn.functional.one_hot(y, n_celltypes).to(logits.dtype)
-            # else:
-            #    offset = 0.0
-
-            # offset = 0.0
             if self.semi_supervised[mode]:
                 logits_input = (
                     torch.stack(
@@ -240,23 +230,16 @@ class SPAGLUEVAE(BaseModuleClass):
                     .to(z.device)
                     .float()
                 )
-                # offset = offset + 10 * logits_input
-                logits = logits + 10 * logits_input
+
+                logits = logits + 100 * logits_input
                 means = means.expand(y.shape[0], -1, -1)
                 scales = scales.expand(y.shape[0], -1, -1)
 
             cats = Categorical(logits=logits)
             normal_dists = Independent(Normal(means, scales), reinterpreted_batch_ndims=1)
             pz = MixtureSameFamily(cats, normal_dists)
-
-            # cat = Categorical(logits=logits + offset)
-            # comp = Independent(Normal(means, scales), 1)
-            # pz = MixtureSameFamily(cat, comp)
         else:
             pz = Normal(torch.zeros_like(z), torch.ones_like(z))
-
-        # prior
-        # pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 
         return {
             MODULE_KEYS.PX_KEY: px,
