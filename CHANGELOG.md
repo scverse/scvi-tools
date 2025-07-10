@@ -19,6 +19,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
+- remove DEPRECATED SaveBestState from code , {pr}`3419`.
+
 ### 1.3.2 (2025-06-22)
 
 #### Added
