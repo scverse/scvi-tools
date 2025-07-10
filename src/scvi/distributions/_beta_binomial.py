@@ -7,7 +7,7 @@ from ._constraints import open_interval, optional_constraint
 
 
 class BetaBinomial(BetaBinomialDistribution):
-    r"""``BETA`` Beta binomial distribution.
+    r"""Beta binomial distribution.
 
     One of the following parameterizations must be provided:
 

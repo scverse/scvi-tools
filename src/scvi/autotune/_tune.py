@@ -38,7 +38,7 @@ def run_autotune(
     local_mode: bool = False,
     ignore_reinit_error: bool = False,
 ) -> AutotuneExperiment:
-    """``BETA`` Run a hyperparameter sweep.
+    """Run a hyperparameter sweep.
 
     Parameters
     ----------

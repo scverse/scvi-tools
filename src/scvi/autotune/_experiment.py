@@ -231,7 +231,7 @@ if is_package_installed("ray"):
 
 
 class AutotuneExperiment:
-    """``BETA`` Track hyperparameter tuning experiments.
+    """Track hyperparameter tuning experiments.
 
     Parameters
     ----------

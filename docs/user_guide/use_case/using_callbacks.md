@@ -59,3 +59,5 @@ model.train(
     ],
 )
 ```
+
+or just by adding "enable_checkpointing"= True to the model training command

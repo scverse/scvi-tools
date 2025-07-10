@@ -26,7 +26,7 @@ def test_multivi():
         n_genes=50,
         n_regions=50,
     )
-    vae.train(1, save_best=False)
+    vae.train(1)
     vae.train(1, adversarial_mixing=False)
     vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
