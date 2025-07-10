@@ -19,7 +19,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
-- remove DEPRECATED {class}`scvi.train.SaveBestState` from code {pr}`3420`.
+- remove Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
 ### 1.3.2 (2025-06-22)
 
