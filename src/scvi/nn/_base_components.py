@@ -512,7 +512,9 @@ class DecoderSCVI(nn.Module):
                 self.n_conditions_output
             )
         else:
-            one_hot_cat = torch.zeros(px.size(0), self.n_conditions_output).to(px.device)
+            one_hot_cat = torch.zeros(px.size(-2), self.n_conditions_output).to(px.device)
+        if px.dim() == 3:
+            one_hot_cat = one_hot_cat.unsqueeze(0).expand(px.size(0), -1, -1)
         px_cat = torch.cat([px, one_hot_cat], dim=-1)
         px_scale = self.px_scale_decoder(px_cat)
         px_dropout = self.px_dropout_decoder(px_cat)

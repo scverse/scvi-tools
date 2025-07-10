@@ -231,7 +231,6 @@ class ArchesMixin:
             freeze_dropout=freeze_dropout,
             freeze_expression=freeze_expression,
             freeze_classifier=freeze_classifier,
-            parameters_yes_grad=additional_parameters,
         )
         model.is_trained_ = False
 

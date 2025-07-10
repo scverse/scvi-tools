@@ -79,11 +79,19 @@ class SCVIX(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
         * ``'normal'`` - ``EXPERIMENTAL`` Normal distribution
-    latent_distribution
+    prior
         One of:
-
-        * ``'normal'`` - Normal distribution
-        * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
+        * ``'gaussian'`` - Gaussian prior
+        * ``'mog'`` - Mixture of Gaussians prior
+        * ``'vamp'`` - Variational Amortized Mixture of Posteriors prior
+        * ``'mog_celltype'`` - Mixture of Gaussians prior with cell-type bias
+    pseudoinputs_data_indices
+        Indices of cells to use as pseudoinputs for the VAMP prior. If ``None``, a random sample of
+        ``n_prior_components`` cells will be used.
+    n_prior_components
+        Number of components to use for the VAMP and MOG priors. This is the number of pseudoinputs
+        used for the VAMP prior, and the number of components in the MOG prior.
+        Defaults to 50.
     **kwargs
         Additional keyword arguments for :class:`~scvi.module.VAE`.
 
@@ -126,7 +134,7 @@ class SCVIX(
         dropout_rate: float = 0.05,
         dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "nb",
-        prior: Literal["normal", "mog", "vamp"] = "normal",
+        prior: Literal["gaussian", "mog", "vamp", "mog_celltype"] = "gaussian",
         pseudoinputs_data_indices: np.array | None = None,
         n_prior_components: int = 50,
         **kwargs,

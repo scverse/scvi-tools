@@ -74,11 +74,6 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"zinb"``: :class:`~scvi.distributions.ZeroInflatedNegativeBinomial`.
         * ``"poisson"``: :class:`~scvi.distributions.Poisson`.
         * ``"normal"``: :class:`~torch.distributions.Normal`.
-    latent_distribution
-        Distribution to use for the latent space. One of the following:
-
-        * ``"normal"``: isotropic normal.
-        * ``"ln"``: logistic normal with normal params N(0, 1).
     encode_covariates
         If ``True``, covariates are concatenated to gene expression prior to passing through
         the encoder(s). Else, only gene expression is used.
@@ -146,7 +141,6 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         dispersion: Literal["gene", "gene-batch", "gene-assay", "gene-cell"] = "gene",
         log_variational: bool = True,
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "nb",
-        latent_distribution: Literal["normal", "ln"] = "normal",
         encode_covariates: bool = False,
         encode_assay: bool = True,
         deeply_inject_covariates: bool = False,
@@ -161,7 +155,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         conditional_output: bool = True,
         prior: str | None = None,
         pseudoinput_data: dict | None = None,
-        n_prior_components: int | None = 30,
+        n_prior_components: int | None = 50,
     ):
         from scvi.nn import DecoderSCVI, Encoder
 
@@ -174,7 +168,6 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.n_batch = n_batch
         self.n_assay = n_assay
         self.n_labels = n_labels
-        self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
         self.use_observed_lib_size = True
         self.n_hidden = n_hidden
@@ -242,7 +235,6 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
-            distribution=latent_distribution,
             inject_covariates=deeply_inject_covariates,
             use_batch_norm=use_batch_norm_encoder,
             use_layer_norm=use_layer_norm_encoder,
@@ -394,7 +386,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 cont = torch.cat([cont_covs, batch_rep], dim=-1)
         else:
             if self.encode_covariates:
-                cont = batch_rep
+                cont = cont_covs
             else:
                 cont = None
         if not self.encode_assay:
@@ -409,6 +401,31 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             library = library.unsqueeze(0).expand(
                 (n_samples, library.size(0), library.size(1))
             )
+
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.LIBRARY_KEY: library,
+        }
+
+    @auto_move_data
+    def _cached_inference(
+        self,
+        qzm: torch.Tensor,
+        qzv: torch.Tensor,
+        observed_lib_size: torch.Tensor,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | None]:
+        """Run the cached inference process."""
+        from torch.distributions import Normal
+
+        qz = Normal(qzm, qzv.sqrt())
+        # use dist.sample() rather than rsample because we aren't optimizing the z here
+        untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
+        z = self.z_encoder.z_transformation(untran_z)
+        library = torch.log(observed_lib_size)
+        if n_samples > 1:
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
 
         return {
             MODULE_KEYS.Z_KEY: z,
