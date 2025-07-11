@@ -46,13 +46,9 @@ class SPAGLUEVAE(BaseModuleClass):
                 k = self.n_mixture_components[m]
                 if self.semi_supervised[m]:
                     k = self.n_labels[m]
-                print(k)
-                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))  # maybe rather torch.ones?
-                # self.gmm_logits[m] = nn.Parameter(torch.ones(k))
+                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))
                 self.gmm_means[m] = nn.Parameter(torch.randn(k, latent_dim))
-                # self.gmm_means[m] = nn.Parameter(torch.zeros(k, latent_dim))
                 self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim))
-                # self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim)) - 1.0
 
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
@@ -97,7 +93,6 @@ class SPAGLUEVAE(BaseModuleClass):
         )
 
         if self.semi_supervised["diss"]:
-            # Classifier takes n_latent as input
             cls_parameters = {
                 "n_layers": 0,
                 "n_hidden": 128,
