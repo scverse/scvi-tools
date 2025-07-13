@@ -325,30 +325,27 @@ class DifferentialComputation:
                 # step2: Construct the DE area function
                 if m1_domain_fn is None:
 
-                    def m1_domain_fn(samples, test_mode="two"):
+                    def m1_domain_fn(samples):
                         delta_ = (
                             delta
                             if delta is not None
                             else estimate_delta(lfc_means=samples.mean(0))
                         )
                         logger.debug(f"Using delta ~ {delta_:.2f}")
-                        if test_mode == "two":
-                            samples_plus = np.abs(samples) >= delta_
-                        else:
-                            samples_plus = samples >= delta_
+                        samples_plus = samples >= delta_
                         samples_minus = samples < -delta_
                         return samples_plus, samples_minus
 
                 change_fn_specs = inspect.getfullargspec(change_fn)
                 domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
-                if (len(change_fn_specs.args) != 3) | (len(domain_fn_specs.args) != 2):
+                if (len(change_fn_specs.args) != 3) | (len(domain_fn_specs.args) != 1):
                     raise ValueError(
                         "change_fn should take exactly three parameters as inputs; "
-                        "m1_domain_fn exactly two parameters."
+                        "m1_domain_fn one parameter."
                     )
                 try:
                     change_distribution = change_fn(scales_1, scales_2, pseudocounts)
-                    is_de_plus, is_de_minus = m1_domain_fn(change_distribution, test_mode)
+                    is_de_plus, is_de_minus = m1_domain_fn(change_distribution)
                     delta_ = (
                         estimate_delta(lfc_means=change_distribution.mean(0))
                         if delta is None
@@ -363,7 +360,7 @@ class DifferentialComputation:
                 proba_m1 = np.mean(is_de_plus, 0)
                 proba_m2 = np.mean(is_de_minus, 0)
                 if test_mode == "two":
-                    proba_de = proba_m1  # + proba_m2
+                    proba_de = proba_m1 + proba_m2
                     sign = 1.0
                 else:
                     proba_de = np.maximum(proba_m1, proba_m2)

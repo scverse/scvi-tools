@@ -104,13 +104,8 @@ def test_differential_computation(save_path):
     def change_fn_test(x, y, pseudocount=0.0):
         return x - y
 
-    def m1_domain_fn_test(samples, test_mode):
-        if test_mode == "two":
-            samples_plus = np.abs(samples) >= delta
-        else:
-            samples_plus = samples >= delta
-        samples_minus = samples < -delta
-        return samples_plus, samples_minus
+    def m1_domain_fn_test(samples):
+        return samples >= delta, samples < -delta
 
     dc.get_bayes_factors(
         cell_idx1,
