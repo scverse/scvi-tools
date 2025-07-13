@@ -26,6 +26,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -58,7 +59,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
+tests = ["pytest", "pytest-pretty", "coverage", "selenium", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
@@ -92,7 +93,7 @@ regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
-file_sharing = ["pooch"]
+file_sharing = ["pooch","gdown"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
@@ -110,6 +111,7 @@ tutorials = [
     "jupyter",
     "leidenalg",
     "muon",
+    "seaborn",
     "plotnine",
     "pynndescent",
     "igraph",

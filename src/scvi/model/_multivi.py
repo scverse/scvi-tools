@@ -774,8 +774,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
-        two_sided
-            Whether to perform a two-sided test, or a one-sided test.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

@@ -15,7 +15,6 @@ The limitations of peakVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/quick_start/api_overview`
 -   {doc}`/tutorials/notebooks/atac/PeakVI`
 -   {doc}`/tutorials/notebooks/r/peakvi_in_R`
 ```

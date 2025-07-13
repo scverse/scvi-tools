@@ -189,7 +189,7 @@ def test_sysvi_warnings():
 
     # Assert that warning is printed if kl warmup is used
     # Step warmup
-    with pytest.warns(Warning) as record:
+    with pytest.warns(Warning, match="The use of KL weight warmup") as record:
         model.train(
             max_epochs=2,
             batch_size=math.ceil(adata.n_obs / 2.0),
@@ -200,7 +200,7 @@ def test_sysvi_warnings():
         for rec in record
     )
     # Epoch warmup
-    with pytest.warns(Warning) as record:
+    with pytest.warns(Warning, match="The use of KL weight warmup") as record:
         model.train(
             max_epochs=2,
             batch_size=math.ceil(adata.n_obs / 2.0),

@@ -268,5 +268,5 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         total_counts = sum(tensors[REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
         return np.exp(
-            self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
+            -self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
         )

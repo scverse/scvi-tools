@@ -6,24 +6,46 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.2 (2025-XX-XX)
+### 1.3.3 (2025-XX-XX)
 
 - Add {class}`scvi.external.SCVIVA` for representation of cells and
     their environments in spatial transcriptomics {pr}`3172`.
 
 #### Added
 
-- Added getting protein probabilities in multivi {pr}`3341`.
+- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
 
 #### Fixed
-
-- Fix bug in TOTALANVI scarches. {pr}`3355`.
-
-- Fix bug in MrVI down stream analysis use of external adata. {pr}`3324`.
 
 #### Changed
 
 #### Removed
+
+### 1.3.2 (2025-06-22)
+
+#### Added
+
+- Added posterior predictive samples batch projection. {pr}`3369`.
+- Added getting protein probabilities in {class}`~scvi.model.MULTIVI` {pr}`3341`.
+- Add {class}`scvi.external.SCVIVA` for representation of cells and their environments in spatial
+    transcriptomics {pr}`3172`.
+- Add support for Python 3.13 {pr}`3247`.
+
+#### Fixed
+
+- Fix bug in {class}`scvi.external.TOTALANVI` scarches. {pr}`3355`.
+- Fix bug in {class}`scvi.external.MRVI` down stream analysis use of external adata. {pr}`3324`.
+- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3373`.
+
+#### Changed
+
+- Update Read the docs tutorials with one main preprocessing tutorial {pr}`3363`.
+
+#### Removed
+
+- Removed default arguments from test function parameters due to ruff pre-commit v0.12.0 with
+    PT028 rule {pr}`3393`.
 
 ### 1.3.1 (2025-05-15)
 
@@ -34,7 +56,9 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
-- Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
+- Add {class}`scvi.external.TOTALANVI`. {pr}`3259` for modeling of single-cell RNA and
+    CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer
+    both protein expression and cell states
 - Add Custom Dataloaders registry support, {pr}`2932`.
 - Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
     and {class}`scvi.model.SCANVI`, {pr}`2932`.

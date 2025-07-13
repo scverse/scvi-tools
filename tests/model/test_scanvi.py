@@ -306,7 +306,9 @@ def test_scanvi_predict_use_posterior_mean():
     _ = model.predict(use_posterior_mean=False)
 
 
-def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
+@pytest.mark.parametrize("n_latent", [10])
+@pytest.mark.parametrize("n_labels", [5])
+def test_linear_classifier_scanvi(n_latent: int, n_labels: int):
     adata = synthetic_iid(n_labels=n_labels)
     SCANVI.setup_anndata(
         adata,
@@ -709,7 +711,7 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     # (here, the more labels the more time it will take to run)
     shap_values = model.shap_predict(shap_args={"nsamples": 100})
     # select the label we want to understand (usually the '1' class)
-    shap_top_features = model.get_ranked_markers(attrs=shap_values[:, :, 1]).head(5)
+    shap_top_features = model.get_ranked_features(attrs=shap_values[:, :, 1]).head(5)
     print(shap_top_features)
 
     # now run shap values for the test set (can be specific class or indices and with params)
@@ -720,5 +722,5 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
         shap_args={"link": "identity", "silent": True, "gc_collect": True, "nsamples": 300},
     )
     # # select the label we want to understand (usually the '1' class)
-    shap_top_features_test = model.get_ranked_markers(attrs=shap_values_test[:, :, 1]).head(5)
+    shap_top_features_test = model.get_ranked_features(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)

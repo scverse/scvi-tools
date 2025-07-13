@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+import pytest
 from sparse import GCXS
 from xarray import Dataset
 
@@ -101,7 +102,8 @@ def test_ppc_zero_fraction():
     assert ppc.metrics["zero_fraction"].columns.tolist() == ["model1", "model2", "Raw"]
 
 
-def test_ppc_de(n_genes: int = 200):
+@pytest.mark.parametrize("n_genes", [200])
+def test_ppc_de(n_genes: int):
     adata = synthetic_iid(n_genes=n_genes)
     ppc, _ = get_ppc_with_samples(adata, n_samples=4)
 
