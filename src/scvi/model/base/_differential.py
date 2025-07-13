@@ -301,7 +301,7 @@ class DifferentialComputation:
                 x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
                 where_zero_a = np.asarray(np.mean(x[idx1], 0)).flatten() < threshold_counts
                 where_zero_b = np.asarray(np.mean(x[idx2], 0)).flatten() < threshold_counts
-                pseudocounts = 1e-2 *estimate_pseudocounts_offset(
+                pseudocounts = 1e-2 * estimate_pseudocounts_offset(
                     scales_a=scales_1,
                     scales_b=scales_2,
                     where_zero_a=where_zero_a,
