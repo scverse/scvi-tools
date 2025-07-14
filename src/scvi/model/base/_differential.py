@@ -566,7 +566,7 @@ def estimate_pseudocounts_offset(
     else:
         eps_b = 1e-10
     res = np.maximum(eps_a, eps_b)
-    return np.maximum(1e-10, res/len(max_scales_a))
+    return np.maximum(1e-10, res / len(max_scales_a))
 
 
 def pairs_sampler(
