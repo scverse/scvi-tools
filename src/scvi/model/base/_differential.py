@@ -301,7 +301,7 @@ class DifferentialComputation:
                 x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
                 where_zero_a = np.asarray(np.mean(x[idx1], 0)).flatten() < threshold_counts
                 where_zero_b = np.asarray(np.mean(x[idx2], 0)).flatten() < threshold_counts
-                pseudocounts = 1e-2 * estimate_pseudocounts_offset(
+                pseudocounts = estimate_pseudocounts_offset(
                     scales_a=scales_1,
                     scales_b=scales_2,
                     where_zero_a=where_zero_a,
@@ -364,7 +364,7 @@ class DifferentialComputation:
                 else:
                     proba_de = np.maximum(proba_m1, proba_m2)
                 change_distribution_props = describe_continuous_distrib(
-                    samples=change_fn(scales_1, scales_2, 1e-1 * pseudocounts),
+                    samples=change_fn(scales_1, scales_2, 1e-3 * pseudocounts),
                     credible_intervals_levels=cred_interval_lvls,
                 )  # reduced pseudocounts to correctly estimate log-fold change.
                 change_distribution_props = {
@@ -558,15 +558,15 @@ def estimate_pseudocounts_offset(
         artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.quantile(artefact_scales_a, q=quantile)
     else:
-        eps_a = 1e-5
+        eps_a = 1e-10
 
     if where_zero_b.sum() >= 1:
         artefact_scales_b = max_scales_b[where_zero_b]
         eps_b = np.quantile(artefact_scales_b, q=quantile)
     else:
-        eps_b = 1e-5
+        eps_b = 1e-10
     res = np.maximum(eps_a, eps_b)
-    return np.maximum(1e-5, res)
+    return np.maximum(1e-10, res/len(max_scales_a))
 
 
 def pairs_sampler(
