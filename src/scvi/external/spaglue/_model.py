@@ -165,9 +165,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             logger.info(f"max_epochs was approximated to {max_epochs}")
 
         accelerator, devices, device = parse_device_args(
-            accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
-            devices=devices,  # auto, 1 0r [0,1]
-            return_device="torch",  #  make returned device pytorch compatible
+            accelerator=accelerator,
+            devices=devices,
+            return_device="torch",
         )
 
         self.trainer = Trainer(
@@ -214,7 +214,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             **plan_kwargs,
         )
 
-        if train_size == 1.0:  # avoid issue with empty train/val dataloaders
+        if train_size == 1.0:
             self.trainer.fit(self._training_plan, train_dl)
         else:
             self.trainer.fit(
@@ -247,7 +247,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
 
-        # For a specific layer (e.g., "counts")
         if "counts" in adata.layers and not isinstance(
             adata.layers["counts"], scipy.sparse.csr_matrix
         ):

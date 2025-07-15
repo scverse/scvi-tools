@@ -210,7 +210,6 @@ class SPAGLUEVAE(BaseModuleClass):
             px = Normal(px_rate, px_r, normal_mu=px_scale)
 
         if self.use_gmm_prior[mode]:
-            # select the modality specific parameters
             logits = self.gmm_logits[mode]
             means = self.gmm_means[mode]
             scales = torch.exp(self.gmm_scales[mode]) + 1e-4
