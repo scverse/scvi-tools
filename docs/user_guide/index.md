@@ -110,6 +110,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/totalvi`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`GayosoSteier21`
+   * - :doc:`/user_guide/models/totalanvi`
+     - A probabilistic generative model for single-cell RNA and CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer both protein expression and cell states
+     - :cite:p:`Mark25`
 ```
 
 ### Multiome
@@ -174,24 +177,6 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```
 
-## Background
-
-- {doc}`/user_guide/background/variational_inference`
-- {doc}`/user_guide/background/differential_expression`
-- {doc}`/user_guide/background/counterfactual_prediction`
-- {doc}`/user_guide/background/transfer_learning`
-- {doc}`/user_guide/background/codebase_overview`
-
-## Common Use Cases
-
-- {doc}`/user_guide/use_case/saving_and_loading_models`
-- {doc}`/user_guide/use_case/downstream_analysis_tasks`
-- {doc}`/user_guide/use_case/using_callbacks`
-- {doc}`/user_guide/use_case/hyper_parameters_tuning`
-- {doc}`/user_guide/use_case/multi_gpu_training`
-- {doc}`/user_guide/use_case/custom_dataloaders`
-- {doc}`/user_guide/use_case/scvi_criticism`
-
 ## Glossary
 
 ::::{tab-set}
@@ -234,3 +219,13 @@ which parameters are optimized, as well as the validation loop to monitor metric
 data to the correct device (CPU/GPU).
 :::
 ::::
+
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+
+background/index
+use_case/index
+models/index
+```
