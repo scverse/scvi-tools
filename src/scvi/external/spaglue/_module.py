@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
-from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal, kl_divergence
+from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.distributions import NegativeBinomial, Normal, ZeroInflatedNegativeBinomial
 from scvi.external.spaglue import GraphEncoder_glue, NBDataDecoderWB
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
@@ -205,6 +205,9 @@ class SPAGLUEVAE(BaseModuleClass):
                 zi_logits=px_dropout,
                 scale=px_scale,
             )
+
+        elif self.gene_likelihoods[mode] == "normal":
+            px = Normal(px_rate, px_r, normal_mu=px_scale)
 
         if self.use_gmm_prior[mode]:
             # select the modality specific parameters
