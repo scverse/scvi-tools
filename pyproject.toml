@@ -35,6 +35,7 @@ classifiers = [
 dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
+    "flax",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
@@ -95,7 +96,7 @@ interpretability = ["captum", "shap"]
 # for custom dataloders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
 # for jax support
-jax = ["flax","jax","jaxlib","optax","numpyro>=0.12.1"]
+jax = ["jax","jaxlib","optax","numpyro>=0.12.1"]
 # for pyro support
 pyro = ["pyro-ppl>=1.6.0","scvi-tools[jax]"]
 

@@ -15,7 +15,7 @@ from torch.distributions.utils import (
 )
 
 from scvi import settings
-from scvi.utils import dependencies, is_package_installed
+from scvi.utils import is_package_installed
 
 from ._constraints import optional_constraint
 
@@ -725,10 +725,9 @@ class NegativeBinomialMixture(Distribution):
         return self.__class__.__name__ + "(" + args_string + ")"
 
 
-if is_package_installed("numpyro"):
+if is_package_installed("numpyro") and is_package_installed("jax"):
     import numpyro.distributions as dist
 
-    @dependencies("jax")
     class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
         """Negative binomial parameterized by mean and inverse dispersion."""
 
@@ -782,4 +781,4 @@ if is_package_installed("numpyro"):
                 lgamma_fn=jax.scipy.special.gammaln,
             )
 else:
-    raise ImportError("Please install numpyro to use this functionality.")
+    raise ImportError("Please install jax & numpyro to use this functionality.")

@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.module import JaxVAE
 from scvi.utils import error_on_missing_dependencies, setup_anndata_dsp
 
 from .base import BaseModelClass
@@ -14,6 +13,8 @@ from .base import BaseModelClass
 error_on_missing_dependencies("jax", "numpyro", "flax", "jaxlib", "optax")
 
 import jax.numpy as jnp  # noqa: E402
+
+from scvi.module import JaxVAE  # noqa: E402
 
 from .base import JaxTrainingMixin  # noqa: E402
 
