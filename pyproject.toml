@@ -41,6 +41,7 @@ dependencies = [
     "numba>=0.60.0",
     "numpy",
     "pandas",
+    "pyro-ppl>=1.6.0",
     "rich>=12.0.0",
     "scikit-learn>=0.21.2",
     "scipy",
