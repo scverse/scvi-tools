@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import flax
 import jax
 import numpy as np
-import pyro
 import torch
 from flax.training import train_state
 from jax import random
@@ -16,10 +15,10 @@ from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
+from scvi.utils import dependencies
 from scvi.utils._jax import device_selecting_PRNGKey
 
 from ._decorators import auto_move_data
-from ._pyro import AutoMoveDataPredictive
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -28,7 +27,6 @@ if TYPE_CHECKING:
     import jax.numpy as jnp
     from jaxlib.xla_extension import Device
     from numpyro.distributions import Distribution
-    from pyro.infer.predictive import Predictive
 
     from scvi._types import LossRecord, MinifiedDataType, Tensor
     from scvi.model.base import BaseModelClass
@@ -317,6 +315,7 @@ def _get_dict_if_none(param):
     return param
 
 
+@dependencies("pyro")
 class PyroBaseModuleClass(nn.Module):
     """Base module class for Pyro models.
 
@@ -340,6 +339,8 @@ class PyroBaseModuleClass(nn.Module):
     on_load_kwargs
         Dictionary containing keyword args to use in ``self.on_load``.
     """
+
+    from pyro.infer.predictive import Predictive
 
     def __init__(self, on_load_kwargs: dict | None = None):
         super().__init__()
@@ -391,6 +392,8 @@ class PyroBaseModuleClass(nn.Module):
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
+        import pyro
+
         pyro.clear_param_store()
         old_history = model.history_.copy() if model.history_ is not None else None
         model.train(max_steps=1, **self.on_load_kwargs)
@@ -431,6 +434,8 @@ class PyroBaseModuleClass(nn.Module):
             in an outermost ``plate`` messenger. Note that this requires that the model has
             all batch dims correctly annotated via :class:`~pyro.plate`.
         """
+        from ._pyro import AutoMoveDataPredictive
+
         if model is None:
             model = self.model
         if guide is None:

@@ -1558,7 +1558,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
 
 
 class JaxTrainingPlan(TrainingPlan):
-    """Lightning module task to train Pyro scvi-tools modules.
+    """Lightning module task to train Jax scvi-tools modules.
 
     Parameters
     ----------

@@ -35,23 +35,16 @@ classifiers = [
 dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
-    "flax",
-    "jax",
-    "jaxlib",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "numba>=0.60.0",
     "numpy",
-    "numpyro>=0.12.1",
     "pandas",
-    "pyro-ppl>=1.6.0",
-    "optax",
     "rich>=12.0.0",
     "scikit-learn>=0.21.2",
     "scipy",
     "sparse>=0.14.0",
-    "tensorboard>=2.0",
     "torch",
     "torchmetrics>=0.11.0",
     "tqdm",
@@ -83,7 +76,7 @@ docs = [
 docsbuild = ["scvi-tools[docs,autotune,hub]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics","tensorboard>=2.0"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.hub dependencies
@@ -100,10 +93,13 @@ parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 interpretability = ["captum", "shap"]
 # for custom dataloders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
-
+# for jax support
+jax = ["flax","jax","jaxlib","optax","numpyro>=0.12.1"]
+# for pyro support
+pyro = ["pyro-ppl>=1.6.0","scvi-tools[jax]"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
+    "scvi-tools[autotune,aws,hub,jax,pyro,file_sharing,regseq,scanpy,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",

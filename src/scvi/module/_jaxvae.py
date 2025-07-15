@@ -1,12 +1,15 @@
-import jax
-import jax.numpy as jnp
-import numpyro.distributions as dist
-from flax import linen as nn
-from flax.linen.initializers import variance_scaling
-
 from scvi import REGISTRY_KEYS
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.utils import error_on_missing_dependencies
+
+error_on_missing_dependencies("jax", "numpyro", "flax", "jaxlib", "optax")
+
+import jax  # noqa: E402
+import jax.numpy as jnp  # noqa: E402
+import numpyro.distributions as dist  # noqa: E402
+from flax import linen as nn  # noqa: E402
+from flax.linen.initializers import variance_scaling  # noqa: E402
 
 
 class Dense(nn.Dense):

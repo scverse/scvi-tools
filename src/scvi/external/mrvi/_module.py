@@ -11,8 +11,6 @@ import torch.nn.init as init
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock
-
-# from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 if TYPE_CHECKING:

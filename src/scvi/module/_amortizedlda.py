@@ -1,17 +1,21 @@
 import math
 from collections.abc import Iterable, Sequence
 
-import pyro
-import pyro.distributions as dist
 import torch
 import torch.nn.functional as F
-from pyro import poutine
-from pyro.infer import Trace_ELBO
-from pyro.nn import PyroModule
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.module.base import PyroBaseModuleClass, auto_move_data
 from scvi.nn import Encoder
+from scvi.utils import error_on_missing_dependencies
+
+error_on_missing_dependencies("pyro")
+
+import pyro  # noqa: E402
+import pyro.distributions as dist  # noqa: E402
+from pyro import poutine  # noqa: E402
+from pyro.infer import Trace_ELBO  # noqa: E402
+from pyro.nn import PyroModule  # noqa: E402
 
 _AMORTIZED_LDA_PYRO_MODULE_NAME = "amortized_lda"
 
