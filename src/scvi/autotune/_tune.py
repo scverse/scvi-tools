@@ -46,7 +46,7 @@ def run_autotune(
         Model class on which to tune hyperparameters.
     data
         :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
-        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
+        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule`.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.

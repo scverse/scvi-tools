@@ -13,13 +13,10 @@ if TYPE_CHECKING:
 
 
 class EmbeddingMixin:
-    """``EXPERIMENTAL`` Mixin class for initializing and using embeddings in a model.
+    """Mixin class for initializing and using embeddings in a model.
 
     Must be used with a module that inherits from :class:`~scvi.module.base.EmbeddingModuleMixin`.
 
-    Notes
-    -----
-    Lifecycle: experimental in v1.2.
     """
 
     @torch.inference_mode()
