@@ -346,7 +346,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         """
         from functools import partial
 
-        from scvi.external.mrvi._utils import _parse_local_statistics_requirements
+        from scvi.external.mrvi_jax._utils import _parse_local_statistics_requirements
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 

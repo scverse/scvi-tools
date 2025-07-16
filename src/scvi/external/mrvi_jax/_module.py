@@ -268,7 +268,7 @@ class EncoderXU(nn.Module):
         sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
-        from scvi.external.mrvi._components import (
+        from scvi.external.mrvi_jax._components import (
             ConditionalNormalization,
             NormalDistOutputNN,
         )
