@@ -1,5 +1,3 @@
-from scvi.utils import is_package_installed
-
 from . import utils
 from ._amortizedlda import AmortizedLDA
 from ._autozi import AUTOZI
@@ -25,8 +23,3 @@ __all__ = [
     "AmortizedLDA",
     "utils",
 ]
-
-if is_package_installed("numpyro") and is_package_installed("jax"):
-    from ._jaxscvi import JaxSCVI
-
-    __all__ += ["JaxSCVI"]

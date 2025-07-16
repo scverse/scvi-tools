@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import flax
 import numpy as np
 import torch
 from torch import nn
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
     from scvi.model.base import BaseModelClass
 
 
-@flax.struct.dataclass
+@dataclass
 class LossOutput:
     """Loss signature for models.
 
@@ -454,7 +453,7 @@ if is_package_installed("pyro"):
 else:
     raise ImportError("Please install pyro to use this functionality.")
 
-if is_package_installed("flax") and is_package_installed("flax"):
+if is_package_installed("jax") and is_package_installed("flax"):
     import flax
     from flax.training import train_state
 

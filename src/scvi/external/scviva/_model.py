@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import partial
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import joblib
 import numpy as np

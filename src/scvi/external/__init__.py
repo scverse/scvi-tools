@@ -1,5 +1,3 @@
-from scvi.utils import is_package_installed
-
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .decipher import Decipher
@@ -14,7 +12,6 @@ from .scviva import SCVIVA
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
-from .tangram import Tangram
 from .totalanvi import TOTALANVI
 from .velovi import VELOVI
 
@@ -26,7 +23,6 @@ __all__ = [
     "RNAStereoscope",
     "SpatialStereoscope",
     "CellAssign",
-    "Tangram",
     "TOTALANVI",
     "SCBASSET",
     "POISSONVI",
@@ -39,8 +35,3 @@ __all__ = [
     "RESOLVI",
     "SCVIVA",
 ]
-
-if is_package_installed("numpyro") and is_package_installed("jax"):
-    from .mrvi_jax import JaxMRVI
-
-    __all__ += ["JaxMRVI"]

@@ -9,7 +9,6 @@ from datetime import datetime
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
-import flax
 import numpy as np
 import pyro
 import torch
@@ -21,6 +20,7 @@ from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 from scvi import settings
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
+from scvi.utils import dependencies
 
 if TYPE_CHECKING:
     import lightning.pytorch as pl
@@ -385,7 +385,10 @@ class JaxModuleInit(Callback):
         super().__init__()
         self.dataloader = dataloader
 
+    @dependencies("flax")
     def on_train_start(self, trainer, pl_module):
+        import flax
+
         module = pl_module.module
         if self.dataloader is None:
             dl = trainer.datamodule.train_dataloader()

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from scvi.data import synthetic_iid
-from scvi.external import JaxMRVI
+from scvi.external.mrvi_jax import JaxMRVI
 
 if TYPE_CHECKING:
     from typing import Any
