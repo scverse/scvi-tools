@@ -112,6 +112,7 @@ tutorials = [
     "leidenalg",
     "muon",
     "seaborn",
+    "matplotlib",
     "plotnine",
     "pynndescent",
     "igraph",
