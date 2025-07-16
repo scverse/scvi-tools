@@ -780,5 +780,3 @@ if is_package_installed("numpyro") and is_package_installed("jax"):
                 log_fn=jnp.log,
                 lgamma_fn=jax.scipy.special.gammaln,
             )
-else:
-    raise ImportError("Please install jax & numpyro to use this functionality.")

@@ -1,10 +1,11 @@
+from scvi.utils import is_package_installed
+
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
-from .mrvi_jax import JaxMRVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -33,9 +34,13 @@ __all__ = [
     "SysVI",
     "VELOVI",
     "MRVI",
-    "JaxMRVI",
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
 ]
+
+if is_package_installed("numpyro") and is_package_installed("jax"):
+    from .mrvi_jax import JaxMRVI
+
+    __all__ += ["JaxMRVI"]

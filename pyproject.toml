@@ -47,6 +47,7 @@ dependencies = [
     "scikit-learn>=0.21.2",
     "scipy",
     "sparse>=0.14.0",
+    "tensorboard>=2.0",
     "torch",
     "torchmetrics>=0.11.0",
     "tqdm",
@@ -78,22 +79,22 @@ docs = [
 docsbuild = ["scvi-tools[docs,autotune,hub]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics","tensorboard>=2.0"]
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
+hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]","scvi-tools[aws]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# scvi.criticism and read 10x
+# umaps, scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
-# for convinient files sharing
+# for convenient files sharing
 file_sharing = ["pooch","gdown"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum", "shap"]
-# for custom dataloders
+# for custom dataloaders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
 # for jax support
 jax = ["jax","jaxlib","optax","numpyro>=0.12.1"]
@@ -110,6 +111,7 @@ tutorials = [
     "leidenalg",
     "muon",
     "seaborn",
+    "matplotlib",
     "plotnine",
     "pynndescent",
     "igraph",

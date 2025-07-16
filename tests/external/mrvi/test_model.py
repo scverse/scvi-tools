@@ -55,7 +55,7 @@ def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-# @pytest.mark.optional
+@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -106,7 +106,7 @@ def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str,
         model.differential_expression(**de_kwarg)
 
 
-# @pytest.mark.optional
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "sample_key",
     ["sample", "sample_str"],
@@ -125,7 +125,7 @@ def test_mrvi_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
-# @pytest.mark.optional
+@pytest.mark.optional
 @pytest.mark.parametrize(
     "model_kwargs",
     [
