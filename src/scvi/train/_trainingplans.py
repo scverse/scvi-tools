@@ -1557,8 +1557,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
     import jax.numpy as jnp
     import optax
 
-    from scvi.module.base import JaxBaseModuleClass
-    from scvi.module.base._base_module import TrainStateWithState
+    from scvi.module.base._base_module import JaxBaseModuleClass, TrainStateWithState
 
     JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
 
