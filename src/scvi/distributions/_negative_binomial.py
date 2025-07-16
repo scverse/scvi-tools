@@ -139,8 +139,6 @@ if is_package_installed("jax"):
         )
 
         return res
-else:
-    raise ImportError("Please install jax to use this functionality.")
 
 
 def log_mixture_nb(

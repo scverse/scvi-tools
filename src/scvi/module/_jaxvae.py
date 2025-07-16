@@ -15,7 +15,8 @@ from flax import linen as nn  # noqa: E402
 from flax.linen.initializers import variance_scaling  # noqa: E402
 
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial  # noqa: E402
-from scvi.module.base import JaxBaseModuleClass, flax_configure  # noqa: E402
+from scvi.module.base._base_module import JaxBaseModuleClass  # noqa: E402
+from scvi.module.base._decorators import flax_configure  # noqa: E402
 
 
 @flax.struct.dataclass

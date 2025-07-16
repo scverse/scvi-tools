@@ -7,7 +7,8 @@ import jax
 import jax.numpy as jnp
 
 from scvi._types import LossRecord, Tensor
-from scvi.module.base import JaxBaseModuleClass, flax_configure
+from scvi.module.base._base_module import JaxBaseModuleClass
+from scvi.module.base._decorators import flax_configure
 
 
 @flax.struct.dataclass

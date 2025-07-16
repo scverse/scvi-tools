@@ -134,5 +134,3 @@ if is_package_installed("flax"):
 
         cls.__init__ = init
         return cls
-else:
-    raise ImportError("Please install flax to use this functionality.")

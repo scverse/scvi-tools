@@ -748,9 +748,6 @@ if is_package_installed("jax") and is_package_installed("flax"):
 
             return np.array(jax.device_get(x))
 
-else:
-    raise ImportError("Please install jax & flax to use this functionality.")
-
 
 def _generic_forward(
     module,
