@@ -16,7 +16,7 @@ import jax.numpy as jnp  # noqa: E402
 
 from scvi.module import JaxVAE  # noqa: E402
 
-from .base import JaxTrainingMixin  # noqa: E402
+from .base._jaxmixin import JaxTrainingMixin  # noqa: E402
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
