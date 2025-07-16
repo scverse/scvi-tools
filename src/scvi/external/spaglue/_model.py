@@ -16,7 +16,7 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data._download import _download
-from scvi.data.fields import CategoricalObsField, LayerField
+from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.external.spaglue._utils import (
     _check_guidance_graph_consisteny,
@@ -99,23 +99,42 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         n_inputs = {mod: s["n_vars"] for mod, s in sum_stats.items()}
         n_batches = {mod: s["n_batch"] for mod, s in sum_stats.items()}
+        n_labels = {mod: s["n_labels"] for mod, s in sum_stats.items()}
 
+        # Which generative distributions to use
         generative_distributions = {
             mod: adata.uns["spaglue_likelihood"] for mod, adata in self.adatas.items()
         }
 
+        # Whether to use the Gaussian Mixture Prior
+        gmm_priors = {mod: adata.uns["spaglue_gmm_prior"] for mod, adata in self.adatas.items()}
+
+        # Whether to use the provided label key to guide model development
+        semi_supervised = {
+            mod: adata.uns["spaglue_semi_supervised"] for mod, adata in self.adatas.items()
+        }
+
+        # How many components to model
+        n_mixture_components = {
+            mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
+        }
+
+        # Compute guidance graph if not provided, do a sanity check
         if guidance_graph is not None:
             self.guidance_graph = guidance_graph
         else:
             self.guidance_graph = _construct_guidance_graph(self.adatas)
-
         _check_guidance_graph_consisteny(self.guidance_graph, adatas)
 
         self.module = SPAGLUEVAE(
             n_inputs=n_inputs,
             n_batches=n_batches,
+            n_labels=n_labels,
             gene_likelihoods=generative_distributions,
             guidance_graph=self.guidance_graph,
+            use_gmm_prior=gmm_priors,
+            semi_supervised=semi_supervised,
+            n_mixture_components=n_mixture_components,
             **model_kwargs,
         )
 
@@ -146,9 +165,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             logger.info(f"max_epochs was approximated to {max_epochs}")
 
         accelerator, devices, device = parse_device_args(
-            accelerator=accelerator,  # cpu, gpu or auto (automatically selects optimal device)
-            devices=devices,  # auto, 1 0r [0,1]
-            return_device="torch",  #  make returned device pytorch compatible
+            accelerator=accelerator,
+            devices=devices,
+            return_device="torch",
         )
 
         self.trainer = Trainer(
@@ -185,20 +204,18 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        train_dl = TrainDL(train_dls)  # combine the list of TRAINING dataloaders
+        train_dl = TrainDL(train_dls)
         val_dl = TrainDL(val_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
 
         self._training_plan = SPAGLUETrainingPlan(
-            self.module,  # JVAE module (defined in __init__)
+            self.module,
             **plan_kwargs,
         )
 
-        if train_size == 1.0:  # avoid issue with empty train/val dataloaders
-            self.trainer.fit(
-                self._training_plan, train_dl
-            )  # calling trainer.fit uses train_df and val_dl
+        if train_size == 1.0:
+            self.trainer.fit(self._training_plan, train_dl)
         else:
             self.trainer.fit(
                 self._training_plan, train_dataloaders=train_dl, val_dataloaders=val_dl
@@ -208,10 +225,10 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         except AttributeError:
             self.history_ = None
 
-        self.module.eval()  # set model to evaluation mode (di)
+        self.module.eval()
 
-        self.to_device(device)  # move model to speciified device
-        self.is_trained_ = True  # marl model as trained
+        self.to_device(device)
+        self.is_trained_ = True
 
     @classmethod
     def setup_anndata(
@@ -221,30 +238,43 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         labels_key: str | None = None,
         layer: str | None = None,
         likelihood: str = "nb",
+        gmm_prior: bool = False,
+        semi_supervised: bool = False,
+        n_mixture_components: int = 10,
+        unlabeled_category: str = "unknown",
         **kwargs: dict,
     ) -> None:
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
 
-        # For a specific layer (e.g., "counts")
         if "counts" in adata.layers and not isinstance(
             adata.layers["counts"], scipy.sparse.csr_matrix
         ):
             adata.layers["counts"] = adata.layers["counts"].tocsr()
 
         adata.uns["spaglue_likelihood"] = likelihood
+        adata.uns["spaglue_gmm_prior"] = gmm_prior
+        adata.uns["spaglue_semi_supervised"] = semi_supervised
+        adata.uns["spaglue_n_mixture_components"] = n_mixture_components
 
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
             **locals()
         )  # returns dict organizing the args used to call setup anndata
+
+        if labels_key is None:
+            label_field = CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key)
+        else:
+            label_field = LabelsWithUnlabeledObsField(
+                REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+            )
+
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            label_field,
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        # adata_manager.register_fields(adata, **kwargs)
         adata_manager.register_fields(adata)
         cls.register_manager(adata_manager)
 
@@ -262,7 +292,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        # adatas: list[AnnData] = None,
         adatas: dict[str, AnnData] | list[AnnData] = None,
         deterministic: bool = True,
         batch_size: int = 1024,
@@ -345,7 +374,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                 inference_output,
             )
 
-            # --- Handle target batch ---
+            # handle target batch
             batch_size_ = generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0]
             if target_batch is not None:
                 b = np.asarray(target_batch)
@@ -367,7 +396,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                 device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
             )
 
-            # --- Handle target libsize ---
+            # handle target libsuze
             if target_libsize is not None:
                 l = target_libsize
                 if not isinstance(l, np.ndarray):
@@ -392,7 +421,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                     device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
                 )
 
-            # Determine target modality (the other one)
+            # determine target modality
             target_modalities = [m for m in self.modality_names if m != source_modality]
             if len(target_modalities) != 1:
                 raise ValueError("There must be exactly two modalities defined.")
@@ -520,8 +549,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             # grab all the parameters except for kwargs (is a dict)
             non_kwargs = init_params["non_kwargs"]
             kwargs = init_params["kwargs"]
-
-            # expand out kwargs
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
         else:
             # grab all the parameters except for kwargs (is a dict)
@@ -557,7 +584,6 @@ class TrainDL(DataLoader):  # creates batch structure for training process
         self.largest_dl = self.data_loader_list[
             self.largest_train_dl_idx
         ]  # dl corresponding to the largest dataset
-        # super().__init__(self.largest_dl, num_workers=num_workers)
         super().__init__(
             self.largest_dl,
             num_workers=settings.dl_num_workers,

@@ -1,9 +1,11 @@
 import torch
-from torch.distributions import Normal, kl_divergence
+import torch.nn as nn
+from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import NegativeBinomial, ZeroInflatedNegativeBinomial
+from scvi.distributions import NegativeBinomial, Normal, ZeroInflatedNegativeBinomial
 from scvi.external.spaglue import GraphEncoder_glue, NBDataDecoderWB
+from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
@@ -14,8 +16,12 @@ class SPAGLUEVAE(BaseModuleClass):
         self,
         n_inputs: list[int],
         n_batches: list[int],
+        n_labels: list[int],
         gene_likelihoods: list[str],
         guidance_graph,
+        use_gmm_prior: dict[bool],
+        semi_supervised: dict[bool],
+        n_mixture_components: int = 100,
         n_latent_seq: int = 50,
         n_latent_spatial: int = 50,
         n_hidden: int = 256,
@@ -24,6 +30,25 @@ class SPAGLUEVAE(BaseModuleClass):
         # **kwargs: dict,
     ) -> None:
         super().__init__()
+
+        self.gmm_logits = nn.ParameterDict()
+        self.gmm_means = nn.ParameterDict()
+        self.gmm_scales = nn.ParameterDict()
+
+        self.use_gmm_prior = use_gmm_prior
+        self.semi_supervised = semi_supervised
+        self.n_mixture_components = n_mixture_components
+        self.n_labels = n_labels
+        latent_dim = n_latent_seq
+
+        for m in use_gmm_prior.keys():
+            if self.use_gmm_prior[m]:
+                k = self.n_mixture_components[m]
+                if self.semi_supervised[m]:
+                    k = self.n_labels[m]
+                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))
+                self.gmm_means[m] = nn.Parameter(torch.randn(k, latent_dim))
+                self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim))
 
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
@@ -66,6 +91,22 @@ class SPAGLUEVAE(BaseModuleClass):
             vnum=n_inputs["diss"] + n_inputs["spatial"],
             out_features=50,
         )
+
+        if self.semi_supervised["diss"]:
+            cls_parameters = {
+                "n_layers": 0,
+                "n_hidden": 128,
+                "dropout_rate": 0.0,
+            }
+            self.classifier = Classifier(
+                n_latent_seq,
+                n_labels=self.n_labels["diss"],
+                use_batch_norm=False,
+                use_layer_norm=True,
+                **cls_parameters,
+            )
+        else:
+            self.classifier = None
 
     def _get_inference_input(
         self, tensors: dict[str, torch.Tensor]
@@ -165,14 +206,40 @@ class SPAGLUEVAE(BaseModuleClass):
                 scale=px_scale,
             )
 
-        # we do not model the library size
-        # pl = None
-        # prior
-        pz = Normal(torch.zeros_like(z), torch.ones_like(z))
+        elif self.gene_likelihoods[mode] == "normal":
+            px = Normal(px_rate, px_r, normal_mu=px_scale)
+
+        if self.use_gmm_prior[mode]:
+            logits = self.gmm_logits[mode]
+            means = self.gmm_means[mode]
+            scales = torch.exp(self.gmm_scales[mode]) + 1e-4
+
+            if self.semi_supervised[mode]:
+                logits_input = (
+                    torch.stack(
+                        [
+                            torch.nn.functional.one_hot(y_i, self.n_labels[mode])
+                            if y_i < self.n_labels[mode]
+                            else torch.zeros(self.n_labels[mode])
+                            for y_i in y.ravel()
+                        ]
+                    )
+                    .to(z.device)
+                    .float()
+                )
+
+                logits = logits + 100 * logits_input
+                means = means.expand(y.shape[0], -1, -1)
+                scales = scales.expand(y.shape[0], -1, -1)
+
+            cats = Categorical(logits=logits)
+            normal_dists = Independent(Normal(means, scales), reinterpreted_batch_ndims=1)
+            pz = MixtureSameFamily(cats, normal_dists)
+        else:
+            pz = Normal(torch.zeros_like(z), torch.ones_like(z))
 
         return {
             MODULE_KEYS.PX_KEY: px,
-            # MODULE_KEYS.PL_KEY: pl,
             MODULE_KEYS.PZ_KEY: pz,
             "px_rate": px_rate,
         }
@@ -194,12 +261,17 @@ class SPAGLUEVAE(BaseModuleClass):
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
         reconstruction_loss_norm = torch.mean(reconst_loss)
 
-        # data kl div
-        kl_divergence_z = kl_divergence(
-            inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
-        ).sum(dim=-1)
+        if self.use_gmm_prior[mode]:
+            kl_div = inference_outputs[MODULE_KEYS.QZ_KEY].log_prob(inference_outputs["z"]).sum(
+                -1
+            ) - generative_outputs[MODULE_KEYS.PZ_KEY].log_prob(inference_outputs["z"])
+        else:
+            # data kl div
+            kl_div = kl_divergence(
+                inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
+            ).sum(dim=-1)
 
-        kl_local_norm = torch.sum(kl_divergence_z) / (n_obs * n_var)
+        kl_local_norm = torch.sum(kl_div) / (n_obs * n_var)
 
         loss = lam_data * reconstruction_loss_norm + lam_kl * kl_local_norm
 
@@ -207,6 +279,13 @@ class SPAGLUEVAE(BaseModuleClass):
         mu_all = inference_outputs["mu_all"]
         logvar_all = inference_outputs["logvar_all"]
         v_all = inference_outputs["v_all"]
+
+        classification_loss = 0.0
+        if self.classifier is not None and mode == "diss":
+            y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
+            z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
+            y_logits = self.classifier(z_mean)
+            classification_loss += torch.nn.functional.cross_entropy(y_logits, y, reduction="mean")
 
         return LossOutput(
             loss=loss,
@@ -218,5 +297,6 @@ class SPAGLUEVAE(BaseModuleClass):
                 "logvar_all": logvar_all,
                 "v_all": v_all,
                 "guidance_graph": self.guidance_graph,
+                "classification_loss": classification_loss,
             },
         )

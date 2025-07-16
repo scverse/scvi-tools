@@ -30,15 +30,8 @@ def compute_graph_loss(graph, feature_embeddings):
     return total_loss
 
 
-# def distance_matrix(pts_src: torch.Tensor, pts_dst: torch.Tensor, p: int = 2):
-#     x_col = pts_src.unsqueeze(1)
-#     y_row = pts_dst.unsqueeze(0)
-#     distance = torch.sum((torch.abs(x_col - y_row)) ** p, 2)
-#     return distance
-
-
 def kl_divergence_graph(mu, logvar):
-    kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)  # sum over latent dims
+    kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
     kl_mean = kl.mean()
     return kl_mean
 
@@ -51,6 +44,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         lam_kl=1.0,
         lam_data=1.0,
         lam_sinkhorn=1.0,
+        lam_class=1.0,
         sinkhorn_p=2,
         sinkhorn_blur=1,
         sinkhorn_reach=1,
@@ -64,18 +58,14 @@ class SPAGLUETrainingPlan(TrainingPlan):
         self.lam_kl = lam_kl
         self.lam_data = lam_data
         self.lam_sinkhorn = lam_sinkhorn
+        self.lam_class = lam_class
         self.sinkhorn_p = sinkhorn_p
         self.sinkhorn_reach = sinkhorn_reach
         self.sinkhorn_blur = sinkhorn_blur
-        self.lr = lr  # scvi handles giving the learning rate to the optimizer
-
-        # self.automatic_optimization = False
+        self.lr = lr
 
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step."""
-        # opt = self.optimizers()
-        # print(opt)
-
         loss_output_objs = []
         for _i, (modality, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
@@ -128,6 +118,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
                 "z": loss_output.extra_metrics["z"],
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
+                "classification_loss": loss_output.extra_metrics["classification_loss"],
             }
 
             loss_output_objs.append(loss_dict)
@@ -167,11 +158,16 @@ class SPAGLUETrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
+        ### classification loss
+        classification_loss = sum(i["classification_loss"] for i in loss_output_objs)
+        self.log(
+            "class_loss", classification_loss, batch_size=batch_size, on_epoch=True, on_step=False
+        )
+
         ### UOT loss
         z1 = loss_output_objs[0]["z"]
         z2 = loss_output_objs[1]["z"]
 
-        # uot_loss, tran = unbalanced_ot(z1, z2)
         sinkhorn = geomloss.SamplesLoss(
             loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
         )
@@ -179,8 +175,12 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
 
-        ### total loss
-        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
+        total_loss = (
+            self.lam_graph * graph_loss
+            + data_loss
+            + self.lam_sinkhorn * sinkhorn_loss
+            + self.lam_class * classification_loss
+        )
 
         self.log(
             "training_loss",
@@ -190,10 +190,6 @@ class SPAGLUETrainingPlan(TrainingPlan):
             on_epoch=True,
             batch_size=total_batch_size,
         )
-
-        # opt.zero_grad()
-        # self.manual_backward(total_loss)
-        # opt.step()
 
         return {"loss": total_loss}
 
@@ -256,7 +252,6 @@ class SPAGLUETrainingPlan(TrainingPlan):
         z1 = loss_output_objs[0]["z"]
         z2 = loss_output_objs[1]["z"]
 
-        # uot_loss, tran = unbalanced_ot(z1, z2)
         sinkhorn = geomloss.SamplesLoss(
             loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
         )
