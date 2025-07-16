@@ -361,10 +361,8 @@ class DifferentialComputation:
                 proba_m2 = np.mean(is_de_minus, 0)
                 if test_mode == "two":
                     proba_de = proba_m1 + proba_m2
-                    sign = 1.0
                 else:
                     proba_de = np.maximum(proba_m1, proba_m2)
-                    sign = np.sign(proba_m1 - proba_m2)
                 change_distribution_props = describe_continuous_distrib(
                     samples=change_fn(scales_1, scales_2, 1e-3 * pseudocounts),
                     credible_intervals_levels=cred_interval_lvls,
@@ -376,7 +374,7 @@ class DifferentialComputation:
                 res = dict(
                     proba_de=proba_de,
                     proba_not_de=1.0 - proba_de,
-                    bayes_factor=sign * (np.log(proba_de + eps) - np.log(1.0 - proba_de + eps)),
+                    bayes_factor=np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
                     scale1=px_scale_mean1,
                     scale2=px_scale_mean2,
                     pseudocounts=pseudocounts,
@@ -560,15 +558,15 @@ def estimate_pseudocounts_offset(
         artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.quantile(artefact_scales_a, q=quantile)
     else:
-        eps_a = 1e-5
+        eps_a = 1e-10
 
     if where_zero_b.sum() >= 1:
         artefact_scales_b = max_scales_b[where_zero_b]
         eps_b = np.quantile(artefact_scales_b, q=quantile)
     else:
-        eps_b = 1e-5
+        eps_b = 1e-10
     res = np.maximum(eps_a, eps_b)
-    return np.maximum(1e-5, res)
+    return np.maximum(1e-10, res / len(max_scales_a))
 
 
 def pairs_sampler(
@@ -597,7 +595,7 @@ def pairs_sampler(
         param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
         In most cases, this parameter should remain False
     sanity_check_perm
-        TODO
+        do permutation
     weights1
         probabilities associated to array 1 for random sampling
     weights2

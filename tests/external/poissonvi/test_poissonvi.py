@@ -16,6 +16,7 @@ def test_poissonvi():
     model.get_normalized_expression()
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
+    model.differential_accessibility(groupby="labels", group1="label_1", mode="vanilla")
 
 
 def test_poissonvi_default_params():
