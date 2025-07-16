@@ -71,8 +71,7 @@ class SCVIVA(
     adata
         AnnData object that has been registered via :meth:`~scvi.external.SCVIVA.setup_anndata`. If
         ``None``, then the underlying module will not be initialized until training, and a
-        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training
-        (``EXPERIMENTAL``).
+        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training.
     n_hidden
         Number of nodes per hidden layer.
     n_latent

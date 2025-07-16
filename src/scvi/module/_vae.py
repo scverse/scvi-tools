@@ -141,9 +141,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is
         set to ``"embedding"``.
 
-    Notes
-    -----
-    Lifecycle: argument ``batch_representation`` is experimental in v1.2.
     """
 
     def __init__(

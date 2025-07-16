@@ -178,7 +178,6 @@ def test_peakvi_multigpu():
         accelerator="gpu",
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
-        save_best=False,
     )
     assert model.is_trained
 
