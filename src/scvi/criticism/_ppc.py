@@ -72,21 +72,10 @@ class PosteriorPredictiveCheck:
         adata: AnnOrMuData,
         models_dict: dict[str, BaseModelClass],
         count_layer_key: str | None = None,
-        expr_layer_key: str | None = None,
         n_samples: int = 10,
         indices: list | None = None,
         modality: str | None = None,
     ):
-        if count_layer_key is not None and expr_layer_key is not None:
-            raise ValueError(
-                "Only one of count_layer_key or expr_layer_key should be provided, not both."
-            )
-        if expr_layer_key is not None:
-            count_layer_key = expr_layer_key
-            self.is_float_layer = True
-        else:
-            self.is_float_layer = False
-
         if indices is not None:
             adata = adata[indices]
         self.count_layer_key = count_layer_key
@@ -114,7 +103,13 @@ class PosteriorPredictiveCheck:
 
         self._store_posterior_predictive_samples(indices=indices)
 
-        if self.is_float_layer:
+        # check if raw counts are indeed int (required for std computation trick)
+        if np.issubdtype(raw_counts.dtype, np.floating):
+           self.is_float_data = not np.all(raw_counts == raw_counts.astype(int))
+        else:
+            self.is_float_data = False
+            
+        if self.is_float_data:
             self.samples_dataset = _make_dataset_dense(self.samples_dataset)
 
     def __repr__(self) -> str:
@@ -200,7 +195,7 @@ class PosteriorPredictiveCheck:
         identifier = METRIC_CV_CELL if dim == "features" else METRIC_CV_GENE
         mean = self.samples_dataset.mean(dim=dim, skipna=False)
 
-        if self.is_float_layer:
+        if self.is_float_data:
             std = self.samples_dataset.std(dim=dim, skipna=False)
         else:
             # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
