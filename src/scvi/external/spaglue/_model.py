@@ -6,6 +6,7 @@ from typing import Literal
 
 import anndata as ad
 import numpy as np
+import pandas as pd
 import scipy.sparse
 import torch
 from anndata import AnnData
@@ -79,6 +80,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         self,
         adatas: dict[str, AnnData],
         guidance_graph: Data | None = None,
+        mapping_df: pd.DataFrame | None = None,
         **model_kwargs: dict,
     ) -> None:
         super().__init__()
@@ -124,7 +126,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         if guidance_graph is not None:
             self.guidance_graph = guidance_graph
         else:
-            self.guidance_graph = _construct_guidance_graph(self.adatas)
+            self.guidance_graph = _construct_guidance_graph(self.adatas, mapping_df)
         _check_guidance_graph_consisteny(self.guidance_graph, adatas)
 
         self.module = SPAGLUEVAE(
