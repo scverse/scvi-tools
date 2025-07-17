@@ -780,10 +780,10 @@ class CYTOVI(
                 kwargs["change_fn"] = change_fn_clp
                 kwargs["test_mode"] = test_mode
 
-        if (len(adata.obs[self.sample_key].unique()) > 1) and (balance_samples is None):    # hacky way for now, write in clean; @Ori: any idea how to write this properly?
-            balance_samples = True
-
-        if balance_samples is True:
+        if (
+            self.registry_["setup_args"][CYTOVI_REGISTRY_KEYS.SAMPLE_KEY]
+            and balance_samples is not False
+        ):
             subset_idx = get_balanced_sample_indices(adata, self.sample_key)
             kwargs["subset_idx"] = subset_idx
 
