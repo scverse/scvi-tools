@@ -9,6 +9,7 @@ import numpy as np
 import scipy.sparse
 import torch
 from anndata import AnnData
+from sklearn.neighbors import NearestNeighbors
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data
 
@@ -335,6 +336,33 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         return latents
 
+    def compute_per_feature_confidence(self, feature_embedding, conf_method):
+        ### compute the per-feature confidence score
+        # compute the KNN graph
+        # fit knn (self is included!)
+        knn = NearestNeighbors(n_neighbors=11, metric="cosine")
+        knn.fit(feature_embedding)
+
+        # extract distances to / indices of nearest neighbors
+        distances, indices = knn.kneighbors(feature_embedding)
+
+        # Remove self (first neighbor is always the point itself)
+        distances = distances[:, 1:]
+        indices = indices[:, 1:]
+
+        score = []
+        # compute statistics for every node
+        if conf_method == "min":
+            score = distances.min(axis=1)
+        elif conf_method == "mean":
+            score = distances.mean(axis=1)
+        elif conf_method == "max":
+            score = distances.max(axis=1)
+        elif conf_method == "median":
+            score = distances.median(axis=1)
+
+        return score
+
     @torch.inference_mode()
     def get_imputed_values(
         self,
@@ -343,6 +371,8 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         batch_size: int = 1024,
         target_batch: int | None = None,
         target_libsize: float | None = None,
+        conf_method: Literal["min", "mean", "max", "median"] = "min_d",
+        min_max_scale: bool = True,
     ) -> list[np.ndarray]:
         # choose source adata according to mode
         if source_modality not in self.adatas:
@@ -431,8 +461,19 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
             reconstructed_counts.append(generative_output["px_rate"].cpu().detach())
 
+            # extract the final feature embedding
+            feature_embedding = inference_output["v_all"].cpu().detach().numpy()
+
+        score = self.compute_per_feature_confidence(feature_embedding, conf_method)
+
+        if min_max_scale:
+            if len(score) > 0:
+                score_norm = (score - score.min()) / (score.max() - score.min())
+            else:
+                score_norm = score.copy()
+
         reconstructed_count = torch.cat(reconstructed_counts).numpy()
-        return reconstructed_count
+        return reconstructed_count, score_norm
 
     def save(
         self,
