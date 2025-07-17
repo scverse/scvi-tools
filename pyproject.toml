@@ -75,7 +75,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub]"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]

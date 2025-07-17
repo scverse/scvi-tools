@@ -154,7 +154,7 @@ class DecoderZXAttention(nn.Module):
 
         if self.n_batch >= 2:
             batch_embed = self.batch_embedding(batch_covariate)
-            batch_embed = nn.LayerNorm(batch_embed)
+            batch_embed = nn.LayerNorm(batch_embed.shape[1])(batch_embed)
             if has_mc_samples:
                 batch_embed = batch_embed.reshape(batch_embed, (z_.shape[0], -1, -1, -1))
 
