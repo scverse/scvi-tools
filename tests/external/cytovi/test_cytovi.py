@@ -18,7 +18,7 @@ N_EPOCHS = 2
 @pytest.fixture(scope="session")
 def adata():
     adata = synthetic_iid(
-        batch_size=256, n_genes=30, n_proteins=0, n_regions=0, n_batches=2, n_labels=10
+        batch_size=256, n_genes=30, n_proteins=0, n_regions=0, n_batches=2, n_labels=10, rna_dist='normal'
     )
 
     adata.layers[RAW_LAYER_KEY] = adata.X.copy()
@@ -29,11 +29,11 @@ def adata():
 @pytest.fixture(scope="session")
 def overlapping_adatas():
     adata1 = synthetic_iid(
-        batch_size=256, n_genes=30, n_proteins=0, n_regions=0, n_batches=1, n_labels=10
+        batch_size=256, n_genes=30, n_proteins=0, n_regions=0, n_batches=1, n_labels=10, rna_dist='normal'
     )
 
     adata2 = synthetic_iid(
-        batch_size=256, n_genes=20, n_proteins=0, n_regions=0, n_batches=1, n_labels=10
+        batch_size=256, n_genes=20, n_proteins=0, n_regions=0, n_batches=1, n_labels=10, rna_dist='normal'
     )
 
     adata1.layers[RAW_LAYER_KEY] = adata1.X.copy()
