@@ -10,6 +10,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
 #### Fixed
 
 #### Changed
@@ -50,7 +53,9 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
-- Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
+- Add {class}`scvi.external.TOTALANVI`. {pr}`3259` for modeling of single-cell RNA and
+    CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer
+    both protein expression and cell states
 - Add Custom Dataloaders registry support, {pr}`2932`.
 - Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
     and {class}`scvi.model.SCANVI`, {pr}`2932`.

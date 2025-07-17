@@ -2,6 +2,8 @@ import re
 
 import requests
 
+from scvi.utils import dependencies
+
 
 def validate_url(url: str, error_format: bool = False, error_response: bool = False) -> bool:
     """Validates a URL.
@@ -32,3 +34,37 @@ def validate_url(url: str, error_format: bool = False, error_response: bool = Fa
         raise ValueError(f"Invalid URL: {url}")
 
     return valid
+
+
+@dependencies("selenium")
+def validate_colab_notebook(colab_url: str) -> bool:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+
+    timeout = 15
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--no-sandbox")
+
+    driver = webdriver.Chrome(options=options)
+
+    driver.get(colab_url)
+
+    # Wait for content to load
+    driver.implicitly_wait(timeout)
+
+    page_source = driver.page_source
+
+    if "Notebook not found" in page_source:
+        print(f"❌ Notebook not found: {colab_url}")
+        driver.quit()
+        return False
+    elif "scvi-tools" in page_source:
+        print(f"✅ Valid notebook: {colab_url}")
+        driver.quit()
+        return True
+    else:
+        print(f"⚠️ Unknown state: {colab_url}")
+        driver.quit()
+        return False
