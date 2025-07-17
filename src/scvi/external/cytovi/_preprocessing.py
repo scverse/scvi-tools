@@ -86,66 +86,6 @@ def arcsinh(
     return adata if not inplace else None
 
 
-def logp(
-    adata: AnnData,
-    raw_layer_key: str = "raw",
-    transformed_layer_key: str = "transformed",
-    offset: float = 1.0,
-    transform_scatter: bool = False,
-    inplace: bool = True,
-) -> AnnData | None:
-    """
-    Apply log transformation to the 'raw' layer of an AnnData object.
-
-    Parameters
-    ----------
-    adata : AnnData
-        The AnnData object to normalize.
-    raw_layer_key : str, optional
-        The key of the raw layer to be transformed. Default is "raw".
-    transformed_layer_key : str, optional
-        The key to store the transformed data in `adata.layers`. Default is "transformed".
-    offset : float, optional
-        The offset value to add before taking the logarithm. Default is 1.0.
-    transform_scatter : bool, optional
-        If True, scatter features are omitted from transformation. Default is False.
-    inplace : bool, optional
-        If True, the normalization is applied in place. If False, a new AnnData object is
-        returned. Default is True.
-
-    Returns
-    -------
-    Optional[AnnData]
-        If inplace is False, returns the normalized AnnData object. Otherwise, returns None.
-    """
-    validate_layer_key(adata, raw_layer_key)
-
-    # check if the transformed layer is present already
-    if transformed_layer_key in adata.layers:
-        msg = f"Layer {transformed_layer_key} already exists. Overwriting it."
-        warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
-
-    adata.layers[transformed_layer_key] = adata.layers[raw_layer_key].copy()
-    adata.layers[transformed_layer_key] = adata.layers[transformed_layer_key].astype("float")
-    adata.layers[transformed_layer_key] += offset
-    adata.layers[transformed_layer_key] = np.log(adata.layers[transformed_layer_key])
-
-    if not transform_scatter:
-        is_scatter = [marker.startswith(CYTOVI_SCATTER_FEATS) for marker in adata.var_names]
-
-        if any(is_scatter):
-            scatter_str = ", ".join(adata.var_names[is_scatter])
-            msg = "Detected scatter features, which are omitted for transformation. \n"
-            f"Scatter features: {scatter_str}"
-            warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
-
-            adata.layers[transformed_layer_key][:, is_scatter] = adata.layers[raw_layer_key][
-                :, is_scatter
-            ]
-
-    return adata if not inplace else None
-
-
 def scale(
     adata: AnnData,
     method: Literal["minmax", "standard"] = "minmax",
