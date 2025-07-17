@@ -1,14 +1,15 @@
-from collections.abc import Iterable
-from typing import Callable, Literal, Optional
+from collections.abc import Callable, Iterable
+from typing import Literal
 
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-from scvi.nn import Encoder, FCLayers
 from torch import logsumexp, nn
 from torch.distributions import Beta, Categorical, Independent, MixtureSameFamily, Normal
 from torch.distributions import kl_divergence as kl
+
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.nn import Encoder, FCLayers
 
 from ._constants import CYTOVI_REGISTRY_KEYS
 
@@ -55,9 +56,9 @@ class CytoVAE(BaseModuleClass):
     encode_covariates : bool, optional
         Whether to concatenate covariates to expression in encoder. Default is False.
     deeply_inject_covariates : bool, optional
-        Whether to concatenate covariates into output of hidden layers in encoder/decoder. This option
-        only applies when `n_layers` > 1. The covariates are concatenated to the input of subsequent hidden layers.
-        Default is True.
+        Whether to concatenate covariates into output of hidden layers in encoder/decoder.
+        This option only applies when `n_layers` > 1. The covariates are concatenated to
+        the input of subsequent hidden layers. Default is True.
     use_batch_norm : Literal["encoder", "decoder", "none", "both"], optional
         Whether to use batch norm in layers. Default is "both".
     use_layer_norm : Literal["encoder", "decoder", "none", "both"], optional
@@ -80,6 +81,7 @@ class CytoVAE(BaseModuleClass):
     prior_label_weight : Optional[int], optional
         Weight for the prior label. Default is 10.
     """
+
     def __init__(
         self,
         n_input: int,
@@ -89,7 +91,7 @@ class CytoVAE(BaseModuleClass):
         n_latent: int = 10,
         n_layers: int = 1,
         n_continuous_cov: int = 0,
-        n_cats_per_cov: Optional[Iterable[int]] = None,
+        n_cats_per_cov: Iterable[int] | None = None,
         dropout_rate: float = 0.1,
         log_variational: bool = False,
         protein_likelihood: Literal["normal", "beta"] = "normal",
@@ -98,15 +100,14 @@ class CytoVAE(BaseModuleClass):
         deeply_inject_covariates: bool = True,
         use_batch_norm: Literal["encoder", "decoder", "none", "both"] = "both",
         use_layer_norm: Literal["encoder", "decoder", "none", "both"] = "none",
-        var_activation: Optional[Callable] = None,
-        encoder_marker_mask: Optional[list] = None,
-        extra_encoder_kwargs: Optional[dict] = None,
-        extra_decoder_kwargs: Optional[dict] = None,
-        scale_activation: Optional[Literal["softplus", None]] = None,
-        prior_mixture: Optional[bool] = True,
+        var_activation: Callable | None = None,
+        encoder_marker_mask: list | None = None,
+        extra_encoder_kwargs: dict | None = None,
+        extra_decoder_kwargs: dict | None = None,
+        scale_activation: Literal["softplus", None] | None = None,
+        prior_mixture: bool | None = True,
         prior_mixture_k: int = 20,
-        prior_label_weight: Optional[int] = 10,
-
+        prior_label_weight: int | None = 10,
     ):
         super().__init__()
         self.n_latent = n_latent
@@ -168,7 +169,6 @@ class CytoVAE(BaseModuleClass):
             **_extra_decoder_kwargs,
         )
 
-
         if self.prior_mixture is True:
             if self.n_labels > 1:
                 prior_mixture_k = n_labels
@@ -177,7 +177,6 @@ class CytoVAE(BaseModuleClass):
                 self.prior_means = torch.nn.Parameter(torch.randn([prior_mixture_k, n_latent]))
             self.prior_log_scales = torch.nn.Parameter(torch.zeros([prior_mixture_k, n_latent]))
             self.prior_logits = torch.nn.Parameter(torch.zeros([prior_mixture_k]))
-
 
     def _get_inference_input(
         self,
@@ -268,7 +267,9 @@ class CytoVAE(BaseModuleClass):
         if cont_covs is None:
             decoder_input = z
         elif z.dim() != cont_covs.dim():
-            decoder_input = torch.cat([z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1)
+            decoder_input = torch.cat(
+                [z, cont_covs.unsqueeze(0).expand(z.size(0), -1, -1)], dim=-1
+            )
         else:
             decoder_input = torch.cat([z, cont_covs], dim=-1)
 
@@ -287,7 +288,6 @@ class CytoVAE(BaseModuleClass):
             y,
         )
 
-
         if self.protein_likelihood == "normal":
             px = Normal(loc=px_param1, scale=px_param2)
         elif self.protein_likelihood == "beta":
@@ -300,19 +300,18 @@ class CytoVAE(BaseModuleClass):
 
             if self.n_labels > 1:
                 logits_labels = torch.where(
-                                y < self.n_labels,
-                                torch.nn.functional.one_hot(y.ravel(), num_classes=self.n_labels),
-                                torch.zeros(y.shape[0], self.n_labels, device=y.device),
-                            )
+                    y < self.n_labels,
+                    torch.nn.functional.one_hot(y.ravel(), num_classes=self.n_labels),
+                    torch.zeros(y.shape[0], self.n_labels, device=y.device),
+                )
                 prior_logits = prior_logits + self.prior_label_weight * logits_labels
                 prior_means = prior_means.expand(y.shape[0], -1, -1)
                 prior_scales = prior_scales.expand(y.shape[0], -1, -1)
 
-            cats = Categorical(logits = prior_logits)
+            cats = Categorical(logits=prior_logits)
             normal_dists = Independent(
-                Normal(prior_means, prior_scales),
-                    reinterpreted_batch_ndims = 1
-                )
+                Normal(prior_means, prior_scales), reinterpreted_batch_ndims=1
+            )
             pz = MixtureSameFamily(cats, normal_dists)
 
         else:
@@ -339,9 +338,11 @@ class CytoVAE(BaseModuleClass):
             nan_mask = None
 
         if self.prior_mixture is True:
-            z = inference_outputs['qz'].rsample(sample_shape = (10, ))
+            z = inference_outputs["qz"].rsample(sample_shape=(10,))
             # sample x n_obs x n_latent
-            kl_divergence_z = (inference_outputs["qz"].log_prob(z).sum(-1) - generative_outputs["pz"].log_prob(z)).mean(0)
+            kl_divergence_z = (
+                inference_outputs["qz"].log_prob(z).sum(-1) - generative_outputs["pz"].log_prob(z)
+            ).mean(0)
 
         else:
             kl_divergence_z = kl(inference_outputs["qz"], generative_outputs["pz"]).sum(dim=1)
@@ -427,7 +428,9 @@ class CytoVAE(BaseModuleClass):
             reconst_loss = losses.dict_sum(losses.reconstruction_loss)
 
             # Log-probabilities
-            p_z = Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale)).log_prob(z).sum(dim=-1)
+            p_z = (
+                Normal(torch.zeros_like(qz.loc), torch.ones_like(qz.scale)).log_prob(z).sum(dim=-1)
+            )
             p_x_zl = -reconst_loss
             q_z_x = qz.log_prob(z).sum(dim=-1)
             log_prob_sum = p_z + p_x_zl - q_z_x
@@ -452,8 +455,8 @@ class DecoderCytoVI(nn.Module):
     n_output : int
         The dimensionality of the output (data space)
     n_cat_list : Iterable[int], optional
-        A list containing the number of categories for each category of interest. Each category will be
-        included using a one-hot encoding
+        A list containing the number of categories for each category of interest. Each category
+        will be included using a one-hot encoding
     n_layers : int, optional
         The number of fully-connected hidden layers
     n_hidden : int, optional
@@ -490,6 +493,7 @@ class DecoderCytoVI(nn.Module):
         Forward computation for a single sample
 
     """
+
     def __init__(
         self,
         n_input: int,
