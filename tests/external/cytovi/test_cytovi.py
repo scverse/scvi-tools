@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 from scvi.data import synthetic_iid
+from scvi.criticism import PosteriorPredictiveCheck
+from scvi.criticism._constants import METRIC_CV_GENE
 from scvi.external import cytovi
 
 RAW_LAYER_KEY = "raw"
@@ -81,6 +83,10 @@ def test_cytovi(adata):
 
     model.train(max_epochs=N_EPOCHS)
     assert model.is_trained
+
+    ppc = PosteriorPredictiveCheck(adata, models_dict={'mymodel': model, 'mymodel2': model}, count_layer_key='scaled')
+    ppc.coefficient_of_variation()
+    assert ppc.metrics[METRIC_CV_GENE].shape[0] == adata.n_vars
 
     latent = model.get_latent_representation()
     assert latent.shape[0] == adata.n_obs
