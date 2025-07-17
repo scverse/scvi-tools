@@ -1,9 +1,8 @@
 from ._constants import CYTOVI_REGISTRY_KEYS
 from ._model import CYTOVI
+from ._plotting import biaxial, histogram
 from ._preprocessing import (
     arcsinh,
-    biaxial,
-    histogram,
     logp,
     mask_markers,
     merge_batches,

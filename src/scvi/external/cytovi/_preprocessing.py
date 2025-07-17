@@ -1,40 +1,51 @@
 from __future__ import annotations
+
 import warnings
-from typing import Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import anndata as ad
 import numpy as np
-from anndata import AnnData
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from anndata import AnnData
+
 from scvi import settings
 
-from ._utils import apply_scaling, validate_layer_key, validate_marker, validate_obs_keys
 from ._constants import CYTOVI_SCATTER_FEATS
+from ._utils import apply_scaling, validate_layer_key, validate_marker, validate_obs_keys
+
 
 def arcsinh(
     adata: AnnData,
     raw_layer_key: str = "raw",
     transformed_layer_key: str = "transformed",
     global_scaling_factor: float = 5,
-    scaling_dict: Optional[dict[str, float]] = None,
+    scaling_dict: dict[str, float] | None = None,
     transform_scatter: bool = False,
     inplace: bool = True,
-) -> Optional[AnnData]:
+) -> AnnData | None:
     """
-    Apply the arcsinh transformation to the 'raw' layer of an AnnData object with variable scaling factors and saves in a new layer.
+    Apply the arcsinh transformation to the 'raw' layer of an AnnData object.
 
     Parameters
     ----------
         adata (AnnData): The AnnData object to transform.
         raw_layer_key (str): Key for the raw expression layer in the AnnData object.
-        transformed_layer_key (str): Key for the layer in the AnnData object, where the transformed expression will be saved.
+        transformed_layer_key (str): Key for the layer in the AnnData object, where the transformed
+            expression will be saved.
         global_scaling_factor (float): The global scaling factor to apply.
-        scaling_dict (Optional[Dict[str, float]]): A dictionary of specific scaling factors for markers.
+        scaling_dict (Optional[Dict[str, float]]): A dictionary of specific scaling factors
+            for markers.
         transform_scatter (bool): If True, scatter features are omitted from the transformation.
-        inplace (bool): If True, the transformation is applied in place. If False, a new AnnData object is returned.
+        inplace (bool): If True, the transformation is applied in place. If False, a new AnnData
+            object is returned.
 
     Returns
     -------
-        Optional[AnnData]: If inplace is False, returns the transformed AnnData object. Otherwise, returns None.
+        Optional[AnnData]: If inplace is False, returns the transformed AnnData object.
+        Otherwise, returns None.
     """
     # check arguments
     validate_layer_key(adata, raw_layer_key)
@@ -47,7 +58,7 @@ def arcsinh(
         warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
     # combine scaling factors into one dict
-    global_dict = {marker: global_scaling_factor for marker in adata.var_names}
+    global_dict = dict.fromkeys(adata.var_names, global_scaling_factor)
 
     # overwrite scaling factors if dictionary is provided
     if scaling_dict is not None:
@@ -62,10 +73,15 @@ def arcsinh(
 
         if any(is_scatter):
             scatter_str = ", ".join(adata.var_names[is_scatter])
-            msg = f"Detected scatter features, which are omitted for transformation. \nScatter features: {scatter_str}"
+            msg = (
+                "Detected scatter features, which are omitted for transformation. \n"
+                f"Scatter features: {scatter_str}"
+            )
             warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
-            adata.layers[transformed_layer_key][:, is_scatter] = adata.layers[raw_layer_key][:, is_scatter]
+            adata.layers[transformed_layer_key][:, is_scatter] = adata.layers[raw_layer_key][
+                :, is_scatter
+            ]
 
     return adata if not inplace else None
 
@@ -77,7 +93,7 @@ def logp(
     offset: float = 1.0,
     transform_scatter: bool = False,
     inplace: bool = True,
-) -> Optional[AnnData]:
+) -> AnnData | None:
     """
     Apply log transformation to the 'raw' layer of an AnnData object.
 
@@ -94,7 +110,8 @@ def logp(
     transform_scatter : bool, optional
         If True, scatter features are omitted from transformation. Default is False.
     inplace : bool, optional
-        If True, the normalization is applied in place. If False, a new AnnData object is returned. Default is True.
+        If True, the normalization is applied in place. If False, a new AnnData object is
+        returned. Default is True.
 
     Returns
     -------
@@ -109,7 +126,7 @@ def logp(
         warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
     adata.layers[transformed_layer_key] = adata.layers[raw_layer_key].copy()
-    adata.layers[transformed_layer_key] = adata.layers[transformed_layer_key].astype('float')
+    adata.layers[transformed_layer_key] = adata.layers[transformed_layer_key].astype("float")
     adata.layers[transformed_layer_key] += offset
     adata.layers[transformed_layer_key] = np.log(adata.layers[transformed_layer_key])
 
@@ -118,24 +135,27 @@ def logp(
 
         if any(is_scatter):
             scatter_str = ", ".join(adata.var_names[is_scatter])
-            msg = f"Detected scatter features, which are omitted for transformation. \nScatter features: {scatter_str}"
+            msg = "Detected scatter features, which are omitted for transformation. \n"
+            f"Scatter features: {scatter_str}"
             warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
-            adata.layers[transformed_layer_key][:, is_scatter] = adata.layers[raw_layer_key][:, is_scatter]
+            adata.layers[transformed_layer_key][:, is_scatter] = adata.layers[raw_layer_key][
+                :, is_scatter
+            ]
 
     return adata if not inplace else None
 
 
 def scale(
     adata: AnnData,
-    method: Literal['minmax', 'standard'] = "minmax",
+    method: Literal["minmax", "standard"] = "minmax",
     feature_range: tuple[float, float] = (0.0, 1.0),
     transformed_layer_key: str = "transformed",
     scaled_layer_key: str = "scaled",
     batch_key: str = None,
     feat_eps: float = 1e-6,
     inplace: bool = True,
-) -> Optional[AnnData]:
+) -> AnnData | None:
     """
     Apply scaling to the transformed layer of an AnnData object.
 
@@ -179,7 +199,9 @@ def scale(
 
         for batch in batches:
             adata_batch = adata[adata.obs[batch_key] == batch].copy()
-            scaled_data, _ = apply_scaling(adata_batch.layers[transformed_layer_key].copy(), method, feature_range)
+            scaled_data, _ = apply_scaling(
+                adata_batch.layers[transformed_layer_key].copy(), method, feature_range
+            )
             adata_batch.layers[scaled_layer_key] = scaled_data
             adata_list.append(adata_batch)
         adata_temp = ad.concat(adata_list, join="outer")
@@ -187,7 +209,9 @@ def scale(
         scaled_data = adata_temp.layers[scaled_layer_key].copy()
         adata.layers[scaled_layer_key] = scaled_data
     else:
-        scaled_data, scaler = apply_scaling(adata.layers[transformed_layer_key].copy(), method, feature_range)
+        scaled_data, scaler = apply_scaling(
+            adata.layers[transformed_layer_key].copy(), method, feature_range
+        )
         adata.layers[scaled_layer_key] = scaled_data
 
     return adata if not inplace else None
@@ -198,7 +222,7 @@ def register_nan_layer(
     mask_layer_key: str = "_nan_mask",
     scaled_layer_key: str = "scaled",
     inplace: bool = True,
-) -> Optional[AnnData]:
+) -> AnnData | None:
     """
     Add a mask layer and replace NaNs by zero in the scaled layer of an AnnData object.
 
@@ -207,11 +231,13 @@ def register_nan_layer(
         adata (AnnData): The AnnData object to process.
         mask_layer_key (str): The key to store the mask layer in `adata.layers`.
         scaled_layer_key (str): The key of the scaled layer.
-        inplace (bool): If True, the processing is applied in place. If False, a new AnnData object is returned.
+        inplace (bool): If True, the processing is applied in place. If False, a new
+            AnnData object is returned.
 
     Returns
     -------
-        Optional[AnnData]: If inplace is False, returns the processed AnnData object. Otherwise, returns None.
+        Optional[AnnData]: If inplace is False, returns the processed AnnData object.
+        Otherwise, returns None.
     """
     validate_layer_key(adata, scaled_layer_key)
 
@@ -231,7 +257,11 @@ def register_nan_layer(
 
 
 def merge_batches(
-    adata_list: list[AnnData], mask_layer_key: str = "_nan_mask", batch_key = 'batch', scaled_layer_key: str = "scaled", nan_layer_registration: bool = True,
+    adata_list: list[AnnData],
+    mask_layer_key: str = "_nan_mask",
+    batch_key="batch",
+    scaled_layer_key: str = "scaled",
+    nan_layer_registration: bool = True,
 ) -> AnnData:
     """
     Merge batches of AnnData objects and handle missing markers.
@@ -258,7 +288,8 @@ def merge_batches(
     for batch, adata_batch in enumerate(adata_list):
         validate_layer_key(adata_batch, scaled_layer_key)
         if np.isnan(adata_batch.layers[scaled_layer_key]).any():
-            error_msg = "Nan values are present in batch {}. This will interfere with downstream processing."
+            error_msg = "Nan values are present in batch {}. This will interfere with"
+            " downstream processing."
             raise ValueError(error_msg.format(batch))
 
         # check if batch key is already present in adata
@@ -282,7 +313,10 @@ def merge_batches(
 
         if nan_layer_registration:
             adata = register_nan_layer(
-                adata, mask_layer_key=mask_layer_key, scaled_layer_key=scaled_layer_key, inplace=False
+                adata,
+                mask_layer_key=mask_layer_key,
+                scaled_layer_key=scaled_layer_key,
+                inplace=False,
             )
 
         # register which markers are present in which batch
@@ -297,8 +331,13 @@ def merge_batches(
 
 
 def subsample(
-    adata: AnnData, n_obs: int = 10000, random_state: int = 0, replace: bool = False, groupby: str = None, n_obs_group: Optional[int] = None,
-) -> Optional[AnnData]:
+    adata: AnnData,
+    n_obs: int = 10000,
+    random_state: int = 0,
+    replace: bool = False,
+    groupby: str = None,
+    n_obs_group: int | None = None,
+) -> AnnData | None:
     """
     Subsample an AnnData object.
 
@@ -311,11 +350,13 @@ def subsample(
     random_state : int, optional
         The random state to use for the downsampling. Default is 0.
     replace : bool, optional
-        If True, the downsampling is applied with replacement. If False, a new AnnData object is returned. Default is False.
+        If True, the downsampling is applied with replacement. If False, a new AnnData
+        object is returned. Default is False.
     groupby : str, optional
         The column name in `adata.obs` to group the observations by. Default is None.
     n_obs_group : int, optional
-        The number of observations to downsample to within each group. If not provided, it is calculated as `n_obs` divided by the number of unique groups. Default is None.
+        The number of observations to downsample to within each group. If not provided,
+          it is calculated as `n_obs` divided by the number of unique groups. Default is None.
 
     Returns
     -------
@@ -333,7 +374,9 @@ def subsample(
 
     """
     if len(adata.obs.index) != len(set(adata.obs.index)):
-        msg = "Observations are not unique. Cannot subsample. Call `.obs_names_make_unique` before."
+        msg = (
+            "Observations are not unique. Cannot subsample. Call `.obs_names_make_unique` before."
+        )
         raise ValueError(msg)
 
     if groupby is not None:
@@ -349,23 +392,33 @@ def subsample(
                 if len(adata.obs[adata.obs[groupby] == group]) < n_obs_group:
                     msg = (
                         f"Group {group} has fewer observations than {n_obs_group} observations."
-                        + " Taking all group observations. Set replace to True to sample with replacement."
+                        + " Taking all group observations. Set replace to True to sample with"
+                        " replacement."
                     )
                     warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
         index = adata.obs.groupby(groupby, as_index=False).apply(
-            lambda x: x.sample(n_obs_group, random_state=random_state, replace=replace) if len(x) > n_obs_group else x
+            lambda x: x.sample(n_obs_group, random_state=random_state, replace=replace)
+            if len(x) > n_obs_group
+            else x
         )
         index = index.reset_index()["level_1"].to_list()
         adata_subsampled = adata[index, :].copy()
     else:
-        adata_subsampled = adata[adata.obs.sample(n_obs, random_state=random_state, replace=replace).index, :].copy()
+        adata_subsampled = adata[
+            adata.obs.sample(n_obs, random_state=random_state, replace=replace).index, :
+        ].copy()
 
     return adata_subsampled
 
 
 def mask_markers(
-    adata: AnnData, markers: Union[str, list[str]], batch_key: str = 'batch', masked_batch: str = '1', nan_layer_registration: bool = True):
+    adata: AnnData,
+    markers: str | list[str],
+    batch_key: str = "batch",
+    masked_batch: str = "1",
+    nan_layer_registration: bool = True,
+):
     """
     Mask specific markers in an AnnData object by removing them from a specific batch.
 
@@ -408,272 +461,3 @@ def mask_markers(
     adata_out = adata_out[idx].copy()
 
     return adata_out
-
-
-
-#### plotting utils
-import math
-from typing import Union
-
-import anndata as ad
-from anndata import AnnData
-
-from ._utils import validate_layer_key, validate_marker, validate_obs_keys
-from scvi.utils import dependencies
-
-
-@dependencies("seaborn", "matplotlib")
-def histogram(
-    adata: ad.AnnData,
-    marker: Union[str, list[str]] = "all",
-    groupby: str = None,
-    layer_key: str = "raw",
-    downsample: bool = True,
-    n_obs: int = 10000,
-    col_wrap: int = None,
-    tight_layout: bool = True,
-    save: Union[bool, str] = None,
-    return_plot: bool = False,
-    kde_kwargs: dict = None,
-    **kwargs,
-):
-    """
-    Create a FacetGrid of histograms for specified markers in AnnData.
-
-    Parameters
-    ----------
-    adata : ad.AnnData
-        Annotated data matrix.
-
-    marker : Union[str, List[str]], optional
-        Names of markers to plot. 'all' to plot all markers.
-
-    groupby : str, optional
-        Key for grouping or categorizing the data. E.g. key for batch.
-
-    layer_key : str, optional
-        Key for the layer in AnnData.
-
-    downsample : bool, optional
-        Whether to downsample the data if there are too many observations.
-
-    n_obs : int, optional
-        Number of observations to subsample if downsample is True.
-
-    col_wrap : int, optional
-        Number of columns to wrap the plots. If None, it is calculated based on the number of markers.
-
-    tight_layout : bool, optional
-        Whether to use tight layout for the plot.
-
-    save : Union[bool, str], optional
-        If True, the plot is saved as "marker_histogram.png". If a string is provided, the plot is saved with the given filename.
-
-    return_plot : bool, optional
-        Whether to return the FacetGrid object.
-
-    kde_kwargs : dict, optional
-        Additional keyword arguments to pass to Seaborn's kdeplot.
-
-    **kwargs : additional keyword arguments
-        Additional arguments to pass to Seaborn's FacetGrid.
-
-    Returns
-    -------
-    None or sns.FacetGrid
-        If return_plot is True, returns the FacetGrid object. Otherwise, returns None.
-
-    Example:
-    ----------
-    # Plot density plots for specific markers
-    cytovi.pl.histogram(adata, marker=['CD3', 'CD4'], group_by='Condition')
-
-    # Plot density plots for all markers
-    cytovi.pl.histogram(adata, marker='all', group_by='Batch')
-    """
-    import seaborn as sns
-
-    if kde_kwargs is None:
-        kde_kwargs = {}
-
-    if marker == "all":
-        marker = adata.var_names
-    elif isinstance(marker, str):
-        marker = [marker]
-
-    validate_marker(adata, marker)
-    validate_obs_keys(adata, groupby)
-    validate_layer_key(adata, layer_key)
-
-    # subsample if too many observations
-    if downsample and adata.n_obs > 10000:
-        adata = subsample(adata, n_obs=n_obs, groupby=groupby)
-
-    num_plots = len(marker)
-
-    if col_wrap is None:
-        col_wrap = math.ceil(math.sqrt(num_plots))
-
-    data_plot = adata[:, marker].to_df(layer=layer_key)
-
-    if groupby is not None:
-        data_plot[groupby] = adata.obs[groupby]
-
-    data_plot_melt = data_plot.melt(id_vars=groupby, var_name='variable', value_name='value')
-
-    # generate the plot
-    g = sns.FacetGrid(
-        data_plot_melt, col="variable", hue=groupby, col_wrap=col_wrap, sharey=False, sharex=False, **kwargs
-    )
-    g.map(sns.kdeplot, "value", fill=True, **kde_kwargs)
-    g.set_titles("{col_name}")
-    g.set(yticks=[])
-    g.set_axis_labels("", "")
-    g.add_legend()
-    g.fig.text(0, 0.5, "Density", va="center", ha="center", rotation="vertical")
-
-    if tight_layout:
-        g.fig.tight_layout()
-
-    if save is not None:
-        if save is True:
-            save = "marker_histogram.png"
-        g.savefig(save)
-
-    if return_plot:
-        return g
-
-@dependencies("seaborn", "matplotlib")
-def biaxial(
-    adata: AnnData,
-    marker_x: Union[str, list[str]] = None,
-    marker_y: Union[str, list[str]] = None,
-    color: str = None,
-    n_bins: int = 10,
-    layer_key: str = "raw",
-    downsample: bool = True,
-    n_obs: int = 10000,
-    sample_color_groups: bool = False,
-    save: Union[bool, str] = None,
-    kde: bool = True,
-    kde_kwargs: dict = None,
-    scatter_kwargs: dict = None,
-    **kwargs,
-):
-    """
-    Create a PairGrid of biaxial (scatter and density) plots for specified markers in AnnData.
-
-    Parameters
-    ----------
-    adata : AnnData
-        Annotated data matrix.
-
-    marker_x : Union[str, List[str]], optional
-        Variable name(s) to be plotted on the x-axis.
-
-    marker_y : Union[str, List[str]], optional
-        Variable name(s) to be plotted on the y-axis.
-
-    color : str, optional
-        Variable name to be used for coloring the scatter plots.
-
-    n_bins : int, optional
-        Number of levels for density contours in kdeplot.
-
-    layer_key : str, optional
-        Key for the layer in AnnData.
-
-    downsample : bool, optional
-        Whether to downsample the data if there are too many observations.
-
-    n_obs : int, optional
-        Number of observations to keep if downsampling is enabled.
-
-    sample_color_groups : bool, optional
-        Whether to sample observations within each color group if downsampling is enabled.
-
-    save : Union[bool, str], optional
-        If True, save the plot as "marker_histogram.png". If a string is provided, save the plot with the given filename.
-
-    kde : bool, optional
-        Whether to include density contours in the plot.
-
-    kde_kwargs : dict, optional
-        Additional keyword arguments to pass to Seaborn's kdeplot.
-
-    scatter_kwargs : dict, optional
-        Additional keyword arguments to pass to Seaborn's scatterplot.
-
-    **kwargs : additional keyword arguments
-        Additional arguments to pass to Seaborn's PairGrid.
-
-    Returns
-    -------
-    None
-
-    Example
-    -------
-    # Plot biaxial plots for specific markers
-    cytovi.pl.biaxial(adata, marker_x='CD3', marker_y='CD4', color='Condition')
-
-    # Plot biaxial plots for multiple markers
-    cytovi.pl.biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
-    """
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    if isinstance(marker_x, str):
-        marker_x = [marker_x]
-    if isinstance(marker_y, str):
-        marker_y = [marker_y]
-
-    if marker_x is None and marker_y is None:
-        raise ValueError("At least one of marker_x or marker_y must be specified.")
-    elif marker_x is None:
-        marker_x = [*adata.var_names]
-        marker_x = list(set(marker_x) - set(marker_y))
-    elif marker_y is None:
-        marker_y = [*adata.var_names]
-        marker_y = list(set(marker_y) - set(marker_x))
-    else:
-        marker_x = list(set(marker_x) - set(marker_y))
-
-    validate_marker(adata, marker_x)
-    validate_marker(adata, marker_y)
-    validate_obs_keys(adata, color)
-    validate_layer_key(adata, layer_key)
-
-    if kde_kwargs is None:
-        kde_kwargs = {}
-
-    if scatter_kwargs is None:
-        scatter_kwargs = {}
-
-    # subsample if too many observations
-    if downsample and adata.n_obs > 10000:
-        if color is not None and sample_color_groups is True:
-            adata = subsample(adata, n_obs=n_obs, groupby=color)
-        else:
-            adata = subsample(adata, n_obs=n_obs)
-
-    marker = marker_x + marker_y
-
-    data_plot = adata[:, marker].to_df(layer=layer_key)
-
-    if color is not None:
-        data_plot[color] = adata.obs[color]
-
-    g = sns.PairGrid(data_plot, x_vars=marker_x, y_vars=marker_y, hue=color, **kwargs)
-
-    if kde is True:
-        g.map(sns.kdeplot, levels=n_bins, **kde_kwargs)
-
-    g.map(sns.scatterplot, s=5, **scatter_kwargs)
-    g.add_legend()
-
-    if save is not None:
-        if save is True:
-            save = "marker_histogram.png"
-        g.savefig(save)
-
-    plt.show()
