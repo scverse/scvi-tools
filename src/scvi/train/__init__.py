@@ -10,7 +10,6 @@ from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,
     ClassifierTrainingPlan,
-    JaxTrainingPlan,
     LowLevelPyroTrainingPlan,
     PyroTrainingPlan,
     SemiSupervisedAdversarialTrainingPlan,
@@ -34,6 +33,5 @@ __all__ = [
     "SaveCheckpoint",
     "ScibCallback",
     "JaxModuleInit",
-    "JaxTrainingPlan",
     "METRIC_KEYS",
 ]

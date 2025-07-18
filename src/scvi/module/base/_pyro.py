@@ -1,6 +1,10 @@
-from pyro.infer import Predictive
+from scvi.utils import error_on_missing_dependencies
 
 from ._decorators import auto_move_data
+
+error_on_missing_dependencies("pyro")
+
+from pyro.infer import Predictive  # noqa: E402
 
 
 class AutoMoveDataPredictive(Predictive):
