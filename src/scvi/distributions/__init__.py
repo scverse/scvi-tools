@@ -1,7 +1,6 @@
-from scvi.utils import is_package_installed
-
 from ._beta_binomial import BetaBinomial
 from ._negative_binomial import (
+    JaxNegativeBinomialMeanDisp,
     NegativeBinomial,
     NegativeBinomialMixture,
     Poisson,
@@ -13,12 +12,8 @@ __all__ = [
     "NegativeBinomial",
     "NegativeBinomialMixture",
     "ZeroInflatedNegativeBinomial",
+    "JaxNegativeBinomialMeanDisp",
     "Poisson",
     "BetaBinomial",
     "Normal",
 ]
-
-if is_package_installed("numpyro") and is_package_installed("jax"):
-    from ._negative_binomial import JaxNegativeBinomialMeanDisp
-
-    __all__ += ["JaxNegativeBinomialMeanDisp"]

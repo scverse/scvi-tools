@@ -12,16 +12,10 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
     {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
-- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
 
 #### Fixed
 
 #### Changed
-
-- Change previous implementation of {class}`scvi.external.MRVI` to {class}`scvi.external.JaxMRVI`
-    and make the Jax dependency optional in scvi-tools (Relevant models will issue a warning)
-    {pr}`3304`.
-- Make the Pyro dependency optional in scvi-tools, {pr}`3304`. Relevant models will issue a warning
 
 #### Removed
 

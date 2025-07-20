@@ -1,8 +1,7 @@
-from scvi.utils import is_package_installed
-
 from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
+from ._jaxvae import JaxVAE
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
@@ -23,9 +22,5 @@ __all__ = [
     "MRDeconv",
     "MULTIVAE",
     "AmortizedLDAPyroModule",
+    "JaxVAE",
 ]
-
-if is_package_installed("numpyro") and is_package_installed("jax"):
-    from ._jaxvae import JaxVAE
-
-    __all__ += ["JaxVAE"]

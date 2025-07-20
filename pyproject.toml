@@ -35,13 +35,18 @@ classifiers = [
 dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
+    "flax",
+    "jax",
+    "jaxlib",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
     "numba>=0.60.0",
     "numpy",
+    "numpyro>=0.12.1",
     "pandas",
     "pyro-ppl>=1.6.0",
+    "optax",
     "rich>=12.0.0",
     "scikit-learn>=0.21.2",
     "scipy",
@@ -75,7 +80,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
+docsbuild = ["scvi-tools[docs,autotune,hub]"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
@@ -85,21 +90,20 @@ aws = ["boto3"]
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# umaps, scvi.criticism and read 10x
+# scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
-# for convenient files sharing
+# for convinient files sharing
 file_sharing = ["pooch","gdown"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum", "shap"]
-# for custom dataloaders
+# for custom dataloders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
-# for jax support
-jax = ["jax", "jaxlib", "optax", "numpyro>=0.12.1", "flax"]
+
 
 optional = [
-    "scvi-tools[autotune,aws,hub,jax,file_sharing,regseq,scanpy,parallel,interpretability]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",

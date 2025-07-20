@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
@@ -25,6 +24,8 @@ if TYPE_CHECKING:
     from torch.distributions import Distribution
 
     from scvi._types import LossRecord
+
+import flax
 
 logger = logging.getLogger(__name__)
 
@@ -621,7 +622,7 @@ class nicheVAE(VAE):
         )
 
 
-@dataclass
+@flax.struct.dataclass
 class NicheLossOutput(LossOutput):
     """Modify loss output to record niche losses."""
 

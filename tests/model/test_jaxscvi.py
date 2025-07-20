@@ -2,9 +2,10 @@ from unittest import mock
 
 import numpy as np
 import pytest
+from flax import linen as nn
 
 from scvi.data import synthetic_iid
-from scvi.model._jaxscvi import JaxSCVI
+from scvi.model import JaxSCVI
 from scvi.utils import attrdict
 
 
@@ -31,8 +32,6 @@ def test_jax_scvi(n_latent: int):
 @pytest.mark.parametrize("n_latent", [5])
 @pytest.mark.parametrize("dropout_rate", [0.1])
 def test_jax_scvi_training(n_latent: int, dropout_rate: float):
-    from flax import linen as nn
-
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,

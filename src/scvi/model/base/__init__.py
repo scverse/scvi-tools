@@ -6,6 +6,7 @@ from ._base_model import (
 )
 from ._differential import DifferentialComputation
 from ._embedding_mixin import EmbeddingMixin
+from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import (
     PyroJitGuideWarmup,
     PyroModelGuideWarmup,
@@ -28,6 +29,7 @@ __all__ = [
     "PyroJitGuideWarmup",
     "PyroModelGuideWarmup",
     "DifferentialComputation",
+    "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",
     "BaseMudataMinifiedModeModelClass",
     "EmbeddingMixin",

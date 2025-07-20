@@ -5,8 +5,11 @@ from functools import partial
 from inspect import signature
 from typing import Any, Literal
 
+import jax
+import jax.numpy as jnp
 import lightning.pytorch as pl
 import numpy as np
+import optax
 import pyro
 import torch
 import torchmetrics.functional as tmf
@@ -18,14 +21,16 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
+    JaxBaseModuleClass,
     LossOutput,
     PyroBaseModuleClass,
+    TrainStateWithState,
 )
 from scvi.train._constants import METRIC_KEYS
-from scvi.utils import is_package_installed
 
 from ._metrics import ElboMetric
 
+JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
 TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 
@@ -1552,224 +1557,213 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return optimizer
 
 
-if is_package_installed("jax") and is_package_installed("optax"):
-    import jax
-    import jax.numpy as jnp
-    import optax
+class JaxTrainingPlan(TrainingPlan):
+    """Lightning module task to train Pyro scvi-tools modules.
 
-    from scvi.module.base._base_module import JaxBaseModuleClass, TrainStateWithState
+    Parameters
+    ----------
+    module
+        An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+    optimizer
+        One of "Adam", "AdamW", or "Custom", which requires a custom
+        optimizer creator callable to be passed via `optimizer_creator`.
+    optimizer_creator
+        A callable returning a :class:`~optax.GradientTransformation`.
+        This allows using any optax optimizer with custom hyperparameters.
+    lr
+        Learning rate used for optimization, when `optimizer_creator` is None.
+    weight_decay
+        Weight decay used in optimization, when `optimizer_creator` is None.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
+    max_norm
+        Max global norm of gradients for gradient clipping.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from
+        `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
+        set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from `min_kl_weight` to
+        `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
+    """
 
-    JaxOptimizerCreator = Callable[[], optax.GradientTransformation]
-
-    class JaxTrainingPlan(TrainingPlan):
-        """Lightning module task to train Jax scvi-tools modules.
-
-        Parameters
-        ----------
-        module
-            An instance of :class:`~scvi.module.base.JaxModuleWraper`.
-        optimizer
-            One of "Adam", "AdamW", or "Custom", which requires a custom
-            optimizer creator callable to be passed via `optimizer_creator`.
-        optimizer_creator
-            A callable returning a :class:`~optax.GradientTransformation`.
-            This allows using any optax optimizer with custom hyperparameters.
-        lr
-            Learning rate used for optimization, when `optimizer_creator` is None.
-        weight_decay
-            Weight decay used in optimization, when `optimizer_creator` is None.
-        eps
-            eps used for optimization, when `optimizer_creator` is None.
-        max_norm
-            Max global norm of gradients for gradient clipping.
-        n_steps_kl_warmup
-            Number of training steps (minibatches) to scale weight on KL divergences from
-            `min_kl_weight` to `max_kl_weight`. Only activated when `n_epochs_kl_warmup` is
-            set to None.
-        n_epochs_kl_warmup
-            Number of epochs to scale weight on KL divergences from `min_kl_weight` to
-            `max_kl_weight`. Overrides `n_steps_kl_warmup` when both are not `None`.
-        """
-
-        def __init__(
-            self,
-            module: JaxBaseModuleClass,
-            *,
-            optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
-            optimizer_creator: JaxOptimizerCreator | None = None,
-            lr: float = 1e-3,
-            weight_decay: float = 1e-6,
-            eps: float = 0.01,
-            max_norm: float | None = None,
-            n_steps_kl_warmup: int | None = None,
-            n_epochs_kl_warmup: int | None = 400,
+    def __init__(
+        self,
+        module: JaxBaseModuleClass,
+        *,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: JaxOptimizerCreator | None = None,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        eps: float = 0.01,
+        max_norm: float | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
+        **loss_kwargs,
+    ):
+        super().__init__(
+            module=module,
+            lr=lr,
+            weight_decay=weight_decay,
+            eps=eps,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
             **loss_kwargs,
-        ):
-            super().__init__(
-                module=module,
-                lr=lr,
-                weight_decay=weight_decay,
-                eps=eps,
-                optimizer=optimizer,
-                optimizer_creator=optimizer_creator,
-                n_steps_kl_warmup=n_steps_kl_warmup,
-                n_epochs_kl_warmup=n_epochs_kl_warmup,
-                **loss_kwargs,
+        )
+        self.max_norm = max_norm
+        self.automatic_optimization = False
+        self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+
+    def get_optimizer_creator(self) -> JaxOptimizerCreator:
+        """Get optimizer creator for the model."""
+        clip_by = optax.clip_by_global_norm(self.max_norm) if self.max_norm else optax.identity()
+        if self.optimizer_name == "Adam":
+            # Replicates PyTorch Adam defaults
+            optim = optax.chain(
+                clip_by,
+                optax.add_decayed_weights(weight_decay=self.weight_decay),
+                optax.adam(self.lr, eps=self.eps),
             )
-            self.max_norm = max_norm
-            self.automatic_optimization = False
-            self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
-
-        def get_optimizer_creator(self) -> JaxOptimizerCreator:
-            """Get optimizer creator for the model."""
-            clip_by = (
-                optax.clip_by_global_norm(self.max_norm) if self.max_norm else optax.identity()
+        elif self.optimizer_name == "AdamW":
+            optim = optax.chain(
+                clip_by,
+                optax.clip_by_global_norm(self.max_norm),
+                optax.adamw(self.lr, eps=self.eps, weight_decay=self.weight_decay),
             )
-            if self.optimizer_name == "Adam":
-                # Replicates PyTorch Adam defaults
-                optim = optax.chain(
-                    clip_by,
-                    optax.add_decayed_weights(weight_decay=self.weight_decay),
-                    optax.adam(self.lr, eps=self.eps),
-                )
-            elif self.optimizer_name == "AdamW":
-                optim = optax.chain(
-                    clip_by,
-                    optax.clip_by_global_norm(self.max_norm),
-                    optax.adamw(self.lr, eps=self.eps, weight_decay=self.weight_decay),
-                )
-            elif self.optimizer_name == "Custom":
-                optim = self._optimizer_creator
-            else:
-                raise ValueError("Optimizer not understood.")
+        elif self.optimizer_name == "Custom":
+            optim = self._optimizer_creator
+        else:
+            raise ValueError("Optimizer not understood.")
 
-            return lambda: optim
+        return lambda: optim
 
-        def set_train_state(self, params, state=None):
-            """Set the state of the module."""
-            if self.module.train_state is not None:
-                return
-            optimizer = self.get_optimizer_creator()()
-            train_state = TrainStateWithState.create(
-                apply_fn=self.module.apply,
-                params=params,
-                tx=optimizer,
-                state=state,
+    def set_train_state(self, params, state=None):
+        """Set the state of the module."""
+        if self.module.train_state is not None:
+            return
+        optimizer = self.get_optimizer_creator()()
+        train_state = TrainStateWithState.create(
+            apply_fn=self.module.apply,
+            params=params,
+            tx=optimizer,
+            state=state,
+        )
+        self.module.train_state = train_state
+
+    @staticmethod
+    @jax.jit
+    def jit_training_step(
+        state: TrainStateWithState,
+        batch: dict[str, np.ndarray],
+        rngs: dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit training step."""
+
+        def loss_fn(params):
+            # state can't be passed here
+            vars_in = {"params": params, **state.state}
+            outputs, new_model_state = state.apply_fn(
+                vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
             )
-            self.module.train_state = train_state
-
-        @staticmethod
-        @jax.jit
-        def jit_training_step(
-            state: TrainStateWithState,
-            batch: dict[str, np.ndarray],
-            rngs: dict[str, jnp.ndarray],
-            **kwargs,
-        ):
-            """Jit training step."""
-
-            def loss_fn(params):
-                # state can't be passed here
-                vars_in = {"params": params, **state.state}
-                outputs, new_model_state = state.apply_fn(
-                    vars_in, batch, rngs=rngs, mutable=list(state.state.keys()), **kwargs
-                )
-                loss_output = outputs[2]
-                loss = loss_output.loss
-                return loss, (loss_output, new_model_state)
-
-            (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
-                loss_fn, has_aux=True
-            )(state.params)
-            new_state = state.apply_gradients(grads=grads, state=new_model_state)
-            return new_state, loss, loss_output
-
-        def training_step(self, batch, batch_idx):
-            """Training step for Jax."""
-            if "kl_weight" in self.loss_kwargs:
-                self.loss_kwargs.update({"kl_weight": self.kl_weight})
-            self.module.train()
-            self.module.train_state, _, loss_output = self.jit_training_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
-            loss_output = jax.tree_util.tree_map(
-                lambda x: torch.tensor(jax.device_get(x)),
-                loss_output,
-            )
-            # TODO: Better way to get batch size
-            self.log(
-                "train_loss",
-                loss_output.loss,
-                on_epoch=True,
-                batch_size=loss_output.n_obs_minibatch,
-                prog_bar=True,
-            )
-            self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
-            # Update the dummy optimizer to update the global step
-            _opt = self.optimizers()
-            _opt.step()
-
-        @partial(jax.jit, static_argnums=(0,))
-        def jit_validation_step(
-            self,
-            state: TrainStateWithState,
-            batch: dict[str, np.ndarray],
-            rngs: dict[str, jnp.ndarray],
-            **kwargs,
-        ):
-            """Jit validation step."""
-            vars_in = {"params": state.params, **state.state}
-            outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
             loss_output = outputs[2]
+            loss = loss_output.loss
+            return loss, (loss_output, new_model_state)
 
-            return loss_output
+        (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(loss_fn, has_aux=True)(
+            state.params
+        )
+        new_state = state.apply_gradients(grads=grads, state=new_model_state)
+        return new_state, loss, loss_output
 
-        def validation_step(self, batch, batch_idx):
-            """Validation step for Jax."""
-            self.module.eval()
-            loss_output = self.jit_validation_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
-            loss_output = jax.tree_util.tree_map(
-                lambda x: torch.tensor(jax.device_get(x)),
-                loss_output,
-            )
-            self.log(
-                "validation_loss",
-                loss_output.loss,
-                on_epoch=True,
-                batch_size=loss_output.n_obs_minibatch,
-            )
-            self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+    def training_step(self, batch, batch_idx):
+        """Training step for Jax."""
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        self.module.train()
+        self.module.train_state, _, loss_output = self.jit_training_step(
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
+        # TODO: Better way to get batch size
+        self.log(
+            "train_loss",
+            loss_output.loss,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+            prog_bar=True,
+        )
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        # Update the dummy optimizer to update the global step
+        _opt = self.optimizers()
+        _opt.step()
 
-        @staticmethod
-        def transfer_batch_to_device(batch, device, dataloader_idx):
-            """Bypass Pytorch Lightning device management."""
-            return batch
+    @partial(jax.jit, static_argnums=(0,))
+    def jit_validation_step(
+        self,
+        state: TrainStateWithState,
+        batch: dict[str, np.ndarray],
+        rngs: dict[str, jnp.ndarray],
+        **kwargs,
+    ):
+        """Jit validation step."""
+        vars_in = {"params": state.params, **state.state}
+        outputs = self.module.apply(vars_in, batch, rngs=rngs, **kwargs)
+        loss_output = outputs[2]
 
-        def configure_optimizers(self):
-            """Shim optimizer for PyTorch Lightning.
+        return loss_output
 
-            PyTorch Lightning wants to take steps on an optimizer
-            returned by this function in order to increment the global
-            step count. See PyTorch Lighinting optimizer manual loop.
+    def validation_step(self, batch, batch_idx):
+        """Validation step for Jax."""
+        self.module.eval()
+        loss_output = self.jit_validation_step(
+            self.module.train_state,
+            batch,
+            self.module.rngs,
+            loss_kwargs=self.loss_kwargs,
+        )
+        loss_output = jax.tree_util.tree_map(
+            lambda x: torch.tensor(jax.device_get(x)),
+            loss_output,
+        )
+        self.log(
+            "validation_loss",
+            loss_output.loss,
+            on_epoch=True,
+            batch_size=loss_output.n_obs_minibatch,
+        )
+        self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
 
-            Here we provide a shim optimizer that we can take steps on
-            at minimal computational cost in order to keep Lightning happy :).
-            """
-            return torch.optim.Adam([self._dummy_param])
+    @staticmethod
+    def transfer_batch_to_device(batch, device, dataloader_idx):
+        """Bypass Pytorch Lightning device management."""
+        return batch
 
-        def optimizer_step(self, *args, **kwargs):
-            pass
+    def configure_optimizers(self):
+        """Shim optimizer for PyTorch Lightning.
 
-        def backward(self, *args, **kwargs):
-            pass
+        PyTorch Lightning wants to take steps on an optimizer
+        returned by this function in order to increment the global
+        step count. See PyTorch Lighinting optimizer manual loop.
 
-        def forward(self, *args, **kwargs):
-            pass
+        Here we provide a shim optimizer that we can take steps on
+        at minimal computational cost in order to keep Lightning happy :).
+        """
+        return torch.optim.Adam([self._dummy_param])
+
+    def optimizer_step(self, *args, **kwargs):
+        pass
+
+    def backward(self, *args, **kwargs):
+        pass
+
+    def forward(self, *args, **kwargs):
+        pass

@@ -2,10 +2,9 @@ from collections.abc import Callable, Mapping, Sequence
 from functools import wraps
 from typing import Any
 
+import flax.linen as nn
 import torch
 from torch.nn import Module
-
-from scvi.utils import is_package_installed
 
 
 def auto_move_data(fn: Callable) -> Callable:
@@ -118,19 +117,16 @@ def _apply_to_collection(
     return data
 
 
-if is_package_installed("flax"):
-    import flax.linen as nn
+def flax_configure(cls: nn.Module) -> Callable:
+    """Decorator to raise an error if a boolean `training` param is missing in the call."""
+    original_init = cls.__init__
 
-    def flax_configure(cls: nn.Module) -> Callable:
-        """Decorator to raise an error if a boolean `training` param is missing in the call."""
-        original_init = cls.__init__
+    @wraps(original_init)
+    def init(self, *args, **kwargs):
+        self.configure()
+        original_init(self, *args, **kwargs)
+        if not isinstance(self.training, bool):
+            raise ValueError("Custom sublclasses must have a training parameter.")
 
-        @wraps(original_init)
-        def init(self, *args, **kwargs):
-            self.configure()
-            original_init(self, *args, **kwargs)
-            if not isinstance(self.training, bool):
-                raise ValueError("Custom sublclasses must have a training parameter.")
-
-        cls.__init__ = init
-        return cls
+    cls.__init__ = init
+    return cls
