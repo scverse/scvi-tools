@@ -4,29 +4,29 @@ import logging
 import warnings
 from typing import TYPE_CHECKING
 
+import jax
+import jax.numpy as jnp
 import numpy as np
-import torch
 import xarray as xr
 from tqdm import tqdm
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
+from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
     from typing import Literal
 
     import numpy.typing as npt
     from anndata import AnnData
-    from torch.distributions import Distribution
-    # from numpyro.distributions import Distribution
+    from numpyro.distributions import Distribution
 
 logger = logging.getLogger(__name__)
-
 
 DEFAULT_TRAIN_KWARGS = {
     "max_epochs": 100,
@@ -38,14 +38,14 @@ DEFAULT_TRAIN_KWARGS = {
     "plan_kwargs": {
         "lr": 2e-3,
         "n_epochs_kl_warmup": 20,
-        # "max_norm": 40,
+        "max_norm": 40,
         "eps": 1e-8,
         "weight_decay": 1e-8,
     },
 }
 
 
-class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class MRVI(JaxTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
@@ -113,7 +113,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             REGISTRY_KEYS.SAMPLE_KEY
         ).categorical_mapping
 
-        self.n_obs_per_sample = torch.Tensor(
+        self.n_obs_per_sample = jnp.array(
             adata.obs._scvi_sample.value_counts().sort_index().values
         )
 
@@ -131,7 +131,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         # TODO(jhong): remove this once we have a better way to handle device.
         pass
 
-    """def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
+    def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
         return_1d = isinstance(n_sets, int)
         if return_1d:
             n_sets_1d = n_sets
@@ -152,7 +152,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 key: random_key.reshape(n_sets + random_key.shape[1:])
                 for (key, random_key) in rngs.items()
             }
-        return rngs"""
+        return rngs
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -193,7 +193,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    # ß@devices_dsp.dedent
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -227,7 +227,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Perform early stopping. Additional arguments can be passed in through ``**kwargs``.
             See :class:`~scvi.train.Trainer` for further options.
         plan_kwargs
-            Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`.
+            Additional keyword arguments passed into :class:`~scvi.train.JaxTrainingPlan`.
         **trainer_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -248,7 +248,14 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
+        from packaging import version
 
+        if version.parse(jax.__version__) > version.parse("0.4.35"):
+            warnings.warn(
+                "Running mrVI with Jax version larger 0.4.35 can cause performance issues",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
         super().train(**train_kwargs)
 
     def get_latent_representation(
@@ -280,29 +287,27 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
-        dataloader = self._make_data_loader(
-            adata=adata,
-            indices=indices,
-            batch_size=batch_size,
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
         us = []
         zs = []
-
-        for tensors in dataloader:
-            inference_inputs = self.module._get_inference_input(tensors)
-            inference_inputs["use_mean"] = use_mean
-            outputs = self.module.inference(**inference_inputs)
+        jit_inference_fn = self.module.get_jit_inference_fn(
+            inference_kwargs={"use_mean": use_mean}
+        )
+        for array_dict in tqdm(scdl):
+            outputs = jit_inference_fn(self.module.rngs, array_dict)
 
             if give_z:
-                zs.append(outputs["z"].detach().cpu())
+                zs.append(jax.device_get(outputs["z"]))
             else:
-                us.append(outputs["u"].detach().cpu())
+                us.append(jax.device_get(outputs["u"]))
 
         if give_z:
-            return np.concatenate(zs, axis=0)
+            return np.array(jnp.concatenate(zs, axis=0))
         else:
-            return np.concatenate(us, axis=0)
+            return np.array(jnp.concatenate(us, axis=0))
 
     def compute_local_statistics(
         self,
@@ -361,27 +366,48 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         reqs = _parse_local_statistics_requirements(reductions)
 
+        vars_in = {"params": self.module.params, **self.module.state}
+
+        @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
-            x: torch.Tensor,
-            sample_index: torch.Tensor,
-            cf_sample: torch.Tensor,
+            stacked_rngs: dict[str, jax.random.KeyArray],
+            x: jax.typing.ArrayLike,
+            sample_index: jax.typing.ArrayLike,
+            cf_sample: jax.typing.ArrayLike,
             use_mean: bool,
             mc_samples: int | None = None,
         ):
-            inference_partial = partial(
-                self.module.inference, x, sample_index, mc_samples=mc_samples, use_mean=use_mean
-            )
+            # TODO: use `self.module.get_jit_inference_fn` when it supports traced values.
+            def inference_fn(
+                rngs,
+                cf_sample,
+            ):
+                return self.module.apply(
+                    vars_in,
+                    rngs=rngs,
+                    method=self.module.inference,
+                    x=x,
+                    sample_index=sample_index,
+                    cf_sample=cf_sample,
+                    use_mean=use_mean,
+                    mc_samples=mc_samples,
+                )["z"]
 
             if use_vmap:
-                return torch.vmap(inference_partial, in_dims=0, out_dims=-2)(cf_sample)["z"]
+                return jax.vmap(inference_fn, in_axes=(0, 0), out_axes=-2)(
+                    stacked_rngs,
+                    cf_sample,
+                )
             else:
 
-                def per_sample_inference_fn(cf_sample):
-                    return inference_partial(cf_sample=cf_sample)["z"]
+                def per_sample_inference_fn(pair):
+                    rngs, cf_sample = pair
+                    return inference_fn(rngs, cf_sample)
 
-                return torch.stack(
-                    [per_sample_inference_fn(cf_sample=cf_sample_i) for cf_sample_i in cf_sample]
-                ).permute(1, 0, 2)  # (n_cells, n_samples, n_latent)
+                return jax.lax.transpose(
+                    jax.lax.map(per_sample_inference_fn, (stacked_rngs, cf_sample)),
+                    (1, 0, 2),
+                )
 
         ungrouped_data_arrs = {}
         grouped_data_arrs = {}
@@ -390,32 +416,35 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         for gr in reqs.grouped_reductions:
             grouped_data_arrs[gr.name] = {}  # Will map group category to running group sum.
 
-        for tensor in tqdm(scdl):
-            indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
-            n_cells = tensor[REGISTRY_KEYS.X_KEY].shape[0]
+        for array_dict in tqdm(scdl):
+            indices = array_dict[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
+            n_cells = array_dict[REGISTRY_KEYS.X_KEY].shape[0]
             cf_sample = np.broadcast_to(np.arange(n_sample)[:, None, None], (n_sample, n_cells, 1))
             inf_inputs = self.module._get_inference_input(
-                tensor,
+                array_dict,
             )
+            stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
+
+            # OK to use stacked rngs here since there is no stochasticity for mean rep.
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
-                        x=torch.Tensor(inf_inputs["x"]),
-                        sample_index=torch.Tensor(inf_inputs["sample_index"]),
-                        cf_sample=torch.Tensor(cf_sample),
+                        stacked_rngs=stacked_rngs,
+                        x=jnp.array(inf_inputs["x"]),
+                        sample_index=jnp.array(inf_inputs["sample_index"]),
+                        cf_sample=jnp.array(cf_sample),
                         use_mean=True,
                     )
-                except RuntimeError as e:
+                except jax.errors.JaxRuntimeError as e:
                     if use_vmap:
                         raise RuntimeError(
-                            # TODO: update error message
-                            "Out of memory. Try setting use_vmap=False."
+                            "JAX ran out of memory. Try setting use_vmap=False."
                         ) from e
                     else:
                         raise e
 
                 mean_zs = xr.DataArray(
-                    mean_zs_.detach().cpu().numpy(),
+                    np.array(mean_zs_),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
                         "cell_name": adata.obs_names[indices].values,
@@ -425,9 +454,10 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
-                    x=torch.Tensor(inf_inputs["x"]),
-                    sample_index=torch.Tensor(inf_inputs["sample_index"]),
-                    cf_sample=torch.Tensor(cf_sample),
+                    stacked_rngs=stacked_rngs,
+                    x=jnp.array(inf_inputs["x"]),
+                    sample_index=jnp.array(inf_inputs["sample_index"]),
+                    cf_sample=jnp.array(cf_sample),
                     use_mean=False,
                     mc_samples=mc_samples,
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
@@ -461,7 +491,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                         normalization_means,
                         normalization_vars,
                     ) = self._compute_local_baseline_dists(
-                        tensor, mc_samples=mc_samples
+                        array_dict, mc_samples=mc_samples
                     )  # both are shape (n_cells,)
                     normalization_means = normalization_means.reshape(-1, 1, 1, 1)
                     normalization_vars = normalization_vars.reshape(-1, 1, 1, 1)
@@ -540,42 +570,45 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         mc_samples_per_cell = (
             mc_samples * 2
         )  # need double for pairs of samples to compute distance between
+        jit_inference_fn = self.module.get_jit_inference_fn(
+            inference_kwargs={"use_mean": False, "mc_samples": mc_samples_per_cell}
+        )
 
-        kwargs = self.module._get_inference_input(batch)
-        kwargs.update({"use_mean": False, "mc_samples": mc_samples_per_cell})
-        outputs = self.module.inference(**kwargs)
+        outputs = jit_inference_fn(self.module.rngs, batch)
 
+        # figure out how to compute dists here
         z = outputs["z"]
         first_half_z, second_half_z = z[:mc_samples], z[mc_samples:]
-        l2_dists = torch.sqrt(torch.sum((first_half_z - second_half_z) ** 2, axis=2)).T
+        l2_dists = jnp.sqrt(jnp.sum((first_half_z - second_half_z) ** 2, axis=2)).T
 
-        return np.array(torch.mean(l2_dists, axis=1)), np.array(torch.var(l2_dists, axis=1))
+        return np.array(jnp.mean(l2_dists, axis=1)), np.array(jnp.var(l2_dists, axis=1))
 
     def _compute_distances_from_representations(
         self,
-        reps: torch.Tensor,
-        indices: torch.Tensor,
+        reps: jax.typing.ArrayLike,
+        indices: jax.typing.ArrayLike,
         norm: Literal["l2", "l1", "linf"] = "l2",
         return_numpy: bool = True,
     ) -> xr.DataArray:
         if norm not in ("l2", "l1", "linf"):
             raise ValueError(f"`norm` {norm} not supported")
 
-        def _compute_distance(rep: torch.Tensor):
-            delta_mat = torch.unsqueeze(rep, 0) - torch.unsqueeze(rep, 1)
+        @jax.jit
+        def _compute_distance(rep: jax.typing.ArrayLike):
+            delta_mat = jnp.expand_dims(rep, 0) - jnp.expand_dims(rep, 1)
             if norm == "l2":
                 res = delta_mat**2
-                res = torch.sqrt(res.sum(-1))
+                res = jnp.sqrt(res.sum(-1))
             elif norm == "l1":
-                res = torch.abs(delta_mat).sum(-1)
+                res = jnp.abs(delta_mat).sum(-1)
             elif norm == "linf":
-                res = torch.abs(delta_mat).max(-1)
+                res = jnp.abs(delta_mat).max(-1)
             return res
 
         if reps.ndim == 3:
-            dists = torch.vmap(_compute_distance)(reps)
+            dists = jax.vmap(_compute_distance)(reps)
             if return_numpy:
-                dists = dists.detach().cpu().numpy()
+                dists = np.array(dists)
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
@@ -588,7 +621,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         else:
             # Case with sampled representations
-            dists = torch.vmap(torch.vmap(_compute_distance))(reps)
+            dists = jax.vmap(jax.vmap(_compute_distance))(reps)
             if return_numpy:
                 dists = np.array(dists)
             return xr.DataArray(
@@ -758,7 +791,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         A mixture distribution of the aggregated posterior.
         """
-        from torch.distributions import (
+        from numpyro.distributions import (
             Categorical,
             MixtureSameFamily,
             Normal,
@@ -772,31 +805,24 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             indices = np.intersect1d(
                 np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
             )
-        dataloader = self._make_data_loader(
+        scdl = self._make_data_loader(
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
         qu_locs = []
         qu_scales = []
-        for tensor in dataloader:
-            inference_inputs = self.module._get_inference_input(tensor)
-            inference_inputs.update({"use_mean": True, "sample_index": sample})
-            # Extract arguments for inference method
-            x = inference_inputs["x"]
-            sample_index = inference_inputs["sample_index"]
-            use_mean = inference_inputs.get("use_mean", False)
-            mc_samples = inference_inputs.get("mc_samples", None)
-            cf_sample = inference_inputs.get("cf_sample", None)
-            outputs = self.module.inference(x, sample_index, mc_samples, cf_sample, use_mean)
+        jit_inference_fn = self.module.get_jit_inference_fn(inference_kwargs={"use_mean": True})
+        for array_dict in scdl:
+            outputs = jit_inference_fn(self.module.rngs, array_dict)
 
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
 
-        qu_loc = torch.cat(qu_locs, axis=0)  # n_cells x n_latent_u
-        qu_scale = torch.cat(qu_scales, axis=0)  # n_cells x n_latent_u
+        qu_loc = jnp.concatenate(qu_locs, axis=0)  # n_cells x n_latent_u
+        qu_scale = jnp.concatenate(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
-            Categorical(probs=torch.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
-            (Normal(qu_loc, qu_scale).to_event(1)),  # TODO: check to_event thing
+            Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            (Normal(qu_loc, qu_scale).to_event(1)),
         )
 
     def differential_abundance(
@@ -873,7 +899,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             n_splits = max(adata.n_obs // batch_size, 1)
             log_probs_ = []
             for u_rep in np.array_split(us, n_splits):
-                log_probs_.append(ap.log_prob(u_rep).cpu().numpy()[..., np.newaxis])
+                log_probs_.append(jax.device_get(ap.log_prob(u_rep))[..., np.newaxis])
 
             log_probs.append(np.concatenate(log_probs_, axis=0))  # (n_cells, 1)
 
@@ -1037,14 +1063,15 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             n_splits = adata.n_obs // batch_size
             for u_rep in np.array_split(adata.obsm["U"], n_splits):
                 log_probs_.append(
-                    ap.component_distribution.log_prob(
-                        np.expand_dims(u_rep, ap.mixture_dim)  # (n_cells_batch, 1, n_latent_dim)
+                    jax.device_get(
+                        ap.component_distribution.log_prob(
+                            np.expand_dims(
+                                u_rep, ap.mixture_dim
+                            )  # (n_cells_batch, 1, n_latent_dim)
+                        ).max(  # (n_cells_batch, n_cells_ap)
+                            axis=1, keepdims=True
+                        )  # (n_cells_batch, 1)
                     )
-                    .max(  # (n_cells_batch, n_cells_ap)
-                        axis=1, keepdims=True
-                    )
-                    .cpu()
-                    .numpy()  # (n_cells_batch, 1)
                 )
 
             log_probs_ = np.concatenate(log_probs_, axis=0)  # (n_cells, 1)
@@ -1184,13 +1211,10 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(
-            adata=adata,
-            indices=None,
-            batch_size=batch_size,
-            iter_ndarray=True,
+            adata=adata, indices=None, batch_size=batch_size, iter_ndarray=True
         )
         n_sample = self.summary_stats.n_sample
-        # vars_in = {"params": self.module.params, **self.module.state}
+        vars_in = {"params": self.module.params, **self.module.state}
 
         sample_mask = (
             np.isin(self.sample_order, sample_subset)
@@ -1227,70 +1251,77 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         add_batch_specific_offsets = offset_indices is not None
         n_covariates = Xmat.shape[1]
 
+        @partial(jax.jit, backend="cpu")
         def process_design_matrix(
-            admissible_samples_dmat: torch.Tensor,
-            Xmat: torch.Tensor,
-        ) -> tuple[torch.Tensor, torch.Tensor]:
-            xtmx = torch.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
-            xtmx += lambd * torch.eye(n_covariates)
+            admissible_samples_dmat: jax.typing.ArrayLike,
+            Xmat: jax.typing.ArrayLike,
+        ) -> tuple[jax.Array, jax.Array]:
+            xtmx = jnp.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
+            xtmx += lambd * jnp.eye(n_covariates)
 
-            prefactor = torch.vmap(torch.linalg.cholesky)(
-                xtmx
-            )  # Shape: (n_cells, n_covariates, n_covariates)
-            prefactor = torch.vmap(torch.linalg.inv)(prefactor)  # Inverse of each matrix
-            prefactor = prefactor.transpose(-2, -1)  # Transpose each matrix: (A^-1)^T
-            inv_ = torch.vmap(torch.linalg.pinv)(xtmx)
-            Amat = torch.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
+            prefactor = jnp.real(jax.vmap(jax.scipy.linalg.sqrtm)(xtmx))
+            inv_ = jax.vmap(jnp.linalg.pinv)(xtmx)
+            Amat = jnp.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
             return Amat, prefactor
 
+        @partial(jax.jit, static_argnames=["use_mean", "mc_samples"])
         def mapped_inference_fn(
-            x: torch.Tensor,
-            sample_index: torch.Tensor,
-            cf_sample: torch.Tensor,
-            Amat: torch.Tensor,
-            prefactor: torch.Tensor,
+            stacked_rngs: dict[str, jax.random.KeyArray],
+            x: jax.typing.ArrayLike,
+            sample_index: jax.typing.ArrayLike,
+            cf_sample: jax.typing.ArrayLike,
+            Amat: jax.typing.ArrayLike,
+            prefactor: jax.typing.ArrayLike,
             n_samples_per_cell: int,
-            admissible_samples_mat: torch.Tensor,
+            admissible_samples_mat: jax.typing.ArrayLike,
             use_mean: bool,
             mc_samples: int,
+            rngs_de=None,
         ):
-            inference_partial = partial(
-                self.module.inference,
-                x=x,
-                sample_index=sample_index,
-                mc_samples=mc_samples,
-                use_mean=use_mean,
-            )
+            def inference_fn(
+                rngs,
+                cf_sample,
+            ):
+                return self.module.apply(
+                    vars_in,
+                    rngs=rngs,
+                    method=self.module.inference,
+                    x=x,
+                    sample_index=sample_index,
+                    cf_sample=cf_sample,
+                    use_mean=use_mean,
+                    mc_samples=mc_samples,
+                )["eps"]
 
-            if (
-                use_vmap
-            ):  # TODO: need to test vmap option still. only have tested the non-vmap option
-                eps_ = torch.vmap(
-                    lambda cfs: inference_partial(cf_sample=cfs), in_dims=0, out_dims=-2
-                )(cf_sample)["z"]
+            if use_vmap:
+                eps_ = jax.vmap(inference_fn, in_axes=(0, 0), out_axes=-2)(
+                    stacked_rngs,
+                    cf_sample,
+                )
             else:
 
-                def per_sample_inference_fn(cf_sample):
-                    return inference_partial(cf_sample=cf_sample)["z"]
+                def per_sample_inference_fn(pair):
+                    rngs, cf_sample = pair
+                    return inference_fn(rngs, cf_sample)
 
-                eps_ = torch.stack(
-                    [per_sample_inference_fn(cf_sample=cf_sample_i) for cf_sample_i in cf_sample]
-                ).permute(1, 2, 0, 3)
-
+                # eps_ has shape (mc_samples, n_cells, n_samples, n_latent)
+                eps_ = jax.lax.transpose(
+                    jax.lax.map(per_sample_inference_fn, (stacked_rngs, cf_sample)),
+                    (1, 2, 0, 3),
+                )
             eps_std = eps_.std(axis=2, keepdims=True)
             eps_mean = eps_.mean(axis=2, keepdims=True)
 
             eps = (eps_ - eps_mean) / (1e-6 + eps_std)  # over samples
             # MLE for betas
-            betas = torch.einsum("nks,ansd->ankd", Amat, eps)
+            betas = jnp.einsum("nks,ansd->ankd", Amat, eps)
 
             # Statistical tests
-            def chi2_cdf(x, df):
-                return torch.special.gammainc(df / 2, x / 2)  # TODO: check this
-
-            betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
+            betas_norm = jnp.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - torch.nan_to_num(chi2_cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0)
+            pvals = 1 - jnp.nan_to_num(
+                jax.scipy.stats.chi2.cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0
+            )
 
             betas = betas * eps_std
 
@@ -1298,70 +1329,62 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             lfc_std = None
             pde = None
             if store_lfc:
-                betas_ = betas.permute((0, 2, 1, 3))
-                eps_mean_ = eps_mean.permute((0, 2, 1, 3))
+                betas_ = betas.transpose((0, 2, 1, 3))
+                eps_mean_ = eps_mean.transpose((0, 2, 1, 3))
                 betas_covariates = betas_[:, covariates_require_lfc, :, :]
 
                 def h_inference_fn(extra_eps, batch_index_cf, batch_offset_eps):
-                    extra_eps = extra_eps + batch_offset_eps
+                    extra_eps += batch_offset_eps
 
-                    return self.module.compute_h_from_x_eps(
+                    return self.module.apply(
+                        vars_in,
+                        rngs=rngs_de,
+                        method=self.module.compute_h_from_x_eps,
                         x=x,
-                        sample_index=sample_index,
                         extra_eps=extra_eps,
+                        sample_index=sample_index,
                         batch_index=batch_index_cf,
                         cf_sample=None,
-                        mc_samples=None,
-                        # mc_samples also taken for eps. vmap over mc_samples
+                        mc_samples=None,  # mc_samples also taken for eps. vmap over mc_samples
                     )
 
-                batch_index_ = torch.arange(self.summary_stats.n_batch)[:, None]
-                batch_index_ = batch_index_.repeat(1, n_cells)[..., None]  # (n_batch, n_cells, 1)
-                betas_null = torch.zeros_like(betas_covariates)
+                batch_index_ = jnp.arange(self.summary_stats.n_batch)[:, None]
+                batch_index_ = jnp.repeat(batch_index_, repeats=n_cells, axis=1)[
+                    ..., None
+                ]  # (n_batch, n_cells, 1)
+                betas_null = jnp.zeros_like(betas_covariates)
 
                 if add_batch_specific_offsets:
-                    batch_weights = torch.einsum(
+                    batch_weights = jnp.einsum(
                         "nd,db->nb", admissible_samples_mat, Xmat[:, offset_indices]
                     ).mean(0)
                     betas_offset_ = betas_[:, offset_indices, :, :] + eps_mean_
                 else:
-                    batch_weights = (1.0 / self.summary_stats.n_batch) * torch.ones(
+                    batch_weights = (1.0 / self.summary_stats.n_batch) * jnp.ones(
                         self.summary_stats.n_batch
                     )
                     mc_samples, _, n_cells_, n_latent = betas_covariates.shape
                     betas_offset_ = (
-                        torch.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent))
+                        jnp.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent))
                         + eps_mean_
                     )
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
 
-                f_ = torch.vmap(
-                    h_inference_fn, in_dims=(0, None, 0), out_dims=0, randomness="different"
+                f_ = jax.vmap(
+                    h_inference_fn, in_axes=(0, None, 0), out_axes=0
                 )  # fn over MC samples
-                f_ = torch.vmap(
-                    f_, in_dims=(1, None, None), out_dims=1, randomness="different"
-                )  # fn over covariates
-                f_ = torch.vmap(
-                    f_, in_dims=(None, 0, 1), out_dims=0, randomness="different"
-                )  # fn over batches
-                h_fn = f_
+                f_ = jax.vmap(f_, in_axes=(1, None, None), out_axes=1)  # fn over covariates
+                f_ = jax.vmap(f_, in_axes=(None, 0, 1), out_axes=0)  # fn over batches
+                h_fn = jax.jit(f_)
 
                 x_1 = h_fn(betas_covariates, batch_index_, betas_offset_)
                 x_0 = h_fn(betas_null, batch_index_, betas_offset_)
 
-                lfcs = torch.log2(x_1 + eps_lfc) - torch.log2(x_0 + eps_lfc)
-                # Compute weighted average manually: sum(weights * values) / sum(weights)
-                lfcs_mean_over_mc = lfcs.mean(1)  # (n_batch, n_covariates, n_cells, n_genes)
-                lfc_mean = (batch_weights[:, None, None, None] * lfcs_mean_over_mc).sum(
-                    0
-                ) / batch_weights.sum()
+                lfcs = jnp.log2(x_1 + eps_lfc) - jnp.log2(x_0 + eps_lfc)
+                lfc_mean = jnp.average(lfcs.mean(1), weights=batch_weights, axis=0)
                 if delta is not None:
-                    lfcs_var_over_mc = lfcs.var(1)  # (n_batch, n_covariates, n_cells, n_genes)
-                    lfc_std = torch.sqrt(
-                        (batch_weights[:, None, None, None] * lfcs_var_over_mc).sum(0)
-                        / batch_weights.sum()
-                    )
-                    pde = (torch.abs(lfcs) >= delta).float().mean(1).mean(0)
+                    lfc_std = jnp.sqrt(jnp.average(lfcs.var(1), weights=batch_weights, axis=0))
+                    pde = (jnp.abs(lfcs) >= delta).mean(1).mean(0)
 
             if store_baseline:
                 baseline_expression = x_1.mean(1)
@@ -1384,66 +1407,61 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         lfc_std = []
         pde = []
         baseline_expression = []
-        for tensors in tqdm(scdl):
-            indices = tensors[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
-            n_cells = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+        for array_dict in tqdm(scdl):
+            indices = array_dict[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
+            n_cells = array_dict[REGISTRY_KEYS.X_KEY].shape[0]
             cf_sample = np.broadcast_to(
                 (np.where(sample_mask)[0])[:, None, None], (n_samples_kept, n_cells, 1)
             )
             inf_inputs = self.module._get_inference_input(
-                tensors,
+                array_dict,
             )
-            admissible_samples_mat = torch.Tensor(
-                admissible_samples[indices]
-            )  # (n_cells, n_samples)
+            stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
+
+            rngs_de = self.module.rngs if store_lfc else None
+            admissible_samples_mat = jnp.array(admissible_samples[indices])  # (n_cells, n_samples)
             n_samples_per_cell = admissible_samples_mat.sum(axis=1)
-            admissible_samples_dmat = torch.vmap(torch.diag)(
-                admissible_samples_mat
-            ).float()  # (n_cells, n_samples, n_samples)
+            admissible_samples_dmat = jax.vmap(jnp.diag)(admissible_samples_mat).astype(
+                float
+            )  # (n_cells, n_samples, n_samples)
             # element nij is 1 if sample i is admissible and i=j for cell n
             Amat, prefactor = process_design_matrix(admissible_samples_dmat, Xmat)
-            Amat = Amat.to(self.device)
-            prefactor = prefactor.to(self.device)
+            Amat = jax.device_put(Amat, self.device)
+            prefactor = jax.device_put(prefactor, self.device)
 
             try:
                 res = mapped_inference_fn(
-                    x=torch.Tensor(inf_inputs["x"]),
-                    sample_index=torch.Tensor(inf_inputs["sample_index"]),
-                    cf_sample=torch.Tensor(cf_sample),
+                    stacked_rngs=stacked_rngs,
+                    x=jnp.array(inf_inputs["x"]),
+                    sample_index=jnp.array(inf_inputs["sample_index"]),
+                    cf_sample=jnp.array(cf_sample),
                     Amat=Amat,
                     prefactor=prefactor,
                     n_samples_per_cell=n_samples_per_cell,
                     admissible_samples_mat=admissible_samples_mat,
                     use_mean=False,
+                    rngs_de=rngs_de,
                     mc_samples=mc_samples,
                 )
-            except RuntimeError as e:
+            except jax.errors.JaxRuntimeError as e:
                 if use_vmap:
-                    raise RuntimeError(
-                        "Out of memory. Try setting use_vmap=False."
-                    ) from e  # TODO: update error msg
+                    raise RuntimeError("JAX ran out of memory. Try setting use_vmap=False.") from e
                 else:
                     raise e
 
-            beta.append(np.array(res["beta"].detach().cpu()))
-            effect_size.append(np.array(res["effect_size"].detach().cpu()))
-            pvalue.append(np.array(res["pvalue"].detach().cpu()))
+            beta.append(np.array(res["beta"]))
+            effect_size.append(np.array(res["effect_size"]))
+            pvalue.append(np.array(res["pvalue"]))
             if store_lfc:
-                lfc.append(
-                    np.array(res["lfc_mean"].detach().cpu()).transpose(1, 0, 2)
-                )  # Transpose to (n_cells, n_covariates, n_genes)
+                lfc.append(np.array(res["lfc_mean"]))
                 if delta is not None:
-                    lfc_std.append(
-                        np.array(res["lfc_std"].detach().cpu()).transpose(1, 0, 2)
-                    )  # Transpose to (n_cells, n_covariates, n_genes)
-                    pde.append(
-                        np.array(res["pde"].detach().cpu()).transpose(1, 0, 2)
-                    )  # Transpose to (n_cells, n_covariates, n_genes)
+                    lfc_std.append(np.array(res["lfc_std"]))
+                    pde.append(np.array(res["pde"]))
             if store_baseline:
-                baseline_expression.append(np.array(res["baseline_expression"].detach().cpu()))
-        beta = np.concatenate(beta, axis=0)  # concatenate along cell dimension
-        effect_size = np.concatenate(effect_size, axis=0)  # concatenate along cell dimension
-        pvalue = np.concatenate(pvalue, axis=0)  # concatenate along cell dimension
+                baseline_expression.append(np.array(res["baseline_expression"]))
+        beta = np.concatenate(beta, axis=0)
+        effect_size = np.concatenate(effect_size, axis=0)
+        pvalue = np.concatenate(pvalue, axis=0)
         pvalue_shape = pvalue.shape
         padj = false_discovery_control(pvalue.flatten(), method="bh").reshape(pvalue_shape)
 
@@ -1478,18 +1496,18 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         if store_lfc:
             if store_lfc_metadata_subset is None and not add_batch_specific_offsets:
-                coords_lfc = ["cell_name", "covariate", "gene"]
+                coords_lfc = ["covariate", "cell_name", "gene"]
             else:
-                coords_lfc = ["cell_name", "covariate_sub", "gene"]
+                coords_lfc = ["covariate_sub", "cell_name", "gene"]
                 coords["covariate_sub"] = (
                     ("covariate_sub"),
                     Xmat_names[covariates_require_lfc],
                 )
-            lfc = np.concatenate(lfc, axis=0)  # concatenate along cell dimension
+            lfc = np.concatenate(lfc, axis=1)
             data_vars["lfc"] = (coords_lfc, lfc)
             if delta is not None:
-                lfc_std = np.concatenate(lfc_std, axis=0)  # concatenate along cell dimension
-                pde = np.concatenate(pde, axis=0)  # concatenate along cell dimension
+                lfc_std = np.concatenate(lfc_std, axis=1)
+                pde = np.concatenate(pde, axis=1)
                 data_vars["lfc_std"] = (coords_lfc, lfc_std)
                 data_vars["pde"] = (coords_lfc, pde)
 
@@ -1509,7 +1527,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         add_batch_specific_offsets: bool,
         store_lfc: bool,
         store_lfc_metadata_subset: list[str] | None = None,
-    ) -> tuple[torch.Tensor, npt.NDArray, torch.Tensor, torch.Tensor | None]:
+    ) -> tuple[jax.Array, npt.NDArray, jax.Array, jax.Array | None]:
         """Construct a design matrix of samples and covariates.
 
         Starting from a list of sample covariate keys, construct a design matrix of samples and
@@ -1578,7 +1596,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 offset_indices = (
                     Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
                 )
-                offset_indices = torch.Tensor(offset_indices)
+                offset_indices = jnp.array(offset_indices)
             else:
                 warnings.warn(
                     """
@@ -1592,7 +1610,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         else:
             offset_indices = None
 
-        Xmat = torch.Tensor(Xmat)
+        Xmat = jnp.array(Xmat)
         if store_lfc:
             covariates_require_lfc = (
                 np.isin(Xmat_dim_to_key, store_lfc_metadata_subset)
@@ -1601,7 +1619,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         else:
             covariates_require_lfc = np.zeros(len(Xmat_names), dtype=bool)
-        covariates_require_lfc = torch.Tensor(covariates_require_lfc).bool()
+        covariates_require_lfc = jnp.array(covariates_require_lfc)
+
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
 
     def update_sample_info(self, adata):

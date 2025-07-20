@@ -2,318 +2,311 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import flax.linen as nn
+import jax
+import jax.numpy as jnp
+import numpyro.distributions as dist
+
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import Literal
-
-import torch
-from torch import nn
-from torch.distributions import Normal
+    from typing import Any, Literal
 
 PYTORCH_DEFAULT_SCALE = 1 / 3
 
 
-class Dense(nn.Linear):
+class Dense(nn.DenseGeneral):
+    """Dense layer.
+
+    Uses a custom initializer for the kernel to replicate the default PyTorch behavior.
+    """
+
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        from flax.linen.initializers import variance_scaling
+
+        _kwargs = {"kernel_init": variance_scaling(PYTORCH_DEFAULT_SCALE, "fan_in", "uniform")}
+        _kwargs.update(kwargs)
+
+        super().__init__(*args, **_kwargs)
 
 
 class ResnetBlock(nn.Module):
-    def __init__(
-        self,
-        # TODO: should I keep n_in or is there a functional way to do this like in flax?
-        n_in: int,
-        n_out: int,
-        n_hidden: int = 128,
-        internal_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
-        output_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
-        training: bool | None = None,
-    ):
-        super().__init__()
-        self.n_in = n_in
-        self.n_out = n_out
-        self.n_hidden = n_hidden
-        self.internal_activation = internal_activation
-        self.output_activation = output_activation
-        self.training = training
+    """Resnet block.
 
-        # dense layer
-        self.fc1 = Dense(in_features=n_in, out_features=n_hidden)
+    Consists of the following operations:
 
-        # layer norm
-        self.layer_norm1 = nn.LayerNorm(n_hidden)
+    1. :class:`~flax.linen.Dense`
+    2. :class:`~flax.linen.LayerNorm`
+    3. Activation function specified by ``internal_activation``
+    4. Skip connection if ``n_in`` is equal to ``n_hidden``, otherwise a :class:`~flax.linen.Dense`
+        layer is applied to the input before the skip connection to match features.
+    5. :class:`~flax.linen.Dense`
+    6. :class:`~flax.linen.LayerNorm`
+    7. Activation function specified by ``output_activation``
 
-        # internal activation
+    Parameters
+    ----------
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    internal_activation
+        Activation function to use after the first :class:`~flax.linen.Dense` layer.
+    output_activation
+        Activation function to use after the last :class:`~flax.linen.Dense` layer.
+    training
+        Whether the model is in training mode.
+    """
 
-        # skip connection if n_in equal to n_hidden,
-        # otherwise dense layer applied before skip connection to match features
-        self.fc_match = Dense(in_features=n_in, out_features=n_hidden)
+    n_out: int
+    n_hidden: int = 128
+    internal_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
+    output_activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
+    training: bool | None = None
 
-        # dense layer
-        self.fc2 = Dense(in_features=n_hidden, out_features=n_out)
-
-        # layer norm
-        self.layer_norm2 = nn.LayerNorm(n_out)
-
-    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
-        self.training = training  # is this sufficients compared to jax version?
-        h = self.fc1(inputs)
-        h = self.layer_norm1(h)
+    @nn.compact
+    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> jax.Array:
+        training = nn.merge_param("training", self.training, training)
+        h = Dense(self.n_hidden)(inputs)
+        h = nn.LayerNorm()(h)
         h = self.internal_activation(h)
-
-        if self.n_in != self.n_hidden:
-            h = h + self.fc_match(inputs)
+        if inputs.shape[-1] != self.n_hidden:
+            h = h + Dense(self.n_hidden)(inputs)
         else:
             h = h + inputs
-
-        h = self.fc2(h)
-        h = self.layer_norm2(h)
+        h = Dense(self.n_out)(h)
+        h = nn.LayerNorm()(h)
         return self.output_activation(h)
 
 
 class MLP(nn.Module):
-    def __init__(
-        self,
-        n_in: int,
-        n_out: int,
-        n_hidden: int = 128,
-        n_layers: int = 1,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
-        training: bool | None = None,
-    ):
-        super().__init__()
-        self.n_in = n_in
-        self.n_out = n_out
-        self.n_hidden = n_hidden
-        self.n_layers = n_layers
-        self.activation = activation
-        self.training = training
+    """Multi-layer perceptron with resnet blocks.
 
-        # sequence of n_layers resnet blocks
-        self.resnet_blocks = nn.Sequential(
-            *[
-                ResnetBlock(
-                    n_in=n_in,
-                    n_out=n_hidden,
-                    internal_activation=activation,
-                    output_activation=activation,
-                )
-                for _ in range(n_layers)
-            ]
-        )
+    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
+    :class:`~flax.linen.Dense` layer to project to the output dimension.
 
-        # dense layer to project to the output dimension
-        self.fc = Dense(in_features=n_hidden, out_features=n_out)
+    Parameters
+    ----------
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of resnet blocks.
+    activation
+        Activation function to use.
+    training
+        Whether the model is in training mode.
+    """
 
-    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
-        self.training = training  # is this sufficient compared to jax version?
+    n_out: int
+    n_hidden: int = 128
+    n_layers: int = 1
+    activation: Callable[[jax.typing.ArrayLike], jax.Array] = nn.relu
+    training: bool | None = None
 
-        h = self.resnet_blocks(inputs)
-        return self.fc(h)
+    @nn.compact
+    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> jax.Array:
+        training = nn.merge_param("training", self.training, training)
+        h = inputs
+        for _ in range(self.n_layers):
+            h = ResnetBlock(
+                n_out=self.n_hidden,
+                internal_activation=self.activation,
+                output_activation=self.activation,
+            )(h, training=training)
+        return Dense(self.n_out)(h)
 
 
 class NormalDistOutputNN(nn.Module):
-    def __init__(
-        self,
-        n_in: int,
-        n_out: int,
-        n_hidden: int = 128,
-        n_layers: int = 1,
-        scale_eps: float = 1e-5,
-        training: bool | None = None,
-    ):
-        super().__init__()
-        self.n_in = n_in
-        self.n_out = n_out
-        self.n_hidden = n_hidden
-        self.n_layers = n_layers
-        self.scale_eps = scale_eps
-        self.training = training
+    """Fully-connected neural net parameterizing a normal distribution.
 
-        self.resnet_blocks = nn.ModuleList(
-            [
-                ResnetBlock(
-                    n_in=n_in,
-                    n_out=n_hidden,
-                )
-                for _ in range(n_layers)
-            ]
-        )
+    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
+    :class:`~flax.linen.Dense` layer for the mean and a :class:`~flax.linen.Dense` and
+    :func:`~flax.linen.softplus` layer for the scale.
 
-        self.fc_mean = Dense(in_features=n_hidden, out_features=n_out)
-        self.fc_scale = nn.Sequential(
-            Dense(in_features=n_hidden, out_features=n_out),
-            nn.Softplus(),
-        )
+    Parameters
+    ----------
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of resnet blocks.
+    scale_eps
+        Numerical stability constant added to the scale of the normal distribution.
+    """
 
-    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> Normal:
-        # what is below doing?
-        # training = nn.merge_param("training", self.training, training)
+    n_out: int
+    n_hidden: int = 128
+    n_layers: int = 1
+    scale_eps: float = 1e-5
+    training: bool | None = None
+
+    @nn.compact
+    def __call__(self, inputs: jax.typing.ArrayLike, training: bool | None = None) -> dist.Normal:
+        training = nn.merge_param("training", self.training, training)
         h = inputs
-        for block in self.resnet_blocks:
-            h = block(h, training)
-        mean = self.fc_mean(h)
-        scale = self.fc_scale(h)
-        return Normal(mean, scale + self.scale_eps)
+        for _ in range(self.n_layers):
+            h = ResnetBlock(n_out=self.n_hidden)(h, training=training)
+        mean = Dense(self.n_out)(h)
+        scale = nn.Sequential([Dense(self.n_out), nn.softplus])(h)
+        return dist.Normal(mean, scale + self.scale_eps)
 
 
 class ConditionalNormalization(nn.Module):
-    def __init__(
+    """Condition-specific normalization.
+
+    Applies either batch normalization or layer normalization to the input, followed by
+    condition-specific scaling (``gamma``) and shifting (``beta``).
+
+    Parameters
+    ----------
+    n_features
+        Number of features.
+    n_conditions
+        Number of conditions.
+    training
+        Whether the model is in training mode.
+    normalization_type
+        Type of normalization to apply. Must be one of ``"batch", "layer"``.
+    """
+
+    n_features: int
+    n_conditions: int
+    training: bool | None = None
+    normalization_type: Literal["batch", "layer"] = "layer"
+
+    @staticmethod
+    def _gamma_initializer() -> jax.nn.initializers.Initializer:
+        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jax.Array:
+            weights = jax.random.normal(key, shape, dtype) * 0.02 + 1
+            return weights
+
+        return init
+
+    @staticmethod
+    def _beta_initializer() -> jax.nn.initializers.Initializer:
+        def init(key: jax.random.KeyArray, shape: tuple, dtype: Any = jnp.float_) -> jax.Array:
+            del key
+            weights = jnp.zeros(shape, dtype=dtype)
+            return weights
+
+        return init
+
+    @nn.compact
+    def __call__(
         self,
-        n_features: int,
-        n_conditions: int,
+        x: jax.typing.ArrayLike,
+        condition: jax.typing.ArrayLike,
         training: bool | None = None,
-        normalization_type: Literal["batch", "layer"] = "layer",
-    ):
-        super().__init__()
-        self.n_features = n_features
-        self.n_conditions = n_conditions
-        self.training = training
-        self.normalization_type = normalization_type
+    ) -> jax.Array:
+        training = nn.merge_param("training", self.training, training)
 
-        # Initialize embedding layers in __init__ instead of forward
-        self.gamma_embedding = nn.Embedding(self.n_conditions, self.n_features)
-        self.beta_embedding = nn.Embedding(self.n_conditions, self.n_features)
-
-        # Initialize normalization layers
         if self.normalization_type == "batch":
-            self.norm_layer = nn.BatchNorm1d(
-                self.n_features, affine=False, track_running_stats=True
-            )
+            x = nn.BatchNorm(use_bias=False, use_scale=False)(x, use_running_average=not training)
         elif self.normalization_type == "layer":
-            self.norm_layer = nn.LayerNorm(self.n_features, elementwise_affine=False)
+            x = nn.LayerNorm(use_bias=False, use_scale=False)(x)
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
-    def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
-        # Use pre-initialized normalization layer
-        if self.normalization_type == "batch":
-            # For BatchNorm, we need to set training mode
-            if training is not None:
-                self.norm_layer.training = training
-            x = self.norm_layer(x)
-        else:  # layer norm
-            x = self.norm_layer(x)
-
-        # Use pre-initialized embedding layers
-        cond_int = condition.squeeze(-1).to(torch.int64)  # TODO: check if 64 or 32
-        gamma = self.gamma_embedding(cond_int)
-        beta = self.beta_embedding(cond_int)
+        cond_int = condition.squeeze(-1).astype(int)
+        gamma = nn.Embed(
+            self.n_conditions,
+            self.n_features,
+            embedding_init=self._gamma_initializer(),
+            name="gamma_conditional",
+        )(cond_int)
+        beta = nn.Embed(
+            self.n_conditions,
+            self.n_features,
+            embedding_init=self._beta_initializer(),
+            name="beta_conditional",
+        )(cond_int)
 
         return gamma * x + beta
 
 
 class AttentionBlock(nn.Module):
-    def __init__(
+    """Attention block consisting of multi-head self-attention and MLP.
+
+    Parameters
+    ----------
+    query_dim
+        Dimension of the query input.
+    out_dim
+        Dimension of the output.
+    outerprod_dim
+        Dimension of the outer product.
+    n_channels
+        Number of channels.
+    n_heads
+        Number of heads.
+    dropout_rate
+        Dropout rate.
+    n_hidden_mlp
+        Number of hidden units in the MLP.
+    n_layers_mlp
+        Number of layers in the MLP.
+    training
+        Whether the model is in training mode.
+    stop_gradients_mlp
+        Whether to stop gradients through the MLP.
+    activation
+        Activation function to use.
+    """
+
+    query_dim: int
+    out_dim: int
+    outerprod_dim: int = 16
+    n_channels: int = 4
+    n_heads: int = 2
+    dropout_rate: float = 0.0
+    n_hidden_mlp: int = 32
+    n_layers_mlp: int = 1
+    training: bool | None = None
+    stop_gradients_mlp: bool = False
+    activation: Callable[[jax.Array], jax.Array] = nn.gelu
+
+    @nn.compact
+    def __call__(
         self,
-        query_dim: int,
-        kv_dim: int,  # TODO: added this for torch version, could be wrong
-        out_dim: int,
-        outerprod_dim: int = 16,
-        n_channels: int = 4,
-        n_heads: int = 2,
-        dropout_rate: float = 0.0,
-        n_hidden_mlp: int = 32,
-        n_layers_mlp: int = 1,
+        query_embed: jax.typing.ArrayLike,
+        kv_embed: jax.typing.ArrayLike,
         training: bool | None = None,
-        stop_gradients_mlp: bool = False,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
-    ):
-        super().__init__()
-        self.query_dim = query_dim
-        self.kv_dim = kv_dim
-        self.out_dim = out_dim
-        self.outerprod_dim = outerprod_dim
-        self.n_channels = n_channels
-        self.n_heads = n_heads
-        self.dropout_rate = dropout_rate
-        self.n_hidden_mlp = n_hidden_mlp
-        self.n_layers_mlp = n_layers_mlp
-        self.training = training
-        self.stop_gradients_mlp = stop_gradients_mlp
-        self.activation = activation
-
-        self.query_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim, bias=False)
-        self.embed_dim_proj_query = nn.Linear(
-            in_features=1, out_features=n_channels * n_heads, bias=False
-        )
-        self.embed_dim_proj_kv = nn.Linear(
-            in_features=1, out_features=n_channels * n_heads, bias=False
-        )
-        self.kv_proj = nn.Linear(in_features=kv_dim, out_features=outerprod_dim, bias=False)
-        self.attention = nn.MultiheadAttention(
-            embed_dim=n_channels * n_heads,
-            num_heads=n_heads,
-            dropout=dropout_rate,
-            batch_first=True,
-        )
-        self.mlp_eps = MLP(
-            n_in=self.outerprod_dim * n_channels * n_heads,
-            n_out=outerprod_dim,
-            n_hidden=n_hidden_mlp,
-            n_layers=n_layers_mlp,
-            training=training,
-            activation=activation,
-        )
-        self.mlp_residual = MLP(
-            n_in=outerprod_dim + query_dim,
-            n_out=out_dim,
-            n_hidden=n_hidden_mlp,
-            n_layers=n_layers_mlp,
-            training=training,
-            activation=activation,
-        )
-
-    def forward(
-        self, query_embed: torch.Tensor, kv_embed: torch.Tensor, training: bool | None = None
-    ) -> torch.Tensor:
-        self.training = training
+    ) -> jax.Array:
+        training = nn.merge_param("training", self.training, training)
         has_mc_samples = query_embed.ndim == 3
 
-        if self.stop_gradients_mlp:
-            query_embed_stop = query_embed.detach()
-        else:
-            query_embed_stop = query_embed  # (batch_size, query_dim)
-
-        # Below, the second projection was not needed in the original JAX code,
-        # but it is needed in the PyTorch version to match the dimensions
-        # of the query and key-value embeddings for the attention mechanism.
-        query_for_att = self.query_proj(query_embed_stop).unsqueeze(
-            -1
-        )  # (batch_size, outerprod_dim, 1)
-        query_for_att = self.embed_dim_proj_query(
-            query_for_att
-        )  # (batch_size, outerprod_dim, n_channels * n_heads)
-        kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)
-        kv_for_att = self.embed_dim_proj_kv(kv_for_att)
-
-        # Unlike with JAX, with torch we can only have one batch dimension
-        # so we flatten the batch and mc samples
-        if has_mc_samples:
-            query_embed_flat_batch = torch.reshape(
-                query_embed, (query_embed.shape[0] * query_embed.shape[1], query_embed.shape[2])
-            )
-            query_for_att = torch.reshape(
-                query_for_att,
-                (query_for_att.shape[0] * query_for_att.shape[1], query_for_att.shape[2], -1),
-            )
-            kv_for_att = torch.reshape(
-                kv_for_att, (kv_for_att.shape[0] * kv_for_att.shape[1], kv_for_att.shape[2], -1)
-            )
-
-        eps = self.attention(query_for_att, kv_for_att, kv_for_att, need_weights=False)[
-            0
-        ]  # (batch_size, outerprod_dim, n_channels * n_heads)
-
-        eps = torch.reshape(eps, (eps.shape[0], -1))
-        eps_ = self.mlp_eps(eps, training)
-        inputs = torch.cat(
-            [query_embed_flat_batch if has_mc_samples else query_embed, eps_], dim=-1
+        query_embed_stop = (
+            query_embed if not self.stop_gradients_mlp else jax.lax.stop_gradient(query_embed)
         )
-        residual = self.mlp_residual(inputs, training)
+        query_for_att = nn.DenseGeneral((self.outerprod_dim, 1), use_bias=False)(query_embed_stop)
+        kv_for_att = nn.DenseGeneral((self.outerprod_dim, 1), use_bias=False)(kv_embed)
+        eps = nn.MultiHeadDotProductAttention(
+            num_heads=self.n_heads,
+            qkv_features=self.n_channels * self.n_heads,
+            out_features=self.n_channels,
+            dropout_rate=self.dropout_rate,
+            use_bias=True,
+        )(inputs_q=query_for_att, inputs_kv=kv_for_att, deterministic=not training)
 
-        if has_mc_samples:
-            # Reshape back to the original batch and mc samples dimensions
-            residual = torch.reshape(residual, (query_embed.shape[0], query_embed.shape[1], -1))
+        if not has_mc_samples:
+            eps = jnp.reshape(eps, (eps.shape[0], eps.shape[1] * eps.shape[2]))
+        else:
+            eps = jnp.reshape(eps, (eps.shape[0], eps.shape[1], eps.shape[2] * eps.shape[3]))
 
+        eps_ = MLP(
+            n_out=self.outerprod_dim,
+            n_hidden=self.n_hidden_mlp,
+            training=training,
+            activation=self.activation,
+        )(inputs=eps)
+        inputs = jnp.concatenate([query_embed, eps_], axis=-1)
+        residual = MLP(
+            n_out=self.out_dim,
+            n_hidden=self.n_hidden_mlp,
+            n_layers=self.n_layers_mlp,
+            training=training,
+            activation=self.activation,
+        )(inputs=inputs)
         return residual

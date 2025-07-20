@@ -83,7 +83,6 @@ It has many optional dependencies, which expand its capabilities:
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
 - _jax_ - for Jax support
-- _pyro_ - for Pyro support
 - _tests_ - in order to be able to perform tests
 - _editing_ - for code editing
 - _dev_ - for development purposes
