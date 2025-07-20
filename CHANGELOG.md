@@ -19,8 +19,8 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Changed
 
 - Change previous implementation of {class}`scvi.external.MRVI` to {class}`scvi.external.JaxMRVI`.
-    {pr}`3305`.
-- Made the Jax dependency optional in scvi-tools {pr}`3305`.
+    {pr}`3426`.
+- Made the Jax dependency optional in scvi-tools {pr}`3426`.
 
 #### Removed
 

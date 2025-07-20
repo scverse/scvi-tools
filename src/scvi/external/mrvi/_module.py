@@ -11,7 +11,9 @@ import numpyro.distributions as dist
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi._components import AttentionBlock, Dense
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.module.base import LossOutput
+from scvi.module.base._base_module import JaxBaseModuleClass
+from scvi.module.base._decorators import flax_configure
 
 if TYPE_CHECKING:
     from collections.abc import Callable
