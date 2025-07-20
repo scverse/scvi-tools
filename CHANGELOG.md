@@ -4,20 +4,23 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.3
+## Version 1.4
 
-### 1.3.3 (2025-XX-XX)
+### 1.4.0 (2025-XX-XX)
 
 #### Added
 
-- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
     {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
 
 #### Fixed
 
 #### Changed
 
 #### Removed
+
+## Version 1.3
 
 ### 1.3.2 (2025-06-22)
 
