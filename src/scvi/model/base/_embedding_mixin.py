@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class EmbeddingMixin:
-    """Mixin class for initializing and using embeddings in a model.
+    """``EXPERIMENTAL`` Mixin class for initializing and using embeddings in a model.
 
     Must be used with a module that inherits from :class:`~scvi.module.base.EmbeddingModuleMixin`.
 

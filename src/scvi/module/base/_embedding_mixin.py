@@ -6,7 +6,7 @@ from scvi.nn import Embedding
 
 
 class EmbeddingModuleMixin:
-    """Mixin class for initializing and using embeddings in a module."""
+    """``EXPERIMENTAL`` Mixin class for initializing and using embeddings in a module."""
 
     @property
     def embeddings_dict(self) -> ModuleDict:
