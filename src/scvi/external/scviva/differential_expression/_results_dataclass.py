@@ -7,6 +7,8 @@ import pandas as pd
 from rich import print
 from sklearn.gaussian_process import GaussianProcessClassifier
 
+from scvi.utils import dependencies
+
 
 @dataclass
 class DifferentialExpressionResults:
@@ -31,6 +33,7 @@ class DifferentialExpressionResults:
         print("Marginal likelihood: ", self.gpc.log_marginal_likelihood_value_)
         print("Kernel: ", self.gpc.kernel_)
 
+    @dependencies("matplotlib")
     def plot(
         self,
         X: pd.DataFrame | None = None,
