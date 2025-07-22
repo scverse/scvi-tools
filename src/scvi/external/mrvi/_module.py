@@ -296,6 +296,7 @@ class EncoderXU(nn.Module):
         self.fc2 = nn.Linear(self.n_hidden, self.n_hidden)
         self.conditional_norm2 = ConditionalNormalization(self.n_hidden, self.n_sample)
 
+        # TODO : why is commented out?
         """self.fc_layers = nn.Sequential(
             nn.Linear(self.n_input, self.n_hidden),
             ConditionalNormalization(self.n_hidden, self.n_sample),
@@ -459,6 +460,10 @@ class MRVAE(BaseModuleClass):
         cf_sample: torch.Tensor | None = None,
         use_mean: bool = False,
     ) -> dict[str, torch.Tensor]:
+        if type(x).__name__ != "Tensor" and x is not None:
+            x = torch.Tensor(x)
+        if type(sample_index).__name__ != "Tensor" and sample_index is not None:
+            sample_index = torch.Tensor(sample_index)
         qu = self.qu(x, sample_index, training=self.training)
         if use_mean:
             u = qu.mean

@@ -101,6 +101,13 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     def __init__(self, adata: AnnData, **model_kwargs):
         super().__init__(adata)
 
+        warnings.warn(
+            "You are using the Torch Version of MrVI, starting v1.4, "
+            "The Jax Version of MrVI is under the model called: JaxMrVI",
+            UserWarning,
+            stacklevel=2,
+        )
+
         n_sample = self.summary_stats.n_sample
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
@@ -131,6 +138,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         # TODO(jhong): remove this once we have a better way to handle device.
         pass
 
+    # TODO: WHY THIS IS COMMENTED OUT?
     """def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
         return_1d = isinstance(n_sets, int)
         if return_1d:
@@ -368,12 +376,19 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_mean: bool,
             mc_samples: int | None = None,
         ):
+            def inference_fn(cf):
+                return self.module.inference(
+                    x, sample_index, cf_sample=cf, mc_samples=mc_samples, use_mean=use_mean
+                )["z"]
+
             inference_partial = partial(
                 self.module.inference, x, sample_index, mc_samples=mc_samples, use_mean=use_mean
             )
 
             if use_vmap:
-                return torch.vmap(inference_partial, in_dims=0, out_dims=-2)(cf_sample)["z"]
+                return torch.vmap(inference_fn, in_dims=0, out_dims=-2, randomness="different")(
+                    cf_sample
+                )
             else:
 
                 def per_sample_inference_fn(cf_sample):
@@ -431,9 +446,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     use_mean=False,
                     mc_samples=mc_samples,
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
-                sampled_zs_ = sampled_zs_.transpose((1, 0, 2, 3))
+                sampled_zs_ = sampled_zs_.permute((1, 0, 2, 3))
                 sampled_zs = xr.DataArray(
-                    np.array(sampled_zs_),
+                    sampled_zs_.detach().cpu().numpy(),
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
                         "cell_name": adata.obs_names[indices].values,
@@ -549,7 +564,10 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         first_half_z, second_half_z = z[:mc_samples], z[mc_samples:]
         l2_dists = torch.sqrt(torch.sum((first_half_z - second_half_z) ** 2, axis=2)).T
 
-        return np.array(torch.mean(l2_dists, axis=1)), np.array(torch.var(l2_dists, axis=1))
+        return (
+            torch.mean(l2_dists, axis=1).detach().numpy(),
+            torch.var(l2_dists, axis=1).detach().numpy(),
+        )
 
     def _compute_distances_from_representations(
         self,
@@ -590,7 +608,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             # Case with sampled representations
             dists = torch.vmap(torch.vmap(_compute_distance))(reps)
             if return_numpy:
-                dists = np.array(dists)
+                dists = np.array(dists.detach().cpu().numpy())
             return xr.DataArray(
                 dists,
                 dims=["cell_name", "mc_sample", "sample_x", "sample_y"],
@@ -780,7 +798,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         qu_scales = []
         for tensor in dataloader:
             inference_inputs = self.module._get_inference_input(tensor)
-            inference_inputs.update({"use_mean": True, "sample_index": sample})
+            inference_inputs.update({"use_mean": True, "sample_index": tensor["ind_x"]})
             # Extract arguments for inference method
             x = inference_inputs["x"]
             sample_index = inference_inputs["sample_index"]
@@ -1254,6 +1272,11 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_mean: bool,
             mc_samples: int,
         ):
+            def inference_fn(cf):
+                return self.module.inference(
+                    x, sample_index, cf_sample=cf, mc_samples=mc_samples, use_mean=use_mean
+                )["z"]
+
             inference_partial = partial(
                 self.module.inference,
                 x=x,
@@ -1262,12 +1285,10 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 use_mean=use_mean,
             )
 
-            if (
-                use_vmap
-            ):  # TODO: need to test vmap option still. only have tested the non-vmap option
-                eps_ = torch.vmap(
-                    lambda cfs: inference_partial(cf_sample=cfs), in_dims=0, out_dims=-2
-                )(cf_sample)["z"]
+            if use_vmap:
+                eps_ = torch.vmap(inference_fn, in_dims=0, out_dims=-2, randomness="different")(
+                    cf_sample
+                )
             else:
 
                 def per_sample_inference_fn(cf_sample):
