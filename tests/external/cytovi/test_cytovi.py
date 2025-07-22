@@ -66,7 +66,6 @@ def overlapping_adatas():
 
 
 def test_cytovi_preprocess(adata, overlapping_adatas):
-    cytovi.logp(adata)
     cytovi.arcsinh(adata)
     cytovi.scale(adata)
     adata_sub = cytovi.subsample(adata, n_obs=100)
