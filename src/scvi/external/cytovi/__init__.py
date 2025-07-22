@@ -3,7 +3,6 @@ from ._model import CYTOVI
 from ._plotting import biaxial, histogram
 from ._preprocessing import (
     arcsinh,
-    logp,
     mask_markers,
     merge_batches,
     register_nan_layer,
