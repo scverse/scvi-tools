@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 import xarray as xr
+from torch.distributions import Independent
 from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
@@ -23,7 +24,6 @@ if TYPE_CHECKING:
     import numpy.typing as npt
     from anndata import AnnData
     from torch.distributions import Distribution
-    # from numpyro.distributions import Distribution
 
 logger = logging.getLogger(__name__)
 
@@ -799,13 +799,17 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         for tensor in dataloader:
             inference_inputs = self.module._get_inference_input(tensor)
             inference_inputs.update({"use_mean": True, "sample_index": tensor["ind_x"]})
-            # Extract arguments for inference method
-            x = inference_inputs["x"]
-            sample_index = inference_inputs["sample_index"]
+            # TODO Extract arguments for inference method?
+            # x = inference_inputs["x"]
+            # sample_index = inference_inputs["sample_index"]
             use_mean = inference_inputs.get("use_mean", False)
-            mc_samples = inference_inputs.get("mc_samples", None)
-            cf_sample = inference_inputs.get("cf_sample", None)
-            outputs = self.module.inference(x, sample_index, mc_samples, cf_sample, use_mean)
+            # mc_samples = inference_inputs.get("mc_samples", None)
+            # cf_sample = inference_inputs.get("cf_sample", None)
+
+            inference_inputs = self.module._get_inference_input(tensor)
+            inference_inputs["use_mean"] = use_mean
+            # inference_inputs["sample_index"] = tensor["ind_x"]
+            outputs = self.module.inference(**inference_inputs)
 
             qu_locs.append(outputs["qu"].loc)
             qu_scales.append(outputs["qu"].scale)
@@ -814,7 +818,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         qu_scale = torch.cat(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
             Categorical(probs=torch.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
-            (Normal(qu_loc, qu_scale).to_event(1)),  # TODO: check to_event thing
+            Independent(Normal(qu_loc, qu_scale), 1),
         )
 
     def differential_abundance(
@@ -891,7 +895,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             n_splits = max(adata.n_obs // batch_size, 1)
             log_probs_ = []
             for u_rep in np.array_split(us, n_splits):
-                log_probs_.append(ap.log_prob(u_rep).cpu().numpy()[..., np.newaxis])
+                if not isinstance(u_rep, torch.Tensor):
+                    u_rep = torch.tensor(u_rep, dtype=torch.float32, device=self.device)
+                log_probs_.append(ap.log_prob(u_rep).detach().cpu().numpy()[..., np.newaxis])
 
             log_probs.append(np.concatenate(log_probs_, axis=0))  # (n_cells, 1)
 
@@ -1046,28 +1052,45 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata_s = adata[sample_idxs]
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
+            # in_max_comp_log_probs = ap.component_distribution.log_prob(
+            #     np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap,1,n_latent_dim)
+            # )  # (n_cells_ap, n_cells_ap)
             in_max_comp_log_probs = ap.component_distribution.log_prob(
-                np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap, 1, n_latent_dim)
-            )  # (n_cells_ap, n_cells_ap)
+                torch.unsqueeze(
+                    torch.tensor(adata_s.obsm["U"], dtype=torch.float32, device=self.device),
+                    dim=-2,
+                )
+            )
             log_probs_s = rowwise_max_excluding_diagonal(in_max_comp_log_probs)
 
             log_probs_ = []
             n_splits = adata.n_obs // batch_size
             for u_rep in np.array_split(adata.obsm["U"], n_splits):
+                u_rep_tensor = torch.tensor(
+                    u_rep,
+                    dtype=ap.component_distribution.base_dist.loc.dtype,
+                    device=ap.component_distribution.base_dist.loc.device,
+                )
+
+                expanded_u_rep = u_rep_tensor.unsqueeze(
+                    -2
+                )  # Equivalent to np.expand_dims(..., -2)
+
                 log_probs_.append(
                     ap.component_distribution.log_prob(
-                        np.expand_dims(u_rep, ap.mixture_dim)  # (n_cells_batch, 1, n_latent_dim)
+                        expanded_u_rep  # (n_cells_batch, 1, n_latent_dim)
                     )
                     .max(  # (n_cells_batch, n_cells_ap)
                         axis=1, keepdims=True
                     )
+                    .values.detach()
                     .cpu()
                     .numpy()  # (n_cells_batch, 1)
                 )
 
             log_probs_ = np.concatenate(log_probs_, axis=0)  # (n_cells, 1)
 
-            threshs.append(np.array(log_probs_s))
+            threshs.append(np.array(log_probs_s.detach()))
             log_probs.append(np.array(log_probs_))
 
         threshs_all = np.concatenate(threshs)
@@ -1109,7 +1132,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         store_baseline: bool = False,
         eps_lfc: float = 1e-4,
         filter_inadmissible_samples: bool = False,
-        lambd: float = 0.0,
+        lambd: float = 1e-5,
         delta: float | None = 0.3,
         **filter_samples_kwargs,
     ) -> xr.Dataset:
