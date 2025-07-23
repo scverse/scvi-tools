@@ -26,6 +26,12 @@ def test_validate_hf_url():
     assert not validate_url(invalid)
 
 
+def bump_patch_version(version: str) -> str:
+    parts = version.split(".")
+    parts[-1] = str(int(parts[-1]) + 1)
+    return ".".join(parts)
+
+
 @pytest.mark.internet
 def test_validate_colab_url():
     colab_url1 = (
@@ -37,7 +43,7 @@ def test_validate_colab_url():
 
     colab_url2 = (
         "https://colab.research.google.com/github/scverse/scvi-tutorials/blob/"
-        + "1.3.3"
+        + bump_patch_version(scvi.__version__)
         + "/quick_start/api_overview.ipynb"
     )
     assert not validate_colab_notebook(colab_url2)
