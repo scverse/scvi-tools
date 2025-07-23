@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.3.2"
+version = "1.3.3"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -58,7 +58,7 @@ tests = ["pytest", "pytest-pretty", "coverage", "selenium", "scvi-tools[optional
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]<0.7.0"]
 metal = ["torchvision", "torchaudio", "jax-metal"]
 
 docs = [
@@ -96,7 +96,7 @@ interpretability = ["captum", "shap"]
 # for custom dataloaders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
 # for jax support
-jax = ["jax", "jaxlib", "optax", "numpyro>=0.12.1", "flax"]
+jax = ["jax<0.7.0", "jaxlib<0.7.0", "optax", "numpyro>=0.12.1", "flax"]
 
 optional = [
     "scvi-tools[autotune,aws,hub,jax,file_sharing,regseq,scanpy,parallel,interpretability]"

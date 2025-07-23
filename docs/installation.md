@@ -3,7 +3,10 @@
 ## Quick install
 
 scvi-tools can be installed via `conda` or `pip`.
-We recommend installing into a virtual environment to avoid conflicts with other packages.
+
+We recommend installing into a fresh virtual environment to avoid conflicts with other packages
+and compatibility issues.
+
 For the basic CPU version run:
 
 ```bash
@@ -23,8 +26,8 @@ Don't know how to get started with virtual environments or `conda`/`pip`? Check 
 
 ### Virtual environment
 
-A virtual environment can be created with either `conda` or `venv`. We recommend using `conda`. We
-currently support Python 3.10 - 3.13.
+A virtual environment can be created with either `conda` or `venv`. We recommend using a fresh `conda` environment.
+We currently support Python 3.10 - 3.13.
 
 For `conda`, we recommend using the [Miniforge](https://github.com/conda-forge/miniforge) or
 [Mamba](https://mamba.readthedocs.io/en/latest/) distribution, which are generally lighter & faster
@@ -56,6 +59,7 @@ If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or App
 which is likely, scvi-tools supports it.
 In order to install scvi-tools with Nvidia GPU CUDA support, for Linux Systems
 (such as Ubuntu or RedHat) use:
+
 ```bash
 pip install -U scvi-tools[cuda]
 ```
@@ -103,6 +107,7 @@ pip install -U scvi-tools[tutorials]
 ```
 
 To install all optional dependencies (_e.g._ jax support, scanpy support, custom dataloaders, autotune, criticism, model hub):
+
 
 ```bash
 pip install -U scvi-tools[optional]

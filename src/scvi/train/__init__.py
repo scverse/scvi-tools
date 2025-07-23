@@ -1,7 +1,6 @@
 from ._callbacks import (
     JaxModuleInit,
     LoudEarlyStopping,
-    SaveBestState,
     SaveCheckpoint,
     ScibCallback,
 )
@@ -29,7 +28,6 @@ __all__ = [
     "ClassifierTrainingPlan",
     "TrainRunner",
     "LoudEarlyStopping",
-    "SaveBestState",
     "SaveCheckpoint",
     "ScibCallback",
     "JaxModuleInit",

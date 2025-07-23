@@ -10,10 +10,6 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
-    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
-- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
-
 #### Fixed
 
 #### Changed
@@ -25,6 +21,25 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Removed
 
 ## Version 1.3
+
+### 1.3.3 (2025-07-23)
+
+#### Added
+
+- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
+#### Fixed
+
+- Add SupervisedModuleClass to the classifier, {pr}`3430`.
+
+#### Changed
+
+#### Removed
+
+- Temporary pinned Jax version to <0.7.0 to be able to install numpyro.
+- Removed a bad legacy code in scarchesmixin, {pr}`3417`.
+- Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
 ### 1.3.2 (2025-06-22)
 
