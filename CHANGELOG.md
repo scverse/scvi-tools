@@ -6,7 +6,17 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.3 (2025-XX-XX)
+### 1.3.4 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
+### 1.3.3 (2025-07-23)
 
 #### Added
 
@@ -15,7 +25,11 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Add SupervisedModuleClass to the classifier, {pr}`3430`.
+
 #### Changed
+
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
 
 #### Removed
 
