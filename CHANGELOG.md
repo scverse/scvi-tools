@@ -30,7 +30,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
-- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
+- Temporary pinned Jax version to <0.7.0 to be able to install numpyro.
 
 #### Removed
 
