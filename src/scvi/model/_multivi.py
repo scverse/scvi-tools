@@ -38,7 +38,6 @@ from scvi.model.base import (
 from scvi.model.base._de_core import _de_core
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
-from scvi.train._callbacks import SaveBestState
 from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
@@ -256,7 +255,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
-        save_best: bool = True,
         check_val_every_n_epoch: int | None = None,
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 50,
@@ -292,9 +290,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
-        save_best
-            ``DEPRECATED`` Save the best model state with respect to the validation loss, or use
-            the final state in the training procedure.
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping`
             is `True`. If so, val is checked every epoch.
@@ -315,11 +310,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
-
-        Notes
-        -----
-        ``save_best`` is deprecated in v1.2 and will be removed in v1.3. Please use
-        ``enable_checkpointing`` instead.
         """
         update_dict = {
             "lr": lr,
@@ -337,18 +327,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             plan_kwargs = update_dict
 
         datasplitter_kwargs = datasplitter_kwargs or {}
-
-        if save_best:
-            warnings.warn(
-                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpointing` instead. See "
-                "https://github.com/scverse/scvi-tools/issues/2568 for more details.",
-                DeprecationWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
