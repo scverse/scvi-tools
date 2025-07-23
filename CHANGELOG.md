@@ -37,7 +37,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
-- Temporary pinned Jax version to <0.7.0 to be able to install numpyro.
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
 - Removed a bad legacy code in scarchesmixin, {pr}`3417`.
 - Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 

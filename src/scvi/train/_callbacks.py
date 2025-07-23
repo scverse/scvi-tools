@@ -8,7 +8,6 @@ from datetime import datetime
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pyro
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
