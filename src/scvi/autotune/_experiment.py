@@ -231,7 +231,7 @@ if is_package_installed("ray"):
 
 
 class AutotuneExperiment:
-    """``BETA`` Track hyperparameter tuning experiments.
+    """Track hyperparameter tuning experiments.
 
     Parameters
     ----------
@@ -240,7 +240,7 @@ class AutotuneExperiment:
         method.
     data
         :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been set up with
-        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
+        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule`.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
