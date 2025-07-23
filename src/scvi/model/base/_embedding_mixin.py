@@ -17,9 +17,6 @@ class EmbeddingMixin:
 
     Must be used with a module that inherits from :class:`~scvi.module.base.EmbeddingModuleMixin`.
 
-    Notes
-    -----
-    Lifecycle: experimental in v1.2.
     """
 
     @torch.inference_mode()
