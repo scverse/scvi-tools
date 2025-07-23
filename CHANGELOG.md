@@ -20,6 +20,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Removed
 
 - Removed a bad legacy code in scarchesmixin, {pr}`3417`.
+- Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
 ### 1.3.2 (2025-06-22)
 

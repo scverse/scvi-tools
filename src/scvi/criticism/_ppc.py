@@ -48,7 +48,7 @@ def _make_dataset_dense(dataset: Dataset) -> Dataset:
 
 class PosteriorPredictiveCheck:
     """
-    ``EXPERIMENTAL`` Posterior predictive checks for comparing scRNA-seq generative models.
+    Posterior predictive checks for comparing scRNA-seq generative models.
 
     Parameters
     ----------
