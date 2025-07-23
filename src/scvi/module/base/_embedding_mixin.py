@@ -6,12 +6,7 @@ from scvi.nn import Embedding
 
 
 class EmbeddingModuleMixin:
-    """``EXPERIMENTAL`` Mixin class for initializing and using embeddings in a module.
-
-    Notes
-    -----
-    Lifecycle: experimental in v1.2.
-    """
+    """``EXPERIMENTAL`` Mixin class for initializing and using embeddings in a module."""
 
     @property
     def embeddings_dict(self) -> ModuleDict:
