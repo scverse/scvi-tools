@@ -16,7 +16,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
-- Remove the support for Python 3.10, {pr}`3XXX`.
+- Remove the support for Python 3.10, {pr}`3441`.
 
 ## Version 1.3
 
@@ -24,7 +24,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
     {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
 
 #### Fixed
