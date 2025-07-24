@@ -14,7 +14,7 @@ from mudata import MuData
 from ray.tune import Tuner
 from ray.util.annotations import PublicAPI
 
-from scvi.utils import is_package_installed
+from scvi.utils import dependencies, is_package_installed
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -44,7 +44,7 @@ _allowed_hooks = {
 }
 
 
-if is_package_installed("ray"):
+if is_package_installed("ray") and is_package_installed("scib_metrics"):
     from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 
     @PublicAPI
@@ -737,6 +737,7 @@ class AutotuneExperiment:
         return TensorBoardLogger(join(self.logging_dir, f"{trial_name}_tensorboard"))
 
 
+@dependencies("scib_metrics")
 def _trainable(
     param_sample: dict[str, dict[Literal["model_params", "train_params"], dict[str, Any]]],
     experiment: AutotuneExperiment,

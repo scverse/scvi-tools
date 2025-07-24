@@ -3,6 +3,7 @@
 ## Quick install
 
 scvi-tools can be installed via `conda` or `pip`.
+
 We recommend installing into a fresh virtual environment to avoid conflicts with other packages
 and compatibility issues.
 
@@ -50,9 +51,9 @@ source .scvi-env/bin/activate  # for macOS and Linux
 
 ### GPU support with PyTorch and JAX
 
-scvi-tools depends on PyTorch and JAX for accelerated computing. If you don't plan on using
-an accelerated device, we recommend installing scvi-tools directly and letting these dependencies
-be installed automatically by your package manager of choice.
+scvi-tools depends on PyTorch for accelerated computing (and optionally on Jax). If you don't plan
+on using an accelerated device, we recommend installing scvi-tools directly and letting these
+dependencies be installed automatically by your package manager of choice.
 
 If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon),
 which is likely, scvi-tools supports it.
@@ -85,6 +86,7 @@ It has many optional dependencies, which expand its capabilities:
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
+- _jax_ - for Jax support
 - _tests_ - in order to be able to perform tests
 - _editing_ - for code editing
 - _dev_ - for development purposes
@@ -96,7 +98,7 @@ The easiest way to install these is with `pip`.
 In order to install capability X run: _pip install scvi-tools[X]_
 
 You can install several capabilities together, e.g:
-To install scvi-tools with scanpy support for GPU on Ubuntu: _pip install scvi-tools[cuda,scanpy]_
+To install scvi-tools with JAX support for GPU on Ubuntu: _pip install scvi-tools[cuda,jax]_
 
 To install all tutorial dependencies:
 
@@ -104,7 +106,8 @@ To install all tutorial dependencies:
 pip install -U scvi-tools[tutorials]
 ```
 
-To install all optional dependencies (_e.g._ scanpy support, custom dataloaders, autotune, criticism, model hub):
+To install all optional dependencies (_e.g._ jax support, scanpy support, custom dataloaders, autotune, criticism, model hub):
+
 
 ```bash
 pip install -U scvi-tools[optional]
