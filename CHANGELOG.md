@@ -31,6 +31,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Add a fix to {func}`~scvi.model.SCVI.differential_expression`, {pr}`3418`.
 - Add SupervisedModuleClass to the classifier, {pr}`3430`.
 
 #### Changed
