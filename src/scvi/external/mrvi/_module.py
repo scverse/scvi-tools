@@ -105,6 +105,7 @@ class DecoderZXAttention(nn.Module):
         self.activation = activation
 
         self.layer_norm = nn.LayerNorm(self.n_in)
+        self.layer_norm_batch_embed = nn.LayerNorm(self.n_latent_sample)
         self.batch_embedding = nn.Embedding(self.n_batch, self.n_latent_sample)
         # Lower stddev leads to better initial loss values
         init.normal_(self.batch_embedding.weight, std=0.1)
@@ -154,7 +155,7 @@ class DecoderZXAttention(nn.Module):
 
         if self.n_batch >= 2:
             batch_embed = self.batch_embedding(batch_covariate)
-            batch_embed = nn.LayerNorm(batch_embed.shape[1])(batch_embed)
+            batch_embed = self.layer_norm_batch_embed(batch_embed)
             if has_mc_samples:
                 batch_embed = batch_embed.reshape(batch_embed, (z_.shape[0], -1, -1, -1))
 
@@ -588,15 +589,19 @@ class MRVAE(BaseModuleClass):
         if self.z_u_prior:
             peps = dist.Normal(0, torch.exp(self.pz_scale))
             kl_z = -peps.log_prob(eps).sum(-1)
+            kl_z = kl_z.to(kl_u.device)
 
-        # kl_weight = kl_weight.to(kl_u.device) if isinstance(kl_weight,torch.Tensor) else
-        # torch.tensor(kl_weight, device=kl_u.device)
+        kl_weight = (
+            kl_weight.to(kl_u.device)
+            if isinstance(kl_weight, torch.Tensor)
+            else torch.tensor(kl_weight, device=kl_u.device)
+        )
         weighted_kl_local = kl_weight * (kl_u + kl_z)
         loss = reconstruction_loss + weighted_kl_local
 
         if self.scale_observations:
             sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().to(torch.int64)
-            prefactors = self.n_obs_per_sample[sample_index]
+            prefactors = self.n_obs_per_sample.to(self.device)[sample_index]
             loss = loss / prefactors
 
         loss = torch.mean(loss)
