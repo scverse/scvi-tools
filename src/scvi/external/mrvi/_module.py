@@ -583,10 +583,14 @@ class MRVAE(BaseModuleClass):
 
         kl_z = 0.0
         eps = inference_outputs["z"] - inference_outputs["z_base"]
+        device = self.pz_scale.device
+        eps = eps.to(device)
         if self.z_u_prior:
             peps = dist.Normal(0, torch.exp(self.pz_scale))
             kl_z = -peps.log_prob(eps).sum(-1)
 
+        # kl_weight = kl_weight.to(kl_u.device) if isinstance(kl_weight,torch.Tensor) else
+        # torch.tensor(kl_weight, device=kl_u.device)
         weighted_kl_local = kl_weight * (kl_u + kl_z)
         loss = reconstruction_loss + weighted_kl_local
 
