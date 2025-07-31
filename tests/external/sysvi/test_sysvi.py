@@ -1,4 +1,5 @@
 import math
+import os
 
 import numpy as np
 import pandas as pd
@@ -75,6 +76,7 @@ def test_sysvi_model(
     pseudoinputs_data_indices,
     embed_categorical_covariates,
     weight_batches,
+    save_path,
 ):
     """Test model with different input and parameters settings."""
     adata = mock_adata()
@@ -117,6 +119,28 @@ def test_sysvi_model(
         ).shape[0]
         == adata.shape[0]
     )
+
+    # Save model
+    dir_path = os.path.join(save_path, "saved_model/")
+    model.save(dir_path, overwrite=True)
+
+    # scArches
+    adata2 = mock_adata()
+
+    SysVI.prepare_query_anndata(adata2, dir_path)
+    # should be padded 0s
+    np.testing.assert_equal(adata2.var_names[:10].to_numpy(), adata.var_names[:10].to_numpy())
+    SysVI.load_query_data(adata2, dir_path)
+    model4 = SysVI(
+        adata=adata2,
+        prior="vamp",
+        pseudoinputs_data_indices=pseudoinputs_data_indices,
+        n_prior_components=5,
+        embed_categorical_covariates=embed_categorical_covariates,
+    )
+    model4.train(max_epochs=1, check_val_every_n_epoch=1)
+    model4.get_latent_representation()
+    model4.get_elbo()
 
 
 def test_sysvi_latent_representation():
