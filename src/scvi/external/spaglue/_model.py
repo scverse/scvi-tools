@@ -373,7 +373,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         batch_size: int = 1024,
         target_batch: int | None = None,
         target_libsize: float | None = None,
-        conf_method: Literal["min", "mean", "max", "median"] = "min_d",
+        conf_method: Literal["min", "mean", "max", "median"] = "min",
         min_max_scale: bool = True,
     ) -> list[np.ndarray]:
         # choose source adata according to mode
@@ -464,7 +464,8 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             reconstructed_counts.append(generative_output["px_rate"].cpu().detach())
 
             # extract the final feature embedding
-            feature_embedding = inference_output["v_all"].cpu().detach().numpy()
+            # feature_embedding = inference_output["v_all"].cpu().detach().numpy()
+            feature_embedding = inference_output["v"].cpu().detach().numpy()
 
         score = self.compute_per_feature_confidence(feature_embedding, conf_method)
 
