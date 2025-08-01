@@ -17,7 +17,7 @@ from ._constants import CYTOVI_SCATTER_FEATS
 from ._utils import apply_scaling, validate_layer_key, validate_marker, validate_obs_keys
 
 
-def arcsinh(
+def transform_arcsinh(
     adata: AnnData,
     raw_layer_key: str = "raw",
     transformed_layer_key: str = "transformed",

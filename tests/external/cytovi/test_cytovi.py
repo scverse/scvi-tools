@@ -66,27 +66,27 @@ def overlapping_adatas():
 
 
 def test_cytovi_preprocess(adata, overlapping_adatas):
-    cytovi.arcsinh(adata)
+    cytovi.transform_arcsinh(adata)
     cytovi.scale(adata)
     adata_sub = cytovi.subsample(adata, n_obs=100)
     assert adata_sub.n_obs == 100
 
     adata1, adata2 = overlapping_adatas
-    cytovi.arcsinh(adata1)
+    cytovi.transform_arcsinh(adata1)
     cytovi.scale(adata1)
-    cytovi.arcsinh(adata2)
+    cytovi.transform_arcsinh(adata2)
     cytovi.scale(adata2)
     adata_merged = cytovi.merge_batches([adata1, adata2])
     assert NAN_LAYER_KEY in adata_merged.layers
 
 
 def test_cytovi_plotting(adata):
-    cytovi.biaxial(adata, layer_key=RAW_LAYER_KEY, marker_x=adata.var_names[0])
-    cytovi.histogram(adata, layer_key=RAW_LAYER_KEY)
+    cytovi.plot_biaxial(adata, layer_key=RAW_LAYER_KEY, marker_x=adata.var_names[0])
+    cytovi.plot_histogram(adata, layer_key=RAW_LAYER_KEY)
 
 
 def test_cytovi(adata):
-    cytovi.arcsinh(adata)
+    cytovi.transform_arcsinh(adata)
     cytovi.scale(adata)
 
     cytovi.CYTOVI.setup_anndata(
@@ -134,9 +134,9 @@ def test_cytovi(adata):
 
 def test_cytovi_overlapping(overlapping_adatas):
     adata1, adata2 = overlapping_adatas
-    cytovi.arcsinh(adata1)
+    cytovi.transform_arcsinh(adata1)
     cytovi.scale(adata1)
-    cytovi.arcsinh(adata2)
+    cytovi.transform_arcsinh(adata2)
     cytovi.scale(adata2)
     adata_merged = cytovi.merge_batches([adata1, adata2])
 

@@ -10,7 +10,7 @@ from ._utils import validate_layer_key, validate_marker, validate_obs_keys
 
 
 @dependencies("seaborn", "matplotlib")
-def histogram(
+def plot_histogram(
     adata: ad.AnnData,
     marker: str | list[str] = "all",
     groupby: str = None,
@@ -75,10 +75,10 @@ def histogram(
     Example:
     ----------
     # Plot density plots for specific markers
-    cytovi.pl.histogram(adata, marker=['CD3', 'CD4'], group_by='Condition')
+    cytovi.plot_histogram(adata, marker=['CD3', 'CD4'], group_by='Condition')
 
     # Plot density plots for all markers
-    cytovi.pl.histogram(adata, marker='all', group_by='Batch')
+    cytovi.plot_histogram(adata, marker='all', group_by='Batch')
     """
     import seaborn as sns
 
@@ -140,7 +140,7 @@ def histogram(
 
 
 @dependencies("seaborn", "matplotlib")
-def biaxial(
+def plot_biaxial(
     adata: AnnData,
     marker_x: str | list[str] = None,
     marker_y: str | list[str] = None,
@@ -211,10 +211,10 @@ def biaxial(
     Example
     -------
     # Plot biaxial plots for specific markers
-    cytovi.pl.biaxial(adata, marker_x='CD3', marker_y='CD4', color='Condition')
+    cytovi.plot_biaxial(adata, marker_x='CD3', marker_y='CD4', color='Condition')
 
     # Plot biaxial plots for multiple markers
-    cytovi.pl.biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
+    cytovi.plot_biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
