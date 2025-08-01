@@ -129,9 +129,10 @@ def read_fcs(
 @dependencies("fcswrite")
 def write_fcs(
     adata: ad.AnnData,
-    output_path: str,
+    output_path: str | None = None,
     split_by: str | None = None,
     layer: str | None = None,
+    prefix: str = "export",
     verbose: bool = True,
     write_kwargs: dict[str, str | int] | None = None,
 ):
@@ -143,13 +144,16 @@ def write_fcs(
     adata : AnnData
         Annotated data matrix, where `adata.X` or `adata.layers[layer]` contains the expression
         data to be written to FCS format.
-    output_path : str
-        Directory where the FCS files will be written.
+    output_path : str, optional
+        Directory where the FCS files will be written. If `None`, uses the current working
+        directory.
     split_by : str, optional
         Column in `adata.obs` to group cells by. If specified, an FCS file will be written for
         each group. If not provided, a single FCS file is written using all cells.
     layer : str, optional
         Layer in `adata.layers` to use as the data source. If `None`, uses `adata.X`.
+    prefix : str, default: "export"
+        Prefix for the output FCS file names.
     verbose : bool, default: True
         If `True`, prints a message for each written file including the output path and data shape.
 
@@ -191,8 +195,13 @@ def write_fcs(
     if write_kwargs is None:
         write_kwargs = {}
 
-    output_dir = Path(output_path)
+    output_dir = Path(output_path) if output_path else Path.cwd()
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    chn_names = list(adata.var_names)
+    text = {f"$P{i + 1}N": chn for i, chn in enumerate(chn_names)} | {
+        f"$P{i + 1}S": chn for i, chn in enumerate(chn_names)
+    }
 
     def get_data(subset, group_name=None):
         data = subset.layers[layer] if layer else subset.X
@@ -228,14 +237,28 @@ def write_fcs(
             sub = adata[adata.obs[split_by] == group]
             data = get_data(sub, group)
             data = data[~np.isnan(data).any(axis=1)]
-            out_file = output_dir / f"export_{group}.fcs"
-            fcswrite.write_fcs(out_file, chn_names=list(sub.var_names), data=data, **write_kwargs)
+            out_file = output_dir / f"{prefix}_{group}.fcs"
+            fcswrite.write_fcs(
+                out_file,
+                chn_names=chn_names,
+                data=data,
+                text_kw_pr=text,
+                compat_percent=False,
+                **write_kwargs,
+            )
             if verbose:
                 print(f"Wrote: {out_file} | shape={data.shape}")
     else:
         data = get_data(adata)
         data = data[~np.isnan(data).any(axis=1)]
-        out_file = output_dir / "export.fcs"
-        fcswrite.write_fcs(out_file, chn_names=list(adata.var_names), data=data, **write_kwargs)
+        out_file = output_dir / f"{prefix}.fcs"
+        fcswrite.write_fcs(
+            out_file,
+            chn_names=chn_names,
+            data=data,
+            text_kw_pr=text,
+            compat_percent=False,
+            **write_kwargs,
+        )
         if verbose:
             print(f"Wrote: {out_file} | shape={data.shape}")

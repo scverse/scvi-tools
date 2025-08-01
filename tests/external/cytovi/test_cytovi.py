@@ -169,3 +169,38 @@ def test_cytovi_overlapping(overlapping_adatas):
         reference_batch="1", adata_rna=adata2, layer_key=RNA_LAYER_KEY
     )
     assert adata_imp_rna.shape == (adata_merged.shape[0], adata2.n_vars)
+
+
+def test_cytovi_save_load(adata):
+    cytovi.transform_arcsinh(adata)
+    cytovi.scale(adata)
+
+    cytovi.CYTOVI.setup_anndata(
+        adata,
+        layer=SCALED_LAYER_KEY,
+        batch_key=BATCH_KEY,
+        sample_key=SAMPLE_KEY,
+    )
+
+    model = cytovi.CYTOVI(adata)
+
+    model.train(max_epochs=N_EPOCHS)
+    hist_elbo = model.history_["elbo_train"]
+    latent = model.get_latent_representation()
+    assert latent.shape == (adata.n_obs, model.module.n_latent)
+
+    model.save("test_cytovi", save_anndata=True, overwrite=True)
+    model2 = model.load("test_cytovi")
+    np.testing.assert_array_equal(model2.history_["elbo_train"], hist_elbo)
+    latent2 = model2.get_latent_representation()
+    assert np.allclose(latent, latent2)
+
+
+def test_cytovi_write_read_fcs(adata):
+    cytovi.transform_arcsinh(adata)
+    cytovi.scale(adata)
+
+    cytovi.write_fcs(adata, prefix="test_cytovi", layer=SCALED_LAYER_KEY)
+    adata_read = cytovi.read_fcs("test_cytovi.fcs")
+    assert adata_read.shape == adata.shape
+    assert np.allclose(adata_read.X, adata.layers[SCALED_LAYER_KEY])
