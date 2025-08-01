@@ -156,6 +156,9 @@ def write_fcs(
         Prefix for the output FCS file names.
     verbose : bool, default: True
         If `True`, prints a message for each written file including the output path and data shape.
+    write_kwargs : dict, optional
+        Additional keyword arguments to pass to `fcswrite.write_fcs`. This can include
+        parameters like `text_kw_pr` for custom text annotations in the FCS file.
 
     Warns
     -----
