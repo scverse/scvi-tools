@@ -26,7 +26,7 @@ def test_multivi():
         n_genes=50,
         n_regions=50,
     )
-    vae.train(1, save_best=False)
+    vae.train(1)
     vae.train(1, adversarial_mixing=False)
     vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
@@ -101,8 +101,7 @@ def test_multivi_single_batch():
         protein_names_uns_key="protein_names",
     )
     vae = MULTIVI(data, n_genes=50, n_regions=50)
-    with pytest.warns(UserWarning):
-        vae.train(3)
+    vae.train(3)
 
 
 @pytest.mark.internet

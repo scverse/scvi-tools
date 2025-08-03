@@ -306,7 +306,9 @@ def test_scanvi_predict_use_posterior_mean():
     _ = model.predict(use_posterior_mean=False)
 
 
-def test_linear_classifier_scanvi(n_latent: int = 10, n_labels: int = 5):
+@pytest.mark.parametrize("n_latent", [10])
+@pytest.mark.parametrize("n_labels", [5])
+def test_linear_classifier_scanvi(n_latent: int, n_labels: int):
     adata = synthetic_iid(n_labels=n_labels)
     SCANVI.setup_anndata(
         adata,

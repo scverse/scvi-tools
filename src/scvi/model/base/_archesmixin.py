@@ -185,12 +185,6 @@ class ArchesMixin:
             load_ten = load_ten.to(new_ten.device)
             if new_ten.size() == load_ten.size():
                 continue
-            # new categoricals changed size
-            else:
-                dim_diff = new_ten.size()[-1] - load_ten.size()[-1]
-                fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
-                load_state_dict[key] = fixed_ten
-            # TODO VERIFY THIS!
             fixed_ten = load_ten.clone()
             for dim in range(len(new_ten.shape)):
                 if new_ten.size(dim) != load_ten.size(dim):

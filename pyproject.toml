@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.3.2"
+version = "1.3.3"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -36,8 +36,8 @@ dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
     "flax",
-    "jax",
-    "jaxlib",
+    "jax<0.7.0",
+    "jaxlib<0.7.0",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
@@ -59,11 +59,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
+tests = ["pytest", "pytest-pretty", "coverage", "selenium", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]<0.7.0"]
 metal = ["torchvision", "torchaudio", "jax-metal"]
 
 docs = [
@@ -93,7 +93,7 @@ regseq = ["biopython>=1.81", "genomepy"]
 # scvi.criticism and read 10x
 scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for convinient files sharing
-file_sharing = ["pooch"]
+file_sharing = ["pooch","gdown"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
@@ -111,6 +111,8 @@ tutorials = [
     "jupyter",
     "leidenalg",
     "muon",
+    "seaborn",
+    "matplotlib",
     "plotnine",
     "pynndescent",
     "igraph",

@@ -1,7 +1,8 @@
-import matplotlib.pyplot as plt
 import numpy as np
 from rich import print
 from scipy.sparse import csr_matrix
+
+from scvi.utils import dependencies
 
 
 def adjusted_nearest_neighbors(
@@ -96,7 +97,10 @@ def _get_nonzero_indices_from_rows(csr_matrix, row_idx):
     return np.unique(csr_matrix[row_idx].indices)
 
 
+@dependencies("matplotlib")
 def get_connectivity_distribution(csr_matrix):
+    import matplotlib.pyplot as plt
+
     # Get the number of non-zero entries per row
     row_counts = np.diff(csr_matrix.indptr)
 

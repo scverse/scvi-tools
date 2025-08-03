@@ -43,7 +43,7 @@ def adata():
     return adata
 
 
-def test_nichevi_train(adata: AnnData):
+def test_scviva_train(adata: AnnData):
     SCVIVA.preprocessing_anndata(
         adata,
         k_nn=K_NN,
@@ -75,7 +75,7 @@ def test_nichevi_train(adata: AnnData):
     assert nichevae.is_trained
 
 
-def test_nichevi_save_load(adata):
+def test_scviva_save_load(adata):
     SCVIVA.preprocessing_anndata(
         adata,
         k_nn=K_NN,
@@ -123,7 +123,7 @@ def test_nichevi_save_load(adata):
     assert predicted_eta.shape == (adata.n_obs, nichevae.n_labels, N_LATENT_INTRINSIC)
 
 
-def test_nichevi_differential(adata):
+def test_scviva_differential(adata):
     SCVIVA.preprocessing_anndata(
         adata,
         k_nn=K_NN,

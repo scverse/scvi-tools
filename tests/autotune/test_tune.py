@@ -43,7 +43,8 @@ def test_run_autotune_scvi_basic(save_path: str):
 
 
 @pytest.mark.autotune
-def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int = 3):
+@pytest.mark.parametrize("n_batches", [3])
+def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -121,7 +122,7 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
             unlabeled_category="label_0",
         )
     else:
-        ValueError("No Model")
+        raise ValueError("No Model")
 
     experiment = run_autotune(
         model_cls,
@@ -150,7 +151,8 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
 
 
 @pytest.mark.autotune
-def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str = "iLISI"):
+@pytest.mark.parametrize("metric", ["iLISI"])
+def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str):
     from ray import tune
     from ray.tune import ResultGrid
 

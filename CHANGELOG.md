@@ -6,7 +6,40 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
-### 1.3.2 (2025-XX-XX)
+### 1.3.4 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+#### Changed
+
+- Update model {class}`scvi.model.DestVI` with fine cell-type classifier {pr}`3380`.
+
+#### Removed
+
+### 1.3.3 (2025-07-23)
+
+#### Added
+
+- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
+#### Fixed
+
+- Add a fix to {func}`~scvi.model.SCVI.differential_expression`, {pr}`3418`.
+- Add SupervisedModuleClass to the classifier, {pr}`3430`.
+
+#### Changed
+
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
+
+#### Removed
+
+- Removed a bad legacy code in scarchesmixin, {pr}`3417`.
+- Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
+
+### 1.3.2 (2025-06-22)
 
 #### Added
 
@@ -24,9 +57,12 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
-- Update model {class}`scvi.model.DestVI` with fine cell-type classifier {pr}`3380`.
+- Update Read the docs tutorials with one main preprocessing tutorial {pr}`3363`.
 
 #### Removed
+
+- Removed default arguments from test function parameters due to ruff pre-commit v0.12.0 with
+    PT028 rule {pr}`3393`.
 
 ### 1.3.1 (2025-05-15)
 
@@ -37,7 +73,9 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
-- Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
+- Add {class}`scvi.external.TOTALANVI`. {pr}`3259` for modeling of single-cell RNA and
+    CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer
+    both protein expression and cell states
 - Add Custom Dataloaders registry support, {pr}`2932`.
 - Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
     and {class}`scvi.model.SCANVI`, {pr}`2932`.
