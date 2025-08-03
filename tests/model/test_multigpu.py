@@ -243,6 +243,11 @@ model.train(
 )
 
 assert model.is_trained
+
+model.get_latent_representation(distributed_sampler=True)
+model.get_normalized_expression(distributed_sampler=True)
+model.posterior_predictive_sample(distributed_sampler=True)
+
 """
     # Define the file path for the temporary script in the current working directory
     temp_file_path = os.path.join(save_path, "train_scvi_ddp_temp.py")
@@ -284,8 +289,8 @@ from scvi.model import SCANVI
 adata = scvi.data.synthetic_iid()
 SCANVI.setup_anndata(
     adata,
-    "labels",
-    unlabeled_cat,
+    labels_key="labels",
+    unlabeled_category=unlabeled_cat,
     batch_key="batch",
 )
 
@@ -306,6 +311,13 @@ model.train(
 )
 
 assert model.is_trained
+
+model.posterior_predictive_sample()
+model.get_latent_representation()
+model.get_normalized_expression()
+
+p1 = model.predict()
+
 """
     # Define the file path for the temporary script in the current working directory
     temp_file_path = os.path.join(save_path, "train_scanvi_ddp_temp.py")
