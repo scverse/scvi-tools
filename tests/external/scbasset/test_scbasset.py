@@ -16,6 +16,7 @@ def _get_adata(sparse_format: str | None = None):
     return dataset1
 
 
+@pytest.mark.optional
 def test_scbasset():
     adata = _get_adata()
     SCBASSET.setup_anndata(
@@ -27,6 +28,7 @@ def test_scbasset():
     model.get_latent_representation()
 
 
+@pytest.mark.optional
 def test_scbasset_batch():
     adata = _get_adata()
     SCBASSET.setup_anndata(
