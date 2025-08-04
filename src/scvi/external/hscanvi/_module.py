@@ -2,31 +2,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
 import torch
 from torch.distributions import Categorical, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.module.base import LossOutput, SupervisedModuleClass
-from scvi.nn import Decoder, Encoder
-
-from scvi.module.base import auto_move_data
-
 from scvi.module._classifier import Classifier
-from scvi.module._utils import broadcast_labels
 from scvi.module._scanvae import SCANVAE
+from scvi.module._utils import broadcast_labels
+from scvi.module.base import LossOutput, auto_move_data
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
-    from typing import Literal
-
     from torch.distributions import Distribution
 
 
 class HSCANVAE(SCANVAE):
-
     def __init__(
         self,
         n_labels_multilabel: int = 0,
@@ -71,9 +62,7 @@ class HSCANVAE(SCANVAE):
     def classification_loss(
         self, labelled_dataset: dict[str, torch.Tensor]
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        inference_inputs = self._get_inference_input(
-            labelled_dataset
-        )  # (n_obs, n_vars)
+        inference_inputs = self._get_inference_input(labelled_dataset)  # (n_obs, n_vars)
         data_inputs = {
             key: inference_inputs[key]
             for key in inference_inputs.keys()
@@ -83,14 +72,10 @@ class HSCANVAE(SCANVAE):
         y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
         batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
         cont_key = REGISTRY_KEYS.CONT_COVS_KEY
-        cont_covs = (
-            labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
-        )
+        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
 
         cat_key = REGISTRY_KEYS.CAT_COVS_KEY
-        cat_covs = (
-            labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
-        )
+        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
         # NOTE: prior to v1.1, this method returned probabilities per label by
         # default, see #2301 for more details
         logits = self.classify(

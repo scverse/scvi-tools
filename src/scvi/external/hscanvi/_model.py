@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -16,14 +15,11 @@ from scvi.data.fields import (
     NumericalObsField,
     ObsmField,
 )
-
 from scvi.model._scanvi import SCANVI
-from scvi.train import SemiSupervisedTrainingPlan
 from scvi.utils import setup_anndata_dsp
 
 from ._module import HSCANVAE
 from ._utils import process_adata_ontology
-
 
 NODE_KEY = "hscanvi_co_node"
 NODE_IDX_KEY = "hscanvi_co_node_idx"
@@ -36,7 +32,6 @@ if TYPE_CHECKING:
 
 
 class HSCANVI(SCANVI):
-
     _module_cls = HSCANVAE
 
     def __init__(
@@ -77,7 +72,6 @@ class HSCANVI(SCANVI):
         use_minified
             If True, will register the minified version of the adata if possible.
         """
-
         process_adata_ontology(
             adata,
             cell_type_key=labels_key,
@@ -89,27 +83,17 @@ class HSCANVI(SCANVI):
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            LabelsWithUnlabeledObsField(
-                REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
-            ),
-            NumericalObsField(
-                REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False
-            ),
-            CategoricalJointObsField(
-                REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
-            ),
-            NumericalJointObsField(
-                REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys
-            ),
+            LabelsWithUnlabeledObsField(REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
             ObsmField("multilabels", MULTILABEL_KEY),
         ]
         # register new fields if the adata is minified
         if adata:
             adata_minify_type = _get_adata_minify_type(adata)
             if adata_minify_type is not None and use_minified:
-                anndata_fields += cls._get_fields_for_adata_minification(
-                    adata_minify_type
-                )
+                anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
             adata_manager = AnnDataManager(
                 fields=anndata_fields, setup_method_args=setup_method_args
             )

@@ -1,8 +1,11 @@
 import scanpy as sc
-from scvi.external.hscanvi._utils import CellOntologyNavigator, process_adata_ontology
-from scvi.external.hscanvi._model import HSCANVI
 
-path_to_adata = "https://datasets.cellxgene.cziscience.com/130c04bd-8384-4efc-a529-1ed809762adc.h5ad"
+from scvi.external.hscanvi._model import HSCANVI
+from scvi.external.hscanvi._utils import CellOntologyNavigator, process_adata_ontology
+
+path_to_adata = (
+    "https://datasets.cellxgene.cziscience.com/130c04bd-8384-4efc-a529-1ed809762adc.h5ad"
+)
 filename = "linarsson_immune.h5ad"
 
 

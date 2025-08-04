@@ -1,8 +1,9 @@
-import pronto
-import networkx as nx
 import os
-import requests
+
+import networkx as nx
 import numpy as np
+import pronto
+import requests
 from tqdm import tqdm
 
 
@@ -15,9 +16,7 @@ class CellOntologyNavigator:
         self.nodes_of_interest = self._obtain_valid_nodes(cts_of_interest)
         self.multilabel_matrix = self.get_multilabel_matrix()
 
-        self.node_to_index = {
-            node: idx for idx, node in enumerate(self.nodes_of_interest)
-        }
+        self.node_to_index = {node: idx for idx, node in enumerate(self.nodes_of_interest)}
 
         name_to_node = {}
         for node in self.full_ontology.nodes():
@@ -94,9 +93,7 @@ class CellOntologyNavigator:
         mat = np.zeros((len(self.nodes_of_interest), len(self.nodes_of_interest)))
         for idx_a, node_a in enumerate(tqdm(self.nodes_of_interest)):
             for idx_b, node_b in enumerate(self.nodes_of_interest):
-                mat[idx_a, idx_b] = float(
-                    nx.has_path(self.full_ontology, node_a, node_b)
-                )
+                mat[idx_a, idx_b] = float(nx.has_path(self.full_ontology, node_a, node_b))
         return mat
 
     def populate_adata(
@@ -109,16 +106,10 @@ class CellOntologyNavigator:
     ):
         if cell_type_key not in adata.obs:
             raise ValueError(f"{cell_type_key} not present in `adata.obs`.")
-        adata.obs.loc[:, added_node_key] = adata.obs[cell_type_key].map(
-            self.name_to_node
-        )
-        adata.obs.loc[:, added_node_idx_key] = adata.obs[added_node_key].map(
-            self.node_to_index
-        )
+        adata.obs.loc[:, added_node_key] = adata.obs[cell_type_key].map(self.name_to_node)
+        adata.obs.loc[:, added_node_idx_key] = adata.obs[added_node_key].map(self.node_to_index)
 
-        multilabel_onehot = self.multilabel_matrix[
-            adata.obs[added_node_idx_key].values, :
-        ]
+        multilabel_onehot = self.multilabel_matrix[adata.obs[added_node_idx_key].values, :]
         adata.obsm[added_multilabel_key] = multilabel_onehot
 
 
