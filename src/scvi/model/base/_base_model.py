@@ -134,7 +134,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # Suffix registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
-        elif (self.__class__.__name__ == "GIMVI") or (self.__class__.__name__ == "SCVI"):
+        elif (
+            (self.__class__.__name__ == "GIMVI")
+            or (self.__class__.__name__ == "SCVI")
+            or (self.__class__.__name__ == "SPAGLUE")
+        ):
             # note some models do accept empty registry/adata (e.g: gimvi)
             pass
         else:
