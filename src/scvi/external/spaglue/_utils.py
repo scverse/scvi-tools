@@ -7,18 +7,22 @@ from torch_geometric.data import Data
 logger = logging.getLogger(__name__)
 
 
-def _construct_guidance_graph(adatas, weight=1.0, sign=1):
+def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
     if len(adatas) != 2:
         raise ValueError("Exactly two modalities are required.")
     modality_names = list(adatas.keys())
     adata1, adata2 = adatas[modality_names[0]], adatas[modality_names[1]]
 
-    shared_features = set(adata1.var_names) & set(adata2.var_names)
-    if not shared_features:
-        raise ValueError("No overlapping features between the two modalities.")
+    if mapping_df is not None:
+        features1 = list(adata1.var_names)
+        features2 = list(adata2.var_names)
+    else:
+        shared_features = set(adata1.var_names) & set(adata2.var_names)
+        if not shared_features:
+            raise ValueError("No overlapping features between the two modalities.")
 
-    features1 = [f"{f}_{modality_names[0]}" for f in adata1.var_names]
-    features2 = [f"{f}_{modality_names[1]}" for f in adata2.var_names]
+        features1 = [f"{f}_{modality_names[0]}" for f in adata1.var_names]
+        features2 = [f"{f}_{modality_names[1]}" for f in adata2.var_names]
 
     # Build node list
     all_features = features1 + features2
@@ -29,20 +33,34 @@ def _construct_guidance_graph(adatas, weight=1.0, sign=1):
     edge_weight = []
     edge_sign = []
 
-    for feature in shared_features:
-        i = feature_to_index[f"{feature}_{modality_names[0]}"]
-        j = feature_to_index[f"{feature}_{modality_names[1]}"]
+    if mapping_df is not None:
+        for ft_pair in range(mapping_df.shape[0]):
+            pair = mapping_df.iloc[ft_pair, :]
+            diss_ft = pair[modality_names[0]]
+            sp_ft = pair[modality_names[1]]
 
-        edge_index += [[i, j], [j, i]]
-        edge_weight += [weight, weight]
-        edge_sign += [sign, sign]
+            i = feature_to_index[diss_ft]
+            j = feature_to_index[sp_ft]
+
+            edge_index += [[i, j], [j, i]]
+            edge_weight += [weight, weight]
+            edge_sign += [sign, sign]
+
+    else:
+        for feature in shared_features:
+            i = feature_to_index[f"{feature}_{modality_names[0]}"]
+            j = feature_to_index[f"{feature}_{modality_names[1]}"]
+
+            edge_index += [[i, j], [j, i]]
+            edge_weight += [weight, weight]
+            edge_sign += [sign, sign]
 
     # Add self-loops
     for feature in all_features:
         i = feature_to_index[feature]
         edge_index.append([i, i])
-        edge_weight.append(1.0)
-        edge_sign.append(1)
+        edge_weight.append(weight)
+        edge_sign.append(sign)
 
     edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
     edge_weight = torch.tensor(edge_weight, dtype=torch.float)

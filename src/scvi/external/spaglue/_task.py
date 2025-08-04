@@ -30,6 +30,14 @@ def compute_graph_loss(graph, feature_embeddings):
     return total_loss
 
 
+def compute_sinkhorn_lam(lam_sinkhorn, epoch_current, epoch_sinkhorn):
+    lam_sinkhorn_curr = lam_sinkhorn
+    if epoch_sinkhorn:
+        if epoch_current < epoch_sinkhorn:
+            lam_sinkhorn_curr = (epoch_current / epoch_sinkhorn) * lam_sinkhorn
+    return lam_sinkhorn_curr
+
+
 def kl_divergence_graph(mu, logvar):
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
     kl_mean = kl.mean()
@@ -49,6 +57,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         sinkhorn_blur=1,
         sinkhorn_reach=1,
         lr=1e-3,
+        n_epochs_sinkhorn_warmup: int = None,
         *args,
         **kwargs,
     ) -> None:
@@ -63,6 +72,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
         self.sinkhorn_reach = sinkhorn_reach
         self.sinkhorn_blur = sinkhorn_blur
         self.lr = lr
+        self.n_epochs_sinkhorn_warmup = n_epochs_sinkhorn_warmup
 
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step."""
@@ -175,10 +185,15 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
         self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
 
+        # perform loss annealing for the UOT loss
+        lam_sinkhorn_curr = compute_sinkhorn_lam(
+            self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
+        )
+
         total_loss = (
             self.lam_graph * graph_loss
             + data_loss
-            + self.lam_sinkhorn * sinkhorn_loss
+            + lam_sinkhorn_curr * sinkhorn_loss
             + self.lam_class * classification_loss
         )
 
