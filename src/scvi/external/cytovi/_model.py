@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import logging
 import warnings
-from collections.abc import Sequence
 from functools import partial
-from typing import Callable, Literal, Optional, Union
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -12,8 +11,9 @@ import rich
 import torch
 import torch.distributions as dist
 from anndata import AnnData
+from tqdm import tqdm
+
 from scvi import settings
-from scvi._types import Number
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -24,29 +24,40 @@ from scvi.data.fields import (
 from scvi.dataloaders import DataSplitter
 from scvi.distributions._utils import DistributionConcatenator
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
-from scvi.model.base import ArchesMixin, BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
+from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
+    RNASeqMixin,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
 from scvi.model.base._de_core import _de_core
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils import de_dsp, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
-from tqdm import tqdm
 
 from ._constants import CYTOVI_DEFAULT_REP, CYTOVI_REGISTRY_KEYS
 from ._module import CytoVAE
 from ._utils import (
     clip_lfc_factory,
     encode_categories,
+    get_balanced_sample_indices,
     get_n_latent_heuristic,
     impute_cats_with_neighbors,
     impute_expr_with_neighbors,
+    log_median,
     validate_expression_range,
-    validate_marker,
     validate_layer_key,
+    validate_marker,
     validate_obs_keys,
     validate_obsm_keys,
-    log_median,
-    get_balanced_sample_indices
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+    from typing import Literal
+
+    from scvi._types import Number
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +78,8 @@ class CYTOVI(
     n_hidden
         Number of nodes per hidden layer.
     n_latent
-        Dimensionality of the latent space. If None, will be set using a heuristic based on number of input features.
+        Dimensionality of the latent space. If None, will be set using a heuristic based on
+        number of input features.
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
@@ -85,9 +97,11 @@ class CYTOVI(
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
 
     encode_backbone_only
-        If True, only encode backbone markers (i.e., those present in all samples). This is required when analyzing overlapping panels with missing values.
+        If True, only encode backbone markers (i.e., those present in all samples). This is
+        required when analyzing overlapping panels with missing values.
     encoder_marker_list
-        Optional list of markers to use for encoding. Must be a subset of backbone markers if `encode_backbone_only` is True.
+        Optional list of markers to use for encoding. Must be a subset of backbone markers
+          if `encode_backbone_only` is True.
     prior_mixture
         If True, uses a mixture of Gaussians as a prior in the latent space (MoG prior).
     prior_mixture_k
@@ -106,8 +120,12 @@ class CYTOVI(
 
     Notes
     -----
-    When analyzing overlapping cytometry panels (i.e., samples with partially shared markers), CytoVI uses the shared "backbone" markers for encoding and reconstructs the full set. An adversarial classifier loss can be used to encourage batch-invariance in the latent space.
-    If the data includes missing values, ensure that `nan_layer` is correctly registered using :meth:`~scvi.external.CYTOVI.setup_anndata`. This is handled automatically when using scvi.external.cytovi.merge_batches().
+    When analyzing overlapping cytometry panels (i.e., samples with partially shared markers),
+    CytoVI uses the shared "backbone" markers for encoding and reconstructs the full set.
+    An adversarial classifier loss can be used to encourage batch-invariance in the latent space.
+    If the data includes missing values, ensure that `nan_layer` is correctly registered using
+    :meth:`~scvi.external.CYTOVI.setup_anndata`. This is handled automatically when using
+     scvi.external.cytovi.merge_batches().
 
     See further usage examples in the following tutorials:
 
@@ -126,15 +144,15 @@ class CYTOVI(
         self,
         adata: AnnData,
         n_hidden: int = 128,
-        n_latent: Optional[int] = None,
+        n_latent: int | None = None,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         protein_likelihood: Literal["normal", "beta"] = "normal",
         latent_distribution: Literal["normal", "ln"] = "normal",
-        encode_backbone_only: Optional[bool] = None,
-        encoder_marker_list: Optional[list] = None,
-        prior_mixture: Optional[bool] = True,
-        prior_mixture_k: Optional[int] = None,
+        encode_backbone_only: bool | None = None,
+        encoder_marker_list: list | None = None,
+        prior_mixture: bool | None = True,
+        prior_mixture_k: int | None = None,
         **model_kwargs,
     ):
         super().__init__(adata)
@@ -167,20 +185,27 @@ class CYTOVI(
                 encode_backbone_only = True
             elif encode_backbone_only is False:
                 raise NotImplementedError(
-                    "When analyzing overlapping panels, only encoding of the backbone markers is currently supported."
+                    "When analyzing overlapping panels, only encoding of the backbone markers is "
+                    "currently supported."
                 )
 
             if encoder_marker_mask is not None:
-                enc_marker_intersection = [marker in backbone_markers for marker in encoder_marker_list]
+                enc_marker_intersection = [
+                    marker in backbone_markers for marker in encoder_marker_list
+                ]
                 probl_markers = [
                     marker
-                    for marker, intersection in zip(encoder_marker_list, enc_marker_intersection)
+                    for marker, intersection in zip(
+                        encoder_marker_list, enc_marker_intersection, strict=False
+                    )
                     if not intersection
                 ]
                 probl_markers_str = ", ".join(probl_markers)
                 if not all(enc_marker_intersection):
                     raise ValueError(
-                        f"{probl_markers_str} are in 'encoder_marker_list' but not in backbone marker list. When analyzing overlapping panels, only encoding of the backbone markers is currently supported."
+                        f"{probl_markers_str} are in 'encoder_marker_list' but not in backbone "
+                        "marker list. When analyzing overlapping panels, only encoding of the "
+                        "backbone markers is currently supported."
                     )
 
             if encode_backbone_only:
@@ -207,21 +232,22 @@ class CYTOVI(
             corr_range = validate_expression_range(expr, 0, 1)
             if not corr_range:
                 raise ValueError(
-                    "Protein expression must be in the range (0, 1) for beta likelihood. Perform scaling or choose other likelihood."
+                    "Protein expression must be in the range (0, 1) for beta likelihood. "
+                    "Perform scaling or choose other likelihood."
                 )
 
         self.sample_key = self.adata_manager.get_state_registry(
             CYTOVI_REGISTRY_KEYS.SAMPLE_KEY
-            ).original_key
+        ).original_key
 
         self.batch_key = self.adata_manager.get_state_registry(
             CYTOVI_REGISTRY_KEYS.BATCH_KEY
-            ).original_key
+        ).original_key
 
         self._model_summary_string = (  # noqa: UP032
-
-            "CytoVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, dropout_rate: "
-            "{}, \nprotein_likelihood: {}, latent_distribution: {}, \nMoG prior: {}, n_labels {}, n_proteins: {}, \nImpute missing markers: {}"
+            "CytoVI Model with the following params: \nn_hidden: {}, n_latent: {}, n_layers: {}, "
+            "dropout_rate: {}, \nprotein_likelihood: {}, latent_distribution: {}, \nMoG prior: {},"
+            " n_labels {}, n_proteins: {}, \nImpute missing markers: {}"
         ).format(
             n_hidden,
             n_latent,
@@ -263,13 +289,13 @@ class CYTOVI(
     def setup_anndata(
         cls,
         adata: AnnData,
-        layer: Optional[str] = None,
-        batch_key: Optional[str] = None,
-        labels_key: Optional[str] = None,
-        sample_key: Optional[str] = None,
-        categorical_covariate_keys: Optional[list[str]] = None,
-        continuous_covariate_keys: Optional[list[str]] = None,
-        nan_layer: Optional[str] = None,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        sample_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        nan_layer: str | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -278,14 +304,16 @@ class CYTOVI(
         ----------
         %(param_adata)s
         layer : str, optional
-            if not `None`, uses this as the key in `adata.layers` for the transformed protein expression data.
+            if not `None`, uses this as the key in `adata.layers` for the transformed
+            protein expression data.
         %(param_batch_key)s
         %(param_labels_key)s
         %(param_sample_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
         nan_layer : str, optional
-            Optional layer key containing binary NaN feature mask to handle overlapping antibody panels.
+            Optional layer key containing binary NaN feature mask to handle overlapping
+            antibody panels.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -293,12 +321,16 @@ class CYTOVI(
             CategoricalObsField(CYTOVI_REGISTRY_KEYS.BATCH_KEY, batch_key),
             CategoricalObsField(CYTOVI_REGISTRY_KEYS.LABELS_KEY, labels_key),
             CategoricalObsField(CYTOVI_REGISTRY_KEYS.SAMPLE_KEY, sample_key),
-            CategoricalJointObsField(CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            CategoricalJointObsField(
+                CYTOVI_REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys
+            ),
             NumericalJointObsField(CYTOVI_REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
 
         if nan_layer is None and "_nan_mask" in adata.layers:
-            msg = "Found nan_layer in adata. Will register nan_layer for missing marker imputation."
+            msg = (
+                "Found nan_layer in adata. Will register nan_layer for missing marker imputation."
+            )
             warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             nan_layer = "_nan_mask"
 
@@ -313,126 +345,129 @@ class CYTOVI(
         self,
     ):
         summary_string = self._model_summary_string
-        summary_string += "\nTraining status: {}".format("Trained" if self.is_trained_ else "Not Trained")
+        summary_string += "\nTraining status: {}".format(
+            "Trained" if self.is_trained_ else "Not Trained"
+        )
         rich.print(summary_string)
         return ""
 
     @devices_dsp.dedent
     def train(
+        self,
+        max_epochs: int | None = 1000,
+        lr: float = 1e-3,
+        accelerator: str = "auto",
+        devices: int | list[int] | str = "auto",
+        train_size: float = 0.9,
+        validation_size: float | None = None,
+        batch_size: int = 128,
+        early_stopping: bool = True,
+        check_val_every_n_epoch: int | None = None,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
+        adversarial_classifier: bool | None = None,
+        plan_kwargs: dict | None = None,
+        early_stopping_patience: int | None = 30,
+        **kwargs,
+    ):
+        """
+        Trains the model using amortized variational inference.
+
+        Parameters
+        ----------
+        max_epochs : Optional[int], optional
+            Number of passes through the dataset, by default 1000.
+        lr : float, optional
+            Learning rate for optimization, by default 1e-3.
+        accelerator : str, optional
+            Accelerator to use for training, by default "auto".
+        devices : Union[int, list[int], str], optional
+            Devices to use for training, by default "auto".
+        train_size : float, optional
+            Size of the training set in the range [0.0, 1.0], by default 0.9.
+        validation_size : Optional[float], optional
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        batch_size : int, optional
+            Minibatch size to use during training, by default 128.
+        early_stopping : bool, optional
+            Whether to perform early stopping with respect to the validation set, by default True.
+        check_val_every_n_epoch : Optional[int], optional
+            Check validation set every n train epochs. By default, the validation set is not
+            checked, unless `early_stopping` is `True` or `reduce_lr_on_plateau` is `True`.
+            If either of the latter conditions are met, the validation set is checked
+            every epoch.
+        n_steps_kl_warmup : Union[int, None], optional
+            Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+            Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
+            to `floor(0.75 * adata.n_obs)`.
+        n_epochs_kl_warmup : Union[int, None], optional
+            Number of epochs to scale weight on KL divergences from 0 to 1.
+            Overrides `n_steps_kl_warmup` when both are not `None`, by default 400.
+        adversarial_classifier : Optional[bool], optional
+            Whether to use an adversarial classifier in the latent space. This helps mixing when
+            there are missing proteins in any of the batches. Defaults to `True` if missing
+            proteins are detected.
+        plan_kwargs : Optional[dict], optional
+            Keyword arguments for the `AdversarialTrainingPlan` class. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        early_stopping_patience : Optional[int], optional
+            Number of epochs to wait before early stopping, by default 30.
+        **kwargs
+            Other keyword arguments for the `Trainer` class.
+
+        Returns
+        -------
+        runner : object
+            The runner object used for training.
+        """
+        if adversarial_classifier is None:
+            adversarial_classifier = self._use_adversarial_classifier
+
+        update_dict = {
+            "lr": lr,
+            "adversarial_classifier": adversarial_classifier,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+            "n_steps_kl_warmup": n_steps_kl_warmup,
+        }
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = update_dict
+
+        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+
+        data_splitter = self._data_splitter_cls(
+            self.adata_manager,
+            train_size=train_size,
+            validation_size=validation_size,
+            batch_size=batch_size,
+        )
+        training_plan = self._training_plan_cls(self.module, **plan_kwargs)
+        runner = self._train_runner_cls(
             self,
-            max_epochs: Optional[int] = 1000,
-            lr: float = 1e-3,
-            accelerator: str = "auto",
-            devices: Union[int, list[int], str] = "auto",
-            train_size: float = 0.9,
-            validation_size: Optional[float] = None,
-            batch_size: int = 128,
-            early_stopping: bool = True,
-            check_val_every_n_epoch: Optional[int] = None,
-            n_steps_kl_warmup: Union[int, None] = None,
-            n_epochs_kl_warmup: Union[int, None] = 400,
-            adversarial_classifier: Optional[bool] = None,
-            plan_kwargs: Optional[dict] = None,
-            early_stopping_patience: Optional[int] = 30,
+            training_plan=training_plan,
+            data_splitter=data_splitter,
+            max_epochs=max_epochs,
+            accelerator=accelerator,
+            devices=devices,
+            early_stopping=early_stopping,
+            check_val_every_n_epoch=check_val_every_n_epoch,
+            early_stopping_patience=early_stopping_patience,
             **kwargs,
-        ):
-            """
-            Trains the model using amortized variational inference.
-
-            Parameters
-            ----------
-            max_epochs : Optional[int], optional
-                Number of passes through the dataset, by default 1000.
-            lr : float, optional
-                Learning rate for optimization, by default 1e-3.
-            accelerator : str, optional
-                Accelerator to use for training, by default "auto".
-            devices : Union[int, list[int], str], optional
-                Devices to use for training, by default "auto".
-            train_size : float, optional
-                Size of the training set in the range [0.0, 1.0], by default 0.9.
-            validation_size : Optional[float], optional
-                Size of the test set. If `None`, defaults to 1 - `train_size`. If
-                `train_size + validation_size < 1`, the remaining cells belong to a test set.
-            batch_size : int, optional
-                Minibatch size to use during training, by default 128.
-            early_stopping : bool, optional
-                Whether to perform early stopping with respect to the validation set, by default True.
-            check_val_every_n_epoch : Optional[int], optional
-                Check validation set every n train epochs. By default, the validation set is not checked, unless `early_stopping` is `True`
-                or `reduce_lr_on_plateau` is `True`. If either of the latter conditions are met, the validation set is checked
-                every epoch.
-            n_steps_kl_warmup : Union[int, None], optional
-                Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
-                Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
-                to `floor(0.75 * adata.n_obs)`.
-            n_epochs_kl_warmup : Union[int, None], optional
-                Number of epochs to scale weight on KL divergences from 0 to 1.
-                Overrides `n_steps_kl_warmup` when both are not `None`, by default 400.
-            adversarial_classifier : Optional[bool], optional
-                Whether to use an adversarial classifier in the latent space. This helps mixing when
-                there are missing proteins in any of the batches. Defaults to `True` if missing proteins
-                are detected.
-            plan_kwargs : Optional[dict], optional
-                Keyword arguments for the `AdversarialTrainingPlan` class. Keyword arguments passed to
-                `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-            early_stopping_patience : Optional[int], optional
-                Number of epochs to wait before early stopping, by default 30.
-            **kwargs
-                Other keyword arguments for the `Trainer` class.
-
-            Returns
-            -------
-            runner : object
-                The runner object used for training.
-            """
-            if adversarial_classifier is None:
-                adversarial_classifier = self._use_adversarial_classifier
-
-            update_dict = {
-                "lr": lr,
-                "adversarial_classifier": adversarial_classifier,
-                "n_epochs_kl_warmup": n_epochs_kl_warmup,
-                "n_steps_kl_warmup": n_steps_kl_warmup,
-            }
-            if plan_kwargs is not None:
-                plan_kwargs.update(update_dict)
-            else:
-                plan_kwargs = update_dict
-
-            plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
-
-            data_splitter = self._data_splitter_cls(
-                self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                batch_size=batch_size,
-            )
-            training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-            runner = self._train_runner_cls(
-                self,
-                training_plan=training_plan,
-                data_splitter=data_splitter,
-                max_epochs=max_epochs,
-                accelerator=accelerator,
-                devices=devices,
-                early_stopping=early_stopping,
-                check_val_every_n_epoch=check_val_every_n_epoch,
-                early_stopping_patience=early_stopping_patience,
-                **kwargs,
-            )
-            return runner()
+        )
+        return runner()
 
     @torch.inference_mode()
     def posterior_predictive_sample(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         n_samples: int = 1,
-        protein_list: Optional[Sequence[str]] = None,
-        batch_size: Optional[int] = None,
+        protein_list: Sequence[str] | None = None,
+        batch_size: int | None = None,
     ):
-        """
+        r"""
         Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.
@@ -489,23 +524,24 @@ class CYTOVI(
     @torch.inference_mode()
     def get_normalized_expression(
         self,
-        adata: Optional[AnnData] = None,
-        indices: Optional[Sequence[int]] = None,
-        transform_batch: Optional[Sequence[Union[Number, str]]] = "all",
-        protein_list: Optional[Sequence[str]] = None,
+        adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        transform_batch: Sequence[Number | str] | None = "all",
+        protein_list: Sequence[str] | None = None,
         n_samples: int = 1,
         n_samples_overall: int = None,
-        weights: Union[Literal["uniform", "importance"], None] = None,
-        batch_size: Optional[int] = None,
+        weights: Literal["uniform", "importance"] | None = None,
+        batch_size: int | None = None,
         return_mean: bool = True,
-        return_numpy: Optional[bool] = None,
-        nan_warning: Optional[bool] = True,
+        return_numpy: bool | None = None,
+        nan_warning: bool | None = True,
         **importance_weighting_kwargs,
-    ) -> Union[np.ndarray, pd.DataFrame]:
-        """
+    ) -> np.ndarray | pd.DataFrame:
+        r"""
         Returns the normalized (decoded) protein expression.
 
-        The model's reconstructed (normalized) expression is written as :math:\hat{x} = p(x \mid z).
+        The model's reconstructed (normalized) expression is written as
+        :math:\hat{x} = p(x \mid z).
 
         Parameters
         ----------
@@ -537,9 +573,9 @@ class CYTOVI(
         return_mean : bool, optional
             Whether to return the mean of the samples.
         return_numpy : Optional[bool], optional
-            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame includes
-            gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults to `False`.
-            Otherwise, it defaults to `True`.
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`,
+            defaults to `False`. Otherwise, it defaults to `True`.
         nan_warning : Optional[bool], optional
             Whether to show a warning if missing proteins are detected between batches.
         **importance_weighting_kwargs : dict
@@ -548,8 +584,9 @@ class CYTOVI(
         Returns
         -------
         Union[np.ndarray, pd.DataFrame]
-            If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-            Otherwise, shape is `(cells, genes)`. In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+            If `n_samples` > 1 and `return_mean` is False, then the shape is
+            `(samples, cells, genes)`. Otherwise, shape is `(cells, genes)`. In this case,
+            return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
         all_batches = list(np.unique(self.adata_manager.get_from_registry("batch")))
@@ -569,11 +606,14 @@ class CYTOVI(
         if protein_list is None:
             protein_mask = slice(None)
         else:
-            protein_mask = [True if protein in protein_list else False for protein in adata.var_names]
+            protein_mask = [
+                True if protein in protein_list else False for protein in adata.var_names
+            ]
 
         if n_samples > 1 and return_mean is False:
             if return_numpy is False:
-                msg = "return_numpy must be True if n_samples > 1 and return_mean is False, returning np.ndarray"
+                msg = "return_numpy must be True if n_samples > 1 and return_mean is False, "
+                "returning np.ndarray"
                 warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             return_numpy = True
 
@@ -587,7 +627,8 @@ class CYTOVI(
         store_distributions = weights == "importance"
         if store_distributions and len(transform_batch) > 1:
             raise NotImplementedError(
-                "Importance weights cannot be computed when expression levels are averaged across batches."
+                "Importance weights cannot be computed when expression levels are averaged "
+                "across batches."
             )
 
         exprs = []
@@ -663,28 +704,28 @@ class CYTOVI(
     @de_dsp.dedent
     def differential_expression(
         self,
-        adata: Optional[AnnData] = None,
-        groupby: Optional[str] = None,
-        group1: Optional[list[str]] = None,
-        group2: Optional[list[str]] = None,
-        idx1: Union[list[int], list[bool], str, None] = None,
-        idx2: Union[list[int], list[bool], str, None] = None,
+        adata: AnnData | None = None,
+        groupby: str | None = None,
+        group1: list[str] | None = None,
+        group2: list[str] | None = None,
+        idx1: list[int] | list[bool] | str | None = None,
+        idx2: list[int] | list[bool] | str | None = None,
         mode: Literal["vanilla", "change"] = "change",
         test_mode: Literal["two", "three"] = "two",
         delta: float = 0.25,
-        batch_size: Optional[int] = None,
+        batch_size: int | None = None,
         all_stats: bool = False,
         batch_correction: bool = False,
-        batchid1: Optional[list[str]] = None,
-        batchid2: Optional[list[str]] = None,
+        batchid1: list[str] | None = None,
+        batchid2: list[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        weights: Union[Literal["uniform", "importance"], None] = "uniform",
+        weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         lfc_clipping: bool = True,
         clipping_range: tuple = (0, 1),
-        balance_samples: Optional[bool] = None,
-        importance_weighting_kwargs: Union[dict, None] = None,
+        balance_samples: bool | None = None,
+        importance_weighting_kwargs: dict | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -768,7 +809,8 @@ class CYTOVI(
             expr = self.adata_manager.get_from_registry("X")
             corr_range = validate_expression_range(expr, clipping_range[0], clipping_range[1])
             if not corr_range:
-                msg = "Protein expression exceeds clipping range, which can lead to poor DE results. Please adjust clipping range to data range."
+                msg = "Protein expression exceeds clipping range, which can lead to poor "
+                "DE results. Please adjust clipping range to data range."
                 warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
             change_fn_clp = clip_lfc_factory(clip_min, clip_max)
 
@@ -786,7 +828,6 @@ class CYTOVI(
         ):
             subset_idx = get_balanced_sample_indices(adata, self.sample_key)
             kwargs["subset_idx"] = subset_idx
-
 
         result = _de_core(
             self.get_anndata_manager(adata, required=True),
@@ -815,11 +856,11 @@ class CYTOVI(
     def get_aggregated_posterior(
         self,
         adata: AnnData = None,
-        sample: Union [int, str] = None,
+        sample: int | str = None,
         indices: Sequence[int] = None,
         batch_size: int = None,
-        dof: float | None = 3.,
-        ) -> dist.Distribution:
+        dof: float | None = 3.0,
+    ) -> dist.Distribution:
         """Compute the aggregated posterior over the ``z`` latent representations.
 
         Parameters
@@ -833,7 +874,8 @@ class CYTOVI(
         batch_size
             Batch size to use for computing the latent representation.
         dof
-            Degrees of freedom for the Student's t-distribution components. If ``None``, components are Normal.
+            Degrees of freedom for the Student's t-distribution components. If ``None``,
+            components are Normal.
 
         Returns
         -------
@@ -841,7 +883,6 @@ class CYTOVI(
         """
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
-
 
         if indices is None:
             indices = np.arange(self.adata.n_obs)
@@ -851,7 +892,9 @@ class CYTOVI(
             )
 
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True)
+        qu_loc, qu_scale = self.get_latent_representation(
+            batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
+        )
 
         qu_loc = torch.tensor(qu_loc, device=self.device).T
         qu_scale = torch.tensor(qu_scale, device=self.device).T
@@ -861,7 +904,8 @@ class CYTOVI(
         else:
             components = dist.StudentT(dof, qu_loc, qu_scale)
         return dist.MixtureSameFamily(
-            dist.Categorical(logits=torch.ones(qu_loc.shape[1], device=qu_loc.device)), components)
+            dist.Categorical(logits=torch.ones(qu_loc.shape[1], device=qu_loc.device)), components
+        )
 
     def get_sample_logprobs(
         self,
@@ -884,7 +928,8 @@ class CYTOVI(
         downsample_cells
             Number of cells to subset to before computing the differential abundance.
         dof
-            Degrees of freedom for the Student's t-distribution components for aggregated posterior. If ``None``, components are Normal.
+            Degrees of freedom for the Student's t-distribution components for aggregated
+            posterior. If ``None``, components are Normal.
 
         Returns
         -------
@@ -914,9 +959,10 @@ class CYTOVI(
             log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
         log_probs = np.concatenate(log_probs, 1)
-        log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names.to_numpy(), columns=unique_samples)
+        log_probs_df = pd.DataFrame(
+            data=log_probs, index=adata.obs_names.to_numpy(), columns=unique_samples
+        )
         return log_probs_df
-
 
     def differential_abundance(
         self,
@@ -931,9 +977,10 @@ class CYTOVI(
         """
         Compute differential abundance (DA) scores across experimental conditions.
 
-        This function estimates differential abundance by comparing aggregated log-sample-probabilities
-        between groups defined by `groupby`. The aggregation is performed using the specified `aggregation_fn`,
-        typically `log_median` or `logsumexp`, across posterior sample log-probabilities.
+        This function estimates differential abundance by comparing aggregated
+        log-sample-probabilities between groups defined by `groupby`. The aggregation
+        is performed using the specified `aggregation_fn`, typically `log_median` or
+        `logsumexp`, across posterior sample log-probabilities.
 
         Parameters
         ----------
@@ -945,7 +992,8 @@ class CYTOVI(
         batch_size : int, default: 128
             Mini-batch size for computing log-probabilities.
         downsample_cells : int, optional
-            If provided, randomly subsample this many cells before computing log-probabilities.
+            If provided, randomly subsample this many cells before computing
+            log-probabilities.
         dof : float, optional
             Degrees of freedom to use in the sampling distribution, if applicable.
         aggregation_fn : Callable, default: `log_median`
@@ -973,13 +1021,20 @@ class CYTOVI(
         """
         adata = self._validate_anndata(adata)
 
-        log_probs = self.get_sample_logprobs(adata, batch_size=batch_size, downsample_cells=downsample_cells, dof=dof)
+        log_probs = self.get_sample_logprobs(
+            adata, batch_size=batch_size, downsample_cells=downsample_cells, dof=dof
+        )
 
         if return_log_probs:
             return log_probs
 
         if groupby is None:
-            warnings.warn('`groupby` is not specified. Will return the log probabilities per sample without aggregation.', UserWarning, stacklevel=settings.warnings_stacklevel)
+            warnings.warn(
+                "`groupby` is not specified. Will return the log probabilities per sample "
+                "without aggregation.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
             return log_probs
         else:
             validate_obs_keys(adata, groupby)
@@ -988,50 +1043,58 @@ class CYTOVI(
 
         da_dict = {}
         for cond in set(md[groupby].values):
-            is_case = (md[groupby]==cond).values
+            is_case = (md[groupby] == cond).values
             log_probs_cond = aggregation_fn(log_probs.loc[:, is_case], 1)
-            log_prop_controls = aggregation_fn(log_probs.loc[:,~is_case], 1)
+            log_prop_controls = aggregation_fn(log_probs.loc[:, ~is_case], 1)
             log_ratios = log_probs_cond - log_prop_controls
-            da_dict[f'DA_{cond}'] = log_ratios
+            da_dict[f"DA_{cond}"] = log_ratios
 
         da_df = pd.DataFrame(da_dict)
 
         return da_df
 
-
     def impute_categories_from_reference(
         self,
         adata_reference: AnnData,
         cat_key: str,
-        use_rep: Optional[str] = None,
+        use_rep: str | None = None,
         n_neighbors: int = 20,
         return_uncertainty: bool = False,
     ):
         """
-        Impute missing categories for the query data based on a reference dataset using a shared representation.
+        Impute missing categories from a reference dataset using a shared representation.
 
         Parameters
         ----------
         adata_reference : AnnData
-            Annotated data matrix for the reference dataset. This dataset contains the categories to be imputed onto the query data.
+            Annotated data matrix for the reference dataset. This dataset contains the categories
+            to be imputed onto the query data.
         cat_key : str
-            The key in the `.obs` attribute of `adata_reference` that specifies the categorical variable (e.g., cell types or clusters) to impute.
+            The key in the `.obs` attribute of `adata_reference` that specifies the categorical
+            variable (e.g., cell types or clusters) to impute.
         use_rep : str, optional
-            The key in the `.obsm` attribute to use as the representation space (e.g., latent space). If `None`, the function will attempt to use a default latent representation X_CytoVI.
+            The key in the `.obsm` attribute to use as the representation space (e.g., latent
+            space). If `None`, the function will attempt to use a default latent
+            representation X_CytoVI.
         n_neighbors : int, optional (default: 20)
-            The number of nearest neighbors to use for imputation. The imputation is based on similarity in the chosen representation space.
+            The number of nearest neighbors to use for imputation. The imputation is based on
+            similarity in the chosen representation space.
         return_uncertainty : bool, optional (default: False)
             If `True`, the function will also return the uncertainty of the imputation.
 
         Returns
         -------
         np.ndarray
-            A numpy array of imputed categories for the query dataset, corresponding to the categorical variable specified by `cat_key`.
+            A numpy array of imputed categories for the query dataset, corresponding
+            to the categorical variable
+            specified by `cat_key`.
         ```
 
         Notes
         -----
-        This function assumes that both the query and reference datasets have a precomputed representation in `.obsm` (typically CytoVI latent space). If not, you must either provide a common representation manually or ensure that one is generated.
+        This function assumes that both the query and reference datasets have a precomputed
+        representation in `.obsm` (typically CytoVI latent space). If not, you must either
+        provide a common representation manually or ensure that one is generated.
         """
         adata_query = self.adata
 
@@ -1047,7 +1110,8 @@ class CYTOVI(
                 use_rep = CYTOVI_DEFAULT_REP
             else:
                 raise ValueError(
-                    "No shared representation found between reference and query data. Please specify a representation to use."
+                    "No shared representation found between reference and query data. Please "
+                    "specify a representation to use."
                 )
 
         # Validate input keys
@@ -1065,119 +1129,124 @@ class CYTOVI(
 
         # Impute missing categories for the query data
         imputed_query_cat_indices, uncertainty = impute_cats_with_neighbors(
-            rep_query, rep_ref, cat_encoded_ref, n_neighbors=n_neighbors, compute_uncertainty=return_uncertainty
+            rep_query,
+            rep_ref,
+            cat_encoded_ref,
+            n_neighbors=n_neighbors,
+            compute_uncertainty=return_uncertainty,
         )
 
         # Convert imputed indices back to category labels
-        imputed_query_cat = ohe.inverse_transform(np.eye(n_cats)[imputed_query_cat_indices]).reshape(-1)
+        imputed_query_cat = ohe.inverse_transform(
+            np.eye(n_cats)[imputed_query_cat_indices]
+        ).reshape(-1)
 
         if return_uncertainty:
             return imputed_query_cat, uncertainty
         else:
             return imputed_query_cat
 
-
-
     def impute_rna_from_reference(
-            self: AnnData,
-            reference_batch: str,
-            adata_rna: AnnData,
-            layer_key: str,
-            use_rep: Optional[str] = None,
-            n_neighbors: int = 20,
-            compute_uncertainty: bool = False,
-            return_query_only: bool = False,
-        ):
-            """
-            Impute expression data from missing modality for the query dataset based on a reference dataset using a shared representation.
+        self: AnnData,
+        reference_batch: str,
+        adata_rna: AnnData,
+        layer_key: str,
+        use_rep: str | None = None,
+        n_neighbors: int = 20,
+        compute_uncertainty: bool = False,
+        return_query_only: bool = False,
+    ):
+        """
+        Impute modality expression in query dataset using a reference and shared representation.
 
-            Parameters
-            ----------
-            reference_batch : str
-                Identifier for the reference batch in `adata.obs[batch_key]`.
-            adata_rna : AnnData
-                Annotated data matrix containing the expression data to impute.
-            layer_key : str
-                Key in the `.layers` attribute of `adata_rna` for the reference expression data.
-            use_rep : str, optional
-                Key in the `.obsm` attribute to use as the representation space (e.g., latent space).
-                If `None`, defaults to `X_CytoVI`.
-            n_neighbors : int, optional (default: 20)
-                Number of nearest neighbors to use for imputation.
-            compute_uncertainty : bool, optional (default: False)
-                If `True`, also computes the uncertainty of the imputation.
-            return_query_only : bool, optional (default: False)
-                If `True`, return only the imputed query dataset as an AnnData object.
+        Parameters
+        ----------
+        reference_batch : str
+            Identifier for the reference batch in `adata.obs[batch_key]`.
+        adata_rna : AnnData
+            Annotated data matrix containing the expression data to impute.
+        layer_key : str
+            Key in the `.layers` attribute of `adata_rna` for the reference expression data.
+        use_rep : str, optional
+            Key in the `.obsm` attribute to use as the representation space (e.g., latent space).
+            If `None`, defaults to `X_CytoVI`.
+        n_neighbors : int, optional (default: 20)
+            Number of nearest neighbors to use for imputation.
+        compute_uncertainty : bool, optional (default: False)
+            If `True`, also computes the uncertainty of the imputation.
+        return_query_only : bool, optional (default: False)
+            If `True`, return only the imputed query dataset as an AnnData object.
 
-            Returns
-            -------
-            AnnData
-                Imputed AnnData object. If `return_query_only` is `True`, only the query dataset is returned.
-                If `return_uncertainty` is `True`, also returns the uncertainty matrix.
-            """
-            adata = self.adata
-            batch_key = self.batch_key
+        Returns
+        -------
+        AnnData
+            Imputed AnnData object. If `return_query_only` is `True`, only the query dataset is
+              returned. If `return_uncertainty` is `True`, also returns the uncertainty matrix.
+        """
+        adata = self.adata
+        batch_key = self.batch_key
 
-            # validate input
-            validate_obsm_keys(adata, use_rep)
-            validate_layer_key(adata_rna, layer_key)
+        # validate input
+        validate_obsm_keys(adata, use_rep)
+        validate_layer_key(adata_rna, layer_key)
 
-            # retrieve reference and query indices
-            reference_indices = adata.obs_names[adata.obs[batch_key] == reference_batch]
-            query_indices = adata.obs_names[adata.obs[batch_key] != reference_batch]
+        # retrieve reference and query indices
+        reference_indices = adata.obs_names[adata.obs[batch_key] == reference_batch]
+        query_indices = adata.obs_names[adata.obs[batch_key] != reference_batch]
 
-            # validate that query indices are in to impute adata
-            if not all(idx in adata_rna.obs_names for idx in reference_indices):
-                raise ValueError("Some query indices are not present in `adata_to_impute`.")
+        # validate that query indices are in to impute adata
+        if not all(idx in adata_rna.obs_names for idx in reference_indices):
+            raise ValueError("Some query indices are not present in `adata_to_impute`.")
 
-            # get representations
-            if use_rep is None:
-                obsm_keys = adata.obsm.keys()
+        # get representations
+        if use_rep is None:
+            obsm_keys = adata.obsm.keys()
 
-                if CYTOVI_DEFAULT_REP in obsm_keys:
-                    use_rep = CYTOVI_DEFAULT_REP
-                else:
-                    adata.obsm[CYTOVI_DEFAULT_REP] = self.get_latent_representation()
-                    use_rep = CYTOVI_DEFAULT_REP
+            if CYTOVI_DEFAULT_REP in obsm_keys:
+                use_rep = CYTOVI_DEFAULT_REP
+            else:
+                adata.obsm[CYTOVI_DEFAULT_REP] = self.get_latent_representation()
+                use_rep = CYTOVI_DEFAULT_REP
 
-            # Get representations and reference expression
-            rep_ref = adata[reference_indices,:].obsm[use_rep]
-            rep_query = adata[query_indices,:].obsm[use_rep]
-            expr_data_ref = adata_rna[reference_indices,:].layers[layer_key]
+        # Get representations and reference expression
+        rep_ref = adata[reference_indices, :].obsm[use_rep]
+        rep_query = adata[query_indices, :].obsm[use_rep]
+        expr_data_ref = adata_rna[reference_indices, :].layers[layer_key]
 
-            # Impute expression in query
-            imputed_expr_query, uncertainty = impute_expr_with_neighbors(
-                rep_query, rep_ref, expr_data_ref, n_neighbors=n_neighbors, compute_uncertainty=compute_uncertainty
-            )
+        # Impute expression in query
+        imputed_expr_query, uncertainty = impute_expr_with_neighbors(
+            rep_query,
+            rep_ref,
+            expr_data_ref,
+            n_neighbors=n_neighbors,
+            compute_uncertainty=compute_uncertainty,
+        )
 
-            # create anndata for imputed query dataset
-            adata_imputed_query = AnnData(
-                X = imputed_expr_query,
-                obs = adata[query_indices,:].obs,
-                obsm = adata[query_indices,:].obsm,
-                var = adata_rna.var,
-                layers={layer_key: imputed_expr_query},
-            )
+        # create anndata for imputed query dataset
+        adata_imputed_query = AnnData(
+            X=imputed_expr_query,
+            obs=adata[query_indices, :].obs,
+            obsm=adata[query_indices, :].obsm,
+            var=adata_rna.var,
+            layers={layer_key: imputed_expr_query},
+        )
 
-            if return_query_only:
-                return adata_imputed_query
+        if return_query_only:
+            return adata_imputed_query
 
-            # assemble new anndata with imputed expression
-            expr_comb = np.concatenate([expr_data_ref, imputed_expr_query], axis=0)
-            obs_comb = adata.obs.loc[np.concatenate([reference_indices, query_indices]), :]
+        # assemble new anndata with imputed expression
+        expr_comb = np.concatenate([expr_data_ref, imputed_expr_query], axis=0)
+        obs_comb = adata.obs.loc[np.concatenate([reference_indices, query_indices]), :]
 
-            # restore original indices and add metadata
-            adata_combined = AnnData(
-                X = expr_comb,
-                obs = obs_comb,
-                var=adata_rna.var)
+        # restore original indices and add metadata
+        adata_combined = AnnData(X=expr_comb, obs=obs_comb, var=adata_rna.var)
 
-            adata_imputed = AnnData(
-                X=adata_combined[adata.obs_names].X,
-                obs=adata.obs,
-                var=adata_rna.var,
-                obsm=adata.obsm,
-                layers={layer_key: adata_combined[adata.obs_names].X},
-            )
+        adata_imputed = AnnData(
+            X=adata_combined[adata.obs_names].X,
+            obs=adata.obs,
+            var=adata_rna.var,
+            obsm=adata.obsm,
+            layers={layer_key: adata_combined[adata.obs_names].X},
+        )
 
-            return adata_imputed
+        return adata_imputed

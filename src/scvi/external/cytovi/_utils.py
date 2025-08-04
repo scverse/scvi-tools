@@ -1,15 +1,19 @@
 from __future__ import annotations
-from typing import Union
+
+import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
-import warnings
-from anndata import AnnData
+
+if TYPE_CHECKING:
+    from anndata import AnnData
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 
+from scvi import settings
 from scvi.utils import dependencies
 
-def validate_marker(adata: AnnData, marker: Union[str, list[str]]):
+
+def validate_marker(adata: AnnData, marker: str | list[str]):
     if isinstance(marker, str):
         marker = [marker]
     for m in marker:
@@ -17,7 +21,7 @@ def validate_marker(adata: AnnData, marker: Union[str, list[str]]):
             raise ValueError(f"Marker {m} not found in adata.var_names.")
 
 
-def validate_obs_keys(adata: AnnData, obs_key: Union[str, list[str]]):
+def validate_obs_keys(adata: AnnData, obs_key: str | list[str]):
     if obs_key is not None:
         if isinstance(obs_key, str):
             obs_key = [obs_key]
@@ -62,8 +66,8 @@ def get_n_latent_heuristic(n_vars: int, latent_max: int = 20, latent_min: int = 
     return n_latent
 
 
-def clip_lfc_factory(min_lfc: float, max_lfc: float, pseudocount = 0):
-    def clip_lfc(x, y, pseudocount = pseudocount):
+def clip_lfc_factory(min_lfc: float, max_lfc: float, pseudocount=0):
+    def clip_lfc(x, y, pseudocount=pseudocount):
         x = np.clip(x, min_lfc, max_lfc)
         y = np.clip(y, min_lfc, max_lfc)
         return np.log2(x) - np.log2(y)
@@ -80,8 +84,11 @@ def encode_categories(adata, cat_key):
     ohe = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
     return ohe.fit_transform(adata.obs[cat_key].values.reshape(-1, 1)), ohe
 
+
 @dependencies("pynndescent")
-def impute_cats_with_neighbors(rep_query, rep_ref, cat_encoded_ref, n_neighbors=5, compute_uncertainty=False):
+def impute_cats_with_neighbors(
+    rep_query, rep_ref, cat_encoded_ref, n_neighbors=5, compute_uncertainty=False
+):
     """Use pynndescent to find nearest neighbors and impute missing categories."""
     import pynndescent
 
@@ -102,8 +109,11 @@ def impute_cats_with_neighbors(rep_query, rep_ref, cat_encoded_ref, n_neighbors=
 
     return imputed_cat_indices, uncertainty
 
+
 @dependencies("pynndescent")
-def impute_expr_with_neighbors(rep_query, rep_ref, expr_data_ref, n_neighbors=5, compute_uncertainty=False):
+def impute_expr_with_neighbors(
+    rep_query, rep_ref, expr_data_ref, n_neighbors=5, compute_uncertainty=False
+):
     """Use pynndescent to find nearest neighbors and impute missing expression."""
     import pynndescent
 
@@ -114,7 +124,7 @@ def impute_expr_with_neighbors(rep_query, rep_ref, expr_data_ref, n_neighbors=5,
 
     imputed_expr = np.mean(neighbor_expr, axis=1)  # Shape: (n_query, expr_dim)
 
-    if compute_uncertainty: # note: not implemented yet
+    if compute_uncertainty:  # note: not implemented yet
         raise NotImplementedError("Uncertainty not implemented yet.")
         uncertainty = None
     else:
@@ -122,19 +132,19 @@ def impute_expr_with_neighbors(rep_query, rep_ref, expr_data_ref, n_neighbors=5,
 
     return imputed_expr, uncertainty
 
-def log_median(x, axis = 1):
-    return np.log(np.median(np.exp(x), axis = axis))
+
+def log_median(x, axis=1):
+    return np.log(np.median(np.exp(x), axis=axis))
 
 
 def get_balanced_sample_indices(
     adata: AnnData,
     sample_key: str,
     random_state: int | None = None,
-    return_boolean_mask: bool = True
+    return_boolean_mask: bool = True,
 ) -> np.ndarray:
     """
-    Returns indices of a subsampled AnnData object such that each group
-    defined by `sample_key` has an equal number of observations (balanced samples).
+    Returns indices for a balanced subsample across sample_key groups..
 
     A warning is issued if any sample has fewer cells than the 10th percentile of sample sizes.
 
@@ -169,15 +179,19 @@ def get_balanced_sample_indices(
 
     if small_samples:
         warning_msg = (
-            f"The following samples have fewer cells than the 10th percentile ({int(threshold)} cells):\n" +
-            "\n".join([f"- {k}: {v} cells" for k, v in small_samples.items()]) +
-            f"\n\nAll samples will be subsampled to the minimum number of cells observed ({min_size}) to " +
-            "ensure balanced representation. To change this behavior, set `balance_sample` to False for DE computation."
+            f"The following samples have fewer cells than the 10th percentile "
+            f"({int(threshold)} cells):\n"
+            + "\n".join([f"- {k}: {v} cells" for k, v in small_samples.items()])
+            + (
+                f"\n\nAll samples will be subsampled to the minimum number of cells observed "
+                f"({min_size}) to ensure balanced representation. To change this behavior, set "
+                "`balance_sample` to False for DE computation."
+            )
         )
-        warnings.warn(warning_msg, UserWarning)
+        warnings.warn(warning_msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
     balanced_indices = []
-    for group, indices in sample_groups.items():
+    for _group, indices in sample_groups.items():
         selected = rng.choice(indices, size=min_size, replace=False)
         balanced_indices.extend(selected)
 
