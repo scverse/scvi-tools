@@ -9,6 +9,7 @@ from scvi.external import TOTALANVI
 from scvi.model import TOTALVI
 
 
+@pytest.mark.optional
 def test_totalanvi():
     # test transfer_anndata_setup + view
     adata = synthetic_iid()
@@ -216,6 +217,7 @@ def test_totalanvi():
     print(ig_top_features)
 
 
+@pytest.mark.optional
 def test_totalanvi_scarches(save_path):
     # test transfer_anndata_setup + view
     adata1 = synthetic_iid()
