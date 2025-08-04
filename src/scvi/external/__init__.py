@@ -15,6 +15,7 @@ from .sysvi import SysVI
 from .tangram import Tangram
 from .totalanvi import TOTALANVI
 from .velovi import VELOVI
+from .cytovi import CYTOVI
 
 __all__ = [
     "SCAR",
@@ -36,4 +37,5 @@ __all__ = [
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
+    "CYTOVI",
 ]

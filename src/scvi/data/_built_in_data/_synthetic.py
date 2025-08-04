@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import pandas as pd
@@ -37,6 +37,7 @@ def _generate_synthetic(
     accessibility_key: str = "accessibility",
     region_names_prefix: str = "region",
     coordinates_key: str = "coordinates",
+    rna_dist: Literal["nb", "normal"] = "nb",
 ) -> AnnOrMuData:
     n_obs = batch_size * n_batches
 
@@ -45,7 +46,12 @@ def _generate_synthetic(
             data = getattr(scipy.sparse, sparse_format)(data)
         return data
 
-    rna = np.random.negative_binomial(5, 0.3, size=(n_obs, n_genes))
+    if rna_dist == "normal":
+        rna = np.random.normal(loc=5, scale=2, size=(n_obs, n_genes))
+    elif rna_dist == "nb":
+        rna = np.random.negative_binomial(5, 0.3, size=(n_obs, n_genes))
+    else:
+        raise ValueError(f"Unknown RNA distribution: {rna_dist}")
     mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_genes))
     rna = rna * mask
     rna = sparsify_data(rna)
