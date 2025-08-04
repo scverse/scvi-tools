@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -9,6 +10,7 @@ from sparse import GCXS
 from xarray import Dataset
 
 from scvi.criticism import PosteriorPredictiveCheck as PPC
+from scvi.criticism import create_criticism_report
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
 
@@ -39,9 +41,18 @@ def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices: list[int] 
     return ppc, models_dict
 
 
-def test_ppc_init():
+@pytest.mark.optional
+def test_ppc_init(save_path):
     adata = synthetic_iid()
     ppc, models_dict = get_ppc_with_samples(adata, n_samples=42)
+    model1 = models_dict["model1"]
+    model_path1 = os.path.join(save_path, "model1")
+    model1.save(model_path1, save_anndata=True, overwrite=True)
+    model2 = models_dict["model2"]
+    model_path2 = os.path.join(save_path, "model2")
+    model2.save(model_path2, save_anndata=True, overwrite=True)
+    create_criticism_report(model1, save_folder=model_path1)
+    create_criticism_report(model2, save_folder=model_path2)
     assert isinstance(ppc.raw_counts, GCXS)
     assert isinstance(ppc.samples_dataset, Dataset)
     assert ppc.n_samples == 42

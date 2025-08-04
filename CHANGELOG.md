@@ -11,8 +11,11 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
+- Add checkpointing with autotune, {pr}`3452`.
 
 #### Fixed
+
+- fix in library size calculation in totalvi, {pr}`3452`.
 
 #### Changed
 
