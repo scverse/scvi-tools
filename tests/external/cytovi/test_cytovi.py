@@ -204,9 +204,7 @@ def test_cytovi_write_read_fcs(adata, save_path):
     cytovi.transform_arcsinh(adata)
     cytovi.scale(adata)
 
-    model_path = os.path.join(save_path, "test_cytovi")
-
-    cytovi.write_fcs(adata, prefix=model_path, layer=SCALED_LAYER_KEY)
-    adata_read = cytovi.read_fcs(model_path + ".fcs")
+    cytovi.write_fcs(adata, output_path=save_path, prefix="test_cytovi", layer=SCALED_LAYER_KEY)
+    adata_read = cytovi.read_fcs(save_path + "test_cytovi.fcs")
     assert adata_read.shape == adata.shape
     assert np.allclose(adata_read.X, adata.layers[SCALED_LAYER_KEY])
