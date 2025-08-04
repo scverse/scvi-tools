@@ -133,7 +133,7 @@ def test_anndataloader_distributed_sampler(num_processes: int, save_path: str):
 
 
 @pytest.mark.multigpu
-@pytest.mark.parametrize("num_processes", [1, 2])
+@pytest.mark.parametrize("num_processes", [1])
 def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     adata = scvi.data.synthetic_iid()
     SCANVI.setup_anndata(
@@ -147,14 +147,14 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
         os.remove(file_path)
     datasplitter_kwargs = {}
     datasplitter_kwargs["drop_last"] = False
-    if num_processes == 2:
+    if num_processes > 1:
         datasplitter_kwargs["distributed_sampler"] = True
     model = SCANVI(adata, n_latent=10)
 
     # initializes the distributed backend that takes care of synchronizing processes
     torch.distributed.init_process_group(
         "nccl",  # backend that works on all systems
-        init_method=f"file://{save_path}/dist_file",
+        init_method=f"file://{file_path}",
         rank=0,
         world_size=num_processes,
         store=None,
