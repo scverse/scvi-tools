@@ -361,7 +361,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         elif conf_method == "max":
             score = distances.max(axis=1)
         elif conf_method == "median":
-            score = distances.median(axis=1)
+            score = np.median(distances, axis=1)
 
         return score
 
