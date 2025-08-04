@@ -8,6 +8,7 @@ from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
+from .scviva import SCVIVA
 from .solo import SOLO
 from .spaglue import SPAGLUE
 from .stereoscope import RNAStereoscope, SpatialStereoscope
@@ -35,5 +36,6 @@ __all__ = [
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
+    "SCVIVA",
     "SPAGLUE",
 ]

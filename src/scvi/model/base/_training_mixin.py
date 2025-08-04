@@ -322,7 +322,7 @@ class SemisupervisedTrainingMixin:
         if ig_interpretability:
             if attributions is not None and len(attributions) > 0:
                 attributions = torch.cat(attributions, dim=0).detach().numpy()
-                attributions = self.get_ranked_markers(adata, attributions)
+                attributions = self.get_ranked_features(adata, attributions)
 
         if len(y_pred) > 0:
             y_pred = torch.cat(y_pred).numpy()
@@ -467,7 +467,7 @@ class SemisupervisedTrainingMixin:
         )
         return runner()
 
-    def get_ranked_markers(
+    def get_ranked_features(
         self, adata: AnnOrMuData | None = None, attrs: np.ndarray | None = None
     ) -> pd.DataFrame:
         """Get the ranked gene list based on highest attributions.
@@ -487,7 +487,7 @@ class SemisupervisedTrainingMixin:
 
         Examples
         --------
-        >>> attrs_df = model.get_ranked_markers(attrs)
+        >>> attrs_df = model.get_ranked_features(attrs)
         """
         if attrs is None:
             Warning("Missing Attributions matrix")
@@ -500,7 +500,7 @@ class SemisupervisedTrainingMixin:
         std_attrs = attrs.std(axis=0)
         idx = mean_attrs.argsort()[::-1] - 1  # their rank
 
-        # check how to populate this markers table
+        # check how to populate this features table
         # self.view_anndata_setup(adata)
         # self._model_summary_string
         # self._get_user_attributes()
@@ -508,14 +508,14 @@ class SemisupervisedTrainingMixin:
         if type(adata).__name__ == "MuData":
             # a multimodality in mudata format
             mod_list = adata.mod_names
-            markes_list = np.array([])
+            features_list = np.array([])
             modality = np.array([])
             for mod in mod_list:
                 for layer in adata[mod].layers:
                     tmp_mod = mod + "_" + layer
-                    markes_list = np.concatenate(
+                    features_list = np.concatenate(
                         (
-                            markes_list,
+                            features_list,
                             self.registry_["field_registries"][tmp_mod]["state_registry"][
                                 "column_names"
                             ],
@@ -532,33 +532,33 @@ class SemisupervisedTrainingMixin:
                             ),
                         )
                     )
-            markes_list = markes_list[idx]
+            features_list = features_list[idx]
             modality = modality[idx]
         else:
             # a single modality in adata format
-            modality = None
-            markes_list = np.array([])
+            modality = "None"
+            features_list = np.array([])
             if "X" in self.registry_["field_registries"].keys():
-                markes_list = np.concatenate(
+                features_list = np.concatenate(
                     (
-                        markes_list,
+                        features_list,
                         self.registry_["field_registries"]["X"]["state_registry"]["column_names"],
                     )
                 )
             if "proteins" in self.registry_["field_registries"].keys():
-                markes_list = np.concatenate(
+                features_list = np.concatenate(
                     (
-                        markes_list,
+                        features_list,
                         self.registry_["field_registries"]["proteins"]["state_registry"][
                             "column_names"
                         ],
                     )
                 )
-            markes_list = markes_list[idx]
+            features_list = features_list[idx]
 
         df = {
-            "marker": markes_list,
-            "marker_idx": idx,
+            "feature": features_list,
+            "feature_idx": idx,
             "modality": modality,
             "attribution_mean": mean_attrs[idx],
             "attribution_std": std_attrs[idx],

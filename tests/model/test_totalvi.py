@@ -342,7 +342,8 @@ def test_multiple_encoded_covariates_totalvi():
 
 def test_totalvi_mudata():
     adata = synthetic_iid()
-    protein_adata = synthetic_iid(n_genes=50)
+    protein_adata = synthetic_iid()
+    protein_adata.var_names = protein_adata.uns["protein_names"]
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
@@ -390,7 +391,8 @@ def test_totalvi_mudata():
     model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
-    protein_adata2 = synthetic_iid(n_genes=50)
+    protein_adata2 = synthetic_iid()
+    protein_adata2.var_names = protein_adata2.uns["protein_names"]
     mdata2 = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata2,
@@ -411,7 +413,7 @@ def test_totalvi_mudata():
     assert latent_lib_size.shape == (3, 1)
 
     pro_foreground_prob = model.get_protein_foreground_probability(
-        mdata2, indices=[1, 2, 3], protein_list=["gene_1", "gene_2"]
+        mdata2, indices=[1, 2, 3], protein_list=["protein_1", "protein_2"]
     )
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(mdata2)
@@ -419,7 +421,7 @@ def test_totalvi_mudata():
 
     # test transfer_anndata_setup + view
     adata2 = synthetic_iid()
-    protein_adata2 = synthetic_iid(n_genes=50)
+    protein_adata2 = synthetic_iid()
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
     model.get_elbo(mdata2[:10])
 

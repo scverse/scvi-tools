@@ -18,6 +18,8 @@ def test_multivi():
     MULTIVI.setup_anndata(
         data,
         batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
     )
     vae = MULTIVI(
         data,
@@ -42,7 +44,12 @@ def test_multivi():
     # Test with size factor
     data = synthetic_iid()
     data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
-    MULTIVI.setup_anndata(data, batch_key="batch")
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     vae = MULTIVI(
         data,
         n_genes=50,
@@ -52,7 +59,12 @@ def test_multivi():
 
     # Test with modality weights and penalties
     data = synthetic_iid()
-    MULTIVI.setup_anndata(data, batch_key="batch")
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
     vae.train(3)
     vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
@@ -76,14 +88,20 @@ def test_multivi():
     )
     assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
     vae.train(3)
+    vae.get_protein_foreground_probability()
+    vae.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
 
 
 def test_multivi_single_batch():
     data = synthetic_iid(n_batches=1)
-    MULTIVI.setup_anndata(data, batch_key="batch")
+    MULTIVI.setup_anndata(
+        data,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
     vae = MULTIVI(data, n_genes=50, n_regions=50)
-    with pytest.warns(UserWarning):
-        vae.train(3)
+    vae.train(3)
 
 
 @pytest.mark.internet
@@ -142,7 +160,11 @@ def test_multivi_mudata_rna_atac_external():
     mdata.update()
     MULTIVI.setup_mudata(
         mdata,
-        modalities={"rna_layer": "rna_subset", "atac_layer": "atac_subset"},
+        modalities={
+            "rna_layer": "rna_subset",
+            "protein_layer": "protein_expression",
+            "atac_layer": "atac_subset",
+        },
     )
     model = MULTIVI(mdata)
     model.train(1, train_size=0.9)
@@ -153,6 +175,7 @@ def test_multivi_mudata_trimodal_external():
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
         mdata,
+        batch_key="batch",
         modalities={
             "rna_layer": "rna",
             "atac_layer": "accessibility",
@@ -172,6 +195,8 @@ def test_multivi_mudata_trimodal_external():
     model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
+    model.get_protein_foreground_probability()
+    model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
 
     model.get_elbo(indices=model.validation_indices)
     model.get_reconstruction_error(indices=model.validation_indices)
@@ -337,9 +362,14 @@ def test_multivi_size_factor_mudata():
     mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
         np.max(mdata["accessibility"].X.sum(1)) + 1.01
     )
+    mdata["rna"].layers["counts"] = mdata["rna"].X.copy()
     MULTIVI.setup_mudata(
         mdata,
-        modalities={"rna_layer": "rna", "atac_layer": "accessibility"},
+        modalities={
+            "rna_layer": "rna",
+            "atac_layer": "accessibility",
+            "protein_layer": "protein_expression",
+        },
         size_factor_key=["size_factor_rna", "size_factor_atac"],
     )
 
