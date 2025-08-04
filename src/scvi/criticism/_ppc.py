@@ -105,10 +105,10 @@ class PosteriorPredictiveCheck:
 
         # check if raw counts are indeed int (required for std computation trick)
         if np.issubdtype(raw_counts.dtype, np.floating):
-           self.is_float_data = not np.all(raw_counts == raw_counts.astype(int))
+            self.is_float_data = not np.all(raw_counts == raw_counts.astype(int))
         else:
             self.is_float_data = False
-            
+
         if self.is_float_data:
             self.samples_dataset = _make_dataset_dense(self.samples_dataset)
 

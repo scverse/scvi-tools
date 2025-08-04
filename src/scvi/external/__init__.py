@@ -1,5 +1,6 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
+from .cytovi import CYTOVI
 from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
@@ -15,7 +16,6 @@ from .sysvi import SysVI
 from .tangram import Tangram
 from .totalanvi import TOTALANVI
 from .velovi import VELOVI
-from .cytovi import CYTOVI
 
 __all__ = [
     "SCAR",

@@ -822,10 +822,7 @@ class CYTOVI(
                 kwargs["change_fn"] = change_fn_clp
                 kwargs["test_mode"] = test_mode
 
-        if (
-            self.registry_["setup_args"]['sample_key']
-            and balance_samples is not False
-        ):
+        if self.registry_["setup_args"]["sample_key"] and balance_samples is not False:
             subset_idx = get_balanced_sample_indices(adata, self.sample_key)
             kwargs["subset_idx"] = subset_idx
 
