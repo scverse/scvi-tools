@@ -1,22 +1,22 @@
 import os
-from typing import Optional, Union, List, Dict
+import warnings
+from pathlib import Path
+
 import anndata as ad
+import numpy as np
 from anndata import AnnData
 
-
-from pathlib import Path
-import numpy as np
-import warnings
-
+from scvi import settings
 from scvi.utils import dependencies
 
-@dependencies('readfcs')
+
+@dependencies("readfcs")
 def read_fcs(
     path: str,
     return_raw_layer: bool = True,
     include_hidden: bool = False,
-    remove_markers: Optional[List[str]] = None,
-    sample_name_extractor: Optional[Dict[str, Union[str, int]]] = None,
+    remove_markers: list[str] | None = None,
+    sample_name_extractor: dict[str, str | int] | None = None,
     verbose: bool = True,
 ) -> AnnData:
     """Read one or more `.fcs` files and return a concatenated AnnData object.
@@ -30,7 +30,8 @@ def read_fcs(
     path : str
         Path to a single `.fcs` file or a directory containing `.fcs` files.
     return_raw_layer : bool, optional (default: True)
-        Whether to store the untransformed data in the `.layers["raw"]` slot of each AnnData object.
+        Whether to store the untransformed data in the `.layers["raw"]` slot of each AnnData
+        object.
     include_hidden : bool, optional (default: False)
         Whether to include hidden/system files (i.e., those beginning with a period).
     remove_markers : list of str, optional (default: None)
@@ -67,8 +68,9 @@ def read_fcs(
     elif os.path.isdir(path):
         folder = path
         fcs_files = [
-            f for f in os.listdir(folder)
-            if f.endswith('.fcs') and (include_hidden or not f.startswith('.'))
+            f
+            for f in os.listdir(folder)
+            if f.endswith(".fcs") and (include_hidden or not f.startswith("."))
         ]
     else:
         raise ValueError(f"Path '{path}' is neither a valid .fcs file nor a directory.")
@@ -100,7 +102,7 @@ def read_fcs(
                 parts = fcs_file.split(sample_name_extractor["split"])
                 sample_name = parts[sample_name_extractor["index"]]
                 adata.obs["sample_name"] = sample_name
-            except Exception as e:
+            except (IndexError, KeyError, ValueError) as e:
                 if verbose:
                     print(f"Could not extract sample name from '{fcs_file}': {e}")
 
@@ -116,20 +118,23 @@ def read_fcs(
         print("Warning: Variable (marker) names differ in the following FCS files:")
         for f in mismatched_files:
             print(f" - {f}")
-        print("They will be aligned using `join='outer'`, which may introduce NaNs. "
-              "If you want to combine different batches, use the `merge_batches` function.")
+        print(
+            "They will be aligned using `join='outer'`, which may introduce NaNs. "
+            "If you want to combine different batches, use the `merge_batches` function."
+        )
 
     return ad.concat(adata_list, join="outer", label="sample_id", index_unique="-")
 
 
-@dependencies('fcswrite')
+@dependencies("fcswrite")
 def write_fcs(
     adata: ad.AnnData,
-    output_path: str,
+    output_path: str | None = None,
     split_by: str | None = None,
     layer: str | None = None,
+    prefix: str = "export",
     verbose: bool = True,
-    write_kwargs: Optional[Dict[str, Union[str, int]]] = None,
+    write_kwargs: dict[str, str | int] | None = None,
 ):
     """
     Export AnnData expression data to one or more FCS files.
@@ -137,17 +142,23 @@ def write_fcs(
     Parameters
     ----------
     adata : AnnData
-        Annotated data matrix, where `adata.X` or `adata.layers[layer]` contains the expression data
-        to be written to FCS format.
-    output_path : str
-        Directory where the FCS files will be written.
+        Annotated data matrix, where `adata.X` or `adata.layers[layer]` contains the expression
+        data to be written to FCS format.
+    output_path : str, optional
+        Directory where the FCS files will be written. If `None`, uses the current working
+        directory.
     split_by : str, optional
-        Column in `adata.obs` to group cells by. If specified, an FCS file will be written for each group.
-        If not provided, a single FCS file is written using all cells.
+        Column in `adata.obs` to group cells by. If specified, an FCS file will be written for
+        each group. If not provided, a single FCS file is written using all cells.
     layer : str, optional
         Layer in `adata.layers` to use as the data source. If `None`, uses `adata.X`.
+    prefix : str, default: "export"
+        Prefix for the output FCS file names.
     verbose : bool, default: True
         If `True`, prints a message for each written file including the output path and data shape.
+    write_kwargs : dict, optional
+        Additional keyword arguments to pass to `fcswrite.write_fcs`. This can include
+        parameters like `text_kw_pr` for custom text annotations in the FCS file.
 
     Warns
     -----
@@ -164,7 +175,8 @@ def write_fcs(
     -----
     - This function automatically removes rows with any NaN values before writing to FCS.
     - Data is cast to `float32` before writing.
-    - Only `.X` or `.layers[layer]` is written; metadata from `obs` or `var` is not exported to FCS.
+    - Only `.X` or `.layers[layer]` is written; metadata from `obs` or `var` is not exported
+    to FCS.
 
     Examples
     --------
@@ -186,8 +198,13 @@ def write_fcs(
     if write_kwargs is None:
         write_kwargs = {}
 
-    output_dir = Path(output_path)
+    output_dir = Path(output_path) if output_path else Path.cwd()
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    chn_names = list(adata.var_names)
+    text = {f"$P{i + 1}N": chn for i, chn in enumerate(chn_names)} | {
+        f"$P{i + 1}S": chn for i, chn in enumerate(chn_names)
+    }
 
     def get_data(subset, group_name=None):
         data = subset.layers[layer] if layer else subset.X
@@ -197,12 +214,22 @@ def write_fcs(
 
         # Check for non-numeric data
         if not np.issubdtype(data.dtype, np.number):
-            warnings.warn(f"Non-numeric data detected in group '{group_name or 'all'}'. This may cause issues with FCS export.")
+            warnings.warn(
+                f"Non-numeric data detected in group '{group_name or 'all'}'. This may cause "
+                "issues with FCS export.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         # Check for NaNs before filtering
         n_nans = np.isnan(data).sum()
         if n_nans > 0:
-            warnings.warn(f"Group '{group_name or 'all'}' contains {n_nans} NaNs. These rows will be removed before writing.")
+            warnings.warn(
+                f"Group '{group_name or 'all'}' contains {n_nans} NaNs. These rows will be "
+                "removed before writing.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
 
         return data
 
@@ -213,14 +240,28 @@ def write_fcs(
             sub = adata[adata.obs[split_by] == group]
             data = get_data(sub, group)
             data = data[~np.isnan(data).any(axis=1)]
-            out_file = output_dir / f"export_{group}.fcs"
-            fcswrite.write_fcs(out_file, chn_names=list(sub.var_names), data=data, **write_kwargs)
+            out_file = output_dir / f"{prefix}_{group}.fcs"
+            fcswrite.write_fcs(
+                out_file,
+                chn_names=chn_names,
+                data=data,
+                text_kw_pr=text,
+                compat_percent=False,
+                **write_kwargs,
+            )
             if verbose:
                 print(f"Wrote: {out_file} | shape={data.shape}")
     else:
         data = get_data(adata)
         data = data[~np.isnan(data).any(axis=1)]
-        out_file = output_dir / "export.fcs"
-        fcswrite.write_fcs(out_file, chn_names=list(adata.var_names), data=data, **write_kwargs)
+        out_file = output_dir / f"{prefix}.fcs"
+        fcswrite.write_fcs(
+            out_file,
+            chn_names=chn_names,
+            data=data,
+            text_kw_pr=text,
+            compat_percent=False,
+            **write_kwargs,
+        )
         if verbose:
             print(f"Wrote: {out_file} | shape={data.shape}")
