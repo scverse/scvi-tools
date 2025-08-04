@@ -8,7 +8,8 @@ from scvi.model import SCANVI, SCVI, TOTALVI
 
 
 @pytest.mark.autotune
-def test_run_autotune_scvi_basic(save_path: str):
+@pytest.mark.parametrize("save_checkpoints", [True, False])
+def test_run_autotune_scvi_basic(save_path: str, save_checkpoints: bool):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -33,6 +34,7 @@ def test_run_autotune_scvi_basic(save_path: str):
         },
         num_samples=2,
         seed=0,
+        save_checkpoints=save_checkpoints,
         scheduler="asha",
         searcher="hyperopt",
         ignore_reinit_error=True,

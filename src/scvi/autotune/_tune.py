@@ -29,6 +29,7 @@ def run_autotune(
     resources: dict[Literal["cpu", "gpu", "memory"], float] | None = None,
     experiment_name: str | None = None,
     logging_dir: str | None = None,
+    save_checkpoints: bool = False,
     scheduler_kwargs: dict | None = None,
     searcher_kwargs: dict | None = None,
     scib_stage: str | None = "train_end",
@@ -97,6 +98,8 @@ def run_autotune(
         to the model class name.
     logging_dir
         Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
+    save_checkpoints
+        If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
@@ -147,6 +150,7 @@ def run_autotune(
         resources=resources,
         name=experiment_name,
         logging_dir=logging_dir,
+        save_checkpoints=save_checkpoints,
         scheduler_kwargs=scheduler_kwargs,
         searcher_kwargs=searcher_kwargs,
         scib_stage=scib_stage,

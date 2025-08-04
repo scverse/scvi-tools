@@ -289,6 +289,8 @@ class AutotuneExperiment:
         Name of the experiment, used for logging purposes. Defaults to a unique ID.
     logging_dir
         Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
+    save_checkpoints
+        If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
@@ -326,6 +328,7 @@ class AutotuneExperiment:
         resources: dict[Literal["cpu", "gpu", "memory"], float] | None = None,
         name: str | None = None,
         logging_dir: str | None = None,
+        save_checkpoints: bool = False,
         scheduler_kwargs: dict | None = None,
         searcher_kwargs: dict | None = None,
         scib_stage: str | None = "train_end",
@@ -346,6 +349,7 @@ class AutotuneExperiment:
         self.resources = resources
         self.name = name
         self.logging_dir = logging_dir
+        self.save_checkpoints = save_checkpoints
         self.scib_stage = scib_stage
         self.scib_subsample_rows = scib_subsample_rows
         self.scib_indices_list = scib_indices_list
@@ -667,7 +671,9 @@ class AutotuneExperiment:
             {},
         )
 
-        return callback_cls(metrics=self.metrics, on="validation_end", save_checkpoints=False)
+        return callback_cls(
+            metrics=self.metrics, on="validation_end", save_checkpoints=self.save_checkpoints
+        )
 
     @property
     def scib_metrics_callback(self) -> Callback:
@@ -684,7 +690,7 @@ class AutotuneExperiment:
         return callback_cls(
             metrics=self.metrics,
             on=self.scib_stage,
-            save_checkpoints=False,
+            save_checkpoints=self.save_checkpoints,
             num_rows_to_select=self.scib_subsample_rows,
             indices_list=self.scib_indices_list,
         )
