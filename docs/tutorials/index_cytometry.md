@@ -10,5 +10,5 @@ notebooks/cytometry/CytoVI_tutorial
 :path: notebooks/cytometry/CytoVI_tutorial
 :tags: Integration, Analysis, Cytometry
 
-Correct batch effects in cytometric data experiments with cytoVI
+Correct batch effects in cytometry data experiments with cytoVI
 ```
