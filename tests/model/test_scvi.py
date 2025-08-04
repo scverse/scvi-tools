@@ -1307,6 +1307,7 @@ def test_scvi_batch_embeddings(
         _ = model.get_batch_representation()
 
 
+@pytest.mark.dataloader
 @pytest.mark.parametrize("n_latent", [5])
 def test_scvi_inference_custom_dataloader(n_latent: int):
     adata = synthetic_iid()

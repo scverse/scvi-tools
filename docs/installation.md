@@ -11,11 +11,20 @@ For the basic CPU version run:
 ```bash
 pip install -U scvi-tools
 ```
-
 or
-
 ```bash
 conda install scvi-tools -c conda-forge
+```
+
+In order to install scvi-tools with Nvidia GPU CUDA support, for Linux Systems
+(such as Ubuntu or RedHat) use:
+
+```bash
+pip install -U scvi-tools[cuda]
+```
+And for Apple Silicon metal (MPS) support:
+```bash
+pip install -U scvi-tools[metal]
 ```
 
 Don't know how to get started with virtual environments or `conda`/`pip`? Check out the
@@ -55,17 +64,7 @@ an accelerated device, we recommend installing scvi-tools directly and letting t
 be installed automatically by your package manager of choice.
 
 If you plan on taking advantage of an accelerated device (e.g. Nvidia GPU or Apple Silicon),
-which is likely, scvi-tools supports it.
-In order to install scvi-tools with Nvidia GPU CUDA support, for Linux Systems
-(such as Ubuntu or RedHat) use:
-
-```bash
-pip install -U scvi-tools[cuda]
-```
-And for Apple Silicon metal (MPS) support:
-```bash
-pip install -U scvi-tools[metal]
-```
+which is likely, scvi-tools supports it and you should install with the GPU support dependency of scvi-tools.
 
 However, there might be cases where the GPU HW is not supporting the latest installation of PyTorch and Jax.
 In this case we recommend installing PyTorch and JAX _before_ installing scvi-tools.
