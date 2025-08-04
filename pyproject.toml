@@ -37,7 +37,7 @@ dependencies = [
     "docrep>=0.3.2",
     "flax",
     "jax==0.4.35",
-    "jaxlib==0.4.34",
+    "jaxlib==0.4.35",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
