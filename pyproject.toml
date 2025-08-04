@@ -36,8 +36,8 @@ dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
     "flax",
-    "jax<0.7.0",
-    "jaxlib<0.7.0",
+    "jax==0.4.35",
+    "jaxlib==0.4.34",
     "lightning>=2.0",
     "ml-collections>=0.1.1",
     "mudata>=0.1.2",
@@ -63,7 +63,7 @@ tests = ["pytest", "pytest-pretty", "coverage", "selenium", "scvi-tools[optional
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]<0.7.0"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]==0.4.35"]
 metal = ["torchvision", "torchaudio", "jax-metal"]
 
 docs = [
