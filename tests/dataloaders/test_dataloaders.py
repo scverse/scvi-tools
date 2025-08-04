@@ -146,11 +146,9 @@ def test_scanvi_with_distributed_sampler(num_processes: int, save_path: str):
     if os.path.exists(file_path):  # Check if the file exists
         os.remove(file_path)
     datasplitter_kwargs = {}
-    # Multi-GPU settings
-    datasplitter_kwargs["distributed_sampler"] = True
     datasplitter_kwargs["drop_last"] = False
-    if num_processes == 1:
-        datasplitter_kwargs["distributed_sampler"] = False
+    if num_processes == 2:
+        datasplitter_kwargs["distributed_sampler"] = True
     model = SCANVI(adata, n_latent=10)
 
     # initializes the distributed backend that takes care of synchronizing processes
