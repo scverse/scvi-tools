@@ -6,6 +6,20 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.3
 
+### 1.3.4 (2025-XX-XX)
+
+#### Added
+
+- Add checkpointing with autotune, {pr}`3452`.
+
+#### Fixed
+
+- fix in library size calculation in totalvi, {pr}`3452`.
+
+#### Changed
+
+#### Removed
+
 ### 1.3.3 (2025-07-23)
 
 #### Added
