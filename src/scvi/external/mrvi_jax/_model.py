@@ -12,9 +12,9 @@ from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
-from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
+from scvi.external.mrvi_jax._module import JaxMRVAE
+from scvi.external.mrvi_jax._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass
 from scvi.model.base._jaxmixin import JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
@@ -46,7 +46,7 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class MRVI(JaxTrainingMixin, BaseModelClass):
+class JaxMRVI(JaxTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
@@ -96,7 +96,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
     See Also
     --------
-    :class:`~scvi.external.mrvi.MRVAE`
+    :class:`~scvi.external.mrvi.JaxMRVAE`
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
@@ -118,7 +118,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
             adata.obs._scvi_sample.value_counts().sort_index().values
         )
 
-        self.module = MRVAE(
+        self.module = JaxMRVAE(
             n_input=self.summary_stats.n_vars,
             n_sample=n_sample,
             n_batch=n_batch,
@@ -347,7 +347,7 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
         """
         from functools import partial
 
-        from scvi.external.mrvi._utils import _parse_local_statistics_requirements
+        from scvi.external.mrvi_jax._utils import _parse_local_statistics_requirements
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 

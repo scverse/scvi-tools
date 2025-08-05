@@ -12,7 +12,7 @@ import numpyro.distributions as dist
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.external.mrvi._components import AttentionBlock, Dense
+from scvi.external.mrvi_jax._components import AttentionBlock, Dense
 from scvi.module.base._base_module import JaxBaseModuleClass
 from scvi.module.base._decorators import flax_configure
 
@@ -390,7 +390,7 @@ class EncoderXU(nn.Module):
         sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
-        from scvi.external.mrvi._components import (
+        from scvi.external.mrvi_jax._components import (
             ConditionalNormalization,
             NormalDistOutputNN,
         )
@@ -413,7 +413,7 @@ class EncoderXU(nn.Module):
 
 
 @flax_configure
-class MRVAE(JaxBaseModuleClass):
+class JaxMRVAE(JaxBaseModuleClass):
     """Multi-resolution Variational Inference (MrVI) module.
 
     Parameters
