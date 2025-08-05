@@ -21,13 +21,11 @@ class Dense(nn.Linear):
 class ResnetBlock(nn.Module):
     def __init__(
         self,
-        # TODO: should I keep n_in or is there a functional way to do this like in flax?
         n_in: int,
         n_out: int,
         n_hidden: int = 128,
         internal_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
         output_activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
-        training: bool | None = None,
     ):
         super().__init__()
         self.n_in = n_in
@@ -35,10 +33,9 @@ class ResnetBlock(nn.Module):
         self.n_hidden = n_hidden
         self.internal_activation = internal_activation
         self.output_activation = output_activation
-        self.training = training
 
         # dense layer
-        self.fc1 = Dense(in_features=n_in, out_features=n_hidden)
+        self.fc1 = nn.Linear(in_features=n_in, out_features=n_hidden)
 
         # layer norm
         self.layer_norm1 = nn.LayerNorm(n_hidden)
@@ -47,16 +44,18 @@ class ResnetBlock(nn.Module):
 
         # skip connection if n_in equal to n_hidden,
         # otherwise dense layer applied before skip connection to match features
-        self.fc_match = Dense(in_features=n_in, out_features=n_hidden)
+        if n_in != n_hidden:
+            self.fc_match = nn.Linear(in_features=n_in, out_features=n_hidden)
+        else:
+            self.fc_match = None
 
         # dense layer
-        self.fc2 = Dense(in_features=n_hidden, out_features=n_out)
+        self.fc2 = nn.Linear(in_features=n_hidden, out_features=n_out)
 
         # layer norm
         self.layer_norm2 = nn.LayerNorm(n_out)
 
-    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
-        self.training = training  # is this sufficients compared to jax version?
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         h = self.fc1(inputs)
         h = self.layer_norm1(h)
         h = self.internal_activation(h)
@@ -79,7 +78,6 @@ class MLP(nn.Module):
         n_hidden: int = 128,
         n_layers: int = 1,
         activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
-        training: bool | None = None,
     ):
         super().__init__()
         self.n_in = n_in
@@ -87,27 +85,24 @@ class MLP(nn.Module):
         self.n_hidden = n_hidden
         self.n_layers = n_layers
         self.activation = activation
-        self.training = training
 
         # sequence of n_layers resnet blocks
         self.resnet_blocks = nn.Sequential(
             *[
                 ResnetBlock(
-                    n_in=n_in,
+                    n_in=n_in if i == 0 else n_hidden,
                     n_out=n_hidden,
                     internal_activation=activation,
                     output_activation=activation,
                 )
-                for _ in range(n_layers)
+                for i in range(n_layers)
             ]
         )
 
         # dense layer to project to the output dimension
         self.fc = Dense(in_features=n_hidden, out_features=n_out)
 
-    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> torch.Tensor:
-        self.training = training  # is this sufficient compared to jax version?
-
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         h = self.resnet_blocks(inputs)
         return self.fc(h)
 
@@ -120,7 +115,6 @@ class NormalDistOutputNN(nn.Module):
         n_hidden: int = 128,
         n_layers: int = 1,
         scale_eps: float = 1e-5,
-        training: bool | None = None,
     ):
         super().__init__()
         self.n_in = n_in
@@ -128,17 +122,11 @@ class NormalDistOutputNN(nn.Module):
         self.n_hidden = n_hidden
         self.n_layers = n_layers
         self.scale_eps = scale_eps
-        self.training = training
 
-        self.resnet_blocks = nn.ModuleList(
-            [
-                ResnetBlock(
-                    n_in=n_in,
-                    n_out=n_hidden,
-                )
-                for _ in range(n_layers)
-            ]
-        )
+        self.resnet_blocks = nn.ModuleList()
+        for i in range(n_layers):
+            block_n_in = n_in if i == 0 else n_hidden
+            self.resnet_blocks.append(ResnetBlock(n_in=block_n_in, n_out=n_hidden))
 
         self.fc_mean = Dense(in_features=n_hidden, out_features=n_out)
         self.fc_scale = nn.Sequential(
@@ -146,12 +134,10 @@ class NormalDistOutputNN(nn.Module):
             nn.Softplus(),
         )
 
-    def forward(self, inputs: torch.Tensor, training: bool | None = None) -> Normal:
-        # what is below doing?
-        # training = nn.merge_param("training", self.training, training)
+    def forward(self, inputs: torch.Tensor) -> Normal:
         h = inputs
         for block in self.resnet_blocks:
-            h = block(h, training)
+            h = block(h)
         mean = self.fc_mean(h)
         scale = self.fc_scale(h)
         return Normal(mean, scale + self.scale_eps)
@@ -162,18 +148,20 @@ class ConditionalNormalization(nn.Module):
         self,
         n_features: int,
         n_conditions: int,
-        training: bool | None = None,
         normalization_type: Literal["batch", "layer"] = "layer",
     ):
         super().__init__()
         self.n_features = n_features
         self.n_conditions = n_conditions
-        self.training = training
         self.normalization_type = normalization_type
 
         # Initialize embedding layers in __init__ instead of forward
         self.gamma_embedding = nn.Embedding(self.n_conditions, self.n_features)
         self.beta_embedding = nn.Embedding(self.n_conditions, self.n_features)
+
+        # Match JAX initialization
+        nn.init.normal_(self.gamma_embedding.weight, mean=1.0, std=0.02)
+        nn.init.zeros_(self.beta_embedding.weight)
 
         # Initialize normalization layers
         if self.normalization_type == "batch":
@@ -190,13 +178,13 @@ class ConditionalNormalization(nn.Module):
         if self.normalization_type == "batch":
             # For BatchNorm, we need to set training mode
             if training is not None:
-                self.norm_layer.training = training
+                self.train() if training else self.eval()
             x = self.norm_layer(x)
         else:  # layer norm
             x = self.norm_layer(x)
 
         # Use pre-initialized embedding layers
-        cond_int = condition.squeeze(-1).to(torch.int64)  # TODO: check if 64 or 32
+        cond_int = condition.squeeze(-1).to(torch.int64)
         gamma = self.gamma_embedding(cond_int)
         beta = self.beta_embedding(cond_int)
 
@@ -215,7 +203,6 @@ class AttentionBlock(nn.Module):
         dropout_rate: float = 0.0,
         n_hidden_mlp: int = 32,
         n_layers_mlp: int = 1,
-        training: bool | None = None,
         stop_gradients_mlp: bool = False,
         activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
     ):
@@ -229,7 +216,6 @@ class AttentionBlock(nn.Module):
         self.dropout_rate = dropout_rate
         self.n_hidden_mlp = n_hidden_mlp
         self.n_layers_mlp = n_layers_mlp
-        self.training = training
         self.stop_gradients_mlp = stop_gradients_mlp
         self.activation = activation
 
@@ -252,22 +238,23 @@ class AttentionBlock(nn.Module):
             n_out=outerprod_dim,
             n_hidden=n_hidden_mlp,
             n_layers=n_layers_mlp,
-            training=training,
             activation=activation,
         )
+        self.mlp_eps.train()
         self.mlp_residual = MLP(
             n_in=outerprod_dim + query_dim,
             n_out=out_dim,
             n_hidden=n_hidden_mlp,
             n_layers=n_layers_mlp,
-            training=training,
             activation=activation,
         )
+        self.mlp_residual.train()
 
     def forward(
-        self, query_embed: torch.Tensor, kv_embed: torch.Tensor, training: bool | None = None
+        self,
+        query_embed: torch.Tensor,
+        kv_embed: torch.Tensor,
     ) -> torch.Tensor:
-        self.training = training
         has_mc_samples = query_embed.ndim == 3
 
         if self.stop_gradients_mlp:
@@ -306,11 +293,11 @@ class AttentionBlock(nn.Module):
         ]  # (batch_size, outerprod_dim, n_channels * n_heads)
 
         eps = torch.reshape(eps, (eps.shape[0], -1))
-        eps_ = self.mlp_eps(eps, training)
+        eps_ = self.mlp_eps(eps)
         inputs = torch.cat(
             [query_embed_flat_batch if has_mc_samples else query_embed, eps_], dim=-1
         )
-        residual = self.mlp_residual(inputs, training)
+        residual = self.mlp_residual(inputs)
 
         if has_mc_samples:
             # Reshape back to the original batch and mc samples dimensions

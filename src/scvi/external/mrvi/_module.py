@@ -10,7 +10,11 @@ import torch.nn.init as init
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import NegativeBinomial
-from scvi.external.mrvi._components import AttentionBlock
+from scvi.external.mrvi._components import (
+    AttentionBlock,
+    ConditionalNormalization,
+    NormalDistOutputNN,
+)
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 if TYPE_CHECKING:
@@ -56,8 +60,6 @@ class DecoderZXAttention(nn.Module):
         Whether to stop gradients to ``z``.
     stop_gradients_mlp
         Whether to stop gradients to the MLP in the attention block.
-    training
-        Whether the model is in training mode.
     n_hidden
         Number of hidden units in the MLP.
     n_layers
@@ -82,7 +84,6 @@ class DecoderZXAttention(nn.Module):
         stop_gradients_mlp: bool = False,
         n_hidden: int = 32,
         n_layers: int = 1,
-        training: bool | None = None,
         low_dim_batch: bool = True,
         activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
     ):
@@ -97,10 +98,8 @@ class DecoderZXAttention(nn.Module):
         self.dropout_rate = dropout_rate
         self.stop_gradients = stop_gradients
         self.stop_gradients_mlp = stop_gradients_mlp
-        self.training = training
         self.n_hidden = n_hidden
         self.n_layers = n_layers
-        self.training = training
         self.low_dim_batch = low_dim_batch
         self.activation = activation
 
@@ -123,7 +122,6 @@ class DecoderZXAttention(nn.Module):
             n_hidden_mlp=self.n_hidden,
             n_layers_mlp=self.n_layers,
             stop_gradients_mlp=self.stop_gradients_mlp,
-            training=self.training,
             activation=self.activation,
         )
 
@@ -143,13 +141,10 @@ class DecoderZXAttention(nn.Module):
         z: torch.Tensor,
         batch_covariate: torch.Tensor,
         size_factor: torch.Tensor,
-        training: bool | None = None,
     ) -> NegativeBinomial:
         has_mc_samples = z.ndim == 3
         z_stop = z if not self.stop_gradients else z.detach()
         z_ = self.layer_norm(z_stop)
-
-        training = training if training is not None else self.training
 
         batch_covariate = batch_covariate.to(torch.int64).flatten()
 
@@ -161,9 +156,7 @@ class DecoderZXAttention(nn.Module):
 
             query_embed = z_
             kv_embed = batch_embed
-            residual = self.attention_block(
-                query_embed=query_embed, kv_embed=kv_embed, training=training
-            )
+            residual = self.attention_block(query_embed=query_embed, kv_embed=kv_embed)
             if self.low_dim_batch:
                 mu = self.fc(z + residual)
             else:
@@ -192,7 +185,6 @@ class EncoderUZ(nn.Module):
         use_map: bool = True,
         n_hidden: int = 32,
         n_layers: int = 1,
-        training: bool | None = None,
         activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
     ):
         super().__init__()
@@ -208,7 +200,6 @@ class EncoderUZ(nn.Module):
         self.use_map = use_map
         self.n_hidden = n_hidden
         self.n_layers = n_layers
-        self.training = training
         self.activation = activation
 
         self.layer_norm = nn.LayerNorm(self.n_latent_u)
@@ -229,7 +220,6 @@ class EncoderUZ(nn.Module):
             stop_gradients_mlp=self.stop_gradients_mlp,
             n_hidden_mlp=self.n_hidden,
             n_layers_mlp=self.n_layers,
-            training=self.training,
             activation=self.activation,
         )
 
@@ -240,9 +230,7 @@ class EncoderUZ(nn.Module):
         self,
         u: torch.Tensor,
         sample_covariate: torch.Tensor,
-        training: bool | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        training = training if training is not None else self.training
         sample_covariate = sample_covariate.to(torch.int64).flatten()
         has_mc_samples = u.ndim == 3
         u_stop = u if not self.stop_gradients else u.detach()
@@ -258,7 +246,7 @@ class EncoderUZ(nn.Module):
         if has_mc_samples:
             sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
 
-        residual = self.attention_block(query_embed=u_, kv_embed=sample_embed, training=training)
+        residual = self.attention_block(query_embed=u_, kv_embed=sample_embed)
 
         if self.n_latent_u is not None:
             z_base = self.fc(u_stop)
@@ -287,15 +275,12 @@ class EncoderXU(nn.Module):
         self.activation = activation
         self.training = training
 
-        from scvi.external.mrvi._components import (
-            ConditionalNormalization,
-            NormalDistOutputNN,
-        )
-
         self.fc1 = nn.Linear(self.n_input, self.n_hidden)
         self.conditional_norm1 = ConditionalNormalization(self.n_hidden, self.n_sample)
+        self.conditional_norm1.train()
         self.fc2 = nn.Linear(self.n_hidden, self.n_hidden)
         self.conditional_norm2 = ConditionalNormalization(self.n_hidden, self.n_sample)
+        self.conditional_norm2.train()
 
         # TODO : why is commented out?
         """self.fc_layers = nn.Sequential(
@@ -306,6 +291,7 @@ class EncoderXU(nn.Module):
             ConditionalNormalization(self.n_hidden, self.n_sample),
             self.activation(),
         )"""
+
         self.sample_embed = nn.Embedding(self.n_sample, self.n_hidden)
         # Initialize with same standard deviation as JAX version
         init.normal_(self.sample_embed.weight, std=0.1)
@@ -321,16 +307,14 @@ class EncoderXU(nn.Module):
         training = training if training is not None else self.training
         x_feat = torch.log1p(x)
         x_feat = self.fc1(x_feat)
-        x_feat = self.conditional_norm1(x_feat, sample_covariate)
+        x_feat = self.conditional_norm1(x_feat, sample_covariate, training=training)
         x_feat = self.activation(x_feat)
         x_feat = self.fc2(x_feat)
-        x_feat = self.conditional_norm2(x_feat, sample_covariate)
+        x_feat = self.conditional_norm2(x_feat, sample_covariate, training=training)
         x_feat = self.activation(x_feat)
-        sample_effect = self.sample_embed(
-            sample_covariate.squeeze(-1).to(torch.int64)  # TODO: check if should be int64
-        )
+        sample_effect = self.sample_embed(sample_covariate.squeeze(-1).to(torch.int64))
         inputs = x_feat + sample_effect
-        return self.output_nn(inputs, training=training)
+        return self.output_nn(inputs)
 
 
 class MRVAE(BaseModuleClass):
@@ -354,7 +338,6 @@ class MRVAE(BaseModuleClass):
         px_kwargs: dict | None = None,
         qz_kwargs: dict | None = None,
         qu_kwargs: dict | None = None,
-        training: bool = True,
         n_obs_per_sample: torch.Tensor | None = None,
     ):
         super().__init__()
@@ -376,7 +359,6 @@ class MRVAE(BaseModuleClass):
         self.px_kwargs = px_kwargs
         self.qz_kwargs = qz_kwargs
         self.qu_kwargs = qu_kwargs
-        self.training = training
         self.n_obs_per_sample = n_obs_per_sample
 
         px_kwargs = DEFAULT_PX_KWARGS.copy()
@@ -465,7 +447,7 @@ class MRVAE(BaseModuleClass):
             x = torch.Tensor(x)
         if type(sample_index).__name__ != "Tensor" and sample_index is not None:
             sample_index = torch.Tensor(sample_index)
-        qu = self.qu(x, sample_index, training=self.training)
+        qu = self.qu(x, sample_index)
         if use_mean:
             u = qu.mean
         else:
@@ -479,7 +461,7 @@ class MRVAE(BaseModuleClass):
 
         sample_index_cf = sample_index if cf_sample is None else cf_sample
 
-        z_base, eps = self.qz(u, sample_index_cf, training=self.training)
+        z_base, eps = self.qz(u, sample_index_cf)
         qeps_ = eps
 
         qeps = None
@@ -537,12 +519,7 @@ class MRVAE(BaseModuleClass):
     ) -> dict[str, torch.Tensor | dist.Distribution]:
         """Generative model."""
         library_exp = torch.exp(library)
-        px = self.px(
-            z,
-            batch_index,
-            size_factor=library_exp,
-            training=self.training,
-        )
+        px = self.px(z, batch_index, size_factor=library_exp)
         h = px.mean / library_exp
 
         if self.u_prior_mixture:

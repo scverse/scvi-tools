@@ -1,12 +1,22 @@
+import pytest
 import torch
+from torch import nn
 
 from scvi.external.mrvi._components import (
+    MLP,
     AttentionBlock,
     ConditionalNormalization,
     Dense,
     NormalDistOutputNN,
     ResnetBlock,
 )
+
+
+def _init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
 
 
 def test_dense():
@@ -20,7 +30,9 @@ def test_dense():
 def test_resnetblock():
     torch.manual_seed(0)
     x = torch.ones((20, 10))
-    block = ResnetBlock(10, 30, training=True)
+    block = ResnetBlock(n_in=10, n_out=30, n_hidden=128)
+    block.apply(_init_weights)
+    block.train()
     params = block(x)
     assert params.shape == torch.Size([20, 30])
 
@@ -28,19 +40,32 @@ def test_resnetblock():
 def test_normalnn():
     torch.manual_seed(0)
     x = torch.ones((20, 10))
-    nn = NormalDistOutputNN(10, 30, 3, training=True)
+    nn = NormalDistOutputNN(n_in=10, n_out=30, n_hidden=128, n_layers=3)
     params = nn(x)
     assert params.loc.shape == torch.Size([20, 30])
 
 
-def test_conditionalbatchnorm1d():
+def test_mlp():
+    torch.manual_seed(0)
+    x = torch.ones((20, 10))
+    mlp = MLP(n_in=10, n_out=30, n_hidden=128, n_layers=3, activation=nn.ReLU())
+    mlp.train()
+    output = mlp(x)
+    assert output.shape == torch.Size([20, 30])
+
+
+@pytest.mark.parametrize("training", [True, False])
+def test_conditionalbatchnorm1d(training):
     torch.manual_seed(0)
     x = torch.ones((20, 10))
     y = torch.ones((20, 1))
     conditionalbatchnorm1d = ConditionalNormalization(
-        10, 3, normalization_type="batch", training=True
+        n_features=10,
+        n_conditions=3,
+        normalization_type="batch",
     )
-    params = conditionalbatchnorm1d(x, y)
+    conditionalbatchnorm1d.train()
+    params = conditionalbatchnorm1d(x, y, training=training)
     assert params.shape == torch.Size([20, 10])
 
 
@@ -48,7 +73,7 @@ def test_attention():
     torch.manual_seed(0)
     q_vals = torch.ones((30, 10))
     kv_vals = torch.ones((30, 10))
-    mod = AttentionBlock(query_dim=10, kv_dim=10, out_dim=40, training=True)
+    mod = AttentionBlock(query_dim=10, kv_dim=10, out_dim=40)
     out = mod(q_vals, kv_vals)
     assert out.shape == (30, 40)
     q_vals_3d = torch.ones((3, 30, 10))
