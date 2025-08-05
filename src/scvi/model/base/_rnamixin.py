@@ -57,6 +57,7 @@ class RNASeqMixin:
         truncation: bool = False,
         n_mc_samples: int = 500,
         n_mc_samples_per_pass: int = 250,
+        **data_loader_kwargs,
     ) -> np.ndarray:
         """Computes importance weights for the given samples.
 
@@ -90,6 +91,8 @@ class RNASeqMixin:
             500
         n_mc_samples_per_pass
             Number of Monte Carlo samples to use for each pass, by default 250
+        **data_loader_kwargs
+            Keyword args for data loader.
 
         Returns
         -------
@@ -123,7 +126,7 @@ class RNASeqMixin:
         log_px_z = []
         distributions_px = deep_to(px, device=device)
         scdl_anchor = self._make_data_loader(
-            adata=adata, indices=indices[anchor_cells], batch_size=1
+            adata=adata, indices=indices[anchor_cells], batch_size=1, **data_loader_kwargs
         )
         for tensors_anchor in scdl_anchor:
             tensors_anchor = _move_data_to_device(tensors_anchor, device)
@@ -166,6 +169,7 @@ class RNASeqMixin:
         return_numpy: bool | None = None,
         silent: bool = True,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        data_loader_kwargs: dict | None = None,
         **importance_weighting_kwargs,
     ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
@@ -212,6 +216,8 @@ class RNASeqMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
@@ -236,7 +242,10 @@ class RNASeqMixin:
             if n_samples_overall is not None:
                 assert n_samples == 1  # default value
                 n_samples = n_samples_overall // len(indices) + 1
-            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+            data_loader_kwargs = data_loader_kwargs or {}
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
+            )
 
             transform_batch = _get_batch_code_from_category(
                 self.get_anndata_manager(adata, required=True), transform_batch
@@ -452,6 +461,7 @@ class RNASeqMixin:
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         silent: bool = True,
+        **data_loader_kwargs,
     ) -> GCXS:
         r"""Generate predictive samples from the posterior predictive distribution.
 
@@ -490,6 +500,8 @@ class RNASeqMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        **data_loader_kwargs
+            Keyword args for data loader.
 
         Returns
         -------
@@ -503,7 +515,7 @@ class RNASeqMixin:
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
 
             transform_batch = _get_batch_code_from_category(
@@ -559,6 +571,7 @@ class RNASeqMixin:
         rna_size_factor: int = 1000,
         transform_batch: list[int] | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        **data_loader_kwargs,
     ) -> np.ndarray:
         """Return samples from an adjusted posterior predictive.
 
@@ -581,6 +594,8 @@ class RNASeqMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        **data_loader_kwargs
+            Keyword args for data loader.
 
         Returns
         -------
@@ -590,7 +605,9 @@ class RNASeqMixin:
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
-            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
+            )
         else:
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
@@ -733,6 +750,7 @@ class RNASeqMixin:
         give_mean: bool | None = False,
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        **data_loader_kwargs,
     ) -> dict[str, np.ndarray]:
         r"""Estimates for the parameters of the likelihood :math:`p(x \mid z)`.
 
@@ -753,12 +771,17 @@ class RNASeqMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        **data_loader_kwargs
+            Keyword args for data loader.
+
         """
         _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
-            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
+            )
         else:
             scdl = dataloader
             for param in [indices, batch_size, n_samples]:
@@ -824,6 +847,7 @@ class RNASeqMixin:
         give_mean: bool = True,
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        **data_loader_kwargs,
     ) -> np.ndarray:
         r"""Returns the latent library size for each cell.
 
@@ -844,13 +868,18 @@ class RNASeqMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        **data_loader_kwargs
+            Keyword args for data loader.
+
         """
         _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             self._check_if_trained(warn=False)
             adata = self._validate_anndata(adata)
-            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
+            )
         else:
             scdl = dataloader
             for param in [indices, batch_size]:
