@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager, fields
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
@@ -19,10 +20,12 @@ from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.utils import setup_anndata_dsp
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from typing import Literal
 
     import numpy.typing as npt
     from anndata import AnnData
+    from torch import Tensor
     from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
@@ -98,8 +101,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     :class:`~scvi.external.mrvi.MRVAE`
     """
 
-    def __init__(self, adata: AnnData, **model_kwargs):
-        super().__init__(adata)
+    def __init__(self, adata: AnnData | None = None, registry: dict | None = None, **model_kwargs):
+        super().__init__(adata, registry)
 
         warnings.warn(
             "You are using the Torch Version of MrVI, starting v1.4, "
@@ -108,21 +111,31 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             stacklevel=2,
         )
 
-        n_sample = self.summary_stats.n_sample
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
+        n_sample = self.summary_stats.n_sample
 
-        self.update_sample_info(adata)
-        self.sample_key = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.SAMPLE_KEY
-        ).original_key
-        self.sample_order = self.adata_manager.get_state_registry(
-            REGISTRY_KEYS.SAMPLE_KEY
-        ).categorical_mapping
-
-        self.n_obs_per_sample = torch.Tensor(
-            adata.obs._scvi_sample.value_counts().sort_index().values
-        )
+        if adata is not None:
+            self.update_sample_info(adata)
+            self.sample_key = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.SAMPLE_KEY
+            ).original_key
+            self.sample_order = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.SAMPLE_KEY
+            ).categorical_mapping
+            self.n_obs_per_sample = torch.Tensor(
+                adata.obs._scvi_sample.value_counts().sort_index().values
+            )
+        else:
+            self.sample_key = self.registry["field_registries"][f"{REGISTRY_KEYS.SAMPLE_KEY}"][
+                "state_registry"
+            ]["original_key"]
+            self.sample_order = self.registry["field_registries"][f"{REGISTRY_KEYS.SAMPLE_KEY}"][
+                "state_registry"
+            ]["categorical_mapping"]
+            self.n_obs_per_sample = self.registry["field_registries"][
+                f"{REGISTRY_KEYS.SAMPLE_KEY}"
+            ]["n_obs_per_sample"]["n_obs_per_sample"]
 
         self.module = MRVAE(
             n_input=self.summary_stats.n_vars,
@@ -266,6 +279,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_size: int | None = None,
         use_mean: bool = True,
         give_z: bool = False,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> npt.NDArray:
         """Compute the latent representation of the data.
 
@@ -281,19 +295,30 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Whether to use the mean of the distribution as the latent representation.
         give_z
             Whether to return the z latent representation or the u latent representation.
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------
         The latent representation of the data.
         """
         self._check_if_trained(warn=False)
-        adata = self._validate_anndata(adata)
-        dataloader = self._make_data_loader(
-            adata=adata,
-            indices=indices,
-            batch_size=batch_size,
-        )
-
+        _validate_adata_dataloader_input(self, adata, dataloader)
+        if dataloader is None:
+            dataloader = self._make_data_loader(
+                adata=adata,
+                indices=indices,
+                batch_size=batch_size,
+            )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
         us = []
         zs = []
 

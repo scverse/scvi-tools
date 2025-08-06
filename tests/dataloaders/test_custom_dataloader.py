@@ -9,6 +9,7 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
+from scvi.external import MRVI
 from scvi.utils import dependencies
 
 
@@ -377,6 +378,90 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     model_query_adata.train(max_epochs=1, check_val_every_n_epoch=1, train_size=0.9)
     model_query_adata.predict(adata=adata, soft=True)
     model.history.keys()
+
+
+@pytest.mark.dataloader
+@dependencies("lamindb")
+def test_lamindb_dataloader_mrvi_small(save_path: str):
+    os.system("lamin init --storage ./lamindb_collection")  # one time for github runner (comment)
+    import lamindb as ln
+
+    # ln.setup.init()  # one time for github runner (comment out when runing localy)
+
+    # prepare test data
+    adata1 = synthetic_iid()
+    adata1.obs.index.name = "cell_id"
+    adata1.obs["sample"] = np.random.choice(15, size=adata1.shape[0])
+    adata1.obs["sample_str"] = [chr(i + ord("a")) for i in adata1.obs["sample"]]
+    adata1.obs["sample_str"] = adata1.obs["sample_str"].astype(str)
+    meta11 = np.random.randint(0, 2, size=15)
+    adata1.obs["meta1"] = meta11[adata1.obs["sample"].values]
+    meta21 = np.random.randn(15)
+    adata1.obs["meta2"] = meta21[adata1.obs["sample"].values]
+    adata1.obs["cont_cov"] = np.random.normal(0, 1, size=adata1.shape[0])
+    adata1.obs["meta1_cat"] = "CAT_" + adata1.obs["meta1"].astype(str)
+    adata1.obs.loc[:, "disjoint_batch"] = (adata1.obs.loc[:, "sample"] <= 6).replace(
+        {True: "batch_0", False: "batch_1"}
+    )
+    adata1.obs["dummy_batch"] = 1
+
+    adata2 = synthetic_iid()
+    adata2.obs.index.name = "cell_id"
+    adata2.obs["sample"] = np.random.choice(15, size=adata2.shape[0])
+    adata2.obs["sample_str"] = [chr(i + ord("a")) for i in adata2.obs["sample"]]
+    adata2.obs["sample_str"] = adata2.obs["sample_str"].astype(str)
+    meta12 = np.random.randint(0, 2, size=15)
+    adata2.obs["meta1"] = meta12[adata2.obs["sample"].values]
+    meta22 = np.random.randn(15)
+    adata2.obs["meta2"] = meta22[adata2.obs["sample"].values]
+    adata2.obs["cont_cov"] = np.random.normal(0, 1, size=adata2.shape[0])
+    adata2.obs["meta1_cat"] = "CAT_" + adata2.obs["meta1"].astype(str)
+    adata2.obs.loc[:, "disjoint_batch"] = (adata2.obs.loc[:, "sample"] <= 6).replace(
+        {True: "batch_0", False: "batch_1"}
+    )
+    adata2.obs["dummy_batch"] = 1
+
+    artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
+    artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
+
+    collection = ln.Collection([artifact1, artifact2], key="gather")
+    collection.save()
+
+    artifacts = collection.artifacts.all()
+    artifacts.df()
+
+    datamodule = MappedCollectionDataModule(
+        collection,
+        batch_key="batch",
+        sample_key="sample_str",
+        batch_size=1024,
+        join="inner",
+        model_name="MRVI",
+        collection_val=collection,
+    )
+
+    print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
+
+    # pprint(datamodule.registry)
+
+    model = MRVI(registry=datamodule.registry)
+    # pprint(model.summary_stats)
+    # pprint(model.module)
+
+    model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
+    model.history.keys()
+
+    # The way to extract the internal model analysis is by the inference_dataloader
+    # Datamodule will always require to pass it into all downstream functions.
+    inference_dataloader = datamodule.inference_dataloader()
+    _ = model.get_elbo(dataloader=inference_dataloader)
+    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model.get_latent_representation(give_z=False, dataloader=inference_dataloader)
+    _ = model.get_latent_representation(give_z=True, dataloader=inference_dataloader)
 
 
 @pytest.mark.dataloader
