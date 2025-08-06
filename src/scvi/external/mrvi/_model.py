@@ -307,6 +307,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self._check_if_trained(warn=False)
         _validate_adata_dataloader_input(self, adata, dataloader)
         if dataloader is None:
+            adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
                 adata=adata,
                 indices=indices,
