@@ -29,6 +29,7 @@ class MappedCollectionDataModule(LightningDataModule):
         batch_key: str | None = None,
         label_key: str | None = None,
         unlabeled_category: str | None = "Unknown",
+        sample_key: str | None = None,
         batch_size: int = 128,
         collection_val: ln.Collection | None = None,
         accelerator: str = "auto",
@@ -43,11 +44,13 @@ class MappedCollectionDataModule(LightningDataModule):
         self._batch_size = batch_size
         self._batch_key = batch_key
         self._label_key = label_key
+        self._sample_key = sample_key
         self.model_name = model_name
         self.shuffle = shuffle
         self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
         self.labels_ = None
+        self.samples_ = None
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
 
@@ -55,6 +58,8 @@ class MappedCollectionDataModule(LightningDataModule):
         obs_keys = self._batch_key  # we must have batch keys
         if self._label_key is not None:
             obs_keys = [obs_keys] + [self._label_key]
+        if self._sample_key is not None:
+            obs_keys = [obs_keys] + [self._sample_key]
         if self._categorical_covariate_keys is not None:
             obs_keys = (
                 obs_keys + self._categorical_covariate_keys
@@ -79,6 +84,33 @@ class MappedCollectionDataModule(LightningDataModule):
         # generate encodings
         if self._label_key is not None:
             self.labels_ = self._dataset.get_merged_labels(self._label_key).astype(str)
+        if self._sample_key is not None:
+            # CURRENTLY IMPLEMENTED FOR MRVI
+            sample_key = self._sample_key
+            encoder = self._dataset.encoders[sample_key]
+
+            # Initialize a counter to count per encoded sample index
+            from collections import Counter
+
+            sample_counter = Counter()
+
+            # Loop through the raw AnnData artifacts in the collection
+            for artifact in collection.artifacts.all():
+                adata = artifact.load()
+                sample_column = (
+                    adata.obs[sample_key].astype(str).values
+                )  # Ensure str for encoder mapping
+                sample_indices = [encoder[val] for val in sample_column]
+                sample_counter.update(sample_indices)
+
+            # Build tensor of counts aligned to encoder indices
+            counts = np.zeros(len(encoder), dtype=np.float32)
+            for idx, count in sample_counter.items():
+                counts[idx] = count
+
+            self.n_obs_per_sample = torch.tensor(counts, dtype=torch.float32)
+        else:
+            self.n_obs_per_sample = torch.tensor([])
         if self._categorical_covariate_keys is not None:
             self.categorical_covariate_keys_ = [
                 self._dataset.encoders[cat_cov_key]
@@ -177,12 +209,27 @@ class MappedCollectionDataModule(LightningDataModule):
         return len(self.labels)
 
     @property
+    def n_samples(self) -> int:
+        if self._sample_key is None:
+            return 0
+        return len(self.samples)
+
+    @property
     def labels(self) -> np.ndarray:
         if self._label_key is None:
             return None
         combined = np.concatenate(
             (list(self._dataset.encoders[self._label_key].keys()), [self.unlabeled_category])
         )
+        unique_values, idx = np.unique(combined, return_index=True)
+        unique_values = unique_values[np.argsort(idx)]
+        return unique_values.astype(object)
+
+    @property
+    def samples(self) -> np.ndarray:
+        if self._sample_key is None:
+            return None
+        combined = list(self._dataset.encoders[self._sample_key].keys())
         unique_values, idx = np.unique(combined, return_index=True)
         unique_values = unique_values[np.argsort(idx)]
         return unique_values.astype(object)
@@ -257,6 +304,7 @@ class MappedCollectionDataModule(LightningDataModule):
                 "layer": None,
                 "batch_key": self._batch_key,
                 "labels_key": self._label_key,
+                "samples_key": self._sample_key,
                 "size_factor_key": None,
                 "categorical_covariate_keys": self._categorical_covariate_keys,
                 "continuous_covariate_keys": self._continuous_covariate_keys,
@@ -288,6 +336,20 @@ class MappedCollectionDataModule(LightningDataModule):
                     },
                     "summary_stats": {"n_labels": self.n_labels},
                 },
+                "ind_x": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_indices"},
+                    "state_registry": {},
+                    "summary_stats": {},
+                },
+                "sample": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_sample"},
+                    "state_registry": {
+                        "categorical_mapping": self.samples,
+                        "original_key": self._sample_key,
+                    },
+                    "n_obs_per_sample": {"n_obs_per_sample": self.n_obs_per_sample},
+                    "summary_stats": {"n_sample": self.n_samples},
+                },
                 "size_factor": {
                     "data_registry": {},
                     "state_registry": {},
@@ -311,6 +373,12 @@ class MappedCollectionDataModule(LightningDataModule):
             return None
         return self._dataset.encoders[self._label_key]
 
+    @property
+    def sample_keys(self) -> int | None:
+        if self._sample_key is None:
+            return None
+        return self._dataset.encoders[self._sample_key]
+
     def on_before_batch_transfer(
         self,
         batch,
@@ -319,6 +387,7 @@ class MappedCollectionDataModule(LightningDataModule):
         X_KEY: str = "X"
         BATCH_KEY: str = "batch"
         LABEL_KEY: str = "labels"
+        SAMPLE_KEY: str = "sample"
         CAT_COVS_KEY: str = "extra_categorical_covs"
         CONT_COVS_KEY: str = "extra_continuous_covs"
 
@@ -326,6 +395,7 @@ class MappedCollectionDataModule(LightningDataModule):
             X_KEY: batch["X"].float(),
             BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
             LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else 0,
+            SAMPLE_KEY: batch[self._sample_key][:, None] if self._sample_key is not None else None,
             CAT_COVS_KEY: torch.cat(
                 [batch[k][:, None] for k in self._categorical_covariate_keys], dim=1
             )
