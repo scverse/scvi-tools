@@ -177,10 +177,10 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scanvi_small(save_path: str):
-    os.system("lamin init --storage ./lamindb_collection_scanvi")  # (comment out runing localy)
+    # os.system("lamin init --storage ./lamindb_collection_scanvi") #(comment out runing localy)
     import lamindb as ln
 
-    ln.setup.init()  # (comment out when runing localy)
+    # ln.setup.init() # (comment out when runing localy)
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -383,10 +383,10 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_mrvi_small(save_path: str):
-    os.system("lamin init --storage ./lamindb_collection")  # one time for github (comment)
+    # os.system("lamin init --storage ./lamindb_collection")  # one time for github (comment)
     import lamindb as ln
 
-    ln.setup.init()  # one time for github runner (comment out when runing localy)
+    # ln.setup.init()  # one time for github runner (comment out when runing localy)
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -467,10 +467,10 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
-    os.system("lamin init --storage ./lamindb_collection_cov")  # one time for github runner
+    # os.system("lamin init --storage ./lamindb_collection_cov")  # one time for github runner
     import lamindb as ln
 
-    ln.setup.init()  # one time for github runner (comment out when runing localy)
+    # ln.setup.init()  # one time for github runner (comment out when runing localy)
 
     # prepare test data
     adata1 = synthetic_iid()
