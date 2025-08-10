@@ -18,7 +18,7 @@ from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
-from scvi.external.spaglue._utils import (
+from scvi.external.diagvi._utils import (
     _check_guidance_graph_consisteny,
     _construct_guidance_graph,
     _load_saved_diagvi_files,

@@ -4,7 +4,7 @@ import pytest
 import torch
 from anndata import AnnData
 
-from scvi.external.spaglue._model import SPAGLUE
+from scvi.external.diagvi._model import SPAGLUE
 
 
 @pytest.fixture

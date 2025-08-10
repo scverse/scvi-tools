@@ -1,6 +1,7 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .decipher import Decipher
+from .diagvi import DIAGVI
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
@@ -10,7 +11,6 @@ from .scar import SCAR
 from .scbasset import SCBASSET
 from .scviva import SCVIVA
 from .solo import SOLO
-from .spaglue import DIAGVI
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
 from .tangram import Tangram

@@ -9,7 +9,7 @@ from scvi.distributions import (
     Normal,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.external.spaglue import DecoderProtein, DecoderRNA, GraphEncoder_glue
+from scvi.external.diagvi import DecoderProtein, DecoderRNA, GraphEncoder_glue
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
