@@ -1,8 +1,14 @@
 import logging
+import os
+from typing import Literal
 
+import anndata as ad
+import numpy as np
 import torch
 from anndata import AnnData
 from torch_geometric.data import Data
+
+from scvi.data._download import _download
 
 logger = logging.getLogger(__name__)
 
@@ -10,8 +16,8 @@ logger = logging.getLogger(__name__)
 def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
     if len(adatas) != 2:
         raise ValueError("Exactly two modalities are required.")
-    modality_names = list(adatas.keys())
-    adata1, adata2 = adatas[modality_names[0]], adatas[modality_names[1]]
+    input_names = list(adatas.keys())
+    adata1, adata2 = adatas[input_names[0]], adatas[input_names[1]]
 
     if mapping_df is not None:
         features1 = list(adata1.var_names)
@@ -21,8 +27,8 @@ def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
         if not shared_features:
             raise ValueError("No overlapping features between the two modalities.")
 
-        features1 = [f"{f}_{modality_names[0]}" for f in adata1.var_names]
-        features2 = [f"{f}_{modality_names[1]}" for f in adata2.var_names]
+        features1 = [f"{f}_{input_names[0]}" for f in adata1.var_names]
+        features2 = [f"{f}_{input_names[1]}" for f in adata2.var_names]
 
     # Build node list
     all_features = features1 + features2
@@ -36,8 +42,8 @@ def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
     if mapping_df is not None:
         for ft_pair in range(mapping_df.shape[0]):
             pair = mapping_df.iloc[ft_pair, :]
-            diss_ft = pair[modality_names[0]]
-            sp_ft = pair[modality_names[1]]
+            diss_ft = pair[input_names[0]]
+            sp_ft = pair[input_names[1]]
 
             i = feature_to_index[diss_ft]
             j = feature_to_index[sp_ft]
@@ -48,8 +54,8 @@ def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
 
     else:
         for feature in shared_features:
-            i = feature_to_index[f"{feature}_{modality_names[0]}"]
-            j = feature_to_index[f"{feature}_{modality_names[1]}"]
+            i = feature_to_index[f"{feature}_{input_names[0]}"]
+            j = feature_to_index[f"{feature}_{input_names[1]}"]
 
             edge_index += [[i, j], [j, i]]
             edge_weight += [weight, weight]
@@ -77,7 +83,7 @@ def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
         edge_index=edge_index,
         edge_weight=edge_weight,
         edge_sign=edge_sign,
-        **{f"{modality_names[0]}_indices": indices1, f"{modality_names[1]}_indices": indices2},
+        **{f"{input_names[0]}_indices": indices1, f"{input_names[1]}_indices": indices2},
     )
 
 
@@ -115,3 +121,43 @@ def _check_guidance_graph_consisteny(graph: Data, adatas: dict[AnnData]):
 
     # If all checks pass
     logger.info("Guidance graph consistency checks passed.")
+
+
+def _load_saved_diagvi_files(
+    dir_path: str,
+    prefix: str | None = None,
+    map_location: Literal["cpu", "cuda"] | None = None,
+    backup_url: str | None = None,
+) -> tuple[dict, dict, np.ndarray, np.ndarray, dict, AnnData | None, AnnData | None]:
+    file_name_prefix = prefix or ""
+
+    model_file_name = f"{file_name_prefix}model.pt"
+    model_path = os.path.join(dir_path, model_file_name)
+
+    try:
+        _download(backup_url, dir_path, model_file_name)
+        model = torch.load(model_path, map_location=map_location, weights_only=False)
+    except FileNotFoundError as exc:
+        raise ValueError(f"Failed to load model file at {model_path}. ") from exc
+
+    names = model["names"]
+
+    adatas = {}
+    var_names = {}
+    for name in names:
+        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata_{name}.h5ad")
+        if os.path.exists(adata_path):
+            adatas[name] = ad.read_h5ad(adata_path)
+            var_names[name] = adatas[name].var_names
+        else:
+            adatas[name] = None
+
+    model_state_dict = model["model_state_dict"]
+    attr_dict = model["attr_dict"]
+
+    return (
+        attr_dict,
+        var_names,
+        model_state_dict,
+        adatas,
+    )

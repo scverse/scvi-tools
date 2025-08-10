@@ -1,13 +1,14 @@
-from ._base_components import GraphEncoder_glue, NBDataDecoderWB
-from ._model import SPAGLUE, TrainDL
-from ._module import SPAGLUEVAE
-from ._task import SPAGLUETrainingPlan
+from ._base_components import DecoderProtein, DecoderRNA, GraphEncoder_glue
+from ._model import DIAGVI, TrainDL
+from ._module import DIAGVAE
+from ._task import DiagTrainingPlan
 
 __all__ = [
-    "SPAGLUE",
-    "SPAGLUEVAE",
-    "SPAGLUETrainingPlan",
+    "DIAGVI",
+    "DIAGVAE",
+    "DiagTrainingPlan",
     "TrainDL",
-    "NBDataDecoderWB",
+    "DecoderRNA",
+    "DecoderProtein",
     "GraphEncoder_glue",
 ]

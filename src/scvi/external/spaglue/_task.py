@@ -44,7 +44,7 @@ def kl_divergence_graph(mu, logvar):
     return kl_mean
 
 
-class SPAGLUETrainingPlan(TrainingPlan):
+class DiagTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module,
@@ -77,14 +77,14 @@ class SPAGLUETrainingPlan(TrainingPlan):
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step."""
         loss_output_objs = []
-        for _i, (modality, tensors) in enumerate(batch.items()):
+        for _i, (name, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
 
             self.loss_kwargs.update(
-                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
             )
-            inference_kwargs = {"mode": modality}
-            generative_kwargs = {"mode": modality}
+            inference_kwargs = {"mode": name}
+            generative_kwargs = {"mode": name}
 
             _, _, loss_output = self.forward(
                 tensors,
@@ -98,7 +98,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             reconstruction_loss = torch.mean(reconstruction_loss)
 
             self.log(
-                f"nll_{modality}",
+                f"nll_{name}",
                 reconstruction_loss,
                 batch_size=batch_size,
                 on_epoch=True,
@@ -107,7 +107,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
 
             kl_divergence = loss_output.kl_local["kl_local"]
             self.log(
-                f"kl_{modality}",
+                f"kl_{name}",
                 kl_divergence,
                 batch_size=batch_size,
                 on_epoch=True,
@@ -117,7 +117,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             loss = loss_output.loss
 
             self.log(
-                f"train_loss_{modality}",
+                f"train_loss_{name}",
                 loss,
                 batch_size=batch_size,
                 on_epoch=True,
@@ -212,14 +212,14 @@ class SPAGLUETrainingPlan(TrainingPlan):
         """Validation step."""
         loss_output_objs = []
 
-        for _i, (modality, tensors) in enumerate(batch.items()):
+        for _i, (name, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
 
             self.loss_kwargs.update(
-                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": modality}
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
             )
-            inference_kwargs = {"mode": modality}
-            generative_kwargs = {"mode": modality}
+            inference_kwargs = {"mode": name}
+            generative_kwargs = {"mode": name}
 
             _, _, loss_output = self.forward(
                 tensors,
@@ -231,7 +231,7 @@ class SPAGLUETrainingPlan(TrainingPlan):
             loss = loss_output.loss
 
             self.log(
-                f"val_loss_{modality}",
+                f"val_loss_{name}",
                 loss,
                 batch_size=batch_size,
                 on_epoch=True,

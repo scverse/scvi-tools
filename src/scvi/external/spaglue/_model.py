@@ -4,7 +4,6 @@ import warnings
 from itertools import cycle
 from typing import Literal
 
-import anndata as ad
 import numpy as np
 import pandas as pd
 import scipy.sparse
@@ -17,65 +16,25 @@ from torch_geometric.data import Data
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
-from scvi.data._download import _download
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.external.spaglue._utils import (
     _check_guidance_graph_consisteny,
     _construct_guidance_graph,
+    _load_saved_diagvi_files,
 )
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
 
-from ._module import SPAGLUEVAE
-from ._task import SPAGLUETrainingPlan
+from ._module import DIAGVAE
+from ._task import DiagTrainingPlan
 
 logger = logging.getLogger(__name__)
 
 
-def _load_saved_spaglue_files(
-    dir_path: str,
-    prefix: str | None = None,
-    map_location: Literal["cpu", "cuda"] | None = None,
-    backup_url: str | None = None,
-) -> tuple[dict, dict, np.ndarray, np.ndarray, dict, AnnData | None, AnnData | None]:
-    file_name_prefix = prefix or ""
-
-    model_file_name = f"{file_name_prefix}model.pt"
-    model_path = os.path.join(dir_path, model_file_name)
-
-    try:
-        _download(backup_url, dir_path, model_file_name)
-        model = torch.load(model_path, map_location=map_location, weights_only=False)
-    except FileNotFoundError as exc:
-        raise ValueError(f"Failed to load model file at {model_path}. ") from exc
-
-    modality_names = model["modality_names"]
-
-    adatas = {}
-    var_names = {}
-    for mod in modality_names:
-        adata_path = os.path.join(dir_path, f"{file_name_prefix}adata_{mod}.h5ad")
-        if os.path.exists(adata_path):
-            adatas[mod] = ad.read_h5ad(adata_path)
-            var_names[mod] = adatas[mod].var_names
-        else:
-            adatas[mod] = None
-
-    model_state_dict = model["model_state_dict"]
-    attr_dict = model["attr_dict"]
-
-    return (
-        attr_dict,
-        var_names,
-        model_state_dict,
-        adatas,
-    )
-
-
-class SPAGLUE(BaseModelClass, VAEMixin):
+class DIAGVI(BaseModelClass, VAEMixin):
     def __init__(
         self,
         adatas: dict[str, AnnData],
@@ -85,11 +44,11 @@ class SPAGLUE(BaseModelClass, VAEMixin):
     ) -> None:
         super().__init__()
         self.adatas = adatas
-        self.modality_names = list(adatas.keys())
+        self.input_names = list(adatas.keys())
 
         self.adata_managers = {
-            mod: self._get_most_recent_anndata_manager(adata, required=True)
-            for mod, adata in self.adatas.items()
+            name: self._get_most_recent_anndata_manager(adata, required=True)
+            for name, adata in self.adatas.items()
         }
 
         self.registries_ = []
@@ -97,29 +56,23 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self._register_manager_for_instance(adm)
             self.registries_.append(adm.registry)
 
-        sum_stats = {mod: adm.summary_stats for mod, adm in self.adata_managers.items()}
+        sum_stats = {name: adm.summary_stats for name, adm in self.adata_managers.items()}
         self.summary_stats = sum_stats
 
-        n_inputs = {mod: s["n_vars"] for mod, s in sum_stats.items()}
-        n_batches = {mod: s["n_batch"] for mod, s in sum_stats.items()}
-        n_labels = {mod: s["n_labels"] for mod, s in sum_stats.items()}
+        n_inputs = {name: s["n_vars"] for name, s in sum_stats.items()}
+        n_batches = {name: s["n_batch"] for name, s in sum_stats.items()}
+        n_labels = {name: s["n_labels"] for name, s in sum_stats.items()}
 
-        # Which generative distributions to use
         generative_distributions = {
-            mod: adata.uns["spaglue_likelihood"] for mod, adata in self.adatas.items()
+            name: adata.uns["diagvi_likelihood"] for name, adata in self.adatas.items()
         }
-
-        # Whether to use the Gaussian Mixture Prior
-        gmm_priors = {mod: adata.uns["spaglue_gmm_prior"] for mod, adata in self.adatas.items()}
-
-        # Whether to use the provided label key to guide model development
+        modalities = {name: adata.uns["diagvi_modality"] for name, adata in self.adatas.items()}
+        gmm_priors = {name: adata.uns["diagvi_gmm_prior"] for name, adata in self.adatas.items()}
         semi_supervised = {
-            mod: adata.uns["spaglue_semi_supervised"] for mod, adata in self.adatas.items()
+            name: adata.uns["diagvi_semi_supervised"] for name, adata in self.adatas.items()
         }
-
-        # How many components to model
         n_mixture_components = {
-            mod: adata.uns["spaglue_n_mixture_components"] for mod, adata in self.adatas.items()
+            name: adata.uns["diagvi_n_mixture_components"] for name, adata in self.adatas.items()
         }
 
         # Compute guidance graph if not provided, do a sanity check
@@ -127,13 +80,15 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.guidance_graph = guidance_graph
         else:
             self.guidance_graph = _construct_guidance_graph(self.adatas, mapping_df)
+
         _check_guidance_graph_consisteny(self.guidance_graph, adatas)
 
-        self.module = SPAGLUEVAE(
+        self.module = DIAGVAE(
             n_inputs=n_inputs,
             n_batches=n_batches,
             n_labels=n_labels,
             gene_likelihoods=generative_distributions,
+            modalities=modalities,
             guidance_graph=self.guidance_graph,
             use_gmm_prior=gmm_priors,
             semi_supervised=semi_supervised,
@@ -142,7 +97,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         )
 
         self._model_summary_string = (
-            f"SpaGlue Model with the following params: modalities: {self.modality_names}, "
+            f"DiagVI Model with the following params: input names: {self.input_names}, "
             f"n_inputs: {n_inputs}, n_batches: {n_batches}, "
             f"generative distributions: {generative_distributions}"
         )
@@ -150,7 +105,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
     def train(
         self,
-        max_epochs: int = 200,
+        max_epochs: int | None = None,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
         train_size: float = 0.9,
@@ -162,7 +117,10 @@ class SPAGLUE(BaseModelClass, VAEMixin):
     ) -> None:
         if max_epochs is None:
             min_obs = np.min(
-                [self.summary_stats["diss"]["n_cells"], self.summary_stats["spatial"]["n_cells"]]
+                [
+                    self.summary_stats[self.input_names[0]]["n_cells"],
+                    self.summary_stats[self.input_names[1]]["n_cells"],
+                ]
             )
             max_epochs = get_max_epochs_heuristic(min_obs)
             logger.info(f"max_epochs was approximated to {max_epochs}")
@@ -190,7 +148,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         validation_size = 1 - train_size
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = {}, {}, {}
-        for mod, adm in self.adata_managers.items():  # mod is the modality name
+        for name, adm in self.adata_managers.items():  # mod is the modality name
             ds = DataSplitter(
                 adm,
                 train_size=train_size,
@@ -199,9 +157,9 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                 shuffle_set_split=shuffle_set_split,
             )
             ds.setup()
-            train_dls[mod] = ds.train_dataloader()
-            test_dls[mod] = ds.test_dataloader()
-            val_dls[mod] = ds.val_dataloader()
+            train_dls[name] = ds.train_dataloader()
+            test_dls[name] = ds.test_dataloader()
+            val_dls[name] = ds.val_dataloader()
 
             self.train_indices_.append(ds.train_idx)
             self.test_indices_.append(ds.test_idx)
@@ -211,8 +169,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         val_dl = TrainDL(val_dls)
 
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
-
-        self._training_plan = SPAGLUETrainingPlan(
+        self._training_plan = DiagTrainingPlan(
             self.module,
             **plan_kwargs,
         )
@@ -223,6 +180,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             self.trainer.fit(
                 self._training_plan, train_dataloaders=train_dl, val_dataloaders=val_dl
             )
+
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
@@ -241,6 +199,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         labels_key: str | None = None,
         layer: str | None = None,
         likelihood: str = "nb",
+        modality: str = "rna",
         gmm_prior: bool = False,
         semi_supervised: bool = False,
         n_mixture_components: int = 10,
@@ -250,15 +209,14 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
 
-        if "counts" in adata.layers and not isinstance(
-            adata.layers["counts"], scipy.sparse.csr_matrix
-        ):
-            adata.layers["counts"] = adata.layers["counts"].tocsr()
+        if layer in adata.layers and not isinstance(adata.layers[layer], scipy.sparse.csr_matrix):
+            adata.layers[layer] = adata.layers[layer].tocsr()
 
-        adata.uns["spaglue_likelihood"] = likelihood
-        adata.uns["spaglue_gmm_prior"] = gmm_prior
-        adata.uns["spaglue_semi_supervised"] = semi_supervised
-        adata.uns["spaglue_n_mixture_components"] = n_mixture_components
+        adata.uns["diagvi_likelihood"] = likelihood
+        adata.uns["diagvi_modality"] = modality
+        adata.uns["diagvi_gmm_prior"] = gmm_prior
+        adata.uns["diagvi_semi_supervised"] = semi_supervised
+        adata.uns["diagvi_n_mixture_components"] = n_mixture_components
 
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
@@ -296,7 +254,6 @@ class SPAGLUE(BaseModelClass, VAEMixin):
     def get_latent_representation(
         self,
         adatas: dict[str, AnnData] | list[AnnData] = None,
-        deterministic: bool = True,
         batch_size: int = 1024,
     ) -> dict[np.ndarray]:
         """Return the latent space embedding for each dataset.
@@ -313,39 +270,34 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         if adatas is None:
             adatas = self.adatas
         if isinstance(adatas, dict):
-            modality_names = list(adatas.keys())
+            input_names = list(adatas.keys())
             adata_list = list(adatas.values())
         else:
-            modality_names = self.modality_names
+            input_names = self.input_names
             adata_list = adatas
 
         scdls = self._make_scvi_dls(adata_list, batch_size=batch_size)
 
         self.module.eval()
         latents = {}
-        for modality, scdl in zip(modality_names, scdls, strict=False):
+        for input_name, scdl in zip(input_names, scdls, strict=False):
             latent = []
             for tensors in scdl:
                 latent.append(
                     self.module.inference(
-                        **self.module._get_inference_input(tensors), mode=modality
+                        **self.module._get_inference_input(tensors), mode=input_name
                     )["z"]
                     .cpu()
                     .detach()
                 )
             latent = torch.cat(latent).numpy()
-            latents[modality] = latent
+            latents[input_name] = latent
 
         return latents
 
     def compute_per_feature_confidence(self, feature_embedding, conf_method):
-        ### compute the per-feature confidence score
-        # compute the KNN graph
-        # fit knn (self is included!)
         knn = NearestNeighbors(n_neighbors=11, metric="cosine")
         knn.fit(feature_embedding)
-
-        # extract distances to / indices of nearest neighbors
         distances, indices = knn.kneighbors(feature_embedding)
 
         # Remove self (first neighbor is always the point itself)
@@ -368,7 +320,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
     @torch.inference_mode()
     def get_imputed_values(
         self,
-        source_modality: int,
+        source_name: int,
         source_adata: AnnData | None = None,
         batch_size: int = 1024,
         target_batch: int | None = None,
@@ -377,15 +329,15 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         min_max_scale: bool = True,
     ) -> list[np.ndarray]:
         # choose source adata according to mode
-        if source_modality not in self.adatas:
-            raise ValueError(f"`source_modality` must be one of {list(self.adatas.keys())}!")
+        if source_name not in self.adatas:
+            raise ValueError(f"`source_name` must be one of {list(self.adatas.keys())}!")
 
         # Choose source AnnData
         if source_adata is None:
-            source_adata = self.adatas[source_modality]
+            source_adata = self.adatas[source_name]
 
         # Get batch categories for this modality
-        batch_manager = self.adata_managers[source_modality]
+        batch_manager = self.adata_managers[source_name]
         batch_categories = batch_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).get(
             "categorical_mapping", None
         )
@@ -396,10 +348,10 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         reconstructed_counts = []
         for tensor in dl:
             inference_output = self.module.inference(
-                **self.module._get_inference_input(tensor), mode=source_modality
+                **self.module._get_inference_input(tensor), mode=source_name
             )
 
-            # keep all spatial except the embedded features
+            # use the feature embedding of the other modality for reconstruction
             inference_output["v"] = inference_output["v_other"]
             generative_input = self.module._get_generative_input(
                 tensor,
@@ -454,12 +406,12 @@ class SPAGLUE(BaseModelClass, VAEMixin):
                 )
 
             # determine target modality
-            target_modalities = [m for m in self.modality_names if m != source_modality]
-            if len(target_modalities) != 1:
+            target_names = [m for m in self.input_names if m != source_name]
+            if len(target_names) != 1:
                 raise ValueError("There must be exactly two modalities defined.")
-            target_modality = target_modalities[0]
+            target_name = target_names[0]
 
-            generative_output = self.module.generative(**generative_input, mode=target_modality)
+            generative_output = self.module.generative(**generative_input, mode=target_name)
 
             reconstructed_counts.append(generative_output["px_rate"].cpu().detach())
 
@@ -499,7 +451,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
 
         adatas = self.adatas
         if save_anndata:
-            for key in self.modality_names:
+            for key in self.input_names:
                 ad = adatas[key]
                 save_path = os.path.join(dir_path, f"adata_{key}.h5ad")
                 ad.write(save_path)
@@ -507,7 +459,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         model_state_dict = self.module.state_dict()
 
         var_names = {}
-        for key in self.modality_names:
+        for key in self.input_names:
             var_names[key] = adatas[key].var_names
 
         # get all the user attributes
@@ -521,8 +473,8 @@ class SPAGLUE(BaseModelClass, VAEMixin):
         torch.save(
             {
                 "model_state_dict": model_state_dict,
-                "modality_names": self.modality_names,
-                **{f"var_names_{mod}": var_names[mod] for mod in self.modality_names},
+                "names": self.input_names,
+                **{f"var_names_{mod}": var_names[mod] for mod in self.input_names},
                 "attr_dict": user_attributes,
             },
             model_save_path,
@@ -534,8 +486,8 @@ class SPAGLUE(BaseModelClass, VAEMixin):
     def load(
         cls,
         dir_path: str,
-        adata_seq: AnnData | None = None,
-        adata_spatial: AnnData | None = None,
+        # adata_seq: AnnData | None = None,
+        # adata_spatial: AnnData | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         prefix: str | None = None,
@@ -552,7 +504,7 @@ class SPAGLUE(BaseModelClass, VAEMixin):
             var_names_dict,
             model_state_dict,
             adatas,
-        ) = _load_saved_spaglue_files(
+        ) = _load_saved_diagvi_files(
             dir_path,
             prefix=prefix,
             map_location=device,
@@ -619,7 +571,7 @@ class TrainDL(DataLoader):  # creates batch structure for training process
     def __init__(self, data_loader_dict):
         # def __init__(self, data_loader_list, num_workers=0):
         self.data_loader_dict = data_loader_dict
-        self.modality_names = list(data_loader_dict.keys())
+        self.input_names = list(data_loader_dict.keys())
         self.data_loader_list = list(data_loader_dict.values())
 
         self.largest_train_dl_idx = np.argmax(
@@ -650,4 +602,4 @@ class TrainDL(DataLoader):  # creates batch structure for training process
         ]
         # Return a dict of modality_name -> batch for each step
         for batches in zip(*train_dls, strict=False):
-            yield dict(zip(self.modality_names, batches, strict=False))
+            yield dict(zip(self.input_names, batches, strict=False))

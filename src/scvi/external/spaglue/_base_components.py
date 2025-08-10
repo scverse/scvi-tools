@@ -1,17 +1,20 @@
+from collections.abc import Iterable
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from torch_geometric.nn import GCNConv
 
+from scvi.nn import FCLayers
+
 EPS = 1e-8
 
 
-class NBDataDecoderWB(nn.Module):  # integrate the batch index
+class DecoderRNA(nn.Module):  # integrate the batch index
     def __init__(
         self,
         n_output: int,
-        n_latent: int,
         n_batches: int,
     ):
         super().__init__()
@@ -53,6 +56,112 @@ class NBDataDecoderWB(nn.Module):  # integrate the batch index
         px_r = log_theta
 
         return px_scale, px_r, px_rate, px_dropout
+
+
+class DecoderProtein(nn.Module):
+    def __init__(
+        self,
+        n_input: int,
+        n_output_proteins: int,
+        n_batches: int,
+        n_cat_list: Iterable[int] = None,
+        dropout_rate: float = 0,
+        use_batch_norm: float = True,
+        use_layer_norm: float = False,
+        n_hidden: int = 256,
+        n_layers: int = 1,
+    ):
+        super().__init__()
+        self.n_output_proteins = n_output_proteins
+        self.n_batches = n_batches
+
+        self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+        self.bias = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+
+        linear_args = {
+            "n_layers": 1,
+            "use_activation": False,
+            "use_batch_norm": False,
+            "use_layer_norm": False,
+            "dropout_rate": 0,
+        }
+
+        # foreground scale network
+        self.py_fore_decoder = FCLayers(
+            n_in=n_input,
+            n_out=n_hidden,
+            n_cat_list=n_cat_list,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+        )
+        # bredict increment factor making fg > bg
+        self.py_fore_scale_decoder = FCLayers(
+            n_in=n_hidden + n_input,
+            n_out=n_output_proteins,
+            n_cat_list=n_cat_list,
+            n_layers=1,
+            use_activation=True,
+            use_batch_norm=False,
+            use_layer_norm=False,
+            dropout_rate=0,
+            activation_fn=nn.ReLU,
+        )
+
+        # mixing probability network
+        self.sigmoid_decoder = FCLayers(
+            n_in=n_input,
+            n_out=n_hidden,
+            n_cat_list=n_cat_list,
+            n_layers=n_layers,
+            n_hidden=n_hidden,
+            dropout_rate=dropout_rate,
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=use_layer_norm,
+        )
+        # predict mixing probability - (1 - protein_mixing) = fg probability
+        self.py_background_decoder = FCLayers(
+            n_in=n_hidden + n_input,
+            n_out=n_output_proteins,
+            n_cat_list=n_cat_list,
+            **linear_args,
+        )
+
+    def forward(
+        self, u: torch.Tensor, l: torch.Tensor, batch_index: torch.Tensor, v: torch.Tensor
+    ):
+        # bring batch index in the right dimension
+        if batch_index.dim() > 1:
+            batch_index = batch_index.squeeze(-1)
+
+        py_ = {}
+        scale = F.softplus(self.scale_lin[batch_index])
+        bias = self.bias[batch_index]
+        py_["r"] = self.log_theta[batch_index]  # px_r
+
+        raw_px_scale = scale * (u @ v.T) + bias
+        py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
+        py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
+
+        py_fore = self.py_fore_decoder(u, batch_index)
+        py_fore_cat_z = torch.cat([py_fore, u], dim=-1)
+        py_["scale_fore"] = self.py_fore_scale_decoder(py_fore_cat_z, batch_index) + 1 + 1e-8
+        py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
+
+        p_mixing = self.sigmoid_decoder(u, batch_index)
+        p_mixing_cat_z = torch.cat([p_mixing, u], dim=-1)
+
+        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, batch_index)
+
+        return (
+            (py_["scale_back"], py_["scale_fore"]),
+            py_["r"],
+            (py_["rate_back"], py_["rate_fore"]),
+            py_["mixing"],
+        )
 
 
 class GraphEncoder_glue(nn.Module):

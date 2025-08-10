@@ -10,7 +10,7 @@ from .scar import SCAR
 from .scbasset import SCBASSET
 from .scviva import SCVIVA
 from .solo import SOLO
-from .spaglue import SPAGLUE
+from .spaglue import DIAGVI
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
 from .tangram import Tangram
@@ -37,5 +37,5 @@ __all__ = [
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
-    "SPAGLUE",
+    "DIAGVI",
 ]

@@ -3,27 +3,32 @@ import torch.nn as nn
 from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
 
 from scvi import REGISTRY_KEYS
-from scvi.distributions import NegativeBinomial, Normal, ZeroInflatedNegativeBinomial
-from scvi.external.spaglue import GraphEncoder_glue, NBDataDecoderWB
+from scvi.distributions import (
+    NegativeBinomial,
+    NegativeBinomialMixture,
+    Normal,
+    ZeroInflatedNegativeBinomial,
+)
+from scvi.external.spaglue import DecoderProtein, DecoderRNA, GraphEncoder_glue
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
 
 
-class SPAGLUEVAE(BaseModuleClass):
+class DIAGVAE(BaseModuleClass):
     def __init__(
         self,
-        n_inputs: list[int],
-        n_batches: list[int],
-        n_labels: list[int],
-        gene_likelihoods: list[str],
+        n_inputs: dict[int],
+        n_batches: dict[int],
+        n_labels: dict[int],
+        gene_likelihoods: dict[str],
+        modalities: dict[str],
         guidance_graph,
         use_gmm_prior: dict[bool],
         semi_supervised: dict[bool],
-        n_mixture_components: int = 100,
-        n_latent_seq: int = 50,
-        n_latent_spatial: int = 50,
+        n_mixture_components: dict[int],
+        n_latent: int = 50,  # seq und spatial haben dieselbe latent dim
         n_hidden: int = 256,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
@@ -31,33 +36,40 @@ class SPAGLUEVAE(BaseModuleClass):
     ) -> None:
         super().__init__()
 
+        # learnable parameters
         self.gmm_logits = nn.ParameterDict()
         self.gmm_means = nn.ParameterDict()
         self.gmm_scales = nn.ParameterDict()
+
+        # self.background_pro_alpha = nn.ParameterDict()
+        # self.background_pro_log_beta = nn.ParameterDict()
 
         self.use_gmm_prior = use_gmm_prior
         self.semi_supervised = semi_supervised
         self.n_mixture_components = n_mixture_components
         self.n_labels = n_labels
-        latent_dim = n_latent_seq
-
-        for m in use_gmm_prior.keys():
-            if self.use_gmm_prior[m]:
-                k = self.n_mixture_components[m]
-                if self.semi_supervised[m]:
-                    k = self.n_labels[m]
-                self.gmm_logits[m] = nn.Parameter(torch.zeros(k))
-                self.gmm_means[m] = nn.Parameter(torch.randn(k, latent_dim))
-                self.gmm_scales[m] = nn.Parameter(torch.zeros(k, latent_dim))
-
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
         self.gene_likelihoods = gene_likelihoods
+        self.modalities = modalities
         self.guidance_graph = guidance_graph
 
+        self.input_names = list(n_inputs.keys())
+
+        for name in use_gmm_prior.keys():
+            if self.use_gmm_prior[name]:
+                k = self.n_mixture_components[name]
+                # overwrite the number of mixture components if semi_supervised = True
+                if self.semi_supervised[name]:
+                    k = self.n_labels[name]
+                self.gmm_logits[name] = nn.Parameter(torch.zeros(k))
+                self.gmm_means[name] = nn.Parameter(torch.randn(k, n_latent))
+                self.gmm_scales[name] = nn.Parameter(torch.zeros(k, n_latent))
+
+        """
         self.z_encoder_diss = Encoder(
             n_input=n_inputs["diss"],
-            n_output=n_latent_seq,
+            n_output=n_latent,
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -67,7 +79,17 @@ class SPAGLUEVAE(BaseModuleClass):
 
         self.z_encoder_spa = Encoder(
             n_input=n_inputs["spatial"],
-            n_output=n_latent_spatial,
+            n_output=n_latent,
+            n_hidden=n_hidden,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
+            return_dist=True,
+            # **kwargs,
+        )
+        """
+        self.encoder_0 = Encoder(
+            n_input=n_inputs[self.input_names[0]],
+            n_output=n_latent,
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -75,38 +97,78 @@ class SPAGLUEVAE(BaseModuleClass):
             # **kwargs,
         )
 
-        self.z_decoder_diss = NBDataDecoderWB(
-            n_output=n_inputs["diss"],
-            n_latent=n_latent_seq,
-            n_batches=n_batches["diss"],
+        self.encoder_1 = Encoder(
+            n_input=n_inputs[self.input_names[1]],
+            n_output=n_latent,
+            n_hidden=n_hidden,
+            n_layers=n_layers,
+            dropout_rate=dropout_rate,
+            return_dist=True,
+            # **kwargs,
         )
 
-        self.z_decoder_spa = NBDataDecoderWB(
-            n_output=n_inputs["spatial"],
-            n_latent=n_latent_spatial,
-            n_batches=n_batches["spatial"],
-        )
+        if modalities[self.input_names[0]] == "rna":
+            self.decoder_0 = DecoderRNA(
+                n_output=n_inputs[self.input_names[0]],
+                n_batches=n_batches[self.input_names[0]],
+            )
+
+        if modalities[self.input_names[1]] == "rna":
+            self.decoder_1 = DecoderRNA(
+                n_output=n_inputs[self.input_names[1]],
+                n_batches=n_batches[self.input_names[1]],
+            )
+
+        if modalities[self.input_names[0]] == "protein":
+            self.decoder_0 = DecoderProtein(
+                n_input=n_latent,
+                n_output_protein=n_inputs[self.input_names[0]],
+                n_batches=n_batches[self.input_names[0]],
+            )
+
+        if modalities[self.input_names[1]] == "protein":
+            self.decoder_1 = DecoderProtein(
+                n_input=n_latent,
+                n_output_proteins=n_inputs[self.input_names[1]],
+                n_batches=n_batches[self.input_names[1]],
+            )
 
         self.graph_encoder = GraphEncoder_glue(
-            vnum=n_inputs["diss"] + n_inputs["spatial"],
+            vnum=n_inputs[self.input_names[0]] + n_inputs[self.input_names[1]],
             out_features=50,
         )
 
-        if self.semi_supervised["diss"]:
+        if self.semi_supervised[self.input_names[0]]:
             cls_parameters = {
                 "n_layers": 0,
                 "n_hidden": 128,
                 "dropout_rate": 0.0,
             }
-            self.classifier = Classifier(
-                n_latent_seq,
-                n_labels=self.n_labels["diss"],
+            self.classifier_0 = Classifier(
+                n_latent,
+                n_labels=self.n_labels[self.input_names[0]],
                 use_batch_norm=False,
                 use_layer_norm=True,
                 **cls_parameters,
             )
         else:
-            self.classifier = None
+            self.classifier_0 = None
+
+        if self.semi_supervised[self.input_names[1]]:
+            cls_parameters = {
+                "n_layers": 0,
+                "n_hidden": 128,
+                "dropout_rate": 0.0,
+            }
+            self.classifier_1 = Classifier(
+                n_latent,
+                n_labels=self.n_labels[self.input_names[1]],
+                use_batch_norm=False,
+                use_layer_norm=True,
+                **cls_parameters,
+            )
+        else:
+            self.classifier_1 = None
 
     def _get_inference_input(
         self, tensors: dict[str, torch.Tensor]
@@ -139,27 +201,18 @@ class SPAGLUEVAE(BaseModuleClass):
         device = x.device
         graph = graph.to(device)
 
-        # whole embedding is calculated
+        # graph inference
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
 
-        # embedding for modality is extracted to be used for decoder input
-        if mode == "diss":
-            v = v_all[getattr(graph, f"{mode}_indices")]
-            other_mode = [m for m in ["diss", "spatial"] if m != mode][0]
-            v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
-        elif mode == "spatial":
-            v = v_all[getattr(graph, f"{mode}_indices")]
-            other_mode = [m for m in ["diss", "spatial"] if m != mode][0]
-            v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
-        else:
-            raise ValueError("Invalid mode: must be diss or spatial.")
+        v = v_all[getattr(graph, f"{mode}_indices")]
+        other_mode = [m for m in self.input_names if m != mode][0]
+        v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
 
-        # diss data
-        if mode == "diss":
-            qz, z = self.z_encoder_diss(x_)
-        # spa data
+        # data inference
+        if mode == self.input_names[0]:
+            qz, z = self.encoder_0(x_)
         else:
-            qz, z = self.z_encoder_spa(x_)
+            qz, z = self.encoder_1(x_)
 
         return {
             MODULE_KEYS.QZ_KEY: qz,
@@ -185,13 +238,10 @@ class SPAGLUEVAE(BaseModuleClass):
         """Run the generative model."""
         EPS = 1e-8
 
-        # diss data
-        if mode == "diss":
-            px_scale, px_r, px_rate, px_dropout = self.z_decoder_diss(z, library, batch_index, v)
-
-        # spa data
-        elif mode == "spatial":
-            px_scale, px_r, px_rate, px_dropout = self.z_decoder_spa(z, library, batch_index, v)
+        if mode == self.input_names[0]:
+            px_scale, px_r, px_rate, px_dropout = self.decoder_0(z, library, batch_index, v)
+        elif mode == self.input_names[1]:
+            px_scale, px_r, px_rate, px_dropout = self.decoder_1(z, library, batch_index, v)
 
         px_r = px_r.exp()
 
@@ -205,9 +255,16 @@ class SPAGLUEVAE(BaseModuleClass):
                 zi_logits=px_dropout,
                 scale=px_scale,
             )
-
         elif self.gene_likelihoods[mode] == "normal":
             px = Normal(px_rate, px_r, normal_mu=px_scale)
+
+        elif self.gene_likelihoods[mode] == "nbmixture":
+            px = NegativeBinomialMixture(
+                mu1=px_rate[0],
+                mu2=px_rate[1],
+                theta1=px_r,
+                mixture_logits=px_dropout,  # protein decoder returns mixing in  py_dropout
+            )
 
         if self.use_gmm_prior[mode]:
             logits = self.gmm_logits[mode]
@@ -266,7 +323,6 @@ class SPAGLUEVAE(BaseModuleClass):
                 -1
             ) - generative_outputs[MODULE_KEYS.PZ_KEY].log_prob(inference_outputs["z"])
         else:
-            # data kl div
             kl_div = kl_divergence(
                 inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
             ).sum(dim=-1)
@@ -281,7 +337,12 @@ class SPAGLUEVAE(BaseModuleClass):
         v_all = inference_outputs["v_all"]
 
         classification_loss = 0.0
-        if self.classifier is not None and mode == "diss":
+        if self.classifier_0 is not None and mode == self.input_names[0]:
+            y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
+            z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
+            y_logits = self.classifier(z_mean)
+            classification_loss += torch.nn.functional.cross_entropy(y_logits, y, reduction="mean")
+        if self.classifier_1 is not None and mode == self.input_names[1]:
             y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
             z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
             y_logits = self.classifier(z_mean)
