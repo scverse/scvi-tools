@@ -1,47 +1,13 @@
 import geomloss
 import torch
-import torch.nn.functional as F
-from torch_geometric.utils import structured_negative_sampling
 
 from scvi import REGISTRY_KEYS
+from scvi.external.diagvi._utils import (
+    compute_graph_loss,
+    compute_sinkhorn_lam,
+    kl_divergence_graph,
+)
 from scvi.train import TrainingPlan
-
-
-def compute_graph_loss(graph, feature_embeddings):
-    edge_index = graph.edge_index
-    edge_index_neg = structured_negative_sampling(edge_index)
-
-    pos_i = edge_index_neg[0].cpu().numpy()
-    pos_j = edge_index_neg[1].cpu().numpy()
-    neg_j = edge_index_neg[2].cpu().numpy()
-
-    vi = feature_embeddings[pos_i]
-    vj = feature_embeddings[pos_j]
-    vj_neg = feature_embeddings[neg_j]
-
-    pos_logits = (vi * vj).sum(dim=1)
-    pos_loss = F.logsigmoid(pos_logits).mean()
-
-    neg_logits = (vi * vj_neg).sum(dim=1)
-    neg_loss = F.logsigmoid(-neg_logits).mean()
-
-    total_loss = -(pos_loss + neg_loss) / 2
-
-    return total_loss
-
-
-def compute_sinkhorn_lam(lam_sinkhorn, epoch_current, epoch_sinkhorn):
-    lam_sinkhorn_curr = lam_sinkhorn
-    if epoch_sinkhorn:
-        if epoch_current < epoch_sinkhorn:
-            lam_sinkhorn_curr = (epoch_current / epoch_sinkhorn) * lam_sinkhorn
-    return lam_sinkhorn_curr
-
-
-def kl_divergence_graph(mu, logvar):
-    kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
-    kl_mean = kl.mean()
-    return kl_mean
 
 
 class DiagTrainingPlan(TrainingPlan):
