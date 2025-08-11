@@ -845,9 +845,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if hasattr(model.module, "decoder"):
                 if hasattr(model.module.decoder, "px_decoder"):
                     if hasattr(model.module.decoder.px_decoder, "n_cat_list"):
-                        attr_dict["n_cats_per_cov"] = (
-                            model.module.decoder.px_decoder.n_cat_list[1],
-                        )
+                        n_cat_list = model.module.decoder.px_decoder.n_cat_list
+                        if len(n_cat_list) > 1:
+                            attr_dict["n_cats_per_cov"] = (n_cat_list[1],)
             module_exp_params = inspect.signature(model._module_cls).parameters.keys()
             common_keys1 = list(attr_dict.keys() & module_exp_params)
             common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
