@@ -481,6 +481,13 @@ def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
 
     # load and save and make query with the other data
     model.save("lamin_model_cov", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # load it back and do downstream analysis
+    loaded_model = scvi.model.SCVI.load("lamin_model_cov", adata=False)
+    loaded_model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
 
 
 @pytest.mark.dataloader
@@ -1073,3 +1080,11 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
     # Additional things we would like to check
     # we make the batch name the same as in the model
     adata.obs["batch"] = adata.obs[batch_keys].agg("//".join, axis=1).astype("category")
+
+    model_census3 = scvi.model.SCVI.load("census_model_cov", adata=False)
+
+    model_census3.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        early_stopping=False,
+    )
