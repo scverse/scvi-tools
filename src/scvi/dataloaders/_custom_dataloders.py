@@ -149,7 +149,7 @@ class MappedCollectionDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self._batch_size
         if indices is not None:
-            dataset = self._dataset[indices]  # TODO find a better way
+            dataset = self._dataset[indices]
         else:
             dataset = self._dataset
         return DataLoader(
@@ -171,7 +171,7 @@ class MappedCollectionDataModule(LightningDataModule):
             if batch_size is None:
                 batch_size = self._batch_size
             if indices is not None:
-                validset = self._validset[indices]  # TODO find a better way
+                validset = self._validset[indices]
             else:
                 validset = self._validset
             return DataLoader(
@@ -256,7 +256,6 @@ class MappedCollectionDataModule(LightningDataModule):
                 "summary_stats": {"n_extra_categorical_covs": 0},
             }
         else:
-            # TODO need to adjust this mapping
             mapping = dict(
                 zip(
                     self._categorical_covariate_keys,
@@ -842,7 +841,6 @@ class TileDBDataModule(LightningDataModule):
                 "summary_stats": {"n_extra_categorical_covs": 0},
             }
         else:
-            # TODO need to adjust this mapping
             mapping = dict(
                 zip(
                     self._categorical_covariate_keys,
