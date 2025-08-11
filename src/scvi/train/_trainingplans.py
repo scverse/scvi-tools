@@ -909,7 +909,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            if list(batch.keys()) == [
+            if list(batch.keys())[:5] == [
                 "X",
                 "batch",
                 "labels",

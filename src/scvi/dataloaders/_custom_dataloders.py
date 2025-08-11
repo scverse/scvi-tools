@@ -394,7 +394,6 @@ class MappedCollectionDataModule(LightningDataModule):
             X_KEY: batch["X"].float(),
             BATCH_KEY: batch[self._batch_key][:, None] if self._batch_key is not None else None,
             LABEL_KEY: batch[self._label_key][:, None] if self._label_key is not None else 0,
-            SAMPLE_KEY: batch[self._sample_key][:, None] if self._sample_key is not None else None,
             CAT_COVS_KEY: torch.cat(
                 [batch[k][:, None] for k in self._categorical_covariate_keys], dim=1
             )
@@ -405,6 +404,7 @@ class MappedCollectionDataModule(LightningDataModule):
             )
             if self._continuous_covariate_keys is not None
             else None,
+            SAMPLE_KEY: batch[self._sample_key][:, None] if self._sample_key is not None else None,
         }
 
     class _InferenceDataloader:
@@ -713,11 +713,6 @@ class TileDBDataModule(LightningDataModule):
             ).unsqueeze(1)
             if self.label_keys is not None
             else torch.empty(0),
-            "sample": torch.from_numpy(
-                self.sample_encoder.transform(batch_obs[self.sample_colname])
-            ).unsqueeze(1)
-            if self.sample_key is not None
-            else torch.empty(0),
             "extra_categorical_covs": torch.cat(
                 [
                     torch.from_numpy(
@@ -739,6 +734,11 @@ class TileDBDataModule(LightningDataModule):
             )
             if self._continuous_covariate_keys is not None
             else None,
+            "sample": torch.from_numpy(
+                self.sample_encoder.transform(batch_obs[self.sample_colname])
+            ).unsqueeze(1)
+            if self.sample_key is not None
+            else torch.empty(0),
         }
 
     # scVI code expects these properties on the DataModule:

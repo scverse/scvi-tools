@@ -260,10 +260,10 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
-    # assert "train_classification_loss" in logged_keys
-    # assert "train_accuracy" in logged_keys
-    # assert "train_f1_score" in logged_keys
-    # assert "train_calibration_error" in logged_keys
+    assert "train_classification_loss" in logged_keys
+    assert "train_accuracy" in logged_keys
+    assert "train_f1_score" in logged_keys
+    assert "train_calibration_error" in logged_keys
 
     # repeat but with other data with fewer indices and smaller batch size
     adata1_scanvi_small = synthetic_iid(batch_size=10)
