@@ -70,6 +70,8 @@ Pros:
 Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
 - Flexibility: Supports multi-dimensional data storage, which can be useful for storing gene expression data across multiple conditions or time points.
 
+Note that using categorical covariates with TileDB require them to be non-integer (even when saved as string in the adata).
+
 ```python
 import cellxgene_census
 import tiledbsoma as soma

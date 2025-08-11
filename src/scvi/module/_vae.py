@@ -156,7 +156,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
