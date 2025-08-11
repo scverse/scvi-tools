@@ -841,7 +841,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if method_name == "setup_datamodule":
             attr_dict["n_input"] = attr_dict["n_vars"]
             attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
-            attr_dict["n_cats_per_cov"] = attr_dict["n_extra_categorical_covs"]
+            attr_dict["n_cats_per_cov"] = None
             if hasattr(model.module, "decoder"):
                 if hasattr(model.module.decoder, "px_decoder"):
                     if hasattr(model.module.decoder.px_decoder, "n_cat_list"):
