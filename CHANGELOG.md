@@ -14,7 +14,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- fix in library size calculation in totalvi, {pr}`3452`.
+- Fix in library size calculation in totalvi, {pr}`3452`.
+- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3304`.
 
 #### Changed
 
@@ -24,7 +25,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
+- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
     {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
 
 #### Fixed
