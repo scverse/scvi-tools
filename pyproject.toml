@@ -90,8 +90,6 @@ aws = ["boto3"]
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# scvi.criticism and read 10x
-criticism = ["scikit-misc"]
 # for convinient files sharing
 file_sharing = ["pooch","gdown"]
 # for parallelization engine
@@ -103,7 +101,7 @@ dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-censu
 
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,criticism,parallel,interpretability]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
