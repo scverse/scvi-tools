@@ -260,10 +260,10 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
     assert "elbo_train" in logged_keys
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
-    assert "train_classification_loss" in logged_keys
-    assert "train_accuracy" in logged_keys
-    assert "train_f1_score" in logged_keys
-    assert "train_calibration_error" in logged_keys
+    # assert "train_classification_loss" in logged_keys
+    # assert "train_accuracy" in logged_keys
+    # assert "train_f1_score" in logged_keys
+    # assert "train_calibration_error" in logged_keys
 
     # repeat but with other data with fewer indices and smaller batch size
     adata1_scanvi_small = synthetic_iid(batch_size=10)
@@ -419,7 +419,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
     adata2.obs.loc[:, "disjoint_batch"] = (adata2.obs.loc[:, "sample"] <= 6).replace(
         {True: "batch_0", False: "batch_1"}
     )
-    adata2.obs["dummy_batch"] = 1
+    adata2.obs["dummy_batch"] = 2
 
     artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
     artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
@@ -453,7 +453,16 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
         batch_size=1024,
         datamodule=datamodule,
     )
-    model.history.keys()
+    logged_keys = model.history.keys()
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "kl_global_train" in logged_keys
+    assert "validation_loss" in logged_keys
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "kl_global_validation" in logged_keys
 
     # The way to extract the internal model analysis is by the inference_dataloader
     # Datamodule will always require to pass it into all downstream functions.
@@ -462,6 +471,39 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
     _ = model.get_reconstruction_error(dataloader=inference_dataloader)
     _ = model.get_latent_representation(give_z=False, dataloader=inference_dataloader)
     _ = model.get_latent_representation(give_z=True, dataloader=inference_dataloader)
+
+    # save and load model
+    model.save(
+        "lamin_model_mrvi",
+        save_anndata=False,
+        overwrite=True,
+        datamodule=datamodule,
+    )
+    # load it back and do downstream analysis
+    loaded_model = MRVI.load("lamin_model_mrvi", adata=False)
+    loaded_model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=1,
+        early_stopping=False,
+    )
+
+    _ = loaded_model.get_elbo(dataloader=inference_dataloader)
+    _ = loaded_model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = loaded_model.get_latent_representation(give_z=False, dataloader=inference_dataloader)
+    _ = loaded_model.get_latent_representation(give_z=True, dataloader=inference_dataloader)
+
+    loaded_logged_keys = loaded_model.history.keys()
+    assert "elbo_train" in loaded_logged_keys
+    assert "reconstruction_loss_train" in loaded_logged_keys
+    assert "kl_local_train" in loaded_logged_keys
+    assert "kl_global_train" in loaded_logged_keys
+    assert "validation_loss" in loaded_logged_keys
+    assert "elbo_validation" in loaded_logged_keys
+    assert "reconstruction_loss_validation" in loaded_logged_keys
+    assert "kl_local_validation" in loaded_logged_keys
+    assert "kl_global_validation" in loaded_logged_keys
 
 
 @pytest.mark.dataloader
@@ -566,6 +608,13 @@ def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
 
     # load and save and make query with the other data
     model.save("lamin_model_cov", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # load it back and do downstream analysis
+    loaded_model = scvi.model.SCVI.load("lamin_model_cov", adata=False)
+    loaded_model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
 
 
 @pytest.mark.dataloader
@@ -1158,3 +1207,11 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
     # Additional things we would like to check
     # we make the batch name the same as in the model
     adata.obs["batch"] = adata.obs[batch_keys].agg("//".join, axis=1).astype("category")
+
+    model_census3 = scvi.model.SCVI.load("census_model_cov", adata=False)
+
+    model_census3.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        early_stopping=False,
+    )

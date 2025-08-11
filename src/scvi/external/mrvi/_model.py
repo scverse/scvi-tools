@@ -101,6 +101,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     :class:`~scvi.external.mrvi.MRVAE`
     """
 
+    _module_cls = MRVAE
+
     def __init__(self, adata: AnnData | None = None, registry: dict | None = None, **model_kwargs):
         super().__init__(adata, registry)
 
@@ -137,7 +139,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 f"{REGISTRY_KEYS.SAMPLE_KEY}"
             ]["n_obs_per_sample"]["n_obs_per_sample"]
 
-        self.module = MRVAE(
+        self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_sample=n_sample,
             n_batch=n_batch,

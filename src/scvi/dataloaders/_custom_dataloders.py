@@ -440,6 +440,7 @@ class TileDBDataModule(LightningDataModule):
         batch_labels: list[str] | None = None,
         label_keys: list[str] | None = None,
         unlabeled_category: str | None = "Unknown",
+        sample_key: list[str] | None = None,
         train_size: float | None = 1.0,
         split_seed: int | None = None,
         dataloader_kwargs: dict[str, Any] | None = None,
@@ -457,11 +458,9 @@ class TileDBDataModule(LightningDataModule):
                         Defines the desired result set from a SOMA Experiment.
         *args, **kwargs:
         Additional arguments passed through to `tiledbsoma_ml.ExperimentDataset`.
-
         batch_column_names: List[str], optional
         List of obs column names, the tuple of which defines the scVI batch label
         (not to be confused with a batch of training data).
-
         batch_labels: List[str], optional
         List of possible values of the batch label, for mapping to label tensors. By default,
         this will be derived from the unique labels in the given query results (given
@@ -470,21 +469,18 @@ class TileDBDataModule(LightningDataModule):
         another instance for a different query. That ensures the label mapping will be correct
         for the trained model, even if the second query doesn't return examples of every
         training batch label.
-
         label_keys
             List of obs column names concatenated to form the label column.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to set up CZI datamodule with scvi.
-
+        %(param_sample_key)s
         train_size
             Fraction of data to use for training.
         split_seed
             Seed for data split.
-
         dataloader_kwargs: dict, optional
         %(param_accelerator)s
         %(param_device)s
-
         model_name
             The SCVI-Tools Model we are running
         %(param_cat_cov_keys)s
@@ -509,6 +505,12 @@ class TileDBDataModule(LightningDataModule):
         self.labels = None
         self.label_encoder = None
         self.labels_ = None
+        self.sample_key = sample_key
+        self.sample_colsep = "//"
+        self.sample_colname = "_scvi_sample"
+        self.samples = None
+        self.sample_encoder = None
+        self.samples_ = None
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
         self.categ_cov_colsep = "//"
@@ -555,6 +557,16 @@ class TileDBDataModule(LightningDataModule):
             self.label_encoder = LabelEncoder().fit(self.labels)
             self.labels_ = obs_label_df[self.label_colname].values
 
+        if sample_key is not None:
+            obs_sample_df = self.query.obs(column_names=self.sample_key).concat().to_pandas()
+            obs_sample_df = obs_sample_df[self.sample_key]
+            self._add_sample_col(obs_sample_df, inplace=True)
+            samples = obs_sample_df[self.sample_colname].unique()
+            self.samples = samples
+            self.sample_encoder = LabelEncoder().fit(self.samples)
+            self.samples_ = obs_sample_df[self.sample_colname].values
+        self.n_obs_per_sample = torch.tensor([])
+
         if categorical_covariate_keys is not None:
             obs_categ_cov_df = (
                 self.query.obs(column_names=self._categorical_covariate_keys).concat().to_pandas()
@@ -580,6 +592,7 @@ class TileDBDataModule(LightningDataModule):
             if self.label_keys is None
             else self.batch_column_names + self.label_keys
         )
+        cols_sel = cols_sel if self.sample_key is None else cols_sel + self.sample_key
         cols_sel = (
             cols_sel
             if self._categorical_covariate_keys is None
@@ -639,6 +652,12 @@ class TileDBDataModule(LightningDataModule):
             obs_df[self.label_colname] = (
                 obs_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
             )
+        if self._categorical_covariate_keys is not None:
+            obs_df[self._categorical_covariate_colname] = (
+                obs_df[self._categorical_covariate_keys]
+                .astype(str)
+                .agg(self.categ_cov_colsep.join, axis=1)
+            )
         return obs_df
 
     def _add_label_col(self, obs_label_df: pd.DataFrame, inplace: bool = False):
@@ -650,6 +669,16 @@ class TileDBDataModule(LightningDataModule):
             obs_label_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
         )
         return obs_label_df
+
+    def _add_sample_col(self, obs_sample_df: pd.DataFrame, inplace: bool = False):
+        # synthesize a new column for obs_label_df by concatenating
+        # the self.batch_column_names columns
+        if not inplace:
+            obs_sample_df = obs_sample_df.copy()
+        obs_sample_df[self.sample_colname] = (
+            obs_sample_df[self.sample_key].astype(str).agg(self.sample_colsep.join, axis=1)
+        )
+        return obs_sample_df
 
     def _add_categ_cov_col(self, obs_categ_cov_df: pd.DataFrame, inplace: bool = False):
         # synthesize a new column for obs_label_df by concatenating
@@ -685,10 +714,18 @@ class TileDBDataModule(LightningDataModule):
             ).unsqueeze(1)
             if self.label_keys is not None
             else torch.empty(0),
+            "sample": torch.from_numpy(
+                self.sample_encoder.transform(batch_obs[self.sample_colname])
+            ).unsqueeze(1)
+            if self.sample_key is not None
+            else torch.empty(0),
             "extra_categorical_covs": torch.cat(
                 [
-                    torch.from_numpy(self.categ_cov_encoder.transform(batch_obs[k])).unsqueeze(1)
-                    for k in self._categorical_covariate_keys
+                    torch.from_numpy(
+                        self.categ_cov_encoder.transform(
+                            batch_obs[self._categorical_covariate_colname]
+                        )
+                    ).unsqueeze(1)
                 ],
                 dim=1,
             )
@@ -775,10 +812,24 @@ class TileDBDataModule(LightningDataModule):
             return 0
 
     @property
-    def labels_mapping(self) -> int:
+    def labels_mapping(self) -> list:
         if self.label_keys is not None:
             combined = np.concatenate((self.label_encoder.classes_, [self.unlabeled_category]))
             unique_values, idx = np.unique(combined, return_index=True)
+            unique_values = unique_values[np.argsort(idx)]
+            return unique_values.astype(object)
+
+    @property
+    def n_samples(self) -> int:
+        if self.sample_key is not None:
+            return len(self.samples_mapping)
+        else:
+            return 0
+
+    @property
+    def samples_mapping(self) -> list:
+        if self.sample_key is not None:
+            unique_values, idx = np.unique(self.sample_encoder.classes_, return_index=True)
             unique_values = unique_values[np.argsort(idx)]
             return unique_values.astype(object)
 
@@ -874,6 +925,20 @@ class TileDBDataModule(LightningDataModule):
                         "unlabeled_category": self.unlabeled_category,
                     },
                     "summary_stats": {"n_labels": self.n_labels},
+                },
+                "ind_x": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_indices"},
+                    "state_registry": {},
+                    "summary_stats": {},
+                },
+                "sample": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_sample"},
+                    "state_registry": {
+                        "categorical_mapping": self.samples,
+                        "original_key": self.sample_colname,
+                    },
+                    "n_obs_per_sample": {"n_obs_per_sample": self.n_obs_per_sample},
+                    "summary_stats": {"n_sample": self.n_samples},
                 },
                 "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
                 "extra_categorical_covs": self.extra_categorical_covs,
