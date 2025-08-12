@@ -135,7 +135,7 @@ class MappedCollectionDataModule(LightningDataModule):
         return self._create_dataloader_val(shuffle=self.shuffle)
 
     def inference_dataloader(
-        self, shuffle=None, batch_size=4096, indices=None, parallel_cpu_count=None
+        self, shuffle=False, batch_size=4096, indices=None, parallel_cpu_count=None
     ):
         """Dataloader for inference with `on_before_batch_transfer` applied."""
         if shuffle is None:
