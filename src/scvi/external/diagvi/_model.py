@@ -636,6 +636,7 @@ class TrainDL(DataLoader):  # creates batch structure for training process
         ]  # dl corresponding to the largest dataset
         super().__init__(
             self.largest_dl,
+            shuffle=True,
             num_workers=settings.dl_num_workers,
             persistent_workers=getattr(settings, "dl_persistent_workers", False),
         )

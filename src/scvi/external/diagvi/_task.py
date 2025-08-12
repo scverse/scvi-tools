@@ -208,6 +208,7 @@ class DiagTrainingPlan(TrainingPlan):
                 "z": loss_output.extra_metrics["z"],
                 "modality_loss": loss,
                 "graph_v": loss_output.extra_metrics["v_all"],
+                "classification_loss": loss_output.extra_metrics["classification_loss"],
             }
 
             loss_output_objs.append(loss_dict)
