@@ -20,7 +20,13 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
+from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
+    RNASeqMixin,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
 from scvi.utils import setup_anndata_dsp
 
 from ._module import SysVAE
@@ -28,7 +34,7 @@ from ._module import SysVAE
 logger = logging.getLogger(__name__)
 
 
-class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
+class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """Integration with cVAE & optional VampPrior and latent cycle-consistency.
 
      Described in
