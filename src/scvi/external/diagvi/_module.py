@@ -373,12 +373,12 @@ class DIAGVAE(BaseModuleClass):
         if self.classifier_0 is not None and mode == self.input_names[0]:
             y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
             z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
-            y_logits = self.classifier(z_mean)
+            y_logits = self.classifier_0(z_mean)
             classification_loss += torch.nn.functional.cross_entropy(y_logits, y, reduction="mean")
         if self.classifier_1 is not None and mode == self.input_names[1]:
             y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
             z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
-            y_logits = self.classifier(z_mean)
+            y_logits = self.classifier_1(z_mean)
             classification_loss += torch.nn.functional.cross_entropy(y_logits, y, reduction="mean")
         return LossOutput(
             loss=loss,
