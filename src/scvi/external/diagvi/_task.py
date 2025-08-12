@@ -10,6 +10,15 @@ from scvi.external.diagvi._utils import (
 from scvi.train import TrainingPlan
 
 
+def _anneal_param(current_epoch, max_epochs, init_value, target_value):
+    anneal_epochs = max_epochs // 3
+    if current_epoch >= anneal_epochs:
+        return target_value
+    else:
+        progress = current_epoch / anneal_epochs
+        return init_value + (target_value - init_value) * progress
+
+
 class DiagTrainingPlan(TrainingPlan):
     def __init__(
         self,
@@ -39,6 +48,9 @@ class DiagTrainingPlan(TrainingPlan):
         self.sinkhorn_blur = sinkhorn_blur
         self.lr = lr
         self.n_epochs_sinkhorn_warmup = n_epochs_sinkhorn_warmup
+        # use larger values initially to do annealing
+        self.init_blur = 10 * self.sinkhorn_blur  # or another large value
+        self.init_reach = 10 * self.sinkhorn_reach  # or another large value
 
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step."""
@@ -144,9 +156,12 @@ class DiagTrainingPlan(TrainingPlan):
         z1 = loss_output_objs[0]["z"]
         z2 = loss_output_objs[1]["z"]
 
-        sinkhorn = geomloss.SamplesLoss(
-            loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
-        )
+        ## anneal the sinkhorn parameters over a third of max_epochs
+        max_epochs = self.trainer.max_epochs
+        blur = _anneal_param(self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur)
+        reach = _anneal_param(self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach)
+
+        sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=blur, reach=reach)
         sinkhorn_loss = sinkhorn(z1, z2)
 
         self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)

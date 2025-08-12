@@ -145,6 +145,7 @@ class DecoderProtein(nn.Module):
         # parametrize the background mean using the feature/cell matrix product
         raw_px_scale = scale * (u @ v.T) + bias
         py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
+        # for fg different act function (positive + 1)
         py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
 
         # learn foreground scaling factor with a NN
