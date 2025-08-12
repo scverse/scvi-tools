@@ -142,15 +142,18 @@ class DecoderProtein(nn.Module):
         bias = self.bias[batch_index]
         py_["r"] = self.log_theta[batch_index]  # px_r
 
+        # parametrize the background mean using the feature/cell matrix product
         raw_px_scale = scale * (u @ v.T) + bias
         py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
         py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
 
+        # learn foreground scaling factor with a NN
         py_fore = self.py_fore_decoder(u, batch_index)
         py_fore_cat_z = torch.cat([py_fore, u], dim=-1)
         py_["scale_fore"] = self.py_fore_scale_decoder(py_fore_cat_z, batch_index) + 1 + 1e-8
         py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
 
+        # learn the mixing logits with a NN
         p_mixing = self.sigmoid_decoder(u, batch_index)
         p_mixing_cat_z = torch.cat([p_mixing, u], dim=-1)
 

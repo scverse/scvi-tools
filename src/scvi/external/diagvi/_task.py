@@ -229,6 +229,9 @@ class DiagTrainingPlan(TrainingPlan):
         ### data loss
         data_loss = sum(i["modality_loss"] for i in loss_output_objs)
 
+        ### classification loss
+        classification_loss = sum(i["classification_loss"] for i in loss_output_objs)
+
         ### UOT loss
         z1 = loss_output_objs[0]["z"]
         z2 = loss_output_objs[1]["z"]
@@ -238,8 +241,17 @@ class DiagTrainingPlan(TrainingPlan):
         )
         sinkhorn_loss = sinkhorn(z1, z2)
 
+        lam_sinkhorn_curr = compute_sinkhorn_lam(
+            self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
+        )
+
         ### total loss (lam_kl and lam_data are already included in data_loss)
-        total_loss = self.lam_graph * graph_loss + data_loss + self.lam_sinkhorn * sinkhorn_loss
+        total_loss = (
+            self.lam_graph * graph_loss
+            + data_loss
+            + lam_sinkhorn_curr * sinkhorn_loss
+            + self.lam_class * classification_loss
+        )
 
         total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
         self.log(
