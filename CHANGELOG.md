@@ -4,12 +4,13 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.3
+## Version 1.4
 
-### 1.3.4 (2025-XX-XX)
+### 1.4.0 (2025-XX-XX)
 
 #### Added
 
+- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
 - Add checkpointing with autotune, {pr}`3452`.
 
 #### Fixed
@@ -20,6 +21,8 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Changed
 
 #### Removed
+
+## Version 1.3
 
 ### 1.3.3 (2025-07-23)
 

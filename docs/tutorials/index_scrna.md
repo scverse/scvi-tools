@@ -5,6 +5,7 @@
 
 notebooks/scrna/harmonization
 notebooks/scrna/MrVI_tutorial
+notebooks/scrna/MrVI_tutorial_torch
 notebooks/scrna/scanvi_fix
 notebooks/scrna/seed_labeling
 notebooks/scrna/tabula_muris
@@ -30,7 +31,14 @@ Perform integration of multiple scRNA-seq datasets both with and without cell ty
 :path: notebooks/scrna/MrVI_tutorial
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
-Analyze multi-sample scRNA-seq data with MrVI
+Analyze multi-sample scRNA-seq data with MrVI in Jax
+```
+
+```{customcard}
+:path: notebooks/scrna/MrVI_tutorial
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+Analyze multi-sample scRNA-seq data with MrVI in PyTorch
 ```
 
 ```{customcard}
