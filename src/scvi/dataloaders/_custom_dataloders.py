@@ -139,9 +139,12 @@ class MappedCollectionDataModule(LightningDataModule):
         dataloader = self._create_dataloader(shuffle, batch_size, indices)
         return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
 
-    def _create_dataloader(self, shuffle, batch_size=None, indices=None):
+    def _create_dataloader(self, shuffle, batch_size=None, indices=None, parallel_cpu_count=None):
         if self._parallel:
-            num_workers = os.cpu_count() - 1
+            if parallel_cpu_count is None:
+                num_workers = os.cpu_count() - 1
+            else:
+                num_workers = parallel_cpu_count
             worker_init_fn = self._dataset.torch_worker_init_fn
         else:
             num_workers = 0
@@ -160,10 +163,15 @@ class MappedCollectionDataModule(LightningDataModule):
             worker_init_fn=worker_init_fn,
         )
 
-    def _create_dataloader_val(self, shuffle, batch_size=None, indices=None):
+    def _create_dataloader_val(
+        self, shuffle, batch_size=None, indices=None, parallel_cpu_count=None
+    ):
         if self._validset is not None:
             if self._parallel:
-                num_workers = os.cpu_count() - 1
+                if parallel_cpu_count is None:
+                    num_workers = os.cpu_count() - 1
+                else:
+                    num_workers = parallel_cpu_count
                 worker_init_fn = self._validset.torch_worker_init_fn
             else:
                 num_workers = 0
