@@ -117,7 +117,7 @@ class MappedCollectionDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self._batch_size
         if indices is not None:
-            dataset = self._dataset[indices]  # TODO find a better way
+            dataset = self._dataset[indices]
         else:
             dataset = self._dataset
         return DataLoader(
@@ -139,7 +139,7 @@ class MappedCollectionDataModule(LightningDataModule):
             if batch_size is None:
                 batch_size = self._batch_size
             if indices is not None:
-                validset = self._validset[indices]  # TODO find a better way
+                validset = self._validset[indices]
             else:
                 validset = self._validset
             return DataLoader(
@@ -209,7 +209,6 @@ class MappedCollectionDataModule(LightningDataModule):
                 "summary_stats": {"n_extra_categorical_covs": 0},
             }
         else:
-            # TODO need to adjust this mapping
             mapping = dict(
                 zip(
                     self._categorical_covariate_keys,
@@ -387,11 +386,9 @@ class TileDBDataModule(LightningDataModule):
                         Defines the desired result set from a SOMA Experiment.
         *args, **kwargs:
         Additional arguments passed through to `tiledbsoma_ml.ExperimentDataset`.
-
         batch_column_names: List[str], optional
         List of obs column names, the tuple of which defines the scVI batch label
         (not to be confused with a batch of training data).
-
         batch_labels: List[str], optional
         List of possible values of the batch label, for mapping to label tensors. By default,
         this will be derived from the unique labels in the given query results (given
@@ -400,7 +397,6 @@ class TileDBDataModule(LightningDataModule):
         another instance for a different query. That ensures the label mapping will be correct
         for the trained model, even if the second query doesn't return examples of every
         training batch label.
-
         label_keys
             List of obs column names concatenated to form the label column.
         unlabeled_category
@@ -410,11 +406,9 @@ class TileDBDataModule(LightningDataModule):
             Fraction of data to use for training.
         split_seed
             Seed for data split.
-
         dataloader_kwargs: dict, optional
         %(param_accelerator)s
         %(param_device)s
-
         model_name
             The SCVI-Tools Model we are running
         %(param_cat_cov_keys)s
@@ -569,6 +563,12 @@ class TileDBDataModule(LightningDataModule):
             obs_df[self.label_colname] = (
                 obs_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
             )
+        if self._categorical_covariate_keys is not None:
+            obs_df[self._categorical_covariate_colname] = (
+                obs_df[self._categorical_covariate_keys]
+                .astype(str)
+                .agg(self.categ_cov_colsep.join, axis=1)
+            )
         return obs_df
 
     def _add_label_col(self, obs_label_df: pd.DataFrame, inplace: bool = False):
@@ -617,8 +617,11 @@ class TileDBDataModule(LightningDataModule):
             else torch.empty(0),
             "extra_categorical_covs": torch.cat(
                 [
-                    torch.from_numpy(self.categ_cov_encoder.transform(batch_obs[k])).unsqueeze(1)
-                    for k in self._categorical_covariate_keys
+                    torch.from_numpy(
+                        self.categ_cov_encoder.transform(
+                            batch_obs[self._categorical_covariate_colname]
+                        )
+                    ).unsqueeze(1)
                 ],
                 dim=1,
             )
@@ -705,7 +708,7 @@ class TileDBDataModule(LightningDataModule):
             return 0
 
     @property
-    def labels_mapping(self) -> int:
+    def labels_mapping(self) -> list:
         if self.label_keys is not None:
             combined = np.concatenate((self.label_encoder.classes_, [self.unlabeled_category]))
             unique_values, idx = np.unique(combined, return_index=True)
@@ -721,7 +724,6 @@ class TileDBDataModule(LightningDataModule):
                 "summary_stats": {"n_extra_categorical_covs": 0},
             }
         else:
-            # TODO need to adjust this mapping
             mapping = dict(
                 zip(
                     self._categorical_covariate_keys,
