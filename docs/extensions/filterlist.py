@@ -16,6 +16,7 @@ GROUP_ORDER = [
     "scBS-seq",
     "Multimodal",
     "Spatial transcriptomics",
+    "Cytometry",
     "Model hub",
     "Common Modelling Use Cases",
     "R Tutorials",
