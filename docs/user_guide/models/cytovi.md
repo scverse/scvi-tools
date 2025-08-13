@@ -17,7 +17,8 @@ The limitations of CytoVI include:
 - Assumes measurements have been corrected for fluorescent spillover and preprocessed according to standard practice.
 
 ```{topic} Tutorials:
-- {doc}`/tutorials/notebooks/cytometry/CytoVI_tutorial`
+- {doc}`/tutorials/notebooks/cytometry/CytoVI_batch_correction_tutorial`
+- {doc}`/tutorials/notebooks/cytometry/CytoVI_advanced_tutorial`
 ```
 
 <!--  note: to populate -->
