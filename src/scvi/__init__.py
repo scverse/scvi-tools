@@ -2,8 +2,6 @@
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
-import warnings
-from scvi.utils import is_package_installed
 
 from ._constants import REGISTRY_KEYS
 from ._settings import settings
@@ -12,6 +10,7 @@ from ._settings import settings
 from . import data, model, external, utils
 
 from importlib.metadata import version
+from scvi.utils import error_on_missing_dependencies
 
 package_name = "scvi-tools"
 __version__ = version(package_name)
@@ -32,7 +31,15 @@ __all__ = [
     "utils",
 ]
 
-if is_package_installed("xarray") and is_package_installed("sparse"):
-    from . import criticism
 
-    __all__ += ["criticism"]
+def __getattr__(name: str):
+    """Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "criticism":
+        error_on_missing_dependencies("xarray", "sparse")
+        from . import criticism as _criticism
+
+        return _criticism
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

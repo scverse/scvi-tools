@@ -3,7 +3,6 @@
 ## Quick install
 
 scvi-tools can be installed via `conda` or `pip`.
-
 We recommend installing into a fresh virtual environment to avoid conflicts with other packages
 and compatibility issues.
 
@@ -80,7 +79,7 @@ It has many optional dependencies, which expand its capabilities:
 - _autotune_ - in order to run scvi.autotune
 - _hub_ - in order to use scvi.hub
 - _regseq_ - in order to run scvi.data.add_dna_sequence
-- _scanpy_ - in order to use scanpy
+- _criticism_ - for critisicm report creation
 - _file_sharing_ - for convenient files sharing
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability
@@ -105,7 +104,7 @@ To install all tutorial dependencies:
 pip install -U scvi-tools[tutorials]
 ```
 
-To install all optional dependencies (_e.g._ jax support, scanpy support, custom dataloaders, autotune, criticism, model hub):
+To install all optional dependencies (_e.g._ jax support, custom dataloaders, autotune, criticism, model hub):
 
 
 ```bash

@@ -83,7 +83,7 @@ autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# umaps, scvi.criticism and read 10x
+# scvi.criticism and read 10x
 criticism = ["xarray>=2023.2.0"]
 # for convenient files sharing
 file_sharing = ["pooch","gdown"]

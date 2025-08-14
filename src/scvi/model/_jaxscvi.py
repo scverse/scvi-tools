@@ -3,20 +3,15 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import jax.numpy as jnp
+
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField
-from scvi.utils import error_on_missing_dependencies, setup_anndata_dsp
+from scvi.module import JaxVAE
+from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass
-
-error_on_missing_dependencies("jax", "numpyro", "flax", "jaxlib", "optax")
-
-import jax.numpy as jnp  # noqa: E402
-
-from scvi.module import JaxVAE  # noqa: E402
-
-from .base._jaxmixin import JaxTrainingMixin  # noqa: E402
+from .base import BaseModelClass, JaxTrainingMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
