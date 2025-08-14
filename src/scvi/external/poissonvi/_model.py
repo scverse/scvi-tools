@@ -396,8 +396,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         )
         raise NotImplementedError(msg)
 
-        return None
-
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(

@@ -70,10 +70,10 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`Ashuach22`
    * - :doc:`/user_guide/models/scbasset`
-     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, imputation
+     - Representation learning on scATAC-seq data, integration of data across several samples
      - :cite:p:`Yuan2022`
    * - :doc:`/user_guide/models/poissonvi`
-     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+     - Analyzing scATAC-seq data using quantitative fragment counts
      - :cite:p:`Martens2023`
 ```
 
@@ -88,7 +88,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Tasks
      - Reference
    * - :doc:`/user_guide/models/methylvi`
-     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential methylation, imputation, normalization of other cell- and sample-level confounding factors
+     - Anlaysis of single-cell bisulfite data from several sequencing platforms
      - :cite:p:`Weinberger2023a`
    * - :doc:`/user_guide/models/methylanvi`
      - MethylVI tasks along with cell type label transfer from reference, seed labeling

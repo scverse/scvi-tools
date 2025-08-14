@@ -102,6 +102,9 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         Extra keyword arguments passed into :class:`~scvi.nn.EncoderTOTALVI`.
     extra_decoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.DecoderTOTALVI`.
+    linear_classifier
+        If ``True``, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
     """
 
     def __init__(
