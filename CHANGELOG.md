@@ -4,9 +4,9 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.3
+## Version 1.4
 
-### 1.3.4 (2025-XX-XX)
+### 1.4.0 (2025-XX-XX)
 
 #### Added
 
@@ -19,7 +19,13 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Change previous implementation of {class}`scvi.external.MRVI` to {class}`scvi.external.JaxMRVI`.
+    {pr}`3426`.
+- Made the Jax dependency optional in scvi-tools {pr}`3426`.
+
 #### Removed
+
+## Version 1.3
 
 ### 1.3.3 (2025-07-23)
 
@@ -35,10 +41,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
-- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
-
 #### Removed
 
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
 - Removed a bad legacy code in scarchesmixin, {pr}`3417`.
 - Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
