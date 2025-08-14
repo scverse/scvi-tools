@@ -3,12 +3,13 @@
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
 import warnings
+from scvi.utils import is_package_installed
 
 from ._constants import REGISTRY_KEYS
 from ._settings import settings
 
 # this import needs to come after prior imports to prevent circular import
-from . import data, model, external, utils, criticism
+from . import data, model, external, utils
 
 from importlib.metadata import version
 
@@ -29,5 +30,9 @@ __all__ = [
     "model",
     "external",
     "utils",
-    "criticism",
 ]
+
+if is_package_installed("xarray") and is_package_installed("sparse"):
+    from . import criticism
+
+    __all__ += ["criticism"]

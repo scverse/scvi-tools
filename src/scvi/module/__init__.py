@@ -1,4 +1,4 @@
-from scvi.utils import is_package_installed
+from scvi.utils import error_on_missing_dependencies
 
 from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
@@ -25,7 +25,15 @@ __all__ = [
     "AmortizedLDAPyroModule",
 ]
 
-if is_package_installed("numpyro") and is_package_installed("jax"):
-    from ._jaxvae import JaxVAE
 
-    __all__ += ["JaxVAE"]
+def __getattr__(name: str):
+    """Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "JaxVAE":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
+        from ._jaxvae import JaxVAE as _JaxVAE
+
+        return _JaxVAE
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

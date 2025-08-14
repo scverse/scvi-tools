@@ -1,4 +1,4 @@
-from scvi.utils import is_package_installed
+from scvi.utils import error_on_missing_dependencies
 
 from ._beta_binomial import BetaBinomial
 from ._negative_binomial import (
@@ -18,7 +18,16 @@ __all__ = [
     "Normal",
 ]
 
-if is_package_installed("numpyro") and is_package_installed("jax"):
-    from ._negative_binomial import JaxNegativeBinomialMeanDisp
 
-    __all__ += ["JaxNegativeBinomialMeanDisp"]
+def __getattr__(name: str):
+    """
+    Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "JaxNegativeBinomialMeanDisp":
+        error_on_missing_dependencies("jax", "numpyro")
+        from ._negative_binomial import JaxNegativeBinomialMeanDisp as _JaxNegativeBinomialMeanDisp
+
+        return _JaxNegativeBinomialMeanDisp
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

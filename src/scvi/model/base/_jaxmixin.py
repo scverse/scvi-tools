@@ -5,7 +5,7 @@ import warnings
 
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
-from scvi.train import JaxModuleInit, TrainRunner
+from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
 from scvi.utils import is_package_installed
 from scvi.utils._docstrings import devices_dsp
 
@@ -16,8 +16,6 @@ if is_package_installed("jax") and is_package_installed("optax"):
 
     class JaxTrainingMixin:
         """General purpose train method for Jax-backed modules."""
-
-        from scvi.train._trainingplans import JaxTrainingPlan
 
         _data_splitter_cls = DataSplitter
         _training_plan_cls = JaxTrainingPlan

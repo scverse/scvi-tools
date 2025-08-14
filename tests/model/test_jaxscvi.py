@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from scvi.data import synthetic_iid
-from scvi.model._jaxscvi import JaxSCVI
+from scvi.model import JaxSCVI
 from scvi.utils import attrdict
 
 

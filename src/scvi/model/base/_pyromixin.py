@@ -6,19 +6,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from lightning.pytorch.callbacks import Callback
+from pyro import poutine
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
-from scvi.train import TrainRunner
-from scvi.utils import error_on_missing_dependencies, track
+from scvi.train import PyroTrainingPlan, TrainRunner
+from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
-
-error_on_missing_dependencies("pyro")
-
-from pyro import poutine  # noqa: E402
-
-from scvi.train import PyroTrainingPlan  # noqa: E402
 
 if TYPE_CHECKING:
     from collections.abc import Callable

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 
 from scvi.data import synthetic_iid
-from scvi.external.tangram import Tangram
+from scvi.external import Tangram
 
 modalities = {"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"}
 

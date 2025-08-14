@@ -1,9 +1,10 @@
+from scvi.utils import error_on_missing_dependencies
+
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
-from .mrvi import MRVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -29,9 +30,32 @@ __all__ = [
     "ContrastiveVI",
     "SysVI",
     "VELOVI",
-    "MRVI",
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
 ]
+
+
+def __getattr__(name: str):
+    """
+    Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "MRVI":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
+        from .mrvi import MRVI as _MRVI
+
+        return _MRVI
+    if name == "JaxMRVI":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
+        from .mrvi_jax import JaxMRVI as _JaxMRVI
+
+        return _JaxMRVI
+    if name == "Tangram":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
+        from .tangram import Tangram as _Tangram
+
+        return _Tangram
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

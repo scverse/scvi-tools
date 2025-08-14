@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pyro
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -14,10 +15,13 @@ from scvi.data import _constants
 from scvi.utils import is_package_installed
 
 from ._decorators import auto_move_data
+from ._pyro import AutoMoveDataPredictive
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from typing import Any
+
+    from pyro.infer.predictive import Predictive
 
     from scvi._types import LossRecord, MinifiedDataType, Tensor
     from scvi.model.base import BaseModelClass
@@ -306,152 +310,141 @@ def _get_dict_if_none(param):
     return param
 
 
-if is_package_installed("pyro"):
+class PyroBaseModuleClass(nn.Module):
+    """Base module class for Pyro models.
 
-    class PyroBaseModuleClass(nn.Module):
-        """Base module class for Pyro models.
+    In Pyro, ``model`` and ``guide`` should have the same signature. Out of convenience,
+    the forward function of this class passes through to the forward of the ``model``.
 
-        In Pyro, ``model`` and ``guide`` should have the same signature. Out of convenience,
-        the forward function of this class passes through to the forward of the ``model``.
+    There are two ways this class can be equipped with a model and a guide. First,
+    ``model`` and ``guide`` can be class attributes that are :class:`~pyro.nn.PyroModule`
+    instances. The implemented ``model`` and ``guide`` class method can then return the (private)
+    attributes. Second, ``model`` and ``guide`` methods can be written directly (see Pyro scANVI
+    example) https://pyro.ai/examples/scanvi.html.
 
-        There are two ways this class can be equipped with a model and a guide. First,
-        ``model`` and ``guide`` can be class attributes that are :class:`~pyro.nn.PyroModule`
-        instances. The implemented ``model`` and ``guide`` class method can then return the
-        (private) attributes. Second, ``model`` and ``guide`` methods can be written directly
-        (see Pyro scANVI example) https://pyro.ai/examples/scanvi.html.
+    The ``model`` and ``guide`` may also be equipped with ``n_obs`` attributes, which can be set
+    to ``None`` (e.g., ``self.n_obs = None``). This attribute may be helpful in designating the
+    size of observation-specific Pyro plates. The value will be updated automatically by
+    :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training
+    examples upon initialization.
 
-        The ``model`` and ``guide`` may also be equipped with ``n_obs`` attributes, which can be
-        set to ``None`` (e.g., ``self.n_obs = None``). This attribute may be helpful in designating
-        the size of observation-specific Pyro plates. The value will be updated automatically by
-        :class:`~scvi.train.PyroTrainingPlan`, provided that it is given the number of training
-        examples upon initialization.
+    Parameters
+    ----------
+    on_load_kwargs
+        Dictionary containing keyword args to use in ``self.on_load``.
+    """
+
+    def __init__(self, on_load_kwargs: dict | None = None):
+        super().__init__()
+        self.on_load_kwargs = on_load_kwargs or {}
+
+    @staticmethod
+    @abstractmethod
+    def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
+        """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
+
+        In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
+        that gets the args and kwargs for these two methods. This helper method aids ``forward``
+        and ``guide`` in having transparent signatures, as well as allows use of our generic
+        :class:`~scvi.dataloaders.AnnDataLoader`.
+
+        Returns
+        -------
+        args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
+        """
+
+    @property
+    @abstractmethod
+    def model(self):
+        pass
+
+    @property
+    @abstractmethod
+    def guide(self):
+        pass
+
+    @property
+    def list_obs_plate_vars(self):
+        """Model annotation for minibatch training with pyro plate.
+
+        A dictionary with:
+        1. "name" - the name of observation/minibatch plate;
+        2. "in" - indexes of model args to provide to encoder network when using amortised
+            inference;
+        3. "sites" - dictionary with
+            keys - names of variables that belong to the observation plate (used to recognise
+             and merge posterior samples for minibatch variables)
+            values - the dimensions in non-plate axis of each variable (used to construct output
+             layer of encoder network when using amortised inference)
+        """
+        return {"name": "", "in": [], "sites": {}}
+
+    def on_load(self, model, **kwargs):
+        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
+
+        For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
+        """
+        pyro.clear_param_store()
+        old_history = model.history_.copy() if model.history_ is not None else None
+        model.train(max_steps=1, **self.on_load_kwargs)
+        model.history_ = old_history
+        if "pyro_param_store" in kwargs:
+            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            pyro.get_param_store().set_state(kwargs["pyro_param_store"])
+
+    def create_predictive(
+        self,
+        model: Callable | None = None,
+        posterior_samples: dict | None = None,
+        guide: Callable | None = None,
+        num_samples: int | None = None,
+        return_sites: tuple[str] = (),
+        parallel: bool = False,
+    ) -> Predictive:
+        """Creates a :class:`~pyro.infer.Predictive` object.
 
         Parameters
         ----------
-        on_load_kwargs
-            Dictionary containing keyword args to use in ``self.on_load``.
+        model
+            Python callable containing Pyro primitives. Defaults to ``self.model``.
+        posterior_samples
+            Dictionary of samples from the posterior
+        guide
+            Optional guide to get posterior samples of sites not present
+            in ``posterior_samples``. Defaults to ``self.guide``
+        num_samples
+            Number of samples to draw from the predictive distribution.
+            This argument has no effect if ``posterior_samples`` is non-empty, in which case,
+            the leading dimension size of samples in ``posterior_samples`` is used.
+        return_sites
+            Sites to return; by default only sample sites not present
+            in ``posterior_samples`` are returned.
+        parallel
+            predict in parallel by wrapping the existing model
+            in an outermost ``plate`` messenger. Note that this requires that the model has
+            all batch dims correctly annotated via :class:`~pyro.plate`.
         """
+        if model is None:
+            model = self.model
+        if guide is None:
+            guide = self.guide
+        predictive = AutoMoveDataPredictive(
+            model=model,
+            posterior_samples=posterior_samples,
+            guide=guide,
+            num_samples=num_samples,
+            return_sites=return_sites,
+            parallel=parallel,
+        )
+        # necessary to comply with auto_move_data decorator
+        predictive.eval()
 
-        from pyro.infer.predictive import Predictive
+        return predictive
 
-        def __init__(self, on_load_kwargs: dict | None = None):
-            super().__init__()
-            self.on_load_kwargs = on_load_kwargs or {}
+    def forward(self, *args, **kwargs):
+        """Passthrough to Pyro model."""
+        return self.model(*args, **kwargs)
 
-        @staticmethod
-        @abstractmethod
-        def _get_fn_args_from_batch(tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
-            """Parse the minibatched data to get the correct inputs for ``model`` and ``guide``.
-
-            In Pyro, ``model`` and ``guide`` must have the same signature. This is a helper method
-            that gets the args and kwargs for these two methods. This helper method aids
-            ``forward`` and ``guide`` in having transparent signatures, as well as allows use of
-            our generic :class:`~scvi.dataloaders.AnnDataLoader`.
-
-            Returns
-            -------
-            args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
-            """
-
-        @property
-        @abstractmethod
-        def model(self):
-            pass
-
-        @property
-        @abstractmethod
-        def guide(self):
-            pass
-
-        @property
-        def list_obs_plate_vars(self):
-            """Model annotation for minibatch training with pyro plate.
-
-            A dictionary with:
-            1. "name" - the name of observation/minibatch plate;
-            2. "in" - indexes of model args to provide to encoder network when using amortised
-                inference;
-            3. "sites" - dictionary with
-                keys - names of variables that belong to the observation plate (used to recognise
-                and merge posterior samples for minibatch variables)
-                values - the dimensions in non-plate axis of each variable (used to construct
-                output layer of encoder network when using amortised inference)
-            """
-            return {"name": "", "in": [], "sites": {}}
-
-        def on_load(self, model, **kwargs):
-            """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
-
-            For some Pyro modules with AutoGuides, run one training step prior
-            to loading state dict.
-            """
-            import pyro
-
-            pyro.clear_param_store()
-            old_history = model.history_.copy() if model.history_ is not None else None
-            model.train(max_steps=1, **self.on_load_kwargs)
-            model.history_ = old_history
-            if "pyro_param_store" in kwargs:
-                # For scArches shapes are changed and we don't want to
-                # overwrite these changed shapes.
-                pyro.get_param_store().set_state(kwargs["pyro_param_store"])
-
-        def create_predictive(
-            self,
-            model: Callable | None = None,
-            posterior_samples: dict | None = None,
-            guide: Callable | None = None,
-            num_samples: int | None = None,
-            return_sites: tuple[str] = (),
-            parallel: bool = False,
-        ) -> Predictive:
-            """Creates a :class:`~pyro.infer.Predictive` object.
-
-            Parameters
-            ----------
-            model
-                Python callable containing Pyro primitives. Defaults to ``self.model``.
-            posterior_samples
-                Dictionary of samples from the posterior
-            guide
-                Optional guide to get posterior samples of sites not present
-                in ``posterior_samples``. Defaults to ``self.guide``
-            num_samples
-                Number of samples to draw from the predictive distribution.
-                This argument has no effect if ``posterior_samples`` is non-empty, in which case,
-                the leading dimension size of samples in ``posterior_samples`` is used.
-            return_sites
-                Sites to return; by default only sample sites not present
-                in ``posterior_samples`` are returned.
-            parallel
-                predict in parallel by wrapping the existing model
-                in an outermost ``plate`` messenger. Note that this requires that the model has
-                all batch dims correctly annotated via :class:`~pyro.plate`.
-            """
-            from ._pyro import AutoMoveDataPredictive
-
-            if model is None:
-                model = self.model
-            if guide is None:
-                guide = self.guide
-            predictive = AutoMoveDataPredictive(
-                model=model,
-                posterior_samples=posterior_samples,
-                guide=guide,
-                num_samples=num_samples,
-                return_sites=return_sites,
-                parallel=parallel,
-            )
-            # necessary to comply with auto_move_data decorator
-            predictive.eval()
-
-            return predictive
-
-        def forward(self, *args, **kwargs):
-            """Passthrough to Pyro model."""
-            return self.model(*args, **kwargs)
-else:
-    raise ImportError("Please install pyro to use this functionality.")
 
 if is_package_installed("jax") and is_package_installed("flax"):
     import flax

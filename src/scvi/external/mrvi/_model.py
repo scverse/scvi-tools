@@ -15,8 +15,7 @@ from scvi.data import AnnDataManager, fields
 from scvi.external.mrvi._module import MRVAE
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi._utils import rowwise_max_excluding_diagonal
-from scvi.model.base import BaseModelClass
-from scvi.model.base._jaxmixin import JaxTrainingMixin
+from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 

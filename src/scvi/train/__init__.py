@@ -1,5 +1,6 @@
+from scvi.utils import error_on_missing_dependencies
+
 from ._callbacks import (
-    JaxModuleInit,
     LoudEarlyStopping,
     SaveCheckpoint,
     ScibCallback,
@@ -30,6 +31,23 @@ __all__ = [
     "LoudEarlyStopping",
     "SaveCheckpoint",
     "ScibCallback",
-    "JaxModuleInit",
     "METRIC_KEYS",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "JaxModuleInit":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
+        from ._callbacks import JaxModuleInit as _JaxModuleInit
+
+        return _JaxModuleInit
+    if name == "JaxTrainingPlan":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
+        from ._trainingplans import JaxTrainingPlan as _JaxTrainingPlan
+
+        return _JaxTrainingPlan
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

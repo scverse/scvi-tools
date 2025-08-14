@@ -6,22 +6,16 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+import pyro
 import torch
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import LayerField
-from scvi.utils import error_on_missing_dependencies, setup_anndata_dsp
+from scvi.module import AmortizedLDAPyroModule
+from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass
-
-error_on_missing_dependencies("pyro")
-
-import pyro  # noqa: E402
-
-from scvi.module import AmortizedLDAPyroModule  # noqa: E402
-
-from .base import PyroSviTrainMixin  # noqa: E402
+from .base import BaseModelClass, PyroSviTrainMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
