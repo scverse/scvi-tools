@@ -75,7 +75,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         if prior == "vamp":
             if pseudoinputs_data_indices is None:
                 pseudoinputs_data_indices = np.random.randint(
-                    0, self.summary_stats.n_vars, n_prior_components
+                    0, self.summary_stats.n_cells, n_prior_components
                 )
             assert pseudoinputs_data_indices.shape[0] == n_prior_components
             assert pseudoinputs_data_indices.ndim == 1
