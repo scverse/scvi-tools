@@ -62,17 +62,17 @@ def mock_adata():
     ),
     [
         # Check different covariate combinations
-        ('vamp',["covariate_cat"], ["covariate_cont"], None, False, False),
-        ('vamp',["covariate_cat"], ["covariate_cont"], None, True, False),
-        ('vamp',["covariate_cat"], None, None, False, False),
-        ('vamp',["covariate_cat"], None, None, True, False),
-        ('vamp',None, ["covariate_cont"], None, False, False),
+        ("vamp", ["covariate_cat"], ["covariate_cont"], None, False, False),
+        ("vamp", ["covariate_cat"], ["covariate_cont"], None, True, False),
+        ("vamp", ["covariate_cat"], None, None, False, False),
+        ("vamp", ["covariate_cat"], None, None, True, False),
+        ("vamp", None, ["covariate_cont"], None, False, False),
         # Check alternative priors
         ("standard_normal", ["covariate_cat"], ["covariate_cont"], None, False, False),
         # Check pre-specifying pseudoinputs
-        ('vamp',None, None, np.array(list(range(5))), False, False),
+        ("vamp", None, None, np.array(list(range(5))), False, False),
         # Check batch weighting
-        ('vamp',None, None, None, False, True),
+        ("vamp", None, None, None, False, True),
     ],
 )
 def test_sysvi_model(
@@ -120,6 +120,7 @@ def test_sysvi_model(
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
+
 @pytest.mark.parametrize(
     (
         "prior",
@@ -127,18 +128,13 @@ def test_sysvi_model(
     ),
     [
         # Check different covariate representations
-        ('vamp',False),
-        ('vamp',True),
+        ("vamp", False),
+        ("vamp", True),
         # Check different priors
         ("standard_normal", False),
     ],
 )
-
-def test_sysvi_scarches(
-    prior,
-    embed_categorical_covariates,
-    save_path
-):
+def test_sysvi_scarches(prior, embed_categorical_covariates, save_path):
     # reference adata
     adata = mock_adata()
     SysVI.setup_anndata(
@@ -159,23 +155,29 @@ def test_sysvi_scarches(
     # Query adata
     adata2 = mock_adata()
     # Make it different from reference adata
-    adata2.obs["covariate_cat"] = adata2.obs["covariate_cat"].replace({'b':'y', 'c':'x'})
-    adata2=adata2[:,np.random.permutation(adata2.var_names)[:adata2.shape[1]-5]].copy()
+    adata2.obs["covariate_cat"] = adata2.obs["covariate_cat"].replace({"b": "y", "c": "x"})
+    adata2 = adata2[:, np.random.permutation(adata2.var_names)[: adata2.shape[1] - 5]].copy()
 
     # Make query adata and model
     SysVI.prepare_query_anndata(adata2, model)
     np.testing.assert_equal(adata2.var_names.to_numpy(), adata.var_names.to_numpy())
-    model2= SysVI.load_query_data(adata2, model)
+    model2 = SysVI.load_query_data(adata2, model)
 
     # Train query model
     model2.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Check that embedding default works
     assert (
-        model2.get_latent_representation(adata=adata,).shape[0] == adata.shape[0]
+        model2.get_latent_representation(
+            adata=adata,
+        ).shape[0]
+        == adata.shape[0]
     )
     assert (
-        model2.get_latent_representation(adata=adata2,).shape[0] == adata2.shape[0]
+        model2.get_latent_representation(
+            adata=adata2,
+        ).shape[0]
+        == adata2.shape[0]
     )
 
 
@@ -275,8 +277,8 @@ def test_sysvi_warnings():
     with pytest.raises(NotImplementedError):
         model.module.sample()
 
-def test_sysvi_scarches_errors():
 
+def test_sysvi_scarches_errors():
     # reference adata
     adata = mock_adata()
     SysVI.setup_anndata(
@@ -295,12 +297,17 @@ def test_sysvi_scarches_errors():
     # Query adata
     adata2 = mock_adata()
     # Make it different from reference adata
-    adata2.obs["batch"] = adata2.obs["batch"].replace({'c':'y',})
+    adata2.obs["batch"] = adata2.obs["batch"].replace(
+        {
+            "c": "y",
+        }
+    )
 
     # Make query adata and model
-    model2=SysVI.prepare_query_anndata(adata2, model)
+    model2 = SysVI.prepare_query_anndata(adata2, model)
     with pytest.raises(
         ValueError,
         match="This model does not allow for query having batch categories "
-              "missing from the reference."):
-        model2= SysVI.load_query_data(adata2, model)
+        "missing from the reference.",
+    ):
+        model2 = SysVI.load_query_data(adata2, model)

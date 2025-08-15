@@ -16,7 +16,7 @@ from mudata import MuData
 from scipy.sparse import csr_matrix
 from torch.distributions import transform_to
 
-from scvi import settings, REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
@@ -116,15 +116,18 @@ class ArchesMixin:
         )
 
         if not cls.transfer_batch:
-            reference_batches = attr_dict["registry_"]["field_registries"][REGISTRY_KEYS.BATCH_KEY]\
-                ["state_registry"]["categorical_mapping"]
+            reference_batches = attr_dict["registry_"]["field_registries"][
+                REGISTRY_KEYS.BATCH_KEY
+            ]["state_registry"]["categorical_mapping"]
             if adata:
-                batch_col=attr_dict["registry_"]["field_registries"][REGISTRY_KEYS.BATCH_KEY]\
-                    ["state_registry"]["original_key"]
+                batch_col = attr_dict["registry_"]["field_registries"][REGISTRY_KEYS.BATCH_KEY][
+                    "state_registry"
+                ]["original_key"]
                 query_batches = adata.obs[batch_col].unique()
             else:
-                query_batches = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY]\
-                    ["state_registry"]["categorical_mapping"]
+                query_batches = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY][
+                    "state_registry"
+                ]["categorical_mapping"]
             if any([batch not in reference_batches for batch in query_batches]):
                 raise ValueError(
                     "This model does not allow for query having batch categories "
