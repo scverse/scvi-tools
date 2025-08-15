@@ -78,9 +78,9 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
                 assert pseudoinputs_data_indices.ndim == 1
                 if pseudoinputs_data_indices.max() >= self.summary_stats.n_cells:
                     warnings.warn(
-                        'The maximum index in pseudoinputs_data_indices exceeds the number of cells. '+
-                        'The parameter pseudoinputs_data_indices will be re-initialised. '+
-                        'Note: If you are building a new model for mapping query onto a reference this is expected.'
+                        "The maximum index in pseudoinputs_data_indices exceeds the number of cells. "
+                        + "The parameter pseudoinputs_data_indices will be re-initialised. "
+                        + "Note: If you are building a new model for mapping query onto a reference this is expected."
                     )
                     n_prior_components = pseudoinputs_data_indices.shape[0]
                     pseudoinputs_data_indices = None

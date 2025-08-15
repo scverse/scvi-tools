@@ -11,9 +11,9 @@ from scipy import sparse
 from scvi.external import SysVI
 
 
-def mock_adata(cells_ratio:float=1):
+def mock_adata(cells_ratio: float = 1):
     """Mock adata for testing."""
-    n_cells_base=200
+    n_cells_base = 200
     n_cells = int(n_cells_base * cells_ratio)
     adata = AnnData(
         sparse.csr_matrix(
@@ -47,9 +47,17 @@ def mock_adata(cells_ratio:float=1):
         var=pd.DataFrame(index=[str(i) for i in range(95)]),
     )
     adata.obs["covariate_cont"] = list(range(n_cells))
-    adata.obs["covariate_cat"] = ["a"] * int(n_cells/4) + ["b"] * int(n_cells/4) +\
-                                 ["c"] * int(n_cells/4) + ["d"] * (n_cells-int(n_cells*0.75))
-    adata.obs["batch"] = ["a"] * int(n_cells/2) + ["b"] * int(n_cells/4) + ["c"] * (n_cells-int(n_cells*0.75))
+    adata.obs["covariate_cat"] = (
+        ["a"] * int(n_cells / 4)
+        + ["b"] * int(n_cells / 4)
+        + ["c"] * int(n_cells / 4)
+        + ["d"] * (n_cells - int(n_cells * 0.75))
+    )
+    adata.obs["batch"] = (
+        ["a"] * int(n_cells / 2)
+        + ["b"] * int(n_cells / 4)
+        + ["c"] * (n_cells - int(n_cells * 0.75))
+    )
 
     return adata
 
