@@ -23,7 +23,7 @@ from scvi.external.diagvi._utils import (
     _construct_guidance_graph,
     _load_saved_diagvi_files,
 )
-from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
+from scvi.model._utils import get_max_epochs_heuristic, parse_device_args, use_distributed_sampler
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
@@ -191,6 +191,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 validation_size=validation_size,
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
+                distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             )
             ds.setup()
             train_dls[name] = ds.train_dataloader()
