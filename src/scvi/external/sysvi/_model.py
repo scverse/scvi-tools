@@ -59,6 +59,8 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         Keyword args for :class:`~scvi.external.sysvi.SysVAE`
     """
 
+    transfer_batch: bool = False
+
     def __init__(
         self,
         adata: AnnData,
