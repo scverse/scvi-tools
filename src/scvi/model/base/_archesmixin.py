@@ -44,6 +44,7 @@ class ArchesMixin:
     """Universal scArches implementation."""
 
     transfer_batch: bool = True
+    """Allow for surgery on the batch covariate."""
 
     @classmethod
     @devices_dsp.dedent

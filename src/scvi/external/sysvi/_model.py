@@ -60,6 +60,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
     """
 
     transfer_batch: bool = False
+    """SysVI does not allow surgery on the batch covariate."""
 
     def __init__(
         self,

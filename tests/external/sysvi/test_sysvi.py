@@ -279,6 +279,9 @@ def test_sysvi_warnings():
 
 
 def test_sysvi_scarches_errors():
+    # Make sure that surgery is not allowed on the batch covariate
+    assert not SysVI.transfer_batch
+
     # reference adata
     adata = mock_adata()
     SysVI.setup_anndata(
