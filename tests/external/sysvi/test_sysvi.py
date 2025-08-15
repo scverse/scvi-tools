@@ -11,32 +11,34 @@ from scipy import sparse
 from scvi.external import SysVI
 
 
-def mock_adata():
+def mock_adata(cells_ratio:float=1):
     """Mock adata for testing."""
+    n_cells_base=200
+    n_cells = int(n_cells_base * cells_ratio)
     adata = AnnData(
         sparse.csr_matrix(
             np.exp(
                 np.concatenate(
                     [
-                        np.random.normal(1, 0.5, (200, 5)),
-                        np.random.normal(1.1, 0.00237, (200, 5)),
-                        np.random.normal(1.3, 0.35, (200, 5)),
-                        np.random.normal(2, 0.111, (200, 5)),
-                        np.random.normal(2.2, 0.3, (200, 5)),
-                        np.random.normal(2.7, 0.01, (200, 5)),
-                        np.random.normal(1, 0.001, (200, 5)),
-                        np.random.normal(0.00001, 0.4, (200, 5)),
-                        np.random.normal(0.2, 0.91, (200, 5)),
-                        np.random.normal(0.1, 0.0234, (200, 5)),
-                        np.random.normal(0.00005, 0.1, (200, 5)),
-                        np.random.normal(0.05, 0.001, (200, 5)),
-                        np.random.normal(0.023, 0.3, (200, 5)),
-                        np.random.normal(0.6, 0.13, (200, 5)),
-                        np.random.normal(0.9, 0.5, (200, 5)),
-                        np.random.normal(1, 0.0001, (200, 5)),
-                        np.random.normal(1.5, 0.05, (200, 5)),
-                        np.random.normal(2, 0.009, (200, 5)),
-                        np.random.normal(1, 0.0001, (200, 5)),
+                        np.random.normal(1, 0.5, (n_cells, 5)),
+                        np.random.normal(1.1, 0.00237, (n_cells, 5)),
+                        np.random.normal(1.3, 0.35, (n_cells, 5)),
+                        np.random.normal(2, 0.111, (n_cells, 5)),
+                        np.random.normal(2.2, 0.3, (n_cells, 5)),
+                        np.random.normal(2.7, 0.01, (n_cells, 5)),
+                        np.random.normal(1, 0.001, (n_cells, 5)),
+                        np.random.normal(0.00001, 0.4, (n_cells, 5)),
+                        np.random.normal(0.2, 0.91, (n_cells, 5)),
+                        np.random.normal(0.1, 0.0234, (n_cells, 5)),
+                        np.random.normal(0.00005, 0.1, (n_cells, 5)),
+                        np.random.normal(0.05, 0.001, (n_cells, 5)),
+                        np.random.normal(0.023, 0.3, (n_cells, 5)),
+                        np.random.normal(0.6, 0.13, (n_cells, 5)),
+                        np.random.normal(0.9, 0.5, (n_cells, 5)),
+                        np.random.normal(1, 0.0001, (n_cells, 5)),
+                        np.random.normal(1.5, 0.05, (n_cells, 5)),
+                        np.random.normal(2, 0.009, (n_cells, 5)),
+                        np.random.normal(1, 0.0001, (n_cells, 5)),
                     ],
                     axis=1,
                 )
@@ -44,9 +46,10 @@ def mock_adata():
         ),
         var=pd.DataFrame(index=[str(i) for i in range(95)]),
     )
-    adata.obs["covariate_cont"] = list(range(200))
-    adata.obs["covariate_cat"] = ["a"] * 50 + ["b"] * 50 + ["c"] * 50 + ["d"] * 50
-    adata.obs["batch"] = ["a"] * 100 + ["b"] * 50 + ["c"] * 50
+    adata.obs["covariate_cont"] = list(range(n_cells))
+    adata.obs["covariate_cat"] = ["a"] * int(n_cells/4) + ["b"] * int(n_cells/4) +\
+                                 ["c"] * int(n_cells/4) + ["d"] * (n_cells-int(n_cells*0.75))
+    adata.obs["batch"] = ["a"] * int(n_cells/2) + ["b"] * int(n_cells/4) + ["c"] * (n_cells-int(n_cells*0.75))
 
     return adata
 
@@ -153,7 +156,7 @@ def test_sysvi_scarches(prior, embed_categorical_covariates, save_path):
     model.train(max_epochs=2, batch_size=math.ceil(adata.n_obs / 2.0))
 
     # Query adata
-    adata2 = mock_adata()
+    adata2 = mock_adata(cells_ratio=0.2)
     # Make it different from reference adata
     adata2.obs["covariate_cat"] = adata2.obs["covariate_cat"].replace({"b": "y", "c": "x"})
     adata2 = adata2[:, np.random.permutation(adata2.var_names)[: adata2.shape[1] - 5]].copy()

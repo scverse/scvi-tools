@@ -73,12 +73,21 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         super().__init__(adata)
 
         if prior == "vamp":
+            if pseudoinputs_data_indices is not None:
+                assert pseudoinputs_data_indices.shape[0] == n_prior_components
+                assert pseudoinputs_data_indices.ndim == 1
+                if pseudoinputs_data_indices.max() >= self.summary_stats.n_cells:
+                    warnings.warn(
+                        'The maximum index in pseudoinputs_data_indices exceeds the number of cells. '+
+                        'The parameter pseudoinputs_data_indices will be re-initialised. '+
+                        'Note: If you are building a new model for mapping query onto a reference this is expected.'
+                    )
+                    n_prior_components = pseudoinputs_data_indices.shape[0]
+                    pseudoinputs_data_indices = None
             if pseudoinputs_data_indices is None:
                 pseudoinputs_data_indices = np.random.randint(
                     0, self.summary_stats.n_cells, n_prior_components
                 )
-            assert pseudoinputs_data_indices.shape[0] == n_prior_components
-            assert pseudoinputs_data_indices.ndim == 1
             pseudoinput_data = next(
                 iter(
                     self._make_data_loader(
