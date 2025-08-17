@@ -134,7 +134,6 @@ class DecoderZXAttention(nn.Module):
             requires_grad=True,
         )
         init.normal_(self.px_r)
-        self.register_parameter("px_r", self.px_r)  # TODO: not sure if this is needed
 
     def forward(
         self,
@@ -152,7 +151,7 @@ class DecoderZXAttention(nn.Module):
             batch_embed = self.batch_embedding(batch_covariate)
             batch_embed = self.layer_norm_batch_embed(batch_embed)
             if has_mc_samples:
-                batch_embed = batch_embed.reshape(batch_embed, (z_.shape[0], -1, -1, -1))
+                batch_embed = batch_embed.unsqueeze(0).expand(z_.shape[0], -1, -1)
 
             query_embed = z_
             kv_embed = batch_embed
@@ -163,7 +162,10 @@ class DecoderZXAttention(nn.Module):
                 mu = self.fc(z) + residual
         else:
             mu = self.fc(z_)
-        mu = self.h_activation(mu, dim=-1)
+        if self.h_activation in [nn.functional.softmax, torch.softmax]:
+            mu = self.h_activation(mu, dim=-1)
+        else:
+            mu = self.h_activation(mu)
         return NegativeBinomial(
             mu=mu * size_factor,
             theta=torch.exp(self.px_r),
@@ -237,6 +239,7 @@ class EncoderUZ(nn.Module):
         u_ = self.layer_norm(u_stop)
 
         sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
+        # TODO: WHY NOISE WAS ADDED HERE?
         # Add noise to sample embedding using proper random sampling instead of in-place init
         noise = torch.normal(
             mean=0.0, std=0.1, size=sample_embed.shape, device=sample_embed.device
@@ -447,7 +450,7 @@ class MRVAE(BaseModuleClass):
             x = torch.Tensor(x)
         if type(sample_index).__name__ != "Tensor" and sample_index is not None:
             sample_index = torch.Tensor(sample_index)
-        qu = self.qu(x, sample_index)
+        qu = self.qu(x, sample_index, training=self.training)
         if use_mean:
             u = qu.mean
         else:
@@ -609,7 +612,7 @@ class MRVAE(BaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": torch.zeros([x.shape[0], 1]),
+            "label_index": torch.zeros(x.shape[0], dtype=torch.long),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]

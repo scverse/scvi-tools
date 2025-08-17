@@ -153,30 +153,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         # TODO(jhong): remove this once we have a better way to handle device.
         pass
 
-    # TODO: WHY THIS IS COMMENTED OUT?
-    """def _generate_stacked_rngs(self, n_sets: int | tuple) -> dict[str, jax.random.KeyArray]:
-        return_1d = isinstance(n_sets, int)
-        if return_1d:
-            n_sets_1d = n_sets
-        else:
-            n_sets_1d = np.prod(n_sets)
-        rngs_list = [self.module.rngs for _ in range(n_sets_1d)]
-        # Combine list of RNG dicts into a single list. This is necessary for vmap/map.
-        rngs = {
-            required_rng: jnp.concatenate(
-                [rngs_dict[required_rng][None] for rngs_dict in rngs_list], axis=0
-            )
-            for required_rng in self.module.required_rngs
-        }
-        if not return_1d:
-            # Reshaping the random keys to the desired shape in
-            # the case of multiple sets.
-            rngs = {
-                key: random_key.reshape(n_sets + random_key.shape[1:])
-                for (key, random_key) in rngs.items()
-            }
-        return rngs"""
-
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -443,7 +419,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
-                        x=torch.Tensor(inf_inputs["x"]),
+                        # x=torch.Tensor(inf_inputs["x"]),
+                        x=torch.from_numpy(inf_inputs["x"]),
                         sample_index=torch.Tensor(inf_inputs["sample_index"]),
                         cf_sample=torch.Tensor(cf_sample),
                         use_mean=True,
@@ -468,7 +445,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
-                    x=torch.Tensor(inf_inputs["x"]),
+                    # x=torch.Tensor(inf_inputs["x"]),
+                    x=torch.from_numpy(inf_inputs["x"]),
                     sample_index=torch.Tensor(inf_inputs["sample_index"]),
                     cf_sample=torch.Tensor(cf_sample),
                     use_mean=False,
@@ -1479,7 +1457,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             try:
                 res = mapped_inference_fn(
-                    x=torch.Tensor(inf_inputs["x"]),
+                    # x=torch.Tensor(inf_inputs["x"]),
+                    x=torch.from_numpy(inf_inputs["x"]),
                     sample_index=torch.Tensor(inf_inputs["sample_index"]),
                     cf_sample=torch.Tensor(cf_sample),
                     Amat=Amat,
