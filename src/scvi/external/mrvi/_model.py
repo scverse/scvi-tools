@@ -1216,6 +1216,8 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """
         from functools import partial
 
+        import scipy.linalg
+        import torch.distributions as dist
         from scipy.stats import false_discovery_control
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
@@ -1274,6 +1276,14 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         add_batch_specific_offsets = offset_indices is not None
         n_covariates = Xmat.shape[1]
 
+        def sqrtm_batch(xtmx: torch.Tensor) -> torch.Tensor:
+            # xtmx shape: (n_cells, n_covariates, n_covariates)
+            sqrtm_list = [
+                torch.from_numpy(scipy.linalg.sqrtm(m.cpu().numpy()).real).to(xtmx.device)
+                for m in xtmx
+            ]
+            return torch.stack(sqrtm_list, dim=0)
+
         def process_design_matrix(
             admissible_samples_dmat: torch.Tensor,
             Xmat: torch.Tensor,
@@ -1281,11 +1291,13 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             xtmx = torch.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
             xtmx += lambd * torch.eye(n_covariates)
 
-            prefactor = torch.vmap(torch.linalg.cholesky)(
-                xtmx
-            )  # Shape: (n_cells, n_covariates, n_covariates)
-            prefactor = torch.vmap(torch.linalg.inv)(prefactor)  # Inverse of each matrix
-            prefactor = prefactor.transpose(-2, -1)  # Transpose each matrix: (A^-1)^T
+            # prefactor = torch.vmap(torch.linalg.cholesky)(
+            #     xtmx
+            # )  # Shape: (n_cells, n_covariates, n_covariates)
+            # prefactor = torch.vmap(torch.linalg.inv)(prefactor)  # Inverse of each matrix
+            # prefactor = prefactor.transpose(-2, -1)  # Transpose each matrix: (A^-1)^T
+            prefactor = sqrtm_batch(xtmx)
+
             inv_ = torch.vmap(torch.linalg.pinv)(xtmx)
             Amat = torch.einsum("nab,bc,ncd->nad", inv_, Xmat.T, admissible_samples_dmat)
             return Amat, prefactor
@@ -1335,12 +1347,17 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             betas = torch.einsum("nks,ansd->ankd", Amat, eps)
 
             # Statistical tests
-            def chi2_cdf(x, df):
-                return torch.special.gammainc(df / 2, x / 2)  # TODO: check this
+            # def chi2_cdf(x, df):
+            #     return torch.special.gammainc(df / 2, x / 2)  # TODO: check this
 
             betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            pvals = 1 - torch.nan_to_num(chi2_cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0)
+            # pvals = 1 - torch.nan_to_num(chi2_cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0)
+            # pvals = 1 - torch.tensor(chi2.cdf(
+            #     ts.cpu(), df=n_samples_per_cell[:, None].cpu())).to(ts.device)
+
+            chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
+            pvals = 1 - chi2_dist.cdf(ts)
 
             betas = betas * eps_std
 
