@@ -285,16 +285,6 @@ class EncoderXU(nn.Module):
         self.conditional_norm2 = ConditionalNormalization(self.n_hidden, self.n_sample)
         self.conditional_norm2.train()
 
-        # TODO : why is commented out?
-        """self.fc_layers = nn.Sequential(
-            nn.Linear(self.n_input, self.n_hidden),
-            ConditionalNormalization(self.n_hidden, self.n_sample),
-            self.activation(),
-            nn.Linear(self.n_hidden, self.n_hidden),
-            ConditionalNormalization(self.n_hidden, self.n_sample),
-            self.activation(),
-        )"""
-
         self.sample_embed = nn.Embedding(self.n_sample, self.n_hidden)
         # Initialize with same standard deviation as JAX version
         init.normal_(self.sample_embed.weight, std=0.1)

@@ -419,7 +419,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
-                        # x=torch.Tensor(inf_inputs["x"]),
                         x=torch.from_numpy(inf_inputs["x"]),
                         sample_index=torch.Tensor(inf_inputs["sample_index"]),
                         cf_sample=torch.Tensor(cf_sample),
@@ -445,7 +444,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
-                    # x=torch.Tensor(inf_inputs["x"]),
                     x=torch.from_numpy(inf_inputs["x"]),
                     sample_index=torch.Tensor(inf_inputs["sample_index"]),
                     cf_sample=torch.Tensor(cf_sample),
@@ -805,12 +803,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         for tensor in dataloader:
             inference_inputs = self.module._get_inference_input(tensor)
             inference_inputs.update({"use_mean": True, "sample_index": tensor["ind_x"]})
-            # TODO Extract arguments for inference method?
-            # x = inference_inputs["x"]
-            # sample_index = inference_inputs["sample_index"]
             use_mean = inference_inputs.get("use_mean", False)
-            # mc_samples = inference_inputs.get("mc_samples", None)
-            # cf_sample = inference_inputs.get("cf_sample", None)
 
             inference_inputs = self.module._get_inference_input(tensor)
             inference_inputs["use_mean"] = use_mean
@@ -1058,9 +1051,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             adata_s = adata[sample_idxs]
 
             ap = self.get_aggregated_posterior(adata=adata, indices=sample_idxs)
-            # in_max_comp_log_probs = ap.component_distribution.log_prob(
-            #     np.expand_dims(adata_s.obsm["U"], ap.mixture_dim)  # (n_cells_ap,1,n_latent_dim)
-            # )  # (n_cells_ap, n_cells_ap)
+
             in_max_comp_log_probs = ap.component_distribution.log_prob(
                 torch.unsqueeze(
                     torch.tensor(adata_s.obsm["U"], dtype=torch.float32, device=self.device),
@@ -1291,11 +1282,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             xtmx = torch.einsum("ak,nkl,lm->nam", Xmat.T, admissible_samples_dmat, Xmat)
             xtmx += lambd * torch.eye(n_covariates)
 
-            # prefactor = torch.vmap(torch.linalg.cholesky)(
-            #     xtmx
-            # )  # Shape: (n_cells, n_covariates, n_covariates)
-            # prefactor = torch.vmap(torch.linalg.inv)(prefactor)  # Inverse of each matrix
-            # prefactor = prefactor.transpose(-2, -1)  # Transpose each matrix: (A^-1)^T
             prefactor = sqrtm_batch(xtmx)
 
             inv_ = torch.vmap(torch.linalg.pinv)(xtmx)
@@ -1347,14 +1333,9 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             betas = torch.einsum("nks,ansd->ankd", Amat, eps)
 
             # Statistical tests
-            # def chi2_cdf(x, df):
-            #     return torch.special.gammainc(df / 2, x / 2)  # TODO: check this
 
             betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
-            # pvals = 1 - torch.nan_to_num(chi2_cdf(ts, df=n_samples_per_cell[:, None]), nan=0.0)
-            # pvals = 1 - torch.tensor(chi2.cdf(
-            #     ts.cpu(), df=n_samples_per_cell[:, None].cpu())).to(ts.device)
 
             chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
             pvals = 1 - chi2_dist.cdf(ts)
@@ -1474,7 +1455,6 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             try:
                 res = mapped_inference_fn(
-                    # x=torch.Tensor(inf_inputs["x"]),
                     x=torch.from_numpy(inf_inputs["x"]),
                     sample_index=torch.Tensor(inf_inputs["sample_index"]),
                     cf_sample=torch.Tensor(cf_sample),
