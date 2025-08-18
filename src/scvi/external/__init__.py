@@ -47,7 +47,7 @@ def __getattr__(name: str):
     """
     if name == "MRVI":
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
-        from .mrvi_torch import MRVI as _MRVI
+        from .mrvi import MRVI as _MRVI
 
         return _MRVI
     if name == "TorchMRVI":
