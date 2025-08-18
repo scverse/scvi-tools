@@ -1,5 +1,6 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
+from .cytovi import CYTOVI
 from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
@@ -36,4 +37,5 @@ __all__ = [
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
+    "CYTOVI",
 ]

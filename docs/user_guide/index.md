@@ -95,6 +95,21 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - :cite:p:`Weinberger2023a`
 ```
 
+## Cytometry analysis
+
+```{eval-rst}
+.. list-table::
+   :widths: 15 100 25
+   :header-rows: 1
+
+   * - Model
+     - Tasks
+     - Reference
+   * - :doc:`/user_guide/models/cytovi`
+     - Correct batch effects, perform integration and downstream analysis in cytometry data
+     - :cite:p:`Ingelfinger25`
+```
+
 ## Multimodal analysis
 
 ### CITE-seq

@@ -7,6 +7,7 @@ amortizedlda
 autozi
 cellassign
 contrastivevi
+cytovi
 decipher
 destvi
 gimvi
