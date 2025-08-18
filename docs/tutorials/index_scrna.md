@@ -35,7 +35,7 @@ Analyze multi-sample scRNA-seq data with MrVI in Jax
 ```
 
 ```{customcard}
-:path: notebooks/scrna/MrVI_tutorial
+:path: notebooks/scrna/MrVI_tutorial_torch
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
 Analyze multi-sample scRNA-seq data with MrVI in PyTorch

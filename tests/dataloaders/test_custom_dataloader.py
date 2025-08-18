@@ -9,7 +9,7 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
-from scvi.external import MRVI
+from scvi.external import TorchMRVI
 from scvi.utils import dependencies
 
 
@@ -444,7 +444,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
 
     # pprint(datamodule.registry)
 
-    model = MRVI(registry=datamodule.registry)
+    model = TorchMRVI(registry=datamodule.registry)
     # pprint(model.summary_stats)
     # pprint(model.module)
 
@@ -480,7 +480,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
         datamodule=datamodule,
     )
     # load it back and do downstream analysis
-    loaded_model = MRVI.load("lamin_model_mrvi", adata=False)
+    loaded_model = TorchMRVI.load("lamin_model_mrvi", adata=False)
     loaded_model.train(
         datamodule=datamodule,
         max_epochs=1,

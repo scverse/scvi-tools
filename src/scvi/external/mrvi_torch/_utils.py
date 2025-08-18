@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from jax import jit
-
-from scvi.external.mrvi._types import _ComputeLocalStatisticsRequirements
+from scvi.external.mrvi_torch._types import _ComputeLocalStatisticsRequirements
 
 if TYPE_CHECKING:
-    from jax import Array
-    from jax.typing import ArrayLike
+    from torch import Tensor
 
-    from scvi.external.mrvi._types import MRVIReduction
+    from scvi.external.mrvi_torch._types import MRVIReduction
 
 
 def _parse_local_statistics_requirements(
@@ -58,17 +55,20 @@ def _parse_local_statistics_requirements(
     )
 
 
-@jit
-def rowwise_max_excluding_diagonal(matrix: ArrayLike) -> Array:
+def rowwise_max_excluding_diagonal(matrix: Tensor) -> Tensor:
     """Get the rowwise maximum of a matrix excluding the diagonal."""
-    import jax.numpy as jnp
+    import torch
 
     assert matrix.ndim == 2
     num_cols = matrix.shape[1]
-    mask = (1 - jnp.eye(num_cols)).astype(bool)
-    return (jnp.where(mask, matrix, -jnp.inf)).max(axis=1)
+    mask = (1 - torch.eye(num_cols, device=matrix.device)).bool()
+    return (
+        torch.where(mask, matrix, torch.tensor(-float("inf"), device=matrix.device))
+        .max(axis=1)
+        .values
+    )
 
 
-def simple_reciprocal(w: ArrayLike, eps: float = 1e-6) -> Array:
+def simple_reciprocal(w: Tensor, eps: float = 1e-6) -> Tensor:
     """Convert distances to similarities via a reciprocal."""
     return 1.0 / (w + eps)
