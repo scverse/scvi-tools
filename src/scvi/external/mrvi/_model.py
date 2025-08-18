@@ -38,7 +38,7 @@ DEFAULT_TRAIN_KWARGS = {
     "check_val_every_n_epoch": 1,
     "batch_size": 256,
     "train_size": 0.9,
-    # "gradient_clip_val": 40,
+    "gradient_clip_val": 40,
     "plan_kwargs": {
         "lr": 2e-3,
         "n_epochs_kl_warmup": 20,
