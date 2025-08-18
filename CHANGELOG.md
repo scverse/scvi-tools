@@ -11,17 +11,20 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add checkpointing with autotune, {pr}`3452`.
+- Add {class}`scvi.external.CytoVI` for dealing with cytometry data {pr}`3456`.
 
 #### Fixed
 
 - Fix in library size calculation in totalvi, {pr}`3452`.
-- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3304`.
+- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
 
 #### Changed
 
 - Made the Jax dependency optional in scvi-tools {pr}`3426`.
 
 #### Removed
+
+- Remove the support for Python 3.10, {pr}`3441`.
 
 ## Version 1.3
 

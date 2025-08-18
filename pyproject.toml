@@ -7,7 +7,7 @@ name = "scvi-tools"
 version = "1.3.3"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
     {name = "The scvi-tools development team"},
@@ -23,7 +23,6 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -83,10 +82,10 @@ autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
+# for files sharing or handling
+file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 # scvi.criticism and read 10x
 criticism = ["xarray>=2023.2.0"]
-# for convenient files sharing
-file_sharing = ["pooch","gdown"]
 # for parallelization engine
 parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 # for supervised models interpretability
