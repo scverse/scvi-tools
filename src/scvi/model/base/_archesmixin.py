@@ -43,9 +43,6 @@ MIN_VAR_NAME_RATIO = 0.8
 class ArchesMixin:
     """Universal scArches implementation."""
 
-    transfer_batch: bool = True
-    """Allow for surgery on the batch covariate."""
-
     @classmethod
     @devices_dsp.dedent
     def load_query_data(
@@ -63,6 +60,7 @@ class ArchesMixin:
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
         freeze_classifier: bool = True,
+        transfer_batch: bool = True,
         datamodule: LightningDataModule | None = None,
     ):
         """Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
@@ -95,6 +93,8 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for decoder
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
+        transfer_batch
+            Allow for surgery on the batch covariate. Only applies to `SYSVI`.
         datamodule
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
@@ -116,7 +116,7 @@ class ArchesMixin:
             reference_model, device=device, adata=adata
         )
 
-        if not cls.transfer_batch:
+        if not transfer_batch:
             reference_batches = attr_dict["registry_"]["field_registries"][
                 REGISTRY_KEYS.BATCH_KEY
             ]["state_registry"]["categorical_mapping"]
@@ -129,7 +129,7 @@ class ArchesMixin:
                 query_batches = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY][
                     "state_registry"
                 ]["categorical_mapping"]
-            if any([batch not in reference_batches for batch in query_batches]):
+            if any(batch not in reference_batches for batch in query_batches):
                 raise ValueError(
                     "This model does not allow for query having batch categories "
                     "missing from the reference."

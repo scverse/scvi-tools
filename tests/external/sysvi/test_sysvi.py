@@ -290,9 +290,6 @@ def test_sysvi_warnings():
 
 
 def test_sysvi_scarches_errors():
-    # Make sure that surgery is not allowed on the batch covariate
-    assert not SysVI.transfer_batch
-
     # reference adata
     adata = mock_adata()
     SysVI.setup_anndata(
@@ -318,10 +315,10 @@ def test_sysvi_scarches_errors():
     )
 
     # Make query adata and model
-    model2 = SysVI.prepare_query_anndata(adata2, model)
+    SysVI.prepare_query_anndata(adata2, model)
     with pytest.raises(
         ValueError,
         match="This model does not allow for query having batch categories "
         "missing from the reference.",
     ):
-        model2 = SysVI.load_query_data(adata2, model)
+        SysVI.load_query_data(adata2, model, transfer_batch=False)
