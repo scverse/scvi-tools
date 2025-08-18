@@ -635,6 +635,18 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         return user_params
 
+    @staticmethod
+    def _get_decoder_cat_cov_shape(module):
+        """Returns shape of categ covaraite matrix in case of using setup_datamodule in load"""
+        outcome = None
+        if hasattr(module, "decoder"):
+            if hasattr(module.decoder, "px_decoder"):
+                if hasattr(module.decoder.px_decoder, "n_cat_list"):
+                    n_cat_list = module.decoder.px_decoder.n_cat_list
+                    if len(n_cat_list) > 1:
+                        outcome = (sum(n_cat_list[1:]),)
+        return outcome
+
     @abstractmethod
     def train(self):
         """Trains the model."""
@@ -841,13 +853,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if method_name == "setup_datamodule":
             attr_dict["n_input"] = attr_dict["n_vars"]
             attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
-            attr_dict["n_cats_per_cov"] = None
-            if hasattr(model.module, "decoder"):
-                if hasattr(model.module.decoder, "px_decoder"):
-                    if hasattr(model.module.decoder.px_decoder, "n_cat_list"):
-                        n_cat_list = model.module.decoder.px_decoder.n_cat_list
-                        if len(n_cat_list) > 1:
-                            attr_dict["n_cats_per_cov"] = (sum(n_cat_list[1:]),)
+            attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
             module_exp_params = inspect.signature(model._module_cls).parameters.keys()
             common_keys1 = list(attr_dict.keys() & module_exp_params)
             common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params

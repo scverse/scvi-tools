@@ -12,6 +12,11 @@ The limitations of Solo include:
 
 -   For an analysis seeking to only do doublet detection, Solo will be slower than other methods.
 
+```{topic} Tutorials:
+
+-   Work in progress.
+```
+
 ## Overview
 
 Solo starts with a trained {class}`~scvi.model.SCVI` instance. First Solo, simulates doublets using
