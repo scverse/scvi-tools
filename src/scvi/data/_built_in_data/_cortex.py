@@ -52,7 +52,7 @@ def _load_cortex_txt(path_to_file: str) -> anndata.AnnData:
     data_df = pd.DataFrame(data, columns=gene_names)
     adata = anndata.AnnData(X=data_df)
     adata.obs["labels"] = labels
-    adata.obs["precise_labels"] = precise_clusters
+    adata.obs["precise_labels"] = precise_labels
     adata.obs["cell_type"] = clusters
     logger.info("Finished loading Cortex data")
     return adata
