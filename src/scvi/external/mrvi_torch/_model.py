@@ -12,9 +12,9 @@ from tqdm import tqdm
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.external.mrvi._types import MRVIReduction
-from scvi.external.mrvi_jax._module import JaxMRVAE
-from scvi.external.mrvi_jax._utils import rowwise_max_excluding_diagonal
+from scvi.external.mrvi_torch._module import TorchMRVAE
+from scvi.external.mrvi_torch._types import MRVIReduction
+from scvi.external.mrvi_torch._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
@@ -45,13 +45,13 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class JaxMRVI(JaxTrainingMixin, BaseModelClass):
+class TorchMRVI(JaxTrainingMixin, BaseModelClass):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.external.MRVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.TorchMRVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space for ``z``.
     n_latent_u
@@ -77,25 +77,25 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
     scale_observations
         Whether to scale loss by the number of observations per sample.
     px_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module.DecoderZXAttention`.
+        Keyword args for :class:`~scvi.external.mrvi_torch._module.DecoderZXAttention`.
     qz_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module.EncoderUZ`.
+        Keyword args for :class:`~scvi.external.mrvi_torch._module.EncoderUZ`.
     qu_kwargs
-        Keyword args for :class:`~scvi.external.mrvi._module.EncoderXU`.
+        Keyword args for :class:`~scvi.external.mrvi_torch._module.EncoderXU`.
 
     Notes
     -----
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial`
+    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial_torch`
 
     See the user guide for this model:
 
-    1. :doc:`/user_guide/models/mrvi`
+    1. :doc:`/user_guide/models/mrvi_torch`
 
     See Also
     --------
-    :class:`~scvi.external.mrvi.JaxMRVAE`
+    :class:`~scvi.external.mrvi_torch.MRVAE`
     """
 
     def __init__(self, adata: AnnData, **model_kwargs):
@@ -117,7 +117,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             adata.obs._scvi_sample.value_counts().sort_index().values
         )
 
-        self.module = JaxMRVAE(
+        self.module = TorchMRVAE(
             n_input=self.summary_stats.n_vars,
             n_sample=n_sample,
             n_batch=n_batch,
@@ -250,6 +250,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         )
         from packaging import version
 
+        # TODO : REMOVE THIS P[ART ONCE TORCH MRVI IS IMPLEMENETED
         if version.parse(jax.__version__) > version.parse("0.4.35"):
             warnings.warn(
                 "Running mrVI with Jax version larger 0.4.35 can cause performance issues",
@@ -346,7 +347,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         """
         from functools import partial
 
-        from scvi.external.mrvi_jax._utils import _parse_local_statistics_requirements
+        from scvi.external.mrvi_torch._utils import _parse_local_statistics_requirements
 
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 
@@ -1172,7 +1173,8 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             LFC threshold used to compute posterior DE probabilities.
             If None does not compute them to save memory consumption.
         filter_samples_kwargs
-            Keyword arguments to pass to :meth:`~scvi.external.MRVI.get_outlier_cell_sample_pairs`.
+            Keyword arguments to pass to
+            :meth:`~scvi.external.TorchMRVI.get_outlier_cell_sample_pairs`.
 
         Returns
         -------
@@ -1635,9 +1637,9 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         Examples
         --------
         >>> import scanpy as sc
-        >>> from scvi.external import MRVI
-        >>> MRVI.setup_anndata(adata, sample_key="sample_id")
-        >>> model = MRVI(adata)
+        >>> from scvi.external import TorchMRVI
+        >>> TorchMRVI.setup_anndata(adata, sample_key="sample_id")
+        >>> model = TorchMRVI(adata)
         >>> model.train()
         >>> # Update sample info with new covariates
         >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}

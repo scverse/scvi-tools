@@ -4,13 +4,13 @@ from typing import TYPE_CHECKING
 
 from jax import jit
 
-from scvi.external.mrvi._types import _ComputeLocalStatisticsRequirements
+from scvi.external.mrvi_torch._types import _ComputeLocalStatisticsRequirements
 
 if TYPE_CHECKING:
     from jax import Array
     from jax.typing import ArrayLike
 
-    from scvi.external.mrvi._types import MRVIReduction
+    from scvi.external.mrvi_torch._types import MRVIReduction
 
 
 def _parse_local_statistics_requirements(

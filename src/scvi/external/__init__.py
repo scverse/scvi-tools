@@ -45,14 +45,15 @@ def __getattr__(name: str):
     """
     if name == "MRVI":
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
-        from .mrvi import MRVI as _MRVI
+        from .mrvi_torch import MRVI as _MRVI
 
         return _MRVI
-    if name == "JaxMRVI":
+    if name == "TorchMRVI":
+        # TODO: REMOVE THIS ONCE TORCHMRVI IS READY AND MOVE TO THE __all__ above
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
-        from .mrvi_jax import JaxMRVI as _JaxMRVI
+        from .mrvi_torch import TorchMRVI as _TorchMRVI
 
-        return _JaxMRVI
+        return _TorchMRVI
     if name == "Tangram":
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
         from .tangram import Tangram as _Tangram

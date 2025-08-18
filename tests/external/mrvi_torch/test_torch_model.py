@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from scvi.data import synthetic_iid
-from scvi.external.mrvi_jax import JaxMRVI
+from scvi.external import TorchMRVI
 
 if TYPE_CHECKING:
     from typing import Any
@@ -37,14 +37,14 @@ def adata():
 
 @pytest.fixture(scope="session")
 def model(adata: AnnData):
-    JaxMRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
-    model = JaxMRVI(adata)
+    TorchMRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
+    model = TorchMRVI(adata)
     model.train(max_steps=1, train_size=0.5)
 
     return model
 
 
-def test_jaxmrvi(model: JaxMRVI, adata: AnnData, save_path: str):
+def test_torchmrvi(model: TorchMRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
     model.get_latent_representation(give_z=False)
@@ -52,7 +52,7 @@ def test_jaxmrvi(model: JaxMRVI, adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = JaxMRVI.load(model_path, adata=adata)
+    model = TorchMRVI.load(model_path, adata=adata)
 
 
 @pytest.mark.optional
@@ -101,7 +101,7 @@ def test_jaxmrvi(model: JaxMRVI, adata: AnnData, save_path: str):
         ),
     ],
 )
-def test_jaxmrvi_de(model: JaxMRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
+def test_torchmrvi_de(model: TorchMRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
     for de_kwarg in de_kwargs:
         model.differential_expression(**de_kwarg)
 
@@ -121,7 +121,7 @@ def test_jaxmrvi_de(model: JaxMRVI, setup_kwargs: dict[str, Any], de_kwargs: dic
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],
 )
-def test_jaxmrvi_da(model, sample_key, da_kwargs):
+def test_torchmrvi_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
@@ -155,37 +155,37 @@ def test_jaxmrvi_da(model, sample_key, da_kwargs):
         },
     ],
 )
-def test_jaxmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
-    JaxMRVI.setup_anndata(
+def test_torchmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
+    TorchMRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
     )
-    model = JaxMRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
+    model = TorchMRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(max_steps=1, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = JaxMRVI.load(model_path, adata=adata)
+    model = TorchMRVI.load(model_path, adata=adata)
 
 
-def test_jaxmrvi_sample_subset(model: JaxMRVI, adata: AnnData, save_path: str):
+def test_torchmrvi_sample_subset(model: TorchMRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
     model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = JaxMRVI.load(model_path, adata=adata)
+    model = TorchMRVI.load(model_path, adata=adata)
 
 
-def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
-    JaxMRVI.setup_anndata(
+def test_torchmrvi_shrink_u(adata: AnnData, save_path: str):
+    TorchMRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
     )
-    model = JaxMRVI(adata, n_latent=10, n_latent_u=5)
+    model = TorchMRVI(adata, n_latent=10, n_latent_u=5)
     model.train(max_steps=1, train_size=0.5)
     model.get_local_sample_distances()
 
@@ -196,7 +196,7 @@ def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = JaxMRVI.load(model_path, adata=adata)
+    model = TorchMRVI.load(model_path, adata=adata)
 
 
 @pytest.fixture
@@ -213,14 +213,14 @@ def adata_stratifications():
     return adata
 
 
-def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str):
-    JaxMRVI.setup_anndata(
+def test_torchmrvi_stratifications(adata_stratifications: AnnData, save_path: str):
+    TorchMRVI.setup_anndata(
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
     )
-    model = JaxMRVI(adata_stratifications, n_latent=10)
-    model.train(max_steps=1, train_size=0.5)
+    model = TorchMRVI(adata_stratifications, n_latent=10)
+    model.train(max_steps=2, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"])
     cell_dists = dists["cell"]
@@ -234,4 +234,4 @@ def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = JaxMRVI.load(model_path, adata=adata_stratifications)
+    model = TorchMRVI.load(model_path, adata=adata_stratifications)
