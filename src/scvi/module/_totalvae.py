@@ -417,7 +417,6 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         cat_covs=None,
         size_factor=None,
         transform_batch: int | None = None,
-        generate_counts: bool | None = None,
     ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
         """Run the generative step."""
         if cont_covs is None:

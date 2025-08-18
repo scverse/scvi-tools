@@ -513,8 +513,6 @@ class AnnDataManager:
                 scvi_data_str += f".{attr_name}['{attr_key}']"
             t.add_row(registry_key, scvi_data_str)
 
-        return t
-
         if as_markdown:
             console = Console(file=StringIO(), force_jupyter=False)
             console.print(t)
