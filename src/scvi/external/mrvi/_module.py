@@ -602,7 +602,7 @@ class MRVAE(BaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": torch.zeros(x.shape[0], dtype=torch.long),
+            "label_index": torch.zeros([x.shape[0], 1]),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]

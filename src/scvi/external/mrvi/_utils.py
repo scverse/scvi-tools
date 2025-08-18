@@ -62,8 +62,11 @@ def rowwise_max_excluding_diagonal(matrix: Tensor) -> Tensor:
     assert matrix.ndim == 2
     num_cols = matrix.shape[1]
     mask = (1 - torch.eye(num_cols, device=matrix.device)).bool()
-    neg_inf = torch.tensor(-float("inf"), device=matrix.device, dtype=matrix.dtype)
-    return torch.where(mask, matrix, neg_inf).max(dim=1).values
+    return (
+        torch.where(mask, matrix, torch.tensor(-float("inf"), device=matrix.device))
+        .max(axis=1)
+        .values
+    )
 
 
 def simple_reciprocal(w: Tensor, eps: float = 1e-6) -> Tensor:

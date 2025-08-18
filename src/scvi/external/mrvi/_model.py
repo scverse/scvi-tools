@@ -38,7 +38,7 @@ DEFAULT_TRAIN_KWARGS = {
     "check_val_every_n_epoch": 1,
     "batch_size": 256,
     "train_size": 0.9,
-    "gradient_clip_val": 40,
+    # "gradient_clip_val": 40,
     "plan_kwargs": {
         "lr": 2e-3,
         "n_epochs_kl_warmup": 20,
@@ -419,7 +419,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
-                        x=torch.from_numpy(inf_inputs["x"]),
+                        x=torch.Tensor(inf_inputs["x"]),
                         sample_index=torch.Tensor(inf_inputs["sample_index"]),
                         cf_sample=torch.Tensor(cf_sample),
                         use_mean=True,
@@ -444,7 +444,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
-                    x=torch.from_numpy(inf_inputs["x"]),
+                    x=torch.Tensor(inf_inputs["x"]),
                     sample_index=torch.Tensor(inf_inputs["sample_index"]),
                     cf_sample=torch.Tensor(cf_sample),
                     use_mean=False,
@@ -1455,7 +1455,7 @@ class MRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             try:
                 res = mapped_inference_fn(
-                    x=torch.from_numpy(inf_inputs["x"]),
+                    x=torch.Tensor(inf_inputs["x"]),
                     sample_index=torch.Tensor(inf_inputs["sample_index"]),
                     cf_sample=torch.Tensor(cf_sample),
                     Amat=Amat,
