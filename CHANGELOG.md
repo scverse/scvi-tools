@@ -12,6 +12,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
 - Add checkpointing with autotune, {pr}`3452`.
+- Add {class}`scvi.external.CytoVI` for dealing with cytometry data {pr}`3456`.
 
 #### Fixed
 
