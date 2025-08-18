@@ -7,7 +7,7 @@ name = "scvi-tools"
 version = "1.3.3"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
     {name = "The scvi-tools development team"},
@@ -23,7 +23,6 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -48,6 +47,7 @@ dependencies = [
     "pyro-ppl>=1.6.0",
     "optax",
     "rich>=12.0.0",
+    "scanpy[skmisc]>=1.10",
     "scikit-learn>=0.21.2",
     "scipy",
     "sparse>=0.14.0",
@@ -90,8 +90,6 @@ aws = ["boto3"]
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# scvi.criticism and read 10x
-scanpy = ["scanpy>=1.10", "scikit-misc"]
 # for files sharing or handling
 file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 # for parallelization engine
@@ -103,7 +101,7 @@ dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-censu
 
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
