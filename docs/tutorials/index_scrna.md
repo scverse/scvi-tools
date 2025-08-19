@@ -5,6 +5,7 @@
 
 notebooks/scrna/harmonization
 notebooks/scrna/MrVI_tutorial
+notebooks/scrna/MrVI_tutorial_torch
 notebooks/scrna/scanvi_fix
 notebooks/scrna/seed_labeling
 notebooks/scrna/tabula_muris
@@ -17,6 +18,8 @@ notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/sysVI
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
+notebooks/scrna/Tahoe100_mrVI
+notebooks/scrna/Tahoe100_mrVI_Jax
 ```
 
 ```{customcard}
@@ -30,7 +33,14 @@ Perform integration of multiple scRNA-seq datasets both with and without cell ty
 :path: notebooks/scrna/MrVI_tutorial
 :tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
 
-Analyze multi-sample scRNA-seq data with MrVI
+Analyze multi-sample scRNA-seq data with MrVI in Jax
+```
+
+```{customcard}
+:path: notebooks/scrna/MrVI_tutorial_torch
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+Analyze multi-sample scRNA-seq data with MrVI in PyTorch
 ```
 
 ```{customcard}
@@ -115,4 +125,18 @@ Use Decipher to jointly analyze samples from distinct conditions.
 :tags: Analysis
 
 Use VeloVI to estimate RNA velocity.
+```
+
+```{customcard}
+:path: notebooks/scrna/Tahoe100_mrVI
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+Analyze Tahoe100M cells dataset with MrVI in PyTorch
+```
+
+```{customcard}
+:path: notebooks/scrna/Tahoe100_mrVI_Jax
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+Analyze Tahoe100M cells dataset with MrVI in Jax
 ```
