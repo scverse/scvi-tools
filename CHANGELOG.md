@@ -17,6 +17,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Fix in library size calculation in totalvi, {pr}`3452`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
+- Fix in {class}`~scvi.external.POISSONVI` differential_accessibility, {pr}`3473`.
 
 #### Changed
 
