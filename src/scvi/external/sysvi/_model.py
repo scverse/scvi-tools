@@ -168,9 +168,9 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         if "transfer_batch" in kwargs:
             _ = kwargs.pop("transfer_batch")
             warnings.warn(
-                "The setting of transfer_batch is disabled in SysVI "+
-                "and is automatically set to False.",
-                stacklevel=settings.warnings_stacklevel
+                "The setting of transfer_batch is disabled in SysVI "
+                + "and is automatically set to False.",
+                stacklevel=settings.warnings_stacklevel,
             )
         return super().load_query_data(*args, transfer_batch=False, **kwargs)
 
