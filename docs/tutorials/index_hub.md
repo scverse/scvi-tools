@@ -43,5 +43,5 @@ Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
 :path: notebooks/hub/Tahoe100
 :tags: Integration, Minification, Analysis, Differential-comparison
 
-Use scANVI, scArches, and scvi-hub to query the Human Lung Cell Atlas
+Query pre-trained SCVI model that was trained over Tahoe100M cells dataset and stored on hub
 ```
