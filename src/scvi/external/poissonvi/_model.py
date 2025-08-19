@@ -347,12 +347,12 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         if two_sided:
 
             def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
+                return np.abs(samples) >= delta, np.abs(samples) < delta
 
         else:
 
             def m1_domain_fn(samples):
-                return samples >= delta
+                return samples >= delta, samples < delta
 
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
@@ -395,8 +395,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             f"use {self.__class__.__name__}.differential_accessibility"
         )
         raise NotImplementedError(msg)
-
-        return None
 
     @classmethod
     @setup_anndata_dsp.dedent

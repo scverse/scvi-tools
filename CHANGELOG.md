@@ -4,9 +4,9 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.3
+## Version 1.4
 
-### 1.3.4 (2025-XX-XX)
+### 1.4.0 (2025-XX-XX)
 
 #### Added
 
@@ -16,12 +16,17 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Fix in library size calculation in {class}`scvi.model.TOTALVI`, {pr}`3452`.
-- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3304`.
 - Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
+- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
+- Fix in {class}`~scvi.external.POISSONVI` differential_accessibility, {pr}`3473`.
 
 #### Changed
 
 #### Removed
+
+- Remove the support for Python 3.10, {pr}`3441`.
+
+## Version 1.3
 
 ### 1.3.3 (2025-07-23)
 
