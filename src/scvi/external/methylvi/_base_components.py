@@ -339,12 +339,12 @@ class BSSeqMixin:
         if two_sided:
 
             def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
+                return np.abs(samples) >= delta, np.abs(samples) < delta
 
         else:
 
             def m1_domain_fn(samples):
-                return samples >= delta
+                return samples >= delta, samples < delta
 
         result = {}
         for context in self.contexts:

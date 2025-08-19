@@ -115,6 +115,7 @@ def test_autozi():
         autozivae.get_normalized_expression()
         autozivae.get_normalized_expression(transform_batch="batch_1")
         autozivae.get_normalized_expression(n_samples=2)
+        autozivae.differential_expression(groupby="labels", group1="label_1")
 
     # Model library size.
     for disp_zi in ["gene", "gene-label"]:
@@ -136,3 +137,4 @@ def test_autozi():
         autozivae.get_normalized_expression()
         autozivae.get_normalized_expression(transform_batch="batch_1")
         autozivae.get_normalized_expression(n_samples=2)
+        autozivae.differential_expression(groupby="labels", group1="label_1")
