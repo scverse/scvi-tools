@@ -316,11 +316,13 @@ def test_sysvi_scarches_errors():
 
     # Make query adata and model
     SysVI.prepare_query_anndata(adata2, model)
-    with pytest.warns(Warning, match="The setting of transfer_batch is disabled in SysVI") as record:
+    with pytest.warns(
+        Warning, match="The setting of transfer_batch is disabled in SysVI"
+    ) as record:
         with pytest.raises(
             ValueError,
             match="This model does not allow for query having batch categories "
-                  "missing from the reference.",
+            "missing from the reference.",
         ):
             SysVI.load_query_data(adata2, model, transfer_batch=True)
     assert any(

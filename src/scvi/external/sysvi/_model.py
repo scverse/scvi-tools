@@ -167,7 +167,9 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         """Overload archesmixin to disable batch transfer."""
         if "transfer_batch" in kwargs:
             _ = kwargs.pop("transfer_batch")
-            warnings.warn("The setting of transfer_batch is disabled in SysVI and is automatically set to False.")
+            warnings.warn(
+                "The setting of transfer_batch is disabled in SysVI and is automatically set to False."
+            )
         return super().load_query_data(*args, transfer_batch=False, **kwargs)
 
     @classmethod
