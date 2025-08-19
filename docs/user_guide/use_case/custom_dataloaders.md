@@ -15,9 +15,9 @@ Without dataloader large data can be on disk but inefficient. We increase effici
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/use_cases/custom_dl/tiledb`
--   {doc}`/tutorials/notebooks/use_cases/custom_dl/lamin`
--   {doc}`/tutorials/notebooks/use_cases/custom_dl/ann_collection`
+-   {doc}`/tutorials/notebooks/custom_dl/tiledb`
+-   {doc}`/tutorials/notebooks/custom_dl/lamin`
+-   {doc}`/tutorials/notebooks/custom_dl/ann_collection`
 
 ```
 

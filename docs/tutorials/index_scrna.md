@@ -18,6 +18,8 @@ notebooks/scrna/AutoZI_tutorial
 notebooks/scrna/sysVI
 notebooks/scrna/decipher_tutorial
 notebooks/scrna/velovi
+notebooks/scrna/Tahoe100_mrVI
+notebooks/scrna/Tahoe100_mrVI_Jax
 ```
 
 ```{customcard}
@@ -123,4 +125,18 @@ Use Decipher to jointly analyze samples from distinct conditions.
 :tags: Analysis
 
 Use VeloVI to estimate RNA velocity.
+```
+
+```{customcard}
+:path: notebooks/scrna/Tahoe100_mrVI
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+Analyze Tahoe100M cells dataset with MrVI in PyTorch
+```
+
+```{customcard}
+:path: notebooks/scrna/Tahoe100_mrVI_Jax
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance
+
+Analyze Tahoe100M cells dataset with MrVI in Jax
 ```
