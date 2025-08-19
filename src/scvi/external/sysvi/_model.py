@@ -163,6 +163,12 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         super().train(**train_kwargs)
 
     @classmethod
+    def load_query_data(cls, *args, transfer_batch=False, **kwargs):
+        if "transfer_batch" in kwargs:
+            transfer_batch = kwargs.pop("transfer_batch")
+        return super().load_query_data(*args, transfer_batch=transfer_batch, **kwargs)
+
+    @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
