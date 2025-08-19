@@ -11,11 +11,13 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add checkpointing with autotune, {pr}`3452`.
+- Add {class}`scvi.external.CytoVI` for dealing with cytometry data {pr}`3456`.
 
 #### Fixed
 
-- Fix in library size calculation in totalvi, {pr}`3452`.
+- Fix in library size calculation in {class}`scvi.model.TOTALVI`, {pr}`3452`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3304`.
+- Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
 
 #### Changed
 
@@ -89,7 +91,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
-- Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
+- Fix bug in {class}`scvi.external.SysVI` get_normalized_expression function. {pr}`3255`.
 - Add support for IntegratedGradients for multimodal models. {pr}`3264`.
 - Fix bug in resolVI get_normalized expression function. {pr}`3308`.
 - Fix bug in resolVI gene-assay dispersion. {pr}`3308`.
