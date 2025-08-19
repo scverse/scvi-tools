@@ -8,9 +8,6 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ### 1.4.0 (2025-XX-XX)
 
-- Add {class}`scvi.external.SCVIVA` for representation of cells and
-    their environments in spatial transcriptomics {pr}`3172`.
-
 #### Added
 
 - Add checkpointing with autotune, {pr}`3452`.
