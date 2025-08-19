@@ -40,6 +40,8 @@ def test_multivi():
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
     vae.differential_expression(groupby="labels", group1="label_1")
+    vae.differential_accessibility(groupby="labels", group1="label_1", mode="vanilla")
+    vae.differential_expression(groupby="labels", group1="label_1", mode="vanilla")
 
     # Test with size factor
     data = synthetic_iid()

@@ -35,3 +35,4 @@ def test_methylvi():
         vae.get_normalized_methylation(context="mod3")
     vae.get_latent_representation()
     vae.differential_methylation(groupby="mod1:labels", group1="label_1")
+    vae.differential_methylation(groupby="mod1:labels", group1="label_1", two_sided=False)
