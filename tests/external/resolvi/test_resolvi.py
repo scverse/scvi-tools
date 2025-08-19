@@ -29,6 +29,7 @@ def test_resolvi_train(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_save_load(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -48,6 +49,7 @@ def test_resolvi_save_load(adata):
     model.load_query_data(reference_model="test_resolvi", adata=adata)
 
 
+@pytest.mark.optional
 def test_resolvi_downstream(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -78,6 +80,7 @@ def test_resolvi_downstream(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_semisupervised(adata):
     RESOLVI.setup_anndata(adata, labels_key="labels")
     model = RESOLVI(adata, semisupervised=True)
@@ -93,3 +96,32 @@ def test_resolvi_semisupervised(adata):
     assert pred.shape == (adata.n_obs, model.summary_stats.n_labels - 1)
     pred = model.predict(soft=False)
     assert pred.shape == (adata.n_obs,)
+
+
+def test_resolvi_scarches(adata):
+    adata.obs["hemisphere"] = ["right" if x > 0 else "left" for x in adata.obsm["X_spatial"][:, 0]]
+    ref_adata = adata[adata.obs["hemisphere"] == "left"].copy()
+    query_adata = adata[adata.obs["hemisphere"] == "right"].copy()
+
+    RESOLVI.setup_anndata(ref_adata, labels_key="labels")
+    model = RESOLVI(ref_adata, semisupervised=True)
+    model.train(
+        max_epochs=2,
+    )
+
+    ref_adata.obsm["resolvi_celltypes"] = model.predict(ref_adata, num_samples=3, soft=True)
+    ref_adata.obs["resolvi_predicted"] = ref_adata.obsm["resolvi_celltypes"].idxmax(axis=1)
+    ref_adata.obsm["X_resolVI"] = model.get_latent_representation(ref_adata)
+
+    query_adata.obs["predicted_celltype"] = "unknown"
+    query_adata.obs_names = [f"query_{i}" for i in query_adata.obs_names]
+
+    model.prepare_query_anndata(query_adata, reference_model=model)
+    query_resolvi = model.load_query_data(query_adata, reference_model=model)
+
+    query_resolvi.train(max_epochs=1)
+
+    query_adata.obs["resolvi_predicted"] = query_resolvi.predict(
+        query_adata, num_samples=3, soft=False
+    )
+    query_adata.obsm["X_resolVI"] = query_resolvi.get_latent_representation(query_adata)

@@ -4,23 +4,51 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.3
+## Version 1.4
 
-### 1.3.3 (2025-XX-XX)
+### 1.4.0 (2025-XX-XX)
 
 - Add {class}`scvi.external.SCVIVA` for representation of cells and
     their environments in spatial transcriptomics {pr}`3172`.
 
 #### Added
 
-- Add support for using AnnCollection {class}`scvi.dataloader.CollectionAdapter` dataloader for
-    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+- Add checkpointing with autotune, {pr}`3452`.
+- Add {class}`scvi.external.CytoVI` for dealing with cytometry data {pr}`3456`.
 
 #### Fixed
+
+- Fix in library size calculation in totalvi, {pr}`3452`.
+- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
 
 #### Changed
 
 #### Removed
+
+- Remove the support for Python 3.10, {pr}`3441`.
+
+## Version 1.3
+
+### 1.3.3 (2025-07-23)
+
+#### Added
+
+- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
+#### Fixed
+
+- Add a fix to {func}`~scvi.model.SCVI.differential_expression`, {pr}`3418`.
+- Add SupervisedModuleClass to the classifier, {pr}`3430`.
+
+#### Changed
+
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
+
+#### Removed
+
+- Removed a bad legacy code in scarchesmixin, {pr}`3417`.
+- Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
 ### 1.3.2 (2025-06-22)
 
