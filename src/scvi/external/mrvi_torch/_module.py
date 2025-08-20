@@ -239,12 +239,6 @@ class EncoderUZ(nn.Module):
         u_ = self.layer_norm(u_stop)
 
         sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
-        # TODO: WHY NOISE WAS ADDED HERE?
-        # Add noise to sample embedding using proper random sampling instead of in-place init
-        noise = torch.normal(
-            mean=0.0, std=0.1, size=sample_embed.shape, device=sample_embed.device
-        )
-        sample_embed = sample_embed + noise
 
         if has_mc_samples:
             sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
