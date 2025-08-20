@@ -84,7 +84,6 @@ class DifferentialExpressionResults:
         -------
         None
         """
-        import matplotlib.cm as cm
         import matplotlib.colors as mcolors
         import matplotlib.pyplot as plt
         import numpy as np
@@ -138,7 +137,7 @@ class DifferentialExpressionResults:
         )
 
         # Create a custom colormap with alpha transparency
-        cmap = cm.get_cmap(chosen_colormap)
+        cmap = plt.get_cmap(chosen_colormap)
         cmap_with_alpha = cmap(np.arange(cmap.N))
         cmap_with_alpha[:, -1] = 0.6  # Set the alpha channel
         chosen_colormap = mcolors.ListedColormap(cmap_with_alpha)
