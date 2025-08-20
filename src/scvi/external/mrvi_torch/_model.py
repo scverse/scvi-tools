@@ -18,7 +18,6 @@ from scvi.external.mrvi_torch._types import MRVIReduction
 from scvi.external.mrvi_torch._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.utils import setup_anndata_dsp
-from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -193,7 +192,6 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
