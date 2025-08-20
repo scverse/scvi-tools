@@ -153,6 +153,9 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
+    def to_device(self, device):
+        pass
+
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
