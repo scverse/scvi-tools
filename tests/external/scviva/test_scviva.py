@@ -1,9 +1,13 @@
+import tempfile
+
 import numpy as np
 import pytest
 from anndata import AnnData
+from sklearn.gaussian_process import GaussianProcessClassifier
 
 from scvi.data import synthetic_iid
 from scvi.external import SCVIVA
+from scvi.external.scviva.differential_expression import DifferentialExpressionResults
 
 N_LATENT_INTRINSIC = 20
 N_LATENT = 10
@@ -172,16 +176,44 @@ def test_scviva_differential(adata):
         fdr_target=1,
         delta=0.5,
     )
-    nichevae.differential_expression(
+    DE_results = nichevae.differential_expression(
         groupby="labels",
         group1="label_1",
         group2="label_2",
         batch_correction=False,
-        radius=50,
-        k_nn=None,
+        radius=None,
+        k_nn=5,
         fdr_target=[1, 1, 1, 1],
         delta=[0.5, 0.5, 0.5, 0.5],
     )
+
+    assert isinstance(DE_results, DifferentialExpressionResults)
+    assert isinstance(DE_results.gpc, GaussianProcessClassifier)
+    assert hasattr(DE_results.gpc, "log_marginal_likelihood_value_")
+
+    # Suppress plt.show() to avoid UI popups
+    import matplotlib.pyplot as plt
+
+    plt_show_backup = plt.show
+    plt.show = lambda: None
+
+    try:
+        DE_results.plot()
+    finally:
+        plt.show = plt_show_backup
+
+    import os
+
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+        path = tmp.name
+
+    try:
+        DE_results.plot(path_to_save=path)
+        assert os.path.exists(path)
+        assert os.path.getsize(path) > 0
+    finally:
+        os.remove(path)
+
     nichevae.differential_expression(
         groupby="labels",
         group1="label_1",
