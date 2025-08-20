@@ -20,7 +20,13 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
+from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
+    RNASeqMixin,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
 from scvi.utils import setup_anndata_dsp
 
 from ._module import SysVAE
@@ -28,7 +34,7 @@ from ._module import SysVAE
 logger = logging.getLogger(__name__)
 
 
-class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
+class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """Integration with cVAE & optional VampPrior and latent cycle-consistency.
 
      Described in
@@ -64,12 +70,24 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
         super().__init__(adata)
 
         if prior == "vamp":
+            if pseudoinputs_data_indices is not None:
+                assert pseudoinputs_data_indices.shape[0] == n_prior_components
+                assert pseudoinputs_data_indices.ndim == 1
+                if pseudoinputs_data_indices.max() >= self.summary_stats.n_cells:
+                    warnings.warn(
+                        "The maximum index in pseudoinputs_data_indices exceeds the number of "
+                        "cells. The parameter pseudoinputs_data_indices will be re-initialised. "
+                        "Note: If you are building a new model for mapping query onto a reference "
+                        "this is expected.",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
+                    )
+                    n_prior_components = pseudoinputs_data_indices.shape[0]
+                    pseudoinputs_data_indices = None
             if pseudoinputs_data_indices is None:
                 pseudoinputs_data_indices = np.random.randint(
-                    0, self.summary_stats.n_vars, n_prior_components
+                    0, self.summary_stats.n_cells, n_prior_components
                 )
-            assert pseudoinputs_data_indices.shape[0] == n_prior_components
-            assert pseudoinputs_data_indices.ndim == 1
             pseudoinput_data = next(
                 iter(
                     self._make_data_loader(
@@ -143,6 +161,18 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
         train_kwargs = train_kwargs or {}
         train_kwargs["plan_kwargs"] = plan_kwargs
         super().train(**train_kwargs)
+
+    @classmethod
+    def load_query_data(cls, *args, **kwargs):
+        """Overload archesmixin to disable batch transfer."""
+        if "transfer_batch" in kwargs:
+            _ = kwargs.pop("transfer_batch")
+            warnings.warn(
+                "The setting of transfer_batch is disabled in SysVI "
+                + "and is automatically set to False.",
+                stacklevel=settings.warnings_stacklevel,
+            )
+        return super().load_query_data(*args, transfer_batch=False, **kwargs)
 
     @classmethod
     @setup_anndata_dsp.dedent
