@@ -239,6 +239,7 @@ class EncoderUZ(nn.Module):
         u_ = self.layer_norm(u_stop)
 
         sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
+        # nn.init.normal_(self.sample_embed.weight, mean=0.0, std=0.1)
 
         if has_mc_samples:
             sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
@@ -411,9 +412,7 @@ class TorchMRVAE(BaseModuleClass):
 
             u_dim = self.n_latent_u if self.n_latent_u is not None else self.n_latent
             self.u_prior_logits = nn.Parameter(torch.zeros(u_prior_mixture_k))
-            self.u_prior_means = nn.Parameter(
-                torch.randn(u_prior_mixture_k, u_dim)
-            )  # TODO: double check this
+            self.u_prior_means = nn.Parameter(torch.randn(u_prior_mixture_k, u_dim))
             self.u_prior_scales = nn.Parameter(torch.zeros(u_prior_mixture_k, u_dim))
 
     def _get_inference_input(self, tensors: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:

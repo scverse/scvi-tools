@@ -10,7 +10,7 @@ import xarray as xr
 from torch.distributions import Independent
 from tqdm import tqdm
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.external.mrvi_torch._module import TorchMRVAE
@@ -18,6 +18,7 @@ from scvi.external.mrvi_torch._types import MRVIReduction
 from scvi.external.mrvi_torch._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -88,13 +89,16 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     Notes
     -----
+    This implementation of MRVI is in PyTorch. This will become the default version in v1.5 and
+    will be renamed to simply MRVI.
+
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial`
+    1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial_torch`
 
     See the user guide for this model:
 
-    1. :doc:`/user_guide/models/mrvi_torch`
+    1. :doc:`/user_guide/models/mrvi`
 
     See Also
     --------
@@ -108,9 +112,10 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         warnings.warn(
             "You are using the Torch Version of MrVI, starting v1.5, "
-            "This will become the default version of MrVI and the Jax version will be removed",
-            UserWarning,
-            stacklevel=2,
+            "This will become the default version of MrVI (and will be renamed to simply: MRVI) "
+            "and the Jax version will become external",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
 
         n_batch = self.summary_stats.n_batch
@@ -148,10 +153,6 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self.init_params_ = self._get_init_params(locals())
-
-    def to_device(self, device):
-        # TODO(jhong): remove this once we have a better way to handle device.
-        pass
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -192,7 +193,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    # ß@devices_dsp.dedent
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
