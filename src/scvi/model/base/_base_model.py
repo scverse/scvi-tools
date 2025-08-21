@@ -740,6 +740,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                         "extra_continuous_covs"
                     ]["summary_stats"]["n_extra_continuous_covs"],
                     "n_labels": datamodule.n_labels,
+                    "n_sample": datamodule.n_samples,
                     "n_vars": datamodule.n_vars,
                     "batch_labels": datamodule.batch_labels,
                     "label_keys": datamodule.label_keys,
