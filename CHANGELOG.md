@@ -23,6 +23,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Made the Jax dependency optional in scvi-tools {pr}`3426`.
+
 #### Removed
 
 - Remove the support for Python 3.10, {pr}`3441`.
@@ -43,10 +45,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
-- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
-
 #### Removed
 
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
 - Removed a bad legacy code in scarchesmixin, {pr}`3417`.
 - Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 

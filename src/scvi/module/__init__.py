@@ -1,7 +1,8 @@
+from scvi.utils import error_on_missing_dependencies
+
 from ._amortizedlda import AmortizedLDAPyroModule
 from ._autozivae import AutoZIVAE
 from ._classifier import Classifier
-from ._jaxvae import JaxVAE
 from ._mrdeconv import MRDeconv
 from ._multivae import MULTIVAE
 from ._peakvae import PEAKVAE
@@ -22,5 +23,17 @@ __all__ = [
     "MRDeconv",
     "MULTIVAE",
     "AmortizedLDAPyroModule",
-    "JaxVAE",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "JaxVAE":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
+        from ._jaxvae import JaxVAE as _JaxVAE
+
+        return _JaxVAE
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")
