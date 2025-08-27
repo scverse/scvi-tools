@@ -408,9 +408,7 @@ class ResolVIPredictiveMixin:
         return_numpy: bool | None = None,
         **kwargs,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        r"""Returns the normalized (decoded) gene expression.
-
-        This is denoted as :math:`\rho_n` in the scVI paper.
+        r"""Returns the abundance of cell-types within spatial proximity of center cells.
 
         Parameters
         ----------
@@ -430,7 +428,8 @@ class ResolVIPredictiveMixin:
         summary_frequency
             Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         weights
-            Spatial weights for each neighbor.
+            Spatial weights for each neighbor. If `None` performs no spatial weighting.
+            Needs to be of shape `n_cells` by `n_neighbors`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
