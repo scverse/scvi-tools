@@ -4,7 +4,6 @@ import torch
 from scvi import REGISTRY_KEYS
 from scvi.external.diagvi._utils import (
     compute_graph_loss,
-    compute_sinkhorn_lam,
     kl_divergence_graph,
 )
 from scvi.train import TrainingPlan
@@ -267,15 +266,15 @@ class DiagTrainingPlan(TrainingPlan):
         )
         sinkhorn_loss = sinkhorn(z1, z2)
 
-        lam_sinkhorn_curr = compute_sinkhorn_lam(
-            self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
-        )
+        # lam_sinkhorn_curr = compute_sinkhorn_lam(
+        #    self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
+        # )
 
         ### total loss (lam_kl and lam_data are already included in data_loss)
         total_loss = (
             self.lam_graph * graph_loss
             + data_loss
-            + lam_sinkhorn_curr * sinkhorn_loss
+            + self.lam_sinkhorn * sinkhorn_loss
             + self.lam_class * classification_loss
         )
 
