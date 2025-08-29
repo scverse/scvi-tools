@@ -33,6 +33,7 @@ class DiagTrainingPlan(TrainingPlan):
         sinkhorn_reach=1,
         lr=1e-3,
         n_epochs_sinkhorn_warmup: int = None,
+        loss_annealing: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -48,6 +49,7 @@ class DiagTrainingPlan(TrainingPlan):
         self.sinkhorn_blur = sinkhorn_blur
         self.lr = lr
         self.n_epochs_sinkhorn_warmup = n_epochs_sinkhorn_warmup
+        self.loss_annealing = loss_annealing
         # use larger values initially to do annealing
         self.init_blur = 10 * self.sinkhorn_blur  # or another large value
         self.init_reach = 10 * self.sinkhorn_reach  # or another large value
@@ -158,8 +160,16 @@ class DiagTrainingPlan(TrainingPlan):
 
         ## anneal the sinkhorn parameters over a third of max_epochs
         max_epochs = self.trainer.max_epochs
-        blur = _anneal_param(self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur)
-        reach = _anneal_param(self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach)
+        if self.loss_annealing:
+            blur = _anneal_param(
+                self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur
+            )
+            reach = _anneal_param(
+                self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach
+            )
+        else:
+            blur = self.sinkhorn_blur
+            reach = self.sinkhorn_reach
 
         sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=blur, reach=reach)
         sinkhorn_loss = sinkhorn(z1, z2)
@@ -167,14 +177,14 @@ class DiagTrainingPlan(TrainingPlan):
         self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
 
         # perform loss annealing for the UOT loss
-        lam_sinkhorn_curr = compute_sinkhorn_lam(
-            self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
-        )
+        # lam_sinkhorn_curr = compute_sinkhorn_lam(
+        #    self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
+        # )
 
         total_loss = (
             self.lam_graph * graph_loss
             + data_loss
-            + lam_sinkhorn_curr * sinkhorn_loss
+            + self.lam_sinkhorn * sinkhorn_loss
             + self.lam_class * classification_loss
         )
 

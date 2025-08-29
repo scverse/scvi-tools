@@ -67,6 +67,7 @@ class DIAGVAE(BaseModuleClass):
         n_hidden: int = 256,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
+        common_scale: bool = True,
         # **kwargs: dict,
     ) -> None:
         super().__init__()
@@ -138,6 +139,7 @@ class DIAGVAE(BaseModuleClass):
                 n_input=n_latent,
                 n_output_protein=n_inputs[self.input_names[0]],
                 n_batches=n_batches[self.input_names[0]],
+                common_scale=common_scale,
             )
 
         if modalities[self.input_names[1]] == "protein":
@@ -145,6 +147,7 @@ class DIAGVAE(BaseModuleClass):
                 n_input=n_latent,
                 n_output_proteins=n_inputs[self.input_names[1]],
                 n_batches=n_batches[self.input_names[1]],
+                common_scale=common_scale,
             )
 
         self.graph_encoder = GraphEncoder_glue(

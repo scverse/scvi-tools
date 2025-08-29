@@ -66,6 +66,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         adatas: dict[str, AnnData],
         guidance_graph: Data | None = None,
         mapping_df: pd.DataFrame | None = None,
+        common_scale: bool | bool = True,
         **model_kwargs: dict,
     ) -> None:
         super().__init__()
@@ -111,6 +112,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             use_gmm_prior=gmm_priors,
             semi_supervised=semi_supervised,
             n_mixture_components=n_mixture_components,
+            common_scale=common_scale,
             **model_kwargs,
         )
         self._model_summary_string = (

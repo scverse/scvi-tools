@@ -70,19 +70,23 @@ class DecoderProtein(nn.Module):
         use_layer_norm: float = False,
         n_hidden: int = 256,
         n_layers: int = 1,
+        common_scale: bool = True,
     ):
         super().__init__()
         self.n_output_proteins = n_output_proteins
         self.n_batches = n_batches
+        self.common_scale = common_scale
 
-        # self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-        # self.bias = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+        if common_scale:
+            self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+            self.bias = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
 
-        self.scale_lin_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-        self.bias_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+        else:
+            self.scale_lin_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+            self.bias_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
 
-        self.scale_lin_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-        self.bias_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+            self.scale_lin_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+            self.bias_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
 
         self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
 
@@ -145,44 +149,45 @@ class DecoderProtein(nn.Module):
             batch_index = batch_index.squeeze(-1)
 
         py_ = {}
-        # scale = F.softplus(self.scale_lin[batch_index])
-        # bias = self.bias[batch_index]
-
-        scale_back = F.softplus(self.scale_lin_back[batch_index])
-        bias_back = self.bias_back[batch_index]
-
-        scale_fore = F.softplus(self.scale_lin_fore[batch_index])
-        bias_fore = self.bias_fore[batch_index]
-
         py_["r"] = self.log_theta[batch_index]  # px_r
 
-        # parametrize the background mean using the feature/cell matrix product
-        raw_px_scale = scale_back * (u @ v.T) + bias_back
-        py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
-        # for fg different act function (positive + 1)
-        py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
+        if self.common_scale:
+            print("common scale")
+            scale = F.softplus(self.scale_lin[batch_index])
+            bias = self.bias[batch_index]
 
-        # parametrize the background mean using the feature/cell matrix product
-        raw_px_scale = scale_fore * (u @ v.T) + bias_fore
-        activation_func = nn.ReLU()
-        py_["scale_fore"] = activation_func(raw_px_scale) + 1 + 1e-8
-        # for fg different act function (positive + 1)
-        py_["rate_fore"] = torch.exp(l) * py_["scale_fore"]  # calculate mean
+            # parametrize the background mean using the feature/cell matrix product
+            raw_px_scale = scale * (u @ v.T) + bias
+            py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
+            # for fg different act function (positive + 1)
+            py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
 
-        """
-        # parametrize the background mean using the feature/cell matrix product
-        raw_px_scale = scale * (u @ v.T) + bias
-        py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
-        # for fg different act function (positive + 1)
-        py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
+            # learn foreground scaling factor with a NN
+            py_fore = self.py_fore_decoder(u, batch_index)
+            py_fore_cat_z = torch.cat([py_fore, u], dim=-1)
+            py_["scale_fore"] = self.py_fore_scale_decoder(py_fore_cat_z, batch_index) + 1 + 1e-8
+            py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
 
+        else:
+            print("no common scale")
+            scale_back = F.softplus(self.scale_lin_back[batch_index])
+            bias_back = self.bias_back[batch_index]
 
-        # learn foreground scaling factor with a NN
-        py_fore = self.py_fore_decoder(u, batch_index)
-        py_fore_cat_z = torch.cat([py_fore, u], dim=-1)
-        py_["scale_fore"] = self.py_fore_scale_decoder(py_fore_cat_z, batch_index) + 1 + 1e-8
-        py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
-        """
+            scale_fore = F.softplus(self.scale_lin_fore[batch_index])
+            bias_fore = self.bias_fore[batch_index]
+
+            # parametrize the background mean using the feature/cell matrix product
+            raw_px_scale = scale_back * (u @ v.T) + bias_back
+            py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
+            # for fg different act function (positive + 1)
+            py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
+
+            # parametrize the background mean using the feature/cell matrix product
+            raw_px_scale = scale_fore * (u @ v.T) + bias_fore
+            activation_func = nn.ReLU()
+            py_["scale_fore"] = activation_func(raw_px_scale) + 1 + 1e-8
+            # for fg different act function (positive + 1)
+            py_["rate_fore"] = torch.exp(l) * py_["scale_fore"]  # calculate mean
 
         # learn the mixing logits with a NN
         p_mixing = self.sigmoid_decoder(u, batch_index)
