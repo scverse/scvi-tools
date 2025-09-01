@@ -616,7 +616,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Parameters
         ----------
         tensors
-            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
+            Dictionary of tensors passed into ``VAE.forward``.
         n_samples
             Number of Monte Carlo samples to draw from the distribution for each observation.
         max_poisson_rate
@@ -671,7 +671,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Parameters
         ----------
         tensors
-            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
+            Dictionary of tensors passed into ``VAE.forward``.
         n_mc_samples
             Number of Monte Carlo samples to use for the estimation of the marginal log-likelihood.
         return_mean

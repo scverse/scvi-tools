@@ -99,8 +99,8 @@ class SCVI(
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
     2. :doc:`/tutorials/notebooks/scrna/harmonization`
-    3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scrna/scvi_in_R`
+    3. :doc:`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+    4. :doc:`/tutorials/notebooks/r/scvi_in_R`
 
     See Also
     --------
