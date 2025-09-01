@@ -31,7 +31,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
     ----------
     adata
         AnnData object that has been registered via
-        :meth:`~scvi.external.model.TOTALANVI.setup_anndata`.
+        :meth:`~scvi.external.TOTALANVI.setup_anndata`.
     n_latent
         Dimensionality of the latent space.
     gene_dispersion
@@ -83,11 +83,8 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
 
     Notes
     -----
-    See further usage examples in the following tutorials:
+    Further usage examples in tutorials is TBD
 
-    1. :doc:`/tutorials/notebooks/multimodal/totalANVI`
-    2. :doc:`/tutorials/notebooks/multimodal/cite_scrna_integration_w_totalANVI`
-    3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
     """
 
     _module_cls = TOTALANVAE
@@ -224,7 +221,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via
-            :meth:`~scvi.model.external.TOTALANVI.setup_anndata`.
+            :meth:`~scvi.external.TOTALANVI.setup_anndata`.
         totalanvi_kwargs
             kwargs for totalANVI model
         """

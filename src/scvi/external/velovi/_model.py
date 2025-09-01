@@ -235,7 +235,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of posterior samples to use for estimation.
         batch_size
             Minibatch size for data loading into model. Defaults to
-            :attr:`~scvi.settings.batch_size`.
+            `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -342,7 +342,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of overall samples to return. Setting this forces n_samples=1.
         batch_size
             Minibatch size for data loading into model. Defaults to
-            :attr:`~scvi.settings.batch_size`.
+            `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -477,7 +477,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of overall samples to return. Setting this forces ``n_samples=1``.
         batch_size
             Minibatch size for data loading into model. Defaults to
-            :attr:`~scvi.settings.batch_size`.
+            `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -656,7 +656,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of posterior samples to use for estimation.
         batch_size
             Minibatch size for data loading into model. Defaults to
-            :attr:`~scvi.settings.batch_size`.
+            `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -812,7 +812,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Number of posterior samples to use for estimation.
         batch_size
             Minibatch size for data loading into model. Defaults to
-            :attr:`~scvi.settings.batch_size`.
+            `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy

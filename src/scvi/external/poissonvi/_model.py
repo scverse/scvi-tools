@@ -43,7 +43,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.POISSONVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.POISSONVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -195,7 +195,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             defaults to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
 
         Returns
         -------
@@ -301,7 +301,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 

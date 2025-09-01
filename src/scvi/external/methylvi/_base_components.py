@@ -229,7 +229,7 @@ class BSSeqMixin:
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
 
         Returns
         -------

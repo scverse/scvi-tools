@@ -293,7 +293,7 @@ class PosteriorPredictiveCheck:
         de_groupby
             The column name in `adata_obs_raw` that contains the groupby information.
         de_method
-            The DE method to use. See :meth:`~scanpy.tl.rank_genes_groups` for more details.
+            The DE method to use. See :func:`~scanpy.tl.rank_genes_groups` for more details.
         n_samples
             The number of posterior predictive samples to use for the DE analysis.
         cell_scale_factor
