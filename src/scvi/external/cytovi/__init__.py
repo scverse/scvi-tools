@@ -1,5 +1,6 @@
 from ._constants import CYTOVI_REGISTRY_KEYS
 from ._model import CYTOVI
+from ._module import CytoVAE
 from ._plotting import plot_biaxial, plot_histogram
 from ._preprocessing import (
     mask_markers,
@@ -11,4 +12,4 @@ from ._preprocessing import (
 )
 from ._read_write import read_fcs, write_fcs
 
-__all__ = ["CYTOVI", "CYTOVI_REGISTRY_KEYS"]
+__all__ = ["CYTOVI", "CytoVAE", "CYTOVI_REGISTRY_KEYS"]
