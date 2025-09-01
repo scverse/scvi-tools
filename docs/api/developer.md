@@ -177,6 +177,7 @@ Module classes in the external API with respective generative and inference proc
    :nosignatures:
 
    external.gimvi.JVAE
+   external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
@@ -190,6 +191,7 @@ Module classes in the external API with respective generative and inference proc
    external.decipher.DecipherPyroModule
    external.resolvi.RESOLVAE
    external.totalanvi.TOTALANVAE
+   external.scviva.nicheVAE
    external.sysvi.SysVAE
 
 ```
@@ -261,7 +263,9 @@ TrainingPlans define train/test/val optimization steps for modules.
    :nosignatures:
 
    train.AdversarialTrainingPlan
+   train.ClassifierTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.SemiSupervisedAdversarialTrainingPlan
    train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
    train.JaxTrainingPlan

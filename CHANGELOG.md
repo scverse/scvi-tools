@@ -363,8 +363,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Address AnnData >= 0.10 deprecation warning for {func}`anndata.read` by replacing instances with
     {func}`anndata.read_h5ad` {pr}`2531`.
 - Address AnnData >= 0.10 deprecation warning for {class}`anndata._core.sparse_dataset.SparseDataset`
-    by replacing instances with {class}`anndata.experimental.CSCDataset` and
-    {class}`anndata.experimental.CSRDataset` {pr}`2531`.
+    by replacing instances with {class}`anndata.abc.CSCDataset` and
+    {class}`anndata.abc.CSRDataset` {pr}`2531`.
 
 ### 1.1.1 (2024-02-19)
 
@@ -463,7 +463,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
 - Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2480`.
-- Use {class}`anndata.experimental.CSCDataset` and {class}`anndata.experimental.CSRDataset`
+- Use {class}`anndata.abc.CSCDataset` and {class}`anndata.abc.CSRDataset`
     instead of the deprecated {class}`anndata._core.sparse_dataset.SparseDataset` for type checks
     {pr}`2485`.
 - Make `use_observed_lib_size` argument adjustable in {class}`scvi.module.LDVAE` `pr`{2494}.
