@@ -138,7 +138,8 @@ class ResolVIPredictiveMixin:
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         weights
-            Precomputed weight for importance sampling. If `uniform` no importance sampling is performed.
+            Precomputed weight for importance sampling. If `uniform` no importance sampling is
+            performed.
         return_mean
             Whether to return the mean of the samples.
         return_numpy

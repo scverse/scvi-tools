@@ -129,10 +129,8 @@ class CYTOVI(
 
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/api_overview`
-    2. :doc:`/tutorials/notebooks/harmonization`
-    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/cytometry/CytoVI_batch_correction_tutorial`
+    2. :doc:`/tutorials/notebooks/cytometry/CytoVI_advanced_tutorial`
     """
 
     _module_cls = CytoVAE
@@ -679,7 +677,7 @@ class CYTOVI(
                 qz = qz_store.get_concatenated_distributions(axis=0)
                 x_axis = 0 if n_samples == 1 else 1
                 px = px_store.get_concatenated_distributions(axis=x_axis)
-                p = self._get_importance_weights(
+                p = self.get_importance_weights(
                     adata,
                     indices,
                     qz=qz,
