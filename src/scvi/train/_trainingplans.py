@@ -1567,7 +1567,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
         Parameters
         ----------
         module
-            An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+            An instance of :class:`~scvi.module.base.JaxBaseModuleClass`.
         optimizer
             One of "Adam", "AdamW", or "Custom", which requires a custom
             optimizer creator callable to be passed via `optimizer_creator`.

@@ -1,4 +1,4 @@
-from ._base_components import DecoderMETHYLVI
+from ._base_components import BSSeqMixin, BSSeqModuleMixin, DecoderMETHYLVI
 from ._constants import METHYLVI_REGISTRY_KEYS
 from ._methylanvi_model import METHYLANVI as METHYLANVI
 from ._methylanvi_module import METHYLANVAE
@@ -12,4 +12,6 @@ __all__ = [
     "METHYLVI",
     "METHYLANVI",
     "METHYLANVAE",
+    "BSSeqMixin",
+    "BSSeqModuleMixin",
 ]

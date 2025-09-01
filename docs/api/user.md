@@ -48,6 +48,7 @@ import scvi
    :nosignatures:
 
    external.CellAssign
+   external.CYTOVI
    external.GIMVI
    external.RNAStereoscope
    external.SpatialStereoscope

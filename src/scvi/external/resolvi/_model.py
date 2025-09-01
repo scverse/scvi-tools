@@ -48,7 +48,7 @@ class RESOLVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.RESOLVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -71,25 +71,22 @@ class RESOLVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     **model_kwargs
-        Keyword args for :class:`~scvi.module.VAE`
+        Keyword args for :class:`~scvi.external.resolvi.RESOLVAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.SCVI(adata)
-    >>> vae.train()
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+    >>> scvi.external.RESOLVI.setup_anndata(adata, batch_key="batch")
+    >>> resolvi = scvi.external.RESOLVI(adata)
+    >>> resolvi.train()
+    >>> adata.obsm["X_resolVI"] = resolvi.get_latent_representation()
+    >>> adata.layers["X_normalized_resolVI"] = resolvi.get_normalized_expression()
 
     Notes
     -----
-    See further usage examples in the following tutorials:
+    See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/api_overview`
-    2. :doc:`/tutorials/notebooks/harmonization`
-    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/spatial/resolVI_tutorial`
     """
 
     _module_cls = RESOLVAE

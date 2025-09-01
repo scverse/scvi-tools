@@ -82,8 +82,8 @@ def run_autotune(
 
         Configured with reasonable defaults, which can be overridden with ``searcher_kwargs``.
     seed
-        Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and
-        search algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
+        Random seed to use for the experiment. Propagated to `scvi.settings.seed`
+        and search algorithms. If not provided, defaults to `scvi.settings.seed`.
     resources
         Dictionary of resources to allocate per trial in the experiment. Available keys
         include:
@@ -97,7 +97,8 @@ def run_autotune(
         Name of the experiment, used for logging purposes. Defaults to a unique ID concatenated
         to the model class name.
     logging_dir
-        Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
+        Base directory to store experiment logs.
+        Defaults to :attr:`~scvi.settings.ScviConfig.logging_dir`.
     save_checkpoints
         If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs

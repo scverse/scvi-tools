@@ -71,11 +71,15 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    :nosignatures:
 
    dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.CollectionAdapter
    dataloaders.ConcatDataLoader
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
    dataloaders.BatchDistributedSampler
+   dataloaders.MappedCollectionDataModule
+   dataloaders.TileDBDataModule
 
 ```
 
@@ -173,6 +177,7 @@ Module classes in the external API with respective generative and inference proc
    :nosignatures:
 
    external.gimvi.JVAE
+   external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
@@ -187,6 +192,7 @@ Module classes in the external API with respective generative and inference proc
    external.decipher.DecipherPyroModule
    external.resolvi.RESOLVAE
    external.totalanvi.TOTALANVAE
+   external.scviva.nicheVAE
    external.sysvi.SysVAE
 
 ```
@@ -258,7 +264,9 @@ TrainingPlans define train/test/val optimization steps for modules.
    :nosignatures:
 
    train.AdversarialTrainingPlan
+   train.ClassifierTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.SemiSupervisedAdversarialTrainingPlan
    train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
    train.JaxTrainingPlan

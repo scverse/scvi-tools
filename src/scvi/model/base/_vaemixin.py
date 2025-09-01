@@ -32,6 +32,7 @@ class VAEMixin:
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
+        data_loader_kwargs: dict | None = None,
         **kwargs,
     ) -> float:
         """Compute the evidence lower bound (ELBO) on the data.
@@ -60,6 +61,8 @@ class VAEMixin:
             the model. If ``None``, a dataloader is created from ``adata``.
         return_mean
             Whether to return the mean of the ELBO or the ELBO for each observation.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -77,8 +80,9 @@ class VAEMixin:
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
+            data_loader_kwargs = data_loader_kwargs or {}
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
             for param in [indices, batch_size]:
@@ -100,6 +104,7 @@ class VAEMixin:
         batch_size: int | None = None,
         return_mean: bool = True,
         dataloader: Iterator[dict[str, Tensor | None]] = None,
+        data_loader_kwargs: dict | None = None,
         **kwargs,
     ) -> float | Tensor:
         """Compute the marginal log-likehood of the data.
@@ -128,6 +133,8 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         **kwargs
             Additional keyword arguments to pass into the module's ``marginal_ll`` method.
 
@@ -152,8 +159,9 @@ class VAEMixin:
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
+            data_loader_kwargs = data_loader_kwargs or {}
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
             for param in [indices, batch_size]:
@@ -184,6 +192,7 @@ class VAEMixin:
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
+        data_loader_kwargs: dict | None = None,
         **kwargs,
     ) -> dict[str, float]:
         r"""Compute the reconstruction error on the data.
@@ -212,6 +221,8 @@ class VAEMixin:
         return_mean
             Whether to return the mean reconstruction loss or the reconstruction loss
             for each observation.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -229,8 +240,9 @@ class VAEMixin:
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
+            data_loader_kwargs = data_loader_kwargs or {}
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
             for param in [indices, batch_size]:
@@ -254,6 +266,7 @@ class VAEMixin:
         batch_size: int | None = None,
         return_dist: bool = False,
         dataloader: Iterator[dict[str, Tensor | None]] = None,
+        **data_loader_kwargs,
     ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
         """Compute the latent representation of the data.
 
@@ -285,6 +298,8 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        **data_loader_kwargs
+            Keyword args for data loader.
 
         Returns
         -------
@@ -303,7 +318,7 @@ class VAEMixin:
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
         else:
             for param in [indices, batch_size]:
