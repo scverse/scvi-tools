@@ -86,7 +86,7 @@ class RESOLVI(
     -----
     See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/resolVI_tutorial`
+    1. :doc:`/tutorials/notebooks/spatial/resolVI_tutorial`
     """
 
     _module_cls = RESOLVAE

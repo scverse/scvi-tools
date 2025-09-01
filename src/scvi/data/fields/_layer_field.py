@@ -1,7 +1,7 @@
 import warnings
 
 import numpy as np
-import rich
+import rich.table
 from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings

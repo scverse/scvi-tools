@@ -26,6 +26,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Removed
 
 - Remove the support for Python 3.10, {pr}`3441`.
+- Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3486`.
 
 ## Version 1.3
 
@@ -578,7 +579,7 @@ to [Semantic Versioning]. Full commit history is available in the
     now log accuracy, F1 score, and AUROC metrics {pr}`2023`.
 - Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
 - Change default `max_cells` and `truncation` in
-    {meth}`scvi.model.base.RNASeqMixin._get_importance_weights` {pr}`2064`.
+    {meth}`scvi.model.base.RNASeqMixin.get_importance_weights` {pr}`2064`.
 - Refactor heuristic for default `max_epochs` as a separate function
     {meth}`scvi.model._utils.get_max_epochs_heuristic` {pr}`2083`.
 

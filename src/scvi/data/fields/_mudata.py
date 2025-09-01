@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-import rich
+import rich.table
 from anndata import AnnData
 from mudata import MuData
 
