@@ -46,7 +46,7 @@ class RNASeqMixin:
         else:
             raise NotImplementedError("Transforming batches is not implemented for this model.")
 
-    def _get_importance_weights(
+    def get_importance_weights(
         self,
         adata: AnnData | None,
         indices: list[int] | None,
@@ -220,7 +220,7 @@ class RNASeqMixin:
             Keyword args for data loader, in dict form.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
 
         Returns
         -------
@@ -332,7 +332,7 @@ class RNASeqMixin:
                 qz = qz_store.get_concatenated_distributions(axis=0)
                 x_axis = 0 if n_samples == 1 else 1
                 px = px_store.get_concatenated_distributions(axis=x_axis)
-                p = self._get_importance_weights(
+                p = self.get_importance_weights(
                     adata,
                     indices,
                     qz=qz,
@@ -405,7 +405,7 @@ class RNASeqMixin:
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -494,8 +494,7 @@ class RNASeqMixin:
             Names of the genes to which to subset. If ``None``, defaults to all genes.
         batch_size
             Minibatch size to use for data loading and model inference. Defaults to
-            ``scvi.settings.batch_size``. Passed into
-            :meth:`~scvi.model.base.BaseModelClass._make_data_loader`.
+            ``scvi.settings.batch_size``. Passed into ``BaseModelClass._make_data_loader``.
         dataloader
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by

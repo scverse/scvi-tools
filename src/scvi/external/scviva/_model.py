@@ -124,12 +124,12 @@ class SCVIVA(
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
-    2. :doc`/tutorials/notebooks/spatial/scVIVA_tutorial`
+    2. :doc:`/tutorials/notebooks/spatial/scVIVA_tutorial`
 
 
     See Also
     --------
-    :class:`~scvi.module.nicheVAE`
+    :class:`~scvi.external.scviva.nicheVAE`
     """
 
     _module_cls = nicheVAE
@@ -472,7 +472,7 @@ class SCVIVA(
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
         niche_mode
             Whether to use scVIVA DE or SCVI DE.
         radius

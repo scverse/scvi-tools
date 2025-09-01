@@ -200,7 +200,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             A filtered adata object, loaded from filtered_feature_bc_matrix using `scanpy.read`,
             gene filtering is recommended to save memory.
         raw_adata
-            A raw adata object, loaded from raw_feature_bc_matrix using :meth:`~scanpy.read`.
+            A raw adata object, loaded from raw_feature_bc_matrix using :func:`~scanpy.read`.
         prob
             The probability of each gene, considered as containing ambient RNA if greater than prob
             (joint prob euqals to the product of all genes for a droplet), by default 0.995.

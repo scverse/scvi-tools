@@ -15,14 +15,6 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -61,8 +53,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     Parameters
     ----------
     adata
-        AnnData/MuData object that has been registered via
-        :meth:`~scvi.model.MULTIVI.setup_anndata` or :meth:`~scvi.model.MULTIVI.setup_mudata`.
+        AnnData/MuData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_mudata`
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -129,15 +120,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
     Notes (for using setup_anndata)
     -----
-    * The model assumes that the features are organized so that all expression features are
-       consecutive, followed by all accessibility features. For example, if the data has 100 genes
-       and 250 genomic regions, the model assumes that the first 100 features are genes, and the
-       next 250 are the regions.
-
-    * The main batch annotation, specified in ``setup_anndata``, should correspond to
-       the modality each cell originated from. This allows the model to focus mixing efforts, using
-       an adversarial component, on mixing the modalities. Other covariates can be specified using
-       the `categorical_covariate_keys` argument.
+    As of SCVI-Tools v1.4 there is no longer support for setup_anndata for multivi.
+    Please use setup_mudata instead.
     """
 
     _module_cls = MULTIVAE
@@ -1045,72 +1029,6 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 index=adata.obs_names[indices],
             )
             return foreground_prob
-
-    @classmethod
-    @setup_anndata_dsp.dedent
-    def setup_anndata(
-        cls,
-        adata: AnnData,
-        layer: str | None = None,
-        batch_key: str | None = None,
-        size_factor_key: str | None = None,
-        categorical_covariate_keys: list[str] | None = None,
-        continuous_covariate_keys: list[str] | None = None,
-        protein_expression_obsm_key: str | None = None,
-        protein_names_uns_key: str | None = None,
-        **kwargs,
-    ):
-        """%(summary)s.
-
-        Parameters
-        ----------
-        %(param_adata)s
-        %(param_layer)s
-        %(param_batch_key)s
-        %(param_size_factor_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
-        protein_expression_obsm_key
-            key in `adata.obsm` for protein expression data.
-        protein_names_uns_key
-            key in `adata.uns` for protein names. If None, will use the column names of
-            `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
-            sequential names to proteins.
-        """
-        warnings.warn(
-            "MULTIVI is supposed to work with MuData. the use of anndata is "
-            "deprecated and will be removed in scvi-tools 1.4. Please use setup_mudata",
-            DeprecationWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-        setup_method_args = cls._get_setup_method_args(**locals())
-        adata.obs["_indices"] = np.arange(adata.n_obs)
-        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
-        anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            batch_field,
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
-        ]
-        if protein_expression_obsm_key is not None:
-            anndata_fields.append(
-                ProteinObsmField(
-                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
-                    protein_expression_obsm_key,
-                    use_batch_mask=True,
-                    batch_field=batch_field,
-                    colnames_uns_key=protein_names_uns_key,
-                    is_count_data=True,
-                )
-            )
-
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
 
     def _check_adata_modality_weights(self, adata):
         """Checks if adata is None and weights are per cell.

@@ -275,8 +275,8 @@ class AutotuneExperiment:
 
         Configured with reasonable defaults, which can be overridden with ``searcher_kwargs``.
     seed
-        Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and search
-        algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
+        Random seed to use for the experiment. Propagated to `scvi.settings.seed`
+        and search algorithms. If not provided, defaults to `scvi.settings.seed`.
     resources
         Dictionary of resources to allocate per trial in the experiment. Available keys include:
 
