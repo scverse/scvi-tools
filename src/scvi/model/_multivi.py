@@ -53,7 +53,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     Parameters
     ----------
     adata
-        AnnData/MuData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_mudata`
+        MuData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_mudata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -1029,6 +1029,44 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 index=adata.obs_names[indices],
             )
             return foreground_prob
+
+    @classmethod
+    @setup_anndata_dsp.dedent
+    def setup_anndata(
+        cls,
+        adata: AnnData,
+        layer: str | None = None,
+        batch_key: str | None = None,
+        size_factor_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        protein_expression_obsm_key: str | None = None,
+        protein_names_uns_key: str | None = None,
+        **kwargs,
+    ):
+        """%(summary)s.
+
+        Parameters
+        ----------
+        %(param_adata)s
+        %(param_layer)s
+        %(param_batch_key)s
+        %(param_size_factor_key)s
+        %(param_cat_cov_keys)s
+        %(param_cont_cov_keys)s
+        protein_expression_obsm_key
+            key in `adata.obsm` for protein expression data.
+        protein_names_uns_key
+            key in `adata.uns` for protein names. If None, will use the column names of
+            `adata.obsm[protein_expression_obsm_key]` if it is a DataFrame, else will assign
+            sequential names to proteins.
+        """
+        warnings.warn(
+            "MULTIVI is supposed to work with MuData. the use of anndata is "
+            "deprecated starting in scvi-tools 1.4. Please use setup_mudata",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
     def _check_adata_modality_weights(self, adata):
         """Checks if adata is None and weights are per cell.

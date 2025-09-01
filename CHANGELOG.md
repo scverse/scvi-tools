@@ -26,7 +26,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Removed
 
 - Remove the support for Python 3.10, {pr}`3441`.
-- Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3XXX`.
+- Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3486`.
 
 ## Version 1.3
 

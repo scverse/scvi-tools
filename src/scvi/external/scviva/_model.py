@@ -129,7 +129,7 @@ class SCVIVA(
 
     See Also
     --------
-    :class:`~scvi.external.scviva.nicheVAE`
+    :class:`~scvi.external.scviva._module.nicheVAE`
     """
 
     _module_cls = nicheVAE
