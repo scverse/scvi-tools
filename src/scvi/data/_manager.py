@@ -8,7 +8,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import rich
+import rich.table
 from mudata import MuData
 from rich.console import Console
 from torch.utils.data import Subset

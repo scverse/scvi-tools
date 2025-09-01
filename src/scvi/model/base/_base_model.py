@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import numpy as np
 import pyro
-import rich
+import rich.table
 import torch
 from anndata import AnnData
 from mudata import MuData

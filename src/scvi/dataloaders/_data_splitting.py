@@ -203,7 +203,7 @@ class DataSplitter(pl.LightningDataModule):
         transferring data to GPUs, depending on the sparsity of the data.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
@@ -363,7 +363,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         Number of subsamples for each label class to sample per epoch
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
@@ -587,7 +587,7 @@ class DeviceBackedDataSplitter(DataSplitter):
     %(param_device)s
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     shuffle
         if ``True``, shuffles indices before sampling for training set
     shuffle_test_val

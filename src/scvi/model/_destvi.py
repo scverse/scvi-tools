@@ -51,7 +51,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
     **module_kwargs
-        Keyword args for :class:`~scvi.modules.MRDeconv`
+        Keyword args for :class:`~scvi.module.MRDeconv`
 
     Examples
     --------
@@ -70,7 +70,7 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/spatial/DestVI_tutorial`
-    2. :doc:`/tutorials/notebooks/spatial/DestVI_in_R`
+    2. :doc:`/tutorials/notebooks/r/DestVI_in_R`
     """
 
     _module_cls = MRDeconv
