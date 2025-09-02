@@ -1350,7 +1350,7 @@ class BaseMudataMinifiedModeModelClass(BaseModelClass):
                 ``use_latent_qzv_key``.
             - ``"latent_posterior_parameters_with_counts"``: Store the latent posterior mean and
                 variance in :attr:`~mudata.MuData.obsm` using the keys ``use_latent_qzm_key`` and
-                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData.X`.
+                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData[mod].X`.
         use_latent_qzm_key
             Key to use for storing the latent posterior mean in :attr:`~mudata.MuData.obsm` when
             ``minified_data_type`` is ``"latent_posterior"``.
