@@ -224,3 +224,90 @@ def test_scviva_differential(adata):
         fdr_target=[1, 1, 1, 1],
         delta=[0.5, 0.5, 0.5, 0.5],
     )
+
+
+def test_scviva_scarches(adata: AnnData):
+    # divide between ref and query data
+    adata.obs["hemisphere"] = [
+        "right" if x > 0 else "left" for x in adata.obsm["coordinates"][:, 0]
+    ]
+    ref_adata = adata[adata.obs["hemisphere"] == "left"].copy()
+    query_adata = adata[adata.obs["hemisphere"] == "right"].copy()
+
+    SCVIVA.preprocessing_anndata(
+        ref_adata,
+        k_nn=K_NN,
+        **setup_kwargs,
+    )
+
+    SCVIVA.setup_anndata(
+        ref_adata,
+        layer="counts",
+        batch_key="batch",
+        **setup_kwargs,
+    )
+
+    # Reference model
+    nichevae = SCVIVA(
+        ref_adata,
+        prior_mixture=False,
+        semisupervised=True,
+        linear_classifier=True,
+    )
+
+    nichevae.train(
+        max_epochs=N_EPOCHS_SCVIVA,
+        train_size=0.8,
+        validation_size=0.2,
+        early_stopping=True,
+        check_val_every_n_epoch=1,
+        accelerator="cpu",
+    )
+
+    assert nichevae.is_trained
+
+    # Query adata
+    SCVIVA.preprocessing_anndata(
+        query_adata,
+        k_nn=K_NN,
+        **setup_kwargs,
+    )
+
+    # Make it different from reference adata - How?
+    query_adata = query_adata[
+        :, np.random.permutation(query_adata.var_names)[: query_adata.shape[1] - 5]
+    ].copy()
+    query_adata.obsm["neighborhood_composition"] = query_adata.obsm[
+        "neighborhood_composition"
+    ].reindex(columns=ref_adata.obsm["neighborhood_composition"].columns)
+
+    # Make query adata and model
+    nichevae.prepare_query_anndata(query_adata, reference_model=nichevae)
+    query_nichevae = nichevae.load_query_data(query_adata, reference_model=nichevae)
+
+    query_nichevae.train(
+        max_epochs=N_EPOCHS_SCVIVA,
+        train_size=0.8,
+        validation_size=0.2,
+        early_stopping=True,
+        check_val_every_n_epoch=1,
+        accelerator="cpu",
+    )
+
+    predicted_alpha = query_nichevae.predict_neighborhood(query_adata)
+    assert predicted_alpha.shape == (query_adata.n_obs, query_nichevae.n_labels)
+    query_adata.obsm["X_nichevi"] = query_nichevae.get_latent_representation(query_adata)
+
+    # Check that embedding default works
+    assert (
+        query_nichevae.get_latent_representation(
+            adata=ref_adata,
+        ).shape[0]
+        == ref_adata.shape[0]
+    )
+    assert (
+        query_nichevae.get_latent_representation(
+            adata=query_adata,
+        ).shape[0]
+        == query_adata.shape[0]
+    )
