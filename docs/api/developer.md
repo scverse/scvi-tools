@@ -179,6 +179,7 @@ Module classes in the external API with respective generative and inference proc
    external.gimvi.JVAE
    external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
+   external.contrastivevi.ContrastiveDataSplitter
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
@@ -192,6 +193,7 @@ Module classes in the external API with respective generative and inference proc
    external.resolvi.RESOLVAE
    external.totalanvi.TOTALANVAE
    external.scviva.nicheVAE
+   external.scviva.NicheLossOutput
    external.sysvi.SysVAE
 
 ```
