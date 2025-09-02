@@ -19,6 +19,22 @@ class Dense(nn.Linear):
 
 
 class ResnetBlock(nn.Module):
+    """Resnet block.
+
+    Parameters
+    ----------
+    n_in
+        Number of input units.
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    internal_activation
+        Activation function to use after the first :class:`~Dense` layer.
+    output_activation
+        Activation function to use after the last :class:`~Dense` layer.
+    """
+
     def __init__(
         self,
         n_in: int,
@@ -71,6 +87,25 @@ class ResnetBlock(nn.Module):
 
 
 class MLP(nn.Module):
+    """Multi-layer perceptron with resnet blocks.
+
+    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
+    :class:`~Dense` layer to project to the output dimension.
+
+    Parameters
+    ----------
+    n_in
+        Number of input units.
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of resnet blocks.
+    activation
+        Activation function to use.
+    """
+
     def __init__(
         self,
         n_in: int,
@@ -108,6 +143,26 @@ class MLP(nn.Module):
 
 
 class NormalDistOutputNN(nn.Module):
+    """Fully-connected neural net parameterizing a normal distribution.
+
+    Applies ``n_layers`` :class:`~ResnetBlock` blocks to the input, followed by a
+    :class:`~Dense` layer for the mean and a :class:`~Dense` and
+    :func:`~softplus` layer for the scale.
+
+    Parameters
+    ----------
+    n_in
+        Number of input units.
+    n_out
+        Number of output units.
+    n_hidden
+        Number of hidden units.
+    n_layers
+        Number of resnet blocks.
+    scale_eps
+        Numerical stability constant added to the scale of the normal distribution.
+    """
+
     def __init__(
         self,
         n_in: int,
@@ -144,6 +199,21 @@ class NormalDistOutputNN(nn.Module):
 
 
 class ConditionalNormalization(nn.Module):
+    """Condition-specific normalization.
+
+    Applies either batch normalization or layer normalization to the input, followed by
+    condition-specific scaling (``gamma``) and shifting (``beta``).
+
+    Parameters
+    ----------
+    n_features
+        Number of features.
+    n_conditions
+        Number of conditions.
+    normalization_type
+        Type of normalization to apply. Must be one of ``"batch", "layer"``.
+    """
+
     def __init__(
         self,
         n_features: int,
@@ -192,10 +262,38 @@ class ConditionalNormalization(nn.Module):
 
 
 class AttentionBlock(nn.Module):
+    """Attention block consisting of multi-head self-attention and MLP.
+
+    Parameters
+    ----------
+    query_dim
+        Dimension of the query input.
+    kv_dim
+        Dimension of the kv input.
+    out_dim
+        Dimension of the output.
+    outerprod_dim
+        Dimension of the outer product.
+    n_channels
+        Number of channels.
+    n_heads
+        Number of heads.
+    dropout_rate
+        Dropout rate.
+    n_hidden_mlp
+        Number of hidden units in the MLP.
+    n_layers_mlp
+        Number of layers in the MLP.
+    stop_gradients_mlp
+        Whether to stop gradients through the MLP.
+    activation
+        Activation function to use.
+    """
+
     def __init__(
         self,
         query_dim: int,
-        kv_dim: int,  # TODO: added this for torch version, could be wrong
+        kv_dim: int,
         out_dim: int,
         outerprod_dim: int = 16,
         n_channels: int = 4,
@@ -240,7 +338,6 @@ class AttentionBlock(nn.Module):
             n_layers=n_layers_mlp,
             activation=activation,
         )
-        self.mlp_eps.train()
         self.mlp_residual = MLP(
             n_in=outerprod_dim + query_dim,
             n_out=out_dim,
@@ -248,7 +345,6 @@ class AttentionBlock(nn.Module):
             n_layers=n_layers_mlp,
             activation=activation,
         )
-        self.mlp_residual.train()
 
     def forward(
         self,
@@ -271,7 +367,7 @@ class AttentionBlock(nn.Module):
         query_for_att = self.embed_dim_proj_query(
             query_for_att
         )  # (batch_size, outerprod_dim, n_channels * n_heads)
-        kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)
+        kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)  # (batch_size, outerprod_dim, 1)
         kv_for_att = self.embed_dim_proj_kv(kv_for_att)
 
         # Unlike with JAX, with torch we can only have one batch dimension

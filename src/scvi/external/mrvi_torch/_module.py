@@ -173,6 +173,38 @@ class DecoderZXAttention(nn.Module):
 
 
 class EncoderUZ(nn.Module):
+    """Attention-based encoder from ``u`` to ``z``.
+
+    Parameters
+    ----------
+    n_latent
+        Number of latent variables.
+    n_sample
+        Number of samples.
+    n_latent_u
+        Number of latent variables for ``u``.
+    n_latent_sample
+        Number of latent samples.
+    n_channels
+        Number of channels in the attention block.
+    n_heads
+        Number of heads in the attention block.
+    dropout_rate
+        Dropout rate.
+    stop_gradients
+        Whether to stop gradients to ``u``.
+    stop_gradients_mlp
+        Whether to stop gradients to the MLP in the attention block.
+    use_map
+        Whether to use the MAP estimate to approximate the posterior of ``z`` given ``u``
+    n_hidden
+        Number of hidden units in the MLP.
+    n_layers
+        Number of layers in the MLP.
+    activation
+        Activation function for the MLP.
+    """
+
     def __init__(
         self,
         n_latent: int,
@@ -254,9 +286,27 @@ class EncoderUZ(nn.Module):
 
 
 class EncoderXU(nn.Module):
+    """Encoder from ``x`` to ``u``.
+
+    Parameters
+    ----------
+    n_input
+        Number of input variables.
+    n_latent
+        Number of latent variables.
+    n_sample
+        Number of samples.
+    n_hidden
+        Number of hidden units in the MLP.
+    n_layers
+        Number of layers in the MLP.
+    training
+        Whether the model is in training mode.
+    """
+
     def __init__(
         self,
-        n_input: int,  # TODO: added this for torch nn linear
+        n_input: int,
         n_latent: int,
         n_sample: int,
         n_hidden: int = 128,
@@ -306,6 +356,55 @@ class EncoderXU(nn.Module):
 
 
 class TorchMRVAE(BaseModuleClass):
+    """Multi-resolution Variational Inference (MrVI) module.
+
+    Parameters
+    ----------
+    n_input
+        Number of input features.
+    n_sample
+        Number of samples.
+    n_batch
+        Number of batches.
+    n_labels
+        Number of labels.
+    n_latent
+        Number of latent variables for ``z``.
+    n_latent_u
+        Number of latent variables for ``u``.
+    encoder_n_hidden
+        Number of hidden units in the encoder.
+    encoder_n_layers
+        Number of layers in the encoder.
+    z_u_prior
+        Whether to place a Gaussian prior on ``z`` given ``u``.
+    z_u_prior_scale
+        Natural log of the scale parameter of the Gaussian prior placed on ``z`` given ``u``. Only
+        applies of ``learn_z_u_prior_scale`` is ``False``.
+    u_prior_scale
+        Natural log of the scale parameter of the Gaussian prior placed on ``u``. If
+        ``u_prior_mixture`` is ``True``, this scale applies to each mixture component distribution.
+    u_prior_mixture
+        Whether to use a mixture of Gaussians prior for ``u``.
+    u_prior_mixture_k
+        Number of mixture components to use for the mixture of Gaussians prior on ``u``.
+    learn_z_u_prior_scale
+        Whether to learn the scale parameter of the prior distribution of ``z`` given ``u``.
+    scale_observations
+        Whether to scale the loss associated with each observation by the total number of
+        observations linked to the associated sample.
+    px_kwargs
+        Keyword arguments for the generative model.
+    qz_kwargs
+        Keyword arguments for the inference model from ``u`` to ``z``.
+    qu_kwargs
+        Keyword arguments for the inference model from ``x`` to ``u``.
+    training
+        Whether the model is in training mode.
+    n_obs_per_sample
+        Number of observations per sample.
+    """
+
     def __init__(
         self,
         n_input: int,
