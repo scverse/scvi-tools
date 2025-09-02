@@ -107,7 +107,7 @@ class CYTOVI(
     prior_mixture_k
         Number of mixture components in the MoG prior. Defaults to `n_latent` if None.
     **model_kwargs
-        Keyword arguments passed to :class:`~scvi.external.CYTOVI.module.CytoVAE`.
+        Keyword arguments passed to :class:`~scvi.external.cytovi.CytoVAE`.
 
     Examples
     --------
