@@ -65,8 +65,8 @@ def plot_histogram(
 
     Examples
     --------
-    >>> cytovi.plot_histogram(adata, marker=['CD3', 'CD4'], groupby='condition')
-    >>> cytovi.plot_histogram(adata, marker='all', groupby='batch')
+    >>> cytovi.plot_histogram(adata, marker=["CD3", "CD4"], groupby="condition")
+    >>> cytovi.plot_histogram(adata, marker="all", groupby="batch")
     """
     import seaborn as sns
 
@@ -185,8 +185,8 @@ def plot_biaxial(
 
     Examples
     --------
-    >>> cytovi.pl.biaxial(adata, marker_x='CD3', marker_y='CD4', color='condition')
-    >>> cytovi.pl.biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
+    >>> cytovi.pl.biaxial(adata, marker_x="CD3", marker_y="CD4", color="condition")
+    >>> cytovi.pl.biaxial(adata, marker_x=["CD8", "CD20"], marker_y="CD56", color="batch")
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
