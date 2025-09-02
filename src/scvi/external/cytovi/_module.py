@@ -455,13 +455,15 @@ class DecoderCytoVI(nn.Module):
     n_output
         Dimensionality of the output (data space).
     n_cat_list
-        List of category sizes for each categorical covariate; each is included via one-hot encoding.
+        List of category sizes for each categorical covariate;
+        each is included via one-hot encoding.
     n_layers
         Number of fully connected hidden layers. Default: 1.
     n_hidden
         Number of nodes per hidden layer. Default: 128.
     inject_covariates
-        Whether to inject covariates in each layer (``True``) or only in the first layer (``False``). Default: False.
+        Whether to inject covariates in each layer (``True``) or only in the
+        first layer (``False``). Default: False.
     use_batch_norm
         Whether to use batch normalization in layers. Default: False.
     use_layer_norm

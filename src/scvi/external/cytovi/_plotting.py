@@ -145,7 +145,7 @@ def plot_biaxial(
     **kwargs,
 ):
     """
-    Create a PairGrid of biaxial (scatter + optional density) plots for specified markers in an AnnData object.
+    Create a PairGrid of biaxial plots for specified markers in an AnnData object.
 
     Parameters
     ----------
@@ -156,7 +156,8 @@ def plot_biaxial(
     marker_y
         Variable name(s) to plot on the y-axis. A string or a list of marker names.
     color
-        Key in ``adata.obs`` used to color points (e.g., batch or condition). Default: no coloring.
+        Key in ``adata.obs`` used to color points (e.g., batch or condition).
+        Default: no coloring.
     n_bins
         Number of contour levels for the KDE density. Default: 10.
     layer_key
@@ -168,8 +169,8 @@ def plot_biaxial(
     sample_color_groups
         If True and ``color`` is set, sample within each color group. Default: False.
     save
-        If ``True``, save as ``"marker_biaxial.png"``; if a string is provided, use it as the filename.
-        Default: False.
+        If ``True``, save as ``"marker_biaxial.png"``;
+        if a string is provided, use it as the filename. Default: False.
     kde
         Whether to overlay KDE density contours. Default: True.
     kde_kwargs

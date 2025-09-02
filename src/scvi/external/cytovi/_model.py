@@ -1148,7 +1148,7 @@ class CYTOVI(
         return_query_only: bool = False,
     ):
         """
-        Impute modality expression in a query dataset using a reference and a shared representation.
+        Impute RNA expression in a query dataset using a reference and a shared representation.
 
         Parameters
         ----------
