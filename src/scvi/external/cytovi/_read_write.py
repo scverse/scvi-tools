@@ -27,23 +27,25 @@ def read_fcs(
 
     Parameters
     ----------
-    path : str
+    path
         Path to a single `.fcs` file or a directory containing `.fcs` files.
-    return_raw_layer : bool, optional (default: True)
+    return_raw_layer
         Whether to store the untransformed data in the `.layers["raw"]` slot of each AnnData
-        object.
-    include_hidden : bool, optional (default: False)
+        object. Default: True.
+    include_hidden
         Whether to include hidden/system files (i.e., those beginning with a period).
-    remove_markers : list of str, optional (default: None)
+        Default: False.
+    remove_markers
         List of marker names (columns in `.var_names`) to remove from each file.
-        Markers not found in the file will be skipped with a warning.
-    sample_name_extractor : dict, optional (default: None)
+        Markers not found in the file will be skipped with a warning. Default: None.
+    sample_name_extractor
         Dictionary with format `{"split": str, "index": int}`.
         Splits the filename by the provided delimiter and extracts the sample name
         from the specified index position. Example:
         `{"split": "_", "index": 0}` will extract `"sample1"` from `"sample1_batchA.fcs"`.
-    verbose : bool, optional (default: True)
-        Whether to print progress and warning messages.
+        Default: None.
+    verbose
+        Whether to print progress and warning messages. Default: True.
 
     Returns
     -------
@@ -141,22 +143,23 @@ def write_fcs(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         Annotated data matrix, where `adata.X` or `adata.layers[layer]` contains the expression
         data to be written to FCS format.
-    output_path : str, optional
+    output_path
         Directory where the FCS files will be written. If `None`, uses the current working
         directory.
-    split_by : str, optional
+    split_by
         Column in `adata.obs` to group cells by. If specified, an FCS file will be written for
         each group. If not provided, a single FCS file is written using all cells.
-    layer : str, optional
+    layer
         Layer in `adata.layers` to use as the data source. If `None`, uses `adata.X`.
-    prefix : str, default: "export"
-        Prefix for the output FCS file names.
-    verbose : bool, default: True
+    prefix
+        Prefix for the output FCS file names. Default: "export".
+    verbose
         If `True`, prints a message for each written file including the output path and data shape.
-    write_kwargs : dict, optional
+        Default: True.
+    write_kwargs
         Additional keyword arguments to pass to `fcswrite.write_fcs`. This can include
         parameters like `text_kw_pr` for custom text annotations in the FCS file.
 
@@ -176,7 +179,7 @@ def write_fcs(
     - This function automatically removes rows with any NaN values before writing to FCS.
     - Data is cast to `float32` before writing.
     - Only `.X` or `.layers[layer]` is written; metadata from `obs` or `var` is not exported
-    to FCS.
+      to FCS.
 
     Examples
     --------

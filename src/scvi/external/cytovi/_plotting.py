@@ -25,60 +25,48 @@ def plot_histogram(
     **kwargs,
 ):
     """
-    Create a FacetGrid of histograms for specified markers in AnnData.
+    Create a FacetGrid of histograms for specified markers in an AnnData object.
 
     Parameters
     ----------
-    adata : ad.AnnData
+    adata
         Annotated data matrix.
-
-    marker : Union[str, List[str]], optional
-        Names of markers to plot. 'all' to plot all markers.
-
-    groupby : str, optional
-        Key for grouping or categorizing the data. E.g. key for batch.
-
-    layer_key : str, optional
-        Key for the layer in AnnData.
-
-    downsample : bool, optional
-        Whether to downsample the data if there are too many observations.
-
-    n_obs : int, optional
-        Number of observations to subsample if downsample is True.
-
-    col_wrap : int, optional
-        Number of columns to wrap the plots. If None, it is calculated based on the
-        number of markers.
-
-    tight_layout : bool, optional
-        Whether to use tight layout for the plot.
-
-    save : Union[bool, str], optional
-        If True, the plot is saved as "marker_histogram.png". If a string is provided,
-        the plot is saved with the given filename.
-
-    return_plot : bool, optional
-        Whether to return the FacetGrid object.
-
-    kde_kwargs : dict, optional
-        Additional keyword arguments to pass to Seaborn's kdeplot.
-
-    **kwargs : additional keyword arguments
-        Additional arguments to pass to Seaborn's FacetGrid.
+    marker
+        Marker name or list of marker names to plot. Use ``'all'`` to plot all markers.
+        Default: ``'all'`` uses all variables in ``adata.var_names``.
+    groupby
+        Key in ``adata.obs`` used to group/color the data (e.g., batch or condition).
+        Default: no grouping.
+    layer_key
+        Layer key in ``adata.layers`` to draw values from. Default: use ``X``.
+    downsample
+        Whether to downsample when the number of observations is large. Default: True.
+    n_obs
+        Number of observations to keep if ``downsample`` is True. Default: 10_000.
+    col_wrap
+        Maximum number of columns before wrapping to a new row. If ``None``, chosen
+        automatically based on the number of markers. Default: None.
+    tight_layout
+        Apply a tight layout to the figure. Default: True.
+    save
+        If ``True``, save as ``"marker_histogram.png"``; if a string is provided,
+        use it as the filename. Default: False.
+    return_plot
+        If ``True``, return the ``seaborn.FacetGrid`` object. Default: False.
+    kde_kwargs
+        Additional keyword arguments passed to ``seaborn.kdeplot`` if a density
+        overlay is enabled. Default: ``{}``.
+    **kwargs
+        Additional keyword arguments forwarded to ``seaborn.FacetGrid``.
 
     Returns
     -------
-    None or sns.FacetGrid
-        If return_plot is True, returns the FacetGrid object. Otherwise, returns None.
+    If ``return_plot`` is ``True``, returns the ``seaborn.FacetGrid``; otherwise, nothing.
 
-    Example:
-    ----------
-    # Plot density plots for specific markers
-    cytovi.plot_histogram(adata, marker=['CD3', 'CD4'], group_by='Condition')
-
-    # Plot density plots for all markers
-    cytovi.plot_histogram(adata, marker='all', group_by='Batch')
+    Examples
+    --------
+    >>> cytovi.plot_histogram(adata, marker=['CD3', 'CD4'], groupby='condition')
+    >>> cytovi.plot_histogram(adata, marker='all', groupby='batch')
     """
     import seaborn as sns
 
@@ -157,64 +145,48 @@ def plot_biaxial(
     **kwargs,
 ):
     """
-    Create a PairGrid of biaxial (scatter and density) plots for specified markers in AnnData.
+    Create a PairGrid of biaxial (scatter + optional density) plots for specified markers in an AnnData object.
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         Annotated data matrix.
-
-    marker_x : Union[str, List[str]], optional
-        Variable name(s) to be plotted on the x-axis.
-
-    marker_y : Union[str, List[str]], optional
-        Variable name(s) to be plotted on the y-axis.
-
-    color : str, optional
-        Variable name to be used for coloring the scatter plots.
-
-    n_bins : int, optional
-        Number of levels for density contours in kdeplot.
-
-    layer_key : str, optional
-        Key for the layer in AnnData.
-
-    downsample : bool, optional
-        Whether to downsample the data if there are too many observations.
-
-    n_obs : int, optional
-        Number of observations to keep if downsampling is enabled.
-
-    sample_color_groups : bool, optional
-        Whether to sample observations within each color group if downsampling is enabled.
-
-    save : Union[bool, str], optional
-        If True, save the plot as "marker_histogram.png". If a string is provided, save the
-          plot with the given filename.
-
-    kde : bool, optional
-        Whether to include density contours in the plot.
-
-    kde_kwargs : dict, optional
-        Additional keyword arguments to pass to Seaborn's kdeplot.
-
-    scatter_kwargs : dict, optional
-        Additional keyword arguments to pass to Seaborn's scatterplot.
-
-    **kwargs : additional keyword arguments
-        Additional arguments to pass to Seaborn's PairGrid.
+    marker_x
+        Variable name(s) to plot on the x-axis. A string or a list of marker names.
+    marker_y
+        Variable name(s) to plot on the y-axis. A string or a list of marker names.
+    color
+        Key in ``adata.obs`` used to color points (e.g., batch or condition). Default: no coloring.
+    n_bins
+        Number of contour levels for the KDE density. Default: 10.
+    layer_key
+        Layer key in ``adata.layers`` to draw values from. Default: use ``X``.
+    downsample
+        Whether to downsample when the number of observations is large. Default: True.
+    n_obs
+        Number of observations to keep if ``downsample`` is True. Default: 10_000.
+    sample_color_groups
+        If True and ``color`` is set, sample within each color group. Default: False.
+    save
+        If ``True``, save as ``"marker_biaxial.png"``; if a string is provided, use it as the filename.
+        Default: False.
+    kde
+        Whether to overlay KDE density contours. Default: True.
+    kde_kwargs
+        Additional keyword arguments forwarded to ``seaborn.kdeplot``.
+    scatter_kwargs
+        Additional keyword arguments forwarded to ``seaborn.scatterplot``.
+    **kwargs
+        Additional keyword arguments forwarded to ``seaborn.PairGrid``.
 
     Returns
     -------
-    None
+    No return value; the figure is displayed and optionally saved.
 
-    Example
-    -------
-    # Plot biaxial plots for specific markers
-    cytovi.plot_biaxial(adata, marker_x='CD3', marker_y='CD4', color='Condition')
-
-    # Plot biaxial plots for multiple markers
-    cytovi.plot_biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
+    Examples
+    --------
+    >>> cytovi.pl.biaxial(adata, marker_x='CD3', marker_y='CD4', color='condition')
+    >>> cytovi.pl.biaxial(adata, marker_x=['CD8', 'CD20'], marker_y='CD56', color='batch')
     """
     import matplotlib.pyplot as plt
     import seaborn as sns
