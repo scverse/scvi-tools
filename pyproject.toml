@@ -100,12 +100,12 @@ parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
 interpretability = ["captum", "shap"]
 # for custom dataloders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
-# for spaglue
-spaglue = ["torch_geometric"]
+# for diagvi
+diagvi = ["torch_geometric", "geomloss"]
 
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability,spaglue]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability,diagvi]"
 ]
 tutorials = [
     "cell2location",
