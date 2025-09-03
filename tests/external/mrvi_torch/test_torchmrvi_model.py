@@ -52,7 +52,7 @@ def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="torch")
+    model = MRVI.load(model_path, adata=adata)
 
 
 @pytest.mark.optional
@@ -167,7 +167,7 @@ def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], sa
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="torch")
+    model = MRVI.load(model_path, adata=adata)
 
 
 def test_torchMRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
@@ -177,7 +177,7 @@ def test_torchMRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="torch")
+    model = MRVI.load(model_path, adata=adata)
 
 
 def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
@@ -198,7 +198,7 @@ def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="torch")
+    model = MRVI.load(model_path, adata=adata)
 
 
 @pytest.fixture
@@ -237,4 +237,4 @@ def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: st
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata_stratifications, backend="torch")
+    model = MRVI.load(model_path, adata=adata_stratifications)

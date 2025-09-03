@@ -52,6 +52,7 @@ class MRVI(BaseMinifiedModeModelClass):
         **model_kwargs,
     ):
         backend = backend.lower()
+        cls.backend = backend
         if backend == "torch":
             return TorchMRVI(adata=adata, registry=registry, **model_kwargs)
         elif backend == "jax":
@@ -129,7 +130,6 @@ class MRVI(BaseMinifiedModeModelClass):
         prefix: str | None = None,
         backup_url: str | None = None,
         datamodule: LightningDataModule | None = None,
-        backend: Backend = "jax",
     ):
         """Instantiate a model from the saved output.
 
@@ -153,8 +153,6 @@ class MRVI(BaseMinifiedModeModelClass):
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
-        backend
-            Which backend to use: "torch" or "jax".
 
         Returns
         -------
@@ -165,8 +163,7 @@ class MRVI(BaseMinifiedModeModelClass):
         >>> model = ModelClass.load(save_path, adata)
         >>> model.get_....
         """
-        backend = backend.lower()
-        if backend == "torch":
+        if cls.backend == "torch":
             warnings.warn(
                 "MRVI model is being loaded with PyTorch backend",
                 DeprecationWarning,
@@ -181,7 +178,7 @@ class MRVI(BaseMinifiedModeModelClass):
                 backup_url=backup_url,
                 datamodule=datamodule,
             )
-        elif backend == "jax":
+        elif cls.backend == "jax":
             warnings.warn(
                 "MRVI model is being loaded with JAX backend",
                 DeprecationWarning,
@@ -197,4 +194,4 @@ class MRVI(BaseMinifiedModeModelClass):
                 datamodule=datamodule,
             )
         else:
-            raise ValueError(f"Unknown backend '{backend}'. Use 'torch' or 'jax'.")
+            raise ValueError(f"Unknown backend '{cls.backend}'. Use 'torch' or 'jax'.")

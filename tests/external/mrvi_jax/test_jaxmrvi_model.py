@@ -53,7 +53,7 @@ def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="jax")
+    model = MRVI.load(model_path, adata=adata)
 
 
 @pytest.mark.optional
@@ -168,7 +168,7 @@ def test_jaxmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="jax")
+    model = MRVI.load(model_path, adata=adata)
 
 
 @pytest.mark.optional
@@ -179,7 +179,7 @@ def test_jaxmrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="jax")
+    model = MRVI.load(model_path, adata=adata)
 
 
 @pytest.mark.optional
@@ -201,7 +201,7 @@ def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata, backend="jax")
+    model = MRVI.load(model_path, adata=adata)
 
 
 @pytest.fixture
@@ -241,4 +241,4 @@ def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
-    model = MRVI.load(model_path, adata=adata_stratifications, backend="jax")
+    model = MRVI.load(model_path, adata=adata_stratifications)
