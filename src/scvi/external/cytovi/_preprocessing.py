@@ -27,25 +27,28 @@ def transform_arcsinh(
     inplace: bool = True,
 ) -> AnnData | None:
     """
-    Apply the arcsinh transformation to the 'raw' layer of an AnnData object.
+    Apply the arcsinh transformation to the raw layer of an AnnData object.
 
     Parameters
     ----------
-        adata (AnnData): The AnnData object to transform.
-        raw_layer_key (str): Key for the raw expression layer in the AnnData object.
-        transformed_layer_key (str): Key for the layer in the AnnData object, where the transformed
-            expression will be saved.
-        global_scaling_factor (float): The global scaling factor to apply.
-        scaling_dict (Optional[Dict[str, float]]): A dictionary of specific scaling factors
-            for markers.
-        transform_scatter (bool): If True, scatter features are omitted from the transformation.
-        inplace (bool): If True, the transformation is applied in place. If False, a new AnnData
-            object is returned.
+    adata
+        AnnData object to transform.
+    raw_layer_key
+        Key for the raw expression layer in the AnnData object.
+    transformed_layer_key
+        Key for the layer where the transformed expression will be saved.
+    global_scaling_factor
+        Global scaling factor to apply.
+    scaling_dict
+        Dictionary of marker-specific scaling factors.
+    transform_scatter
+        If True, scatter features are omitted from the transformation.
+    inplace
+        If True, apply the transformation in place; if False, return a new AnnData.
 
     Returns
     -------
-        Optional[AnnData]: If inplace is False, returns the transformed AnnData object.
-        Otherwise, returns None.
+    If ``inplace`` is False, returns the transformed ``AnnData`` object; otherwise, nothing.
     """
     # check arguments
     validate_layer_key(adata, raw_layer_key)
@@ -101,27 +104,26 @@ def scale(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         The AnnData object to scale.
-    method : Literal['minmax', 'standard']
-        The scaling method to use. Either 'minmax' or 'standard'.
-    feature_range : Tuple[float, float]
-        The desired range of the scaled data for min-max scaling.
-    transformed_layer_key : str
-        The key of the transformed layer in `adata.layers`.
-    scaled_layer_key : str
-        The key to store the scaled data in `adata.layers`.
-    batch_key : str, optional
-        The key for batch information in `adata.obs`. If provided, scaling is done per batch.
-    feat_eps : float
-        Small epsilon to adjust the feature range and avoid division by zero.
-    inplace : bool
-        If True, the scaling is applied in place. If False, a new AnnData object is returned.
+    method
+        Scaling method: ``'minmax'`` or ``'standard'``.
+    feature_range
+        Desired range for min–max scaling as ``(low, high)``.
+    transformed_layer_key
+        Key of the source (transformed) layer in ``adata.layers``.
+    scaled_layer_key
+        Key to store the scaled data in ``adata.layers``.
+    batch_key
+        Key in ``adata.obs`` for batch labels; if provided, scaling is performed per batch.
+    feat_eps
+        Small epsilon added to the feature range to avoid division by zero.
+    inplace
+        If ``True``, apply in place; if ``False``, return a new ``AnnData``.
 
     Returns
     -------
-    Optional[AnnData]
-        If inplace is False, returns the scaled AnnData object. Otherwise, returns None.
+    If ``inplace`` is ``False``, returns the scaled ``AnnData`` object; otherwise, nothing.
     """
     validate_layer_key(adata, transformed_layer_key)
 
@@ -168,16 +170,18 @@ def register_nan_layer(
 
     Parameters
     ----------
-        adata (AnnData): The AnnData object to process.
-        mask_layer_key (str): The key to store the mask layer in `adata.layers`.
-        scaled_layer_key (str): The key of the scaled layer.
-        inplace (bool): If True, the processing is applied in place. If False, a new
-            AnnData object is returned.
+    adata
+        AnnData object to process.
+    mask_layer_key
+        Key to store the mask layer in ``adata.layers``.
+    scaled_layer_key
+        Key of the scaled layer in ``adata.layers``.
+    inplace
+        If ``True``, apply the processing in place; if ``False``, return a new AnnData.
 
     Returns
     -------
-        Optional[AnnData]: If inplace is False, returns the processed AnnData object.
-        Otherwise, returns None.
+    If ``inplace`` is ``False``, returns the processed ``AnnData`` object; otherwise, nothing.
     """
     validate_layer_key(adata, scaled_layer_key)
 
@@ -208,21 +212,20 @@ def merge_batches(
 
     Parameters
     ----------
-    adata_list : List[AnnData]
+    adata_list
         List of AnnData objects to be merged.
-    mask_layer_key : str, optional
+    mask_layer_key
         The key to store the mask layer in `adata.layers`.
-    batch_key : str, optional
+    batch_key
         The key for the batch information in `adata.obs`.
-    scaled_layer_key : str, optional
+    scaled_layer_key
         The key of the scaled layer.
-    nan_layer_registration : bool, optional
+    nan_layer_registration
         Whether to register a nan layer for imputation of missing proteins.
 
     Returns
     -------
-    AnnData
-        The merged AnnData object.
+    The merged AnnData object.
     """
     # check if there are NaNs before merging and validate layers
     for batch, adata_batch in enumerate(adata_list):
@@ -283,25 +286,24 @@ def subsample(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         The AnnData object to downsample.
-    n_obs : int, optional
+    n_obs
         The number of observations to downsample to. Default is 10000.
-    random_state : int, optional
+    random_state
         The random state to use for the downsampling. Default is 0.
-    replace : bool, optional
+    replace
         If True, the downsampling is applied with replacement. If False, a new AnnData
         object is returned. Default is False.
-    groupby : str, optional
+    groupby
         The column name in `adata.obs` to group the observations by. Default is None.
-    n_obs_group : int, optional
+    n_obs_group
         The number of observations to downsample to within each group. If not provided,
           it is calculated as `n_obs` divided by the number of unique groups. Default is None.
 
     Returns
     -------
-    AnnData or None
-        If `replace` is False, returns the downsampled AnnData object. Otherwise, returns None.
+    If `replace` is False, returns the downsampled AnnData object. Otherwise, returns None.
 
     Raises
     ------
@@ -364,21 +366,20 @@ def mask_markers(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         The AnnData object to mask markers in.
-    markers : Union[str, list[str]]
+    markers
         The marker(s) to be masked. Can be a single marker as a string or a list of markers.
-    batch_key : str, optional
+    batch_key
         The key in `adata.obs` that represents the batch information, by default 'batch'.
-    masked_batch : str, optional
+    masked_batch
         The batch in which the marker(s) should be masked, by default '1'.
-    nan_layer_registration : bool, optional
+    nan_layer_registration
         Whether to register a nan layer for imputation of missing proteins, by default True.
 
     Returns
     -------
-    AnnData
-        The masked AnnData object.
+    The masked AnnData object.
     """
     adata_list = []
     idx = adata.obs_names
