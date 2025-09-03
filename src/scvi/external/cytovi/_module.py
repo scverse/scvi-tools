@@ -23,62 +23,62 @@ class CytoVAE(BaseModuleClass):
 
     Parameters
     ----------
-    n_input : int
+    n_input
         Number of input proteins.
-    n_batch : int, optional
+    n_batch
         Number of batches, if 0, no batch correction is performed. Default is 0.
-    n_labels : int, optional
+    n_labels
         Number of labels. Default is 0.
-    n_hidden : int, optional
+    n_hidden
         Number of nodes per hidden layer. Default is 128.
-    n_latent : int, optional
+    n_latent
         Dimensionality of the latent space. Default is 10.
-    n_layers : int, optional
+    n_layers
         Number of hidden layers used for encoder and decoder NNs. Default is 1.
-    n_continuous_cov : int, optional
+    n_continuous_cov
         Number of continuous covariates. Default is 0.
-    n_cats_per_cov : Optional[Iterable[int]], optional
+    n_cats_per_cov
         Number of categories for each extra categorical covariate. Default is None.
-    dropout_rate : float, optional
+    dropout_rate
         Dropout rate for neural networks. Default is 0.1.
-    log_variational : bool, optional
+    log_variational
         Log(data+1) prior to encoding for numerical stability. Not normalization. Default is False.
-    protein_likelihood : Literal["normal", "beta"], optional
+    protein_likelihood
         One of the following protein likelihood distributions:
         * ``'normal'`` - Normal distribution
         * ``'beta'`` - Beta distribution
         Default is "normal".
-    latent_distribution : Literal["normal", "ln"], optional
+    latent_distribution
         One of the following latent space distributions:
         * ``'normal'`` - Isotropic normal
         * ``'ln'`` - Logistic normal with normal params N(0, 1)
         Default is "normal".
-    encode_covariates : bool, optional
+    encode_covariates
         Whether to concatenate covariates to expression in encoder. Default is False.
-    deeply_inject_covariates : bool, optional
+    deeply_inject_covariates
         Whether to concatenate covariates into output of hidden layers in encoder/decoder.
         This option only applies when `n_layers` > 1. The covariates are concatenated to
         the input of subsequent hidden layers. Default is True.
-    use_batch_norm : Literal["encoder", "decoder", "none", "both"], optional
+    use_batch_norm
         Whether to use batch norm in layers. Default is "both".
-    use_layer_norm : Literal["encoder", "decoder", "none", "both"], optional
+    use_layer_norm
         Whether to use layer norm in layers. Default is "none".
-    var_activation : Optional[Callable], optional
+    var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When `None`, defaults to `torch.exp`. Default is None.
-    encoder_marker_mask : Optional[list], optional
+    encoder_marker_mask
         List of indices to select specific markers for the encoder. Default is None.
-    extra_encoder_kwargs : Optional[dict], optional
+    extra_encoder_kwargs
         Extra keyword arguments for the encoder. Default is None.
-    extra_decoder_kwargs : Optional[dict], optional
+    extra_decoder_kwargs
         Extra keyword arguments for the decoder. Default is None.
-    scale_activation : Optional[Literal["softplus", None]], optional
+    scale_activation
         Activation function for scaling factors. Default is None.
-    prior_mixture : Optional[bool], optional
+    prior_mixture
         Whether to use a mixture of gaussian prior. Default is True.
-    prior_mixture_k : int, optional
+    prior_mixture_k
         Number of components in the mixture of gaussian prior. Default is 20.
-    prior_label_weight : Optional[int], optional
+    prior_label_weight
         Weight for the prior label. Default is 10.
     """
 
@@ -446,52 +446,52 @@ class CytoVAE(BaseModuleClass):
 class DecoderCytoVI(nn.Module):
     """Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
 
-    Uses a fully-connected neural network of ``n_hidden`` layers.
+    Uses a fully connected neural network of ``n_hidden`` layers.
 
     Parameters
     ----------
-    n_input : int
-        The dimensionality of the input (latent space)
-    n_output : int
-        The dimensionality of the output (data space)
-    n_cat_list : Iterable[int], optional
-        A list containing the number of categories for each category of interest. Each category
-        will be included using a one-hot encoding
-    n_layers : int, optional
-        The number of fully-connected hidden layers
-    n_hidden : int, optional
-        The number of nodes per hidden layer
-    inject_covariates : bool, optional
-        Whether to inject covariates in each layer, or just the first (default)
-    use_batch_norm : bool, optional
-        Whether to use batch norm in layers
-    use_layer_norm : bool, optional
-        Whether to use layer norm in layers
-    scale_activation : Literal["softplus", None], optional
-        Activation layer to use for px_rate_decoder
-    protein_likelihood : Literal["normal", "beta"], optional
-        Likelihood function for protein expression
-    decoder_param_eps : float, optional
-        Small epsilon value added to the parameters for numerical stability
+    n_input
+        Dimensionality of the input (latent space).
+    n_output
+        Dimensionality of the output (data space).
+    n_cat_list
+        List of category sizes for each categorical covariate;
+        each is included via one-hot encoding.
+    n_layers
+        Number of fully connected hidden layers. Default: 1.
+    n_hidden
+        Number of nodes per hidden layer. Default: 128.
+    inject_covariates
+        Whether to inject covariates in each layer (``True``) or only in the
+        first layer (``False``). Default: False.
+    use_batch_norm
+        Whether to use batch normalization in layers. Default: False.
+    use_layer_norm
+        Whether to use layer normalization in layers. Default: False.
+    scale_activation
+        Activation used for the scale/rate head (e.g., ``"softplus"`` or ``None``). Default: None.
+    protein_likelihood
+        Likelihood for protein expression (``"normal"`` or ``"beta"``). Default: ``"normal"``.
+    decoder_param_eps
+        Small epsilon added to decoder outputs for numerical stability. Default: 1e-8.
 
     Attributes
     ----------
-    px_decoder : FCLayers
-        Fully-connected layers for decoding the latent space
-    protein_likelihood : Literal["normal", "beta"]
-        Likelihood function for protein expression
-    decoder_param_eps : float
-        Small epsilon value added to the parameters for numerical stability
-    px_param1_decoder : nn.Module
-        Decoder module for the first parameter of the ZINB distribution
-    px_param2_decoder : nn.Module
-        Decoder module for the second parameter of the ZINB distribution
+    px_decoder
+        Fully connected layers that decode the latent space.
+    protein_likelihood
+        Likelihood function used for protein expression.
+    decoder_param_eps
+        Small epsilon added to decoder parameters for numerical stability.
+    px_param1_decoder
+        Decoder module for the first output parameter.
+    px_param2_decoder
+        Decoder module for the second output parameter.
 
     Methods
     -------
     forward(z, *cat_list)
-        Forward computation for a single sample
-
+        Forward computation for a single sample.
     """
 
     def __init__(
@@ -545,15 +545,14 @@ class DecoderCytoVI(nn.Module):
 
         Parameters
         ----------
-        z : torch.Tensor
+        z
             Tensor with shape `(n_input,)`.
-        *cat_list : int
+        *cat_list
             List of category membership(s) for this sample.
 
         Returns
         -------
-        Tuple of torch.Tensor
-            Parameters for the Normal or Beta distribution of protein expression.
+        Parameters for the Normal or Beta distribution of protein expression.
 
         """
         # The decoder returns values for the parameters of the emission distribution

@@ -6,6 +6,7 @@ from .cytovi import CYTOVI
 from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
+from .mrvi_torch import TorchMRVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -31,6 +32,7 @@ __all__ = [
     "ContrastiveVI",
     "SysVI",
     "VELOVI",
+    "TorchMRVI",
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
@@ -50,12 +52,7 @@ def __getattr__(name: str):
         from .mrvi import MRVI as _MRVI
 
         return _MRVI
-    if name == "TorchMRVI":
-        # TODO: REMOVE THIS ONCE TORCHMRVI IS READY AND MOVE TO THE __all__ above
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
-        from .mrvi_torch import TorchMRVI as _TorchMRVI
 
-        return _TorchMRVI
     if name == "Tangram":
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
         from .tangram import Tangram as _Tangram

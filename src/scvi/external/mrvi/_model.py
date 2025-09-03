@@ -85,6 +85,9 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
     Notes
     -----
+    This implementation of MRVI in JAX is deprecated and will be removed in v1.5.
+    Please use the torch implementation of MRVI
+
     See further usage examples in the following tutorial:
 
     1. :doc:`/tutorials/notebooks/scrna/MrVI_tutorial`
@@ -100,6 +103,14 @@ class MRVI(JaxTrainingMixin, BaseModelClass):
 
     def __init__(self, adata: AnnData, **model_kwargs):
         super().__init__(adata)
+
+        warnings.warn(
+            "You are using the Jax Version of MrVI, starting v1.5, "
+            "This class will still be usable, but will migrate to external models, and won't be as"
+            " actively maintained as the PyTorch implementation of MRVI which is TorchMRVI",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
 
         n_sample = self.summary_stats.n_sample
         n_batch = self.summary_stats.n_batch
