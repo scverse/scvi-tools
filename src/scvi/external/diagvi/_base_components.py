@@ -152,7 +152,6 @@ class DecoderProtein(nn.Module):
         py_["r"] = self.log_theta[batch_index]  # px_r
 
         if self.common_scale:
-            print("common scale")
             scale = F.softplus(self.scale_lin[batch_index])
             bias = self.bias[batch_index]
 
@@ -169,7 +168,6 @@ class DecoderProtein(nn.Module):
             py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
 
         else:
-            print("no common scale")
             scale_back = F.softplus(self.scale_lin_back[batch_index])
             bias_back = self.bias_back[batch_index]
 
