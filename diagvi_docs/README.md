@@ -32,7 +32,7 @@ git checkout 29-totalvi-decoder
 ### 4. install scvi-tools with all optional dependencies
 
 ```bash
-pip install -e ".[optional]"
+pip install -e ".[optional, tutorials]"
 ```
 
 Next, create a jupyter kernel, open and run the DiagVI tutorial to get started!
