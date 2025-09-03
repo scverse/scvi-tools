@@ -1131,7 +1131,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         store_baseline: bool = False,
         eps_lfc: float = 1e-4,
         filter_inadmissible_samples: bool = False,
-        lambd: float = 1e-5,
+        lambd: float = 0,
         delta: float | None = 0.3,
         **filter_samples_kwargs,
     ) -> xr.Dataset:
