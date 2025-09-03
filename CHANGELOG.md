@@ -10,6 +10,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
+- Add checkpointing with {class}`scvi.autotune.AutotuneExperiment`, {pr}`3452`.
 - Add Downstream Analysis functions multi GPU support, {pr}`3443`.
 - Add checkpointing with autotune, {pr}`3452`.
 - Add {class}`scvi.external.CYTOVI` for dealing with cytometry data {pr}`3456`.
@@ -40,7 +42,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Add a fix to {func}`~scvi.model.SCVI.differential_expression`, {pr}`3418`.
-- Add SupervisedModuleClass to the classifier, {pr}`3430`.
+- Add {class}`scvi.module.base.SupervisedModuleClass` to the classifier, {pr}`3430`.
 
 #### Changed
 
@@ -48,7 +50,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
-- Removed a bad legacy code in scarchesmixin, {pr}`3417`.
+- Removed a bad legacy code in {class}`scvi.model.base.ArchesMixin`, {pr}`3417`.
 - Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
 ### 1.3.2 (2025-06-22)
