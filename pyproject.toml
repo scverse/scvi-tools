@@ -101,7 +101,7 @@ interpretability = ["captum", "shap"]
 # for custom dataloders
 dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
 # for diagvi
-diagvi = ["torch_geometric", "geomloss"]
+diagvi = ["torch_geometric", "geomloss", "muon"]
 
 
 optional = [
