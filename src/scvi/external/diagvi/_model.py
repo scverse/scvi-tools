@@ -11,7 +11,6 @@ import torch
 from anndata import AnnData
 from sklearn.neighbors import NearestNeighbors
 from torch.utils.data import DataLoader
-from torch_geometric.data import Data
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
@@ -61,10 +60,12 @@ class DIAGVI(BaseModelClass, VAEMixin):
     >>> model.train()
     """
 
+    # from torch_geometric.data import Data
     def __init__(
         self,
         adatas: dict[str, AnnData],
-        guidance_graph: Data | None = None,
+        # guidance_graph: Data | None = None,
+        guidance_graph=None,
         mapping_df: pd.DataFrame | None = None,
         common_scale: bool | bool = True,
         **model_kwargs: dict,

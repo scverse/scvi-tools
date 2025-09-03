@@ -7,15 +7,20 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from anndata import AnnData
-from torch_geometric.data import Data
-from torch_geometric.utils import structured_negative_sampling
 
 from scvi.data._download import _download
+
+# from torch_geometric.data import Data
+# from torch_geometric.utils import structured_negative_sampling
+from scvi.utils import dependencies
 
 logger = logging.getLogger(__name__)
 
 
+@dependencies("torch_geometric")
 def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
+    from torch_geometric.data import Data
+
     if len(adatas) != 2:
         raise ValueError("Exactly two modalities are required.")
     input_names = list(adatas.keys())
@@ -89,7 +94,7 @@ def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
     )
 
 
-def _check_guidance_graph_consisteny(graph: Data, adatas: dict[AnnData]):
+def _check_guidance_graph_consisteny(graph, adatas: dict[AnnData]):
     n_expected = sum(adata.shape[1] for adata in adatas.values())
 
     # 1. Check variable coverage via counts
@@ -164,9 +169,13 @@ def _load_saved_diagvi_files(
     )
 
 
+@dependencies("torch_geometric")
 def compute_graph_loss(graph, feature_embeddings):
+    # from torch_geometric.utils import structured_negative_sampling
+    import torch_geometric
+
     edge_index = graph.edge_index
-    edge_index_neg = structured_negative_sampling(edge_index)
+    edge_index_neg = torch_geometric.utils.structured_negative_sampling(edge_index)
 
     pos_i = edge_index_neg[0].cpu().numpy()
     pos_j = edge_index_neg[1].cpu().numpy()

@@ -1,4 +1,4 @@
-import geomloss
+# import geomloss
 import torch
 
 from scvi import REGISTRY_KEYS
@@ -7,6 +7,7 @@ from scvi.external.diagvi._utils import (
     kl_divergence_graph,
 )
 from scvi.train import TrainingPlan
+from scvi.utils import dependencies
 
 
 def _anneal_param(current_epoch, max_epochs, init_value, target_value):
@@ -53,8 +54,11 @@ class DiagTrainingPlan(TrainingPlan):
         self.init_blur = 10 * self.sinkhorn_blur  # or another large value
         self.init_reach = 10 * self.sinkhorn_reach  # or another large value
 
+    @dependencies("geomloss")
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step."""
+        import geomloss
+
         loss_output_objs = []
         for _i, (name, tensors) in enumerate(batch.items()):
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
@@ -198,8 +202,11 @@ class DiagTrainingPlan(TrainingPlan):
 
         return {"loss": total_loss}
 
+    @dependencies("geomloss")
     def validation_step(self, batch: list[dict[str, torch.Tensor]]) -> None:
         """Validation step."""
+        import geomloss
+
         loss_output_objs = []
 
         for _i, (name, tensors) in enumerate(batch.items()):

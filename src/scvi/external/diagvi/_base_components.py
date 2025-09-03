@@ -4,9 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-from torch_geometric.nn import GCNConv
 
+# from torch_geometric.nn import GCNConv
 from scvi.nn import FCLayers
+from scvi.utils import dependencies
 
 EPS = 1e-8
 
@@ -202,10 +203,15 @@ class DecoderProtein(nn.Module):
 
 
 class GraphEncoder_glue(nn.Module):
+    @dependencies("torch_geometric")
     def __init__(self, vnum: int, out_features: int):
+        import torch_geometric
+
         super().__init__()
         self.vrepr = nn.Parameter(torch.zeros(vnum, out_features))
-        self.conv = GCNConv(out_features, out_features)  # evtl auch GAT - user parameter
+        self.conv = torch_geometric.nn.GCNConv(
+            out_features, out_features
+        )  # evtl auch GAT - user parameter
         self.loc = nn.Linear(out_features, out_features)
         self.std_lin = nn.Linear(out_features, out_features)
 
