@@ -79,7 +79,6 @@ It has many optional dependencies, which expand its capabilities:
 - _autotune_ - in order to run scvi.autotune
 - _hub_ - in order to use scvi.hub
 - _regseq_ - in order to run scvi.data.add_dna_sequence
-- _criticism_ - for critisicm report creation
 - _file_sharing_ - for convenient files sharing
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability

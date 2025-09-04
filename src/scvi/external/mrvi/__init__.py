@@ -1,8 +1,3 @@
-from scvi.utils import error_on_missing_dependencies
+from ._model import MRVI
 
-error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
-
-from ._model import MRVI  # noqa: E402
-from ._module import MRVAE  # noqa: E402
-
-__all__ = ["MRVI", "MRVAE"]
+__all__ = ["MRVI"]

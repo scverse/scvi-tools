@@ -412,7 +412,7 @@ class EncoderXU(nn.Module):
 
 
 @flax_configure
-class MRVAE(JaxBaseModuleClass):
+class JaxMRVAE(JaxBaseModuleClass):
     """Multi-resolution Variational Inference (MrVI) module.
 
     Parameters
