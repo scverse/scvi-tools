@@ -26,6 +26,7 @@ from scvi.model._utils import get_max_epochs_heuristic, parse_device_args, use_d
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
+from scvi.utils import dependencies
 
 from ._module import DIAGVAE
 from ._task import DiagTrainingPlan
@@ -294,6 +295,112 @@ class DIAGVI(BaseModelClass, VAEMixin):
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata)
         cls.register_manager(adata_manager)
+
+    @classmethod
+    @dependencies("torch_geometric")
+    def construct_custom_guidance_graph(self, input_dict, mapping_df, weight=1.0, sign=1.0):
+        """
+        Constructs a custom guidance graph defined by the mapping_df
+
+        Parameters
+        ----------
+        input_dict : dict
+            Dictionary mapping modality names
+            (e.g., "scRNAseq", "seqFISH") to their respective AnnData objects.
+            The keys in this dictionary must match the column names in `mapping_df`.
+        mapping_df : pandas.DataFrame
+            DataFrame specifying feature correspondences between modalities.
+            Each column should correspond to a modality name in `input_dict`,
+            and each row defines a feature pair.
+        weight : float, optional
+            Edge weight assigned to all edges in the graph (default: 1.0).
+        sign : float, optional
+            Edge sign assigned to all edges in the graph (default: 1.0).
+
+        Returns
+        -------
+        guidance_graph : torch_geometric.data.Data
+            A PyTorch Geometric Data object representing the guidance graph,
+            including node features,
+            edge indices, edge weights, edge signs,
+            and modality-specific feature indices.
+
+        Notes
+        -----
+        - The function renames features in each AnnData object
+        to include the modality name as a suffix.
+        - Self-loops are added for all features.
+        - The mapping DataFrame must have column names that exactly match
+        the keys in `input_dict`.
+        """
+        from torch_geometric.data import Data
+
+        modality_names = list(input_dict.keys())
+        adata1, adata2 = list(input_dict.values())
+
+        ad_1_ft = [f"{f}_{modality_names[0]}" for f in adata1.var_names]
+        ad_2_ft = [f"{f}_{modality_names[1]}" for f in adata2.var_names]
+
+        adata1.var_names = ad_1_ft
+        adata2.var_names = ad_2_ft
+
+        all_features = ad_1_ft + ad_2_ft
+        feature_to_index = {f: i for i, f in enumerate(all_features)}
+
+        edge_index = []
+        edge_weight = []
+        edge_sign = []
+
+        adata_adt_vars = []
+        adata_gex_vars = []
+
+        for ft_pair in range(mapping_df.shape[0]):
+            pair = mapping_df.iloc[ft_pair, :]
+            diss_ft = f"{pair[modality_names[0]]}_{modality_names[0]}"
+            sp_ft = f"{pair[modality_names[1]]}_{modality_names[1]}"
+
+            if diss_ft not in feature_to_index or sp_ft not in feature_to_index:
+                continue
+
+            adata_adt_vars.append(sp_ft)
+            adata_gex_vars.append(diss_ft)
+
+            i = feature_to_index[diss_ft]
+            j = feature_to_index[sp_ft]
+
+            edge_index += [[i, j], [j, i]]
+            edge_weight += [weight, weight]
+            edge_sign += [sign, sign]
+
+        # Add self-loops
+        for feature in all_features:
+            i = feature_to_index[feature]
+            edge_index.append([i, i])
+            edge_weight.append(weight)
+            edge_sign.append(sign)
+
+        edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
+        edge_weight = torch.tensor(edge_weight, dtype=torch.float)
+        edge_sign = torch.tensor(edge_sign, dtype=torch.float)
+
+        x = torch.eye(len(all_features))  # node features as identity for simplicity
+
+        # Extract seq/spa indices
+        indices_1 = torch.tensor([feature_to_index[f] for f in ad_1_ft], dtype=torch.long)
+        indices_2 = torch.tensor([feature_to_index[f] for f in ad_2_ft], dtype=torch.long)
+
+        guidance_graph = Data(
+            x=x,
+            edge_index=edge_index,
+            edge_weight=edge_weight,
+            edge_sign=edge_sign,
+            **{
+                f"{modality_names[0]}_indices": indices_1,
+                f"{modality_names[1]}_indices": indices_2,
+            },
+        )
+
+        return guidance_graph
 
     def _make_scvi_dls(
         self, adatas: list[AnnData] = None, batch_size: int = 1024
