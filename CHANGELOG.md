@@ -15,6 +15,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add Downstream Analysis functions multi GPU support, {pr}`3443`.
 - Add checkpointing with autotune, {pr}`3452`.
 - Add {class}`scvi.external.CYTOVI` for dealing with cytometry data {pr}`3456`.
+- Add a backend parameter and making the class {class}`scvi.external.MRVI` a wrapper to the Jax or
+    Torch implementations, {pr}`3498`.
 
 #### Fixed
 
