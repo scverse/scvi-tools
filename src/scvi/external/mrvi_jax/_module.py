@@ -10,7 +10,7 @@ import numpyro.distributions as dist
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.external.mrvi._components import AttentionBlock, Dense
+from scvi.external.mrvi_jax._components import AttentionBlock, Dense
 from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
 
 if TYPE_CHECKING:
@@ -268,7 +268,7 @@ class EncoderXU(nn.Module):
         sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
-        from scvi.external.mrvi._components import (
+        from scvi.external.mrvi_jax._components import (
             ConditionalNormalization,
             NormalDistOutputNN,
         )
@@ -291,7 +291,7 @@ class EncoderXU(nn.Module):
 
 
 @flax_configure
-class MRVAE(JaxBaseModuleClass):
+class JaxMRVAE(JaxBaseModuleClass):
     """Multi-resolution Variational Inference (MrVI) module.
 
     Parameters
@@ -411,6 +411,7 @@ class MRVAE(JaxBaseModuleClass):
             n_layers=self.encoder_n_layers,
             **qu_kwargs,
         )
+        self.backend = "jax"
 
         if self.learn_z_u_prior_scale:
             self.pz_scale = self.param("pz_scale", nn.initializers.zeros, (self.n_latent,))

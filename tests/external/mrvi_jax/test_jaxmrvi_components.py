@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from scvi.external.mrvi._components import (
+from scvi.external.mrvi_jax._components import (
     AttentionBlock,
     ConditionalNormalization,
     Dense,
@@ -10,7 +10,7 @@ from scvi.external.mrvi._components import (
 )
 
 
-def test_dense():
+def test_jaxhmrvi_dense():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
     dense = Dense(10)
@@ -18,7 +18,7 @@ def test_dense():
     dense.apply(params, x)
 
 
-def test_resnetblock():
+def test_jaxhmrvi_resnetblock():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
     block = ResnetBlock(10, 30, training=True)
@@ -26,7 +26,7 @@ def test_resnetblock():
     block.apply(params, x, mutable=["batch_stats"])
 
 
-def test_normalnn():
+def test_jaxhmrvi_normalnn():
     key = jax.random.PRNGKey(0)
     key, subkey = jax.random.split(key)
     x = jnp.ones((20, 10))
@@ -35,7 +35,7 @@ def test_normalnn():
     nn.apply(params, x, mutable=["batch_stats"])
 
 
-def test_conditionalbatchnorm1d():
+def test_jaxhmrvi_conditionalbatchnorm1d():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
     y = jnp.ones((20, 1))
@@ -46,7 +46,7 @@ def test_conditionalbatchnorm1d():
     conditionalbatchnorm1d.apply(params, x, y, mutable=["batch_stats"])
 
 
-def test_attention():
+def test_jaxhmrvi_attention():
     key = jax.random.PRNGKey(0)
     q_vals = jnp.ones((30, 10))
     kv_vals = jnp.ones((30, 10))
