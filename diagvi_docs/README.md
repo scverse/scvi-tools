@@ -35,4 +35,11 @@ git checkout 29-totalvi-decoder
 pip install -e ".[optional, tutorials]"
 ```
 
+In order to run the tutorial in `DiagVI.ipynb`,
+you have to manually install cellmapper in the same environment.
+
+```bash
+pip install cellmapper
+```
+
 Next, create a jupyter kernel, open and run the DiagVI tutorial to get started!
