@@ -267,8 +267,9 @@ def test_scviva_scarches(adata: AnnData):
     assert nichevae.is_trained
 
     # Query adata
-    SCVIVA.preprocessing_anndata(
+    nichevae.preprocessing_query_anndata(
         query_adata,
+        reference_model=nichevae,
         k_nn=K_NN,
         **setup_kwargs,
     )
@@ -282,7 +283,7 @@ def test_scviva_scarches(adata: AnnData):
     ].reindex(columns=ref_adata.obsm["neighborhood_composition"].columns)
 
     # Make query adata and model
-    nichevae.prepare_query_anndata(query_adata, reference_model=nichevae)
+    # nichevae.prepare_query_anndata(query_adata, reference_model=nichevae)
     query_nichevae = nichevae.load_query_data(query_adata, reference_model=nichevae)
 
     query_nichevae.train(

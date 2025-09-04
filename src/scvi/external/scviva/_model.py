@@ -15,6 +15,7 @@ from rich import print
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
+from scvi.data._constants import _DATA_REGISTRY_KEY, _FIELD_REGISTRIES_KEY, _STATE_REGISTRY_KEY
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -685,12 +686,23 @@ class SCVIVA(
 
         return compute_niche_error(self.module, dataloader, return_mean=return_mean, **kwargs)
 
-    def prepare_query_anndata(
+    def preprocessing_query_anndata(
         self,
         adata: AnnData,
         reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
+        #####
+        k_nn: int = 20,
+        sample_key: str | None = None,
+        labels_key: str = "cell_type",
+        cell_coordinates_key: str = "spatial",
+        expression_embedding_key: str = "X_scVI",
+        expression_embedding_niche_key: str = "niche_activation",
+        niche_composition_key: str = "niche_composition",
+        niche_indexes_key: str = "niche_indexes",
+        niche_distances_key: str = "niche_distances",
+        log1p: bool = False,
     ) -> AnnData | pd.Index | None:
         """Prepare data for query integration.
 
@@ -716,15 +728,47 @@ class SCVIVA(
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
+        self.preprocessing_anndata(
+            adata,
+            k_nn=k_nn,
+            sample_key=sample_key,
+            labels_key=labels_key,
+            cell_coordinates_key=cell_coordinates_key,
+            expression_embedding_key=expression_embedding_key,
+            expression_embedding_niche_key=expression_embedding_niche_key,
+            niche_composition_key=niche_composition_key,
+            niche_indexes_key=niche_indexes_key,
+            niche_distances_key=niche_distances_key,
+            log1p=log1p,
+        )
+
         _, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
             return var_names
 
-        # adata_manager = self.get_anndata_manager(adata, required=True)
+        reference_niche_composition_key = reference_model.registry[_FIELD_REGISTRIES_KEY][
+            SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY
+        ][_DATA_REGISTRY_KEY]["attr_key"]
+        assert reference_niche_composition_key == niche_composition_key, (
+            f"niche_composition_key in query ({niche_composition_key}) must match that "
+            f"of reference ({reference_niche_composition_key})"
+        )
+        reference_expression_embedding_niche_key = reference_model.registry[_FIELD_REGISTRIES_KEY][
+            SCVIVA_REGISTRY_KEYS.Z1_MEAN_CT_KEY
+        ][_DATA_REGISTRY_KEY]["attr_key"]
+        assert reference_expression_embedding_niche_key == expression_embedding_niche_key, (
+            f"expression_embedding_niche_key in query ({expression_embedding_niche_key}) must "
+            f"match that of reference ({reference_expression_embedding_niche_key})"
+        )
 
-        return _pad_and_sort_query_anndata(adata, var_names, inplace)
+        reference_label_names = reference_model.registry[_FIELD_REGISTRIES_KEY][
+            SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY
+        ][_STATE_REGISTRY_KEY]["column_names"]
+        reference_label_names = pd.Index(reference_label_names)
+
+        return _pad_and_sort_query_anndata(adata, var_names, reference_label_names, inplace)
 
 
 def get_niche_indexes(
@@ -948,6 +992,7 @@ def get_average_latent_per_celltype(
 def _pad_and_sort_query_anndata(
     adata: AnnData,
     reference_var_names: pd.Index,
+    reference_label_names: pd.Index,
     inplace: bool,
     min_var_name_ratio: float = 0.8,
 ) -> AnnData | None:
@@ -970,6 +1015,7 @@ def _pad_and_sort_query_anndata(
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
+
     genes_to_add = reference_var_names.difference(adata.var_names)
     needs_padding = len(genes_to_add) > 0
     if needs_padding:
