@@ -5,6 +5,7 @@ import warnings
 from functools import partial
 from typing import TYPE_CHECKING, Literal
 
+import anndata
 import joblib
 import numpy as np
 import pandas as pd
@@ -32,6 +33,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
+from scvi.model.base._archesmixin import _get_loaded_data
 from scvi.model.base._de_core import _de_core
 from scvi.utils import de_dsp, setup_anndata_dsp, unsupported_if_adata_minified
 
@@ -43,11 +45,15 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from typing import Literal
 
-    from anndata import AnnData
     from torch import Tensor
+
+    from scvi.model.base import (
+        BaseModelClass,
+    )
 
     from .differential_expression import DifferentialExpressionResults
 
+from scipy.sparse import csr_matrix
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
@@ -679,6 +685,47 @@ class SCVIVA(
 
         return compute_niche_error(self.module, dataloader, return_mean=return_mean, **kwargs)
 
+    def prepare_query_anndata(
+        self,
+        adata: AnnData,
+        reference_model: str | BaseModelClass,
+        return_reference_var_names: bool = False,
+        inplace: bool = True,
+    ) -> AnnData | pd.Index | None:
+        """Prepare data for query integration.
+
+        This function will return a new AnnData object with padded zeros
+        for missing features, as well as correctly sorted features.
+
+        Parameters
+        ----------
+        adata
+            AnnData organized in the same way as data used to train model.
+            It is not necessary to run setup_anndata,
+            as AnnData is validated against the ``registry``.
+        reference_model
+            Either an already instantiated model of the same class, or a path to
+            saved outputs for reference model.
+        return_reference_var_names
+            Only load and return reference var names if True.
+        inplace
+            Whether to subset and rearrange query vars inplace or return new AnnData.
+
+        Returns
+        -------
+        Query adata ready to use in `load_query_data` unless `return_reference_var_names`
+        in which case a pd.Index of reference var names is returned.
+        """
+        _, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
+        var_names = pd.Index(var_names)
+
+        if return_reference_var_names:
+            return var_names
+
+        # adata_manager = self.get_anndata_manager(adata, required=True)
+
+        return _pad_and_sort_query_anndata(adata, var_names, inplace)
+
 
 def get_niche_indexes(
     adata: AnnData,
@@ -896,3 +943,60 @@ def get_average_latent_per_celltype(
     print(f"[bold green]Saved {latent_mean_ct_key} in adata.obsm[/bold green]")
 
     return None
+
+
+def _pad_and_sort_query_anndata(
+    adata: AnnData,
+    reference_var_names: pd.Index,
+    inplace: bool,
+    min_var_name_ratio: float = 0.8,
+) -> AnnData | None:
+    """Pad and sort anndata to match reference var names."""
+    intersection = adata.var_names.intersection(reference_var_names)
+    inter_len = len(intersection)
+    if inter_len == 0:
+        raise ValueError(
+            "No reference var names found in query data. "
+            "Please rerun with return_reference_var_names=True "
+            "to see reference var names."
+        )
+
+    ratio = inter_len / len(reference_var_names)
+    logger.info(f"Found {ratio * 100}% reference vars in query data.")
+    if ratio < min_var_name_ratio:
+        warnings.warn(
+            f"Query data contains less than {min_var_name_ratio:.0%} of reference "
+            "var names. This may result in poor performance.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+    genes_to_add = reference_var_names.difference(adata.var_names)
+    needs_padding = len(genes_to_add) > 0
+    if needs_padding:
+        padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+        adata_padding = AnnData(
+            X=padding_mtx.copy(),
+            layers={layer: padding_mtx.copy() for layer in adata.layers},
+        )
+        adata_padding.var_names = genes_to_add
+        adata_padding.obs_names = adata.obs_names
+        # Concatenate object
+        adata_out = anndata.concat(
+            [adata, adata_padding],
+            axis=1,
+            join="outer",
+            index_unique=None,
+            merge="unique",
+        )
+    else:
+        adata_out = adata
+
+    # also covers the case when new adata has more var names than old
+    if not reference_var_names.equals(adata_out.var_names):
+        adata_out._inplace_subset_var(reference_var_names)
+
+    if inplace:
+        if adata_out is not adata:
+            adata._init_as_actual(adata_out)
+    else:
+        return adata_out
