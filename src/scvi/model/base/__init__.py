@@ -1,3 +1,5 @@
+from scvi.utils import error_on_missing_dependencies
+
 from ._archesmixin import ArchesMixin
 from ._base_model import (
     BaseMinifiedModeModelClass,
@@ -6,7 +8,6 @@ from ._base_model import (
 )
 from ._differential import DifferentialComputation
 from ._embedding_mixin import EmbeddingMixin
-from ._jaxmixin import JaxTrainingMixin
 from ._pyromixin import (
     PyroJitGuideWarmup,
     PyroModelGuideWarmup,
@@ -29,8 +30,20 @@ __all__ = [
     "PyroJitGuideWarmup",
     "PyroModelGuideWarmup",
     "DifferentialComputation",
-    "JaxTrainingMixin",
     "BaseMinifiedModeModelClass",
     "BaseMudataMinifiedModeModelClass",
     "EmbeddingMixin",
 ]
+
+
+def __getattr__(name: str):
+    """Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "JaxTrainingMixin":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
+        from ._jaxmixin import JaxTrainingMixin as _JaxTrainingMixin
+
+        return _JaxTrainingMixin
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

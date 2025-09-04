@@ -1,11 +1,11 @@
+from scvi.utils import error_on_missing_dependencies
+
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI
 from .decipher import Decipher
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
-from .mrvi import MRVI
-from .mrvi_torch import TorchMRVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -14,7 +14,6 @@ from .scviva import SCVIVA
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
-from .tangram import Tangram
 from .totalanvi import TOTALANVI
 from .velovi import VELOVI
 
@@ -26,18 +25,35 @@ __all__ = [
     "RNAStereoscope",
     "SpatialStereoscope",
     "CellAssign",
-    "Tangram",
     "TOTALANVI",
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
     "SysVI",
     "VELOVI",
-    "MRVI",
-    "TorchMRVI",
     "METHYLVI",
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
     "CYTOVI",
 ]
+
+
+def __getattr__(name: str):
+    """
+    Lazily provide object. If optional deps are missing, raise a helpful ImportError
+
+    only when object is actually requested.
+    """
+    if name == "MRVI":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
+        from .mrvi import MRVI as _MRVI
+
+        return _MRVI
+
+    if name == "Tangram":
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
+        from .tangram import Tangram as _Tangram
+
+        return _Tangram
+    raise AttributeError(f"module {__name__!r} has no attribute {name}")

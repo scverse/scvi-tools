@@ -772,6 +772,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         prefix: str | None = None,
         backup_url: str | None = None,
         datamodule: LightningDataModule | None = None,
+        allowed_classes_names_list: list[str] | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -795,6 +796,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        allowed_classes_names_list
+            list of allowed classes names to be loaded (besides the original class name)
 
         Returns
         -------
@@ -828,7 +831,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
 
         registry = attr_dict.pop("registry_")
-        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+        if _MODEL_NAME_KEY in registry and (
+            registry[_MODEL_NAME_KEY] != cls.__name__
+            and registry[_MODEL_NAME_KEY] not in allowed_classes_names_list
+        ):
             raise ValueError("It appears you are loading a model from a different class.")
 
         # Calling ``setup_anndata`` method with the original arguments passed into
