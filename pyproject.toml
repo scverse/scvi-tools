@@ -95,7 +95,7 @@ dataloaders = ["lamindb[bionty]", "cellxgene-census", "tiledbsoma", "tiledb", "t
 jax = ["jax", "jaxlib", "optax", "numpyro>=0.12.1", "flax"]
 
 optional = [
-    "scvi-tools[autotune,hub,jax,file_sharing,regseq,criticism,parallel,interpretability]"
+    "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "biomart",
