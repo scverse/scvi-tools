@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+import os
 import warnings
 from typing import TYPE_CHECKING, Literal
 
+import torch
+
 from scvi import settings
+from scvi.data._constants import _MODEL_NAME_KEY
 from scvi.external.mrvi_jax import JaxMRVI
 from scvi.external.mrvi_torch import TorchMRVI
 from scvi.model.base import BaseMinifiedModeModelClass
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -15,6 +20,7 @@ if TYPE_CHECKING:
     from lightning import LightningDataModule
 
     from scvi._types import AnnOrMuData
+
 
 Backend = Literal["torch", "jax"]
 
@@ -91,7 +97,7 @@ class MRVI(BaseMinifiedModeModelClass):
         if backend == "torch":
             warnings.warn(
                 "MRVI model is being setup with PyTorch backend",
-                DeprecationWarning,
+                UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             TorchMRVI.setup_anndata(
@@ -105,7 +111,7 @@ class MRVI(BaseMinifiedModeModelClass):
         elif backend == "jax":
             warnings.warn(
                 "MRVI model is being setup with JAX backend",
-                DeprecationWarning,
+                UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             JaxMRVI.setup_anndata(
@@ -166,9 +172,21 @@ class MRVI(BaseMinifiedModeModelClass):
         if cls.backend == "torch":
             warnings.warn(
                 "MRVI model is being loaded with PyTorch backend",
-                DeprecationWarning,
+                UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+
+            registry = peek_loaded_model_registry(dir_path, prefix)
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] == "JaxMRVI":
+                raise ValueError(
+                    "It appears you are trying to load a TORCH MRVI model with a JAX MRVI model"
+                )
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] == "MRVI":
+                raise ValueError(
+                    "It appears you are trying to load a TORCH MRVI model "
+                    "with a previous version JAX MRVI model"
+                )
+
             return TorchMRVI.load(
                 dir_path,
                 adata=adata,
@@ -181,9 +199,16 @@ class MRVI(BaseMinifiedModeModelClass):
         elif cls.backend == "jax":
             warnings.warn(
                 "MRVI model is being loaded with JAX backend",
-                DeprecationWarning,
+                UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+
+            registry = peek_loaded_model_registry(dir_path, prefix)
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] == "TorchMRVI":
+                raise ValueError(
+                    "It appears you are trying to load a JAX MRVI model with a Torch MRVI model"
+                )
+
             return JaxMRVI.load(
                 dir_path,
                 adata=adata,
@@ -192,6 +217,19 @@ class MRVI(BaseMinifiedModeModelClass):
                 prefix=prefix,
                 backup_url=backup_url,
                 datamodule=datamodule,
+                allowed_classes_names_list=[
+                    "MRVI"
+                ],  # allowing old JAX MRVI models to be loaded TODO: need to change in v1.5
             )
         else:
             raise ValueError(f"Unknown backend '{cls.backend}'. Use 'torch' or 'jax'.")
+
+
+def peek_loaded_model_registry(dir_path, prefix):
+    """Getting the loaded model registry to give better warnings for loading MRVI"""
+    file_name_prefix = prefix or ""
+    model_file_name = f"{file_name_prefix}{SAVE_KEYS.MODEL_FNAME}"
+    model_path = os.path.join(dir_path, model_file_name)
+    attr_dict = torch.load(model_path, weights_only=False).get(SAVE_KEYS.ATTR_DICT_KEY)
+    registry = attr_dict.pop("registry_")
+    return registry
