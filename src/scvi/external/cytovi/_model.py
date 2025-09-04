@@ -301,7 +301,7 @@ class CYTOVI(
         Parameters
         ----------
         %(param_adata)s
-        layer : str, optional
+        layer
             if not `None`, uses this as the key in `adata.layers` for the transformed
             protein expression data.
         %(param_batch_key)s
@@ -309,7 +309,7 @@ class CYTOVI(
         %(param_sample_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
-        nan_layer : str, optional
+        nan_layer
             Optional layer key containing binary NaN feature mask to handle overlapping
             antibody panels.
         """
@@ -373,43 +373,43 @@ class CYTOVI(
 
         Parameters
         ----------
-        max_epochs : Optional[int], optional
+        max_epochs
             Number of passes through the dataset, by default 1000.
-        lr : float, optional
+        lr
             Learning rate for optimization, by default 1e-3.
-        accelerator : str, optional
+        accelerator
             Accelerator to use for training, by default "auto".
-        devices : Union[int, list[int], str], optional
+        devices
             Devices to use for training, by default "auto".
-        train_size : float, optional
+        train_size
             Size of the training set in the range [0.0, 1.0], by default 0.9.
-        validation_size : Optional[float], optional
+        validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size : int, optional
+        batch_size
             Minibatch size to use during training, by default 128.
-        early_stopping : bool, optional
+        early_stopping
             Whether to perform early stopping with respect to the validation set, by default True.
-        check_val_every_n_epoch : Optional[int], optional
+        check_val_every_n_epoch
             Check validation set every n train epochs. By default, the validation set is not
             checked, unless `early_stopping` is `True` or `reduce_lr_on_plateau` is `True`.
             If either of the latter conditions are met, the validation set is checked
             every epoch.
-        n_steps_kl_warmup : Union[int, None], optional
+        n_steps_kl_warmup
             Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
             Only activated when `n_epochs_kl_warmup` is set to None. If `None`, defaults
             to `floor(0.75 * adata.n_obs)`.
-        n_epochs_kl_warmup : Union[int, None], optional
+        n_epochs_kl_warmup
             Number of epochs to scale weight on KL divergences from 0 to 1.
             Overrides `n_steps_kl_warmup` when both are not `None`, by default 400.
-        adversarial_classifier : Optional[bool], optional
+        adversarial_classifier
             Whether to use an adversarial classifier in the latent space. This helps mixing when
             there are missing proteins in any of the batches. Defaults to `True` if missing
             proteins are detected.
-        plan_kwargs : Optional[dict], optional
+        plan_kwargs
             Keyword arguments for the `AdversarialTrainingPlan` class. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        early_stopping_patience : Optional[int], optional
+        early_stopping_patience
             Number of epochs to wait before early stopping, by default 30.
         **kwargs
             Other keyword arguments for the `Trainer` class.
@@ -543,12 +543,12 @@ class CYTOVI(
 
         Parameters
         ----------
-        adata : Optional[AnnData], optional
+        adata
             AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
             AnnData object used to initialize the model.
-        indices : Optional[Sequence[int]], optional
+        indices
             Indices of cells in adata to use. If `None`, all cells are used.
-        transform_batch : Optional[Sequence[Union[Number, str]]], optional
+        transform_batch
             Batch to condition on.
             If transform_batch is:
             - 'all', then the mean across batches is used
@@ -556,35 +556,34 @@ class CYTOVI(
             - int, then batch transform_batch is used.
             This behaviour affects only proteins that are detected across multiple batches.
             Unobserved proteins are decoded in the batch(es), in which they were measured.
-        protein_list : Optional[Sequence[str]], optional
+        protein_list
             Return frequencies of expression for a subset of protein.
             This can save memory when working with large datasets and few proteins are
             of interest.
-        n_samples : int, optional
+        n_samples
             Number of posterior samples to use for estimation.
-        n_samples_overall : int, optional
+        n_samples_overall
             Number of posterior samples to use for estimation. Overrides `n_samples`.
-        weights : Union[Literal["uniform", "importance"], None], optional
+        weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
-        batch_size : Optional[int], optional
+        batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        return_mean : bool, optional
+        return_mean
             Whether to return the mean of the samples.
-        return_numpy : Optional[bool], optional
+        return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`,
             defaults to `False`. Otherwise, it defaults to `True`.
-        nan_warning : Optional[bool], optional
+        nan_warning
             Whether to show a warning if missing proteins are detected between batches.
-        **importance_weighting_kwargs : dict
+        **importance_weighting_kwargs
             Additional keyword arguments for importance weighting.
 
         Returns
         -------
-        Union[np.ndarray, pd.DataFrame]
-            If `n_samples` > 1 and `return_mean` is False, then the shape is
-            `(samples, cells, genes)`. Otherwise, shape is `(cells, genes)`. In this case,
-            return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        If `n_samples` > 1 and `return_mean` is False, then the shape is
+        `(samples, cells, genes)`. Otherwise, shape is `(cells, genes)`. In this case,
+        return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
         all_batches = list(np.unique(self.adata_manager.get_from_registry("batch")))
@@ -732,58 +731,57 @@ class CYTOVI(
 
         Parameters
         ----------
-        adata : Optional[AnnData], optional
+        adata
             Annotated data matrix, by default None
-        groupby : Optional[str], optional
+        groupby
             Key in `adata.obs` containing the groups, by default None
-        group1 : Optional[list[str]], optional
+        group1
             List of group names for group 1, by default None
-        group2 : Optional[list[str]], optional
+        group2
             List of group names for group 2, by default None
-        idx1 : Union[list[int], list[bool], str, None], optional
+        idx1
             Indices or boolean mask for group 1, by default None
-        idx2 : Union[list[int], list[bool], str, None], optional
+        idx2
             Indices or boolean mask for group 2, by default None
-        mode : Literal["vanilla", "change"], optional
+        mode
             Differential expression mode, by default "change"
-        test_mode : Literal["two", "three"], optional
+        test_mode
             Test mode for differential expression, by default "two"
-        delta : float, optional
+        delta
             Minimum fold change for differential expression, by default 0.25
-        batch_size : Optional[int], optional
+        batch_size
             Batch size for computation, by default None
-        all_stats : bool, optional
+        all_stats
             Whether to compute all statistics, by default False
-        batch_correction : bool, optional
+        batch_correction
             Whether to perform batch correction, by default False
-        batchid1 : Optional[list[str]], optional
+        batchid1
             List of batch IDs for group 1, by default None
-        batchid2 : Optional[list[str]], optional
+        batchid2
             List of batch IDs for group 2, by default None
-        fdr_target : float, optional
+        fdr_target
             Target false discovery rate, by default 0.05
-        silent : bool, optional
+        silent
             Whether to suppress progress bar and messages, by default False
-        weights : Union[Literal["uniform", "importance"], None], optional
+        weights
             Weights to use for sampling, by default "uniform"
-        filter_outlier_cells : bool, optional
+        filter_outlier_cells
             Whether to filter outlier cells, by default False
-        lfc_clipping : bool, optional
+        lfc_clipping
             Whether to clip log fold change values, by default True
-        clipping_range : tuple, optional
+        clipping_range
             Range for clipping log fold change values, by default (0, 1)
-        balance_samples: Optional[bool], by default None,
+        balance_samples
             Whether to subsample equal amount of cells per sample based on `sample_key`.
             If `None`, defaults to `True` if more than one sample is present in the data.
-        importance_weighting_kwargs : Union[dict, None], optional
+        importance_weighting_kwargs
             Keyword arguments for importance weighting, by default None
         **kwargs
             Additional keyword arguments for differential expression computation
 
         Returns
         -------
-        pd.DataFrame
-            Differential expression DataFrame.
+        Differential expression DataFrame.
         """
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
@@ -979,33 +977,33 @@ class CYTOVI(
 
         Parameters
         ----------
-        adata : AnnData, optional
+        adata
             AnnData object to use. If `None`, defaults to the model's internal AnnData.
-        groupby : str, optional
+        groupby
             Key in `adata.obs` that contains condition or group labels.
             If not provided, returns log-probabilities per sample without aggregation.
-        batch_size : int, default: 128
-            Mini-batch size for computing log-probabilities.
-        downsample_cells : int, optional
+        batch_size
+            Mini-batch size for computing log-probabilities. Default: 128.
+        downsample_cells
             If provided, randomly subsample this many cells before computing
             log-probabilities.
-        dof : float, optional
+        dof
             Degrees of freedom to use in the sampling distribution, if applicable.
-        aggregation_fn : Callable, default: `log_median`
+        aggregation_fn
             Function used to aggregate log-probabilities across samples.
-            Common choices include `log_median` or `logsumexp`.
-        return_log_probs : bool, default: False
+            Common choices include `log_median` or `logsumexp`. Default: `log_median`.
+        return_log_probs
             If `True`, skip aggregation and return per-sample log-probabilities directly.
+            Default: False.
 
         Returns
         -------
-        pd.DataFrame
-            If `return_log_probs=True` or `groupby=None`, returns a DataFrame of
-            shape `(n_cells, n_samples)` containing log-sample-probabilities.
+        If `return_log_probs=True` or `groupby=None`, returns a DataFrame of
+        shape `(n_cells, n_samples)` containing log-sample-probabilities.
 
-            Otherwise, returns a DataFrame of shape `(n_cells, n_conditions)` where
-            each column corresponds to the differential abundance log-ratio for one
-            condition compared to all others.
+        Otherwise, returns a DataFrame of shape `(n_cells, n_conditions)` where
+        each column corresponds to the differential abundance log-ratio for one
+        condition compared to all others.
 
         Examples
         --------
@@ -1061,29 +1059,27 @@ class CYTOVI(
 
         Parameters
         ----------
-        adata_reference : AnnData
+        adata_reference
             Annotated data matrix for the reference dataset. This dataset contains the categories
             to be imputed onto the query data.
-        cat_key : str
+        cat_key
             The key in the `.obs` attribute of `adata_reference` that specifies the categorical
             variable (e.g., cell types or clusters) to impute.
-        use_rep : str, optional
+        use_rep
             The key in the `.obsm` attribute to use as the representation space (e.g., latent
             space). If `None`, the function will attempt to use a default latent
-            representation X_CytoVI.
-        n_neighbors : int, optional (default: 20)
+            representation `X_CytoVI`.
+        n_neighbors
             The number of nearest neighbors to use for imputation. The imputation is based on
-            similarity in the chosen representation space.
-        return_uncertainty : bool, optional (default: False)
+            similarity in the chosen representation space. Default: 20.
+        return_uncertainty
             If `True`, the function will also return the uncertainty of the imputation.
+            Default: False.
 
         Returns
         -------
-        np.ndarray
-            A numpy array of imputed categories for the query dataset, corresponding
-            to the categorical variable
-            specified by `cat_key`.
-        ```
+        Array of imputed categories for the query dataset, corresponding to the categorical
+        variable specified by `cat_key`.
 
         Notes
         -----
@@ -1152,31 +1148,32 @@ class CYTOVI(
         return_query_only: bool = False,
     ):
         """
-        Impute modality expression in query dataset using a reference and shared representation.
+        Impute RNA expression in a query dataset using a reference and a shared representation.
 
         Parameters
         ----------
-        reference_batch : str
-            Identifier for the reference batch in `adata.obs[batch_key]`.
-        adata_rna : AnnData
+        reference_batch
+            Identifier for the reference batch in ``adata.obs[batch_key]``.
+        adata_rna
             Annotated data matrix containing the expression data to impute.
-        layer_key : str
-            Key in the `.layers` attribute of `adata_rna` for the reference expression data.
-        use_rep : str, optional
-            Key in the `.obsm` attribute to use as the representation space (e.g., latent space).
-            If `None`, defaults to `X_CytoVI`.
-        n_neighbors : int, optional (default: 20)
-            Number of nearest neighbors to use for imputation.
-        compute_uncertainty : bool, optional (default: False)
-            If `True`, also computes the uncertainty of the imputation.
-        return_query_only : bool, optional (default: False)
-            If `True`, return only the imputed query dataset as an AnnData object.
+        layer_key
+            Key in ``adata_rna.layers`` for the reference expression data.
+        use_rep
+            Key in ``.obsm`` to use as the representation space (e.g., latent space).
+            If ``None``, defaults to ``X_CytoVI``.
+        n_neighbors
+            Number of nearest neighbors to use for imputation. Default: 20.
+        compute_uncertainty
+            If ``True``, also computes the uncertainty of the imputation. Default: False.
+        return_query_only
+            If ``True``, return only the imputed query dataset as an ``AnnData`` object.
+            Default: False.
 
         Returns
         -------
-        AnnData
-            Imputed AnnData object. If `return_query_only` is `True`, only the query dataset is
-              returned. If `return_uncertainty` is `True`, also returns the uncertainty matrix.
+        Imputed ``AnnData`` object. If ``return_query_only`` is ``True``, only the query
+        dataset is returned. If ``compute_uncertainty`` is ``True``, an uncertainty matrix
+        is also returned.
         """
         adata = self.adata
         batch_key = self.batch_key
