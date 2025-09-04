@@ -54,13 +54,13 @@ def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
     with pytest.raises(ValueError) as excinfo:
-        model = MRVI.load("../mrvi_torch/mrvi_model", adata=adata)
+        model = MRVI.load("tests/external/mrvi_torch/mrvi_model", adata=adata)
     assert (
         str(excinfo.value)
         == "It appears you are trying to load a JAX MRVI model with a Torch MRVI model"
     )
     # a jax model from prev version - should work!
-    model = MRVI.load("../mrvi_jax/mrvi_model_old_jax", adata=adata)
+    model = MRVI.load("tests/external/mrvi_jax/mrvi_model_old_jax", adata=adata)
 
 
 @pytest.mark.optional
