@@ -2,7 +2,7 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 
-from scvi.external.mrvi._components import (
+from scvi.external.mrvi_jax._components import (
     MLP,
     AttentionBlock,
     ConditionalNormalization,
