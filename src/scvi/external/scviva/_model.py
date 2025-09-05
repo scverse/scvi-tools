@@ -218,6 +218,7 @@ class SCVIVA(
 
         self.init_params_ = self._get_init_params(locals())
 
+    @staticmethod
     def preprocessing_anndata(
         adata: AnnData,
         k_nn: int = 20,
@@ -692,7 +693,6 @@ class SCVIVA(
         reference_model: str | BaseModelClass,
         return_reference_var_names: bool = False,
         inplace: bool = True,
-        #####
         k_nn: int = 20,
         sample_key: str | None = None,
         labels_key: str = "cell_type",
@@ -728,8 +728,8 @@ class SCVIVA(
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        self.preprocessing_anndata(
-            adata,
+        SCVIVA.preprocessing_anndata(
+            adata=adata,
             k_nn=k_nn,
             sample_key=sample_key,
             labels_key=labels_key,
@@ -768,7 +768,17 @@ class SCVIVA(
         ][_STATE_REGISTRY_KEY]["column_names"]
         reference_label_names = pd.Index(reference_label_names)
 
-        return _pad_and_sort_query_anndata(adata, var_names, reference_label_names, inplace)
+        query_label_names = pd.Index(adata.obsm[niche_composition_key].columns)
+
+        return _pad_and_sort_query_anndata(
+            adata,
+            var_names,
+            reference_label_names,
+            query_label_names,
+            niche_composition_key,
+            expression_embedding_niche_key,
+            inplace,
+        )
 
 
 def get_niche_indexes(
@@ -864,6 +874,7 @@ def get_neighborhood_composition(
 
     cell_types = adata.obs[cell_type_column].unique().tolist()
     cell_type_to_int = {cell_types[i]: i for i in range(len(cell_types))}
+    adata.uns["cell_type_to_int"] = cell_type_to_int
 
     # Transform the query vector into an integer-valued vector
     integer_vector = np.vectorize(cell_type_to_int.get)(adata.obs[cell_type_column])
@@ -943,9 +954,7 @@ def get_average_latent_per_celltype(
     else:
         z1_mean_niches = adata.obsm[latent_mean_key][niche_indexes]
 
-    cell_types = adata.obs[labels_key].unique().tolist()
-
-    cell_type_to_int = {cell_types[i]: i for i in range(len(cell_types))}
+    cell_type_to_int = adata.uns["cell_type_to_int"]
     integer_vector = np.vectorize(cell_type_to_int.get)(adata.obs[labels_key])
 
     # For each cell, get the cell types of its neighbors (as integers)
@@ -956,9 +965,7 @@ def get_average_latent_per_celltype(
     dict_of_cell_type_indices = {}
 
     for cell_type, cell_type_idx in cell_type_to_int.items():
-        ct_row_indices, ct_col_indices = np.where(
-            cell_types_in_the_neighborhood == cell_type_idx
-        )  # [1]
+        ct_row_indices, ct_col_indices = np.where(cell_types_in_the_neighborhood == cell_type_idx)
 
         # dict of cells:local index of the cells of cell_type in the neighborhood.
         result_dict = {}
@@ -993,20 +1000,27 @@ def _pad_and_sort_query_anndata(
     adata: AnnData,
     reference_var_names: pd.Index,
     reference_label_names: pd.Index,
+    query_label_names: pd.Index,
+    niche_composition_key: str,
+    expression_embedding_niche_key: str,
     inplace: bool,
     min_var_name_ratio: float = 0.8,
 ) -> AnnData | None:
-    """Pad and sort anndata to match reference var names."""
-    intersection = adata.var_names.intersection(reference_var_names)
-    inter_len = len(intersection)
-    if inter_len == 0:
+    r"""
+    Pad and sort anndata to match reference var names.
+
+    Also covers \alpha and \eta niche features.
+    """
+    intersection_genes = adata.var_names.intersection(reference_var_names)
+    inter_len_genes = len(intersection_genes)
+    if inter_len_genes == 0:
         raise ValueError(
             "No reference var names found in query data. "
             "Please rerun with return_reference_var_names=True "
             "to see reference var names."
         )
 
-    ratio = inter_len / len(reference_var_names)
+    ratio = inter_len_genes / len(reference_var_names)
     logger.info(f"Found {ratio * 100}% reference vars in query data.")
     if ratio < min_var_name_ratio:
         warnings.warn(
@@ -1015,6 +1029,46 @@ def _pad_and_sort_query_anndata(
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
         )
+
+    missing_in_query = reference_label_names.difference(query_label_names)
+    extra_in_query = query_label_names.difference(reference_label_names)
+
+    if len(missing_in_query) > 0:
+        logger.info(f"Labels not observed in query: {sorted(missing_in_query.tolist())}")
+    if len(extra_in_query) > 0:
+        raise ValueError(
+            f"Label(s) observed in query but not in reference: {sorted(extra_in_query.tolist())}"
+        )
+
+    # pad alpha composition if needed
+    if len(missing_in_query) > 0:
+        # add missing columns
+        for ct in missing_in_query:
+            adata.obsm[niche_composition_key][ct] = 0.0
+    # sort columns anyway to match reference
+    adata.obsm[niche_composition_key] = adata.obsm[niche_composition_key][reference_label_names]
+    pad_and_sorted_query_label_names = pd.Index(adata.obsm[niche_composition_key].columns)
+    assert pad_and_sorted_query_label_names.equals(reference_label_names), (
+        "Error when sorting query label names to match reference."
+    )
+
+    # pad eta niche activation if needed
+    cell_type_to_int = adata.uns["cell_type_to_int"]
+    if len(missing_in_query) > 0:
+        # Update with missing labels: add zero embeddings
+        for ct in missing_in_query:
+            cell_type_to_int[ct] = len(cell_type_to_int)
+            # Add zeros for this new cell type
+            zeros = np.zeros(
+                (adata.n_obs, 1, adata.obsm[expression_embedding_niche_key].shape[-1])
+            )
+            z_niche = np.concatenate([adata.obsm[expression_embedding_niche_key], zeros], axis=1)
+
+    else:
+        z_niche = adata.obsm[expression_embedding_niche_key]
+    # reorder axis 1 to match reference_label_names
+    idxs = np.array([cell_type_to_int[ct] for ct in reference_label_names])
+    adata.obsm[expression_embedding_niche_key] = z_niche[:, idxs, :]
 
     genes_to_add = reference_var_names.difference(adata.var_names)
     needs_padding = len(genes_to_add) > 0

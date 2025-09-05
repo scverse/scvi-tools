@@ -34,7 +34,7 @@ def adata():
         n_proteins=0,
         n_regions=0,
         n_batches=2,
-        n_labels=3,
+        n_labels=4,
         dropout_ratio=0.5,
         generate_coordinates=True,
         sparse_format=None,
@@ -266,6 +266,14 @@ def test_scviva_scarches(adata: AnnData):
 
     assert nichevae.is_trained
 
+    # Make it different from reference adata - How?
+    query_adata = query_adata[
+        :, np.random.permutation(query_adata.var_names)[: query_adata.shape[1] - 5]
+    ].copy()
+
+    query_adata.obs["labels"] = (
+        query_adata.obs["labels"].astype(str).replace("label_2", "label_1").astype("category")
+    )
     # Query adata
     nichevae.preprocessing_query_anndata(
         query_adata,
@@ -274,16 +282,6 @@ def test_scviva_scarches(adata: AnnData):
         **setup_kwargs,
     )
 
-    # Make it different from reference adata - How?
-    query_adata = query_adata[
-        :, np.random.permutation(query_adata.var_names)[: query_adata.shape[1] - 5]
-    ].copy()
-    query_adata.obsm["neighborhood_composition"] = query_adata.obsm[
-        "neighborhood_composition"
-    ].reindex(columns=ref_adata.obsm["neighborhood_composition"].columns)
-
-    # Make query adata and model
-    # nichevae.prepare_query_anndata(query_adata, reference_model=nichevae)
     query_nichevae = nichevae.load_query_data(query_adata, reference_model=nichevae)
 
     query_nichevae.train(
