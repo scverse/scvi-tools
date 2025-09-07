@@ -13,10 +13,11 @@ N_LATENT_INTRINSIC = 20
 N_LATENT = 10
 K_NN = 5
 N_EPOCHS_SCVIVA = 2
+LABELS_KEY = "labels"
 
 setup_kwargs = {
     "sample_key": "batch",
-    "labels_key": "labels",
+    "labels_key": LABELS_KEY,
     "cell_coordinates_key": "coordinates",
     "expression_embedding_key": "qz1_m",
     "expression_embedding_niche_key": "qz1_m_niche_ct",
@@ -33,8 +34,8 @@ def adata():
         n_genes=100,
         n_proteins=0,
         n_regions=0,
-        n_batches=2,
-        n_labels=4,
+        n_batches=3,
+        n_labels=5,
         dropout_ratio=0.5,
         generate_coordinates=True,
         sparse_format=None,
@@ -226,13 +227,20 @@ def test_scviva_differential(adata):
     )
 
 
-def test_scviva_scarches(adata: AnnData):
-    # divide between ref and query data
+@pytest.fixture
+def split_ref_query_adata(adata: AnnData):
+    """Split adata into ref and query using hemisphere."""
     adata.obs["hemisphere"] = [
         "right" if x > 0 else "left" for x in adata.obsm["coordinates"][:, 0]
     ]
     ref_adata = adata[adata.obs["hemisphere"] == "left"].copy()
     query_adata = adata[adata.obs["hemisphere"] == "right"].copy()
+    return ref_adata, query_adata
+
+
+def test_scviva_scarches_less_features(split_ref_query_adata):
+    # divide between ref and query data
+    ref_adata, query_adata = split_ref_query_adata
 
     SCVIVA.preprocessing_anndata(
         ref_adata,
@@ -266,7 +274,7 @@ def test_scviva_scarches(adata: AnnData):
 
     assert nichevae.is_trained
 
-    # Make it different from reference adata - How?
+    # Make it different from reference adata - shuffling and removing a few genes here
     query_adata = query_adata[
         :, np.random.permutation(query_adata.var_names)[: query_adata.shape[1] - 5]
     ].copy()
@@ -274,6 +282,105 @@ def test_scviva_scarches(adata: AnnData):
     query_adata.obs["labels"] = (
         query_adata.obs["labels"].astype(str).replace("label_2", "label_1").astype("category")
     )
+    # Query adata
+    nichevae.preprocessing_query_anndata(
+        query_adata,
+        reference_model=nichevae,
+        k_nn=K_NN,
+        **setup_kwargs,
+    )
+
+    query_nichevae = nichevae.load_query_data(query_adata, reference_model=nichevae)
+
+    query_nichevae.train(
+        max_epochs=N_EPOCHS_SCVIVA,
+        train_size=0.8,
+        validation_size=0.2,
+        early_stopping=True,
+        check_val_every_n_epoch=1,
+        accelerator="cpu",
+    )
+
+    predicted_alpha = query_nichevae.predict_neighborhood(query_adata)
+    assert predicted_alpha.shape == (query_adata.n_obs, query_nichevae.n_labels)
+    query_adata.obsm["X_nichevi"] = query_nichevae.get_latent_representation(query_adata)
+
+    # Check that embedding default works
+    assert (
+        query_nichevae.get_latent_representation(
+            adata=ref_adata,
+        ).shape[0]
+        == ref_adata.shape[0]
+    )
+    assert (
+        query_nichevae.get_latent_representation(
+            adata=query_adata,
+        ).shape[0]
+        == query_adata.shape[0]
+    )
+
+
+def _permute_label_categories(adata: AnnData, label_key: str = "labels") -> None:
+    """Permute the order of label categories to ensure .unique() returns different order."""
+    import random
+
+    current_categories = list(adata.obs[label_key].cat.categories)
+    new_order = random.sample(current_categories, len(current_categories))  # shuffled list
+    adata.obs[label_key] = adata.obs[label_key].cat.reorder_categories(new_order, ordered=False)
+
+
+def test_scviva_scarches_same_features(split_ref_query_adata):
+    # divide between ref and query data
+    ref_adata, query_adata = split_ref_query_adata
+
+    ref_labels = set(ref_adata.obs[LABELS_KEY].unique())
+    query_labels = set(query_adata.obs[LABELS_KEY].unique())
+    assert ref_labels == query_labels, (
+        f"Label sets do not match:\nRef: {ref_labels}\nQuery: {query_labels}"
+    )
+
+    ref_adata.obs["labels"] = ref_adata.obs[LABELS_KEY].astype("category")
+    _permute_label_categories(ref_adata, label_key=LABELS_KEY)
+    query_adata.obs["labels"] = query_adata.obs[LABELS_KEY].astype("category")
+    _permute_label_categories(query_adata, label_key=LABELS_KEY)
+
+    SCVIVA.preprocessing_anndata(
+        ref_adata,
+        k_nn=K_NN,
+        **setup_kwargs,
+    )
+
+    SCVIVA.setup_anndata(
+        ref_adata,
+        layer="counts",
+        batch_key="batch",
+        **setup_kwargs,
+    )
+
+    # Reference model
+    nichevae = SCVIVA(
+        ref_adata,
+        prior_mixture=False,
+        semisupervised=True,
+        linear_classifier=True,
+    )
+
+    nichevae.train(
+        max_epochs=N_EPOCHS_SCVIVA,
+        train_size=0.8,
+        validation_size=0.2,
+        early_stopping=True,
+        check_val_every_n_epoch=1,
+        accelerator="cpu",
+    )
+
+    assert nichevae.is_trained
+
+    # Make it different from reference adata - only shuffling genes here
+    query_adata = query_adata[
+        :, np.random.permutation(query_adata.var_names)[: query_adata.shape[1]]
+    ].copy()
+
     # Query adata
     nichevae.preprocessing_query_anndata(
         query_adata,
