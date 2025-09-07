@@ -104,7 +104,7 @@ class TrainRunner:
 
         self.trainer._model = model  # needed for savecheckpoint callback
 
-    def __call__(self, ckpt_path=None):
+    def __call__(self):
         """Run training."""
         if hasattr(self.data_splitter, "n_train"):
             self.training_plan.n_obs_training = self.data_splitter.n_train
