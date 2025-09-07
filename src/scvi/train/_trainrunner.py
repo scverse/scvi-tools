@@ -102,7 +102,7 @@ class TrainRunner:
 
         self.trainer._model = model  # needed for savecheckpoint callback
 
-    def __call__(self):
+    def __call__(self, ckpt_path=None):
         """Run training."""
         if hasattr(self.data_splitter, "n_train"):
             self.training_plan.n_obs_training = self.data_splitter.n_train
@@ -110,7 +110,10 @@ class TrainRunner:
             self.training_plan.n_obs_validation = self.data_splitter.n_val
 
         try:
-            self.trainer.fit(self.training_plan, self.data_splitter)
+            if ckpt_path is not None:
+                self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=ckpt_path)
+            else:
+                self.trainer.fit(self.training_plan, self.data_splitter)
         except NameError:
             import gc
 
