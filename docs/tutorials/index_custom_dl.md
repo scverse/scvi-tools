@@ -1,4 +1,4 @@
-# ATAC-seq
+# Custom Data Loaders
 
 ```{toctree}
 :maxdepth: 1
