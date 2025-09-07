@@ -232,7 +232,44 @@ class SCVIVA(
         niche_distances_key: str = "niche_distances",
         log1p: bool = False,
     ) -> None:
-        """Preprocess anndata object for scVIVA."""
+        """Preprocess an AnnData object for scVIVA analysis.
+
+         This function prepares the input AnnData object by computing niche indexes,
+         neighborhood composition, and average latent space embeddings per cell type.
+
+        Parameters
+        ----------
+        adata : AnnData
+             The annotated data matrix of shape `n_obs` x `n_vars`. Rows correspond to cells
+             and columns to genes.
+        k_nn : int, optional
+             Number of nearest neighbors for niche computation. Default is 20.
+        sample_key : str or None, optional
+             Key in `adata.obs` for sample identifiers. Default is None.
+        labels_key : str, optional
+             Key in `adata.obs` for cell type labels. Default is "cell_type".
+        cell_coordinates_key : str, optional
+             Key in `adata.obsm` for spatial coordinates. Default is "spatial".
+        expression_embedding_key : str, optional
+             Key in `adata.obsm` for latent space embeddings. Default is "X_scVI".
+        expression_embedding_niche_key : str, optional
+             Key in `adata.obsm` where average latent embeddings per cell type are stored.
+             Default is "niche_activation".
+        niche_composition_key : str, optional
+             Key in `adata.obsm` where neighborhood composition is stored.
+             Default is "niche_composition".
+        niche_indexes_key : str, optional
+             Key in `adata.obsm` where niche indexes are stored. Default is "niche_indexes".
+        niche_distances_key : str, optional
+             Key in `adata.obsm` where neighbor distances are stored. Default is "niche_distances".
+        log1p : bool, optional
+             Whether to apply log1p to latent space embeddings. Default is False.
+
+        Returns
+        -------
+        None
+             The function modifies the input AnnData object in place.
+        """
         get_niche_indexes(
             adata=adata,
             sample_key=sample_key,
@@ -706,8 +743,10 @@ class SCVIVA(
     ) -> AnnData | pd.Index | None:
         """Prepare data for query integration.
 
+        Merges SCVIVA.preprocessing_anndata and ArchesMixin.prepare_query_anndata.
+
         This function will return a new AnnData object with padded zeros
-        for missing features, as well as correctly sorted features.
+        for missing features (genes, alpha and eta), as well as correctly sorted features.
 
         Parameters
         ----------
@@ -722,6 +761,29 @@ class SCVIVA(
             Only load and return reference var names if True.
         inplace
             Whether to subset and rearrange query vars inplace or return new AnnData.
+        k_nn : int, optional
+             Number of nearest neighbors for niche computation. Default is 20.
+        sample_key : str or None, optional
+             Key in `adata.obs` for sample identifiers. Default is None.
+        labels_key : str, optional
+             Key in `adata.obs` for cell type labels. Default is "cell_type".
+        cell_coordinates_key : str, optional
+             Key in `adata.obsm` for spatial coordinates. Default is "spatial".
+        expression_embedding_key : str, optional
+             Key in `adata.obsm` for latent space embeddings. Default is "X_scVI".
+        expression_embedding_niche_key : str, optional
+             Key in `adata.obsm` where average latent embeddings per cell type are stored.
+             Default is "niche_activation".
+        niche_composition_key : str, optional
+             Key in `adata.obsm` where neighborhood composition is stored.
+             Default is "niche_composition".
+        niche_indexes_key : str, optional
+             Key in `adata.obsm` where niche indexes are stored. Default is "niche_indexes".
+        niche_distances_key : str, optional
+             Key in `adata.obsm` where neighbor distances are stored. Default is "niche_distances".
+        log1p : bool, optional
+             Whether to apply log1p to latent space embeddings. Default is False.
+
 
         Returns
         -------
