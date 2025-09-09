@@ -43,7 +43,7 @@ than the official distribution and comes with conda-forge as the default channel
 (where scvi-tools is hosted).
 
 ```bash
-conda create -n scvi-env python=3.12  # any python 3.11 to 3.13
+conda create -n scvi-env python=3.13  # any python 3.11 to 3.13
 conda activate scvi-env
 ```
 
