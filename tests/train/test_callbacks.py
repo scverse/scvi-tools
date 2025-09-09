@@ -1,12 +1,12 @@
 import os
 
 import pytest
+import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 import scvi
 from scvi.data import synthetic_iid
 from scvi.model import SCANVI, SCVI
-import torch
 
 
 @pytest.mark.parametrize("load_best_on_end", [True, False])
@@ -182,7 +182,13 @@ def test_lightning_checkpoint():
     assert "lr_schedulers" in ckpt
     assert "state_dict" in ckpt
 
-    model.train(max_epochs=1, check_val_every_n_epoch=1, callbacks=[ckpt_cb], enable_checkpointing=True, ckpt_path=ckpt_cb.best_model_path)
+    model.train(
+        max_epochs=1,
+        check_val_every_n_epoch=1,
+        callbacks=[ckpt_cb],
+        enable_checkpointing=True,
+        ckpt_path=ckpt_cb.best_model_path,
+    )
 
     ckpt = torch.load(ckpt_cb.best_model_path)
 
