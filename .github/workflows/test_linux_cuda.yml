@@ -57,9 +57,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip wheel uv
-          python -m pip install nvidia-nccl-cu12
-          python -m uv pip install --system "scvi-tools[cuda,tests] @ ."
+          python3.13 -m pip install --upgrade pip wheel uv
+          python3.13 -m pip install nvidia-nccl-cu12
+          python3.13 -m uv pip install --system "scvi-tools[cuda,tests] @ ."
 
       - name: Run pytest
         env:
