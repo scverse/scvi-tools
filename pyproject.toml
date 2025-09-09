@@ -56,6 +56,9 @@ dependencies = [
     "torchmetrics>=0.11.0",
     "tqdm",
     "xarray>=2023.2.0",
+    "networkx",
+    "pronto",
+    "requests",
 ]
 
 [project.optional-dependencies]
@@ -139,7 +142,7 @@ markers = [
     "private: mark tests that uses private keys, like HF",
     "multigpu: mark tests that are used to check multi GPU performance",
     "autotune: mark tests that are used to check ray autotune capabilities",
-    "custom dataloaders: mark tests that are used to check different custom data loaders",
+    "dataloader: mark tests that are used to check different custom data loaders",
 ]
 
 [tool.ruff]
