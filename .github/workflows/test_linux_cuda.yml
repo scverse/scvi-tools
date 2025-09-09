@@ -47,9 +47,9 @@ jobs:
       #  id: vars
       #  run: echo "BRANCH_NAME=$(echo $GITHUB_REF | awk -F'/' '{print $3}')" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
           cache: "pip"
@@ -57,9 +57,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python3.13 -m pip install --upgrade pip wheel uv
-          python3.13 -m pip install nvidia-nccl-cu12
-          python3.13 -m uv pip install --system "scvi-tools[cuda,tests] @ ."
+          python -m pip install --upgrade pip wheel uv
+          python -m pip install nvidia-nccl-cu12
+          python -m uv pip install --system "scvi-tools[cuda,tests] @ ."
 
       - name: Run pytest
         env:
