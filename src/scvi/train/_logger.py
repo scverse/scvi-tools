@@ -1,10 +1,11 @@
+import os
+import pickle
 from typing import Any
 
 import pandas as pd
 import torch
 from lightning.pytorch.loggers.logger import Logger, rank_zero_experiment
 from lightning.pytorch.utilities import rank_zero_only
-import os, pickle
 
 
 class SimpleExperiment:
@@ -46,8 +47,12 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(self, name: str = "lightning_logs", version: int | str | None = None,
-                 save_dir: str | None = None):
+    def __init__(
+        self,
+        name: str = "lightning_logs",
+        version: int | str | None = None,
+        save_dir: str | None = None,
+    ):
         super().__init__()
         self._name = name
         self._experiment = None

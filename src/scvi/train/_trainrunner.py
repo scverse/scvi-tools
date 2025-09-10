@@ -1,10 +1,11 @@
 import logging
+import os
+import pickle
 import warnings
 
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
-import os, pickle, copy
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
