@@ -60,6 +60,8 @@ import scvi
    external.POISSONVI
    external.VELOVI
    external.MRVI
+   external.TorchMRVI
+   external.JaxMRVI
    external.METHYLVI
    external.METHYLANVI
    external.Decipher

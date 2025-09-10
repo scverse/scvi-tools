@@ -10,8 +10,6 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
-PYTORCH_DEFAULT_SCALE = 1 / 3
-
 
 class Dense(nn.Linear):
     def __init__(self, *args, **kwargs):
