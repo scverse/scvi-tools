@@ -30,7 +30,7 @@ jobs:
         shell: bash -e {0} # -e to fail on error
 
     container:
-      image: ghcr.io/scverse/scvi-tools:py3.12-cu12-base
+      image: ghcr.io/scverse/scvi-tools:py3.13-cu12-base
       options: --user root --gpus all --pull always
 
     name: integration
