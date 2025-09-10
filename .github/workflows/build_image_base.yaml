@@ -38,4 +38,4 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
           cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
           target: base
-          tags: ghcr.io/scverse/scvi-tools:py3.12-cu12-base
+          tags: ghcr.io/scverse/scvi-tools:py3.13-cu12-base
