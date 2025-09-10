@@ -37,15 +37,14 @@ def adata():
 
 @pytest.fixture(scope="session")
 def model(adata: AnnData):
-    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
-    model = MRVI(adata)
+    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="jax")
+    model = MRVI(adata, backend="jax")
     model.train(max_steps=2, train_size=0.5)
 
     return model
 
 
-@pytest.mark.optional
-def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
+def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
     model.get_latent_representation(give_z=False)
@@ -54,6 +53,14 @@ def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
+    with pytest.raises(ValueError) as excinfo:
+        model = MRVI.load("tests/external/mrvi_torch/mrvi_model", adata=adata)
+    assert (
+        str(excinfo.value)
+        == "It appears you are trying to load a JAX MRVI model with a Torch MRVI model"
+    )
+    # a jax model from prev version - should work!
+    model = MRVI.load("tests/external/mrvi_jax/mrvi_model_old_jax", adata=adata)
 
 
 @pytest.mark.optional
@@ -102,7 +109,7 @@ def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
         ),
     ],
 )
-def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
+def test_jaxmrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
     for de_kwarg in de_kwargs:
         model.differential_expression(**de_kwarg)
 
@@ -122,7 +129,7 @@ def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str,
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],
 )
-def test_mrvi_da(model, sample_key, da_kwargs):
+def test_jaxmrvi_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
@@ -156,13 +163,14 @@ def test_mrvi_da(model, sample_key, da_kwargs):
         },
     ],
 )
-def test_mrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
+def test_jaxmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
+        backend="jax",
     )
-    model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
+    model = MRVI(adata, n_latent=10, scale_observations=True, backend="jax", **model_kwargs)
     model.train(max_steps=2, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
@@ -170,8 +178,7 @@ def test_mrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_pa
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional
-def test_mrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
+def test_jaxmrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
     model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset)
@@ -181,14 +188,14 @@ def test_mrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional
-def test_mrvi_shrink_u(adata: AnnData, save_path: str):
+def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
+        backend="jax",
     )
-    model = MRVI(adata, n_latent=10, n_latent_u=5)
+    model = MRVI(adata, n_latent=10, n_latent_u=5, backend="jax")
     model.train(max_steps=2, train_size=0.5)
     model.get_local_sample_distances()
 
@@ -216,14 +223,14 @@ def adata_stratifications():
     return adata
 
 
-@pytest.mark.optional
-def test_mrvi_stratifications(adata_stratifications: AnnData, save_path: str):
+def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
+        backend="jax",
     )
-    model = MRVI(adata_stratifications, n_latent=10)
+    model = MRVI(adata_stratifications, n_latent=10, backend="jax")
     model.train(max_steps=2, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"])
