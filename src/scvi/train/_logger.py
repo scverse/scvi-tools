@@ -93,7 +93,7 @@ class SimpleLogger(Logger):
         try:
             with open(self.history_path, "wb") as f:
                 pickle.dump(self.history, f)
-        except (OSError, IOError, pickle.PickleError) as e:
+        except (OSError, pickle.PickleError) as e:
             print(f"[SimpleLogger] Failed to save history: {e}")
 
     @property
