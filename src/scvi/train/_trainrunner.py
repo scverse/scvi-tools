@@ -4,6 +4,7 @@ import warnings
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
+import os, pickle, copy
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
@@ -12,6 +13,20 @@ from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_load_logger_history(trainer):
+    # 1) try in-memory
+    hist = getattr(trainer.logger, "history", None)
+    if hist:
+        # deep copy so later mutations don’t affect the logger
+        return {k: v.copy() for k, v in hist.items()}
+    # 2) try the persisted file (written by rank-0 finalize())
+    history_path = getattr(trainer.logger, "history_path", None)
+    if history_path and os.path.exists(history_path):
+        with open(history_path, "rb") as f:
+            return pickle.load(f)
+    return None
 
 
 class TrainRunner:
@@ -134,6 +149,10 @@ class TrainRunner:
         self.model.trainer = self.trainer
 
     def _update_history(self):
+        # only the global-zero process should touch model.history_
+        if not self.trainer.is_global_zero:
+            return
+
         # model is being further trained
         # this was set to true during first training session
         if self.model.is_trained_ is True:
@@ -147,7 +166,7 @@ class TrainRunner:
                 )
                 return
             else:
-                new_history = self.trainer.logger.history
+                new_history = _safe_load_logger_history(self.trainer) or {}
                 for key, val in self.model.history_.items():
                     # e.g., no validation loss due to training params
                     if key not in new_history:
@@ -167,6 +186,8 @@ class TrainRunner:
             # set history_ attribute if it exists
             # other pytorch lightning loggers might not have history attr
             try:
-                self.model.history_ = self.trainer.logger.history
+                # first training: set model.history_ from persisted or in-memory logger
+                loaded = _safe_load_logger_history(self.trainer)
+                self.model.history_ = loaded if loaded is not None else {}
             except AttributeError:
                 self.history_ = None

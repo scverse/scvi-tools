@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 from lightning.pytorch.loggers.logger import Logger, rank_zero_experiment
 from lightning.pytorch.utilities import rank_zero_only
+import os, pickle
 
 
 class SimpleExperiment:
@@ -45,11 +46,17 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(self, name: str = "lightning_logs", version: int | str | None = None):
+    def __init__(self, name: str = "lightning_logs", version: int | str | None = None,
+                 save_dir: str | None = None):
         super().__init__()
         self._name = name
         self._experiment = None
         self._version = version
+        self._save_dir = save_dir or os.getcwd()
+        # run directory like: <save_dir>/<name>/version_<N>
+        self._run_dir = os.path.join(self._save_dir, self._name, f"version_{self.version}")
+        os.makedirs(self._run_dir, exist_ok=True)
+        self.history_path = os.path.join(self._run_dir, "history.pkl")
 
     @property
     @rank_zero_experiment
@@ -72,7 +79,17 @@ class SimpleLogger(Logger):
 
     @property
     def history(self) -> dict[str, pd.DataFrame]:
-        return self.experiment.data
+        # safe on rank-0 during train; in the parent after fit() this may be empty unless we load()
+        return getattr(self.experiment, "data", {})  # {} instead of AttributeError on non-rank0
+
+    @rank_zero_only
+    def finalize(self, status: str) -> None:
+        # Persist history from rank-0 AFTER training ends
+        try:
+            with open(self.history_path, "wb") as f:
+                pickle.dump(self.history, f)
+        except Exception as e:
+            print(f"[SimpleLogger] Failed to save history: {e}")
 
     @property
     def version(self) -> int:
@@ -89,3 +106,7 @@ class SimpleLogger(Logger):
     @property
     def name(self):
         return self._name
+
+    @property
+    def save_dir(self):
+        return self._save_dir
