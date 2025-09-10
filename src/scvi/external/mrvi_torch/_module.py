@@ -497,6 +497,7 @@ class TorchMRVAE(BaseModuleClass):
             n_layers=self.encoder_n_layers,
             **qu_kwargs,
         )
+        self.backend = "torch"
 
         if self.learn_z_u_prior_scale:
             self.pz_scale = nn.Parameter(torch.zeros(self.n_latent))

@@ -112,7 +112,7 @@ jobs:
 
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - run: pip install build
 
@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dependencies: ["", "dev", "tutorials"]
+        dependencies: ["", "dev", "tutorials", "runtime"]
     # If you don't set an input tag, it's a dry run (no uploads).
     if: ${{ inputs.tag }}
 
@@ -158,6 +158,6 @@ jobs:
           cache-from: type=registry,ref=ghcr.io/scverse/scvi-tools:buildcache
           cache-to: type=inline,ref=ghcr.io/scverse/scvi-tools:buildcache
           target: build
-          tags: ghcr.io/scverse/scvi-tools:py3.12-cu12-${{ inputs.tag }}-${{ matrix.dependencies }},ghcr.io/scverse/scvi-tools:py3.12-cu12-stable-${{ matrix.dependencies }}
+          tags: ghcr.io/scverse/scvi-tools:py3.13-cu12-${{ inputs.tag }}-${{ matrix.dependencies }},ghcr.io/scverse/scvi-tools:py3.13-cu12-stable-${{ matrix.dependencies }}
           build-args: |
             DEPENDENCIES=${{ matrix.dependencies }}
