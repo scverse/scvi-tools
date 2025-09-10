@@ -1,6 +1,7 @@
 import os
 
 import pytest
+import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 
 import scvi
@@ -161,7 +162,6 @@ def test_lightning_checkpoint():
     )
     model = scvi.model.SCVI(adata)
 
-    # 1) Configure checkpointing so "best" and "last" exist
     ckpt_cb = ModelCheckpoint(
         dirpath="checkpoints/",
         monitor="elbo_validation",
@@ -175,4 +175,22 @@ def test_lightning_checkpoint():
 
     print("Best ckpt:", ckpt_cb.best_model_path)
 
-    model.train(max_epochs=1, check_val_every_n_epoch=1, ckpt_path=ckpt_cb.best_model_path)
+    ckpt = torch.load(ckpt_cb.best_model_path)
+
+    assert "optimizer_states" in ckpt
+    assert "lr_schedulers" in ckpt
+    assert "state_dict" in ckpt
+
+    model.train(
+        max_epochs=1,
+        check_val_every_n_epoch=1,
+        callbacks=[ckpt_cb],
+        enable_checkpointing=True,
+        ckpt_path=ckpt_cb.best_model_path,
+    )
+
+    ckpt = torch.load(ckpt_cb.best_model_path)
+
+    assert "optimizer_states" in ckpt
+    assert "lr_schedulers" in ckpt
+    assert "state_dict" in ckpt
