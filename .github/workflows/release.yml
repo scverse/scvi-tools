@@ -131,7 +131,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dependencies: ["", "dev", "tutorials"]
+        dependencies: ["", "dev", "tutorials", "runtime"]
     # If you don't set an input tag, it's a dry run (no uploads).
     if: ${{ inputs.tag }}
 
