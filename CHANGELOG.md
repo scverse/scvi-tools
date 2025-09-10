@@ -17,6 +17,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {class}`scvi.external.CYTOVI` for dealing with cytometry data {pr}`3456`.
 - Add a backend parameter and making the class {class}`scvi.external.MRVI` a wrapper to the Jax or
     Torch implementations, {pr}`3498`.
+- Add lightning checkpointing to trainer fit, {pr}`3501`.
 
 #### Fixed
 

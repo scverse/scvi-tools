@@ -77,6 +77,8 @@ class TrainRunner:
 
         if getattr(self.training_plan, "reduce_lr_on_plateau", False):
             trainer_kwargs["learning_rate_monitor"] = True
+        ckpt_path = trainer_kwargs.pop("ckpt_path", None)
+        self.ckpt_path = ckpt_path
 
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
@@ -110,7 +112,7 @@ class TrainRunner:
             self.training_plan.n_obs_validation = self.data_splitter.n_val
 
         try:
-            self.trainer.fit(self.training_plan, self.data_splitter)
+            self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
         except NameError:
             import gc
 
