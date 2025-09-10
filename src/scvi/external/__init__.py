@@ -53,7 +53,7 @@ def __getattr__(name: str):
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
         from .mrvi_jax import JaxMRVI as _JaxMRVI
 
-        return _MRVI
+        return _JaxMRVI
 
     if name == "Tangram":
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
