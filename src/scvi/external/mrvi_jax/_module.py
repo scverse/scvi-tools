@@ -4,6 +4,7 @@ import warnings
 from dataclasses import field
 from typing import TYPE_CHECKING
 
+import flax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -38,6 +39,7 @@ DEFAULT_QU_KWARGS = {}
 _normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
+@flax.struct.dataclass
 class LossOutput:
     """Loss signature for Jax models.
 
