@@ -4,7 +4,6 @@ import warnings
 from dataclasses import field
 from typing import TYPE_CHECKING
 
-import flax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -153,7 +152,6 @@ class LossOutput:
             return attr
         else:
             return {attr_name: attr}
-
 
 
 class DecoderZXAttention(nn.Module):
