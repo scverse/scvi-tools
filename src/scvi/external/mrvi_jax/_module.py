@@ -39,7 +39,6 @@ DEFAULT_QU_KWARGS = {}
 _normal_initializer = jax.nn.initializers.normal(stddev=0.1)
 
 
-@flax.struct.dataclass
 class LossOutput:
     """Loss signature for Jax models.
 
@@ -154,6 +153,7 @@ class LossOutput:
             return attr
         else:
             return {attr_name: attr}
+
 
 
 class DecoderZXAttention(nn.Module):
@@ -532,6 +532,8 @@ class JaxMRVAE(JaxBaseModuleClass):
             n_layers=self.encoder_n_layers,
             **qu_kwargs,
         )
+
+        self.backend = "jax"
 
         if self.learn_z_u_prior_scale:
             self.pz_scale = self.param("pz_scale", nn.initializers.zeros, (self.n_latent,))

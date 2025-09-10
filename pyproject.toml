@@ -23,6 +23,7 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
+  "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -35,26 +36,26 @@ dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
     "lightning>=2.0",
-    "ml-collections>=0.1.1",
-    "mudata>=0.1.2",
+    "ml-collections",
+    "mudata",
     "numba>=0.60.0",
     "numpy",
     "pandas",
-    "pyro-ppl>=1.6.0",
-    "rich>=12.0.0",
+    "pyro-ppl",
+    "rich",
     "scanpy[skmisc]>=1.10",
-    "scikit-learn>=0.21.2",
+    "scikit-learn",
     "scipy",
     "sparse>=0.14.0",
-    "tensorboard>=2.0",
+    "tensorboard",
     "torch",
-    "torchmetrics>=0.11.0",
+    "torchmetrics",
     "tqdm",
-    "xarray>=2023.2.0"
+    "xarray",
 ]
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-pretty", "coverage", "selenium", "scvi-tools[optional]"]
+tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
@@ -63,14 +64,14 @@ metal = ["torchvision", "torchaudio", "jax-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "sphinx>=4.1",
+    "sphinx",
     "ipython",
     "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",
     "sphinx-design",
     "sphinxext-opengraph",
     "sphinx-hoverxref",
-    "sphinxcontrib-bibtex>=1.0.0",
+    "sphinxcontrib-bibtex",
     "myst-parser",
     "myst-nb",
     "sphinx-autodoc-typehints",
@@ -86,13 +87,13 @@ regseq = ["biopython>=1.81", "genomepy"]
 # for files sharing or handling
 file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 # for parallelization engine
-parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
+parallel = ["dask[array]", "zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum", "shap"]
-# for custom dataloaders
-dataloaders = ["lamindb[bionty]", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
 # for jax support
-jax = ["jax", "jaxlib", "optax", "numpyro>=0.12.1", "flax"]
+jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
+# for custom dataloders
+dataloaders = ["lamindb", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 
 optional = [
     "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
