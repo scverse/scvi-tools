@@ -88,7 +88,7 @@ autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
 # scvi.hub.HubModel.pull_from_s3
 aws = ["boto3"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "dvc[s3]"]
+hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # for files sharing or handling
@@ -102,10 +102,11 @@ dataloaders = ["lamindb", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "to
 
 
 optional = [
-    "scvi-tools[dataloaders,autotune,aws,hub,file_sharing,regseq,parallel,interpretability]"
+    "scvi-tools[autotune,aws,hub,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "cell2location",
+    "dataloaders",
     "jupyter",
     "leidenalg",
     "muon",
