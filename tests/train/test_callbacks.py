@@ -1,6 +1,8 @@
 import os
 
 import pytest
+import torch
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 import scvi
 from scvi.data import synthetic_iid
@@ -105,13 +107,20 @@ def test_exception_callback():
     model = SCVI(adata)
     model.train(max_epochs=5)
 
+    ckpt_cb = SaveCheckpoint(
+        dirpath="checkpoints/",
+        monitor="elbo_validation",
+        mode="min",
+        save_top_k=1,
+        save_last=True,
+        load_best_on_end=True,
+        check_nan_gradients=True,
+    )
+
     model.train(
         max_epochs=5,
-        callbacks=[
-            SaveCheckpoint(
-                monitor="elbo_validation", load_best_on_end=True, check_nan_gradients=True
-            )
-        ],
+        check_val_every_n_epoch=1,
+        callbacks=[ckpt_cb],
         enable_checkpointing=True,
     )
 
@@ -142,3 +151,46 @@ def test_scib_callback(model_cls, metric: str):
         train_size=0.5,
         callbacks=[ScibCallback()],
     )
+
+
+def test_lightning_checkpoint():
+    adata = scvi.data.synthetic_iid()
+    scvi.model.SCVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        batch_key="batch",
+    )
+    model = scvi.model.SCVI(adata)
+
+    ckpt_cb = ModelCheckpoint(
+        dirpath="checkpoints/",
+        monitor="elbo_validation",
+        mode="min",
+        save_top_k=1,  # keep the best model
+        save_last=True,  # also keep a "last.ckpt"
+    )
+    model.train(
+        max_epochs=1, check_val_every_n_epoch=1, callbacks=[ckpt_cb], enable_checkpointing=True
+    )
+
+    print("Best ckpt:", ckpt_cb.best_model_path)
+
+    ckpt = torch.load(ckpt_cb.best_model_path)
+
+    assert "optimizer_states" in ckpt
+    assert "lr_schedulers" in ckpt
+    assert "state_dict" in ckpt
+
+    model.train(
+        max_epochs=1,
+        check_val_every_n_epoch=1,
+        callbacks=[ckpt_cb],
+        enable_checkpointing=True,
+        ckpt_path=ckpt_cb.best_model_path,
+    )
+
+    ckpt = torch.load(ckpt_cb.best_model_path)
+
+    assert "optimizer_states" in ckpt
+    assert "lr_schedulers" in ckpt
+    assert "state_dict" in ckpt
