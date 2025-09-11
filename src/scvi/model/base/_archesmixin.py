@@ -377,12 +377,19 @@ class ArchesMixin:
             adata_out = _pad_and_sort_query_anndata(
                 adata=mdata[modality],
                 reference_var_names=var_names[modality],
-                inplace=inplace,
+                inplace=False,
             )
             adata_dict[modality] = adata_out
 
+        new_mdata = MuData(adata_dict)
+        new_mdata.obs = mdata.obs.copy()
+        new_mdata.uns = mdata.uns.copy()
+
         if not inplace:
-            return MuData(adata_dict)
+            return new_mdata
+        else:
+            if new_mdata is not mdata:
+                mdata._init_as_actual(new_mdata)
 
 
 def _set_params_online_update(
