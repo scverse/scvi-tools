@@ -8,7 +8,6 @@ import torch
 
 from scvi import settings
 from scvi.data._constants import _MODEL_NAME_KEY
-from scvi.external.mrvi_jax import JaxMRVI
 from scvi.external.mrvi_torch import TorchMRVI
 from scvi.model.base import BaseMinifiedModeModelClass
 from scvi.model.base._constants import SAVE_KEYS
@@ -62,6 +61,8 @@ class MRVI(BaseMinifiedModeModelClass):
         if backend == "torch":
             return TorchMRVI(adata=adata, registry=registry, **model_kwargs)
         elif backend == "jax":
+            from scvi.external.mrvi_jax import JaxMRVI
+
             return JaxMRVI(adata=adata, **model_kwargs)
         else:
             raise ValueError(f"Unknown backend '{backend}'. Use 'torch' or 'jax'.")
@@ -109,6 +110,8 @@ class MRVI(BaseMinifiedModeModelClass):
                 **kwargs,
             )
         elif backend == "jax":
+            from scvi.external.mrvi_jax import JaxMRVI
+
             warnings.warn(
                 "MRVI model is being setup with JAX backend",
                 UserWarning,
@@ -197,6 +200,8 @@ class MRVI(BaseMinifiedModeModelClass):
                 datamodule=datamodule,
             )
         elif cls.backend == "jax":
+            from scvi.external.mrvi_jax import JaxMRVI
+
             warnings.warn(
                 "MRVI model is being loaded with JAX backend",
                 UserWarning,
