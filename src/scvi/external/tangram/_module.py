@@ -3,7 +3,8 @@ from typing import NamedTuple
 import jax
 import jax.numpy as jnp
 
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.module._jaxvae import LossOutput
+from scvi.module.base import JaxBaseModuleClass, flax_configure
 
 
 class _TANGRAM_REGISTRY_KEYS_NT(NamedTuple):
