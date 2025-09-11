@@ -136,6 +136,12 @@ class TrainingPlan(pl.LightningModule):
         Minimum scaling factor on KL divergence during training.
     compile
         Whether to compile the model using torch.compile.
+    on_step: if ``True`` logs at this step.
+        ``None`` auto-logs for training_step but not validation/test_step.
+        The default value is determined by the hook.
+    on_epoch: if ``True`` logs epoch accumulated metrics.
+        ``None`` auto-logs for val/test step but not ``training_step``.
+        The default value is determined by the hook.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
         `kl_weight` should not be passed here and is handled automatically.
@@ -165,6 +171,8 @@ class TrainingPlan(pl.LightningModule):
         min_kl_weight: float = 0.0,
         compile: bool = False,
         compile_kwargs: dict | None = None,
+        on_step: bool | None = False,
+        on_epoch: bool | None = True,
         **loss_kwargs,
     ):
         super().__init__()
@@ -186,6 +194,8 @@ class TrainingPlan(pl.LightningModule):
         self.max_kl_weight = max_kl_weight
         self.optimizer_creator = optimizer_creator
         self.update_only_decoder = update_only_decoder
+        self.on_step = on_step
+        self.on_epoch = on_epoch
 
         if self.optimizer_name == "Custom" and self.optimizer_creator is None:
             raise ValueError("If optimizer is 'Custom', `optimizer_creator` must be provided.")
@@ -324,6 +334,7 @@ class TrainingPlan(pl.LightningModule):
         # Use the torchmetric object for the ELBO
         # We only need to update the ELBO metric
         # As it's defined as a sum of the other metrics
+        # Happens in epoch level, not step by default
         metrics[f"elbo_{mode}"].update(
             reconstruction_loss=rec_loss,
             kl_local=kl_local,
@@ -333,8 +344,8 @@ class TrainingPlan(pl.LightningModule):
         # pytorch lightning handles everything with the torchmetric object
         self.log_dict(
             metrics,
-            on_step=False,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=n_obs_minibatch,
             sync_dist=self.use_sync_dist,
         )
@@ -352,8 +363,8 @@ class TrainingPlan(pl.LightningModule):
                     self.log(
                         f"{key}_{mode}",
                         met,
-                        on_step=False,
-                        on_epoch=True,
+                        on_step=self.on_step,
+                        on_epoch=self.on_epoch,
                         batch_size=n_obs_minibatch,
                         sync_dist=self.use_sync_dist,
                     )
@@ -361,8 +372,8 @@ class TrainingPlan(pl.LightningModule):
                 self.log(
                     f"{key}_{mode}",
                     met,
-                    on_step=False,
-                    on_epoch=True,
+                    on_step=self.on_step,
+                    on_epoch=self.on_epoch,
                     batch_size=n_obs_minibatch,
                     sync_dist=self.use_sync_dist,
                 )
@@ -426,10 +437,17 @@ class TrainingPlan(pl.LightningModule):
         self.log(
             "train_loss",
             scvi_loss.loss,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             prog_bar=True,
             sync_dist=self.use_sync_dist,
         )
+        if self.on_step:
+            # No other choice but to do it manually:
+            self.trainer.logger.log_metrics(
+                {"train_loss_step": scvi_loss.loss},
+                step=self.global_step,
+            )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
 
         # next part is for the usage of scib-metrics autotune with scvi
@@ -447,7 +465,8 @@ class TrainingPlan(pl.LightningModule):
         self.log(
             "validation_loss",
             scvi_loss.loss,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
@@ -679,7 +698,12 @@ class AdversarialTrainingPlan(TrainingPlan):
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
             loss += fool_loss * kappa
 
-        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
+        self.log("train_loss", loss, on_step=self.on_step, on_epoch=self.on_epoch, prog_bar=True)
+        if self.on_step:
+            self.trainer.logger.log_metrics(
+                {"train_loss_step": loss},
+                step=self.global_step,
+            )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
         opt1.zero_grad()
         self.manual_backward(loss)
@@ -873,32 +897,32 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             METRIC_KEYS.CLASSIFICATION_LOSS_KEY,
             classification_loss,
             mode,
-            on_step=False,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
         )
         self.log_with_mode(
             METRIC_KEYS.ACCURACY_KEY,
             accuracy,
             mode,
-            on_step=False,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
         )
         self.log_with_mode(
             METRIC_KEYS.F1_SCORE_KEY,
             f1,
             mode,
-            on_step=False,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
         )
         self.log_with_mode(
             METRIC_KEYS.CALIBRATION_ERROR_KEY,
             ce,
             mode,
-            on_step=False,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
         )
 
@@ -934,10 +958,16 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.log(
             "train_loss",
             loss,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
             prog_bar=True,
         )
+        if self.on_step:
+            self.trainer.logger.log_metrics(
+                {"train_loss_step": loss},
+                step=self.global_step,
+            )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
 
         # next part is for the usage of scib-metrics autotune with scvi
@@ -965,7 +995,8 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         self.log(
             "validation_loss",
             loss,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
         )
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
@@ -1157,8 +1188,19 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
         if self.adversarial_classifier is not False:
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
             loss += fool_loss * kappa
-            self.log("adversarial_loss", fool_loss, on_epoch=True, prog_bar=True)
-        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
+            self.log(
+                "adversarial_loss",
+                fool_loss,
+                on_step=self.on_step,
+                on_epoch=self.on_epoch,
+                prog_bar=True,
+            )
+        self.log("train_loss", loss, on_step=self.on_step, on_epoch=self.on_epoch, prog_bar=True)
+        if self.on_step:
+            self.trainer.logger.log_metrics(
+                {"train_loss_step": loss},
+                step=self.global_step,
+            )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         opt1.zero_grad()
         self.manual_backward(loss)
@@ -1697,10 +1739,16 @@ class JaxTrainingPlan(TrainingPlan):
         self.log(
             "train_loss",
             loss_output.loss,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
             prog_bar=True,
         )
+        if self.on_step:
+            self.trainer.logger.log_metrics(
+                {"train_loss_step": loss_output.loss},
+                step=self.global_step,
+            )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
         # Update the dummy optimizer to update the global step
         _opt = self.optimizers()
@@ -1737,7 +1785,8 @@ class JaxTrainingPlan(TrainingPlan):
         self.log(
             "validation_loss",
             loss_output.loss,
-            on_epoch=True,
+            on_step=self.on_step,
+            on_epoch=self.on_epoch,
             batch_size=loss_output.n_obs_minibatch,
         )
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
