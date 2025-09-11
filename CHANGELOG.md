@@ -19,6 +19,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add a backend parameter and making the class {class}`scvi.external.MRVI` a wrapper to the Jax or
     Torch implementations, {pr}`3498`.
 - Add lightning checkpointing to trainer fit, {pr}`3501`.
+- Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
 
 #### Fixed
 
@@ -26,8 +27,11 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
 - Fix in {class}`~scvi.external.POISSONVI` differential_accessibility, {pr}`3473`.
+- Fix missing model history for multiGPU training, and added option to log on step, {pr}`3516`.
 
 #### Changed
+
+- Made the Jax dependency optional in scvi-tools {pr}`3426`.
 
 #### Removed
 

@@ -35,18 +35,13 @@ classifiers = [
 dependencies = [
     "anndata>=0.11",
     "docrep>=0.3.2",
-    "flax",
-    "jax",
-    "jaxlib",
     "lightning>=2.0",
     "ml-collections",
     "mudata",
     "numba>=0.60.0",
     "numpy",
-    "numpyro",
     "pandas",
     "pyro-ppl",
-    "optax",
     "rich",
     "scanpy[skmisc]>=1.10",
     "scikit-learn",
@@ -81,14 +76,12 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub]"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
-# scvi.hub.HubModel.pull_from_s3
-aws = ["boto3"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
+hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
 # for files sharing or handling
@@ -97,14 +90,16 @@ file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 parallel = ["dask[array]", "zarr<3.0.0"]
 # for supervised models interpretability
 interpretability = ["captum", "shap"]
+# for jax support
+jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 
-
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,parallel,interpretability]"
+    "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
+    "biomart",
     "cell2location",
     "dataloaders",
     "jupyter",
@@ -118,6 +113,7 @@ tutorials = [
     "scrublet",
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
+    "umap-learn>=0.5.0",
 ]
 
 all = ["scvi-tools[dev,docs,tutorials]"]

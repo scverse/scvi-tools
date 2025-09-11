@@ -3,7 +3,7 @@ FROM python:3.12 AS base
 
 RUN pip install --no-cache-dir uv
 
-RUN uv pip install --system --no-cache torch torchvision torchaudio "jax[cuda12]"
+RUN uv pip install --system --no-cache torch torchvision torchaudio
 
 CMD ["/bin/bash"]
 
