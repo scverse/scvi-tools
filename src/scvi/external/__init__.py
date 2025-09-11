@@ -1,3 +1,6 @@
+import warnings
+
+from scvi import settings
 from scvi.utils import error_on_missing_dependencies
 
 from .cellassign import CellAssign
@@ -50,12 +53,24 @@ def __getattr__(name: str):
     only when object is actually requested.
     """
     if name == "JaxMRVI":
+        warnings.warn(
+            "In order to use the Jax version of MRVI make sure to install scvi-tools[jax]",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
         from .mrvi_jax import JaxMRVI as _JaxMRVI
 
         return _JaxMRVI
 
     if name == "Tangram":
+        warnings.warn(
+            "In order to use the TANGRAM make sure to install scvi-tools[jax]",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
         error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
         from .tangram import Tangram as _Tangram
 

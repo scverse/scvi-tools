@@ -1,3 +1,6 @@
+import warnings
+
+from scvi import settings
 from scvi.utils import error_on_missing_dependencies
 
 from ._archesmixin import ArchesMixin
@@ -42,7 +45,13 @@ def __getattr__(name: str):
     only when object is actually requested.
     """
     if name == "JaxTrainingMixin":
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro", "xarray")
+        warnings.warn(
+            "In order to use the JaxTrainingMixin make sure to install scvi-tools[jax]",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
         from ._jaxmixin import JaxTrainingMixin as _JaxTrainingMixin
 
         return _JaxTrainingMixin
