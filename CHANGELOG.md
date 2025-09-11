@@ -30,6 +30,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Made the Jax dependency optional in scvi-tools {pr}`3426`.
+
 #### Removed
 
 - Remove the support for Python 3.10, {pr}`3441`.

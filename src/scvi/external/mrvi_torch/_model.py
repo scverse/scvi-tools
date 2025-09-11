@@ -111,7 +111,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         warnings.warn(
             "You are using the Torch Version of MrVI, starting v1.5, This will become the "
-            "default version of MrVI instead of the Jax backend version",
+            "default version of MrVI instead of the Jax backend version.",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )

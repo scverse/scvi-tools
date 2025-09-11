@@ -11,11 +11,13 @@ import numpyro.distributions as dist
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
 from scvi.external.mrvi_jax._components import AttentionBlock, Dense
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.module._jaxvae import LossOutput
+from scvi.module.base import JaxBaseModuleClass, flax_configure
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
+
 
 DEFAULT_PX_KWARGS = {
     "n_hidden": 32,
