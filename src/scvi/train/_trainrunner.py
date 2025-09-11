@@ -17,13 +17,10 @@ logger = logging.getLogger(__name__)
 
 
 def _safe_load_logger_history(trainer):
-    # 1) try in-memory
     hist = getattr(trainer.logger, "history", None)
     if hist:
-        # deep copy so later mutations don’t affect the logger
-        return {k: v.copy() for k, v in hist.items()}
-    # 2) try the persisted file (written by rank-0 finalize())
-    history_path = getattr(trainer.logger, "history_path", None)
+        return {k: v.copy() for k, v in hist.items()}  # deep copy from memory
+    history_path = getattr(trainer.logger, "history_path", None)  #  file (written by rank-0)
     if history_path and os.path.exists(history_path):
         with open(history_path, "rb") as f:
             return pickle.load(f)
@@ -187,7 +184,7 @@ class TrainRunner:
             # set history_ attribute if it exists
             # other pytorch lightning loggers might not have history attr
             try:
-                # first training: set model.history_ from persisted or in-memory logger
+                # set model.history_ from persisted or in-memory logger now
                 loaded = _safe_load_logger_history(self.trainer)
                 self.model.history_ = loaded if loaded is not None else {}
             except AttributeError:

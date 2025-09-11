@@ -25,12 +25,12 @@ class SimpleExperiment:
                 return value.item()
             return value
 
-        if "epoch" in metrics.keys():
-            time_point = metrics.pop("epoch")
-            time_point_name = "epoch"
-        elif "step" in metrics.keys():
+        if "step" in metrics.keys():
             time_point = metrics.pop("step")
             time_point_name = "step"
+        elif "epoch" in metrics.keys():
+            time_point = metrics.pop("epoch")
+            time_point_name = "epoch"
         else:
             time_point = step
             time_point_name = "step"
@@ -84,7 +84,6 @@ class SimpleLogger(Logger):
 
     @property
     def history(self) -> dict[str, pd.DataFrame]:
-        # safe on rank-0 during train; in the parent after fit() this may be empty unless we load()
         return getattr(self.experiment, "data", {})  # {} instead of AttributeError on non-rank0
 
     @rank_zero_only

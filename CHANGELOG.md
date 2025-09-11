@@ -25,7 +25,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
 - Fix in {class}`~scvi.external.POISSONVI` differential_accessibility, {pr}`3473`.
-- Fix missing model history for multiGPU training, {pr}`3516`.
+- Fix missing model history for multiGPU training, and added option to log on step, {pr}`3516`.
 
 #### Changed
 
