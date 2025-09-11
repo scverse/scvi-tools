@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_poisson_gene_selection():
     import numpy as np
     import pytest
@@ -31,6 +34,7 @@ def test_poisson_gene_selection():
         poisson_gene_selection(adata, batch_key="batch", n_top_genes=n_top_genes)
 
 
+@pytest.mark.internet
 def test_add_dna_sequence(save_path: str):
     from scvi.data import add_dna_sequence, synthetic_iid
 

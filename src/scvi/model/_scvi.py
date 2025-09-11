@@ -27,6 +27,11 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
 
+
+_SCVI_LATENT_QZM = "_scvi_latent_qzm"
+_SCVI_LATENT_QZV = "_scvi_latent_qzv"
+_SCVI_OBSERVED_LIB_SIZE = "_scvi_observed_lib_size"
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,8 +50,7 @@ class SCVI(
     adata
         AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`. If
         ``None``, then the underlying module will not be initialized until training, and a
-        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training
-        (``EXPERIMENTAL``).
+        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -69,6 +73,9 @@ class SCVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
         * ``'normal'`` - ``EXPERIMENTAL`` Normal distribution
+    use_observed_lib_size
+        If ``True``, use the observed library size for RNA as the scaling factor in the mean of the
+        conditional distribution.
     latent_distribution
         One of:
 
@@ -92,8 +99,8 @@ class SCVI(
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
     2. :doc:`/tutorials/notebooks/scrna/harmonization`
-    3. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scrna/scvi_in_R`
+    3. :doc:`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+    4. :doc:`/tutorials/notebooks/r/scvi_in_R`
 
     See Also
     --------
@@ -107,16 +114,18 @@ class SCVI(
     def __init__(
         self,
         adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
+        use_observed_lib_size: bool = True,
         latent_distribution: Literal["normal", "ln"] = "normal",
         **kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
         self._module_kwargs = {
             "n_hidden": n_hidden,
@@ -144,17 +153,41 @@ class SCVI(
                 stacklevel=settings.warnings_stacklevel,
             )
         else:
-            n_cats_per_cov = (
-                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-                else None
-            )
+            if adata is not None:
+                n_cats_per_cov = (
+                    self.adata_manager.get_state_registry(
+                        REGISTRY_KEYS.CAT_COVS_KEY
+                    ).n_cats_per_key
+                    if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                    else None
+                )
+            else:
+                # custom datamodule
+                if (
+                    len(
+                        self.registry["field_registries"][f"{REGISTRY_KEYS.CAT_COVS_KEY}"][
+                            "state_registry"
+                        ]
+                    )
+                    > 0
+                ):
+                    n_cats_per_cov = tuple(
+                        self.registry["field_registries"][f"{REGISTRY_KEYS.CAT_COVS_KEY}"][
+                            "state_registry"
+                        ]["n_cats_per_key"]
+                    )
+                else:
+                    n_cats_per_cov = None
+
             n_batch = self.summary_stats.n_batch
-            use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+            use_size_factor_key = self.registry_["setup_args"][
+                f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"
+            ]
             library_log_means, library_log_vars = None, None
             if (
                 not use_size_factor_key
                 and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+                and not use_observed_lib_size
             ):
                 library_log_means, library_log_vars = _init_library_size(
                     self.adata_manager, n_batch
@@ -171,6 +204,7 @@ class SCVI(
                 dropout_rate=dropout_rate,
                 dispersion=dispersion,
                 gene_likelihood=gene_likelihood,
+                use_observed_lib_size=use_observed_lib_size,
                 latent_distribution=latent_distribution,
                 use_size_factor_key=use_size_factor_key,
                 library_log_means=library_log_means,

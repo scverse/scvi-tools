@@ -1,22 +1,26 @@
+from __future__ import annotations
+
+import inspect
 import logging
 import warnings
 from copy import deepcopy
+from typing import TYPE_CHECKING
 
 import anndata
 import numpy as np
 import pandas as pd
+import pyro
 import torch
 from anndata import AnnData
 from mudata import MuData
 from scipy.sparse import csr_matrix
+from torch.distributions import transform_to
 
-from scvi import settings
-from scvi._types import AnnOrMuData
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
 from scvi.model.base._save_load import (
-    _get_var_names,
     _initialize_model,
     _load_saved_files,
     _validate_var_names,
@@ -24,7 +28,12 @@ from scvi.model.base._save_load import (
 from scvi.nn import FCLayers
 from scvi.utils._docstrings import devices_dsp
 
-from ._base_model import BaseModelClass
+if TYPE_CHECKING:
+    from lightning import LightningDataModule
+
+    from scvi._types import AnnOrMuData
+
+    from ._base_model import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +47,9 @@ class ArchesMixin:
     @devices_dsp.dedent
     def load_query_data(
         cls,
-        adata: AnnOrMuData,
-        reference_model: str | BaseModelClass,
+        adata: AnnOrMuData = None,
+        reference_model: str | BaseModelClass = None,
+        registry: dict = None,
         inplace_subset_query_vars: bool = False,
         accelerator: str = "auto",
         device: int | str = "auto",
@@ -50,6 +60,8 @@ class ArchesMixin:
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
         freeze_classifier: bool = True,
+        transfer_batch: bool = True,
+        datamodule: LightningDataModule | None = None,
     ):
         """Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
 
@@ -81,7 +93,18 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for decoder
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
+        transfer_batch
+            Allow for surgery on the batch covariate. Only applies to `SYSVI`.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         """
+        if reference_model is None:
+            raise ValueError("Please provide a reference model as string or loaded model.")
+        if adata is None and registry is None:
+            raise ValueError("Please provide either an AnnData or a registry dictionary.")
+
         _, _, device = parse_device_args(
             accelerator=accelerator,
             devices=device,
@@ -89,56 +112,91 @@ class ArchesMixin:
             validate_single_device=True,
         )
 
-        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)
+        attr_dict, var_names, load_state_dict, pyro_param_store = _get_loaded_data(
+            reference_model, device=device, adata=adata
+        )
 
-        if isinstance(adata, MuData):
-            for modality in adata.mod:
+        if not transfer_batch:
+            reference_batches = attr_dict["registry_"]["field_registries"][
+                REGISTRY_KEYS.BATCH_KEY
+            ]["state_registry"]["categorical_mapping"]
+            if adata:
+                batch_col = attr_dict["registry_"]["field_registries"][REGISTRY_KEYS.BATCH_KEY][
+                    "state_registry"
+                ]["original_key"]
+                query_batches = adata.obs[batch_col].unique()
+            else:
+                query_batches = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY][
+                    "state_registry"
+                ]["categorical_mapping"]
+            if any(batch not in reference_batches for batch in query_batches):
+                raise ValueError(
+                    "This model does not allow for query having batch categories "
+                    "missing from the reference."
+                )
+
+        if adata:
+            if isinstance(adata, MuData):
+                for modality in adata.mod:
+                    if inplace_subset_query_vars:
+                        logger.debug(f"Subsetting {modality} query vars to reference vars.")
+                        adata[modality]._inplace_subset_var(var_names[modality])
+                    _validate_var_names(adata[modality], var_names[modality])
+
+            else:
                 if inplace_subset_query_vars:
-                    logger.debug(f"Subsetting {modality} query vars to reference vars.")
-                    adata[modality]._inplace_subset_var(var_names[modality])
-                _validate_var_names(adata[modality], var_names[modality])
+                    logger.debug("Subsetting query vars to reference vars.")
+                    adata._inplace_subset_var(var_names)
+                _validate_var_names(adata, var_names)
 
-        else:
             if inplace_subset_query_vars:
                 logger.debug("Subsetting query vars to reference vars.")
                 adata._inplace_subset_var(var_names)
             _validate_var_names(adata, var_names)
 
-        if inplace_subset_query_vars:
-            logger.debug("Subsetting query vars to reference vars.")
-            adata._inplace_subset_var(var_names)
-        _validate_var_names(adata, var_names)
+            registry = attr_dict.pop("registry_")
+            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+                raise ValueError("It appears you are loading a model from a different class.")
 
-        registry = attr_dict.pop("registry_")
-        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
-            raise ValueError("It appears you are loading a model from a different class.")
+            if _SETUP_ARGS_KEY not in registry:
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
+                )
 
-        if _SETUP_ARGS_KEY not in registry:
-            raise ValueError(
-                "Saved model does not contain original setup inputs. "
-                "Cannot load the original setup."
-            )
+            if registry[_SETUP_METHOD_NAME] != "setup_datamodule":
+                setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+                setup_method(
+                    adata,
+                    source_registry=registry,
+                    extend_categories=True,
+                    allow_missing_labels=True,
+                    **registry[_SETUP_ARGS_KEY],
+                )
 
-        setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
-        setup_method(
-            adata,
-            source_registry=registry,
-            extend_categories=True,
-            allow_missing_labels=True,
-            **registry[_SETUP_ARGS_KEY],
-        )
+        model = _initialize_model(cls, adata, registry, attr_dict, datamodule)
 
-        model = _initialize_model(cls, adata, attr_dict)
-        adata_manager = model.get_anndata_manager(adata, required=True)
+        version_split = model.registry[_constants._SCVI_VERSION_KEY].split(".")
 
-        version_split = adata_manager.registry[_constants._SCVI_VERSION_KEY].split(".")
         if int(version_split[1]) < 8 and int(version_split[0]) == 0:
             warnings.warn(
-                "Query integration should be performed using models trained with "
-                "version >= 0.8",
+                "Query integration should be performed using models trained with version >= 0.8",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
+
+        method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        if method_name == "setup_datamodule":
+            attr_dict["n_input"] = attr_dict["n_vars"]
+            module_exp_params = inspect.signature(model._module_cls).parameters.keys()
+            common_keys1 = list(attr_dict.keys() & module_exp_params)
+            common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
+            common_items1 = {key: attr_dict[key] for key in common_keys1}
+            common_items2 = {key: model.init_params_["non_kwargs"][key] for key in common_keys2}
+            module = model._module_cls(**common_items1, **common_items2)
+            model.module = module
+
+            model.module.load_state_dict(load_state_dict)
 
         model.to_device(device)
 
@@ -146,15 +204,21 @@ class ArchesMixin:
         new_state_dict = model.module.state_dict()
         for key, load_ten in load_state_dict.items():
             new_ten = new_state_dict[key]
+            load_ten = load_ten.to(new_ten.device)
             if new_ten.size() == load_ten.size():
                 continue
-            # new categoricals changed size
-            else:
-                dim_diff = new_ten.size()[-1] - load_ten.size()[-1]
-                fixed_ten = torch.cat([load_ten, new_ten[..., -dim_diff:]], dim=-1)
-                load_state_dict[key] = fixed_ten
+            fixed_ten = load_ten.clone()
+            for dim in range(len(new_ten.shape)):
+                if new_ten.size(dim) != load_ten.size(dim):
+                    dim_diff = new_ten.size(dim) - load_ten.size(dim)
+                    # Concatenate additional "missing" part
+                    pad_ten = new_ten.narrow(dim, start=-dim_diff, length=dim_diff)
+                    fixed_ten = torch.cat([fixed_ten, pad_ten], dim=dim)
+            load_state_dict[key] = fixed_ten
 
         model.module.load_state_dict(load_state_dict)
+        if isinstance(model.module, pyro.nn.PyroModule):
+            cls._arches_pyro_setup(model, pyro_param_store)
         model.module.eval()
 
         _set_params_online_update(
@@ -170,6 +234,52 @@ class ArchesMixin:
         model.is_trained_ = False
 
         return model
+
+    @staticmethod
+    def _arches_pyro_setup(model, pyro_param_store):
+        # Initialize pyro parameters before setting requires_grad false.
+        model.module.on_load(model)
+        param_names = pyro.get_param_store().get_all_param_names()
+        param_store = pyro.get_param_store().get_state()
+        pyro.clear_param_store()  # we will re-add the params with the correct loaded values.
+        block_parameter = []
+        for name in param_names:
+            new_param = param_store["params"][name]
+            new_constraint = param_store["constraints"][name]
+            old_param = pyro_param_store["params"].pop(name, None).to(new_param.device)
+            old_constraint = pyro_param_store["constraints"].pop(name, None)
+            if old_param is None:
+                logging.warning(
+                    f"Parameter {name} in pyro param_store but not found in reference model."
+                )
+                pyro.param(name, new_param, constraint=new_constraint)
+                continue
+            if type(new_constraint) is not type(old_constraint):
+                logging.warning(
+                    f"Constraint mismatch for {name} in pyro param_store. "
+                    f"Cannot transfer map parameter."
+                )
+                pyro.param(name, new_param, constraint=new_constraint)
+                continue
+            old_param = transform_to(old_constraint)(old_param).detach().requires_grad_()
+            new_param = transform_to(new_constraint)(new_param).detach().requires_grad_()
+            if new_param.size() == old_param.size():
+                pyro.param(name, old_param, constraint=old_constraint)
+                block_parameter.append(name)
+            else:
+                dim_diff = new_param.size()[-1] - old_param.size()[-1]
+                fixed_param = old_param.clone()
+                for dim in range(len(new_param.shape)):
+                    if new_param.size(dim) != old_param.size(dim):
+                        dim_diff = new_param.size(dim) - old_param.size(dim)
+                        # Concatenate additional "missing" part
+                        pad_param = new_param.narrow(dim, start=-dim_diff, length=dim_diff)
+                        fixed_param = torch.cat([fixed_param, pad_param], dim=dim)
+                updated_param = fixed_param.detach().requires_grad_()
+                pyro.param(name, updated_param, constraint=old_constraint)
+
+        if hasattr(model, "_block_parameters"):
+            model._block_parameters = block_parameter
 
     @staticmethod
     def prepare_query_anndata(
@@ -202,7 +312,7 @@ class ArchesMixin:
         Query adata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a pd.Index of reference var names is returned.
         """
-        _, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+        _, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
         var_names = pd.Index(var_names)
 
         if return_reference_var_names:
@@ -242,7 +352,7 @@ class ArchesMixin:
         Query mudata ready to use in `load_query_data` unless `return_reference_var_names`
         in which case a dictionary of pd.Index of reference var names is returned.
         """
-        attr_dict, var_names, _ = _get_loaded_data(reference_model, device="cpu")
+        attr_dict, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
 
         for modality in var_names.keys():
             var_names[modality] = pd.Index(var_names[modality])
@@ -350,18 +460,20 @@ def _set_params_online_update(
             par.requires_grad = False
 
 
-def _get_loaded_data(reference_model, device=None):
+def _get_loaded_data(reference_model, device=None, adata=None):
     if isinstance(reference_model, str):
         attr_dict, var_names, load_state_dict, _ = _load_saved_files(
             reference_model, load_adata=False, map_location=device
         )
+        pyro_param_store = load_state_dict.pop("pyro_param_store", None)
     else:
         attr_dict = reference_model._get_user_attributes()
         attr_dict = {a[0]: a[1] for a in attr_dict if a[0][-1] == "_"}
-        var_names = _get_var_names(reference_model.adata)
+        var_names = reference_model.get_var_names()
         load_state_dict = deepcopy(reference_model.module.state_dict())
+        pyro_param_store = pyro.get_param_store().get_state()
 
-    return attr_dict, var_names, load_state_dict
+    return attr_dict, var_names, load_state_dict, pyro_param_store
 
 
 def _pad_and_sort_query_anndata(

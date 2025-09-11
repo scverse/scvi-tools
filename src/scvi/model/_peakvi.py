@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -10,7 +9,6 @@ import pandas as pd
 import torch
 from scipy.sparse import csr_matrix, vstack
 
-from scvi import settings
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -26,10 +24,9 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model.base._de_core import _de_core
 from scvi.module import PEAKVAE
-from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
-from .base import ArchesMixin, BaseModelClass, VAEMixin
+from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -40,7 +37,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """Peak Variational Inference for chromatin accessilibity analysis :cite:p:`Ashuach22`.
 
     Parameters
@@ -114,6 +111,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else []
         )
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
             n_input_regions=self.summary_stats.n_vars,
@@ -159,7 +157,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         eps: float = 1e-08,
         early_stopping: bool = True,
         early_stopping_patience: int = 50,
-        save_best: bool = True,
         check_val_every_n_epoch: int | None = None,
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 50,
@@ -196,9 +193,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Whether to perform early stopping with respect to the validation set.
         early_stopping_patience
             How many epochs to wait for improvement before early stopping
-        save_best
-            ``DEPRECATED`` Save the best model state with respect to the validation loss (default),
-            or use the final state in the training procedure
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping`
             is `True`. If so, val is checked every epoch.
@@ -216,11 +210,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
-
-        Notes
-        -----
-        ``save_best`` is deprecated in v1.2 and will be removed in v1.3. Please use
-        ``enable_checkpointing`` instead.
         """
         update_dict = {
             "lr": lr,
@@ -234,18 +223,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        if save_best:
-            warnings.warn(
-                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpointing` instead. See "
-                "https://github.com/scverse/scvi-tools/issues/2568 for more details.",
-                DeprecationWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
         super().train(
             max_epochs=max_epochs,
@@ -306,7 +283,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         return torch.sigmoid(self.module.region_factors).cpu().numpy()
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnData | None = None,
         indices: Sequence[int] = None,
@@ -393,7 +370,7 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 generative_kwargs=generative_kwargs,
                 compute_loss=False,
             )
-            p = generative_outputs["p"].cpu()
+            p = generative_outputs["px"].cpu()
 
             if normalize_cells:
                 p *= inference_outputs["d"].cpu()
@@ -444,7 +421,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
         r"""\.
@@ -470,8 +446,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
-        two_sided
-            Whether to perform a two-sided test, or a one-sided test.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -504,22 +478,8 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata = self._validate_anndata(adata)
         col_names = adata.var_names
         model_fn = partial(
-            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
+            self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
-
-        # TODO check if change_fn in kwargs and raise error if so
-        def change_fn(a, b):
-            return a - b
-
-        if two_sided:
-
-            def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
-
-        else:
-
-            def m1_domain_fn(samples):
-                return samples >= delta
 
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
@@ -539,8 +499,6 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             delta=delta,
             batch_correction=batch_correction,
             fdr=fdr_target,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
             silent=silent,
             **kwargs,
         )
@@ -548,8 +506,10 @@ class PEAKVI(ArchesMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         # manually change the results DataFrame to fit a PeakVI differential accessibility results
         result = pd.DataFrame(
             {
-                "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
+                "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"]
+                if mode == "change"
+                else None,
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,

@@ -120,25 +120,29 @@ def test_peakvi():
         data,
         model_depth=False,
     )
-    vae.train(1, save_best=False)
+    vae.train(1)
     vae = PEAKVI(
         data,
         region_factors=False,
     )
-    vae.train(1, save_best=False)
+    vae.train(1)
     vae = PEAKVI(
         data,
     )
     vae.train(3)
     vae.get_elbo(indices=vae.validation_indices)
-    vae.get_accessibility_estimates()
-    vae.get_accessibility_estimates(normalize_cells=True)
-    vae.get_accessibility_estimates(normalize_regions=True)
+    vae.get_normalized_accessibility()
+    vae.get_normalized_accessibility(normalize_cells=True)
+    vae.get_normalized_accessibility(normalize_regions=True)
     vae.get_library_size_factors()
     vae.get_region_factors()
     vae.get_reconstruction_error(indices=vae.validation_indices)
     vae.get_latent_representation()
     vae.differential_accessibility(groupby="labels", group1="label_1")
+    vae.differential_accessibility(groupby="labels", group1="label_1", mode="vanilla")
+    vae.get_normalized_expression()
+    vae.get_normalized_expression(transform_batch="batch_1")
+    vae.get_normalized_expression(n_samples=2)
 
 
 def single_pass_for_online_update(model):
@@ -153,7 +157,7 @@ def test_peakvi_online_update(save_path):
     adata1 = synthetic_iid()
     PEAKVI.setup_anndata(adata1, batch_key="batch", labels_key="labels")
     model = PEAKVI(adata1, n_latent=n_latent)
-    model.train(1, save_best=False)
+    model.train(1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -162,7 +166,7 @@ def test_peakvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = PEAKVI.load_query_data(adata2, dir_path)
-    model2.train(max_epochs=1, weight_decay=0.0, save_best=False)
+    model2.train(max_epochs=1, weight_decay=0.0)
     model2.get_latent_representation()
     single_pass_for_online_update(model2)
 
@@ -197,7 +201,7 @@ def test_peakvi_online_update(save_path):
         n_latent=n_latent,
         encode_covariates=True,
     )
-    model.train(1, check_val_every_n_epoch=1, save_best=False)
+    model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
 
@@ -205,7 +209,7 @@ def test_peakvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
 
     model2 = PEAKVI.load_query_data(adata2, dir_path, freeze_expression=True)
-    model2.train(max_epochs=1, weight_decay=0.0, save_best=False)
+    model2.train(max_epochs=1, weight_decay=0.0)
     # deactivate no grad decorator
     model2.get_latent_representation()
     # pytorch lightning zeros the grad, so this will get a grad to inspect
@@ -223,7 +227,7 @@ def test_peakvi_online_update(save_path):
         freeze_expression=False,
         freeze_decoder_first_layer=False,
     )
-    model3.train(max_epochs=1, save_best=False, weight_decay=0.0)
+    model3.train(max_epochs=1, weight_decay=0.0)
     model3.get_latent_representation()
     single_pass_for_online_update(model3)
     grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()

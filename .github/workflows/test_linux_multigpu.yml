@@ -30,7 +30,7 @@ jobs:
         shell: bash -e {0} # -e to fail on error
 
     container:
-      image: ghcr.io/scverse/scvi-tools:py3.12-cu12-base
+      image: ghcr.io/scverse/scvi-tools:py3.13-cu12-base
       options: --user root --gpus all --pull always
 
     name: integration
@@ -51,9 +51,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install --system "scvi-tools[tests] @ ."
-          python -m pip install jax[cuda]
           python -m pip install nvidia-nccl-cu12
+          python -m uv pip install --system "scvi-tools[cuda,tests] @ ."
 
       - name: Run pytest
         env:

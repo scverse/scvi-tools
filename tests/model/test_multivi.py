@@ -13,79 +13,6 @@ from scvi.model import MULTIVI
 from scvi.utils import attrdict
 
 
-def test_multivi():
-    data = synthetic_iid()
-    MULTIVI.setup_anndata(
-        data,
-        batch_key="batch",
-    )
-    vae = MULTIVI(
-        data,
-        n_genes=50,
-        n_regions=50,
-    )
-    vae.train(1, save_best=False)
-    vae.train(1, adversarial_mixing=False)
-    vae.train(3)
-    vae.get_elbo(indices=vae.validation_indices)
-    vae.get_accessibility_estimates()
-    vae.get_accessibility_estimates(normalize_cells=True)
-    vae.get_accessibility_estimates(normalize_regions=True)
-    vae.get_normalized_expression()
-    vae.get_library_size_factors()
-    vae.get_region_factors()
-    vae.get_reconstruction_error(indices=vae.validation_indices)
-    vae.get_latent_representation()
-    vae.differential_accessibility(groupby="labels", group1="label_1")
-    vae.differential_expression(groupby="labels", group1="label_1")
-
-    # Test with size factor
-    data = synthetic_iid()
-    data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
-    MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(
-        data,
-        n_genes=50,
-        n_regions=50,
-    )
-    vae.train(3)
-
-    # Test with modality weights and penalties
-    data = synthetic_iid()
-    MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
-    vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
-    vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
-    vae.train(3)
-
-    # Test with non-zero protein data
-    data = synthetic_iid()
-    MULTIVI.setup_anndata(
-        data,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
-    vae = MULTIVI(
-        data,
-        n_genes=50,
-        n_regions=50,
-        modality_weights="cell",
-    )
-    assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
-    vae.train(3)
-
-
-def test_multivi_single_batch():
-    data = synthetic_iid(n_batches=1)
-    MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50)
-    with pytest.warns(UserWarning):
-        vae.train(3)
-
-
 @pytest.mark.internet
 def test_multivi_mudata_rna_prot_external():
     # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
@@ -142,7 +69,11 @@ def test_multivi_mudata_rna_atac_external():
     mdata.update()
     MULTIVI.setup_mudata(
         mdata,
-        modalities={"rna_layer": "rna_subset", "atac_layer": "atac_subset"},
+        modalities={
+            "rna_layer": "rna_subset",
+            "protein_layer": "protein_expression",
+            "atac_layer": "atac_subset",
+        },
     )
     model = MULTIVI(mdata)
     model.train(1, train_size=0.9)
@@ -153,6 +84,7 @@ def test_multivi_mudata_trimodal_external():
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
         mdata,
+        batch_key="batch",
         modalities={
             "rna_layer": "rna",
             "atac_layer": "accessibility",
@@ -167,17 +99,19 @@ def test_multivi_mudata_trimodal_external():
     model.get_elbo()
     model.get_reconstruction_error()
     model.get_normalized_expression()
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
+    model.get_protein_foreground_probability()
+    model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
 
     model.get_elbo(indices=model.validation_indices)
     model.get_reconstruction_error(indices=model.validation_indices)
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
@@ -209,17 +143,17 @@ def test_multivi_mudata(n_genes: int, n_regions: int):
     model.get_reconstruction_error()
     model.get_normalized_expression()
     model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
     model.get_elbo(indices=model.validation_indices)
     model.get_reconstruction_error(indices=model.validation_indices)
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
@@ -236,9 +170,9 @@ def test_multivi_mudata(n_genes: int, n_regions: int):
     mdata3 = synthetic_iid(return_mudata=True)
     mdata3.obs["_indices"] = np.arange(mdata3.n_obs)
     model.get_elbo(mdata3[:10])
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
@@ -259,9 +193,9 @@ def test_multivi_auto_transfer_mudata():
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
     mdata2.obs["_indices"] = np.arange(mdata2.n_obs)
     model.get_elbo(mdata2)
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
@@ -302,9 +236,9 @@ def test_multivi_reordered_mapping_mudata():
     adata2.obs.batch = adata2.obs.batch.cat.rename_categories(["batch_1", "batch_0"])
     mdata2.obs["_indices"] = np.arange(mdata2.n_obs)
     model.get_elbo(mdata2)
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
@@ -324,9 +258,9 @@ def test_multivi_model_library_size_mudata():
     model.train(1, train_size=0.5)
     assert model.is_trained is True
     model.get_elbo()
-    model.get_accessibility_estimates()
-    model.get_accessibility_estimates(normalize_cells=True)
-    model.get_accessibility_estimates(normalize_regions=True)
+    model.get_normalized_accessibility()
+    model.get_normalized_accessibility(normalize_cells=True)
+    model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
 
@@ -337,9 +271,14 @@ def test_multivi_size_factor_mudata():
     mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
         np.max(mdata["accessibility"].X.sum(1)) + 1.01
     )
+    mdata["rna"].layers["counts"] = mdata["rna"].X.copy()
     MULTIVI.setup_mudata(
         mdata,
-        modalities={"rna_layer": "rna", "atac_layer": "accessibility"},
+        modalities={
+            "rna_layer": "rna",
+            "atac_layer": "accessibility",
+            "protein_layer": "protein_expression",
+        },
         size_factor_key=["size_factor_rna", "size_factor_atac"],
     )
 

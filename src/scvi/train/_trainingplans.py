@@ -344,16 +344,77 @@ class TrainingPlan(pl.LightningModule):
             met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
                 if met.shape != torch.Size([]):
-                    raise ValueError("Extra tracked metrics should be 0-d tensors.")
-                met = met.detach()
-            self.log(
-                f"{key}_{mode}",
-                met,
-                on_step=False,
-                on_epoch=True,
-                batch_size=n_obs_minibatch,
-                sync_dist=self.use_sync_dist,
-            )
+                    Warning(
+                        f"Extra tracked metrics {key} should be 0-d tensors. It will not be logged"
+                    )
+                else:
+                    met = met.detach()
+                    self.log(
+                        f"{key}_{mode}",
+                        met,
+                        on_step=False,
+                        on_epoch=True,
+                        batch_size=n_obs_minibatch,
+                        sync_dist=self.use_sync_dist,
+                    )
+            else:
+                self.log(
+                    f"{key}_{mode}",
+                    met,
+                    on_step=False,
+                    on_epoch=True,
+                    batch_size=n_obs_minibatch,
+                    sync_dist=self.use_sync_dist,
+                )
+
+    def prepare_scib_autotune(self, loss_outputs, stage):
+        # this function is used only for the purpose of scib autotune,
+        # and adds overhead of time and memory thus used only when needed
+        if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
+            if (
+                sum(
+                    [
+                        "Scib" in x
+                        for x in [cls.__class__.__name__ for cls in self.trainer.callbacks]
+                    ]
+                )
+                > 0
+            ):
+                z = loss_outputs["z"].detach().cpu()
+                batch = loss_outputs["batch"].detach().cpu().squeeze()
+                labels = loss_outputs["labels"].detach().cpu().squeeze()
+
+                # next part is for the usage of scib-metrics autotune
+                if (
+                    not hasattr(self, "_" + stage + "_epoch_outputs")
+                    or getattr(self, "_" + stage + "_epoch_outputs") is None
+                ):
+                    setattr(
+                        self,
+                        "_" + stage + "_epoch_outputs",
+                        {
+                            # "x": x,
+                            "z": z,
+                            "batch": batch,
+                            "labels": labels,
+                        },
+                    )
+                else:
+                    setattr(
+                        self,
+                        "_" + stage + "_epoch_outputs",
+                        {
+                            "z": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["z"], z]
+                            ),
+                            "batch": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["batch"], batch]
+                            ),
+                            "labels": torch.cat(
+                                [getattr(self, "_" + stage + "_epoch_outputs")["labels"], labels]
+                            ),
+                        },
+                    )
 
     def training_step(self, batch, batch_idx):
         """Training step for the model."""
@@ -370,6 +431,11 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.train_metrics, "train")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
+
         return scvi_loss.loss
 
     def validation_step(self, batch, batch_idx):
@@ -385,6 +451,10 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
         self.compute_and_log_metrics(scvi_loss, self.val_metrics, "validation")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "validation")
 
     def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
         """Create optimizer for the model.
@@ -421,7 +491,6 @@ class TrainingPlan(pl.LightningModule):
                 threshold=self.lr_threshold,
                 min_lr=self.lr_min,
                 threshold_mode="abs",
-                verbose=True,
             )
             config.update(
                 {
@@ -587,6 +656,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         """Training step for adversarial training."""
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
+            self.log("kl_weight", self.kl_weight, on_step=True, on_epoch=False)
         kappa = (
             1 - self.kl_weight
             if self.scale_adversarial_loss == "auto"
@@ -624,6 +694,10 @@ class AdversarialTrainingPlan(TrainingPlan):
             self.manual_backward(loss)
             opt2.step()
 
+        # next part is for the usage of scib-metrics autotune with scvi
+        if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
+            self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
+
     def on_train_epoch_end(self):
         """Update the learning rate via scheduler steps."""
         if "validation" in self.lr_scheduler_metric or not self.reduce_lr_on_plateau:
@@ -653,7 +727,6 @@ class AdversarialTrainingPlan(TrainingPlan):
                 threshold=self.lr_threshold,
                 min_lr=self.lr_min,
                 threshold_mode="abs",
-                verbose=True,
             )
             config1.update(
                 {
@@ -836,8 +909,19 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             full_dataset = batch[0]
             labelled_dataset = batch[1]
         else:
-            full_dataset = batch
-            labelled_dataset = None
+            if list(batch.keys())[:5] == [
+                "X",
+                "batch",
+                "labels",
+                "extra_categorical_covs",
+                "extra_continuous_covs",
+            ]:
+                # mean we are on batch loading from custom dataloader, TODO: IS THERE BETTER WAY?
+                full_dataset = batch
+                labelled_dataset = batch
+            else:
+                full_dataset = batch
+                labelled_dataset = None
 
         if "kl_weight" in self.loss_kwargs:
             self.loss_kwargs.update({"kl_weight": self.kl_weight})
@@ -855,6 +939,11 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             prog_bar=True,
         )
         self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "training")
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -880,6 +969,274 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
             batch_size=loss_output.n_obs_minibatch,
         )
         self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "validation")
+
+
+class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
+    """Lightning module task for SemiSupervised Training with Adversarial Loss.
+
+    Parameters
+    ----------
+    module
+        A module instance from class ``BaseModuleClass``.
+    optimizer
+        One of "Adam" (:class:`~torch.optim.Adam`), "AdamW" (:class:`~torch.optim.AdamW`),
+        or "Custom", which requires a custom optimizer creator callable to be passed via
+        `optimizer_creator`.
+    optimizer_creator
+        A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
+        This allows using any PyTorch optimizer with custom hyperparameters.
+    n_classes
+        The number of classes in the labeled dataset.
+    classification_ratio
+        Weight of the classification_loss in loss function
+    lr
+        Learning rate used for optimization :class:`~torch.optim.Adam`.
+    weight_decay
+        Weight decay used in :class:`~torch.optim.Adam`.
+    eps
+        eps used for optimization, when `optimizer_creator` is None.
+    n_steps_kl_warmup
+        Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
+        Only activated when `n_epochs_kl_warmup` is set to None.
+    n_epochs_kl_warmup
+        Number of epochs to scale weight on KL divergences from 0 to 1.
+        Overrides `n_steps_kl_warmup` when both are not `None`.
+    reduce_lr_on_plateau
+        Whether to monitor validation loss and reduce learning rate when validation set
+        `lr_scheduler_metric` plateaus.
+    lr_factor
+        Factor to reduce learning rate.
+    lr_patience
+        Number of epochs with no improvement after which learning rate will be reduced.
+    lr_threshold
+        Threshold for measuring the new optimum.
+    lr_scheduler_metric
+        Which metric to track for learning rate reduction.
+    lr_min
+        Minimum learning rate allowed
+    adversarial_classifier
+        Whether to use adversarial classifier in the latent space
+    scale_adversarial_loss
+        Scaling factor on the adversarial components of the loss.
+        By default, adversarial loss is scaled from 1 to 0 following opposite of
+        kl warmup.
+    **loss_kwargs
+        Keyword args to pass to the loss method of the `module`.
+        `kl_weight` should not be passed here and is handled automatically.
+    """
+
+    def __init__(
+        self,
+        module: BaseModuleClass,
+        n_classes: int,
+        *,
+        key_adversarial: str = REGISTRY_KEYS.BATCH_KEY,
+        optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam",
+        optimizer_creator: TorchOptimizerCreator | None = None,
+        classification_ratio: int = 50,
+        lr: float = 1e-3,
+        weight_decay: float = 1e-6,
+        n_steps_kl_warmup: int | None = None,
+        n_epochs_kl_warmup: int | None = 400,
+        reduce_lr_on_plateau: bool = False,
+        lr_factor: float = 0.6,
+        lr_patience: int = 30,
+        lr_threshold: float = 0.0,
+        lr_scheduler_metric: Literal[
+            "elbo_validation", "reconstruction_loss_validation", "kl_local_validation"
+        ] = "elbo_validation",
+        lr_min: float = 0,
+        adversarial_classifier: bool | Classifier = False,
+        scale_adversarial_loss: float | Literal["auto"] = "auto",
+        **loss_kwargs,
+    ):
+        super().__init__(
+            module=module,
+            n_classes=n_classes,
+            optimizer=optimizer,
+            optimizer_creator=optimizer_creator,
+            lr=lr,
+            weight_decay=weight_decay,
+            n_steps_kl_warmup=n_steps_kl_warmup,
+            n_epochs_kl_warmup=n_epochs_kl_warmup,
+            reduce_lr_on_plateau=reduce_lr_on_plateau,
+            lr_factor=lr_factor,
+            lr_patience=lr_patience,
+            lr_threshold=lr_threshold,
+            lr_scheduler_metric=lr_scheduler_metric,
+            lr_min=lr_min,
+            classification_ratio=classification_ratio,
+            **loss_kwargs,
+        )
+        self.key_adversarial = key_adversarial
+        if adversarial_classifier is True:
+            if key_adversarial == REGISTRY_KEYS.BATCH_KEY:
+                n_classes_adversarial = self.module.n_batch
+            elif key_adversarial == "panel":
+                n_classes_adversarial = self.module.n_panel
+            else:
+                raise ValueError(f"Key {key_adversarial} not supported.")
+
+            if n_classes_adversarial == 1:
+                self.adversarial_classifier = False
+                warnings.warn(
+                    "Adversarial classifier cannot be used with single batch dataset. "
+                    "Disabling adversarial classifier.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            else:
+                self.n_output_classifier = n_classes_adversarial
+                self.adversarial_classifier = Classifier(
+                    n_input=self.module.n_latent,
+                    n_hidden=32,
+                    n_labels=self.n_output_classifier,
+                    n_layers=2,
+                    logits=True,
+                )
+        else:
+            self.adversarial_classifier = adversarial_classifier
+        self.scale_adversarial_loss = scale_adversarial_loss
+        self.automatic_optimization = False
+
+    def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
+        """Loss for adversarial classifier."""
+        n_classes = self.n_output_classifier
+        cls_logits = torch.nn.LogSoftmax(dim=1)(self.adversarial_classifier(z))
+
+        if predict_true_class:
+            cls_target = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
+        else:
+            one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
+            # place zeroes where true label is
+            cls_target = (~one_hot_batch.bool()).float()
+            cls_target = cls_target / (n_classes - 1)
+
+        l_soft = cls_logits * cls_target
+        loss = -l_soft.sum(dim=1).mean()
+
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        """Training step for semi-supervised training."""
+        # Potentially dangerous if batch is from a single dataloader with two keys
+        if len(batch) == 2:
+            full_dataset = batch[0]
+            labelled_dataset = batch[1]
+        else:
+            full_dataset = batch
+            labelled_dataset = None
+
+        if "kl_weight" in self.loss_kwargs:
+            self.loss_kwargs.update({"kl_weight": self.kl_weight})
+        kappa = (
+            1 - self.kl_weight
+            if self.scale_adversarial_loss == "auto"
+            else self.scale_adversarial_loss
+        )
+        batch_tensor = full_dataset[self.key_adversarial].long()
+        opts = self.optimizers()
+        if not isinstance(opts, list):
+            opt1 = opts
+            opt2 = None
+        else:
+            opt1, opt2 = opts
+
+        input_kwargs = {
+            "labelled_tensors": labelled_dataset,
+        }
+        input_kwargs.update(self.loss_kwargs)
+        inference_outputs, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
+        z = inference_outputs["z"]
+        loss = loss_output.loss
+        # fool classifier if doing adversarial training
+        if self.adversarial_classifier is not False:
+            fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
+            loss += fool_loss * kappa
+            self.log("adversarial_loss", fool_loss, on_epoch=True, prog_bar=True)
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
+        self.compute_and_log_metrics(loss_output, self.train_metrics, "train")
+        opt1.zero_grad()
+        self.manual_backward(loss)
+        # Optimized to not yield any None values.
+        torch.nn.utils.clip_grad_norm_(
+            filter(lambda p: p.requires_grad, self.module.parameters()), 50
+        )
+        opt1.step()
+
+        # train adversarial classifier
+        # this condition will not be met unless self.adversarial_classifier is not False
+        if opt2 is not None:
+            loss = self.loss_adversarial_classifier(z.detach(), batch_tensor, True)
+            loss *= kappa
+            opt2.zero_grad()
+            self.manual_backward(loss)
+            opt2.step()
+
+        # next part is for the usage of scib-metrics autotune with scvi
+        if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
+            self.prepare_scib_autotune(loss_output.extra_metrics, "training")
+
+    def on_train_epoch_end(self):
+        """Update the learning rate via scheduler steps."""
+        if "validation" in self.lr_scheduler_metric or not self.reduce_lr_on_plateau:
+            return
+        else:
+            sch = self.lr_schedulers()
+            sch.step(self.trainer.callback_metrics[self.lr_scheduler_metric])
+
+    def on_validation_epoch_end(self) -> None:
+        """Update the learning rate via scheduler steps."""
+        if not self.reduce_lr_on_plateau or "validation" not in self.lr_scheduler_metric:
+            return
+        else:
+            sch = self.lr_schedulers()
+            sch.step(self.trainer.callback_metrics[self.lr_scheduler_metric])
+
+    def configure_optimizers(self):
+        """Configure optimizers for adversarial training."""
+        params1 = filter(lambda p: p.requires_grad, self.module.parameters())
+        optimizer1 = self.get_optimizer_creator()(params1)
+        config1 = {"optimizer": optimizer1}
+        if self.reduce_lr_on_plateau:
+            scheduler1 = ReduceLROnPlateau(
+                optimizer1,
+                patience=self.lr_patience,
+                factor=self.lr_factor,
+                threshold=self.lr_threshold,
+                min_lr=self.lr_min,
+                threshold_mode="abs",
+                verbose=True,
+            )
+            config1.update(
+                {
+                    "lr_scheduler": {
+                        "scheduler": scheduler1,
+                        "monitor": self.lr_scheduler_metric,
+                    },
+                },
+            )
+
+        if self.adversarial_classifier is not False:
+            params2 = filter(lambda p: p.requires_grad, self.adversarial_classifier.parameters())
+            optimizer2 = torch.optim.Adam(
+                params2, lr=1e-3, eps=0.01, weight_decay=self.weight_decay
+            )
+            config2 = {"optimizer": optimizer2}
+
+            # pytorch lightning requires this way to return
+            opts = [config1.pop("optimizer"), config2["optimizer"]]
+            if "lr_scheduler" in config1:
+                scheds = [config1["lr_scheduler"]]
+                return opts, scheds
+            else:
+                return opts
+
+        return config1
 
 
 class LowLevelPyroTrainingPlan(pl.LightningModule):
@@ -1040,6 +1397,9 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     scale_elbo
         Scale ELBO using :class:`~pyro.poutine.scale`. Potentially useful for avoiding
         numerical inaccuracy when working with very large ELBO.
+    blocked
+        A list of Pyro parameters to block during training.
+        If `None`, defaults to train all parameters.
     """
 
     def __init__(
@@ -1051,6 +1411,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
+        blocked: list | None = None,
     ):
         super().__init__(
             pyro_module=pyro_module,
@@ -1065,10 +1426,13 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
+        self.block_fn = (
+            lambda obj: pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
+        )
 
         self.svi = pyro.infer.SVI(
-            model=self.scale_fn(self.module.model),
-            guide=self.scale_fn(self.module.guide),
+            model=self.block_fn(self.scale_fn(self.module.model)),
+            guide=self.block_fn(self.scale_fn(self.module.guide)),
             optim=self.optim,
             loss=self.loss_fn,
         )
@@ -1199,7 +1563,7 @@ class JaxTrainingPlan(TrainingPlan):
     Parameters
     ----------
     module
-        An instance of :class:`~scvi.module.base.JaxModuleWraper`.
+        An instance of :class:`~scvi.module.base.JaxBaseModuleClass`.
     optimizer
         One of "Adam", "AdamW", or "Custom", which requires a custom
         optimizer creator callable to be passed via `optimizer_creator`.

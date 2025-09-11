@@ -16,7 +16,6 @@ The limitations of MultiVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/quick_start/api_overview`
 -   {doc}`/tutorials/notebooks/multimodal/MultiVI_tutorial`
 ```
 
@@ -55,7 +54,7 @@ variance of the log library size over cells. The expression data are generated f
 distribution, which here, we denote as the $\mathrm{ObservationModel}$. While by default the
 $\mathrm{ObservationModel}$ is a $\mathrm{ZeroInflatedNegativeBinomial}$ (ZINB) distribution parameterized
 by its mean, inverse dispersion, and non-zero-inflation probability, respectively, users can pass
-`gene_likelihood = "negative_binomial"` to {class}`~scvi.model.MultiVI`, for example, to use a simpler
+`gene_likelihood = "negative_binomial"` to {class}`~scvi.model.MULTIVI`, for example, to use a simpler
 $\mathrm{NegativeBinomial}$ distribution.
 
 For ATAC-seq, detecting a region as accessible ($y_{nj} > 0$) is
@@ -92,7 +91,7 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing the state of a cell.
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.MULTVI.setup_anndata` or :class:`~scvi.model.MULTIVI.setup_mudata`, in which case this is only forced to be non-negative via softplus.
+     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.MULTIVI.setup_mudata`, in which case this is only forced to be non-negative via softplus.
      - ``px_scale``
    * - :math:`\ell_n \in (0, \infty)`
      - Library size for RNA.
@@ -104,7 +103,7 @@ The latent variables, along with their description are summarized in the followi
      - Accessibility probability estimate
      - N/A
    * - :math:`\ell_n \in \left[0,1\right]`
-     - Cell-wise scaling factor. Learned, but can be set manually with `size_factor_key` in :class:`~scvi.model.MULTIVI.setup_anndata` or :class:`~scvi.model.MULTIVI.setup_mudata`.
+     - Cell-wise scaling factor. Learned, but can be set manually with `size_factor_key` in :class:`~scvi.model.MULTIVI.setup_mudata`.
      - ``d``
    * - :math:`r_j \in \left[0,1\right]`
      - Region-wise scaling factor
@@ -183,7 +182,7 @@ When gene expression data is passed, MultiVI computes denoised gene expression d
 
 ### Denoising/imputation of accessibility
 
-In {func}`~scvi.model.MULTIVI.get_accessibility_estimates` MultiVI returns the expected value of $y_i$ under the
+In {func}`~scvi.model.MULTIVI.get_normalized_accessibility` MultiVI returns the expected value of $y_i$ under the
 approximate posterior. For one cell $i$, this can be written as:
 
 ```{math}
@@ -199,7 +198,7 @@ then, using this value to decode the accessibility probability estimate $p_r$. A
 the variational mean, a number of samples can be passed as an argument in the code:
 
 ```
->>> model.get_accessibility_estimates(n_samples_overall=10)
+>>> model.get_normalized_accessibility(n_samples_overall=10)
 ```
 
 This value is used to compute the mean of the latent variable over these samples. Notably, this function also has

@@ -70,17 +70,19 @@ class DifferentialComputation:
         self,
         idx1: list[bool] | np.ndarray,
         idx2: list[bool] | np.ndarray,
-        mode: Literal["vanilla", "change"] = "vanilla",
+        mode: Literal["vanilla", "change"] = "change",
         batchid1: Sequence[Number | str] | None = None,
         batchid2: Sequence[Number | str] | None = None,
         use_observed_batches: bool | None = False,
-        n_samples: int = 5000,
+        n_samples_overall: int = 5000,
         use_permutation: bool = False,
         m_permutation: int = 10000,
         change_fn: str | Callable | None = None,
         m1_domain_fn: Callable | None = None,
         delta: float | None = 0.5,
-        pseudocounts: float | None = 0.0,
+        pseudocounts: float | None = None,
+        threshold_counts: float = 0.01,
+        test_mode: Literal["two", "three"] = "three",
         cred_interval_lvls: list[float] | np.ndarray | None = None,
     ) -> dict[str, np.ndarray]:
         r"""A unified method for differential expression inference.
@@ -133,7 +135,7 @@ class DifferentialComputation:
         Both modes require to sample the posterior distributions.
         To that purpose, we sample the posterior in the following way:
 
-        1. The posterior is sampled `n_samples` times for each subpopulation.
+        1. The posterior is sampled `n_samples_overall` times for each subpopulation.
         2. For computational efficiency (posterior sampling is quite expensive), instead of
            comparing the obtained samples element-wise, we can permute posterior samples.
            Remember that computing the Bayes Factor requires sampling :math:`q(z_A \mid x_A)` and
@@ -171,8 +173,8 @@ class DifferentialComputation:
         use_observed_batches
             Whether posterior values are conditioned on observed
             batches
-        n_samples
-            Number of posterior samples
+        n_samples_overall
+            Number of overall posterior samples
         use_permutation
             Activates step 2 described above.
             Simply formulated, pairs obtained from posterior sampling
@@ -194,6 +196,10 @@ class DifferentialComputation:
         pseudocounts
             pseudocount offset used for the mode `change`.
             When None, observations from non-expressed genes are used to estimate its value.
+        threshold_counts
+            mean expression threshold in a group to consider a gene as non-expressed
+        test_mode
+            consider down- and up-regulated genes seperately (three) or all genes together (two)
         cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
@@ -203,10 +209,6 @@ class DifferentialComputation:
         Differential expression properties
 
         """
-        # if not np.array_equal(self.indices, np.arange(len(self.dataset))):
-        #     warnings.warn(
-        #         "Differential expression requires a Posterior object created with all indices."
-        #     )
         eps = 1e-8
         # Normalized means sampling for both populations
         if self.representation_fn is not None:
@@ -217,13 +219,13 @@ class DifferentialComputation:
             selection=idx1,
             batchid=batchid1,
             use_observed_batches=use_observed_batches,
-            n_samples=n_samples,
+            n_samples_overall=n_samples_overall,
         )
         scales_batches_2 = self.scale_sampler(
             selection=idx2,
             batchid=batchid2,
             use_observed_batches=use_observed_batches,
-            n_samples=n_samples,
+            n_samples_overall=n_samples_overall,
         )
 
         px_scale_mean1 = scales_batches_1["scale"].mean(axis=0)
@@ -279,19 +281,6 @@ class DifferentialComputation:
                 m_permutation=m_permutation,
             )
 
-        # Adding pseudocounts to the scales
-        if pseudocounts is None:
-            logger.debug("Estimating pseudocounts offet from the data")
-            x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
-            where_zero_a = densify(np.max(x[idx1], 0)) == 0
-            where_zero_b = densify(np.max(x[idx2], 0)) == 0
-            pseudocounts = estimate_pseudocounts_offset(
-                scales_a=scales_1,
-                scales_b=scales_2,
-                where_zero_a=where_zero_a,
-                where_zero_b=where_zero_b,
-            )
-        logger.debug(f"Using pseudocounts ~ {pseudocounts}")
         # Core of function: hypotheses testing based on the posterior samples we obtained above
         if mode == "vanilla":
             logger.debug("Differential expression using vanilla mode")
@@ -306,10 +295,23 @@ class DifferentialComputation:
             }
 
         elif mode == "change":
-            logger.debug("Differential expression using change mode")
+            # Adding pseudocounts to the scales
+            if pseudocounts is None:
+                logger.debug("Estimating pseudocounts offet from the data")
+                x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+                where_zero_a = np.asarray(np.mean(x[idx1], 0)).flatten() < threshold_counts
+                where_zero_b = np.asarray(np.mean(x[idx2], 0)).flatten() < threshold_counts
+                pseudocounts = estimate_pseudocounts_offset(
+                    scales_a=scales_1,
+                    scales_b=scales_2,
+                    where_zero_a=where_zero_a,
+                    where_zero_b=where_zero_b,
+                    quantile=0.9,
+                )
+            logger.debug(f"Using pseudocounts ~ {pseudocounts}")
 
             # step 1: Construct the change function
-            def lfc(x, y):
+            def lfc(x, y, pseudocounts=pseudocounts):
                 return np.log2(x + pseudocounts) - np.log2(y + pseudocounts)
 
             if change_fn == "log-fold" or change_fn is None:
@@ -317,56 +319,69 @@ class DifferentialComputation:
             elif not callable(change_fn):
                 raise ValueError("'change_fn' attribute not understood")
 
-            # step2: Construct the DE area function
-            if m1_domain_fn is None:
+            if mode == "change":
+                logger.debug("Differential expression using change mode")
 
-                def m1_domain_fn(samples):
-                    delta_ = (
-                        delta if delta is not None else estimate_delta(lfc_means=samples.mean(0))
+                # step2: Construct the DE area function
+                if m1_domain_fn is None:
+
+                    def m1_domain_fn(samples):
+                        delta_ = (
+                            delta
+                            if delta is not None
+                            else estimate_delta(lfc_means=samples.mean(0))
+                        )
+                        logger.debug(f"Using delta ~ {delta_:.2f}")
+                        samples_plus = samples >= delta_
+                        samples_minus = samples < -delta_
+                        return samples_plus, samples_minus
+
+                change_fn_specs = inspect.getfullargspec(change_fn)
+                domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
+                if (len(change_fn_specs.args) != 3) | (len(domain_fn_specs.args) != 1):
+                    raise ValueError(
+                        "change_fn should take exactly three parameters as inputs; "
+                        "m1_domain_fn one parameter."
                     )
-                    logger.debug(f"Using delta ~ {delta_:.2f}")
-                    return np.abs(samples) >= delta_
+                try:
+                    change_distribution = change_fn(scales_1, scales_2, pseudocounts)
+                    is_de_plus, is_de_minus = m1_domain_fn(change_distribution)
+                    delta_ = (
+                        estimate_delta(lfc_means=change_distribution.mean(0))
+                        if delta is None
+                        else delta
+                    )
+                except TypeError as err:
+                    raise TypeError(
+                        "change_fn or m1_domain_fn have has wrong properties."
+                        "Please ensure that these functions have the right signatures and"
+                        "outputs and that they can process numpy arrays"
+                    ) from err
+                proba_m1 = np.mean(is_de_plus, 0)
+                proba_m2 = np.mean(is_de_minus, 0)
+                if test_mode == "two":
+                    proba_de = proba_m1 + proba_m2
+                else:
+                    proba_de = np.maximum(proba_m1, proba_m2)
+                change_distribution_props = describe_continuous_distrib(
+                    samples=change_fn(scales_1, scales_2, 1e-3 * pseudocounts),
+                    credible_intervals_levels=cred_interval_lvls,
+                )  # reduced pseudocounts to correctly estimate log-fold change.
+                change_distribution_props = {
+                    "lfc_" + key: val for (key, val) in change_distribution_props.items()
+                }
 
-            change_fn_specs = inspect.getfullargspec(change_fn)
-            domain_fn_specs = inspect.getfullargspec(m1_domain_fn)
-            if (len(change_fn_specs.args) != 2) | (len(domain_fn_specs.args) != 1):
-                raise ValueError(
-                    "change_fn should take exactly two parameters as inputs; m1_domain_fn one "
-                    "parameter."
+                res = dict(
+                    proba_de=proba_de,
+                    proba_not_de=1.0 - proba_de,
+                    bayes_factor=np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
+                    scale1=px_scale_mean1,
+                    scale2=px_scale_mean2,
+                    pseudocounts=pseudocounts,
+                    delta=delta_,
+                    **change_distribution_props,
                 )
-            try:
-                change_distribution = change_fn(scales_1, scales_2)
-                is_de = m1_domain_fn(change_distribution)
-                delta_ = (
-                    estimate_delta(lfc_means=change_distribution.mean(0))
-                    if delta is None
-                    else delta
-                )
-            except TypeError as err:
-                raise TypeError(
-                    "change_fn or m1_domain_fn have has wrong properties."
-                    "Please ensure that these functions have the right signatures and"
-                    "outputs and that they can process numpy arrays"
-                ) from err
-            proba_m1 = np.mean(is_de, 0)
-            change_distribution_props = describe_continuous_distrib(
-                samples=change_distribution,
-                credible_intervals_levels=cred_interval_lvls,
-            )
-            change_distribution_props = {
-                "lfc_" + key: val for (key, val) in change_distribution_props.items()
-            }
 
-            res = dict(
-                proba_de=proba_m1,
-                proba_not_de=1.0 - proba_m1,
-                bayes_factor=np.log(proba_m1 + eps) - np.log(1.0 - proba_m1 + eps),
-                scale1=px_scale_mean1,
-                scale2=px_scale_mean2,
-                pseudocounts=pseudocounts,
-                delta=delta_,
-                **change_distribution_props,
-            )
         else:
             raise NotImplementedError(f"Mode {mode} not recognized")
 
@@ -376,7 +391,7 @@ class DifferentialComputation:
     def scale_sampler(
         self,
         selection: list[bool] | np.ndarray,
-        n_samples: int | None = 5000,
+        n_samples_overall: int | None = 5000,
         n_samples_per_cell: int | None = None,
         batchid: Sequence[Number | str] | None = None,
         use_observed_batches: bool | None = False,
@@ -388,7 +403,7 @@ class DifferentialComputation:
         ----------
         selection
             Mask or list of cell ids to select
-        n_samples
+        n_samples_overall
             Number of samples in total per batch (fill either `n_samples_total`
             or `n_samples_per_cell`)
         n_samples_per_cell
@@ -426,13 +441,15 @@ class DifferentialComputation:
             if batchid is not None:
                 raise ValueError("Unconsistent batch policy")
             batchid = [None]
-        if n_samples is None and n_samples_per_cell is None:
+        if n_samples_overall is None and n_samples_per_cell is None:
             n_samples = 5000
-        elif n_samples_per_cell is not None and n_samples is None:
+        elif n_samples_per_cell is not None and n_samples_overall is None:
             n_samples = n_samples_per_cell * len(selection)
-        if (n_samples_per_cell is not None) and (n_samples is not None):
+        else:
+            n_samples = n_samples_overall
+        if (n_samples_per_cell is not None) and (n_samples_overall is not None):
             warnings.warn(
-                "`n_samples` and `n_samples_per_cell` were provided. Ignoring "
+                "`n_samples_overall` and `n_samples_per_cell` were provided. Ignoring "
                 "`n_samples_per_cell`",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
@@ -481,7 +498,7 @@ class DifferentialComputation:
         return selection
 
 
-def estimate_delta(lfc_means: list[np.ndarray], coef=0.6, min_thres=0.3):
+def estimate_delta(lfc_means: list[np.ndarray], coef=0.6, min_thres=0.1):
     """Computes a threshold LFC value based on means of LFCs.
 
     Parameters
@@ -509,7 +526,7 @@ def estimate_pseudocounts_offset(
     scales_b: list[np.ndarray],
     where_zero_a: list[np.ndarray],
     where_zero_b: list[np.ndarray],
-    percentile: float | None = 0.9,
+    quantile: float | None = 0.9,
 ):
     """Determines pseudocount offset.
 
@@ -525,6 +542,8 @@ def estimate_pseudocounts_offset(
         mask where no observed counts
     where_zero_b
         mask where no observed counts
+    quantile
+        Quantile to use to estimate pseudocounts offset
     """
     max_scales_a = np.max(scales_a, 0)
     max_scales_b = np.max(scales_b, 0)
@@ -537,17 +556,17 @@ def estimate_pseudocounts_offset(
         )
     if where_zero_a.sum() >= 1:
         artefact_scales_a = max_scales_a[where_zero_a]
-        eps_a = np.percentile(artefact_scales_a, q=percentile)
+        eps_a = np.quantile(artefact_scales_a, q=quantile)
     else:
         eps_a = 1e-10
 
     if where_zero_b.sum() >= 1:
         artefact_scales_b = max_scales_b[where_zero_b]
-        eps_b = np.percentile(artefact_scales_b, q=percentile)
+        eps_b = np.quantile(artefact_scales_b, q=quantile)
     else:
         eps_b = 1e-10
     res = np.maximum(eps_a, eps_b)
-    return res
+    return np.maximum(1e-10, res / len(max_scales_a))
 
 
 def pairs_sampler(
@@ -576,7 +595,7 @@ def pairs_sampler(
         param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
         In most cases, this parameter should remain False
     sanity_check_perm
-        TODO
+        do permutation
     weights1
         probabilities associated to array 1 for random sampling
     weights2

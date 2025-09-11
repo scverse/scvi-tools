@@ -1,8 +1,12 @@
 import os
 
 import pytest
+import torch
+from lightning.pytorch.callbacks import ModelCheckpoint
 
 import scvi
+from scvi.data import synthetic_iid
+from scvi.model import SCANVI, SCVI
 
 
 @pytest.mark.parametrize("load_best_on_end", [True, False])
@@ -83,3 +87,110 @@ def test_savecheckpoint(save_path: str, load_best_on_end: bool):
     test_model_cls(scvi.model.SCANVI, adata)
 
     scvi.settings.logging_dir = old_logging_dir
+
+
+def test_exception_callback():
+    import torch
+
+    import scvi
+    from scvi.model import SCVI
+    from scvi.train._callbacks import SaveCheckpoint
+
+    torch.set_float32_matmul_precision("high")
+    scvi.settings.seed = 0
+
+    # we still need to find a proper way to simulate an adata that fail quickly during training
+    adata = synthetic_iid()
+
+    SCVI.setup_anndata(adata, batch_key="batch")
+
+    model = SCVI(adata)
+    model.train(max_epochs=5)
+
+    ckpt_cb = SaveCheckpoint(
+        dirpath="checkpoints/",
+        monitor="elbo_validation",
+        mode="min",
+        save_top_k=1,
+        save_last=True,
+        load_best_on_end=True,
+        check_nan_gradients=True,
+    )
+
+    model.train(
+        max_epochs=5,
+        check_val_every_n_epoch=1,
+        callbacks=[ckpt_cb],
+        enable_checkpointing=True,
+    )
+
+
+@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
+def test_scib_callback(model_cls, metric: str):
+    from scvi.train._callbacks import ScibCallback
+
+    # we use this temporarily to debug the scib-metrics callback
+    adata = synthetic_iid()
+    if model_cls == SCANVI:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            unlabeled_category="unknown",
+            batch_key="batch",
+        )
+    else:
+        model_cls.setup_anndata(
+            adata,
+            labels_key="labels",
+            batch_key="batch",
+        )
+    model = model_cls(adata)
+    model.train(
+        1,
+        train_size=0.5,
+        callbacks=[ScibCallback()],
+    )
+
+
+def test_lightning_checkpoint():
+    adata = scvi.data.synthetic_iid()
+    scvi.model.SCVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        batch_key="batch",
+    )
+    model = scvi.model.SCVI(adata)
+
+    ckpt_cb = ModelCheckpoint(
+        dirpath="checkpoints/",
+        monitor="elbo_validation",
+        mode="min",
+        save_top_k=1,  # keep the best model
+        save_last=True,  # also keep a "last.ckpt"
+    )
+    model.train(
+        max_epochs=1, check_val_every_n_epoch=1, callbacks=[ckpt_cb], enable_checkpointing=True
+    )
+
+    print("Best ckpt:", ckpt_cb.best_model_path)
+
+    ckpt = torch.load(ckpt_cb.best_model_path)
+
+    assert "optimizer_states" in ckpt
+    assert "lr_schedulers" in ckpt
+    assert "state_dict" in ckpt
+
+    model.train(
+        max_epochs=1,
+        check_val_every_n_epoch=1,
+        callbacks=[ckpt_cb],
+        enable_checkpointing=True,
+        ckpt_path=ckpt_cb.best_model_path,
+    )
+
+    ckpt = torch.load(ckpt_cb.best_model_path)
+
+    assert "optimizer_states" in ckpt
+    assert "lr_schedulers" in ckpt
+    assert "state_dict" in ckpt

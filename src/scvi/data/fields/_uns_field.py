@@ -1,6 +1,6 @@
 import logging
 
-import rich
+import rich.table
 from anndata import AnnData
 
 from scvi.data import _constants

@@ -1,15 +1,22 @@
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
+from .cytovi import CYTOVI
 from .decipher import Decipher
 from .gimvi import GIMVI
-from .methylvi import METHYLVI
+from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
+from .mrvi_jax import JaxMRVI
+from .mrvi_torch import TorchMRVI
 from .poissonvi import POISSONVI
+from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
+from .scviva import SCVIVA
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
+from .sysvi import SysVI
 from .tangram import Tangram
+from .totalanvi import TOTALANVI
 from .velovi import VELOVI
 
 __all__ = [
@@ -21,10 +28,18 @@ __all__ = [
     "SpatialStereoscope",
     "CellAssign",
     "Tangram",
+    "TOTALANVI",
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",
+    "SysVI",
     "VELOVI",
     "MRVI",
+    "TorchMRVI",
+    "JaxMRVI",
     "METHYLVI",
+    "METHYLANVI",
+    "RESOLVI",
+    "SCVIVA",
+    "CYTOVI",
 ]

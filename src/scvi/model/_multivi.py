@@ -15,18 +15,11 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
     scrna_raw_counts_properties,
+    use_distributed_sampler,
 )
 from scvi.model.base import (
     ArchesMixin,
@@ -38,7 +31,7 @@ from scvi.model.base import (
 from scvi.model.base._de_core import _de_core
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
-from scvi.train._callbacks import SaveBestState
+from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
@@ -67,8 +60,7 @@ class MULTIVI(
     Parameters
     ----------
     adata
-        AnnData/MuData object that has been registered via
-        :meth:`~scvi.model.MULTIVI.setup_anndata` or :meth:`~scvi.model.MULTIVI.setup_mudata`.
+        MuData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_mudata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -135,15 +127,8 @@ class MULTIVI(
 
     Notes (for using setup_anndata)
     -----
-    * The model assumes that the features are organized so that all expression features are
-       consecutive, followed by all accessibility features. For example, if the data has 100 genes
-       and 250 genomic regions, the model assumes that the first 100 features are genes, and the
-       next 250 are the regions.
-
-    * The main batch annotation, specified in ``setup_anndata``, should correspond to
-       the modality each cell originated from. This allows the model to focus mixing efforts, using
-       an adversarial component, on mixing the modalities. Other covariates can be specified using
-       the `categorical_covariate_keys` argument.
+    As of SCVI-Tools v1.4 there is no longer support for setup_anndata for multivi.
+    Please use setup_mudata instead.
     """
 
     _module_cls = MULTIVAE
@@ -176,11 +161,15 @@ class MULTIVI(
         **model_kwargs,
     ):
         super().__init__(adata)
+        if "n_proteins" in self.summary_stats:
+            self.protein_state_registry = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.PROTEIN_EXP_KEY
+            )
 
         if n_genes is None or n_regions is None:
-            assert isinstance(
-                adata, MuData
-            ), "n_genes and n_regions must be provided if using AnnData"
+            assert isinstance(adata, MuData), (
+                "n_genes and n_regions must be provided if using AnnData"
+            )
             n_genes = self.summary_stats.get("n_vars", 0)
             n_regions = self.summary_stats.get("n_atac", 0)
 
@@ -243,6 +232,7 @@ class MULTIVI(
         self.n_genes = n_genes
         self.n_regions = n_regions
         self.n_proteins = n_proteins
+        self.get_normalized_function_name = "get_normalized_accessibility"
 
     @devices_dsp.dedent
     def train(
@@ -258,7 +248,6 @@ class MULTIVI(
         weight_decay: float = 1e-3,
         eps: float = 1e-08,
         early_stopping: bool = True,
-        save_best: bool = True,
         check_val_every_n_epoch: int | None = None,
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 50,
@@ -294,9 +283,6 @@ class MULTIVI(
             Optimizer eps
         early_stopping
             Whether to perform early stopping with respect to the validation set.
-        save_best
-            ``DEPRECATED`` Save the best model state with respect to the validation loss, or use
-            the final state in the training procedure.
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping`
             is `True`. If so, val is checked every epoch.
@@ -317,11 +303,6 @@ class MULTIVI(
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
-
-        Notes
-        -----
-        ``save_best`` is deprecated in v1.2 and will be removed in v1.3. Please use
-        ``enable_checkpointing`` instead.
         """
         update_dict = {
             "lr": lr,
@@ -340,23 +321,12 @@ class MULTIVI(
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 
-        if save_best:
-            warnings.warn(
-                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpointing` instead. See "
-                "https://github.com/scverse/scvi-tools/issues/2568 for more details.",
-                DeprecationWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
-
         data_splitter = self._data_splitter_cls(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
+            distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             batch_size=batch_size,
             **datasplitter_kwargs,
         )
@@ -510,7 +480,7 @@ class MULTIVI(
             return torch.cat(latent).numpy()
 
     @torch.inference_mode()
-    def get_accessibility_estimates(
+    def get_normalized_accessibility(
         self,
         adata: AnnOrMuData | None = None,
         indices: Sequence[int] = None,
@@ -649,6 +619,7 @@ class MULTIVI(
         batch_size: int | None = None,
         return_mean: bool = False,
         return_numpy: bool = False,
+        silent: bool = True,
     ) -> np.ndarray | pd.DataFrame:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -683,6 +654,7 @@ class MULTIVI(
             Whether to return the mean of the samples.
         return_numpy
             Return a numpy array instead of a pandas DataFrame.
+        %(de_silent)s
 
         Returns
         -------
@@ -710,7 +682,7 @@ class MULTIVI(
         exprs = []
         for tensors in scdl:
             per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 if batch is not None:
                     batch_indices = tensors[REGISTRY_KEYS.BATCH_KEY]
                     tensors[REGISTRY_KEYS.BATCH_KEY] = torch.ones_like(batch_indices) * batch
@@ -764,7 +736,6 @@ class MULTIVI(
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
-        two_sided: bool = True,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential accessibility analysis.
@@ -788,8 +759,6 @@ class MULTIVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
-        two_sided
-            Whether to perform a two-sided test, or a one-sided test.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -823,22 +792,8 @@ class MULTIVI(
         adata = self._validate_anndata(adata)
         col_names = adata.var_names[: self.n_genes]
         model_fn = partial(
-            self.get_accessibility_estimates, use_z_mean=False, batch_size=batch_size
+            self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
-
-        # TODO check if change_fn in kwargs and raise error if so
-        def change_fn(a, b):
-            return a - b
-
-        if two_sided:
-
-            def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
-
-        else:
-
-            def m1_domain_fn(samples):
-                return samples >= delta
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
@@ -863,17 +818,18 @@ class MULTIVI(
             delta=delta,
             batch_correction=batch_correction,
             fdr=fdr_target,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
             silent=silent,
+            pseudocounts=1e-6,
             **kwargs,
         )
 
         # manually change the results DataFrame to fit a PeakVI differential accessibility results
         result = pd.DataFrame(
             {
-                "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
+                "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"]
+                if mode == "change"
+                else None,
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
@@ -965,6 +921,7 @@ class MULTIVI(
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
+            pseudocounts=1e-6,
             **kwargs,
         )
 
@@ -982,6 +939,7 @@ class MULTIVI(
         use_z_mean: bool = True,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ):
         r"""Returns the foreground probability for proteins.
 
@@ -1015,6 +973,7 @@ class MULTIVI(
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either ``n_samples=1`` or ``return_mean=True``,
             defaults to ``False``. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -1055,9 +1014,9 @@ class MULTIVI(
             py_mixing = torch.zeros_like(y[..., protein_mask])
             if n_samples > 1:
                 py_mixing = torch.stack(n_samples * [py_mixing])
-            for _ in transform_batch:
+            for b in track(transform_batch, disable=silent):
                 # generative_kwargs = dict(transform_batch=b)
-                generative_kwargs = {"use_z_mean": use_z_mean}
+                generative_kwargs = {"use_z_mean": use_z_mean, "transform_batch": b}
                 inference_kwargs = {"n_samples": n_samples}
                 _, generative_outputs = self.module.forward(
                     tensors=tensors,
@@ -1127,38 +1086,10 @@ class MULTIVI(
         """
         warnings.warn(
             "MULTIVI is supposed to work with MuData. the use of anndata is "
-            "deprecated and will be removed in scvi-tools 1.4. Please use setup_mudata",
+            "deprecated starting in scvi-tools 1.4. Please use setup_mudata",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
-        setup_method_args = cls._get_setup_method_args(**locals())
-        adata.obs["_indices"] = np.arange(adata.n_obs)
-        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
-        anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            batch_field,
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
-        ]
-        if protein_expression_obsm_key is not None:
-            anndata_fields.append(
-                ProteinObsmField(
-                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
-                    protein_expression_obsm_key,
-                    use_batch_mask=True,
-                    batch_field=batch_field,
-                    colnames_uns_key=protein_names_uns_key,
-                    is_count_data=True,
-                )
-            )
-
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
 
     def _check_adata_modality_weights(self, adata):
         """Checks if adata is None and weights are per cell.

@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        python: ["3.12"]
+        python: ["3.13"]
 
     permissions:
       id-token: write
@@ -52,7 +52,7 @@ jobs:
         with:
           audience: sts.amazonaws.com
           role-to-assume: arn:aws:iam::${{ secrets.AWS_IAM }}:role/scvi-tools_private_test
-          aws-region: us-west-1
+          aws-region: eu-west-1
           role-duration-seconds: 3600 # generous upper limit for the duration of the test
 
       - uses: actions/setup-python@v5

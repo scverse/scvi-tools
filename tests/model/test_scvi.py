@@ -21,7 +21,7 @@ from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
 LEGACY_SETUP_DICT = {
-    "scvi_version": "0.0.0",
+    "scvi_version": scvi.__version__,
     "categorical_mappings": {
         "_scvi_batch": {
             "original_key": "testbatch",
@@ -166,7 +166,8 @@ def test_saving_and_loading(save_path):
 
 
 @pytest.mark.parametrize("gene_likelihood", ["zinb", "nb", "poisson", "normal"])
-def test_scvi(gene_likelihood: str, n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi(gene_likelihood: str, n_latent: int):
     adata = synthetic_iid()
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     SCVI.setup_anndata(
@@ -250,7 +251,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"]
     )
     assert denoised.shape == (3, adata2.n_vars)
-    sample = model.posterior_predictive_sample(adata2)
+    sample = model.posterior_predictive_sample(adata2, transform_batch=["batch_1", "batch_0"])
     assert sample.shape == adata2.shape
     sample = model.posterior_predictive_sample(
         adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
@@ -260,6 +261,15 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], n_samples=3
     )
     assert sample.shape == (3, 2, 3)
+    # additional down stream tests for posterior_predictive_sample with transform_batch
+    model.posterior_predictive_sample(
+        adata2,
+        indices=[1, 2, 3],
+        gene_list=["gene_1", "gene_2"],
+        n_samples=3,
+        transform_batch=["batch_1"],
+    )
+    model.posterior_predictive_sample(adata2, transform_batch=["batch_1", "batch_0"])
 
     model.get_feature_correlation_matrix(correlation_type="pearson")
     model.get_feature_correlation_matrix(
@@ -373,6 +383,14 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         model.posterior_predictive_sample()
         model.get_latent_representation()
         model.get_normalized_expression()
+        # additional down stream tests for posterior_predictive_sample with transform_batch
+        model.posterior_predictive_sample(
+            indices=[1, 2, 3],
+            gene_list=["gene_1", "gene_2"],
+            n_samples=3,
+            transform_batch=["batch_1"],
+        )
+        model.posterior_predictive_sample(transform_batch=["batch_1", "batch_0"])
 
     # test train callbacks work
     a = synthetic_iid()
@@ -393,7 +411,8 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     assert "lr-Adam" in m.history.keys()
 
 
-def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_get_latent_rep_backwards_compat(n_latent: int):
     from scvi.module._constants import MODULE_KEYS
 
     adata = synthetic_iid()
@@ -419,7 +438,8 @@ def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
     model.get_latent_representation()
 
 
-def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_get_feature_corr_backwards_compat(n_latent: int):
     from scvi.module._constants import MODULE_KEYS
 
     adata = synthetic_iid()
@@ -450,7 +470,8 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
     model.get_feature_correlation_matrix()
 
 
-def test_scvi_sparse(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_sparse(n_latent: int):
     adata = synthetic_iid()
     adata.X = csr_matrix(adata.X)
     SCVI.setup_anndata(adata)
@@ -466,7 +487,17 @@ def test_scvi_sparse(n_latent: int = 5):
     model.differential_expression(groupby="labels", group1="label_1")
 
 
-def test_scvi_n_obs_error(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_error_on_es(n_latent: int):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+    model = SCVI(adata, n_latent=n_latent)
+    with pytest.raises(ValueError):
+        model.train(1, train_size=1.0, early_stopping=True)
+
+
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_n_obs_error(n_latent: int):
     adata = synthetic_iid()
     adata = adata[0:129].copy()
     SCVI.setup_anndata(adata)
@@ -488,7 +519,8 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     assert model.is_trained is True
 
 
-def test_setting_adata_attr(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_setting_adata_attr(n_latent: int):
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch")
     model = SCVI(adata, n_latent=n_latent)
@@ -682,6 +714,35 @@ def test_early_stopping():
     assert len(model.history["elbo_train"]) < n_epochs
 
 
+@pytest.mark.parametrize("early_stopping_patience", [5, 50])
+@pytest.mark.parametrize("early_stopping_warmup_epochs", [0, 25])
+@pytest.mark.parametrize("early_stopping_min_delta", [0.0, 2])
+def test_early_stopping_with_parameters(
+    early_stopping_patience, early_stopping_warmup_epochs, early_stopping_min_delta
+):
+    early_stopping_kwargs = {
+        "early_stopping": True,
+        "early_stopping_monitor": "elbo_validation",
+        "early_stopping_patience": early_stopping_patience,
+        "early_stopping_warmup_epochs": early_stopping_warmup_epochs,
+        "early_stopping_mode": "min",
+        "early_stopping_min_delta": early_stopping_min_delta,
+        "check_val_every_n_epoch": 1,
+    }
+
+    n_epochs = 100
+
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(n_epochs, plan_kwargs={"lr": 0}, **early_stopping_kwargs)
+    assert len(model.history["elbo_train"]) < n_epochs
+
+
 def test_de_features():
     adata = synthetic_iid(batch_size=50, n_genes=20, n_proteins=20, n_regions=20)
     SCVI.setup_anndata(
@@ -856,7 +917,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata10, dir_path)
     model10 = SCVI(adata10, n_latent=n_latent)
     model10.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model10)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model10)
     registry = attr_dict.pop("registry_")
     # we validate only relevant covariates were passed - cat2 and cont2 are not used
     assert (
@@ -888,7 +949,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata11, dir_path)
     model11 = SCVI(adata11, n_latent=n_latent)
     model11.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model11)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model11)
     registry = attr_dict.pop("registry_")
     assert (
         registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
@@ -911,7 +972,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     SCVI.load_query_data(adata12, dir_path)
     model12 = SCVI(adata12, n_latent=n_latent)
     model12.train(1, check_val_every_n_epoch=1)
-    attr_dict, var_names, load_state_dict = scvi.model.base._archesmixin._get_loaded_data(model12)
+    attr_dict, _, _, _ = scvi.model.base._archesmixin._get_loaded_data(model12)
     registry = attr_dict.pop("registry_")
     assert (
         registry["field_registries"]["extra_categorical_covs"]["state_registry"]["n_cats_per_key"][
@@ -1096,7 +1157,9 @@ def test_scvi_library_size_update(save_path):
     assert model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
 
 
-def test_set_seed(n_latent: int = 5, seed: int = 1):
+@pytest.mark.parametrize("n_latent", [5])
+@pytest.mark.parametrize("seed", [1])
+def test_set_seed(n_latent: int, seed: int):
     scvi.settings.seed = seed
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
@@ -1111,7 +1174,9 @@ def test_set_seed(n_latent: int = 5, seed: int = 1):
     )
 
 
-def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
+@pytest.mark.parametrize("n_batches", [3])
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_no_anndata(n_batches: int, n_latent: int):
     from scvi.dataloaders import DataSplitter
 
     adata = synthetic_iid(n_batches=n_batches)
@@ -1122,7 +1187,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
+    model = SCVI(adata=None, n_latent=n_latent)
     assert model._module_init_on_train
     assert model.module is None
 
@@ -1131,7 +1196,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
         model.train(datamodule=datamodule)
 
     # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         model.train()
 
     model.train(max_epochs=1, datamodule=datamodule)
@@ -1140,17 +1205,15 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     datamodule.n_obs = 100_000_000  # large number for fewer default epochs
     model.train(datamodule=datamodule)
 
-    model = SCVI(adata, n_latent=5)
+    model = SCVI(adata, n_latent=n_latent)
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
 
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
 
-
-def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
+@pytest.mark.parametrize("n_batches", [3])
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_no_anndata_with_external_indices(n_batches: int, n_latent: int):
     from scvi.dataloaders import DataSplitter
 
     adata = synthetic_iid(n_batches=n_batches)
@@ -1170,7 +1233,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=5)
+    model = SCVI(adata=None, n_latent=n_latent)  # model with no adata
     assert model._module_init_on_train
     assert model.module is None
 
@@ -1179,7 +1242,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
         model.train(datamodule=datamodule)
 
     # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         model.train()
 
     model.train(max_epochs=1, datamodule=datamodule)
@@ -1188,25 +1251,22 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_obs = 100_000_000  # large number for fewer default epochs
     model.train(datamodule=datamodule)
 
-    model = SCVI(adata, n_latent=5)
+    model = SCVI(adata, n_latent=n_latent)
     assert not model._module_init_on_train
     assert model.module is not None
     assert hasattr(model, "adata")
-
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
 @pytest.mark.parametrize("encode_covariates", [True, False])
 @pytest.mark.parametrize("use_observed_lib_size", [True, False])
+@pytest.mark.parametrize("n_batches", [3])
 def test_scvi_batch_embeddings(
     embedding_dim: int,
     encode_covariates: bool,
     use_observed_lib_size: bool,
     save_path: str,
-    n_batches: int = 3,
+    n_batches: int,
 ):
     from scvi import REGISTRY_KEYS
 
@@ -1247,7 +1307,9 @@ def test_scvi_batch_embeddings(
         _ = model.get_batch_representation()
 
 
-def test_scvi_inference_custom_dataloader(n_latent: int = 5):
+@pytest.mark.dataloader
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_inference_custom_dataloader(n_latent: int):
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch")
 

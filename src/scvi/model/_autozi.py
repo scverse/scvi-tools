@@ -16,7 +16,7 @@ from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.module import AutoZIVAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass, VAEMixin
+from .base import BaseModelClass, RNASeqMixin, VAEMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # register buffer
 
 
-class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
     """Automatic identification of zero-inflated genes :cite:p:`Clivio19`.
 
     Parameters

@@ -32,3 +32,20 @@ def validate_url(url: str, error_format: bool = False, error_response: bool = Fa
         raise ValueError(f"Invalid URL: {url}")
 
     return valid
+
+
+def validate_colab_notebook(colab_url: str) -> bool:
+    raw_url = colab_url.replace(
+        "https://colab.research.google.com/github/", "https://raw.githubusercontent.com/"
+    ).replace("/blob/", "/")
+
+    r = requests.get(raw_url)
+    if r.status_code == 200:
+        print(f"✅ Notebook exists: {raw_url}")
+        return True
+    elif r.status_code == 404:
+        print(f"❌ Notebook not found: {raw_url}")
+        return False
+    else:
+        print(f"⚠️ Unexpected response {r.status_code}: {raw_url}")
+        return False
