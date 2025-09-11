@@ -1518,7 +1518,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         pass
 
 
-class ClassifierTrainingPlan(TrainingPlan):
+class ClassifierTrainingPlan(pl.LightningModule):
     """Lightning module task to train a simple MLP classifier.
 
     Parameters
@@ -1574,19 +1574,14 @@ class ClassifierTrainingPlan(TrainingPlan):
         """Training step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("train_loss", loss, on_step=self.on_step, on_epoch=self.on_epoch, prog_bar=True)
-        if self.on_step:
-            self.trainer.logger.log_metrics(
-                {"train_loss_step": loss},
-                step=self.global_step,
-            )
+        self.log("train_loss", loss, on_epoch=True, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
         """Validation step for classifier training."""
         soft_prediction = self.forward(batch[self.data_key])
         loss = self.loss_fn(soft_prediction, batch[self.labels_key].view(-1).long())
-        self.log("validation_loss", loss, on_step=self.on_step, on_epoch=self.on_epoch)
+        self.log("validation_loss", loss)
 
         return loss
 
