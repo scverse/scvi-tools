@@ -6,6 +6,7 @@ from scvi.external.diagvi._utils import (
     compute_graph_loss,
     kl_divergence_graph,
 )
+from scvi.module import Classifier
 from scvi.train import TrainingPlan
 from scvi.utils import dependencies
 
@@ -38,6 +39,21 @@ class DiagTrainingPlan(TrainingPlan):
         **kwargs,
     ) -> None:
         super().__init__(module, *args, **kwargs)
+        print("start")
+        if kwargs["adversarial_classifier"] is True:
+            self.n_output_classifier = 2
+            self.adversarial_classifier = Classifier(
+                n_input=self.module.n_latent,
+                n_hidden=32,
+                n_labels=self.n_output_classifier,
+                n_layers=3,
+                logits=True,
+            )
+        else:
+            self.adversarial_classifier = kwargs["adversarial_classifier"]
+        print("initialized adv")
+        self.automatic_optimization = False
+        self.validation_step_outputs = []
 
         self.lam_graph = lam_graph
         self.lam_kl = lam_kl
@@ -58,6 +74,20 @@ class DiagTrainingPlan(TrainingPlan):
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step."""
         import geomloss
+
+        ###
+        kappa = (
+            1 - self.lam_kl
+            if self.scale_adversarial_loss == "auto"
+            else self.scale_adversarial_loss
+        )
+        opts = self.optimizers()
+        if not isinstance(opts, list):
+            opt1 = opts
+            opt2 = None
+        else:
+            opt1, opt2 = opts
+        ###
 
         loss_output_objs = []
         for _i, (name, tensors) in enumerate(batch.items()):
@@ -186,6 +216,20 @@ class DiagTrainingPlan(TrainingPlan):
             + self.lam_class * classification_loss
         )
 
+        batch_tensor = [
+            torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate([z1, z2])
+        ]
+
+        if kappa > 0 and self.adversarial_classifier is not False:
+            fool_loss = self.loss_adversarial_classifier(
+                torch.cat([z1, z2]), torch.cat(batch_tensor).long(), False
+            )
+            total_loss += fool_loss * kappa
+
+        opt1.zero_grad()
+        self.manual_backward(total_loss)
+        opt1.step()
+
         self.log(
             "training_loss",
             total_loss,
@@ -195,7 +239,28 @@ class DiagTrainingPlan(TrainingPlan):
             batch_size=total_batch_size,
         )
 
-        return {"loss": total_loss}
+        return_dict = {"loss": total_loss}
+
+        if opt2 is not None:
+            zs = []
+            for i, tensors in enumerate(batch):
+                inference_inputs = self.module._get_inference_input(tensors)
+                inference_inputs.update({"mode": i})
+                outputs = self.module.inference(**inference_inputs)
+                zs.append(outputs["z"])
+
+            batch_tensor = [
+                torch.zeros((z.shape[0], 1), device=z.device) + i for i, z in enumerate(zs)
+            ]
+            loss = self.loss_adversarial_classifier(
+                torch.cat(zs).detach(), torch.cat(batch_tensor).long(), True
+            )
+            loss *= kappa
+            opt2.zero_grad()
+            self.manual_backward(loss)
+            opt2.step()
+
+            return return_dict
 
     @dependencies("geomloss")
     def validation_step(self, batch: list[dict[str, torch.Tensor]]) -> None:

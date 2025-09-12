@@ -9,7 +9,7 @@ from scvi.distributions import (
     Normal,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.external.diagvi import DecoderProtein, DecoderRNA, GraphEncoder_glue
+from scvi.external.diagvi import DecoderProteinGLUE, DecoderRNA, GraphEncoder_glue
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
@@ -89,6 +89,7 @@ class DIAGVAE(BaseModuleClass):
         self.gene_likelihoods = gene_likelihoods
         self.modalities = modalities
         self.guidance_graph = guidance_graph
+        self.n_latent = n_latent
 
         self.input_names = list(n_inputs.keys())
 
@@ -134,6 +135,7 @@ class DIAGVAE(BaseModuleClass):
                 n_batches=n_batches[self.input_names[1]],
             )
 
+        """
         if modalities[self.input_names[0]] == "protein":
             self.decoder_0 = DecoderProtein(
                 n_input=n_latent,
@@ -148,6 +150,19 @@ class DIAGVAE(BaseModuleClass):
                 n_output_proteins=n_inputs[self.input_names[1]],
                 n_batches=n_batches[self.input_names[1]],
                 common_scale=common_scale,
+            )
+        """
+
+        if modalities[self.input_names[0]] == "protein":
+            self.decoder_0 = DecoderProteinGLUE(
+                n_output=n_inputs[self.input_names[0]],
+                n_batches=n_batches[self.input_names[0]],
+            )
+
+        if modalities[self.input_names[1]] == "protein":
+            self.decoder_1 = DecoderProteinGLUE(
+                n_output=n_inputs[self.input_names[1]],
+                n_batches=n_batches[self.input_names[1]],
             )
 
         self.graph_encoder = GraphEncoder_glue(
@@ -234,8 +249,10 @@ class DIAGVAE(BaseModuleClass):
         device = x.device
         graph = graph.to(device)
         # graph inference
+        print(graph.edge_index)
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
         v = v_all[getattr(graph, f"{mode}_indices")]
+        print(v)
         other_mode = [m for m in self.input_names if m != mode][0]
         v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
         # data inference
@@ -305,12 +322,22 @@ class DIAGVAE(BaseModuleClass):
         elif self.gene_likelihoods[mode] == "normal":
             px = Normal(px_rate, px_r, normal_mu=px_scale)
         elif self.gene_likelihoods[mode] == "nbmixture":
+            """
             px = NegativeBinomialMixture(
                 mu1=px_rate[0],
                 mu2=px_rate[1],
                 theta1=px_r,
                 mixture_logits=px_dropout,
             )
+            """
+            px = NegativeBinomialMixture(
+                mu1=px_scale,
+                mu2=px_r,
+                theta1=px_rate,
+                mixture_logits=px_dropout,
+            )
+            print(px)
+
         if self.use_gmm_prior[mode]:
             logits = self.gmm_logits[mode]
             means = self.gmm_means[mode]

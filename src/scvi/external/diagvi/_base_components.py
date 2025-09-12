@@ -59,6 +59,60 @@ class DecoderRNA(nn.Module):  # integrate the batch index
         return px_scale, px_r, px_rate, px_dropout
 
 
+class DecoderProteinGLUE(nn.Module):
+    def __init__(
+        self,
+        n_output: int,
+        n_batches: int,
+    ):
+        super().__init__()
+        self.n_output = n_output
+        self.n_batches = n_batches
+
+        # batch-specific linear scaling and biases for the two components
+        # shapes: (n_batches, out_features)
+        self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output))
+        self.bias1 = nn.Parameter(torch.zeros(n_batches, n_output))
+        self.bias2 = nn.Parameter(torch.zeros(n_batches, n_output))
+
+        # dispersion parameter: log(theta) per batch x feature
+        # shape: (n_batches, out_features)
+        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
+
+    def forward(
+        self,
+        u: torch.Tensor,
+        l: torch.Tensor,
+        batch_index: torch.Tensor,
+        v: torch.Tensor,
+    ):
+        if batch_index.dim() > 1:
+            batch_index = batch_index.squeeze(-1)
+
+        scale = F.softplus(self.scale_lin[batch_index])  # (n_cells, D)
+
+        # per-component logits
+        logits_mu1 = scale * (u @ v.T) + self.bias1[batch_index]
+        logits_mu2 = scale * (u @ v.T) + self.bias2[batch_index]
+
+        mixture_logits = logits_mu1 - logits_mu2
+
+        mu1 = F.softmax(logits_mu1, dim=-1)  # (n_cells, out_features)
+        mu2 = F.softmax(logits_mu2, dim=-1)  # (n_cells, out_features)
+
+        mu1 = mu1 * torch.exp(l)
+        mu2 = mu2 * torch.exp(l)
+
+        log_theta = self.log_theta[batch_index]
+
+        print(mu1.shape)
+        print(mu2.shape)
+        print(log_theta.shape)
+        print(mixture_logits.shape)
+
+        return mu1, mu2, log_theta, mixture_logits
+
+
 class DecoderProtein(nn.Module):
     def __init__(
         self,
@@ -216,7 +270,9 @@ class GraphEncoder_glue(nn.Module):
         self.std_lin = nn.Linear(out_features, out_features)
 
     def forward(self, edge_index):
+        print(self.vrepr)
         h = self.conv(self.vrepr, edge_index)
+        print(h)
         loc = self.loc(h)
         std = F.softplus(self.std_lin(h)) + EPS
 
