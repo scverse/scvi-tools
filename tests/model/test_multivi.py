@@ -369,17 +369,24 @@ def test_scarches_mudata_prep_layer(save_path: str):
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
+    model.get_latent_representation()
+    model.get_elbo()
 
     # mdata2 has more genes and missing 10 genes from mdata1.
-    # protein/acessibility features are same as in mdata1
-    mdata2 = synthetic_iid(n_genes=110, return_mudata=True)
+    mdata2 = synthetic_iid(n_genes=110, n_proteins=110, n_regions=110, return_mudata=True)
     mdata2["rna"].layers["counts"] = mdata2["rna"].X.copy()
     new_var_names_init = [f"Random {i}" for i in range(10)]
     new_var_names = new_var_names_init + mdata2["rna"].var_names[10:].to_list()
     mdata2["rna"].var_names = new_var_names
-
-    original_protein_values = mdata2["protein_expression"].X.copy()
-    original_accessibility_values = mdata2["accessibility"].X.copy()
+    # repeat for other modalities:
+    mdata2["protein_expression"].layers["counts"] = mdata2["protein_expression"].X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + mdata2["protein_expression"].var_names[10:].to_list()
+    mdata2["protein_expression"].var_names = new_var_names
+    mdata2["accessibility"].layers["counts"] = mdata2["accessibility"].X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + mdata2["accessibility"].var_names[10:].to_list()
+    mdata2["accessibility"].var_names = new_var_names
 
     MULTIVI.prepare_query_mudata(mdata2, dir_path)
     # should be padded 0s
@@ -388,19 +395,19 @@ def test_scarches_mudata_prep_layer(save_path: str):
         mdata2["rna"].var_names[:10].to_numpy(), mdata1["rna"].var_names[:10].to_numpy()
     )
 
-    # values of other modalities should be unchanged
-    np.testing.assert_equal(original_protein_values, mdata2["protein_expression"].X)
-    np.testing.assert_equal(original_accessibility_values, mdata2["accessibility"].X)
+    # Note ref model doesnt use accessibility , so neither do here
 
     # and names should also be the same
     np.testing.assert_equal(
         mdata2["protein_expression"].var_names.to_numpy(),
         mdata1["protein_expression"].var_names.to_numpy(),
     )
-    np.testing.assert_equal(
-        mdata2["accessibility"].var_names.to_numpy(), mdata1["accessibility"].var_names.to_numpy()
-    )
-    MULTIVI.load_query_data(mdata2, dir_path)
+
+    queried_model = MULTIVI.load_query_data(mdata2, dir_path)
+
+    queried_model.train(1, check_val_every_n_epoch=1)
+    queried_model.get_latent_representation()
+    queried_model.get_elbo()
 
 
 def test_multivi_save_load_mudata_format(save_path: str):
