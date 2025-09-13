@@ -335,7 +335,6 @@ class DIAGVAE(BaseModuleClass):
                 mixture_logits=px_dropout,
             )
             """
-            print(px)
 
         if self.use_gmm_prior[mode]:
             logits = self.gmm_logits[mode]

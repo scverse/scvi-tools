@@ -343,9 +343,7 @@ class GraphEncoder_glue(nn.Module):
         self.std_lin = nn.Linear(out_features, out_features)
 
     def forward(self, edge_index):
-        print("NaNs in self.vrepr:", torch.isnan(self.vrepr).any().item())
         h = self.conv(self.vrepr, edge_index)
-        print("NaNs in h after conv:", torch.isnan(h).any().item())
         loc = self.loc(h)
         std = F.softplus(self.std_lin(h)) + EPS
 
