@@ -151,8 +151,9 @@ class DIAGVAE(BaseModuleClass):
                 n_batches=n_batches[self.input_names[1]],
                 common_scale=common_scale,
             )
-        """
 
+
+        """
         if modalities[self.input_names[0]] == "protein":
             self.decoder_0 = DecoderProteinGLUE(
                 n_output=n_inputs[self.input_names[0]],
@@ -249,10 +250,8 @@ class DIAGVAE(BaseModuleClass):
         device = x.device
         graph = graph.to(device)
         # graph inference
-        print(graph.edge_index)
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
         v = v_all[getattr(graph, f"{mode}_indices")]
-        print(v)
         other_mode = [m for m in self.input_names if m != mode][0]
         v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
         # data inference
@@ -322,7 +321,6 @@ class DIAGVAE(BaseModuleClass):
         elif self.gene_likelihoods[mode] == "normal":
             px = Normal(px_rate, px_r, normal_mu=px_scale)
         elif self.gene_likelihoods[mode] == "nbmixture":
-            """
             px = NegativeBinomialMixture(
                 mu1=px_rate[0],
                 mu2=px_rate[1],
@@ -336,6 +334,7 @@ class DIAGVAE(BaseModuleClass):
                 theta1=px_rate,
                 mixture_logits=px_dropout,
             )
+            """
             print(px)
 
         if self.use_gmm_prior[mode]:

@@ -59,6 +59,67 @@ class DecoderRNA(nn.Module):  # integrate the batch index
         return px_scale, px_r, px_rate, px_dropout
 
 
+class DecoderProteinGLUE(nn.Module):  # integrate the batch index
+    def __init__(
+        self,
+        n_output: int,
+        n_batches: int,
+    ):
+        super().__init__()
+        self.n_output = n_output
+        self.n_batches = n_batches
+
+        self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output))
+
+        self.bias1 = nn.Parameter(torch.zeros(n_batches, n_output))
+        self.bias2 = nn.Parameter(torch.zeros(n_batches, n_output))
+
+        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
+
+        # self.mixture_logits_param = nn.Parameter(torch.zeros(n_batches, n_output))
+
+    def forward(
+        self,
+        u: torch.Tensor,
+        l: torch.Tensor,
+        batch_index: torch.Tensor,
+        v: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        # bring batch index in the right dimension
+        if batch_index.dim() > 1:
+            batch_index = batch_index.squeeze(-1)
+
+        if (batch_index.max() >= self.bias1.shape[0]) or (batch_index.min() < 0):
+            raise IndexError(
+                f"Batch index out of bounds: valid range is [0, {self.bias1.shape[0] - 1}]"
+            )
+
+        scale = F.softplus(self.scale_lin[batch_index])
+
+        bias1 = self.bias1[batch_index]
+        bias2 = self.bias2[batch_index]
+
+        log_theta = self.log_theta[batch_index]
+
+        raw_px_scale_1 = scale * (u @ v.T) + bias1
+        raw_px_scale_2 = scale * (u @ v.T) + bias2
+
+        px_scale_1 = torch.softmax(raw_px_scale_1, dim=-1)
+        px_scale_2 = torch.softmax(raw_px_scale_2, dim=-1)
+
+        px_rate_1 = torch.exp(l) * px_scale_1
+        px_rate_2 = torch.exp(l) * px_scale_2
+
+        # px_dropout = F.softplus(self.px_dropout_param)
+        # mixture_logits = self.mixture_logits_param[batch_index]
+        mixture_logits = raw_px_scale_1 - raw_px_scale_2
+
+        px_r = log_theta
+
+        return (px_scale_1, px_scale_2), px_r, (px_rate_1, px_rate_2), mixture_logits
+
+
+"""
 class DecoderProteinGLUE(nn.Module):
     def __init__(
         self,
@@ -90,18 +151,29 @@ class DecoderProteinGLUE(nn.Module):
             batch_index = batch_index.squeeze(-1)
 
         scale = F.softplus(self.scale_lin[batch_index])  # (n_cells, D)
-
+        print("scale:", scale)
+        bias1 = self.bias1[batch_index]
+        bias2 = self.bias2[batch_index]
+        print("bias1: ", bias1)
+        print("bias2: ", bias2)
         # per-component logits
-        logits_mu1 = scale * (u @ v.T) + self.bias1[batch_index]
-        logits_mu2 = scale * (u @ v.T) + self.bias2[batch_index]
+        logits_mu1 = scale * (u @ v.T) + bias1
+        logits_mu2 = scale * (u @ v.T) + bias2
+        print("logits1: ", logits_mu1)
+        print("logits2: ", logits_mu2)
 
         mixture_logits = logits_mu1 - logits_mu2
+        print("mixture_logits: ", mixture_logits)
 
-        mu1 = F.softmax(logits_mu1, dim=-1)  # (n_cells, out_features)
-        mu2 = F.softmax(logits_mu2, dim=-1)  # (n_cells, out_features)
+        mu1 = torch.softmax(logits_mu1, dim=-1)  # (n_cells, out_features)
+        mu2 = torch.softmax(logits_mu2, dim=-1)  # (n_cells, out_features)
+        print("mu1: ", mu1)
+        print("mu2: ", mu2)
 
         mu1 = mu1 * torch.exp(l)
         mu2 = mu2 * torch.exp(l)
+        print("mu1_mul: ", mu1)
+        print("mu2_mul: ", mu2)
 
         log_theta = self.log_theta[batch_index]
 
@@ -111,6 +183,7 @@ class DecoderProteinGLUE(nn.Module):
         print(mixture_logits.shape)
 
         return mu1, mu2, log_theta, mixture_logits
+"""
 
 
 class DecoderProtein(nn.Module):
@@ -270,9 +343,9 @@ class GraphEncoder_glue(nn.Module):
         self.std_lin = nn.Linear(out_features, out_features)
 
     def forward(self, edge_index):
-        print(self.vrepr)
+        print("NaNs in self.vrepr:", torch.isnan(self.vrepr).any().item())
         h = self.conv(self.vrepr, edge_index)
-        print(h)
+        print("NaNs in h after conv:", torch.isnan(h).any().item())
         loc = self.loc(h)
         std = F.softplus(self.std_lin(h)) + EPS
 
