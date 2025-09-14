@@ -127,7 +127,8 @@ def run_autotune(
     n_jobs
         Number of jobs to use for parallelization of neighbor search.
     solver
-        SVD solver to use during PCA. can help stability issues. Choose from: "arpack", "randomized" or "auto"
+        SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+        "randomized" or "auto"
 
     Returns
     -------

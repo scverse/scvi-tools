@@ -76,7 +76,8 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
             n_jobs
                 Number of jobs to use for parallelization of neighbor search.
             solver
-                SVD solver to use during PCA. can help stability issues. Choose from: "arpack", "randomized" or "auto"
+                SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+                "randomized" or "auto"
         """
 
         from scib_metrics.benchmark import BatchCorrection, BioConservation
@@ -316,7 +317,8 @@ class AutotuneExperiment:
     n_jobs
         Number of jobs to use for parallelization of neighbor search.
     solver
-        SVD solver to use during PCA. can help stability issues. Choose from: "arpack", "randomized" or "auto"
+        SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+        "randomized" or "auto"
 
     Notes
     -----
