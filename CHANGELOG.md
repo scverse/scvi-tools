@@ -19,7 +19,7 @@ to [Semantic Versioning]. Full commit history is available in the
     Torch implementations, {pr}`3498`.
 - Add lightning checkpointing to trainer fit, {pr}`3501`.
 - Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
-- Add solver parameter for SVD stability in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3523`.
+- Add solver parameter for SVD stability in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3524`.
 
 #### Fixed
 
