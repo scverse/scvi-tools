@@ -88,7 +88,8 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int):
 @pytest.mark.autotune
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
 @pytest.mark.parametrize("model_cls", [SCVI, SCANVI, TOTALVI, TOTALANVI])
-def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
+@pytest.mark.parametrize("solver", ["arpack", "randomized"])
+def test_run_autotune_scvi_with_scib(model_cls, metric: str, solver: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -146,6 +147,7 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, save_path: str):
         searcher="hyperopt",
         local_mode=True,
         ignore_reinit_error=True,
+        solver=solver,
     )
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")
