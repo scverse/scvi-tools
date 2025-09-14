@@ -73,7 +73,10 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                 This is important to save Scib computation time
             indices_list: If not empty will be used to select the indices to calc the scib metric
                 on, otherwise will use the random indices selection in size of scib_subsample_rows
-
+            n_jobs
+                Number of jobs to use for parallelization of neighbor search.
+            solver
+                SVD solver to use during PCA. can help stability issues. Choose from: "arpack", "randomized" or "auto"
         """
 
         from scib_metrics.benchmark import BatchCorrection, BioConservation
@@ -88,6 +91,8 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
             batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
             num_rows_to_select: int = 5000,
             indices_list: list | None = None,
+            n_jobs: int = 1,
+            solver: str = "arpack"
         ):
             super().__init__(
                 on=on, metrics=metrics, filename=filename, save_checkpoints=save_checkpoints
@@ -101,6 +106,8 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
             self.batch_correction_metrics = batch_correction_metrics
             self.on = on
             self.indices_list = indices_list
+            self.solver = solver
+            self.n_jobs = n_jobs
 
         def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
             # Don't report if just doing initial validation sanity checks.
@@ -220,6 +227,8 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                     embedding_obsm_keys=["z"],
                     bio_conservation_metrics=self.bio_conservation_metrics,
                     batch_correction_metrics=self.batch_correction_metrics,
+                    solver=self.solver,
+                    n_jobs = self.n_jobs,
                 )
                 benchmarker.benchmark()
                 results = benchmarker.get_results(min_max_scale=False).to_dict()
@@ -304,6 +313,10 @@ class AutotuneExperiment:
     scib_indices_list
         If not empty will be used to select the indices to calc the scib metric on, otherwise will
         use the random indices selection in size of scib_subsample_rows
+    n_jobs
+        Number of jobs to use for parallelization of neighbor search.
+    solver
+        SVD solver to use during PCA. can help stability issues. Choose from: "arpack", "randomized" or "auto"
 
     Notes
     -----
@@ -334,6 +347,8 @@ class AutotuneExperiment:
         scib_stage: str | None = "train_end",
         scib_subsample_rows: int | None = 5000,
         scib_indices_list: list | None = None,
+        n_jobs: int = 1,
+        solver: str="arpack"
     ) -> None:
         self.model_cls = model_cls
         self.data = data
@@ -353,6 +368,8 @@ class AutotuneExperiment:
         self.scib_stage = scib_stage
         self.scib_subsample_rows = scib_subsample_rows
         self.scib_indices_list = scib_indices_list
+        self.n_jobs = n_jobs
+        self.solver = solver
 
     @property
     def id(self) -> str:
@@ -693,6 +710,8 @@ class AutotuneExperiment:
             save_checkpoints=self.save_checkpoints,
             num_rows_to_select=self.scib_subsample_rows,
             indices_list=self.scib_indices_list,
+            n_jobs = self.n_jobs,
+            solver = self.solver
         )
 
     @property

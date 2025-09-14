@@ -38,6 +38,8 @@ def run_autotune(
     log_to_driver: bool = False,
     local_mode: bool = False,
     ignore_reinit_error: bool = False,
+    n_jobs: int = 1,
+    solver: str="arpack"
 ) -> AutotuneExperiment:
     """Run a hyperparameter sweep.
 
@@ -114,14 +116,18 @@ def run_autotune(
     scib_indices_list
         If not empty will be used to select the indices to calc the scib metric on, otherwise will
         use the random indices selection in size of scib_subsample_rows
+    log_to_driver
+        If true, the output from all of the worker
+        processes on all nodes will be directed to the driver.
     ignore_reinit_error
         If true, Ray suppresses errors from calling
         ray.init() a second time. Ray won't be restarted.
     local_mode
         Deprecated: consider using the Ray Debugger instead.
-    log_to_driver
-        If true, the output from all of the worker
-        processes on all nodes will be directed to the driver.
+    n_jobs
+        Number of jobs to use for parallelization of neighbor search.
+    solver
+        SVD solver to use during PCA. can help stability issues. Choose from: "arpack", "randomized" or "auto"
 
     Returns
     -------
@@ -157,6 +163,8 @@ def run_autotune(
         scib_stage=scib_stage,
         scib_subsample_rows=scib_subsample_rows,
         scib_indices_list=scib_indices_list,
+        n_jobs=n_jobs,
+        solver=solver,
     )
     logger.info(f"Running autotune experiment {experiment.name}.")
     init(
