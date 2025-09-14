@@ -92,7 +92,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
             num_rows_to_select: int = 5000,
             indices_list: list | None = None,
             n_jobs: int = 1,
-            solver: str = "arpack"
+            solver: str = "arpack",
         ):
             super().__init__(
                 on=on, metrics=metrics, filename=filename, save_checkpoints=save_checkpoints
@@ -228,7 +228,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                     bio_conservation_metrics=self.bio_conservation_metrics,
                     batch_correction_metrics=self.batch_correction_metrics,
                     solver=self.solver,
-                    n_jobs = self.n_jobs,
+                    n_jobs=self.n_jobs,
                 )
                 benchmarker.benchmark()
                 results = benchmarker.get_results(min_max_scale=False).to_dict()
@@ -348,7 +348,7 @@ class AutotuneExperiment:
         scib_subsample_rows: int | None = 5000,
         scib_indices_list: list | None = None,
         n_jobs: int = 1,
-        solver: str="arpack"
+        solver: str = "arpack",
     ) -> None:
         self.model_cls = model_cls
         self.data = data
@@ -710,8 +710,8 @@ class AutotuneExperiment:
             save_checkpoints=self.save_checkpoints,
             num_rows_to_select=self.scib_subsample_rows,
             indices_list=self.scib_indices_list,
-            n_jobs = self.n_jobs,
-            solver = self.solver
+            n_jobs=self.n_jobs,
+            solver=self.solver,
         )
 
     @property

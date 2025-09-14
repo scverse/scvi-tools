@@ -39,7 +39,7 @@ def run_autotune(
     local_mode: bool = False,
     ignore_reinit_error: bool = False,
     n_jobs: int = 1,
-    solver: str="arpack"
+    solver: str = "arpack",
 ) -> AutotuneExperiment:
     """Run a hyperparameter sweep.
 
