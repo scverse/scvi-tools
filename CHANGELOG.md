@@ -6,7 +6,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.4
 
-### 1.4.0 (2025-XX-XX)
+### 1.4.0 (2025-09-14)
 
 #### Added
 
