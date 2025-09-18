@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
-from pyro import infer
+from pyro import infer, poutine
 
 from scvi import settings
 from scvi.model._utils import _get_batch_code_from_category, parse_device_args
@@ -109,7 +109,60 @@ class ResolVIPredictiveMixin:
         weights: str | np.ndarray | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        library_scaling: bool = False,
+        size_scaling: bool = False,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+        """
+        Return the (decoded) gene expression using importance sampling.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Ignored and here for consistency.
+        gene_list
+            Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        library_size
+            If not None, the decoded expression is scaled to this library size.
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            Number of posterior samples to use for estimation. Overrides `n_samples`.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        weights
+            Weights for each sample. If `None` or `"uniform"`, uniform weights are used.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+             to `False`. Otherwise, it defaults to `True`.
+        library_scaling
+            If `True`, multiplies the decoded expression by the library size.
+        size_scaling
+            If `True`, divides the decoded expression by the size factor (e.g. cell_area).
+            Requires that a size factor key was provided in
+            :meth:`~scvi.external.RESOLVI.setup_anndata`.
+        %(de_silent)s
+
+        Returns
+        -------
+        If `n_samples` is provided and `return_mean` is False,
+        this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
+        If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
+        of shape (n_cells, n_genes).
+        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
+        of shape (n_samples_overall, n_genes).
+        adata = self._validate_anndata(adata)
+        """
         adata = self._validate_anndata(adata)
 
         if indices is None:
@@ -146,20 +199,24 @@ class ResolVIPredictiveMixin:
             args, kwargs = self.module._get_fn_args_from_batch(tensors)
             kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
             model_now = partial(self.module.model_simplified, corrected_rate=True)
-            importance_dist = infer.Importance(
-                model_now, guide=self.module.guide.guide_simplified, num_samples=10 * n_samples
-            )
+            importance_dist = infer.Importance(model_now, guide=self.module.guide.guide_simplified, num_samples=10 * n_samples)
             posterior = importance_dist.run(*args, **kwargs)
             marginal = infer.EmpiricalMarginal(posterior, sites=["mean_poisson", "px_scale"])
             samples = torch.cat([marginal().unsqueeze(1) for i in range(n_samples)], 1)
-            log_weights = (
-                torch.distributions.Poisson(samples[0, ...] + 1e-3)
-                .log_prob(kwargs["x"].to(samples.device))
-                .sum(-1)
-            )
-            log_weights = log_weights / kwargs["x"].to(samples.device).sum(-1)
+            log_weights = torch.distributions.Poisson(samples[0, ...] + 1e-3).log_prob(kwargs['x'].to(samples.device)).sum(-1)
+            log_weights = log_weights/kwargs['x'].to(samples.device).sum(-1)
             weighting.append(log_weights.reshape(-1).cpu())
-            exprs.append(samples[1, ...].cpu())
+            if library_scaling or size_scaling:
+                if size_scaling:
+                    if "size_factor" in self.adata_manager.data_registry:
+                        size_factor = kwargs["size_factor"]
+                        samples[0, ...] = samples[0, ...] / size_factor.unsqueeze(0).repeat(n_samples, 1, 1)
+                    else:
+                        raise ValueError("size_scaling is True but no size_factor_key was provided in setup_anndata.")
+                exprs.append(samples[0, ...].cpu())
+            else:
+                exprs.append(samples[1, ...].cpu())
+
         exprs = torch.cat(exprs, axis=1).numpy()
         if return_mean:
             exprs = exprs.mean(0)
@@ -198,6 +255,7 @@ class ResolVIPredictiveMixin:
         transform_batch: Sequence[int | str] | None = None,
         gene_list: Sequence[str] | None = None,
         library_size: float | None = 1,
+        size_scaling: bool = False,
         n_samples: int = 1,
         n_samples_overall: int = None,
         batch_size: int | None = None,
@@ -227,9 +285,11 @@ class ResolVIPredictiveMixin:
             This can save memory when working with large datasets and few genes are
             of interest.
         library_size
-            Scale the expression frequencies to a common library size.
-            This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude.
+            If not None, the decoded expression is scaled to this library size.
+        size_scaling
+            If `True`, divides the decoded expression by the size factor (e.g. cell_area).
+            Requires that a size factor key was provided in
+            :meth:`~scvi.external.RESOLVI.setup_anndata`.
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
@@ -315,10 +375,17 @@ class ResolVIPredictiveMixin:
                 px_scale, _, px_rate, _ = self.module.model.decoder(
                     self.module.model.dispersion, z, kwargs["library"], batch, *categorical_input
                 )
-                if library_size is not None:
-                    exp_ = library_size * px_scale
+                if size_scaling:
+                    if "size_factor" in self.adata_manager.data_registry:
+                        size_factor = kwargs["size_factor"]
+                        px_rate = px_rate / size_factor.reshape(-1, 1, 1)
+                    else:
+                        raise ValueError("size_scaling is True but no size_factor_key was provided in setup_anndata.")
                 else:
-                    exp_ = px_rate
+                    if library_size is not None:
+                        exp_ = library_size * px_scale
+                    else:
+                        exp_ = px_rate
 
                 exp_ = exp_[..., gene_mask]
                 per_batch_exprs.append(exp_[None].cpu())

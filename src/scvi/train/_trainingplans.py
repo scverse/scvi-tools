@@ -1275,6 +1275,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 1e-6,
     ):
         super().__init__()
         self.module = pyro_module
@@ -1295,6 +1297,9 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         elif callable(self.module.model):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
         self.scale_elbo = scale_elbo
+        self.max_kl_weight = max_kl_weight
+        self.min_kl_weight = min_kl_weight
+
         self.scale_fn = (
             lambda obj: pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
         )
@@ -1348,7 +1353,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
-            min_kl_weight=1e-3,
+            self.max_kl_weight,
+            self.min_kl_weight,
         )
 
     @property
@@ -1400,6 +1406,10 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     blocked
         A list of Pyro parameters to block during training.
         If `None`, defaults to train all parameters.
+    min_kl_weight
+        Minimum KL weight during warmup. Defaults to `1e-6`.
+    max_kl_weight
+        Maximum KL weight during warmup. Defaults to `1.0`.
     """
 
     def __init__(
@@ -1412,6 +1422,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
         blocked: list | None = None,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 1e-6,
     ):
         super().__init__(
             pyro_module=pyro_module,
@@ -1419,6 +1431,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
             scale_elbo=scale_elbo,
+            max_kl_weight=max_kl_weight,
+            min_kl_weight=min_kl_weight,
         )
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():

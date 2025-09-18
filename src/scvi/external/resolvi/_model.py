@@ -17,6 +17,7 @@ from scvi.data.fields import (
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
+    NumericalObsField,
     ObsmField,
 )
 from scvi.dataloaders import AnnTorchDataset
@@ -43,12 +44,12 @@ class RESOLVI(
     PyroSviTrainMixin, PyroSampleMixin, ResolVIPredictiveMixin, BaseModelClass, ArchesMixin
 ):
     """
-    ResolVI addresses noise and bias in single-cell resolved spatial transcriptomics data.
+    single-cell Variational Inference [Lopez18]_.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.RESOLVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -71,13 +72,13 @@ class RESOLVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     **model_kwargs
-        Keyword args for :class:`~scvi.module.VAE`
+        Keyword args for :class:`~scvi.external.RESOLVAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.SCVI(adata)
+    >>> scvi.external.RESOLVI.setup_anndata(adata, batch_key="batch")
+    >>> vae = scvi.external.RESOLVI(adata)
     >>> vae.train()
     >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
     >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
@@ -86,10 +87,7 @@ class RESOLVI(
     -----
     See further usage examples in the following tutorials:
 
-    1. :doc:`/tutorials/notebooks/api_overview`
-    2. :doc:`/tutorials/notebooks/harmonization`
-    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/resolvi`
     """
 
     _module_cls = RESOLVAE
@@ -121,7 +119,9 @@ class RESOLVI(
         results = self.compute_dataset_dependent_priors()
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
@@ -138,7 +138,7 @@ class RESOLVI(
             downsample_counts_mean = None
             downsample_counts_std = 1.0
 
-        expression_anntorchdata = AnnTorchDataset(
+        expression_anntorchdata=AnnTorchDataset(
             self.adata_manager,
             getitem_tensors=["X"],
             load_sparse_tensor=True,
@@ -151,9 +151,8 @@ class RESOLVI(
             mixture_k=mixture_k,
             expression_anntorchdata=expression_anntorchdata,
             n_neighbors=self.summary_stats.n_distance_neighbor,
-            n_obs=self.summary_stats["n_ind_x"],
+            n_obs=self.summary_stats['n_ind_x'],
             n_hidden=n_hidden,
-            n_hidden_encoder=n_hidden_encoder,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -277,6 +276,7 @@ class RESOLVI(
         layer: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
+        size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         prepare_data: bool | None = True,
         prepare_data_kwargs: dict = None,
@@ -291,6 +291,10 @@ class RESOLVI(
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
+        size_factor_key
+            Key in ``adata.obs`` corresponding to pre-computed size factors.
+            This is the physical size of a cell (e.g. cell volume) and will be used to replace the
+            library size if size_scaling is True.
         %(param_cat_cov_keys)s
         prepare_data
             If True, prepares AnnData for training. Computes spatial neighbors and distances.
@@ -331,6 +335,7 @@ class RESOLVI(
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             ObsmField("index_neighbor", "index_neighbor"),
             ObsmField("distance_neighbor", "distance_neighbor"),
             CategoricalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
@@ -433,6 +438,8 @@ class RESOLVI(
         silent: bool = False,
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
+        size_scaling: bool = False,
+        library_scaling: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -447,7 +454,6 @@ class RESOLVI(
         %(de_group2)s
         %(de_idx1)s
         %(de_idx2)s
-        %(de_subset_idx)s
         %(de_mode)s
         %(de_delta)s
         %(de_batch_size)s
@@ -457,10 +463,12 @@ class RESOLVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
-        weights
-        filter_outlier_cells
-            Whether to filter outlier cells with
-            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
+        size_scaling
+            If True, will scale normalized expression by size factors (e.g. cell volume).
+            This needs to be setup in :meth:`~scvi.external.RESOLVI.setup_anndata` with `size_factor_key`. False by default.
+        library_scaling
+            If True, will scale normalized expression to library size. This is useful for skewed gene panels if library size normalization
+            is detrimental. False by default.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -477,6 +485,8 @@ class RESOLVI(
             batch_size=batch_size,
             weights=weights,
             return_mean=False,
+            size_scaling=size_scaling,
+            library_scaling=library_scaling,
         )
 
         representation_fn = self.get_latent_representation if filter_outlier_cells else None
@@ -612,7 +622,8 @@ class RESOLVI(
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+            AnnData object that has been registered via :meth:`~scvi.external.RESOLVI.setup_anndata`
+            including `labels_key`.
         indices
             Subsample AnnData to these indices.
         soft
