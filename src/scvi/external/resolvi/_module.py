@@ -368,21 +368,13 @@ class RESOLVAEModel(PyroModule):
                         validate_args=False,  # Softmax has rounding errors
                     ),
                 )
-
-            true_mixture_proportion = pyro.deterministic("true_mixture_proportion", mixture_proportions[..., 0])
-
-            diffusion_mixture_proportion = pyro.deterministic(
-                "diffusion_mixture_proportion", mixture_proportions[..., 1]
-            )
-
-            background_mixture_proportion = pyro.deterministic(
-                "background_mixture_proportion", mixture_proportions[..., 2]
-            )
-
+            true, diffusion, background = mixture_proportions.split(1, dim=-1)
+            true_mixture_proportion = pyro.deterministic("true_mixture_proportion", true)
+            diffusion_mixture_proportion = pyro.deterministic("diffusion_mixture_proportion", diffusion)
+            background_mixture_proportion = pyro.deterministic("background_mixture_proportion", background)
             v = pyro.deterministic(
                 "diffusion_proportion_per_neighbor",
-                per_neighbor_diffusion * diffusion_mixture_proportion.unsqueeze(-1),
-                event_dim=1,
+                per_neighbor_diffusion.unsqueeze(-1) * diffusion_mixture_proportion.unsqueeze(-2),
             )
 
             if self.semisupervised:
@@ -506,8 +498,8 @@ class RESOLVAEModel(PyroModule):
             px_rate_sum = torch.sum(
                 torch.cat(
                     [
-                        (true_mixture_proportion.unsqueeze(-1) * px_rate).unsqueeze(-2),
-                        v.unsqueeze(-1) * px_rate_n,
+                        (true_mixture_proportion * px_rate).unsqueeze(-2),
+                        v * px_rate_n,
                     ],
                     dim=-2,
                 ),
@@ -523,7 +515,7 @@ class RESOLVAEModel(PyroModule):
                 )
             background = pyro.deterministic(
                 "background",
-                background_mixture_proportion.unsqueeze(-1)
+                background_mixture_proportion
                 * torch.exp(library)
                 * torch.matmul(
                     torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch).float(),
@@ -598,9 +590,9 @@ class RESOLVAEModel(PyroModule):
         pyro.condition(
             self.model_unconditioned,
             data={
-                "background_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                "diffusion_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                "true_mixture_proportion": torch.ones(x.shape[0], device=x.device),
+                "background_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
+                "diffusion_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
+                "true_mixture_proportion": torch.ones([x.shape[0], 1], device=x.device),
             },
         )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, size_factor, n_obs, kl_weight)
 
@@ -622,7 +614,7 @@ class RESOLVAEModel(PyroModule):
         pyro.condition(
             self.model_unconditioned,
             data={
-                "true_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
+                "true_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
             },
         )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n,
           size_factor, n_obs, kl_weight)
@@ -667,9 +659,9 @@ class RESOLVAEModel(PyroModule):
                 pyro.condition(
                     simplified_model,
                     data={
-                        "background_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                        "diffusion_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                        "true_mixture_proportion": torch.ones(x.shape[0], device=x.device),
+                        "background_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
+                        "diffusion_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
+                        "true_mixture_proportion": torch.ones([x.shape[0], 1], device=x.device),
                     },
                 )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n,
                   size_factor, n_obs, kl_weight)
