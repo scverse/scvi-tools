@@ -16,7 +16,9 @@ from scvi.utils import dependencies
 @pytest.mark.dataloader
 @dependencies("lamindb")
 def test_lamindb_dataloader_scvi_small(save_path: str):
-    os.system("lamin init --storage ./lamindb_collection")  # one time for github runner (comment)
+    os.system(
+        "lamin init --storage ./lamindb_collection_new"
+    )  # one time for github runner (comment)
     import lamindb as ln
 
     ln.setup.init()  # one time for github runner (comment out when runing localy)
