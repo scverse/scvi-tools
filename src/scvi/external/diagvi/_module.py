@@ -77,9 +77,6 @@ class DIAGVAE(BaseModuleClass):
         self.gmm_means = nn.ParameterDict()
         self.gmm_scales = nn.ParameterDict()
 
-        # self.background_pro_alpha = nn.ParameterDict()
-        # self.background_pro_log_beta = nn.ParameterDict()
-
         self.use_gmm_prior = use_gmm_prior
         self.semi_supervised = semi_supervised
         self.n_mixture_components = n_mixture_components
@@ -380,6 +377,7 @@ class DIAGVAE(BaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         n_obs = x.shape[0]
         n_var = x.shape[1]
+
         # data nll calculation
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
         reconstruction_loss_norm = torch.mean(reconst_loss)
@@ -393,10 +391,12 @@ class DIAGVAE(BaseModuleClass):
             ).sum(dim=-1)
         kl_local_norm = torch.sum(kl_div) / (n_obs * n_var)
         loss = lam_data * reconstruction_loss_norm + lam_kl * kl_local_norm
+
         ## graph inference
         mu_all = inference_outputs["mu_all"]
         logvar_all = inference_outputs["logvar_all"]
         v_all = inference_outputs["v_all"]
+
         classification_loss = 0.0
         if self.classifier_0 is not None and mode == self.input_names[0]:
             y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
@@ -408,6 +408,7 @@ class DIAGVAE(BaseModuleClass):
             z_mean = inference_outputs[MODULE_KEYS.QZ_KEY].loc
             y_logits = self.classifier_1(z_mean)
             classification_loss += torch.nn.functional.cross_entropy(y_logits, y, reduction="mean")
+
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconst_loss,

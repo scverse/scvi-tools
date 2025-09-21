@@ -76,8 +76,6 @@ class DecoderProteinGLUE(nn.Module):  # integrate the batch index
 
         self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
 
-        # self.mixture_logits_param = nn.Parameter(torch.zeros(n_batches, n_output))
-
     def forward(
         self,
         u: torch.Tensor,
@@ -110,80 +108,11 @@ class DecoderProteinGLUE(nn.Module):  # integrate the batch index
         px_rate_1 = torch.exp(l) * px_scale_1
         px_rate_2 = torch.exp(l) * px_scale_2
 
-        # px_dropout = F.softplus(self.px_dropout_param)
-        # mixture_logits = self.mixture_logits_param[batch_index]
         mixture_logits = raw_px_scale_1 - raw_px_scale_2
 
         px_r = log_theta
 
         return (px_scale_1, px_scale_2), px_r, (px_rate_1, px_rate_2), mixture_logits
-
-
-"""
-class DecoderProteinGLUE(nn.Module):
-    def __init__(
-        self,
-        n_output: int,
-        n_batches: int,
-    ):
-        super().__init__()
-        self.n_output = n_output
-        self.n_batches = n_batches
-
-        # batch-specific linear scaling and biases for the two components
-        # shapes: (n_batches, out_features)
-        self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output))
-        self.bias1 = nn.Parameter(torch.zeros(n_batches, n_output))
-        self.bias2 = nn.Parameter(torch.zeros(n_batches, n_output))
-
-        # dispersion parameter: log(theta) per batch x feature
-        # shape: (n_batches, out_features)
-        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output))
-
-    def forward(
-        self,
-        u: torch.Tensor,
-        l: torch.Tensor,
-        batch_index: torch.Tensor,
-        v: torch.Tensor,
-    ):
-        if batch_index.dim() > 1:
-            batch_index = batch_index.squeeze(-1)
-
-        scale = F.softplus(self.scale_lin[batch_index])  # (n_cells, D)
-        print("scale:", scale)
-        bias1 = self.bias1[batch_index]
-        bias2 = self.bias2[batch_index]
-        print("bias1: ", bias1)
-        print("bias2: ", bias2)
-        # per-component logits
-        logits_mu1 = scale * (u @ v.T) + bias1
-        logits_mu2 = scale * (u @ v.T) + bias2
-        print("logits1: ", logits_mu1)
-        print("logits2: ", logits_mu2)
-
-        mixture_logits = logits_mu1 - logits_mu2
-        print("mixture_logits: ", mixture_logits)
-
-        mu1 = torch.softmax(logits_mu1, dim=-1)  # (n_cells, out_features)
-        mu2 = torch.softmax(logits_mu2, dim=-1)  # (n_cells, out_features)
-        print("mu1: ", mu1)
-        print("mu2: ", mu2)
-
-        mu1 = mu1 * torch.exp(l)
-        mu2 = mu2 * torch.exp(l)
-        print("mu1_mul: ", mu1)
-        print("mu2_mul: ", mu2)
-
-        log_theta = self.log_theta[batch_index]
-
-        print(mu1.shape)
-        print(mu2.shape)
-        print(log_theta.shape)
-        print(mixture_logits.shape)
-
-        return mu1, mu2, log_theta, mixture_logits
-"""
 
 
 class DecoderProtein(nn.Module):
