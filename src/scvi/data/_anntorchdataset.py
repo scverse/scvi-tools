@@ -134,6 +134,7 @@ class AnnTorchDataset(Dataset):
             indexes = np.sort(indexes)
 
         data_map = {}
+        sliced_data = None
 
         for key, dtype in self.keys_and_dtypes.items():
             data = self.data[key]
