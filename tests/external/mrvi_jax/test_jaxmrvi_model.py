@@ -46,7 +46,7 @@ def model(adata: AnnData):
 
 def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances(batch_size=16)
-    model.get_local_sample_distances(normalize_distances=True,batch_size=16)
+    model.get_local_sample_distances(normalize_distances=True, batch_size=16)
     model.get_latent_representation(give_z=False)
     model.get_latent_representation(give_z=True)
 
