@@ -1371,7 +1371,7 @@ def test_scvi_log_on_step():
         train_size=0.5,
         plan_kwargs={"on_step": True, "on_epoch": True},
     )
-    model.history
+    assert len(model.history["elbo_train_epoch"]) == 20
     assert "train_loss_step" in model.history
     assert "validation_loss_step" in model.history
     assert "train_loss_epoch" in model.history
