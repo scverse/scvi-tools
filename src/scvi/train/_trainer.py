@@ -166,7 +166,7 @@ class Trainer(pl.Trainer):
             callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
 
         if logger is None:
-            logger = SimpleLogger(save_dir=log_save_dir,save_log_on_disk=save_log_on_disk)
+            logger = SimpleLogger(save_dir=log_save_dir, save_log_on_disk=save_log_on_disk)
 
         super().__init__(
             accelerator=accelerator,

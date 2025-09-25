@@ -59,13 +59,15 @@ class SimpleLogger(Logger):
         self._experiment = None
         self._version = version
         self._save_log_on_disk = False
-        #in case of multigpu run, or forcing log dir, we will save model history into it
+        # in case of multigpu run, or forcing log dir, we will save model history into it
         self._save_dir = save_dir or os.getcwd()
         if save_dir or save_log_on_disk:
             # run directory like: <save_dir>/<name>/version_<N>
             self._run_dir = os.path.join(self._save_dir, self._name, f"version_{self.version}")
             os.makedirs(self._run_dir, exist_ok=True)
-            self.history_path = os.path.join(self._run_dir, "history.pkl") #TODO: should we use pkl
+            self.history_path = os.path.join(
+                self._run_dir, "history.pkl"
+            )  # TODO: should we use pkl
             self._save_log_on_disk = True
 
     @property
