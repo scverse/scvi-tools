@@ -1,8 +1,4 @@
-import os
-import subprocess
-
 import pytest
-import torch
 from mudata import MuData
 
 import scvi
