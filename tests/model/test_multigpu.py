@@ -35,7 +35,7 @@ def test_scanvi_from_scvi_multigpu(unlabeled_cat: str):
         strategy="ddp_find_unused_parameters_true",
     )
     print("done")
-
+    model.history
     assert model.is_trained
     adata.obsm["scVI"] = model.get_latent_representation()
 
@@ -99,7 +99,7 @@ def test_scanvi_from_scratch_multigpu(unlabeled_cat: str):
         strategy="ddp_find_unused_parameters_true",
     )
     print("done")
-
+    model.history
     assert model.is_trained
 
 
@@ -123,6 +123,7 @@ def test_totalvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    model.history
     assert model.is_trained is True
 
 
@@ -153,6 +154,7 @@ def test_multivi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    model.history
     assert model.is_trained is True
 
 
@@ -177,6 +179,7 @@ def test_peakvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    model.history
     assert model.is_trained
 
 
@@ -199,6 +202,7 @@ def test_condscvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    model.history
     assert model.is_trained
 
 
@@ -217,6 +221,7 @@ def test_linearcvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    model.history
     assert model.is_trained
 
 
@@ -239,7 +244,7 @@ model.train(
     devices=-1,
     strategy="ddp_find_unused_parameters_true",
 )
-
+model.history
 assert model.is_trained
 """
     # Define the file path for the temporary script in the current working directory
