@@ -1366,11 +1366,12 @@ def test_scvi_log_on_step():
     )
     model = SCVI(adata)
     model.train(
-        2,
-        check_val_every_n_epoch=1,
+        20,
+        check_val_every_n_epoch=2,
         train_size=0.5,
         plan_kwargs={"on_step": True, "on_epoch": True},
     )
+    assert len(model.history["elbo_train_epoch"]) == 20
     assert "train_loss_step" in model.history
     assert "validation_loss_step" in model.history
     assert "train_loss_epoch" in model.history

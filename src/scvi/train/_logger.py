@@ -52,16 +52,23 @@ class SimpleLogger(Logger):
         name: str = "lightning_logs",
         version: int | str | None = None,
         save_dir: str | None = None,
+        save_log_on_disk: bool | None = False,
     ):
         super().__init__()
         self._name = name
         self._experiment = None
         self._version = version
+        self._save_log_on_disk = False
+        # in case of multigpu run, or forcing log dir, we will save model history into it
         self._save_dir = save_dir or os.getcwd()
-        # run directory like: <save_dir>/<name>/version_<N>
-        self._run_dir = os.path.join(self._save_dir, self._name, f"version_{self.version}")
-        os.makedirs(self._run_dir, exist_ok=True)
-        self.history_path = os.path.join(self._run_dir, "history.pkl")
+        if save_dir or save_log_on_disk:
+            # run directory like: <save_dir>/<name>/version_<N>
+            self._run_dir = os.path.join(self._save_dir, self._name, f"version_{self.version}")
+            os.makedirs(self._run_dir, exist_ok=True)
+            self.history_path = os.path.join(
+                self._run_dir, "history.pkl"
+            )  # TODO: should we use pkl
+            self._save_log_on_disk = True
 
     @property
     @rank_zero_experiment
@@ -89,11 +96,12 @@ class SimpleLogger(Logger):
     @rank_zero_only
     def finalize(self, status: str) -> None:
         # Persist history from rank-0 AFTER training ends
-        try:
-            with open(self.history_path, "wb") as f:
-                pickle.dump(self.history, f)
-        except (OSError, pickle.PickleError) as e:
-            print(f"[SimpleLogger] Failed to save history: {e}")
+        if self._save_log_on_disk:
+            try:
+                with open(self.history_path, "wb") as f:
+                    pickle.dump(self.history, f)
+            except (OSError, pickle.PickleError) as e:
+                print(f"[SimpleLogger] Failed to save history: {e}")
 
     @property
     def version(self) -> int:

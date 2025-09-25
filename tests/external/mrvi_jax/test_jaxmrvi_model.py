@@ -45,8 +45,8 @@ def model(adata: AnnData):
 
 
 def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
-    model.get_local_sample_distances()
-    model.get_local_sample_distances(normalize_distances=True)
+    model.get_local_sample_distances(batch_size=16)
+    model.get_local_sample_distances(normalize_distances=True, batch_size=16)
     model.get_latent_representation(give_z=False)
     model.get_latent_representation(give_z=True)
 
@@ -197,7 +197,7 @@ def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5, backend="jax")
     model.train(max_steps=2, train_size=0.5)
-    model.get_local_sample_distances()
+    model.get_local_sample_distances(batch_size=16)
 
     assert model.get_latent_representation().shape == (
         adata.shape[0],
@@ -233,7 +233,7 @@ def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str)
     model = MRVI(adata_stratifications, n_latent=10, backend="jax")
     model.train(max_steps=2, train_size=0.5)
 
-    dists = model.get_local_sample_distances(groupby=["labels", "label_2"])
+    dists = model.get_local_sample_distances(groupby=["labels", "label_2"], batch_size=16)
     cell_dists = dists["cell"]
     assert cell_dists.shape == (adata_stratifications.shape[0], 15, 15)
     ct_dists = dists["labels"]

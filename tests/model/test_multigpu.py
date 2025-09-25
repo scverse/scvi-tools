@@ -35,7 +35,7 @@ def test_scanvi_from_scvi_multigpu(unlabeled_cat: str):
         strategy="ddp_find_unused_parameters_true",
     )
     print("done")
-
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
     adata.obsm["scVI"] = model.get_latent_representation()
 
@@ -99,7 +99,7 @@ def test_scanvi_from_scratch_multigpu(unlabeled_cat: str):
         strategy="ddp_find_unused_parameters_true",
     )
     print("done")
-
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -123,6 +123,7 @@ def test_totalvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained is True
 
 
@@ -153,6 +154,7 @@ def test_multivi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained is True
 
 
@@ -177,6 +179,7 @@ def test_peakvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -199,6 +202,7 @@ def test_condscvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -217,6 +221,7 @@ def test_linearcvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -239,7 +244,6 @@ model.train(
     devices=-1,
     strategy="ddp_find_unused_parameters_true",
 )
-
 assert model.is_trained
 """
     # Define the file path for the temporary script in the current working directory
@@ -271,64 +275,64 @@ assert model.is_trained
     launch_ddp(torch.cuda.device_count(), temp_file_path)
 
 
-# @pytest.mark.multigpu
-# @pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
-# def test_scanvi_train_ddp(unlabeled_cat: str, save_path: str):
-#     training_code = """
-# import torch
-# import scvi
-# from scvi.model import SCANVI
-#
-# adata = scvi.data.synthetic_iid()
-# SCANVI.setup_anndata(
-#     adata,
-#     "labels",
-#     unlabeled_cat,
-#     batch_key="batch",
-# )
-#
-# model = SCANVI(adata, n_latent=10)
-#
-# datasplitter_kwargs = {}
-# datasplitter_kwargs["drop_dataset_tail"] = True
-# datasplitter_kwargs["drop_last"] = False
-#
-# model.train(
-#     max_epochs=1,
-#     train_size=0.5,
-#     check_val_every_n_epoch=1,
-#     accelerator="gpu",
-#     devices=-1,
-#     strategy="ddp_find_unused_parameters_true",
-#     datasplitter_kwargs=datasplitter_kwargs,
-# )
-#
-# assert model.is_trained
-# """
-#     # Define the file path for the temporary script in the current working directory
-#     temp_file_path = os.path.join(save_path, "train_scanvi_ddp_temp.py")
-#
-#     # Write the training code to the file in the current working directory
-#     with open(temp_file_path, "w") as temp_file:
-#         temp_file.write(training_code)
-#         print(f"Temporary Python file created at: {temp_file_path}")
-#
-#     def launch_ddp(world_size, temp_file_path):
-#         # Command to run the script via torchrun
-#         command = [
-#             "torchrun",
-#             "--nproc_per_node=" + str(world_size),  # Specify the number of GPUs
-#             temp_file_path,  # Your original script
-#         ]
-#         # Use subprocess to run the command
-#         try:
-#             # Run the command, wait for it to finish & clean up the temporary file
-#             subprocess.run(command, check=True)
-#         except subprocess.CalledProcessError as e:
-#             os.remove(temp_file_path)
-#             print(f"Error occurred while running the DDP training: {e}")
-#             raise
-#         finally:
-#             os.remove(temp_file_path)
-#
-#     launch_ddp(torch.cuda.device_count(), temp_file_path)
+@pytest.mark.multigpu
+@pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
+def test_scanvi_train_ddp(unlabeled_cat: str, save_path: str):
+    training_code = """
+import torch
+import scvi
+from scvi.model import SCANVI
+
+adata = scvi.data.synthetic_iid()
+SCANVI.setup_anndata(
+    adata,
+    "labels",
+    unlabeled_cat,
+    batch_key="batch",
+)
+
+model = SCANVI(adata, n_latent=10)
+
+datasplitter_kwargs = {}
+datasplitter_kwargs["drop_dataset_tail"] = True
+datasplitter_kwargs["drop_last"] = False
+
+model.train(
+    max_epochs=1,
+    train_size=0.5,
+    check_val_every_n_epoch=1,
+    accelerator="gpu",
+    devices=-1,
+    strategy="ddp_find_unused_parameters_true",
+    datasplitter_kwargs=datasplitter_kwargs,
+)
+
+assert model.is_trained
+"""
+    # Define the file path for the temporary script in the current working directory
+    temp_file_path = os.path.join(save_path, "train_scanvi_ddp_temp.py")
+
+    # Write the training code to the file in the current working directory
+    with open(temp_file_path, "w") as temp_file:
+        temp_file.write(training_code)
+        print(f"Temporary Python file created at: {temp_file_path}")
+
+    def launch_ddp(world_size, temp_file_path):
+        # Command to run the script via torchrun
+        command = [
+            "torchrun",
+            "--nproc_per_node=" + str(world_size),  # Specify the number of GPUs
+            temp_file_path,  # Your original script
+        ]
+        # Use subprocess to run the command
+        try:
+            # Run the command, wait for it to finish & clean up the temporary file
+            subprocess.run(command, check=True)
+        except subprocess.CalledProcessError as e:
+            os.remove(temp_file_path)
+            print(f"Error occurred while running the DDP training: {e}")
+            raise
+        finally:
+            os.remove(temp_file_path)
+
+    launch_ddp(torch.cuda.device_count(), temp_file_path)
