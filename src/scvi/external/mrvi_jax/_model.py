@@ -126,7 +126,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         ).categorical_mapping
 
         self.n_obs_per_sample = jnp.array(
-            adata.obs._scvi_sample.value_counts().sort_index().values, dtype=jnp.float32
+            adata.obs._scvi_sample.value_counts().sort_index().values
         )
         self.backend = "jax"
 
@@ -442,9 +442,9 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
                 try:
                     mean_zs_ = mapped_inference_fn(
                         stacked_rngs=stacked_rngs,
-                        x=jnp.array(inf_inputs["x"], dtype=jnp.float32),
-                        sample_index=jnp.array(inf_inputs["sample_index"], dtype=jnp.float32),
-                        cf_sample=jnp.array(cf_sample, dtype=jnp.float32),
+                        x=jnp.array(inf_inputs["x"]),
+                        sample_index=jnp.array(inf_inputs["sample_index"]),
+                        cf_sample=jnp.array(cf_sample),
                         use_mean=True,
                     )
                 except jax.errors.JaxRuntimeError as e:
@@ -467,9 +467,9 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
                     stacked_rngs=stacked_rngs,
-                    x=jnp.array(inf_inputs["x"], dtype=jnp.float32),
-                    sample_index=jnp.array(inf_inputs["sample_index"], dtype=jnp.float32),
-                    cf_sample=jnp.array(cf_sample, dtype=jnp.float32),
+                    x=jnp.array(inf_inputs["x"]),
+                    sample_index=jnp.array(inf_inputs["sample_index"]),
+                    cf_sample=jnp.array(cf_sample),
                     use_mean=False,
                     mc_samples=mc_samples,
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
@@ -1431,7 +1431,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
 
             rngs_de = self.module.rngs if store_lfc else None
-            admissible_samples_mat = jnp.array(admissible_samples[indices], dtype=jnp.float32)
+            admissible_samples_mat = jnp.array(admissible_samples[indices])
             n_samples_per_cell = admissible_samples_mat.sum(axis=1)
             admissible_samples_dmat = jax.vmap(jnp.diag)(admissible_samples_mat).astype(
                 float
@@ -1444,9 +1444,9 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             try:
                 res = mapped_inference_fn(
                     stacked_rngs=stacked_rngs,
-                    x=jnp.array(inf_inputs["x"], dtype=jnp.float32),
-                    sample_index=jnp.array(inf_inputs["sample_index"], dtype=jnp.float32),
-                    cf_sample=jnp.array(cf_sample, dtype=jnp.float32),
+                    x=jnp.array(inf_inputs["x"]),
+                    sample_index=jnp.array(inf_inputs["sample_index"]),
+                    cf_sample=jnp.array(cf_sample),
                     Amat=Amat,
                     prefactor=prefactor,
                     n_samples_per_cell=n_samples_per_cell,
@@ -1608,7 +1608,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
                 offset_indices = (
                     Series(np.arange(len(Xmat_names)), index=Xmat_names).loc[cov_names].values
                 )
-                offset_indices = jnp.array(offset_indices, dtype=jnp.float32)
+                offset_indices = jnp.array(offset_indices)
             else:
                 warnings.warn(
                     """
@@ -1622,7 +1622,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         else:
             offset_indices = None
 
-        Xmat = jnp.array(Xmat, dtype=jnp.float32)
+        Xmat = jnp.array(Xmat)
         if store_lfc:
             covariates_require_lfc = (
                 np.isin(Xmat_dim_to_key, store_lfc_metadata_subset)
@@ -1631,7 +1631,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             )
         else:
             covariates_require_lfc = np.zeros(len(Xmat_names), dtype=bool)
-        covariates_require_lfc = jnp.array(covariates_require_lfc, dtype=jnp.float32)
+        covariates_require_lfc = jnp.array(covariates_require_lfc)
 
         return Xmat, Xmat_names, covariates_require_lfc, offset_indices
 
