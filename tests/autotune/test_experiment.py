@@ -2,7 +2,7 @@ import pytest
 
 from scvi import settings
 from scvi.data import synthetic_iid
-from scvi.model import SCVI, MULTIVI
+from scvi.model import MULTIVI, SCVI
 
 
 @pytest.mark.autotune

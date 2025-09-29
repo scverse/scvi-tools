@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from os.path import join, dirname
+from os.path import dirname, join
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -13,8 +13,8 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from mudata import MuData
 from ray.tune import Tuner
 from ray.util.annotations import PublicAPI
-from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 
+from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.utils import dependencies, is_package_installed
 
 if TYPE_CHECKING:
@@ -355,10 +355,10 @@ class AutotuneExperiment:
     ) -> None:
         self.model_cls = model_cls
         if type(data).__name__ == "MuData":
-            #save mudata on disk as it cant be pickled by ray
+            # save mudata on disk as it cant be pickled by ray
             data.write_h5mu("mydata.h5mu")
             self.is_mudata = True
-            #need to forcefully register it
+            # need to forcefully register it
             data_manager = self.model_cls._get_most_recent_anndata_manager(data, required=True)
             self._setup_method_name = data_manager._registry.get(
                 _SETUP_METHOD_NAME, "setup_anndata"
@@ -366,9 +366,9 @@ class AutotuneExperiment:
             self._setup_method_args = data_manager._get_setup_method_args().get(
                 _SETUP_ARGS_KEY, {}
             )
-            self.data = "mydata.h5mu" #file will be read from the trainable folder upstream
+            self.data = "mydata.h5mu"  # file will be read from the trainable folder upstream
         else:
-            self.is_mudata=False
+            self.is_mudata = False
             self.data = data
         self.metrics = metrics
         self.mode = mode
@@ -840,10 +840,11 @@ def _trainable(
 
     settings.seed = experiment.seed
     if isinstance(experiment.data, AnnData | str):
-        #str means its the link to the stored mudata (which cant be pickled)
+        # str means its the link to the stored mudata (which cant be pickled)
         if experiment.is_mudata:
             import muon as mu
-            mudata_file_path = join(dirname(experiment.logging_dir),experiment.data)
+
+            mudata_file_path = join(dirname(experiment.logging_dir), experiment.data)
             adata_or_mdata = mu.read_h5mu(mudata_file_path)
         else:
             adata_or_mdata = experiment.data
