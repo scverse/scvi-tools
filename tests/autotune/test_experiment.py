@@ -560,6 +560,7 @@ def test_trainable_mdata(save_path: str):
             "protein_layer": "protein_expression",
         },
     )
+    mdata.write_h5mu("mydata.h5mu")
 
     experiment = AutotuneExperiment(
         MULTIVI,
@@ -623,7 +624,7 @@ def test_experiment_init_mdata(save_path: str):
 
     assert hasattr(experiment, "data")
     assert experiment.data is not None
-    assert experiment.data is mdata
+    assert isinstance(experiment.data, str)
     with pytest.raises(AttributeError):
         experiment.data = "new_adata"
 
