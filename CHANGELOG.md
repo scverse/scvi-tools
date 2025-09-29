@@ -6,6 +6,18 @@ to [Semantic Versioning]. Full commit history is available in the
 
 ## Version 1.4
 
+### 1.4.1 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+- Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
+
+#### Changed
+
+#### Removed
+
 ### 1.4.0 (2025-09-14)
 
 #### Added
