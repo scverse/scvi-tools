@@ -9,7 +9,8 @@ from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
 
 @pytest.mark.autotune
 @pytest.mark.parametrize("save_checkpoints", [True, False])
-def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, save_path: str):
+@pytest.mark.parametrize("metric", ["elbo_validation", "elbo_train"])
+def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, metric: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -22,7 +23,7 @@ def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, save_path: str):
     experiment = run_autotune(
         SCVI,
         adata,
-        metrics=["elbo_validation"],
+        metrics=[metric],
         mode="min",
         search_space={
             "model_params": {
@@ -237,7 +238,7 @@ def test_run_autotune_scvi_with_scib_mdata(model_cls, metric: str, solver: str, 
         mode="max",
         search_space={
             "model_params": {
-                "n_hidden": tune.choice([1, 2]),
+                "n_hidden": tune.choice([5, 10]),
             },
             "train_params": {
                 "max_epochs": 1,
