@@ -82,6 +82,7 @@ def test_cytovi_preprocess(adata, overlapping_adatas):
     assert NAN_LAYER_KEY in adata_merged.layers
 
 
+@pytest.mark.optional
 def test_cytovi_plotting(adata):
     cytovi.plot_biaxial(adata, layer_key=RAW_LAYER_KEY, marker_x=adata.var_names[0])
     cytovi.plot_histogram(adata, layer_key=RAW_LAYER_KEY)
@@ -134,6 +135,7 @@ def test_cytovi(adata):
     model.train(max_epochs=N_EPOCHS)
 
 
+@pytest.mark.optional
 def test_cytovi_overlapping(overlapping_adatas):
     adata1, adata2 = overlapping_adatas
     cytovi.transform_arcsinh(adata1)

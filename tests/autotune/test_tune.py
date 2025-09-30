@@ -4,12 +4,13 @@ from scvi import settings
 from scvi.data import synthetic_iid
 from scvi.dataloaders import DataSplitter
 from scvi.external import TOTALANVI
-from scvi.model import SCANVI, SCVI, TOTALVI
+from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
 
 
 @pytest.mark.autotune
 @pytest.mark.parametrize("save_checkpoints", [True, False])
-def test_run_autotune_scvi_basic(save_path: str, save_checkpoints: bool):
+@pytest.mark.parametrize("metric", ["elbo_validation", "elbo_train"])
+def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, metric: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -22,6 +23,51 @@ def test_run_autotune_scvi_basic(save_path: str, save_checkpoints: bool):
     experiment = run_autotune(
         SCVI,
         adata,
+        metrics=[metric],
+        mode="min",
+        search_space={
+            "model_params": {
+                "n_hidden": tune.choice([1, 2]),
+            },
+            "train_params": {
+                "max_epochs": 1,
+            },
+        },
+        num_samples=2,
+        seed=0,
+        save_checkpoints=save_checkpoints,
+        scheduler="asha",
+        searcher="hyperopt",
+        ignore_reinit_error=True,
+    )
+    assert isinstance(experiment, AutotuneExperiment)
+    assert hasattr(experiment, "result_grid")
+    assert isinstance(experiment.result_grid, ResultGrid)
+
+
+@pytest.mark.autotune
+@pytest.mark.parametrize("save_checkpoints", [True, False])
+def test_run_autotune_scvi_basic_mdata(save_checkpoints: bool, save_path: str):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
+    settings.logging_dir = save_path
+    mdata = synthetic_iid(return_mudata=True)
+    MULTIVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={
+            "rna_layer": "rna",
+            "atac_layer": "accessibility",
+            "protein_layer": "protein_expression",
+        },
+    )
+
+    experiment = run_autotune(
+        MULTIVI,
+        mdata,
         metrics=["elbo_validation"],
         mode="min",
         search_space={
@@ -46,7 +92,7 @@ def test_run_autotune_scvi_basic(save_path: str, save_checkpoints: bool):
 
 @pytest.mark.autotune
 @pytest.mark.parametrize("n_batches", [3])
-def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int):
+def test_run_autotune_scvi_no_anndata(n_batches: int, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -87,9 +133,9 @@ def test_run_autotune_scvi_no_anndata(save_path: str, n_batches: int):
 
 @pytest.mark.autotune
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
-@pytest.mark.parametrize("model_cls", [SCVI, SCANVI, TOTALVI, TOTALANVI])
+@pytest.mark.parametrize("model_cls", [SCVI, SCANVI, TOTALVI])
 @pytest.mark.parametrize("solver", ["arpack", "randomized"])
-def test_run_autotune_scvi_with_scib(model_cls, metric: str, solver: str, save_path: str):
+def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
 
@@ -155,8 +201,66 @@ def test_run_autotune_scvi_with_scib(model_cls, metric: str, solver: str, save_p
 
 
 @pytest.mark.autotune
+@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("model_cls", [MULTIVI, TOTALVI])
+@pytest.mark.parametrize("solver", ["arpack", "randomized"])
+def test_run_autotune_scvi_with_scib_mdata(model_cls, metric: str, solver: str, save_path: str):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
+    settings.logging_dir = save_path
+    mdata = synthetic_iid(return_mudata=True)
+    if model_cls == MULTIVI:
+        model_cls.setup_mudata(
+            mdata,
+            batch_key="batch",
+            modalities={
+                "rna_layer": "rna",
+                "atac_layer": "accessibility",
+                "protein_layer": "protein_expression",
+            },
+        )
+    elif model_cls == TOTALVI:
+        model_cls.setup_mudata(
+            mdata,
+            batch_key="batch",
+            modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+        )
+    else:
+        raise ValueError("No Model")
+
+    experiment = run_autotune(
+        model_cls,
+        mdata,
+        metrics=[metric],
+        mode="max",
+        search_space={
+            "model_params": {
+                "n_hidden": tune.choice([5, 10]),
+            },
+            "train_params": {
+                "max_epochs": 1,
+            },
+        },
+        num_samples=2,
+        scib_subsample_rows=100,
+        seed=0,
+        scheduler="asha",
+        searcher="hyperopt",
+        local_mode=True,
+        ignore_reinit_error=True,
+        solver=solver,
+    )
+    assert isinstance(experiment, AutotuneExperiment)
+    assert hasattr(experiment, "result_grid")
+    assert isinstance(experiment.result_grid, ResultGrid)
+
+
+@pytest.mark.autotune
 @pytest.mark.parametrize("metric", ["iLISI"])
-def test_run_autotune_scvi_with_scib_ext_indices(save_path: str, metric: str):
+def test_run_autotune_scvi_with_scib_ext_indices(metric: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
 

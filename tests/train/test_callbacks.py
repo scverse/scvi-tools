@@ -6,7 +6,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.model import SCANVI, SCVI
+from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
+from scvi.train._callbacks import ScibCallback
 
 
 @pytest.mark.parametrize("load_best_on_end", [True, False])
@@ -127,10 +128,7 @@ def test_exception_callback():
 
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
 @pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
-def test_scib_callback(model_cls, metric: str):
-    from scvi.train._callbacks import ScibCallback
-
-    # we use this temporarily to debug the scib-metrics callback
+def test_scib_callback_adata(model_cls, metric: str):
     adata = synthetic_iid()
     if model_cls == SCANVI:
         model_cls.setup_anndata(
@@ -146,6 +144,34 @@ def test_scib_callback(model_cls, metric: str):
             batch_key="batch",
         )
     model = model_cls(adata)
+    model.train(
+        1,
+        train_size=0.5,
+        callbacks=[ScibCallback()],
+    )
+
+
+@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("model_cls", [MULTIVI, TOTALVI])
+def test_scib_callback_mudata(model_cls, metric: str):
+    mdata = synthetic_iid(return_mudata=True)
+    if model_cls == MULTIVI:
+        model_cls.setup_mudata(
+            mdata,
+            batch_key="batch",
+            modalities={
+                "rna_layer": "rna",
+                "atac_layer": "accessibility",
+                "protein_layer": "protein_expression",
+            },
+        )
+    else:
+        model_cls.setup_mudata(
+            mdata,
+            batch_key="batch",
+            modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+        )
+    model = model_cls(mdata)
     model.train(
         1,
         train_size=0.5,

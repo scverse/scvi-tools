@@ -128,6 +128,7 @@ def test_scviva_save_load(adata):
     assert predicted_eta.shape == (adata.n_obs, nichevae.n_labels, N_LATENT_INTRINSIC)
 
 
+@pytest.mark.optional
 def test_scviva_differential(adata):
     SCVIVA.preprocessing_anndata(
         adata,

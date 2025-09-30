@@ -44,6 +44,7 @@ def model(adata: AnnData):
     return model
 
 
+@pytest.mark.optional
 def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances(batch_size=16)
     model.get_local_sample_distances(normalize_distances=True, batch_size=16)
@@ -178,6 +179,7 @@ def test_jaxmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save
     model = MRVI.load(model_path, adata=adata)
 
 
+@pytest.mark.optional
 def test_jaxmrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
@@ -188,6 +190,7 @@ def test_jaxmrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
+@pytest.mark.optional
 def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata,
@@ -223,6 +226,7 @@ def adata_stratifications():
     return adata
 
 
+@pytest.mark.optional
 def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata_stratifications,

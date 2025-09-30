@@ -15,7 +15,7 @@ from scvi.distributions import (
     ZeroInflatedNegativeBinomial,
 )
 from scvi.module._peakvae import Decoder as DecoderPeakVI
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module.base import BaseMinifiedModeModuleClass, LossOutput, auto_move_data
 from scvi.nn import DecoderSCVI, Encoder, FCLayers
 
 from ._utils import masked_softmax
@@ -179,7 +179,7 @@ class DecoderADT(torch.nn.Module):
         return py_, log_pro_back_mean
 
 
-class MULTIVAE(BaseModuleClass):
+class MULTIVAE(BaseMinifiedModeModuleClass):
     """Variational auto-encoder model for joint paired + unpaired RNA-seq and ATAC-seq data.
 
     Parameters
@@ -257,6 +257,20 @@ class MULTIVAE(BaseModuleClass):
     use_size_factor_key
         Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
         RNA distribution.
+    protein_background_prior_mean
+        Array of proteins by batches, the prior initialization for the protein background mean
+        (log scale)
+    protein_background_prior_scale
+        Array of proteins by batches, the prior initialization for the protein background scale
+        (log scale)
+    protein_dispersion
+        One of the following
+
+        * ``'protein'`` - protein_dispersion parameter is constant per protein across cells
+        * ``'protein-batch'`` - protein_dispersion can differ between different batches NOT TESTED
+        * ``'protein-label'`` - protein_dispersion can differ between different labels NOT TESTED
+    extra_payload_autotune
+        If ``True``, will return extra matrices in the loss output to be used during autotune
     """
 
     def __init__(
@@ -288,6 +302,7 @@ class MULTIVAE(BaseModuleClass):
         protein_background_prior_mean: np.ndarray | None = None,
         protein_background_prior_scale: np.ndarray | None = None,
         protein_dispersion: str = "protein",
+        extra_payload_autotune: bool = False,
     ):
         super().__init__()
 
@@ -313,6 +328,7 @@ class MULTIVAE(BaseModuleClass):
         self.n_cats_per_cov = n_cats_per_cov
         self.n_continuous_cov = n_continuous_cov
         self.dropout_rate = dropout_rate
+        self.extra_payload_autotune = extra_payload_autotune
 
         self.use_batch_norm_encoder = use_batch_norm in ("encoder", "both")
         self.use_batch_norm_decoder = use_batch_norm in ("decoder", "both")
@@ -863,7 +879,23 @@ class MULTIVAE(BaseModuleClass):
             "kl_divergence_z": kl_div_z,
             "kl_divergence_paired": kl_div_paired,
         }
-        return LossOutput(loss=loss, reconstruction_loss=recon_losses, kl_local=kl_local)
+
+        # a payload to be used during autotune
+        if self.extra_payload_autotune:
+            extra_metrics_payload = {
+                "z": inference_outputs["z"],
+                "batch": tensors[REGISTRY_KEYS.BATCH_KEY],
+                "labels": tensors[REGISTRY_KEYS.LABELS_KEY],
+            }
+        else:
+            extra_metrics_payload = {}
+
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=recon_losses,
+            kl_local=kl_local,
+            extra_metrics=extra_metrics_payload,
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""
