@@ -890,10 +890,12 @@ class MULTIVAE(BaseMinifiedModeModuleClass):
         else:
             extra_metrics_payload = {}
 
-        return LossOutput(loss=loss,
-                          reconstruction_loss=recon_losses,
-                          kl_local=kl_local,
-                          extra_metrics=extra_metrics_payload)
+        return LossOutput(
+            loss=loss,
+            reconstruction_loss=recon_losses,
+            kl_local=kl_local,
+            extra_metrics=extra_metrics_payload,
+        )
 
     def get_reconstruction_loss_expression(self, x, px_rate, px_r, px_dropout):
         """Computes the reconstruction loss for the expression data."""

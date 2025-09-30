@@ -705,9 +705,7 @@ class AutotuneExperiment:
         )
         on = "validation_end" if "validation" in self.metrics else "train_end"
 
-        return callback_cls(
-            metrics=self.metrics, on=on, save_checkpoints=self.save_checkpoints
-        )
+        return callback_cls(metrics=self.metrics, on=on, save_checkpoints=self.save_checkpoints)
 
     @property
     def scib_metrics_callback(self) -> Callback:
