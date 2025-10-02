@@ -16,6 +16,7 @@ from .resolvi import RESOLVI
 from .scar import SCAR
 from .scbasset import SCBASSET
 from .scviva import SCVIVA
+from .scwae import SCWAE
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .sysvi import SysVI
@@ -42,6 +43,7 @@ __all__ = [
     "METHYLANVI",
     "RESOLVI",
     "SCVIVA",
+    "SCWAE",
     "CYTOVI",
 ]
 
