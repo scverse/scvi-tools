@@ -4,7 +4,6 @@ from pprint import pprint
 
 import numpy as np
 import pytest
-
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
@@ -12,12 +11,18 @@ from scvi.external import MRVI
 from scvi.utils import dependencies
 
 
+@pytest.fixture(scope="module")
+def setup_lamindb_instance():
+    os.system("lamin init --storage ./test_lamindb_loader")
+    yield
+    os.system("rm -r ./test_lamindb_loader")
+    os.system("lamin delete --force test_lamindb_loader")
+
+
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_small(save_path: str):
+def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
     import lamindb as ln
-
-    ln.setup.init(storage="./lamindb_collection")
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -174,7 +179,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scanvi_small(save_path: str):
+def test_lamindb_dataloader_scanvi_small(save_path: str, setup_lamindb_instance):
     import lamindb as ln
 
     # prepare test data
@@ -377,7 +382,7 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_mrvi_small(save_path: str):
+def test_lamindb_dataloader_mrvi_small(save_path: str, setup_lamindb_instance):
     import lamindb as ln
 
     # prepare test data
@@ -500,7 +505,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str):
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
+def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str, setup_lamindb_instance):
     import lamindb as ln
 
     # prepare test data
