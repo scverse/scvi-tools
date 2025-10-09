@@ -4,6 +4,7 @@ from pprint import pprint
 
 import numpy as np
 import pytest
+
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
