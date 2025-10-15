@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from scvi import settings
@@ -560,7 +562,8 @@ def test_trainable_mdata(save_path: str):
             "protein_layer": "protein_expression",
         },
     )
-    mdata.write_h5mu("mydata.h5mu")
+    mdata_path = os.path.join(save_path, "mydata.h5mu")
+    mdata.write_h5mu(mdata_path)
 
     experiment = AutotuneExperiment(
         MULTIVI,
