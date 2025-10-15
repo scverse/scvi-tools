@@ -10,6 +10,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add support for mudata during ray autotune, {pr}`3545`.
+
 #### Fixed
 
 - Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
