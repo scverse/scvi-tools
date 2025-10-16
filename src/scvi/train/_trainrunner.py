@@ -1,13 +1,13 @@
+import gc
 import logging
 import os
 import pickle
 import warnings
-import gc
-import torch
 
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
+import torch
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
@@ -134,6 +134,7 @@ class TrainRunner:
             gc.collect()
 
             import traceback
+
             traceback.print_exc()
 
             if torch.cuda.is_available():
