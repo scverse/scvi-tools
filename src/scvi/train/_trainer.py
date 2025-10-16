@@ -223,9 +223,10 @@ class Trainer(pl.Trainer):
                 import gc
 
                 gc.collect()
+                import traceback
+
                 import torch
 
-                import traceback
                 traceback.print_exc()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()

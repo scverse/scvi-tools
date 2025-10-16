@@ -132,9 +132,10 @@ class TrainRunner:
             import gc
 
             gc.collect()
+            import traceback
+
             import torch
 
-            import traceback
             traceback.print_exc()
 
             if torch.cuda.is_available():
