@@ -126,11 +126,16 @@ class TrainRunner:
 
         try:
             self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
-        except NameError:
+        except BaseException as e:
+            self._update_history()
+            print("Exception raised during training.", NameError, e)
             import gc
 
             gc.collect()
             import torch
+
+            import traceback
+            traceback.print_exc()
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()

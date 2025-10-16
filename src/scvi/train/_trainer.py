@@ -218,11 +218,14 @@ class Trainer(pl.Trainer):
                 )
             try:
                 super().fit(*args, **kwargs)
-            except NameError:
+            except BaseException as e:
+                print("Exception raised during training.", NameError, e)
                 import gc
 
                 gc.collect()
                 import torch
 
+                import traceback
+                traceback.print_exc()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
