@@ -2,6 +2,8 @@ import logging
 import os
 import pickle
 import warnings
+import gc
+import torch
 
 import lightning.pytorch as pl
 import numpy as np
@@ -129,17 +131,15 @@ class TrainRunner:
         except BaseException as e:
             self._update_history()
             print("Exception raised during training.", NameError, e)
-            import gc
-
             gc.collect()
+
             import traceback
-
-            import torch
-
             traceback.print_exc()
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
+            raise
         self._update_history()
 
         # data splitter only gets these attrs after fit

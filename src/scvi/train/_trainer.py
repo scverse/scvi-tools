@@ -216,17 +216,19 @@ class Trainer(pl.Trainer):
                     category=UserWarning,
                     message="`LightningModule.configure_optimizers` returned `None`",
                 )
-            try:
-                super().fit(*args, **kwargs)
-            except BaseException as e:
-                print("Exception raised during training.", NameError, e)
-                import gc
-
-                gc.collect()
-                import traceback
-
-                import torch
-
-                traceback.print_exc()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+            # try:
+            super().fit(*args, **kwargs)
+            # except BaseException as e:
+            #     print("Exception raised during training.", NameError, e)
+            #     import gc
+            #
+            #     gc.collect()
+            #     import traceback
+            #
+            #     import torch
+            #
+            #     traceback.print_exc()
+            #     if torch.cuda.is_available():
+            #         torch.cuda.empty_cache()
+            #
+            #     raise
