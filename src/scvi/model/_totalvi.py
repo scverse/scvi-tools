@@ -1320,14 +1320,15 @@ class TOTALVI(
         model_state_dict, var_names, attr_dict, _ = _load_legacy_saved_files(
             dir_path, file_name_prefix, load_adata=False
         )
-        model_state_dict["log_per_batch_efficiency"] = torch.nn.Parameter(
-            torch.zeros(
-                [
-                    attr_dict["scvi_setup_dict_"]["summary_stats"]["n_proteins"],
-                    attr_dict["scvi_setup_dict_"]["summary_stats"]["n_batch"],
-                ]
+        if "log_per_batch_efficiency" not in model_state_dict.keys():
+            model_state_dict["log_per_batch_efficiency"] = torch.nn.Parameter(
+                torch.zeros(
+                    [
+                        attr_dict["scvi_setup_dict_"]["summary_stats"]["n_proteins"],
+                        attr_dict["scvi_setup_dict_"]["summary_stats"]["n_batch"],
+                    ]
+                )
             )
-        )
 
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
