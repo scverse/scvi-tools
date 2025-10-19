@@ -89,14 +89,14 @@ def pytest_collection_modifyitems(config, items):
         reason="need ---custom-dataloader-tests option to run"
     )
     skip_non_custom_dataloader = pytest.mark.skip(
-        reason="test not having a pytest.mark.custom_dataloader decorator"
+        reason="test not having a pytest.mark.dataloader decorator"
     )
     for item in items:
-        # All tests marked with `pytest.mark.custom_dataloader` get skipped unless
-        # `--custom_dataloader-tests` passed
+        # All tests marked with `pytest.mark.dataloader` get skipped unless
+        # `--custom-dataloader-tests` passed
         if not run_custom_dataloader and ("dataloader" in item.keywords):
             item.add_marker(skip_custom_dataloader)
-        # Skip all tests not marked with `pytest.mark.custom_dataloader`
+        # Skip all tests not marked with `pytest.mark.dataloader`
         # if `--custom-dataloader-tests` passed
         elif run_custom_dataloader and ("dataloader" not in item.keywords):
             item.add_marker(skip_non_custom_dataloader)
