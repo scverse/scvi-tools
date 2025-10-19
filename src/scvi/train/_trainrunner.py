@@ -1,3 +1,4 @@
+import gc
 import logging
 import os
 import pickle
@@ -6,6 +7,7 @@ import warnings
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
+import torch
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
@@ -126,14 +128,15 @@ class TrainRunner:
 
         try:
             self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
-        except NameError:
-            import gc
-
+        except BaseException as e:
+            self._update_history()
+            print("Exception raised during training.", NameError, e)
             gc.collect()
-            import torch
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
+            raise
         self._update_history()
 
         # data splitter only gets these attrs after fit
