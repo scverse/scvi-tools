@@ -5,6 +5,7 @@ import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import JaxSCVI
+from scvi.train import JaxTrainingPlan
 from scvi.utils import attrdict
 
 
@@ -93,3 +94,21 @@ def test_jax_scvi_save_load(save_path: str, n_latent: int):
 
     z2 = model.get_latent_representation()
     np.testing.assert_array_equal(z1, z2)
+
+
+def test_loss_args_jax():
+    """Test that self._loss_args is set correctly."""
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(adata)
+    jax_vae = JaxSCVI(adata)
+    jax_tp = JaxTrainingPlan(jax_vae.module)
+
+    loss_args = [
+        "tensors",
+        "inference_outputs",
+        "generative_outputs",
+        "kl_weight",
+    ]
+    assert len(jax_tp._loss_args) == len(loss_args)
+    for arg in loss_args:
+        assert arg in jax_tp._loss_args
