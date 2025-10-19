@@ -16,6 +16,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
 - Fix Jax dependency in function log_nb_positive, {pr}`3558`.
+- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters, {pr}`3561`.
 
 #### Changed
 
