@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
 
 import torch
 import torch.nn.functional as F
@@ -18,6 +17,11 @@ from scvi import settings
 from scvi.utils import is_package_installed
 
 from ._constraints import optional_constraint
+
+try:
+    import jax.numpy as jnp
+except ImportError:
+    jnp = None
 
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
@@ -98,47 +102,43 @@ def log_zinb_positive(
     return res
 
 
-if is_package_installed("jax"):
-    if TYPE_CHECKING:
-        import jax.numpy as jnp
+def log_nb_positive(
+    x: torch.Tensor | (jnp.ndarray if jnp else torch.Tensor),
+    mu: torch.Tensor | (jnp.ndarray if jnp else torch.Tensor),
+    theta: torch.Tensor | (jnp.ndarray if jnp else torch.Tensor),
+    eps: float = 1e-8,
+    log_fn: callable = torch.log,
+    lgamma_fn: callable = torch.lgamma,
+) -> torch.Tensor | (jnp.ndarray if jnp else torch.Tensor):
+    """Log likelihood (scalar) of a minibatch according to a nb model.
 
-    def log_nb_positive(
-        x: torch.Tensor | jnp.ndarray,
-        mu: torch.Tensor | jnp.ndarray,
-        theta: torch.Tensor | jnp.ndarray,
-        eps: float = 1e-8,
-        log_fn: callable = torch.log,
-        lgamma_fn: callable = torch.lgamma,
-    ) -> torch.Tensor | jnp.ndarray:
-        """Log likelihood (scalar) of a minibatch according to a nb model.
+    Parameters
+    ----------
+    x
+        data
+    mu
+        mean of the negative binomial (has to be positive support) (shape: minibatch x vars)
+    theta
+        inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
+    eps
+        numerical stability constant
+    log_fn
+        log function
+    lgamma_fn
+        log gamma function
+    """
+    log = log_fn
+    lgamma = lgamma_fn
+    log_theta_mu_eps = log(theta + mu + eps)
+    res = (
+        theta * (log(theta + eps) - log_theta_mu_eps)
+        + x * (log(mu + eps) - log_theta_mu_eps)
+        + lgamma(x + theta)
+        - lgamma(theta)
+        - lgamma(x + 1)
+    )
 
-        Parameters
-        ----------
-        x
-            data
-        mu
-            mean of the negative binomial (has to be positive support) (shape: minibatch x vars)
-        theta
-            inverse dispersion parameter (has to be positive support) (shape: minibatch x vars)
-        eps
-            numerical stability constant
-        log_fn
-            log function
-        lgamma_fn
-            log gamma function
-        """
-        log = log_fn
-        lgamma = lgamma_fn
-        log_theta_mu_eps = log(theta + mu + eps)
-        res = (
-            theta * (log(theta + eps) - log_theta_mu_eps)
-            + x * (log(mu + eps) - log_theta_mu_eps)
-            + lgamma(x + theta)
-            - lgamma(theta)
-            - lgamma(x + 1)
-        )
-
-        return res
+    return res
 
 
 def log_mixture_nb(
