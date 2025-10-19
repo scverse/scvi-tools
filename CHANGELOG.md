@@ -20,6 +20,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
+- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+
 ### 1.4.0 (2025-09-14)
 
 #### Added

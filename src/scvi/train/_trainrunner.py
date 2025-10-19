@@ -133,10 +133,6 @@ class TrainRunner:
             print("Exception raised during training.", NameError, e)
             gc.collect()
 
-            import traceback
-
-            traceback.print_exc()
-
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
