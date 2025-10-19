@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
 from typing import TYPE_CHECKING
 
-import os
 import numpy as np
 import pandas as pd
 import torch
@@ -14,6 +14,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
+from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
 from scvi.dataloaders import DataSplitter
@@ -25,16 +26,15 @@ from scvi.model._utils import (
     get_max_epochs_heuristic,
     use_distributed_sampler,
 )
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.model.base._de_core import _de_core
+from scvi.model.base._save_load import (
+    _load_legacy_saved_files,
+)
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
-from scvi.model.base._save_load import (
-    _load_legacy_saved_files,
-)
-from scvi.data._compat import registry_from_setup_dict
-from scvi.model.base._constants import SAVE_KEYS
 
 from .base import (
     ArchesMixin,
@@ -1320,9 +1320,14 @@ class TOTALVI(
         model_state_dict, var_names, attr_dict, _ = _load_legacy_saved_files(
             dir_path, file_name_prefix, load_adata=False
         )
-        model_state_dict["log_per_batch_efficiency"] = (
-            torch.nn.Parameter(torch.zeros([attr_dict["scvi_setup_dict_"]["summary_stats"]["n_proteins"],
-                                            attr_dict["scvi_setup_dict_"]["summary_stats"]["n_batch"]])))
+        model_state_dict["log_per_batch_efficiency"] = torch.nn.Parameter(
+            torch.zeros(
+                [
+                    attr_dict["scvi_setup_dict_"]["summary_stats"]["n_proteins"],
+                    attr_dict["scvi_setup_dict_"]["summary_stats"]["n_batch"],
+                ]
+            )
+        )
 
         if "scvi_setup_dict_" in attr_dict:
             scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
