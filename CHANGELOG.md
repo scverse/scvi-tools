@@ -11,6 +11,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add support for mudata during ray autotune, {pr}`3545`.
+- Add support for Python 3.14 {pr}`36XX`.
 
 #### Fixed
 
