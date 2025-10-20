@@ -28,7 +28,7 @@ def test_validate_hf_url():
 
 def bump_patch_version(version: str) -> str:
     parts = version.split(".")
-    parts[-1] = str(int(parts[-1]) + 1)
+    parts[2] = str(int(parts[2]) + 1)
     return ".".join(parts)
 
 
