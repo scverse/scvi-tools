@@ -10,6 +10,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add support for Python 3.14 {pr}`3563`.
+
 #### Fixed
 
 #### Changed
