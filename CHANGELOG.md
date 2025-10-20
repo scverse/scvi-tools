@@ -10,25 +10,17 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Add support for mudata during ray autotune, {pr}`3545`.
-- Add support for Python 3.14 {pr}`3563`.
-
 #### Fixed
-
-- Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
-- Fix Jax dependency in function log_nb_positive, {pr}`3558`.
-- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters, {pr}`3561`.
 
 #### Changed
 
 #### Removed
 
-- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
-
 ### 1.4.0 (2025-09-14)
 
 #### Added
 
+- Add support for mudata during ray autotune, {pr}`3545`.
 - Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
 - Add checkpointing with {class}`scvi.autotune.AutotuneExperiment`, {pr}`3452`.
 - Add Downstream Analysis functions multi GPU support, {pr}`3443`.
@@ -42,6 +34,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
+- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters, {pr}`3561`.
 - Fix in library size calculation in {class}`scvi.model.TOTALVI`, {pr}`3452`.
 - Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
@@ -56,6 +50,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Remove the support for Python 3.10, {pr}`3441`.
 - Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3486`.
+- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
 
 ## Version 1.3
 
