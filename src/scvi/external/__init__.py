@@ -44,7 +44,7 @@ __all__ = [
     "RESOLVI",
     "SCVIVA",
     "CYTOVI",
-    "DIAGVI"
+    "DIAGVI",
 ]
 
 
