@@ -4,7 +4,7 @@ import pytest
 import torch
 from anndata import AnnData
 
-from scvi.external.diagvi._model import SPAGLUE
+from scvi.external.diagvi._model import DIAGVI
 
 
 @pytest.fixture
@@ -28,25 +28,25 @@ def adata_spatial():
 
 
 def make_model(adata_seq, adata_spatial):
-    SPAGLUE.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
-    SPAGLUE.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb")
-    return SPAGLUE({"diss": adata_seq, "spatial": adata_spatial})
+    DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
+    DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb")
+    return DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
 
 
-def test_spaglue_initialization(adata_seq, adata_spatial):
+def test_diagvi_initialization(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     assert model.module is not None
     assert "diss" in model.adatas
     assert "spatial" in model.adatas
 
 
-def test_spaglue_training(adata_seq, adata_spatial):
+def test_diagvi_training(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     assert model.is_trained_ is True
 
 
-def test_spaglue_latent_representation(adata_seq, adata_spatial):
+def test_diagvi_latent_representation(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     latents = model.get_latent_representation()
@@ -54,7 +54,7 @@ def test_spaglue_latent_representation(adata_seq, adata_spatial):
     assert latents["spatial"].shape[0] == adata_spatial.shape[0]
 
 
-def test_spaglue_generative_model(adata_seq, adata_spatial):
+def test_diagvi_generative_model(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     tensors = {
@@ -73,7 +73,7 @@ def test_spaglue_generative_model(adata_seq, adata_spatial):
     assert "pz" in generative_outputs
 
 
-def test_spaglue_loss(adata_seq, adata_spatial):
+def test_diagvi_loss(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     device = next(model.module.parameters()).device
@@ -97,7 +97,7 @@ def test_spaglue_loss(adata_seq, adata_spatial):
     assert loss.kl_local is not None
 
 
-def test_spaglue_get_imputed_values(adata_seq, adata_spatial):
+def test_diagvi_get_imputed_values(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     # Impute spatial from diss
@@ -112,14 +112,14 @@ def test_spaglue_get_imputed_values(adata_seq, adata_spatial):
     assert imputed2.shape[1] == adata_spatial.shape[1]
 
 
-def test_spaglue_save_and_load(adata_seq, adata_spatial, tmp_path):
+def test_diagvi_save_and_load(adata_seq, adata_spatial, tmp_path):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
-    save_path = tmp_path / "spaglue_test_model.pt"
+    save_path = tmp_path / "diagvi_test_model.pt"
     model.save(save_path, save_anndata=True)
 
     # Load the model
-    loaded_model = SPAGLUE.load(save_path)
+    loaded_model = DIAGVI.load(save_path)
 
     # compare state dicts
     model_state = model.module.state_dict()

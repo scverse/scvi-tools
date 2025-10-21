@@ -4,10 +4,8 @@ on:
   push:
     branches: [main, "[0-9]+.[0-9]+.x"]
   pull_request:
-    branches: [main, "[0-9]+.[0-9]+.x", "feature/spatial"] # Added feature/spatial
-    types: [opened, synchronize, labeled] # Added labeled
-  # schedule:
-  #   - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
+  schedule:
+    - cron: "0 10 * * *" # runs at 10:00 UTC (03:00 PST) every day
   workflow_dispatch:
 
 concurrency:
@@ -16,15 +14,8 @@ concurrency:
 
 jobs:
   test:
-    # Only run if PR has label "run-ci" or "all tests", or if scheduled or manually triggered
-    if: >-
-      (
-        contains(github.event.pull_request.labels.*.name, 'run-ci') ||
-        contains(github.event.pull_request.labels.*.name, 'all tests') ||
-        contains(github.event_name, 'schedule') ||
-        contains(github.event_name, 'workflow_dispatch')
-      )
     runs-on: ${{ matrix.os }}
+
     defaults:
       run:
         shell: bash -e {0} # -e to fail on error

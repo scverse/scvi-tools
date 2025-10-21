@@ -95,7 +95,7 @@ jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for diagvi
-diagvi = ["torch_geometric", "geomloss", "muon"]
+diagvi = ["torch_geometric", "geomloss"]
 
 optional = [
     "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
