@@ -14,6 +14,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
+- Update model {class}`scvi.model.DestVI` with fine cell-type classifier {pr}`3380`.
+
 #### Removed
 
 ### 1.4.0 (2025-09-14)
