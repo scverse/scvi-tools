@@ -98,7 +98,7 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 diagvi = ["torch_geometric", "geomloss"]
 
 optional = [
-    "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
+    "scvi-tools[autotune,diagvi,hub,jax,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "biomart",
