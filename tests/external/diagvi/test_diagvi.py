@@ -101,12 +101,12 @@ def test_diagvi_get_imputed_values(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     # Impute spatial from diss
-    imputed, _ = model.get_imputed_values(source_modality="spatial")
+    imputed, _ = model.get_imputed_values(source_name="spatial")
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape[0] == adata_spatial.shape[0]
     assert imputed.shape[1] == adata_seq.shape[1]
     # Impute diss from spatial
-    imputed2, _ = model.get_imputed_values(source_modality="diss")
+    imputed2, _ = model.get_imputed_values(source_name="diss")
     assert isinstance(imputed2, np.ndarray)
     assert imputed2.shape[0] == adata_seq.shape[0]
     assert imputed2.shape[1] == adata_spatial.shape[1]
