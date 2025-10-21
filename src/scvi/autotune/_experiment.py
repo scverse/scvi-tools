@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from os.path import join
+from os.path import dirname, join
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -14,7 +14,8 @@ from mudata import MuData
 from ray.tune import Tuner
 from ray.util.annotations import PublicAPI
 
-from scvi.utils import is_package_installed
+from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
+from scvi.utils import dependencies, is_package_installed
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -44,7 +45,7 @@ _allowed_hooks = {
 }
 
 
-if is_package_installed("ray"):
+if is_package_installed("ray") and is_package_installed("scib_metrics"):
     from ray.tune.integration.pytorch_lightning import TuneReportCheckpointCallback
 
     @PublicAPI
@@ -73,7 +74,11 @@ if is_package_installed("ray"):
                 This is important to save Scib computation time
             indices_list: If not empty will be used to select the indices to calc the scib metric
                 on, otherwise will use the random indices selection in size of scib_subsample_rows
-
+            n_jobs
+                Number of jobs to use for parallelization of neighbor search.
+            solver
+                SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+                "randomized" or "auto"
         """
 
         from scib_metrics.benchmark import BatchCorrection, BioConservation
@@ -88,6 +93,8 @@ if is_package_installed("ray"):
             batch_correction_metrics: BatchCorrection | None = BatchCorrection(),
             num_rows_to_select: int = 5000,
             indices_list: list | None = None,
+            n_jobs: int = 1,
+            solver: str = "arpack",
         ):
             super().__init__(
                 on=on, metrics=metrics, filename=filename, save_checkpoints=save_checkpoints
@@ -101,6 +108,8 @@ if is_package_installed("ray"):
             self.batch_correction_metrics = batch_correction_metrics
             self.on = on
             self.indices_list = indices_list
+            self.solver = solver
+            self.n_jobs = n_jobs
 
         def _get_report_dict(self, trainer: pl.Trainer, pl_module: pl.LightningModule):
             # Don't report if just doing initial validation sanity checks.
@@ -220,6 +229,8 @@ if is_package_installed("ray"):
                     embedding_obsm_keys=["z"],
                     bio_conservation_metrics=self.bio_conservation_metrics,
                     batch_correction_metrics=self.batch_correction_metrics,
+                    solver=self.solver,
+                    n_jobs=self.n_jobs,
                 )
                 benchmarker.benchmark()
                 results = benchmarker.get_results(min_max_scale=False).to_dict()
@@ -231,7 +242,7 @@ if is_package_installed("ray"):
 
 
 class AutotuneExperiment:
-    """``BETA`` Track hyperparameter tuning experiments.
+    """Track hyperparameter tuning experiments.
 
     Parameters
     ----------
@@ -240,7 +251,7 @@ class AutotuneExperiment:
         method.
     data
         :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been set up with
-        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
+        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule`.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
@@ -275,8 +286,8 @@ class AutotuneExperiment:
 
         Configured with reasonable defaults, which can be overridden with ``searcher_kwargs``.
     seed
-        Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and search
-        algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
+        Random seed to use for the experiment. Propagated to `scvi.settings.seed`
+        and search algorithms. If not provided, defaults to `scvi.settings.seed`.
     resources
         Dictionary of resources to allocate per trial in the experiment. Available keys include:
 
@@ -289,6 +300,8 @@ class AutotuneExperiment:
         Name of the experiment, used for logging purposes. Defaults to a unique ID.
     logging_dir
         Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
+    save_checkpoints
+        If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
@@ -302,6 +315,11 @@ class AutotuneExperiment:
     scib_indices_list
         If not empty will be used to select the indices to calc the scib metric on, otherwise will
         use the random indices selection in size of scib_subsample_rows
+    n_jobs
+        Number of jobs to use for parallelization of neighbor search.
+    solver
+        SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+        "randomized" or "auto"
 
     Notes
     -----
@@ -326,14 +344,32 @@ class AutotuneExperiment:
         resources: dict[Literal["cpu", "gpu", "memory"], float] | None = None,
         name: str | None = None,
         logging_dir: str | None = None,
+        save_checkpoints: bool = False,
         scheduler_kwargs: dict | None = None,
         searcher_kwargs: dict | None = None,
         scib_stage: str | None = "train_end",
         scib_subsample_rows: int | None = 5000,
         scib_indices_list: list | None = None,
+        n_jobs: int = 1,
+        solver: str = "arpack",
     ) -> None:
         self.model_cls = model_cls
-        self.data = data
+        if type(data).__name__ == "MuData":
+            # save mudata on disk as it cant be pickled by ray
+            data.write_h5mu("mydata.h5mu")
+            self.is_mudata = True
+            # need to forcefully register it
+            data_manager = self.model_cls._get_most_recent_anndata_manager(data, required=True)
+            self._setup_method_name = data_manager._registry.get(
+                _SETUP_METHOD_NAME, "setup_anndata"
+            )
+            self._setup_method_args = data_manager._get_setup_method_args().get(
+                _SETUP_ARGS_KEY, {}
+            )
+            self.data = "mydata.h5mu"  # file will be read from the trainable folder upstream
+        else:
+            self.is_mudata = False
+            self.data = data
         self.metrics = metrics
         self.mode = mode
         self.search_space = search_space
@@ -346,9 +382,12 @@ class AutotuneExperiment:
         self.resources = resources
         self.name = name
         self.logging_dir = logging_dir
+        self.save_checkpoints = save_checkpoints
         self.scib_stage = scib_stage
         self.scib_subsample_rows = scib_subsample_rows
         self.scib_indices_list = scib_indices_list
+        self.n_jobs = n_jobs
+        self.solver = solver
 
     @property
     def id(self) -> str:
@@ -377,8 +416,6 @@ class AutotuneExperiment:
 
     @data.setter
     def data(self, value: AnnOrMuData | LightningDataModule) -> None:
-        from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
-
         if hasattr(self, "_data"):
             raise AttributeError("Cannot reassign `data`")
 
@@ -666,8 +703,9 @@ class AutotuneExperiment:
             (TuneReportCheckpointCallback, Callback),
             {},
         )
+        on = "validation_end" if "validation" in self.metrics else "train_end"
 
-        return callback_cls(metrics=self.metrics, on="validation_end", save_checkpoints=False)
+        return callback_cls(metrics=self.metrics, on=on, save_checkpoints=self.save_checkpoints)
 
     @property
     def scib_metrics_callback(self) -> Callback:
@@ -684,9 +722,11 @@ class AutotuneExperiment:
         return callback_cls(
             metrics=self.metrics,
             on=self.scib_stage,
-            save_checkpoints=False,
+            save_checkpoints=self.save_checkpoints,
             num_rows_to_select=self.scib_subsample_rows,
             indices_list=self.scib_indices_list,
+            n_jobs=self.n_jobs,
+            solver=self.solver,
         )
 
     @property
@@ -737,6 +777,7 @@ class AutotuneExperiment:
         return TensorBoardLogger(join(self.logging_dir, f"{trial_name}_tensorboard"))
 
 
+@dependencies("scib_metrics")
 def _trainable(
     param_sample: dict[str, dict[Literal["model_params", "train_params"], dict[str, Any]]],
     experiment: AutotuneExperiment,
@@ -797,12 +838,20 @@ def _trainable(
     }
 
     settings.seed = experiment.seed
-    if isinstance(experiment.data, AnnData | MuData):
+    if isinstance(experiment.data, AnnData | str):
+        # str means its the link to the stored mudata (which cant be pickled)
+        if experiment.is_mudata:
+            import muon as mu
+
+            mudata_file_path = join(dirname(experiment.logging_dir), experiment.data)
+            adata_or_mdata = mu.read_h5mu(mudata_file_path)
+        else:
+            adata_or_mdata = experiment.data
         getattr(experiment.model_cls, experiment.setup_method_name)(
-            experiment.data,
+            adata_or_mdata,
             **experiment.setup_method_args,
         )
-        model = experiment.model_cls(experiment.data, **model_params)
+        model = experiment.model_cls(adata_or_mdata, **model_params)
         model.train(**train_params)
     else:
         model = experiment.model_cls(**model_params)

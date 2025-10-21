@@ -29,6 +29,7 @@ def run_autotune(
     resources: dict[Literal["cpu", "gpu", "memory"], float] | None = None,
     experiment_name: str | None = None,
     logging_dir: str | None = None,
+    save_checkpoints: bool = False,
     scheduler_kwargs: dict | None = None,
     searcher_kwargs: dict | None = None,
     scib_stage: str | None = "train_end",
@@ -37,8 +38,10 @@ def run_autotune(
     log_to_driver: bool = False,
     local_mode: bool = False,
     ignore_reinit_error: bool = False,
+    n_jobs: int = 1,
+    solver: str = "arpack",
 ) -> AutotuneExperiment:
-    """``BETA`` Run a hyperparameter sweep.
+    """Run a hyperparameter sweep.
 
     Parameters
     ----------
@@ -46,7 +49,7 @@ def run_autotune(
         Model class on which to tune hyperparameters.
     data
         :class:`~anndata.AnnData` or :class:`~mudata.MuData` that has been setup with
-        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule` (``EXPERIMENTAL``).
+        ``model_cls`` or a :class:`~lightning.pytorch.core.LightningDataModule`.
     metrics
         Either a single metric or a list of metrics to track during the experiment. If a list is
         provided, the primary metric will be the first element in the list.
@@ -81,8 +84,8 @@ def run_autotune(
 
         Configured with reasonable defaults, which can be overridden with ``searcher_kwargs``.
     seed
-        Random seed to use for the experiment. Propagated to :attr:`~scvi.settings.seed` and
-        search algorithms. If not provided, defaults to :attr:`~scvi.settings.seed`.
+        Random seed to use for the experiment. Propagated to `scvi.settings.seed`
+        and search algorithms. If not provided, defaults to `scvi.settings.seed`.
     resources
         Dictionary of resources to allocate per trial in the experiment. Available keys
         include:
@@ -96,7 +99,10 @@ def run_autotune(
         Name of the experiment, used for logging purposes. Defaults to a unique ID concatenated
         to the model class name.
     logging_dir
-        Base directory to store experiment logs. Defaults to :attr:`~scvi.settings.logging_dir`.
+        Base directory to store experiment logs.
+        Defaults to :attr:`~scvi.settings.ScviConfig.logging_dir`.
+    save_checkpoints
+        If True, checkpoints will be saved and reported to Ray. Default False.
     scheduler_kwargs
         Additional keyword arguments to pass to the scheduler.
     searcher_kwargs
@@ -110,14 +116,19 @@ def run_autotune(
     scib_indices_list
         If not empty will be used to select the indices to calc the scib metric on, otherwise will
         use the random indices selection in size of scib_subsample_rows
+    log_to_driver
+        If true, the output from all of the worker
+        processes on all nodes will be directed to the driver.
     ignore_reinit_error
         If true, Ray suppresses errors from calling
         ray.init() a second time. Ray won't be restarted.
     local_mode
         Deprecated: consider using the Ray Debugger instead.
-    log_to_driver
-        If true, the output from all of the worker
-        processes on all nodes will be directed to the driver.
+    n_jobs
+        Number of jobs to use for parallelization of neighbor search.
+    solver
+        SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+        "randomized" or "auto"
 
     Returns
     -------
@@ -147,11 +158,14 @@ def run_autotune(
         resources=resources,
         name=experiment_name,
         logging_dir=logging_dir,
+        save_checkpoints=save_checkpoints,
         scheduler_kwargs=scheduler_kwargs,
         searcher_kwargs=searcher_kwargs,
         scib_stage=scib_stage,
         scib_subsample_rows=scib_subsample_rows,
         scib_indices_list=scib_indices_list,
+        n_jobs=n_jobs,
+        solver=solver,
     )
     logger.info(f"Running autotune experiment {experiment.name}.")
     init(

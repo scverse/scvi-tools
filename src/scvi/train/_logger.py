@@ -1,3 +1,5 @@
+import os
+import pickle
 from typing import Any
 
 import pandas as pd
@@ -23,12 +25,12 @@ class SimpleExperiment:
                 return value.item()
             return value
 
-        if "epoch" in metrics.keys():
-            time_point = metrics.pop("epoch")
-            time_point_name = "epoch"
-        elif "step" in metrics.keys():
+        if "step" in metrics.keys():
             time_point = metrics.pop("step")
             time_point_name = "step"
+        elif "epoch" in metrics.keys():
+            time_point = metrics.pop("epoch")
+            time_point_name = "epoch"
         else:
             time_point = step
             time_point_name = "step"
@@ -45,11 +47,28 @@ class SimpleExperiment:
 class SimpleLogger(Logger):
     """Simple logger class."""
 
-    def __init__(self, name: str = "lightning_logs", version: int | str | None = None):
+    def __init__(
+        self,
+        name: str = "lightning_logs",
+        version: int | str | None = None,
+        save_dir: str | None = None,
+        save_log_on_disk: bool | None = False,
+    ):
         super().__init__()
         self._name = name
         self._experiment = None
         self._version = version
+        self._save_log_on_disk = False
+        # in case of multigpu run, or forcing log dir, we will save model history into it
+        self._save_dir = save_dir or os.getcwd()
+        if save_dir or save_log_on_disk:
+            # run directory like: <save_dir>/<name>/version_<N>
+            self._run_dir = os.path.join(self._save_dir, self._name, f"version_{self.version}")
+            os.makedirs(self._run_dir, exist_ok=True)
+            self.history_path = os.path.join(
+                self._run_dir, "history.pkl"
+            )  # TODO: should we use pkl
+            self._save_log_on_disk = True
 
     @property
     @rank_zero_experiment
@@ -72,7 +91,17 @@ class SimpleLogger(Logger):
 
     @property
     def history(self) -> dict[str, pd.DataFrame]:
-        return self.experiment.data
+        return getattr(self.experiment, "data", {})  # {} instead of AttributeError on non-rank0
+
+    @rank_zero_only
+    def finalize(self, status: str) -> None:
+        # Persist history from rank-0 AFTER training ends
+        if self._save_log_on_disk:
+            try:
+                with open(self.history_path, "wb") as f:
+                    pickle.dump(self.history, f)
+            except (OSError, pickle.PickleError) as e:
+                print(f"[SimpleLogger] Failed to save history: {e}")
 
     @property
     def version(self) -> int:
@@ -89,3 +118,7 @@ class SimpleLogger(Logger):
     @property
     def name(self):
         return self._name
+
+    @property
+    def save_dir(self):
+        return self._save_dir

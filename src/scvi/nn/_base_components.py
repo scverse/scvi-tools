@@ -510,7 +510,7 @@ class Decoder(nn.Module):
     dropout_rate
         Dropout rate to apply to each of the hidden layers
     kwargs
-        Keyword args for :class:`~scvi.module._base.FCLayers`
+        Keyword args for :class:`~scvi.nn.FCLayers`
     """
 
     def __init__(

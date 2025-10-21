@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import numpy as np
 import pyro
-import rich
+import rich.table
 import torch
 from anndata import AnnData
 from mudata import MuData
@@ -639,6 +639,18 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         return user_params
 
+    @staticmethod
+    def _get_decoder_cat_cov_shape(module):
+        """Returns shape of categ covaraite matrix in case of using setup_datamodule in load"""
+        outcome = None
+        if hasattr(module, "decoder"):
+            if hasattr(module.decoder, "px_decoder"):
+                if hasattr(module.decoder.px_decoder, "n_cat_list"):
+                    n_cat_list = module.decoder.px_decoder.n_cat_list
+                    if len(n_cat_list) > 1:
+                        outcome = (sum(n_cat_list[1:]),)
+        return outcome
+
     @abstractmethod
     def train(self):
         """Trains the model."""
@@ -732,6 +744,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                         "extra_continuous_covs"
                     ]["summary_stats"]["n_extra_continuous_covs"],
                     "n_labels": datamodule.n_labels,
+                    "n_sample": datamodule.n_samples,
                     "n_vars": datamodule.n_vars,
                     "batch_labels": datamodule.batch_labels,
                     "label_keys": datamodule.label_keys,
@@ -763,6 +776,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         prefix: str | None = None,
         backup_url: str | None = None,
         datamodule: LightningDataModule | None = None,
+        allowed_classes_names_list: list[str] | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -786,6 +800,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        allowed_classes_names_list
+            list of allowed classes names to be loaded (besides the original class name)
 
         Returns
         -------
@@ -819,7 +835,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
 
         registry = attr_dict.pop("registry_")
-        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+        if _MODEL_NAME_KEY in registry and (
+            registry[_MODEL_NAME_KEY] != cls.__name__
+            and registry[_MODEL_NAME_KEY] not in allowed_classes_names_list
+        ):
             raise ValueError("It appears you are loading a model from a different class.")
 
         # Calling ``setup_anndata`` method with the original arguments passed into
@@ -844,6 +863,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         if method_name == "setup_datamodule":
             attr_dict["n_input"] = attr_dict["n_vars"]
+            attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
+            attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
             module_exp_params = inspect.signature(model._module_cls).parameters.keys()
             common_keys1 = list(attr_dict.keys() & module_exp_params)
             common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
@@ -1339,7 +1360,7 @@ class BaseMudataMinifiedModeModelClass(BaseModelClass):
                 ``use_latent_qzv_key``.
             - ``"latent_posterior_parameters_with_counts"``: Store the latent posterior mean and
                 variance in :attr:`~mudata.MuData.obsm` using the keys ``use_latent_qzm_key`` and
-                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData.X`.
+                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData[mod].X`.
         use_latent_qzm_key
             Key to use for storing the latent posterior mean in :attr:`~mudata.MuData.obsm` when
             ``minified_data_type`` is ``"latent_posterior"``.

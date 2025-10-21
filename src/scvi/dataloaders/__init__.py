@@ -2,8 +2,9 @@
 from scvi.data import AnnTorchDataset
 
 from ._ann_dataloader import AnnDataLoader
+from ._anncollection import CollectionAdapter
 from ._concat_dataloader import ConcatDataLoader
-from ._custom_dataloders import MappedCollectionDataModule, TileDBDataModule
+from ._custom_dataloaders import MappedCollectionDataModule, TileDBDataModule
 from ._data_splitting import (
     DataSplitter,
     DeviceBackedDataSplitter,
@@ -15,6 +16,7 @@ from ._semi_dataloader import SemiSupervisedDataLoader
 __all__ = [
     "AnnDataLoader",
     "AnnTorchDataset",
+    "CollectionAdapter",
     "ConcatDataLoader",
     "DeviceBackedDataSplitter",
     "SemiSupervisedDataLoader",

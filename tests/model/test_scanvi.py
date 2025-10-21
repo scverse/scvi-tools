@@ -682,6 +682,7 @@ def test_scanvi_interpretability_ig(unlabeled_cat: str):
     print(ig_top_features_3_samples)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
 def test_scanvi_interpretability_shap(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)

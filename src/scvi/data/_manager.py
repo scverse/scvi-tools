@@ -8,7 +8,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
-import rich
+import rich.table
 from mudata import MuData
 from rich.console import Console
 from torch.utils.data import Subset
@@ -385,6 +385,11 @@ class AnnDataManager:
         summary_stats = {}
         for field_registry in registry[_constants._FIELD_REGISTRIES_KEY].values():
             field_summary_stats = field_registry[_constants._SUMMARY_STATS_KEY]
+            for summary_stats_key in list(field_summary_stats.keys()):
+                if summary_stats_key in list(summary_stats.keys()):
+                    raise RuntimeError(
+                        "Trying to set a field that is already existing in model's summary stats"
+                    )
             summary_stats.update(field_summary_stats)
         return attrdict(summary_stats)
 
@@ -507,8 +512,6 @@ class AnnDataManager:
             else:
                 scvi_data_str += f".{attr_name}['{attr_key}']"
             t.add_row(registry_key, scvi_data_str)
-
-        return t
 
         if as_markdown:
             console = Console(file=StringIO(), force_jupyter=False)

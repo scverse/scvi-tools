@@ -39,7 +39,7 @@ class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, BSSeqMixin, ArchesMixin,
     Parameters
     ----------
     mdata
-        MuData object registered via :meth:`~scvi.external.methylvi.METHYLVI.setup_mudata`.
+        MuData object registered via :meth:`~scvi.external.METHYLANVI.setup_mudata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -60,7 +60,7 @@ class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, BSSeqMixin, ArchesMixin,
         If ``True``, uses a single linear layer for classification instead of a
         multi-layer perceptron.
     **model_kwargs
-        Keyword args for :class:`~scvi.module.SCANVAE`
+        Keyword args for :class:`~scvi.external.methylanvi.METHYLANVAE`
 
     Examples
     --------

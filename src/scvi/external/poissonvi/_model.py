@@ -43,7 +43,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.POISSONVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.POISSONVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer. If `None`, defaults to square root
         of number of regions.
@@ -195,7 +195,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             defaults to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
 
         Returns
         -------
@@ -301,7 +301,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -347,12 +347,12 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         if two_sided:
 
             def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
+                return np.abs(samples) >= delta, np.abs(samples) < delta
 
         else:
 
             def m1_domain_fn(samples):
-                return samples >= delta
+                return samples >= delta, samples < delta
 
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
@@ -395,8 +395,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             f"use {self.__class__.__name__}.differential_accessibility"
         )
         raise NotImplementedError(msg)
-
-        return None
 
     @classmethod
     @setup_anndata_dsp.dedent

@@ -15,12 +15,14 @@ Without dataloader large data can be on disk but inefficient. We increase effici
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/use_cases/custom_dl/tiledb`
--   {doc}`/tutorials/notebooks/use_cases/custom_dl/lamin`
+-   {doc}`/tutorials/notebooks/custom_dl/tiledb`
+-   {doc}`/tutorials/notebooks/custom_dl/lamin`
+-   {doc}`/tutorials/notebooks/custom_dl/ann_collection`
+
 ```
 
 In SCVI, we work with several collaborators in order to construct efficient custom dataloaders:
-1. [lamin.ai](https://lamin.ai/) custom dataloader is based on MappedCollectionDataModule and can run a collection of adata based on lamindb backend.
+1. [lamin.ai](https://lamin.ai/) custom dataloader is based on {class}`scvi.dataloaders.MappedCollectionDataModule` and can run a collection of adata based on lamindb backend.
 
 LamindDB is a key-value store designed specifically for machine learning, particularly focusing on making it easier to manage large-scale training datasets. It is optimized for storing and querying tabular data, providing fast read and write access. LamindDB’s design allows for efficient handling of large datasets with a focus on machine learning workflows, such as those used in SCVI.
 
@@ -58,7 +60,7 @@ model.train(max_epochs=1, batch_size=1024, datamodule=datamodule.inference_datal
 ```
 LamindDB may not be as efficient or flexible as TileDB for handling complex multi-dimensional data
 
-2. [CZI](https://chanzuckerberg.com/) based [tiledb](https://tiledb.com/) custom dataloader is based on TileDBDataModule and can run a large multi-dimensional datasets that are stored in TileDB’s format.
+2. [CZI](https://chanzuckerberg.com/) based [tiledb](https://tiledb.com/) custom dataloader is based on {class}`scvi.dataloaders.TileDBDataModule` and can run a large multi-dimensional datasets that are stored in TileDB’s format.
 
 TileDB is a general-purpose, multi-dimensional array storage engine designed for high-performance, scalable data access. It supports various data types, including dense and sparse arrays, and is optimized for handling large datasets efficiently. TileDB’s strength lies in its ability to store and query data across multiple dimensions and scale efficiently with large volumes of data.
 
@@ -67,6 +69,8 @@ Pros:
 - Efficient Data Access: With TileDB, you can query and access specific subsets of your data without needing to load the entire dataset into memory, improving performance.
 Scalability: Handles large datasets that exceed your system's memory capacity, making it ideal for single-cell RNA-seq datasets with millions of cells.
 - Flexibility: Supports multi-dimensional data storage, which can be useful for storing gene expression data across multiple conditions or time points.
+
+Note that using categorical covariates with TileDB require them to be non-integer (even when saved as string in the adata).
 
 ```python
 import cellxgene_census
@@ -130,7 +134,13 @@ model.train(
 )
 ...
 ```
-Key Differences between them in terms of Custom Dataloaders:
+
+3. In addition to those we also added a {class}`scvi.dataloaders.CollectionAdapter` dataloader which is an scvi-tools wrapper for AnnData's AnnCollection.
+This API is intended for training models on a set of AnnData files. AnnCollection creates a layy concatenation of disk-backed files. The dataloader jointly subsets these datasets along the observations axis.
+This wrapper mimics the standard API, soo in practice, users wrap their collection objects then proceed with the scvi-tools workflow as normal and not using the custom dataloader workflow.
+Note that in order to use it count data should be in sparse form (sparse.csr_matrix).
+
+Key Differences between Lamin and TileDb in terms of Custom Dataloaders:
 1. Data Format:
 
 - TileDB is more flexible for handling complex, multi-dimensional datasets (like sparse matrices with many dimensions), making it ideal for large-scale genomics data that don’t fit neatly into a simple table format.

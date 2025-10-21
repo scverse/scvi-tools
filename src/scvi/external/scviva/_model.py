@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 import warnings
 from functools import partial
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
+import anndata
 import joblib
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from rich import print
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
+from scvi.data._constants import _DATA_REGISTRY_KEY, _FIELD_REGISTRIES_KEY, _STATE_REGISTRY_KEY
 from scvi.data._utils import _get_adata_minify_type
 from scvi.data.fields import (
     CategoricalJointObsField,
@@ -32,6 +34,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
+from scvi.model.base._archesmixin import _get_loaded_data
 from scvi.model.base._de_core import _de_core
 from scvi.utils import de_dsp, setup_anndata_dsp, unsupported_if_adata_minified
 
@@ -43,11 +46,15 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
     from typing import Literal
 
-    from anndata import AnnData
     from torch import Tensor
+
+    from scvi.model.base import (
+        BaseModelClass,
+    )
 
     from .differential_expression import DifferentialExpressionResults
 
+from scipy.sparse import csr_matrix
 
 _SCVI_LATENT_QZM = "_scvi_latent_qzm"
 _SCVI_LATENT_QZV = "_scvi_latent_qzv"
@@ -71,8 +78,7 @@ class SCVIVA(
     adata
         AnnData object that has been registered via :meth:`~scvi.external.SCVIVA.setup_anndata`. If
         ``None``, then the underlying module will not be initialized until training, and a
-        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training
-        (``EXPERIMENTAL``).
+        :class:`~lightning.pytorch.core.LightningDataModule` must be passed in during training.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -125,12 +131,12 @@ class SCVIVA(
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/quick_start/api_overview`
-    2. :doc`/tutorials/notebooks/spatial/scVIVA_tutorial`
+    2. :doc:`/tutorials/notebooks/spatial/scVIVA_tutorial`
 
 
     See Also
     --------
-    :class:`~scvi.module.nicheVAE`
+    :class:`~scvi.external.scviva._module.nicheVAE`
     """
 
     _module_cls = nicheVAE
@@ -212,6 +218,7 @@ class SCVIVA(
 
         self.init_params_ = self._get_init_params(locals())
 
+    @staticmethod
     def preprocessing_anndata(
         adata: AnnData,
         k_nn: int = 20,
@@ -225,7 +232,44 @@ class SCVIVA(
         niche_distances_key: str = "niche_distances",
         log1p: bool = False,
     ) -> None:
-        """Preprocess anndata object for scVIVA."""
+        """Preprocess an AnnData object for scVIVA analysis.
+
+         This function prepares the input AnnData object by computing niche indexes,
+         neighborhood composition, and average latent space embeddings per cell type.
+
+        Parameters
+        ----------
+        adata : AnnData
+             The annotated data matrix of shape `n_obs` x `n_vars`. Rows correspond to cells
+             and columns to genes.
+        k_nn : int, optional
+             Number of nearest neighbors for niche computation. Default is 20.
+        sample_key : str or None, optional
+             Key in `adata.obs` for sample identifiers. Default is None.
+        labels_key : str, optional
+             Key in `adata.obs` for cell type labels. Default is "cell_type".
+        cell_coordinates_key : str, optional
+             Key in `adata.obsm` for spatial coordinates. Default is "spatial".
+        expression_embedding_key : str, optional
+             Key in `adata.obsm` for latent space embeddings. Default is "X_scVI".
+        expression_embedding_niche_key : str, optional
+             Key in `adata.obsm` where average latent embeddings per cell type are stored.
+             Default is "niche_activation".
+        niche_composition_key : str, optional
+             Key in `adata.obsm` where neighborhood composition is stored.
+             Default is "niche_composition".
+        niche_indexes_key : str, optional
+             Key in `adata.obsm` where niche indexes are stored. Default is "niche_indexes".
+        niche_distances_key : str, optional
+             Key in `adata.obsm` where neighbor distances are stored. Default is "niche_distances".
+        log1p : bool, optional
+             Whether to apply log1p to latent space embeddings. Default is False.
+
+        Returns
+        -------
+        None
+             The function modifies the input AnnData object in place.
+        """
         get_niche_indexes(
             adata=adata,
             sample_key=sample_key,
@@ -473,7 +517,7 @@ class SCVIVA(
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
         niche_mode
             Whether to use scVIVA DE or SCVI DE.
         radius
@@ -680,6 +724,124 @@ class SCVIVA(
 
         return compute_niche_error(self.module, dataloader, return_mean=return_mean, **kwargs)
 
+    def preprocessing_query_anndata(
+        self,
+        adata: AnnData,
+        reference_model: str | BaseModelClass,
+        return_reference_var_names: bool = False,
+        inplace: bool = True,
+        k_nn: int = 20,
+        sample_key: str | None = None,
+        labels_key: str = "cell_type",
+        cell_coordinates_key: str = "spatial",
+        expression_embedding_key: str = "X_scVI",
+        expression_embedding_niche_key: str = "niche_activation",
+        niche_composition_key: str = "niche_composition",
+        niche_indexes_key: str = "niche_indexes",
+        niche_distances_key: str = "niche_distances",
+        log1p: bool = False,
+    ) -> AnnData | pd.Index | None:
+        """Prepare data for query integration.
+
+        Merges SCVIVA.preprocessing_anndata and ArchesMixin.prepare_query_anndata.
+
+        This function will return a new AnnData object with padded zeros
+        for missing features (genes, alpha and eta), as well as correctly sorted features.
+
+        Parameters
+        ----------
+        adata
+            AnnData organized in the same way as data used to train model.
+            It is not necessary to run setup_anndata,
+            as AnnData is validated against the ``registry``.
+        reference_model
+            Either an already instantiated model of the same class, or a path to
+            saved outputs for reference model.
+        return_reference_var_names
+            Only load and return reference var names if True.
+        inplace
+            Whether to subset and rearrange query vars inplace or return new AnnData.
+        k_nn : int, optional
+             Number of nearest neighbors for niche computation. Default is 20.
+        sample_key : str or None, optional
+             Key in `adata.obs` for sample identifiers. Default is None.
+        labels_key : str, optional
+             Key in `adata.obs` for cell type labels. Default is "cell_type".
+        cell_coordinates_key : str, optional
+             Key in `adata.obsm` for spatial coordinates. Default is "spatial".
+        expression_embedding_key : str, optional
+             Key in `adata.obsm` for latent space embeddings. Default is "X_scVI".
+        expression_embedding_niche_key : str, optional
+             Key in `adata.obsm` where average latent embeddings per cell type are stored.
+             Default is "niche_activation".
+        niche_composition_key : str, optional
+             Key in `adata.obsm` where neighborhood composition is stored.
+             Default is "niche_composition".
+        niche_indexes_key : str, optional
+             Key in `adata.obsm` where niche indexes are stored. Default is "niche_indexes".
+        niche_distances_key : str, optional
+             Key in `adata.obsm` where neighbor distances are stored. Default is "niche_distances".
+        log1p : bool, optional
+             Whether to apply log1p to latent space embeddings. Default is False.
+
+
+        Returns
+        -------
+        Query adata ready to use in `load_query_data` unless `return_reference_var_names`
+        in which case a pd.Index of reference var names is returned.
+        """
+        SCVIVA.preprocessing_anndata(
+            adata=adata,
+            k_nn=k_nn,
+            sample_key=sample_key,
+            labels_key=labels_key,
+            cell_coordinates_key=cell_coordinates_key,
+            expression_embedding_key=expression_embedding_key,
+            expression_embedding_niche_key=expression_embedding_niche_key,
+            niche_composition_key=niche_composition_key,
+            niche_indexes_key=niche_indexes_key,
+            niche_distances_key=niche_distances_key,
+            log1p=log1p,
+        )
+
+        _, var_names, _, _ = _get_loaded_data(reference_model, device="cpu")
+        var_names = pd.Index(var_names)
+
+        if return_reference_var_names:
+            return var_names
+
+        reference_niche_composition_key = reference_model.registry[_FIELD_REGISTRIES_KEY][
+            SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY
+        ][_DATA_REGISTRY_KEY]["attr_key"]
+        assert reference_niche_composition_key == niche_composition_key, (
+            f"niche_composition_key in query ({niche_composition_key}) must match that "
+            f"of reference ({reference_niche_composition_key})"
+        )
+        reference_expression_embedding_niche_key = reference_model.registry[_FIELD_REGISTRIES_KEY][
+            SCVIVA_REGISTRY_KEYS.Z1_MEAN_CT_KEY
+        ][_DATA_REGISTRY_KEY]["attr_key"]
+        assert reference_expression_embedding_niche_key == expression_embedding_niche_key, (
+            f"expression_embedding_niche_key in query ({expression_embedding_niche_key}) must "
+            f"match that of reference ({reference_expression_embedding_niche_key})"
+        )
+
+        reference_label_names = reference_model.registry[_FIELD_REGISTRIES_KEY][
+            SCVIVA_REGISTRY_KEYS.NICHE_COMPOSITION_KEY
+        ][_STATE_REGISTRY_KEY]["column_names"]
+        reference_label_names = pd.Index(reference_label_names)
+
+        query_label_names = pd.Index(adata.obsm[niche_composition_key].columns)
+
+        return _pad_and_sort_query_anndata(
+            adata,
+            var_names,
+            reference_label_names,
+            query_label_names,
+            niche_composition_key,
+            expression_embedding_niche_key,
+            inplace,
+        )
+
 
 def get_niche_indexes(
     adata: AnnData,
@@ -774,6 +936,7 @@ def get_neighborhood_composition(
 
     cell_types = adata.obs[cell_type_column].unique().tolist()
     cell_type_to_int = {cell_types[i]: i for i in range(len(cell_types))}
+    adata.uns["cell_type_to_int"] = cell_type_to_int
 
     # Transform the query vector into an integer-valued vector
     integer_vector = np.vectorize(cell_type_to_int.get)(adata.obs[cell_type_column])
@@ -853,9 +1016,7 @@ def get_average_latent_per_celltype(
     else:
         z1_mean_niches = adata.obsm[latent_mean_key][niche_indexes]
 
-    cell_types = adata.obs[labels_key].unique().tolist()
-
-    cell_type_to_int = {cell_types[i]: i for i in range(len(cell_types))}
+    cell_type_to_int = adata.uns["cell_type_to_int"]
     integer_vector = np.vectorize(cell_type_to_int.get)(adata.obs[labels_key])
 
     # For each cell, get the cell types of its neighbors (as integers)
@@ -866,9 +1027,7 @@ def get_average_latent_per_celltype(
     dict_of_cell_type_indices = {}
 
     for cell_type, cell_type_idx in cell_type_to_int.items():
-        ct_row_indices, ct_col_indices = np.where(
-            cell_types_in_the_neighborhood == cell_type_idx
-        )  # [1]
+        ct_row_indices, ct_col_indices = np.where(cell_types_in_the_neighborhood == cell_type_idx)
 
         # dict of cells:local index of the cells of cell_type in the neighborhood.
         result_dict = {}
@@ -897,3 +1056,109 @@ def get_average_latent_per_celltype(
     print(f"[bold green]Saved {latent_mean_ct_key} in adata.obsm[/bold green]")
 
     return None
+
+
+def _pad_and_sort_query_anndata(
+    adata: AnnData,
+    reference_var_names: pd.Index,
+    reference_label_names: pd.Index,
+    query_label_names: pd.Index,
+    niche_composition_key: str,
+    expression_embedding_niche_key: str,
+    inplace: bool,
+    min_var_name_ratio: float = 0.8,
+) -> AnnData | None:
+    r"""
+    Pad and sort anndata to match reference var names.
+
+    Also covers \alpha and \eta niche features.
+    """
+    intersection_genes = adata.var_names.intersection(reference_var_names)
+    inter_len_genes = len(intersection_genes)
+    if inter_len_genes == 0:
+        raise ValueError(
+            "No reference var names found in query data. "
+            "Please rerun with return_reference_var_names=True "
+            "to see reference var names."
+        )
+
+    ratio = inter_len_genes / len(reference_var_names)
+    logger.info(f"Found {ratio * 100}% reference vars in query data.")
+    if ratio < min_var_name_ratio:
+        warnings.warn(
+            f"Query data contains less than {min_var_name_ratio:.0%} of reference "
+            "var names. This may result in poor performance.",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+    missing_in_query = reference_label_names.difference(query_label_names)
+    extra_in_query = query_label_names.difference(reference_label_names)
+
+    if len(missing_in_query) > 0:
+        logger.info(f"Labels not observed in query: {sorted(missing_in_query.tolist())}")
+    if len(extra_in_query) > 0:
+        raise ValueError(
+            f"Label(s) observed in query but not in reference: {sorted(extra_in_query.tolist())}"
+        )
+
+    # pad alpha composition if needed
+    if len(missing_in_query) > 0:
+        # add missing columns
+        for ct in missing_in_query:
+            adata.obsm[niche_composition_key][ct] = 0.0
+    # sort columns anyway to match reference
+    adata.obsm[niche_composition_key] = adata.obsm[niche_composition_key][reference_label_names]
+    pad_and_sorted_query_label_names = pd.Index(adata.obsm[niche_composition_key].columns)
+    assert pad_and_sorted_query_label_names.equals(reference_label_names), (
+        "Error when sorting query label names to match reference."
+    )
+
+    # pad eta niche activation if needed
+    cell_type_to_int = adata.uns["cell_type_to_int"]
+    if len(missing_in_query) > 0:
+        # Update with missing labels: add zero embeddings
+        for ct in missing_in_query:
+            cell_type_to_int[ct] = len(cell_type_to_int)
+            # Add zeros for this new cell type
+            zeros = np.zeros(
+                (adata.n_obs, 1, adata.obsm[expression_embedding_niche_key].shape[-1])
+            )
+            z_niche = np.concatenate([adata.obsm[expression_embedding_niche_key], zeros], axis=1)
+
+    else:
+        z_niche = adata.obsm[expression_embedding_niche_key]
+    # reorder axis 1 to match reference_label_names
+    idxs = np.array([cell_type_to_int[ct] for ct in reference_label_names])
+    adata.obsm[expression_embedding_niche_key] = z_niche[:, idxs, :]
+
+    genes_to_add = reference_var_names.difference(adata.var_names)
+    needs_padding = len(genes_to_add) > 0
+    if needs_padding:
+        padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
+        adata_padding = AnnData(
+            X=padding_mtx.copy(),
+            layers={layer: padding_mtx.copy() for layer in adata.layers},
+        )
+        adata_padding.var_names = genes_to_add
+        adata_padding.obs_names = adata.obs_names
+        # Concatenate object
+        adata_out = anndata.concat(
+            [adata, adata_padding],
+            axis=1,
+            join="outer",
+            index_unique=None,
+            merge="unique",
+        )
+    else:
+        adata_out = adata
+
+    # also covers the case when new adata has more var names than old
+    if not reference_var_names.equals(adata_out.var_names):
+        adata_out._inplace_subset_var(reference_var_names)
+
+    if inplace:
+        if adata_out is not adata:
+            adata._init_as_actual(adata_out)
+    else:
+        return adata_out

@@ -45,4 +45,4 @@ experiment = run_autotune(
     searcher="hyperopt",
 )
 ```
-For a more end to end example, see our scvi autotune tutorial {doc}`/tutorials/notebooks/tuning/autotune_scvi`
+For a more end to end example, see our scvi autotune tutorial {doc}`/tutorials/notebooks/use_cases/autotune_scvi`

@@ -7,8 +7,6 @@ notebooks/use_cases/preprocessing
 notebooks/use_cases/autotune_scvi
 notebooks/use_cases/minification
 notebooks/use_cases/interpretability
-notebooks/use_cases/custom_dl/tiledb
-notebooks/use_cases/custom_dl/lamin
 notebooks/use_cases/multiGPU
 ```
 
@@ -38,20 +36,6 @@ Minify a dataset by replacing count data with the model’s estimated parameters
 :tags: Analysis
 
 Use integrated gradient or SHAP values for model explainability
-```
-
-```{customcard}
-:path: notebooks/use_cases/custom_dl/tiledb
-:tags: Analysis, Custom-Dataloaders, Integration, Dev
-
-Learn a scalable approach using custom dataloader to training an scVI model on Census data.
-```
-
-```{customcard}
-:path: notebooks/use_cases/custom_dl/lamin
-:tags: Analysis, Custom-Dataloaders, Integration, Dev
-
-Use the Lamin dataloader for a scalable approach to training an scVI model on multiple adata's.
 ```
 
 ```{customcard}

@@ -12,97 +12,95 @@ from scvi.model import MULTIVI, PEAKVI, TOTALVI, CondSCVI, LinearSCVI
 @pytest.mark.multigpu
 @pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
 def test_scanvi_from_scvi_multigpu(unlabeled_cat: str):
-    if torch.cuda.is_available():
-        import scvi
-        from scvi.model import SCVI
+    import scvi
+    from scvi.model import SCVI
 
-        adata = scvi.data.synthetic_iid()
+    adata = scvi.data.synthetic_iid()
 
-        SCVI.setup_anndata(adata)
+    SCVI.setup_anndata(adata)
 
-        datasplitter_kwargs = {}
-        datasplitter_kwargs["drop_dataset_tail"] = True
-        datasplitter_kwargs["drop_last"] = False
+    datasplitter_kwargs = {}
+    datasplitter_kwargs["drop_dataset_tail"] = True
+    datasplitter_kwargs["drop_last"] = False
 
-        model = SCVI(adata)
+    model = SCVI(adata)
 
-        print("multi GPU SCVI train")
-        model.train(
-            max_epochs=1,
-            check_val_every_n_epoch=1,
-            accelerator="gpu",
-            devices=-1,
-            datasplitter_kwargs=datasplitter_kwargs,
-            strategy="ddp_find_unused_parameters_true",
-        )
-        print("done")
+    print("multi GPU SCVI train")
+    model.train(
+        max_epochs=1,
+        check_val_every_n_epoch=1,
+        accelerator="gpu",
+        devices=-1,
+        datasplitter_kwargs=datasplitter_kwargs,
+        strategy="ddp_find_unused_parameters_true",
+    )
+    print("done")
+    assert len(model.history["elbo_train"]) == 1
+    assert model.is_trained
+    adata.obsm["scVI"] = model.get_latent_representation()
 
-        assert model.is_trained
-        adata.obsm["scVI"] = model.get_latent_representation()
+    datasplitter_kwargs = {}
+    datasplitter_kwargs["drop_dataset_tail"] = True
+    datasplitter_kwargs["drop_last"] = False
 
-        datasplitter_kwargs = {}
-        datasplitter_kwargs["drop_dataset_tail"] = True
-        datasplitter_kwargs["drop_last"] = False
+    print("multi GPU scanvi load from scvi model")
+    model_scanvi = scvi.model.SCANVI.from_scvi_model(
+        model,
+        adata=adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+    )
+    print("done")
+    print("multi GPU scanvi train from scvi")
+    model_scanvi.train(
+        max_epochs=1,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        accelerator="gpu",
+        devices=-1,
+        strategy="ddp_find_unused_parameters_true",
+        datasplitter_kwargs=datasplitter_kwargs,
+    )
+    print("done")
+    adata.obsm["scANVI"] = model_scanvi.get_latent_representation()
 
-        print("multi GPU scanvi load from scvi model")
-        model_scanvi = scvi.model.SCANVI.from_scvi_model(
-            model,
-            adata=adata,
-            labels_key="labels",
-            unlabeled_category=unlabeled_cat,
-        )
-        print("done")
-        print("multi GPU scanvi train from scvi")
-        model_scanvi.train(
-            max_epochs=1,
-            train_size=0.5,
-            check_val_every_n_epoch=1,
-            accelerator="gpu",
-            devices=-1,
-            strategy="ddp_find_unused_parameters_true",
-            datasplitter_kwargs=datasplitter_kwargs,
-        )
-        print("done")
-        adata.obsm["scANVI"] = model_scanvi.get_latent_representation()
-
-        assert model_scanvi.is_trained
+    assert model_scanvi.is_trained
 
 
 @pytest.mark.multigpu
 @pytest.mark.parametrize("unlabeled_cat", ["label_0", "unknown"])
 def test_scanvi_from_scratch_multigpu(unlabeled_cat: str):
-    if torch.cuda.is_available():
-        import scvi
-        from scvi.model import SCANVI
+    import scvi
+    from scvi.model import SCANVI
 
-        adata = scvi.data.synthetic_iid()
+    adata = scvi.data.synthetic_iid()
 
-        SCANVI.setup_anndata(
-            adata,
-            labels_key="labels",
-            unlabeled_category=unlabeled_cat,
-            batch_key="batch",
-        )
+    SCANVI.setup_anndata(
+        adata,
+        labels_key="labels",
+        unlabeled_category=unlabeled_cat,
+        batch_key="batch",
+    )
 
-        datasplitter_kwargs = {}
-        datasplitter_kwargs["drop_dataset_tail"] = True
-        datasplitter_kwargs["drop_last"] = False
+    datasplitter_kwargs = {}
+    datasplitter_kwargs["drop_dataset_tail"] = True
+    datasplitter_kwargs["drop_last"] = False
 
-        model = SCANVI(adata, n_latent=10)
+    model = SCANVI(adata, n_latent=10)
 
-        print("multi GPU scanvi train from scratch")
-        model.train(
-            max_epochs=1,
-            train_size=0.5,
-            check_val_every_n_epoch=1,
-            accelerator="gpu",
-            devices=-1,
-            datasplitter_kwargs=datasplitter_kwargs,
-            strategy="ddp_find_unused_parameters_true",
-        )
-        print("done")
-
-        assert model.is_trained
+    print("multi GPU scanvi train from scratch")
+    model.train(
+        max_epochs=1,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        accelerator="gpu",
+        devices=-1,
+        datasplitter_kwargs=datasplitter_kwargs,
+        strategy="ddp_find_unused_parameters_true",
+    )
+    print("done")
+    assert len(model.history["elbo_train"]) == 1
+    assert model.is_trained
 
 
 @pytest.mark.multigpu
@@ -125,6 +123,7 @@ def test_totalvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained is True
 
 
@@ -155,6 +154,7 @@ def test_multivi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained is True
 
 
@@ -178,8 +178,8 @@ def test_peakvi_multigpu():
         accelerator="gpu",
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
-        save_best=False,
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -202,6 +202,7 @@ def test_condscvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -220,6 +221,7 @@ def test_linearcvi_multigpu():
         devices=-1,
         strategy="ddp_find_unused_parameters_true",
     )
+    assert len(model.history["elbo_train"]) == 1
     assert model.is_trained
 
 
@@ -242,7 +244,6 @@ model.train(
     devices=-1,
     strategy="ddp_find_unused_parameters_true",
 )
-
 assert model.is_trained
 """
     # Define the file path for the temporary script in the current working directory

@@ -70,10 +70,10 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`Ashuach22`
    * - :doc:`/user_guide/models/scbasset`
-     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, imputation
+     - Representation learning on scATAC-seq data, integration of data across several samples
      - :cite:p:`Yuan2022`
    * - :doc:`/user_guide/models/poissonvi`
-     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, imputation, normalization of other cell- and sample-level confounding factors
+     - Analyzing scATAC-seq data using quantitative fragment counts
      - :cite:p:`Martens2023`
 ```
 
@@ -88,11 +88,26 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Tasks
      - Reference
    * - :doc:`/user_guide/models/methylvi`
-     - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential methylation, imputation, normalization of other cell- and sample-level confounding factors
+     - Anlaysis of single-cell bisulfite data from several sequencing platforms
      - :cite:p:`Weinberger2023a`
    * - :doc:`/user_guide/models/methylanvi`
      - MethylVI tasks along with cell type label transfer from reference, seed labeling
      - :cite:p:`Weinberger2023a`
+```
+
+## Cytometry analysis
+
+```{eval-rst}
+.. list-table::
+   :widths: 15 100 25
+   :header-rows: 1
+
+   * - Model
+     - Tasks
+     - Reference
+   * - :doc:`/user_guide/models/cytovi`
+     - Correct batch effects, perform integration and downstream analysis in cytometry data
+     - :cite:p:`Ingelfinger25`
 ```
 
 ## Multimodal analysis
@@ -110,6 +125,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/totalvi`
      - Dimensionality reduction, removal of unwanted variation, integration across replicates, donors, and technologies, differential expression, protein imputation, imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`GayosoSteier21`
+   * - :doc:`/user_guide/models/totalanvi`
+     - A probabilistic generative model for single-cell RNA and CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer both protein expression and cell states
+     - :cite:p:`Mark25`
 ```
 
 ### Multiome
@@ -174,24 +192,6 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
 
 ```
 
-## Background
-
-- {doc}`/user_guide/background/variational_inference`
-- {doc}`/user_guide/background/differential_expression`
-- {doc}`/user_guide/background/counterfactual_prediction`
-- {doc}`/user_guide/background/transfer_learning`
-- {doc}`/user_guide/background/codebase_overview`
-
-## Common Use Cases
-
-- {doc}`/user_guide/use_case/saving_and_loading_models`
-- {doc}`/user_guide/use_case/downstream_analysis_tasks`
-- {doc}`/user_guide/use_case/using_callbacks`
-- {doc}`/user_guide/use_case/hyper_parameters_tuning`
-- {doc}`/user_guide/use_case/multi_gpu_training`
-- {doc}`/user_guide/use_case/custom_dataloaders`
-- {doc}`/user_guide/use_case/scvi_criticism`
-
 ## Glossary
 
 ::::{tab-set}
@@ -234,3 +234,13 @@ which parameters are optimized, as well as the validation loop to monitor metric
 data to the correct device (CPU/GPU).
 :::
 ::::
+
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+
+background/index
+use_case/index
+models/index
+```

@@ -159,7 +159,7 @@ A resolVI model can be pre-trained on reference data and updated with query data
 
 ### Estimation of true expression levels
 
-In {meth}`~scvi.external.RESOLVI.get_normalized_methylation` ResolVI returns the expected true expression value of $\rho_n$ under the approximate posterior. For one cell $n$, this can be written as:
+In {meth}`~scvi.external.RESOLVI.get_normalized_expression` ResolVI returns the expected true expression value of $\rho_n$ under the approximate posterior. For one cell $n$, this can be written as:
 
 ```{math}
 :nowrap: true

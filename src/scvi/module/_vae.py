@@ -141,9 +141,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Keyword arguments passed into :class:`~scvi.nn.Embedding` if ``batch_representation`` is
         set to ``"embedding"``.
 
-    Notes
-    -----
-    Lifecycle: argument ``batch_representation`` is experimental in v1.2.
     """
 
     def __init__(
@@ -159,7 +156,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
@@ -619,7 +616,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Parameters
         ----------
         tensors
-            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
+            Dictionary of tensors passed into ``VAE.forward``.
         n_samples
             Number of Monte Carlo samples to draw from the distribution for each observation.
         max_poisson_rate
@@ -674,7 +671,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Parameters
         ----------
         tensors
-            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
+            Dictionary of tensors passed into ``VAE.forward``.
         n_mc_samples
             Number of Monte Carlo samples to use for the estimation of the marginal log-likelihood.
         return_mean

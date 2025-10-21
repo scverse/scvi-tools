@@ -240,7 +240,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
         **model_kwargs
-            Keyword args for :class:`~scvi.external.SpatialDeconv`
+            Keyword args for :class:`~scvi.external.stereoscope.SpatialDeconv`
         """
         return cls(
             st_adata,

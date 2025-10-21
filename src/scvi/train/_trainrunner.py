@@ -1,9 +1,13 @@
+import gc
 import logging
+import os
+import pickle
 import warnings
 
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
+import torch
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
@@ -12,6 +16,17 @@ from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_load_logger_history(trainer):
+    hist = getattr(trainer.logger, "history", None)
+    if hist:
+        return {k: v.copy() for k, v in hist.items()}  # deep copy from memory
+    history_path = getattr(trainer.logger, "history_path", None)  #  file (written by rank-0)
+    if history_path and os.path.exists(history_path):
+        with open(history_path, "rb") as f:
+            return pickle.load(f)
+    return None
 
 
 class TrainRunner:
@@ -77,6 +92,8 @@ class TrainRunner:
 
         if getattr(self.training_plan, "reduce_lr_on_plateau", False):
             trainer_kwargs["learning_rate_monitor"] = True
+        ckpt_path = trainer_kwargs.pop("ckpt_path", None)
+        self.ckpt_path = ckpt_path
 
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
@@ -110,15 +127,16 @@ class TrainRunner:
             self.training_plan.n_obs_validation = self.data_splitter.n_val
 
         try:
-            self.trainer.fit(self.training_plan, self.data_splitter)
-        except NameError:
-            import gc
-
+            self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
+        except BaseException as e:
+            self._update_history()
+            print("Exception raised during training.", NameError, e)
             gc.collect()
-            import torch
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
+            raise
         self._update_history()
 
         # data splitter only gets these attrs after fit
@@ -132,6 +150,10 @@ class TrainRunner:
         self.model.trainer = self.trainer
 
     def _update_history(self):
+        # only the global-zero process should touch model.history_
+        if not self.trainer.is_global_zero:
+            return
+
         # model is being further trained
         # this was set to true during first training session
         if self.model.is_trained_ is True:
@@ -145,7 +167,7 @@ class TrainRunner:
                 )
                 return
             else:
-                new_history = self.trainer.logger.history
+                new_history = _safe_load_logger_history(self.trainer) or {}
                 for key, val in self.model.history_.items():
                     # e.g., no validation loss due to training params
                     if key not in new_history:
@@ -165,6 +187,8 @@ class TrainRunner:
             # set history_ attribute if it exists
             # other pytorch lightning loggers might not have history attr
             try:
-                self.model.history_ = self.trainer.logger.history
+                # set model.history_ from persisted or in-memory logger now
+                loaded = _safe_load_logger_history(self.trainer)
+                self.model.history_ = loaded if loaded is not None else {}
             except AttributeError:
                 self.history_ = None

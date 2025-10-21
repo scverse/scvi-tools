@@ -7,6 +7,8 @@ import pandas as pd
 from rich import print
 from sklearn.gaussian_process import GaussianProcessClassifier
 
+from scvi.utils import dependencies
+
 
 @dataclass
 class DifferentialExpressionResults:
@@ -31,6 +33,7 @@ class DifferentialExpressionResults:
         print("Marginal likelihood: ", self.gpc.log_marginal_likelihood_value_)
         print("Kernel: ", self.gpc.kernel_)
 
+    @dependencies("matplotlib")
     def plot(
         self,
         X: pd.DataFrame | None = None,
@@ -81,7 +84,6 @@ class DifferentialExpressionResults:
         -------
         None
         """
-        import matplotlib.cm as cm
         import matplotlib.colors as mcolors
         import matplotlib.pyplot as plt
         import numpy as np
@@ -135,7 +137,7 @@ class DifferentialExpressionResults:
         )
 
         # Create a custom colormap with alpha transparency
-        cmap = cm.get_cmap(chosen_colormap)
+        cmap = plt.get_cmap(chosen_colormap)
         cmap_with_alpha = cmap(np.arange(cmap.N))
         cmap_with_alpha[:, -1] = 0.6  # Set the alpha channel
         chosen_colormap = mcolors.ListedColormap(cmap_with_alpha)

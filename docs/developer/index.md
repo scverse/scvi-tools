@@ -13,6 +13,7 @@ a guide on maintaining the project.
 
 ```{toctree}
 :maxdepth: 2
+:hidden:
 
 code
 maintenance

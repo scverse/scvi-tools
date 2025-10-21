@@ -29,6 +29,7 @@ class MappedCollectionDataModule(LightningDataModule):
         batch_key: str | None = None,
         label_key: str | None = None,
         unlabeled_category: str | None = "Unknown",
+        sample_key: str | None = None,
         batch_size: int = 128,
         collection_val: ln.Collection | None = None,
         accelerator: str = "auto",
@@ -43,11 +44,13 @@ class MappedCollectionDataModule(LightningDataModule):
         self._batch_size = batch_size
         self._batch_key = batch_key
         self._label_key = label_key
+        self._sample_key = sample_key
         self.model_name = model_name
         self.shuffle = shuffle
         self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
         self.labels_ = None
+        self.samples_ = None
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
 
@@ -55,6 +58,8 @@ class MappedCollectionDataModule(LightningDataModule):
         obs_keys = self._batch_key  # we must have batch keys
         if self._label_key is not None:
             obs_keys = [obs_keys] + [self._label_key]
+        if self._sample_key is not None:
+            obs_keys = [obs_keys] + [self._sample_key]
         if self._categorical_covariate_keys is not None:
             obs_keys = (
                 obs_keys + self._categorical_covariate_keys
@@ -79,6 +84,33 @@ class MappedCollectionDataModule(LightningDataModule):
         # generate encodings
         if self._label_key is not None:
             self.labels_ = self._dataset.get_merged_labels(self._label_key).astype(str)
+        if self._sample_key is not None:
+            # CURRENTLY IMPLEMENTED FOR MRVI
+            sample_key = self._sample_key
+            encoder = self._dataset.encoders[sample_key]
+
+            # Initialize a counter to count per encoded sample index
+            from collections import Counter
+
+            sample_counter = Counter()
+
+            # Loop through the raw AnnData artifacts in the collection
+            for artifact in collection.artifacts.all():
+                adata = artifact.load()
+                sample_column = (
+                    adata.obs[sample_key].astype(str).values
+                )  # Ensure str for encoder mapping
+                sample_indices = [encoder[val] for val in sample_column]
+                sample_counter.update(sample_indices)
+
+            # Build tensor of counts aligned to encoder indices
+            counts = np.zeros(len(encoder), dtype=np.float32)
+            for idx, count in sample_counter.items():
+                counts[idx] = count
+
+            self.n_obs_per_sample = torch.tensor(counts, dtype=torch.float32)
+        else:
+            self.n_obs_per_sample = torch.tensor([])
         if self._categorical_covariate_keys is not None:
             self.categorical_covariate_keys_ = [
                 self._dataset.encoders[cat_cov_key]
@@ -102,14 +134,21 @@ class MappedCollectionDataModule(LightningDataModule):
     def val_dataloader(self) -> DataLoader:
         return self._create_dataloader_val(shuffle=self.shuffle)
 
-    def inference_dataloader(self, shuffle=False, batch_size=4096, indices=None):
+    def inference_dataloader(
+        self, shuffle=False, batch_size=4096, indices=None, parallel_cpu_count=None
+    ):
         """Dataloader for inference with `on_before_batch_transfer` applied."""
-        dataloader = self._create_dataloader(shuffle, batch_size, indices)
+        if shuffle is None:
+            shuffle = self.shuffle
+        dataloader = self._create_dataloader(shuffle, batch_size, indices, parallel_cpu_count)
         return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
 
-    def _create_dataloader(self, shuffle, batch_size=None, indices=None):
+    def _create_dataloader(self, shuffle, batch_size=None, indices=None, parallel_cpu_count=None):
         if self._parallel:
-            num_workers = os.cpu_count() - 1
+            if parallel_cpu_count is None:
+                num_workers = os.cpu_count() - 1
+            else:
+                num_workers = parallel_cpu_count
             worker_init_fn = self._dataset.torch_worker_init_fn
         else:
             num_workers = 0
@@ -117,7 +156,7 @@ class MappedCollectionDataModule(LightningDataModule):
         if batch_size is None:
             batch_size = self._batch_size
         if indices is not None:
-            dataset = self._dataset[indices]  # TODO find a better way
+            dataset = self._dataset[indices]
         else:
             dataset = self._dataset
         return DataLoader(
@@ -128,10 +167,15 @@ class MappedCollectionDataModule(LightningDataModule):
             worker_init_fn=worker_init_fn,
         )
 
-    def _create_dataloader_val(self, shuffle, batch_size=None, indices=None):
+    def _create_dataloader_val(
+        self, shuffle, batch_size=None, indices=None, parallel_cpu_count=None
+    ):
         if self._validset is not None:
             if self._parallel:
-                num_workers = os.cpu_count() - 1
+                if parallel_cpu_count is None:
+                    num_workers = os.cpu_count() - 1
+                else:
+                    num_workers = parallel_cpu_count
                 worker_init_fn = self._validset.torch_worker_init_fn
             else:
                 num_workers = 0
@@ -139,7 +183,7 @@ class MappedCollectionDataModule(LightningDataModule):
             if batch_size is None:
                 batch_size = self._batch_size
             if indices is not None:
-                validset = self._validset[indices]  # TODO find a better way
+                validset = self._validset[indices]
             else:
                 validset = self._validset
             return DataLoader(
@@ -177,12 +221,27 @@ class MappedCollectionDataModule(LightningDataModule):
         return len(self.labels)
 
     @property
+    def n_samples(self) -> int:
+        if self._sample_key is None:
+            return 0
+        return len(self.samples)
+
+    @property
     def labels(self) -> np.ndarray:
         if self._label_key is None:
             return None
         combined = np.concatenate(
             (list(self._dataset.encoders[self._label_key].keys()), [self.unlabeled_category])
         )
+        unique_values, idx = np.unique(combined, return_index=True)
+        unique_values = unique_values[np.argsort(idx)]
+        return unique_values.astype(object)
+
+    @property
+    def samples(self) -> np.ndarray:
+        if self._sample_key is None:
+            return None
+        combined = list(self._dataset.encoders[self._sample_key].keys())
         unique_values, idx = np.unique(combined, return_index=True)
         unique_values = unique_values[np.argsort(idx)]
         return unique_values.astype(object)
@@ -209,7 +268,6 @@ class MappedCollectionDataModule(LightningDataModule):
                 "summary_stats": {"n_extra_categorical_covs": 0},
             }
         else:
-            # TODO need to adjust this mapping
             mapping = dict(
                 zip(
                     self._categorical_covariate_keys,
@@ -257,6 +315,7 @@ class MappedCollectionDataModule(LightningDataModule):
                 "layer": None,
                 "batch_key": self._batch_key,
                 "labels_key": self._label_key,
+                "samples_key": self._sample_key,
                 "size_factor_key": None,
                 "categorical_covariate_keys": self._categorical_covariate_keys,
                 "continuous_covariate_keys": self._continuous_covariate_keys,
@@ -288,6 +347,20 @@ class MappedCollectionDataModule(LightningDataModule):
                     },
                     "summary_stats": {"n_labels": self.n_labels},
                 },
+                "ind_x": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_indices"},
+                    "state_registry": {},
+                    "summary_stats": {},
+                },
+                "sample": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_sample"},
+                    "state_registry": {
+                        "categorical_mapping": self.samples,
+                        "original_key": self._sample_key,
+                    },
+                    "n_obs_per_sample": {"n_obs_per_sample": self.n_obs_per_sample},
+                    "summary_stats": {"n_sample": self.n_samples},
+                },
                 "size_factor": {
                     "data_registry": {},
                     "state_registry": {},
@@ -311,6 +384,12 @@ class MappedCollectionDataModule(LightningDataModule):
             return None
         return self._dataset.encoders[self._label_key]
 
+    @property
+    def sample_keys(self) -> int | None:
+        if self._sample_key is None:
+            return None
+        return self._dataset.encoders[self._sample_key]
+
     def on_before_batch_transfer(
         self,
         batch,
@@ -319,6 +398,7 @@ class MappedCollectionDataModule(LightningDataModule):
         X_KEY: str = "X"
         BATCH_KEY: str = "batch"
         LABEL_KEY: str = "labels"
+        SAMPLE_KEY: str = "sample"
         CAT_COVS_KEY: str = "extra_categorical_covs"
         CONT_COVS_KEY: str = "extra_continuous_covs"
 
@@ -336,6 +416,7 @@ class MappedCollectionDataModule(LightningDataModule):
             )
             if self._continuous_covariate_keys is not None
             else None,
+            SAMPLE_KEY: batch[self._sample_key][:, None] if self._sample_key is not None else None,
         }
 
     class _InferenceDataloader:
@@ -370,6 +451,7 @@ class TileDBDataModule(LightningDataModule):
         batch_labels: list[str] | None = None,
         label_keys: list[str] | None = None,
         unlabeled_category: str | None = "Unknown",
+        sample_key: list[str] | None = None,
         train_size: float | None = 1.0,
         split_seed: int | None = None,
         dataloader_kwargs: dict[str, Any] | None = None,
@@ -387,11 +469,9 @@ class TileDBDataModule(LightningDataModule):
                         Defines the desired result set from a SOMA Experiment.
         *args, **kwargs:
         Additional arguments passed through to `tiledbsoma_ml.ExperimentDataset`.
-
         batch_column_names: List[str], optional
         List of obs column names, the tuple of which defines the scVI batch label
         (not to be confused with a batch of training data).
-
         batch_labels: List[str], optional
         List of possible values of the batch label, for mapping to label tensors. By default,
         this will be derived from the unique labels in the given query results (given
@@ -400,21 +480,18 @@ class TileDBDataModule(LightningDataModule):
         another instance for a different query. That ensures the label mapping will be correct
         for the trained model, even if the second query doesn't return examples of every
         training batch label.
-
         label_keys
             List of obs column names concatenated to form the label column.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to set up CZI datamodule with scvi.
-
+        %(param_sample_key)s
         train_size
             Fraction of data to use for training.
         split_seed
             Seed for data split.
-
         dataloader_kwargs: dict, optional
         %(param_accelerator)s
         %(param_device)s
-
         model_name
             The SCVI-Tools Model we are running
         %(param_cat_cov_keys)s
@@ -439,6 +516,12 @@ class TileDBDataModule(LightningDataModule):
         self.labels = None
         self.label_encoder = None
         self.labels_ = None
+        self.sample_key = sample_key
+        self.sample_colsep = "//"
+        self.sample_colname = "_scvi_sample"
+        self.samples = None
+        self.sample_encoder = None
+        self.samples_ = None
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
         self.categ_cov_colsep = "//"
@@ -485,6 +568,16 @@ class TileDBDataModule(LightningDataModule):
             self.label_encoder = LabelEncoder().fit(self.labels)
             self.labels_ = obs_label_df[self.label_colname].values
 
+        if sample_key is not None:
+            obs_sample_df = self.query.obs(column_names=self.sample_key).concat().to_pandas()
+            obs_sample_df = obs_sample_df[self.sample_key]
+            self._add_sample_col(obs_sample_df, inplace=True)
+            samples = obs_sample_df[self.sample_colname].unique()
+            self.samples = samples
+            self.sample_encoder = LabelEncoder().fit(self.samples)
+            self.samples_ = obs_sample_df[self.sample_colname].values
+        self.n_obs_per_sample = torch.tensor([])
+
         if categorical_covariate_keys is not None:
             obs_categ_cov_df = (
                 self.query.obs(column_names=self._categorical_covariate_keys).concat().to_pandas()
@@ -510,6 +603,7 @@ class TileDBDataModule(LightningDataModule):
             if self.label_keys is None
             else self.batch_column_names + self.label_keys
         )
+        cols_sel = cols_sel if self.sample_key is None else cols_sel + self.sample_key
         cols_sel = (
             cols_sel
             if self._categorical_covariate_keys is None
@@ -569,6 +663,12 @@ class TileDBDataModule(LightningDataModule):
             obs_df[self.label_colname] = (
                 obs_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
             )
+        if self._categorical_covariate_keys is not None:
+            obs_df[self._categorical_covariate_colname] = (
+                obs_df[self._categorical_covariate_keys]
+                .astype(str)
+                .agg(self.categ_cov_colsep.join, axis=1)
+            )
         return obs_df
 
     def _add_label_col(self, obs_label_df: pd.DataFrame, inplace: bool = False):
@@ -580,6 +680,16 @@ class TileDBDataModule(LightningDataModule):
             obs_label_df[self.label_keys].astype(str).agg(self.labels_colsep.join, axis=1)
         )
         return obs_label_df
+
+    def _add_sample_col(self, obs_sample_df: pd.DataFrame, inplace: bool = False):
+        # synthesize a new column for obs_label_df by concatenating
+        # the self.batch_column_names columns
+        if not inplace:
+            obs_sample_df = obs_sample_df.copy()
+        obs_sample_df[self.sample_colname] = (
+            obs_sample_df[self.sample_key].astype(str).agg(self.sample_colsep.join, axis=1)
+        )
+        return obs_sample_df
 
     def _add_categ_cov_col(self, obs_categ_cov_df: pd.DataFrame, inplace: bool = False):
         # synthesize a new column for obs_label_df by concatenating
@@ -617,8 +727,11 @@ class TileDBDataModule(LightningDataModule):
             else torch.empty(0),
             "extra_categorical_covs": torch.cat(
                 [
-                    torch.from_numpy(self.categ_cov_encoder.transform(batch_obs[k])).unsqueeze(1)
-                    for k in self._categorical_covariate_keys
+                    torch.from_numpy(
+                        self.categ_cov_encoder.transform(
+                            batch_obs[self._categorical_covariate_colname]
+                        )
+                    ).unsqueeze(1)
                 ],
                 dim=1,
             )
@@ -633,6 +746,11 @@ class TileDBDataModule(LightningDataModule):
             )
             if self._continuous_covariate_keys is not None
             else None,
+            "sample": torch.from_numpy(
+                self.sample_encoder.transform(batch_obs[self.sample_colname])
+            ).unsqueeze(1)
+            if self.sample_key is not None
+            else torch.empty(0),
         }
 
     # scVI code expects these properties on the DataModule:
@@ -705,10 +823,24 @@ class TileDBDataModule(LightningDataModule):
             return 0
 
     @property
-    def labels_mapping(self) -> int:
+    def labels_mapping(self) -> list:
         if self.label_keys is not None:
             combined = np.concatenate((self.label_encoder.classes_, [self.unlabeled_category]))
             unique_values, idx = np.unique(combined, return_index=True)
+            unique_values = unique_values[np.argsort(idx)]
+            return unique_values.astype(object)
+
+    @property
+    def n_samples(self) -> int:
+        if self.sample_key is not None:
+            return len(self.samples_mapping)
+        else:
+            return 0
+
+    @property
+    def samples_mapping(self) -> list:
+        if self.sample_key is not None:
+            unique_values, idx = np.unique(self.sample_encoder.classes_, return_index=True)
             unique_values = unique_values[np.argsort(idx)]
             return unique_values.astype(object)
 
@@ -721,7 +853,6 @@ class TileDBDataModule(LightningDataModule):
                 "summary_stats": {"n_extra_categorical_covs": 0},
             }
         else:
-            # TODO need to adjust this mapping
             mapping = dict(
                 zip(
                     self._categorical_covariate_keys,
@@ -804,6 +935,20 @@ class TileDBDataModule(LightningDataModule):
                         "unlabeled_category": self.unlabeled_category,
                     },
                     "summary_stats": {"n_labels": self.n_labels},
+                },
+                "ind_x": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_indices"},
+                    "state_registry": {},
+                    "summary_stats": {},
+                },
+                "sample": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_sample"},
+                    "state_registry": {
+                        "categorical_mapping": self.samples,
+                        "original_key": self.sample_colname,
+                    },
+                    "n_obs_per_sample": {"n_obs_per_sample": self.n_obs_per_sample},
+                    "summary_stats": {"n_sample": self.n_samples},
                 },
                 "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
                 "extra_categorical_covs": self.extra_categorical_covs,

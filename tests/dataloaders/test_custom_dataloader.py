@@ -9,16 +9,22 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
+from scvi.external import MRVI
 from scvi.utils import dependencies
+
+
+@pytest.fixture(scope="module")
+def setup_lamindb_instance():
+    os.system("lamin init --storage ./test_lamindb_loader")
+    yield
+    os.system("rm -r ./test_lamindb_loader")
+    os.system("lamin delete --force test_lamindb_loader")
 
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_small(save_path: str):
-    os.system("lamin init --storage ./lamindb_collection")  # one time for github runner (comment)
+def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
     import lamindb as ln
-
-    ln.setup.init()  # one time for github runner (comment out when runing localy)
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -175,11 +181,8 @@ def test_lamindb_dataloader_scvi_small(save_path: str):
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scanvi_small(save_path: str):
-    # os.system("lamin init --storage ./lamindb_collection_scanvi") #(comment out runing localy)
+def test_lamindb_dataloader_scanvi_small(save_path: str, setup_lamindb_instance):
     import lamindb as ln
-
-    # ln.setup.init() # (comment out when runing localy)
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -381,11 +384,131 @@ def test_lamindb_dataloader_scanvi_small(save_path: str):
 
 @pytest.mark.dataloader
 @dependencies("lamindb")
-def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
-    # os.system("lamin init --storage ./lamindb_collection_cov")  # one time for github runner
+def test_lamindb_dataloader_mrvi_small(save_path: str, setup_lamindb_instance):
     import lamindb as ln
 
-    # ln.setup.init()  # one time for github runner (comment out when runing localy)
+    # prepare test data
+    adata1 = synthetic_iid()
+    adata1.obs.index.name = "cell_id"
+    adata1.obs["sample"] = np.random.choice(15, size=adata1.shape[0])
+    adata1.obs["sample_str"] = [chr(i + ord("a")) for i in adata1.obs["sample"]]
+    adata1.obs["sample_str"] = adata1.obs["sample_str"].astype(str)
+    meta11 = np.random.randint(0, 2, size=15)
+    adata1.obs["meta1"] = meta11[adata1.obs["sample"].values]
+    meta21 = np.random.randn(15)
+    adata1.obs["meta2"] = meta21[adata1.obs["sample"].values]
+    adata1.obs["cont_cov"] = np.random.normal(0, 1, size=adata1.shape[0])
+    adata1.obs["meta1_cat"] = "CAT_" + adata1.obs["meta1"].astype(str)
+    adata1.obs.loc[:, "disjoint_batch"] = (adata1.obs.loc[:, "sample"] <= 6).replace(
+        {True: "batch_0", False: "batch_1"}
+    )
+    adata1.obs["dummy_batch"] = 1
+
+    adata2 = synthetic_iid()
+    adata2.obs.index.name = "cell_id"
+    adata2.obs["sample"] = np.random.choice(15, size=adata2.shape[0])
+    adata2.obs["sample_str"] = [chr(i + ord("a")) for i in adata2.obs["sample"]]
+    adata2.obs["sample_str"] = adata2.obs["sample_str"].astype(str)
+    meta12 = np.random.randint(0, 2, size=15)
+    adata2.obs["meta1"] = meta12[adata2.obs["sample"].values]
+    meta22 = np.random.randn(15)
+    adata2.obs["meta2"] = meta22[adata2.obs["sample"].values]
+    adata2.obs["cont_cov"] = np.random.normal(0, 1, size=adata2.shape[0])
+    adata2.obs["meta1_cat"] = "CAT_" + adata2.obs["meta1"].astype(str)
+    adata2.obs.loc[:, "disjoint_batch"] = (adata2.obs.loc[:, "sample"] <= 6).replace(
+        {True: "batch_0", False: "batch_1"}
+    )
+    adata2.obs["dummy_batch"] = 2
+
+    artifact1 = ln.Artifact.from_anndata(adata1, key="part_one.h5ad").save()
+    artifact2 = ln.Artifact.from_anndata(adata2, key="part_two.h5ad").save()
+
+    collection = ln.Collection([artifact1, artifact2], key="gather")
+    collection.save()
+
+    artifacts = collection.artifacts.all()
+    artifacts.df()
+
+    datamodule = MappedCollectionDataModule(
+        collection,
+        batch_key="batch",
+        sample_key="sample_str",
+        batch_size=1024,
+        join="inner",
+        model_name="TorchMRVI",
+        collection_val=collection,
+    )
+
+    print(datamodule.n_obs, datamodule.n_vars, datamodule.n_batch)
+
+    # pprint(datamodule.registry)
+
+    model = MRVI(registry=datamodule.registry, backend="torch")
+    # pprint(model.summary_stats)
+    # pprint(model.module)
+
+    model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
+    logged_keys = model.history.keys()
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "kl_global_train" in logged_keys
+    assert "validation_loss" in logged_keys
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "kl_global_validation" in logged_keys
+
+    # The way to extract the internal model analysis is by the inference_dataloader
+    # Datamodule will always require to pass it into all downstream functions.
+    inference_dataloader = datamodule.inference_dataloader()
+    _ = model.get_elbo(dataloader=inference_dataloader)
+    _ = model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = model.get_latent_representation(give_z=False, dataloader=inference_dataloader)
+    _ = model.get_latent_representation(give_z=True, dataloader=inference_dataloader)
+
+    # save and load model
+    model.save(
+        "lamin_model_mrvi",
+        save_anndata=False,
+        overwrite=True,
+        datamodule=datamodule,
+    )
+    # load it back and do downstream analysis
+    loaded_model = MRVI.load("lamin_model_mrvi", adata=False)
+    loaded_model.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        batch_size=1024,
+        train_size=1,
+        early_stopping=False,
+    )
+
+    _ = loaded_model.get_elbo(dataloader=inference_dataloader)
+    _ = loaded_model.get_reconstruction_error(dataloader=inference_dataloader)
+    _ = loaded_model.get_latent_representation(give_z=False, dataloader=inference_dataloader)
+    _ = loaded_model.get_latent_representation(give_z=True, dataloader=inference_dataloader)
+
+    loaded_logged_keys = loaded_model.history.keys()
+    assert "elbo_train" in loaded_logged_keys
+    assert "reconstruction_loss_train" in loaded_logged_keys
+    assert "kl_local_train" in loaded_logged_keys
+    assert "kl_global_train" in loaded_logged_keys
+    assert "validation_loss" in loaded_logged_keys
+    assert "elbo_validation" in loaded_logged_keys
+    assert "reconstruction_loss_validation" in loaded_logged_keys
+    assert "kl_local_validation" in loaded_logged_keys
+    assert "kl_global_validation" in loaded_logged_keys
+
+
+@pytest.mark.dataloader
+@dependencies("lamindb")
+def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str, setup_lamindb_instance):
+    import lamindb as ln
 
     # prepare test data
     adata1 = synthetic_iid()
@@ -481,6 +604,13 @@ def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str):
 
     # load and save and make query with the other data
     model.save("lamin_model_cov", save_anndata=False, overwrite=True, datamodule=datamodule)
+    # load it back and do downstream analysis
+    loaded_model = scvi.model.SCVI.load("lamin_model_cov", adata=False)
+    loaded_model.train(
+        max_epochs=1,
+        batch_size=1024,
+        datamodule=datamodule,
+    )
 
 
 @pytest.mark.dataloader
@@ -1073,3 +1203,11 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
     # Additional things we would like to check
     # we make the batch name the same as in the model
     adata.obs["batch"] = adata.obs[batch_keys].agg("//".join, axis=1).astype("category")
+
+    model_census3 = scvi.model.SCVI.load("census_model_cov", adata=False)
+
+    model_census3.train(
+        datamodule=datamodule,
+        max_epochs=1,
+        early_stopping=False,
+    )

@@ -60,13 +60,13 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         Dropout rate for encoder and decoder.
     out_var_mode
         How variance is predicted in decoder,
-        see :class:`~scvi.external.sysvi.nn.VarEncoder`.
+        see :class:`~scvi.external.sysvi._base_components.VarEncoder`.
         One of the following:
         * ``'sample_feature'`` - learn variance per sample and feature.
         * ``'feature'`` - learn variance per feature, constant across samples.
     encoder_decoder_kwargs
         Additional kwargs passed to encoder and decoder.
-        Both encoder and decoder use :class:`~scvi.external.sysvi.nn.EncoderDecoder`.
+        Both encoder and decoder use :class:`~scvi.external.sysvi._base_components.EncoderDecoder`.
     embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding`
         if ``embed_categorical_covariates`` is set to ``True``.

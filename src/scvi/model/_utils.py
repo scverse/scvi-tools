@@ -4,7 +4,6 @@ from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
 from typing import Literal
 
-import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
@@ -17,6 +16,7 @@ from scipy.sparse import issparse
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
+from scvi.utils import is_package_installed
 from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
@@ -149,7 +149,9 @@ def parse_device_args(
         if _accelerator != "cpu":
             device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
-    elif return_device == "jax":
+    elif return_device == "jax" and is_package_installed("jax"):
+        import jax
+
         device = jax.devices("cpu")[0]
         if _accelerator != "cpu":
             if _accelerator == "mps":
@@ -157,6 +159,8 @@ def parse_device_args(
             else:
                 device = jax.devices(_accelerator)[device_idx]
         return _accelerator, _devices, device
+    else:
+        raise ImportError("Please install jax to use this functionality.")
 
     return _accelerator, _devices
 

@@ -4,9 +4,9 @@ Starting from version 0.20.1, this format is based on [Keep a Changelog], and th
 to [Semantic Versioning]. Full commit history is available in the
 [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.3
+## Version 1.4
 
-### 1.3.3 (2025-XX-XX)
+### 1.4.1 (2025-XX-XX)
 
 #### Added
 
@@ -15,6 +15,65 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Changed
 
 #### Removed
+
+### 1.4.0 (2025-09-14)
+
+#### Added
+
+- Add support for mudata during ray autotune, {pr}`3545`.
+- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
+- Add checkpointing with {class}`scvi.autotune.AutotuneExperiment`, {pr}`3452`.
+- Add Downstream Analysis functions multi GPU support, {pr}`3443`.
+- Add {class}`scvi.external.CYTOVI` for dealing with cytometry data {pr}`3456`.
+- Add scArches support for {class}`scvi.external.SCVIVA`, {pr}`3494`.
+- Add a backend parameter and making the class {class}`scvi.external.MRVI` a wrapper to the Jax or
+    Torch implementations, {pr}`3498`.
+- Add lightning checkpointing to trainer fit, {pr}`3501`.
+- Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
+- Add solver parameter for SVD stability in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3524`.
+
+#### Fixed
+
+- Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
+- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters, {pr}`3561`.
+- Fix in library size calculation in {class}`scvi.model.TOTALVI`, {pr}`3452`.
+- Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
+- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
+- Fix in {class}`~scvi.external.POISSONVI` differential_accessibility, {pr}`3473`.
+- Fix missing model history for multiGPU training, and added option to log on step, {pr}`3516`.
+
+#### Changed
+
+- Made the Jax dependency optional in scvi-tools {pr}`3426`.
+
+#### Removed
+
+- Remove the support for Python 3.10, {pr}`3441`.
+- Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3486`.
+- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+
+## Version 1.3
+
+### 1.3.3 (2025-07-23)
+
+#### Added
+
+- Add support for using AnnCollection {class}`scvi.dataloaders.CollectionAdapter` dataloader for
+    {class}`scvi.model.SCVI` and {class}`scvi.model.SCANVI`, {pr}`3362`.
+
+#### Fixed
+
+- Add a fix to {func}`~scvi.model.SCVI.differential_expression`, {pr}`3418`.
+- Add {class}`scvi.module.base.SupervisedModuleClass` to the classifier, {pr}`3430`.
+
+#### Changed
+
+- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
+
+#### Removed
+
+- Removed a bad legacy code in {class}`scvi.model.base.ArchesMixin`, {pr}`3417`.
+- Removed Deprecated {class}`scvi.train.SaveBestState` from code {pr}`3420`.
 
 ### 1.3.2 (2025-06-22)
 
@@ -50,7 +109,9 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
 - Add get normalized function model property for any generative model {pr}`3238` and changed
     get_accessibility_estimates to get_normalized_accessibility, where needed.
-- Add {class}`scvi.external.TOTALANVI`. {pr}`3259`.
+- Add {class}`scvi.external.TOTALANVI`. {pr}`3259` for modeling of single-cell RNA and
+    CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer
+    both protein expression and cell states
 - Add Custom Dataloaders registry support, {pr}`2932`.
 - Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
     and {class}`scvi.model.SCANVI`, {pr}`2932`.
@@ -61,7 +122,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Fixed
 
 - Add consideration for missing monitor set during early stopping. {pr}`3226`.
-- Fix bug in SysVI get_normalized_expression function. {pr}`3255`.
+- Fix bug in {class}`scvi.external.SysVI` get_normalized_expression function. {pr}`3255`.
 - Add support for IntegratedGradients for multimodal models. {pr}`3264`.
 - Fix bug in resolVI get_normalized expression function. {pr}`3308`.
 - Fix bug in resolVI gene-assay dispersion. {pr}`3308`.
@@ -326,8 +387,8 @@ to [Semantic Versioning]. Full commit history is available in the
 - Address AnnData >= 0.10 deprecation warning for {func}`anndata.read` by replacing instances with
     {func}`anndata.read_h5ad` {pr}`2531`.
 - Address AnnData >= 0.10 deprecation warning for {class}`anndata._core.sparse_dataset.SparseDataset`
-    by replacing instances with {class}`anndata.experimental.CSCDataset` and
-    {class}`anndata.experimental.CSRDataset` {pr}`2531`.
+    by replacing instances with {class}`anndata.abc.CSCDataset` and
+    {class}`anndata.abc.CSRDataset` {pr}`2531`.
 
 ### 1.1.1 (2024-02-19)
 
@@ -426,7 +487,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
 - Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2480`.
-- Use {class}`anndata.experimental.CSCDataset` and {class}`anndata.experimental.CSRDataset`
+- Use {class}`anndata.abc.CSCDataset` and {class}`anndata.abc.CSRDataset`
     instead of the deprecated {class}`anndata._core.sparse_dataset.SparseDataset` for type checks
     {pr}`2485`.
 - Make `use_observed_lib_size` argument adjustable in {class}`scvi.module.LDVAE` `pr`{2494}.
@@ -542,7 +603,7 @@ to [Semantic Versioning]. Full commit history is available in the
     now log accuracy, F1 score, and AUROC metrics {pr}`2023`.
 - Switch to cellxgene census for backend for cellxgene data function {pr}`2030`.
 - Change default `max_cells` and `truncation` in
-    {meth}`scvi.model.base.RNASeqMixin._get_importance_weights` {pr}`2064`.
+    {meth}`scvi.model.base.RNASeqMixin.get_importance_weights` {pr}`2064`.
 - Refactor heuristic for default `max_epochs` as a separate function
     {meth}`scvi.model._utils.get_max_epochs_heuristic` {pr}`2083`.
 
