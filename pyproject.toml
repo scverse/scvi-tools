@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.4.0"
+version = "1.4.0.post1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -79,7 +79,7 @@ docs = [
 docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
@@ -93,7 +93,7 @@ interpretability = ["captum", "shap"]
 # for jax support
 jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
-dataloaders = ["lamindb", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 
 optional = [
     "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
@@ -104,7 +104,6 @@ tutorials = [
     "dataloaders",
     "jupyter",
     "leidenalg",
-    "muon",
     "seaborn",
     "matplotlib",
     "plotnine",

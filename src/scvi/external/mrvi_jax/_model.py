@@ -1431,7 +1431,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
 
             rngs_de = self.module.rngs if store_lfc else None
-            admissible_samples_mat = jnp.array(admissible_samples[indices])  # (n_cells, n_samples)
+            admissible_samples_mat = jnp.array(admissible_samples[indices])
             n_samples_per_cell = admissible_samples_mat.sum(axis=1)
             admissible_samples_dmat = jax.vmap(jnp.diag)(admissible_samples_mat).astype(
                 float

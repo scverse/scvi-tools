@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from collections.abc import Iterable as IterableClass
 from functools import partial
@@ -13,6 +14,7 @@ from anndata import AnnData
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
+from scvi.data._compat import registry_from_setup_dict
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _check_nonnegative_integers, _get_adata_minify_type
 from scvi.dataloaders import DataSplitter
@@ -24,7 +26,11 @@ from scvi.model._utils import (
     get_max_epochs_heuristic,
     use_distributed_sampler,
 )
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.model.base._de_core import _de_core
+from scvi.model.base._save_load import (
+    _load_legacy_saved_files,
+)
 from scvi.module import TOTALVAE
 from scvi.train import AdversarialTrainingPlan, TrainRunner
 from scvi.utils import track
@@ -1276,6 +1282,74 @@ class TOTALVI(
             b_mean = inference_outputs["py_"]["rate_back"]
             background_mean += [b_mean.cpu().numpy()]
         return np.concatenate(background_mean)
+
+    @classmethod
+    def convert_legacy_save(
+        cls,
+        dir_path: str,
+        output_dir_path: str,
+        overwrite: bool = False,
+        prefix: str | None = None,
+        **save_kwargs,
+    ) -> None:
+        """Converts a legacy saved model (<v0.15.0) to the updated save format.
+
+        Parameters
+        ----------
+        dir_path
+            Path to directory where legacy model is saved.
+        output_dir_path
+            Path to save converted save files.
+        overwrite
+            Overwrite existing data or not. If ``False`` and directory
+            already exists at ``output_dir_path``, error will be raised.
+        prefix
+            Prefix of saved file names.
+        **save_kwargs
+            Keyword arguments passed into :func:`~torch.save`.
+        """
+        if not os.path.exists(output_dir_path) or overwrite:
+            os.makedirs(output_dir_path, exist_ok=overwrite)
+        else:
+            raise ValueError(
+                f"{output_dir_path} already exists. Please provide an unexisting directory for "
+                "saving."
+            )
+
+        file_name_prefix = prefix or ""
+        model_state_dict, var_names, attr_dict, _ = _load_legacy_saved_files(
+            dir_path, file_name_prefix, load_adata=False
+        )
+        if "log_per_batch_efficiency" not in model_state_dict.keys():
+            model_state_dict["log_per_batch_efficiency"] = torch.nn.Parameter(
+                torch.zeros(
+                    [
+                        attr_dict["scvi_setup_dict_"]["summary_stats"]["n_proteins"],
+                        attr_dict["scvi_setup_dict_"]["summary_stats"]["n_batch"],
+                    ]
+                )
+            )
+
+        if "scvi_setup_dict_" in attr_dict:
+            scvi_setup_dict = attr_dict.pop("scvi_setup_dict_")
+            unlabeled_category_key = "unlabeled_category_"
+            unlabeled_category = attr_dict.get(unlabeled_category_key, None)
+            attr_dict["registry_"] = registry_from_setup_dict(
+                cls,
+                scvi_setup_dict,
+                unlabeled_category=unlabeled_category,
+            )
+
+        model_save_path = os.path.join(output_dir_path, f"{file_name_prefix}model.pt")
+        torch.save(
+            {
+                SAVE_KEYS.MODEL_STATE_DICT_KEY: model_state_dict,
+                SAVE_KEYS.VAR_NAMES_KEY: var_names,
+                SAVE_KEYS.ATTR_DICT_KEY: attr_dict,
+            },
+            model_save_path,
+            **save_kwargs,
+        )
 
     @classmethod
     @setup_anndata_dsp.dedent
