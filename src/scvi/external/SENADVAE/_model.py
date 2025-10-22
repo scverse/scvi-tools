@@ -674,7 +674,7 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
 
         # Import ModelCheckpoint for best model saving
         from lightning.pytorch.callbacks import ModelCheckpoint
-        
+
         # Create ModelCheckpoint callback to save best model based on validation loss
         best_model_checkpoint = ModelCheckpoint(
             monitor="validation_loss",  # Monitor total validation loss (all components combined)
@@ -682,10 +682,10 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
             save_top_k=1,  # Keep only the best model
             save_last=False,  # Don't save the last model automatically
             verbose=False,  # Reduce checkpoint messages
-            filename="best_model"  # Name for the best model checkpoint
+            filename="best_model",  # Name for the best model checkpoint
         )
 
-        # Add schedulers, control reshuffle callback, custom progress bar, and best model checkpoint
+        # Add schedulers, control reshuffle callback, custom progressbar and best model checkpoint
         callbacks = [
             loss_scheduler,
             temp_scheduler,
@@ -745,7 +745,7 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
             check_val_every_n_epoch=check_val_every_n_epoch,  # Enable validation
             **trainer_kwargs,  # Includes datasplitter_kwargs with perturbation_key
         )
-        
+
         # Load the best model checkpoint after training completes
         self._load_best_checkpoint()
 
@@ -753,18 +753,21 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
         """Load the best model checkpoint after training completes."""
         try:
             # Find the best model checkpoint in the trainer's checkpoint directory
-            if hasattr(self.trainer, 'checkpoint_callback') and self.trainer.checkpoint_callback is not None:
+            if (
+                hasattr(self.trainer, "checkpoint_callback")
+                and self.trainer.checkpoint_callback is not None
+            ):
                 best_model_path = self.trainer.checkpoint_callback.best_model_path
                 if best_model_path and os.path.exists(best_model_path):
                     # Load the best model state
                     checkpoint = torch.load(best_model_path, map_location=self.device)
-                    self.module.load_state_dict(checkpoint['state_dict'])
+                    self.module.load_state_dict(checkpoint["state_dict"])
                     logger.info(f"Loaded best model from checkpoint: {best_model_path}")
                 else:
                     logger.warning("Best model checkpoint not found, using final epoch model")
             else:
                 logger.warning("No checkpoint callback found, using final epoch model")
-        except Exception as e:
+        except (ValueError, RuntimeError, KeyError, TypeError) as e:
             logger.warning(f"Failed to load best checkpoint: {e}, using final epoch model")
 
     def get_latent_representation(
@@ -914,14 +917,9 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
         # Process control cells
         self._process_control_cells(controls_dataloader, results_dict)
 
-
-
-
         # Calculate traditional metrics (da_p, dar_p, hitn)
-        
 
         # Convert pert_map to DataFrame format (equivalent to original code)
-
 
         # Convert network weights to DataFrames with GO pathway indices
         if "mean_delta_matrix" in results_dict and results_dict["mean_delta_matrix"] is not None:
@@ -939,16 +937,26 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
 
         # Process each layer's data into DataFrames (including activity_score_fdr)
         layers_to_process = [
-            "fc1", "fc_mean", "fc_var", "z", "z_interv", "u", 
-            "bc_temp1", "bc_temp100", "bc_temp1000","activity_score",
-            "z_interv_temp1", "z_interv_temp100", "z_interv_temp1000"
+            "fc1",
+            "fc_mean",
+            "fc_var",
+            "z",
+            "z_interv",
+            "u",
+            "bc_temp1",
+            "bc_temp100",
+            "bc_temp1000",
+            "activity_score",
+            "z_interv_temp1",
+            "z_interv_temp100",
+            "z_interv_temp1000",
         ]
         for layer in layers_to_process:
             if layer in results_dict and results_dict[layer] is not None:
                 # Check if it's already a DataFrame (for activity_score_fdr)
                 if isinstance(results_dict[layer], pd.DataFrame):
                     continue
-                    
+
                 temp_df = []
                 for gene in results_dict[layer]:
                     gene_data_list = results_dict[layer][gene]
@@ -966,16 +974,19 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
                     if layer in ["fc1", "activity_score", "activity_score_fdr"]:
                         results_dict[layer].columns = self.gos
         self._calculate_traditional_metrics(results_dict, N)
-        
 
         # Perform statistical testing on activity scores after DataFrame conversion
-        if "activity_score" in results_dict and isinstance(results_dict["activity_score"], pd.DataFrame):
+        if "activity_score" in results_dict and isinstance(
+            results_dict["activity_score"], pd.DataFrame
+        ):
             try:
                 logger.info("Performing statistical testing on pathway activity scores...")
-                fdr_results = self._test_activity_score_significance(results_dict["activity_score"])
+                fdr_results = self._test_activity_score_significance(
+                    results_dict["activity_score"]
+                )
                 results_dict["activity_score_fdr"] = fdr_results
                 logger.info("Statistical testing completed successfully.")
-            except Exception as e:
+            except (ValueError, RuntimeError, KeyError, TypeError) as e:
                 logger.warning(f"Statistical testing failed: {e}")
                 results_dict["activity_score_fdr"] = None
 
@@ -1011,11 +1022,11 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
 
                 # Standard inference pass
                 inference_inputs = self.module._get_inference_input(tensors, metrics=True)
-                #inference_outputs has: "z": z, "z_mu": z_mu, "z_var": z_var, "activity_score": h
+                # inference_outputs has: "z": z, "z_mu": z_mu, "z_var": z_var, "activity_score": h
                 inference_outputs = self.module.inference(**inference_inputs)
 
                 # Extract pathway activities and latent representations
-                #gene_expression
+                # gene_expression
                 x = inference_inputs["x"]
 
                 # Get fc1 outputs (raw pathway activities) we need the softmax also
@@ -1035,8 +1046,8 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
                 z_interv_by_temp = {}
                 bc1_by_temp = {}
                 bc2_by_temp = {}
-                
-                for t in temp_values: 
+
+                for t in temp_values:
                     generative_outputs = self.module.generative(**generative_inputs, temp=t)
                     z_interv_by_temp[f"z_interv_temp{t}"] = generative_outputs["z_interv"]
                     bc1_by_temp[f"bc_temp{t}"] = generative_outputs["bc1"]
@@ -1059,11 +1070,11 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
                     "u": u,
                     "activity_score": inference_outputs["activity_score"],
                 }
-                
+
                 # Add temperature-specific z_interv
                 for temp_key, z_interv_temp in z_interv_by_temp.items():
                     activations_dict[temp_key] = z_interv_temp
-                
+
                 # Add temperature-specific bc values
                 for bc_key, bc_temp in bc1_by_temp.items():
                     if bc_temp is not None:
@@ -1173,14 +1184,12 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
         ctrl_activities = results_dict["activity_score"].loc["ctrl"].values
         ctrl_mean = np.mean(ctrl_activities, axis=0)
 
-
         # Initialize empty DataFrame for DA values with NaN values
         df_da = pd.DataFrame(
-            data=np.nan, 
+            data=np.nan,
             index=list(np.unique(results_dict["activity_score"].index)),
-            columns=self.gos
+            columns=self.gos,
         )
-        
 
         # Calculate metrics for each perturbation
         for pert_strings in np.unique(results_dict["activity_score"].index):
@@ -1189,38 +1198,28 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
             activities = results_dict["activity_score"].loc[pert_strings].values
             pert_mean = np.mean(activities, axis=0)
 
-
-
             # Calculate DA (Differential Activity) as absolute difference per paper definition
             # DA^p_k = |α̅^p_k - α̅^c_k| where α̅^p_k and α̅^c_k are mean activities
             raw_diff = pert_mean - ctrl_mean
             da_values = np.abs(raw_diff)
             df_da.loc[pert_strings] = da_values
 
-
-            
-
             # Calculate DAR and HitN using gene-pathway mappings
-        self._calculate_dar_hitn( df_da, results_dict, N)
+        self._calculate_dar_hitn(df_da, results_dict, N)
         results_dict["da_p"] = df_da
 
     def _calculate_dar_hitn(self, df_da, results_dict, N):
         """Calculate DAR and HitN metrics for a specific perturbation."""
         df_dar = pd.DataFrame(
-            data=np.nan, 
-            index=list(results_dict["activity_score"].index),
-            columns=["dar"]
+            data=np.nan, index=list(results_dict["activity_score"].index), columns=["dar"]
         )
         df_hitn = pd.DataFrame(
-            data=np.nan, 
-            index=list(results_dict["activity_score"].index),
-            columns=["hitn"]
+            data=np.nan, index=list(results_dict["activity_score"].index), columns=["hitn"]
         )
-        
 
         for pert_string in df_da.index:
             pathway_indices = []
-            #get the pathways where this pertubration is included
+            # get the pathways where this pertubration is included
             gene_symbols = pert_string.split(",")
             for gene_symbol in gene_symbols:
                 try:
@@ -1239,48 +1238,39 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
                 except KeyError:
                     logger.warning(f"Could not map gene {gene_symbol} to pathways")
                     continue
-            not_pathway_indices = [i for i in range(len(df_da.columns)) if i not in pathway_indices]
-            #add a print of the head of df_da 
-            
-            wp=df_da.loc[pert_string].values[pathway_indices]
-            wp_n=df_da.loc[pert_string].values[not_pathway_indices]
-            dar=np.mean(wp_n)/np.mean(wp)
+            not_pathway_indices = [
+                i for i in range(len(df_da.columns)) if i not in pathway_indices
+            ]
+            # add a print of the head of df_da
 
-            #Now wwe will need to sort the DA values and see how many of the pathways
-            #that include the perturbed gene are in the top N
-            #quiza habria que añadir una columna al laod con los valores del index y luego ordenarlo por la columna de da
-            #Crea un dataframe con los valores de da y su indice
-            da=df_da.loc[pert_string].values
-            inde=np.arange(0,len(df_da.columns))
+            wp = df_da.loc[pert_string].values[pathway_indices]
+            wp_n = df_da.loc[pert_string].values[not_pathway_indices]
+            dar = np.mean(wp_n) / np.mean(wp)
+
+            # Now wwe will need to sort the DA values and see how many of the pathways
+            # that include the perturbed gene are in the top N
+            # quiza habria que añadir una columna al laod con los valores del index y
+            # luego ordenarlo por la columna de da
+            # Crea un dataframe con los valores de da y su indice
+            da = df_da.loc[pert_string].values
+            inde = np.arange(0, len(df_da.columns))
             print(df_da.index)
             print(inde)
             print(da)
             print(f"da shape: {da.shape}")
-            df=pd.DataFrame({'da':da,'index':inde})
-            #now sort the df by the column da
-            df=df.sort_values(by='da',ascending=False)
-            #now select the number of rows with index in the wp list that are within the first 100 rows
-            hits=df.loc[:,'index'].isin(wp)
-            #now lets get the numbers of trues in the first N rows
-            hitN=sum(hits[:N])/N
+            df = pd.DataFrame({"da": da, "index": inde})
+            # now sort the df by the column da
+            df = df.sort_values(by="da", ascending=False)
+            # now select the number of rows with index in the wp list that are within
+            # the first 100 rows
+            hits = df.loc[:, "index"].isin(wp)
+            # now lets get the numbers of trues in the first N rows
+            hitN = sum(hits[:N]) / N
 
-            df_dar.loc["dar"]=dar
-            df_hitn.loc["hitn"]=hitN
-        results_dict["dar_p"]=df_dar
-        results_dict["hitn"]=df_hitn
-
-            
-            
-
-
-
-
-            
-            
-            
-
-
-
+            df_dar.loc["dar"] = dar
+            df_hitn.loc["hitn"] = hitN
+        results_dict["dar_p"] = df_dar
+        results_dict["hitn"] = df_hitn
 
     def predict_perturbation_response(
         self,
@@ -1357,17 +1347,14 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
         return torch.triu(self.module.G, diagonal=1).detach().cpu().numpy()
 
     def _test_activity_score_significance(
-        self, 
-        activity_score_df: pd.DataFrame, 
-        alpha: float = 0.05,
-        method: str = 'fdr_bh'
+        self, activity_score_df: pd.DataFrame, alpha: float = 0.05, method: str = "fdr_bh"
     ) -> pd.DataFrame:
         """
-        Perform two-tailed t-tests comparing pathway activity scores between perturbations and controls.
-        
+        Perform two-tailed t-tests comparing pathway activity scores between perturbations & ctrls.
+
         For each GO term, compares the activity scores of each perturbation condition against
         control cells, then applies FDR correction across all tests.
-        
+
         Parameters
         ----------
         activity_score_df : pd.DataFrame
@@ -1377,7 +1364,7 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
             Significance level for FDR correction.
         method : str, default 'fdr_bh'
             Method for multiple testing correction.
-            
+
         Returns
         -------
         pd.DataFrame
@@ -1386,17 +1373,17 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
         # Validate input
         if not isinstance(activity_score_df, pd.DataFrame):
             raise ValueError("activity_score_df must be a pandas DataFrame")
-            
+
         # Extract control data
-        ctrl_mask = activity_score_df.index == 'ctrl'
+        ctrl_mask = activity_score_df.index == "ctrl"
         if not ctrl_mask.any():
             raise ValueError("No control cells found. Expected 'ctrl' in DataFrame index.")
-            
+
         ctrl_data = activity_score_df[ctrl_mask]
-        
+
         # Get unique perturbation conditions (excluding control)
         perturbation_conditions = activity_score_df.index[~ctrl_mask].unique()
-        
+
         # Initialize results storage
         fdr_results = {}
 
@@ -1404,78 +1391,73 @@ class SENADVAE(UnsupervisedTrainingMixin, BaseModelClass):
             # Get perturbation data for this condition
             pert_mask = activity_score_df.index == condition
             pert_data = activity_score_df[pert_mask]
-            
+
             # Skip if insufficient data
             if len(pert_data) < 2:
                 logger.warning(f"Skipping {condition}: insufficient cells (n={len(pert_data)})")
                 continue
-                
+
             # Perform t-tests for each GO term
             p_values = []
             tested_gos = []
-            
+
             for go_term in activity_score_df.columns:
-                
                 try:
                     # Get values for this GO term
                     ctrl_values = ctrl_data[go_term].values
                     pert_values = pert_data[go_term].values
-                    
-                    
+
                     # Remove any NaN values
                     ctrl_values = ctrl_values[~np.isnan(ctrl_values)]
                     pert_values = pert_values[~np.isnan(pert_values)]
-                    
+
                     # Check if we have sufficient data
                     if len(ctrl_values) < 2 or len(pert_values) < 2:
                         continue
-                        
+
                     # Perform two-tailed t-test
                     t_stat, p_val = stats.ttest_ind(
-                        pert_values, 
-                        ctrl_values, 
-                        equal_var=False  # Welch's t-test (unequal variances)
+                        pert_values,
+                        ctrl_values,
+                        equal_var=False,  # Welch's t-test (unequal variances)
                     )
-                    
-                    
+
                     p_values.append(p_val)
                     tested_gos.append(go_term)
-                                
-                except Exception as e:
+
+                except (ValueError, RuntimeError, KeyError, TypeError) as e:
                     logger.warning(f"Error testing {condition} vs ctrl for {go_term}: {e}")
                     continue
-                    
+
             # Apply FDR correction if we have tests
             if len(p_values) > 0:
                 # Perform multiple testing correction
                 rejected, p_adjusted, alpha_sidak, alpha_bonf = multipletests(
-                    p_values, 
-                    alpha=alpha, 
-                    method=method
+                    p_values, alpha=alpha, method=method
                 )
-                
+
                 # Store results for this condition
                 condition_results = {}
-                for go_term, fdr_val in zip(tested_gos, p_adjusted):
+                for go_term, fdr_val in zip(tested_gos, p_adjusted, strict=True):
                     condition_results[go_term] = fdr_val
-                
+
                 # Fill in NaN for GO terms that weren't tested
                 for go_term in activity_score_df.columns:
                     if go_term not in condition_results:
                         condition_results[go_term] = np.nan
-                
+
                 fdr_results[condition] = condition_results
             else:
                 logger.warning(f"No valid tests for condition {condition}")
                 # Fill with NaN if no tests were possible
-                fdr_results[condition] = {go_term: np.nan for go_term in activity_score_df.columns}
+                fdr_results[condition] = dict.fromkeys(activity_score_df.columns, np.nan)
 
         # Convert to DataFrame
         fdr_df = pd.DataFrame(fdr_results).T
-        
+
         # Ensure column order matches input
         fdr_df = fdr_df.reindex(columns=activity_score_df.columns)
-        
+
         return fdr_df
 
     def _make_data_loader(
