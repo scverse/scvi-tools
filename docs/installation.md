@@ -20,11 +20,11 @@ In order to install scvi-tools with Nvidia GPU CUDA support, for Linux Systems
 (such as Ubuntu or RedHat) use:
 
 ```bash
-pip install -U scvi-tools[cuda]
+pip install -U 'scvi-tools[cuda]'
 ```
 And for Apple Silicon metal (MPS) support:
 ```bash
-pip install -U scvi-tools[metal]
+pip install -U 'scvi-tools[metal]'
 ```
 
 Don't know how to get started with virtual environments or `conda`/`pip`? Check out the
