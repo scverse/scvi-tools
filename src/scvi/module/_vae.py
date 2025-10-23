@@ -183,6 +183,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
         self.n_labels = n_labels
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key

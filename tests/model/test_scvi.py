@@ -1376,3 +1376,221 @@ def test_scvi_log_on_step():
     assert "validation_loss_step" in model.history
     assert "train_loss_epoch" in model.history
     assert "validation_loss_epoch" in model.history
+
+
+@pytest.mark.autotune
+@pytest.mark.parametrize("max_epochs", [10, 100])
+@pytest.mark.parametrize("train_size", [0.75])
+@pytest.mark.parametrize("check_val_every_n_epoch", [1])
+@pytest.mark.parametrize("seed", [0])
+@pytest.mark.parametrize("n_hidden", [128, 16])
+@pytest.mark.parametrize("n_latent", [10, 5])
+@pytest.mark.parametrize("n_layers", [1, 2])
+def test_scvi_mlflow(
+    max_epochs: int,
+    n_hidden: int,
+    n_latent: int,
+    n_layers: int,
+    train_size: float,
+    check_val_every_n_epoch: int,
+    seed: int,
+    save_path: str,
+):
+    import traceback
+    from datetime import datetime
+
+    import mlflow
+    import pandas as pd
+    import scanpy as sc
+
+    # We decorate this run with autotune so it will invoke on the WIS servers only
+    from scvi.model.base._constants import SAVE_KEYS
+
+    scvi.settings.seed = seed
+
+    # Have several experimetns to be able to compare them by datatime and ID
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_name = f"scvi_model_hca_subsampled_run_{timestamp}"
+
+    mlflow.set_tracking_uri("http://132.77.80.162:5000")  # a WIS internal server
+    mlflow.set_experiment("scvi_benchmarking")  # give it a name represent the experiment
+
+    model_path = os.path.join(save_path, "scvi_model_" + timestamp)
+
+    # Start a new run
+    with mlflow.start_run(run_name=run_name, log_system_metrics=True):
+        try:
+            # adata = synthetic_iid() #choose more meaningful data later on
+            adata = scvi.data.heart_cell_atlas_subsampled(save_path=model_path)
+
+            adata.layers["counts"] = adata.X.copy()  # preserve counts
+            sc.pp.normalize_total(adata, target_sum=1e4)
+            sc.pp.log1p(adata)
+            adata.raw = adata  # freeze the state in `.raw`
+
+            sc.pp.highly_variable_genes(
+                adata,
+                n_top_genes=1200,
+                subset=True,
+                layer="counts",
+                flavor="seurat_v3",
+                batch_key="cell_source",
+            )
+
+            scvi.model.SCVI.setup_anndata(
+                adata,
+                layer="counts",
+                categorical_covariate_keys=["cell_source", "donor"],
+                continuous_covariate_keys=["percent_mito", "percent_ribo"],
+            )
+            model = SCVI(adata, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers)
+
+            # Log training/architecture parameters
+            mlflow.log_params(
+                {
+                    "n_latent": model.module.n_latent,
+                    "n_hidden": model.module.n_hidden,
+                    "n_layers": model.module.n_layers,
+                    "train_size": train_size,
+                    "check_val_every_n_epoch": check_val_every_n_epoch,
+                    "max_epochs": max_epochs,
+                }
+            )
+
+            model.train(
+                max_epochs=max_epochs,
+                check_val_every_n_epoch=check_val_every_n_epoch,
+                train_size=train_size,
+            )
+
+            # Log experiment metrics (from model.history)
+            for key, values in model.history.items():
+                if isinstance(values, (list, tuple)):
+                    for i, v in enumerate(values):
+                        mlflow.log_metric(key, v, step=i)
+                # If it's a pandas Series
+                elif isinstance(values, pd.Series):
+                    for i, v in enumerate(values):
+                        if pd.notna(v):
+                            mlflow.log_metric(key, float(v), step=i)
+                # Pandas DataFrame
+                elif isinstance(values, pd.DataFrame):
+                    # Log all numeric columns as metrics
+                    for col in values.columns:
+                        for i, v in enumerate(values[col]):
+                            if pd.notna(v):
+                                mlflow.log_metric(col, float(v), step=i)
+                # If it's a scalar
+                else:
+                    try:
+                        mlflow.log_metric(key, float(values))
+                    except (TypeError, ValueError):
+                        # Non-numeric scalar, store as param instead
+                        mlflow.log_param(key, str(values))
+
+            # Create and log the umaps in mlflow
+            SCVI_LATENT_KEY = "X_scVI"
+
+            latent = model.get_latent_representation()
+            adata.obsm[SCVI_LATENT_KEY] = latent
+
+            # run PCA then generate UMAP plots
+            sc.tl.pca(adata)
+            sc.pp.neighbors(adata, n_pcs=30, n_neighbors=20)
+            sc.tl.umap(adata, min_dist=0.3)
+
+            fig1 = sc.pl.umap(
+                adata,
+                color=["cell_type"],
+                frameon=False,
+                return_fig=True,
+                show=False,
+            )
+            fig1.savefig(
+                os.path.join(save_path, "pca_cell_type.png"), bbox_inches="tight", dpi=150
+            )
+            fig2 = sc.pl.umap(
+                adata,
+                color=["donor", "cell_source"],
+                ncols=2,
+                frameon=False,
+                return_fig=True,
+                show=False,
+            )
+            fig2.savefig(
+                os.path.join(save_path, "pca_donor_source.png"), bbox_inches="tight", dpi=150
+            )
+
+            mlflow.log_artifact(
+                os.path.join(save_path, "pca_cell_type.png"), artifact_path="plots/pca_cell_type"
+            )
+            mlflow.log_artifact(
+                os.path.join(save_path, "pca_donor_source.png"),
+                artifact_path="plots/pca_donor_source",
+            )
+
+            # use scVI latent space for UMAP generation
+            sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY)
+            sc.tl.umap(adata, min_dist=0.3)
+
+            fig3 = sc.pl.umap(
+                adata,
+                color=["cell_type"],
+                frameon=False,
+                return_fig=True,
+                show=False,
+            )
+            # fig3.savefig(os.path.join(save_path, "scvi_cell_type.png"),
+            # bbox_inches="tight", dpi=150)
+            fig4 = sc.pl.umap(
+                adata,
+                color=["donor", "cell_source"],
+                ncols=2,
+                frameon=False,
+                return_fig=True,
+                show=False,
+            )
+            # fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"),
+            # bbox_inches="tight", dpi=150)
+
+            mlflow.log_figure(fig3, artifact_file="plots/scvi_cell_type/scvi_cell_type.png")
+            mlflow.log_figure(fig4, artifact_file="plots/scvi_donor_source/scvi_donor_source.png")
+
+            # neighbors were already computed using scVI
+            SCVI_CLUSTERS_KEY = "leiden_scVI"
+            sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5)
+
+            fig5 = sc.pl.umap(
+                adata,
+                color=[SCVI_CLUSTERS_KEY],
+                frameon=False,
+                return_fig=True,
+                show=False,
+            )
+            # fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"),
+            # bbox_inches="tight", dpi=150)
+
+            mlflow.log_figure(
+                fig5, artifact_file="plots/scvi_leiden_cluster/scvi_leiden_cluster.png"
+            )
+
+            # # Optional: Save model and log artifact (perhaps minified first / adata also)
+            model.save(model_path, prefix=run_name + "_", overwrite=True, save_anndata=False)
+            mlflow.log_artifact(
+                model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, artifact_path="model"
+            )
+
+            mlflow.set_tag("status", "success")
+
+        except Exception as e:
+            # Capture and log error
+            error_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+            with open("error_log.txt", "w") as f:
+                f.write(error_msg)
+
+            mlflow.log_artifact("error_log.txt", artifact_path="errors")
+            mlflow.set_tag("status", "failed")
+            mlflow.log_param("error_type", type(e).__name__)
+            mlflow.log_param("error_message", str(e))
+            print(f"Error logged to MLflow: {e}")
+            raise
