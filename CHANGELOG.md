@@ -10,6 +10,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add MLFlow support, {pr}`3545`.
+
 #### Fixed
 
 #### Changed

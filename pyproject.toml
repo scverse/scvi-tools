@@ -98,7 +98,7 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 mlflow = ["mlflow","psutil","GPUtil","pynvml"]
 
 optional = [
-    "scvi-tools[autotune,hub,jax,file_sharing,regseq,parallel,interpretability]"
+    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "biomart",
