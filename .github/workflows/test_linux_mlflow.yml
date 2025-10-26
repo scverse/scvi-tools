@@ -1,4 +1,4 @@
-name: test (Autotune)
+name: test (MLFlow)
 
 on:
   push:

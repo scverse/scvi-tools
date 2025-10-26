@@ -7,6 +7,7 @@ from unittest import mock
 import anndata
 import numpy as np
 import pytest
+import scanpy as sc
 import torch
 from lightning.pytorch.callbacks import LearningRateMonitor
 from scipy.sparse import csr_matrix
@@ -1324,8 +1325,6 @@ def test_scvi_inference_custom_dataloader(n_latent: int):
 
 
 def test_scvi_normal_likelihood():
-    import scanpy as sc
-
     adata = synthetic_iid()
     sc.pp.normalize_total(adata)
     sc.pp.log1p(adata)
@@ -1382,7 +1381,7 @@ def test_scvi_log_on_step():
 @pytest.mark.parametrize("max_epochs", [10, 50])
 @pytest.mark.parametrize("train_size", [0.75])
 @pytest.mark.parametrize("check_val_every_n_epoch", [1])
-@pytest.mark.parametrize("seed", [0])
+@pytest.mark.parametrize("seed", [0, 42])
 @pytest.mark.parametrize("n_hidden", [128, 16])
 @pytest.mark.parametrize("n_latent", [10, 5])
 @pytest.mark.parametrize("n_layers", [1, 2])
@@ -1399,7 +1398,6 @@ def test_scvi_mlflow(
     from datetime import datetime
 
     import mlflow
-    import scanpy as sc
 
     # We decorate this run with autotune so it will invoke on the WIS servers only
     from scvi.model.base._constants import SAVE_KEYS
@@ -1457,8 +1455,8 @@ def test_scvi_mlflow(
 
     # run PCA then generate UMAP plots
     sc.tl.pca(adata)
-    sc.pp.neighbors(adata, n_pcs=30, n_neighbors=20)
-    sc.tl.umap(adata, min_dist=0.3)
+    sc.pp.neighbors(adata, n_pcs=30, n_neighbors=20, random_state=seed)
+    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
 
     fig1 = sc.pl.umap(
         adata,
@@ -1480,18 +1478,16 @@ def test_scvi_mlflow(
 
     mlflow.log_artifact(
         os.path.join(save_path, "pca_cell_type.png"),
-        artifact_path="plots/pca_cell_type",
         run_id=model.run_id,
     )
-    mlflow.log_artifact(
+    mlflow.log_artifacts(
         os.path.join(save_path, "pca_donor_source.png"),
-        artifact_path="plots/pca_donor_source",
         run_id=model.run_id,
     )
 
     # use scVI latent space for UMAP generation
-    sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY)
-    sc.tl.umap(adata, min_dist=0.3)
+    sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY, random_state=seed)
+    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
 
     fig3 = sc.pl.umap(
         adata,
@@ -1511,22 +1507,12 @@ def test_scvi_mlflow(
     )
     fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=150)
 
-    mlflow.log_artifact(
-        os.path.join(save_path, "scvi_cell_type.png"),
-        artifact_path="plots/scvi_cell_type",
-        run_id=model.run_id,
-    )
-    mlflow.log_artifact(
-        os.path.join(save_path, "scvi_donor_source.png"),
-        artifact_path="plots/scvi_donor_source",
-        run_id=model.run_id,
-    )
-    # mlflow.log_figure(fig3, artifact_file="plots/scvi_cell_type/scvi_cell_type.png")
-    # mlflow.log_figure(fig4, artifact_file="plots/scvi_donor_source/scvi_donor_source.png")
+    mlflow.log_artifacts(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
+    mlflow.log_artifacts(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
 
     # neighbors were already computed using scVI
     SCVI_CLUSTERS_KEY = "leiden_scVI"
-    sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5)
+    sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5, random_state=seed)
 
     fig5 = sc.pl.umap(
         adata,
@@ -1537,19 +1523,10 @@ def test_scvi_mlflow(
     )
     fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=150)
 
-    # mlflow.log_figure(
-    #     fig5, artifact_file="plots/scvi_leiden_cluster/scvi_leiden_cluster.png"
-    # )
-    mlflow.log_artifact(
-        os.path.join(save_path, "scvi_leiden_cluster.png"),
-        artifact_path="plots/scvi_leiden_cluster",
-        run_id=model.run_id,
-    )
+    mlflow.log_artifacts(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
 
     # # Optional: Save model and log artifact (perhaps minified first / adata also)
     model.save(model_path, prefix=run_name + "_", overwrite=True, save_anndata=False)
-    mlflow.log_artifact(
-        model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME,
-        artifact_path="model",
-        run_id=model.run_id,
+    mlflow.log_artifacts(
+        model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
     )
