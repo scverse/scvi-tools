@@ -71,23 +71,34 @@ def _mlflow_logger(
     # Log training/architecture parameters
     if trainer is not None:
         mlflow.log_params({"max_epochs": trainer.max_epochs}, run_id=run_id)
+        mlflow.log_params(
+            {"check_val_every_n_epoch": trainer.check_val_every_n_epoch}, run_id=run_id
+        )
+        mlflow.log_params({"log_every_n_steps": trainer.log_every_n_steps}, run_id=run_id)
+        mlflow.log_params({"world_size": trainer.world_size}, run_id=run_id)
     if training_plan is not None:
         mlflow.log_params({"lr": training_plan.lr}, run_id=run_id)
+        mlflow.log_params({"eps": training_plan.eps}, run_id=run_id)
+        mlflow.log_params({"lr_factor": training_plan.lr_factor}, run_id=run_id)
+        mlflow.log_params({"lr_patience": training_plan.lr_patience}, run_id=run_id)
+        mlflow.log_params({"n_epochs_kl_warmup": training_plan.n_epochs_kl_warmup}, run_id=run_id)
+        mlflow.log_params({"n_steps_kl_warmup": training_plan.n_steps_kl_warmup}, run_id=run_id)
+        mlflow.log_params({"weight_decay": training_plan.weight_decay}, run_id=run_id)
+        mlflow.log_params({"max_kl_weight": training_plan.max_kl_weight}, run_id=run_id)
+        mlflow.log_params({"min_kl_weight": training_plan.min_kl_weight}, run_id=run_id)
     if data_splitter is not None:
         mlflow.log_params(data_splitter.data_loader_kwargs, run_id=run_id)
-        mlflow.log_params(data_splitter.data_loader_kwargs, run_id=run_id)
-        mlflow.log_params(data_splitter.data_loader_kwargs, run_id=run_id)
-
+        mlflow.log_params({"train_size": data_splitter.train_size}, run_id=run_id)
+        mlflow.log_params({"n_train": data_splitter.n_train}, run_id=run_id)
+        mlflow.log_params({"n_val": data_splitter.n_val}, run_id=run_id)
     if model is not None:
-        mlflow.log_params(model.init_params_["non_kwargs"], run_id=run_id)
-        mlflow.log_params(model.init_params_["kwargs"], run_id=run_id)
-        mlflow.log_params(model.registry["setup_args"], run_id=run_id)
-
-        #     {
-        #         # "train_size": train_size,
-        #         # "check_val_every_n_epoch": check_val_every_n_epoch,
-        #     }
-        # )
+        mlflow.log_params(model.init_params_.get("non_kwargs", {}), run_id=run_id)
+        mlflow.log_params(model.init_params_.get("kwargs", {}), run_id=run_id)
+        mlflow.log_params(model.registry.get("setup_args", {}), run_id=run_id)
+        for field in model.registry["field_registries"].keys():
+            mlflow.log_params(
+                model.registry["field_registries"][field].get("summary_stats", {}), run_id=run_id
+            )
 
         # Log experiment metrics (from model.history)
         for key, values in model.history.items():

@@ -182,6 +182,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
+        self.n_input = n_input
         self.n_labels = n_labels
         self.n_hidden = n_hidden
         self.n_layers = n_layers

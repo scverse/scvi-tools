@@ -1378,7 +1378,7 @@ def test_scvi_log_on_step():
     assert "validation_loss_epoch" in model.history
 
 
-# @pytest.mark.mlflow
+@pytest.mark.mlflow
 @pytest.mark.parametrize("max_epochs", [10, 50])
 @pytest.mark.parametrize("train_size", [0.75])
 @pytest.mark.parametrize("check_val_every_n_epoch", [1])
@@ -1447,7 +1447,7 @@ def test_scvi_mlflow(
         train_size=train_size,
     )
 
-    # down stream analsysis
+    # down stream analysis
 
     # Create and log the umaps in mlflow
     SCVI_LATENT_KEY = "X_scVI"
