@@ -1480,7 +1480,7 @@ def test_scvi_mlflow(
         os.path.join(save_path, "pca_cell_type.png"),
         run_id=model.run_id,
     )
-    mlflow.log_artifacts(
+    mlflow.log_artifact(
         os.path.join(save_path, "pca_donor_source.png"),
         run_id=model.run_id,
     )
@@ -1507,8 +1507,8 @@ def test_scvi_mlflow(
     )
     fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=150)
 
-    mlflow.log_artifacts(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
-    mlflow.log_artifacts(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
+    mlflow.log_artifact(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
+    mlflow.log_artifact(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
 
     # neighbors were already computed using scVI
     SCVI_CLUSTERS_KEY = "leiden_scVI"
@@ -1523,10 +1523,10 @@ def test_scvi_mlflow(
     )
     fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=150)
 
-    mlflow.log_artifacts(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
+    mlflow.log_artifact(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
 
     # # Optional: Save model and log artifact (perhaps minified first / adata also)
     model.save(model_path, prefix=run_name + "_", overwrite=True, save_anndata=False)
-    mlflow.log_artifacts(
+    mlflow.log_artifact(
         model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
     )
