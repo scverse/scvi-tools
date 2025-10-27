@@ -88,8 +88,8 @@ regseq = ["biopython>=1.81", "genomepy"]
 file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 # for parallelization engine
 parallel = ["dask[array]", "zarr<3.0.0"]
-# for supervised models interpretability
-interpretability = ["captum", "shap"]
+# for models interpretability
+interpretability = ["captum", "shap", "decoupler"]
 # for jax support
 jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
@@ -104,7 +104,6 @@ tutorials = [
     "biomart",
     "cell2location",
     "dataloaders",
-    "decoupler",
     "jupyter",
     "leidenalg",
     "seaborn",

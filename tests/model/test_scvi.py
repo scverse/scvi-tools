@@ -1541,11 +1541,12 @@ def test_scvi_mlflow(
     mlflow_log_text(logs, "text/model_summary.txt", run_id=model.run_id)
 
     # DE (table + volcano plot)
+    import decoupler as dc
+
     de_df = model.differential_expression(groupby="cell_type", mode="change")
     mlflow_log_table(de_df.head(500), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
     # de_df.to_csv("cell_type_DE.csv")
     # mlflow_log_artifact(os.path.join(save_path, "cell_type_DE.csv"), run_id=model.run_id)
-    import decoupler as dc
 
     fig6 = dc.pl.volcano(de_df, x="lfc_mean", y="proba_not_de", return_fig=True, thr_stat=1, top=5)
     fig6.savefig(os.path.join(save_path, "scvi_DE_volcano.png"), bbox_inches="tight", dpi=120)
