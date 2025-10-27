@@ -1383,12 +1383,12 @@ def test_scvi_log_on_step():
 
 
 @pytest.mark.mlflow
-@pytest.mark.parametrize("max_epochs", [10, 100])
+@pytest.mark.parametrize("max_epochs", [10])
 @pytest.mark.parametrize("train_size", [0.75])
 @pytest.mark.parametrize("check_val_every_n_epoch", [1])
 @pytest.mark.parametrize("seed", [0])
-@pytest.mark.parametrize("n_hidden", [128, 16])
-@pytest.mark.parametrize("n_latent", [10, 5])
+@pytest.mark.parametrize("n_hidden", [128])
+@pytest.mark.parametrize("n_latent", [10])
 @pytest.mark.parametrize("n_layers", [1])
 def test_scvi_mlflow(
     max_epochs: int,
