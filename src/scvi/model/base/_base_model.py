@@ -150,6 +150,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.history_ = None
         self.get_normalized_function_name_ = "get_normalized_expression"
         self.run_name_ = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        self.run_id_ = ""
 
     @property
     def adata(self) -> None | AnnOrMuData:
@@ -609,6 +610,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     @run_name.setter
     def run_name(self, value):
         self.run_name_ = value
+
+    @property
+    def run_id(self) -> str:
+        """Returns the run id of the model. Used in MLFlow"""
+        return self.run_id_
+
+    @run_id.setter
+    def run_id(self, value):
+        self.run_id_ = value
 
     def _get_user_attributes(self):
         """Returns all the self attributes defined in a model class, e.g., `self.is_trained_`."""

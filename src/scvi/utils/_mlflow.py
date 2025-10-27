@@ -1,69 +1,82 @@
 import os
-import pickle
+import sys
+import warnings
+from typing import Any, Union
 
 import pandas as pd
-import torch
 
+from scvi import settings
 from scvi.utils import dependencies
 
 
-def _compute_kl_weight(
-    epoch: int,
-    step: int,
-    n_epochs_kl_warmup: int | None,
-    n_steps_kl_warmup: int | None,
-    max_kl_weight: float = 1.0,
-    min_kl_weight: float = 0.0,
-) -> float | torch.Tensor:
-    """Computes the kl weight for the current step or epoch.
+@dependencies("mlflow")
+def mlflow_log_artifact(
+    local_path: str,
+    artifact_path: str | None = None,
+    run_id: str | None = None,
+    max_size_mb: float = 5.0,
+) -> None:
+    import mlflow
 
-    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+    if not os.path.isfile(local_path):
+        raise FileNotFoundError(f"File not found: {local_path}")
 
-    Parameters
-    ----------
-    epoch
-        Current epoch.
-    step
-        Current step.
-    n_epochs_kl_warmup
-        Number of training epochs to scale weight on KL divergences from
-        `min_kl_weight` to `max_kl_weight`
-    n_steps_kl_warmup
-        Number of training steps (minibatches) to scale weight on KL divergences from
-        `min_kl_weight` to `max_kl_weight`
-    max_kl_weight
-        Maximum scaling factor on KL divergence during training.
-    min_kl_weight
-        Minimum scaling factor on KL divergence during training.
-    """
-    if min_kl_weight > max_kl_weight:
-        raise ValueError(
-            f"min_kl_weight={min_kl_weight} is larger than max_kl_weight={max_kl_weight}."
+    file_size_mb = os.path.getsize(local_path) / (1024 * 1024)
+    if file_size_mb <= max_size_mb:
+        mlflow.log_artifact(local_path, artifact_path=artifact_path, run_id=run_id)
+    else:
+        warnings.warn(
+            f"File too large to log to MLFlow: {local_path}",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
         )
-
-    slope = max_kl_weight - min_kl_weight
-    if n_epochs_kl_warmup:
-        if epoch < n_epochs_kl_warmup:
-            return slope * (epoch / n_epochs_kl_warmup) + min_kl_weight
-    elif n_steps_kl_warmup:
-        if step < n_steps_kl_warmup:
-            return slope * (step / n_steps_kl_warmup) + min_kl_weight
-    return max_kl_weight
-
-
-def _safe_load_logger_history(trainer):
-    hist = getattr(trainer.logger, "history", None)
-    if hist:
-        return {k: v.copy() for k, v in hist.items()}  # deep copy from memory
-    history_path = getattr(trainer.logger, "history_path", None)  #  file (written by rank-0)
-    if history_path and os.path.exists(history_path):
-        with open(history_path, "rb") as f:
-            return pickle.load(f)
-    return None
+    return
 
 
 @dependencies("mlflow")
-def _mlflow_logger(
+def mlflow_log_table(
+    data: Union[dict[str, Any], "pd.DataFrame"],
+    artifact_file: str | None = None,
+    run_id: str | None = None,
+    max_size_mb: float = 1.0,
+) -> None:
+    import mlflow
+
+    file_size_mb = sys.getsizeof(data) / (1024 * 1024)
+    if file_size_mb <= max_size_mb:
+        mlflow.log_table(data, artifact_file=artifact_file, run_id=run_id)
+    else:
+        warnings.warn(
+            "Object too large to log to MLFlow",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+    return
+
+
+@dependencies("mlflow")
+def mlflow_log_text(
+    text: str,
+    artifact_file: str | None = None,
+    run_id: str | None = None,
+    max_size_mb: float = 1.0,
+) -> None:
+    import mlflow
+
+    file_size_mb = sys.getsizeof(text) / (1024 * 1024)
+    if file_size_mb <= max_size_mb:
+        mlflow.log_text(text, artifact_file=artifact_file, run_id=run_id)
+    else:
+        warnings.warn(
+            "Object too large to log to MLFlow",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+    return
+
+
+@dependencies("mlflow")
+def mlflow_logger(
     model=None, trainer=None, training_plan=None, data_splitter=None, run_id: str = None
 ):
     import mlflow

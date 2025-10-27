@@ -1,16 +1,20 @@
+import contextlib
 import inspect
+import io
+import json
 import os
 import pickle
 import tarfile
+from datetime import datetime
 from unittest import mock
 
 import anndata
 import numpy as np
 import pytest
 import scanpy as sc
+import scipy.sparse as sp
 import torch
 from lightning.pytorch.callbacks import LearningRateMonitor
-from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
@@ -18,6 +22,7 @@ from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.model import SCVI
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -474,7 +479,7 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int):
 @pytest.mark.parametrize("n_latent", [5])
 def test_scvi_sparse(n_latent: int):
     adata = synthetic_iid()
-    adata.X = csr_matrix(adata.X)
+    adata.X = sp.csr_matrix(adata.X)
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
@@ -1378,13 +1383,13 @@ def test_scvi_log_on_step():
 
 
 @pytest.mark.mlflow
-@pytest.mark.parametrize("max_epochs", [10, 50])
+@pytest.mark.parametrize("max_epochs", [10, 100])
 @pytest.mark.parametrize("train_size", [0.75])
 @pytest.mark.parametrize("check_val_every_n_epoch", [1])
-@pytest.mark.parametrize("seed", [0, 42])
+@pytest.mark.parametrize("seed", [0])
 @pytest.mark.parametrize("n_hidden", [128, 16])
 @pytest.mark.parametrize("n_latent", [10, 5])
-@pytest.mark.parametrize("n_layers", [1, 2])
+@pytest.mark.parametrize("n_layers", [1])
 def test_scvi_mlflow(
     max_epochs: int,
     n_hidden: int,
@@ -1395,15 +1400,11 @@ def test_scvi_mlflow(
     seed: int,
     save_path: str,
 ):
-    from datetime import datetime
-
-    import mlflow
-
     # We decorate this run with autotune so it will invoke on the WIS servers only
-    from scvi.model.base._constants import SAVE_KEYS
+    from scvi.utils import mlflow_log_artifact, mlflow_log_table, mlflow_log_text
 
     scvi.settings.seed = seed
-    scvi.settings.mlflow_set_tracking_uri = "http://132.77.80.162:5000"  # For WIS
+    scvi.settings.mlflow_set_tracking_uri = "http://132.77.80.162:5000"  # For WIS internal
     scvi.settings.mlflow_set_experiment = "scvi_benchmarking"
 
     # Have several experimetns to be able to compare them by datatime and ID
@@ -1439,10 +1440,13 @@ def test_scvi_mlflow(
     model = SCVI(adata, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers)
     model.run_name = run_name  # This is just for MLFLOW - otherwise will be random
 
+    lr_monitor = LearningRateMonitor()
     model.train(
         max_epochs=max_epochs,
         check_val_every_n_epoch=check_val_every_n_epoch,
         train_size=train_size,
+        callbacks=[lr_monitor],
+        log_every_n_steps=1,
     )
 
     # down stream analysis
@@ -1452,6 +1456,9 @@ def test_scvi_mlflow(
 
     latent = model.get_latent_representation()
     adata.obsm[SCVI_LATENT_KEY] = latent
+
+    SCVI_NORMALIZED_KEY = "scvi_normalized"
+    adata.layers[SCVI_NORMALIZED_KEY] = model.get_normalized_expression(library_size=10e4)
 
     # run PCA then generate UMAP plots
     sc.tl.pca(adata)
@@ -1465,7 +1472,7 @@ def test_scvi_mlflow(
         return_fig=True,
         show=False,
     )
-    fig1.savefig(os.path.join(save_path, "pca_cell_type.png"), bbox_inches="tight", dpi=150)
+    fig1.savefig(os.path.join(save_path, "pca_cell_type.png"), bbox_inches="tight", dpi=80)
     fig2 = sc.pl.umap(
         adata,
         color=["donor", "cell_source"],
@@ -1474,13 +1481,13 @@ def test_scvi_mlflow(
         return_fig=True,
         show=False,
     )
-    fig2.savefig(os.path.join(save_path, "pca_donor_source.png"), bbox_inches="tight", dpi=150)
+    fig2.savefig(os.path.join(save_path, "pca_donor_source.png"), bbox_inches="tight", dpi=80)
 
-    mlflow.log_artifact(
+    mlflow_log_artifact(
         os.path.join(save_path, "pca_cell_type.png"),
         run_id=model.run_id,
     )
-    mlflow.log_artifact(
+    mlflow_log_artifact(
         os.path.join(save_path, "pca_donor_source.png"),
         run_id=model.run_id,
     )
@@ -1496,7 +1503,7 @@ def test_scvi_mlflow(
         return_fig=True,
         show=False,
     )
-    fig3.savefig(os.path.join(save_path, "scvi_cell_type.png"), bbox_inches="tight", dpi=150)
+    fig3.savefig(os.path.join(save_path, "scvi_cell_type.png"), bbox_inches="tight", dpi=80)
     fig4 = sc.pl.umap(
         adata,
         color=["donor", "cell_source"],
@@ -1505,12 +1512,12 @@ def test_scvi_mlflow(
         return_fig=True,
         show=False,
     )
-    fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=150)
+    fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=80)
 
-    mlflow.log_artifact(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
-    mlflow.log_artifact(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
 
-    # neighbors were already computed using scVI
+    # Clusters: neighbors were already computed using scVI
     SCVI_CLUSTERS_KEY = "leiden_scVI"
     sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5, random_state=seed)
 
@@ -1521,12 +1528,71 @@ def test_scvi_mlflow(
         return_fig=True,
         show=False,
     )
-    fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=150)
+    fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=80)
 
-    mlflow.log_artifact(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
 
-    # # Optional: Save model and log artifact (perhaps minified first / adata also)
+    # Model Summary
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        print(model)
+        model.view_anndata_setup()
+    logs = buffer.getvalue()
+    mlflow_log_text(logs, "text/model_summary.txt", run_id=model.run_id)
+
+    # DE (table + volcano plot)
+    de_df = model.differential_expression(groupby="cell_type", mode="change")
+    mlflow_log_table(de_df.head(500), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
+    # de_df.to_csv("cell_type_DE.csv")
+    # mlflow_log_artifact(os.path.join(save_path, "cell_type_DE.csv"), run_id=model.run_id)
+    import decoupler as dc
+
+    fig6 = dc.pl.volcano(de_df, x="lfc_mean", y="proba_not_de", return_fig=True, thr_stat=1, top=5)
+    fig6.savefig(os.path.join(save_path, "scvi_DE_volcano.png"), bbox_inches="tight", dpi=120)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_DE_volcano.png"), run_id=model.run_id)
+
+    # SCIB
+    from scib_metrics.benchmark import Benchmarker
+
+    adata.obs["dummy_batch"] = (
+        adata.obsm["_scvi_extra_categorical_covs"]["cell_source"].astype(str)
+        + "_"
+        + adata.obsm["_scvi_extra_categorical_covs"]["donor"].astype(str)
+    )
+    bm = Benchmarker(
+        adata,
+        batch_key="dummy_batch",
+        label_key="_scvi_labels",
+        embedding_obsm_keys=["X_pca", SCVI_LATENT_KEY],
+        n_jobs=-1,
+    )
+    bm.benchmark()
+    mlflow_log_table(
+        bm.get_results(min_max_scale=False),
+        artifact_file="data/scib_results.json",
+        run_id=model.run_id,
+    )
+    bm.plot_results_table(min_max_scale=False, show=False, save_dir=save_path)
+    mlflow_log_artifact(os.path.join(save_path, "scib_results.svg"), run_id=model.run_id)
+
+    # CRITISICM
+    from scvi.criticism import create_criticism_report
+
+    if sp.issparse(model.adata.layers["counts"]):
+        model.adata.layers["counts"] = model.adata.layers["counts"].toarray()
+    model.adata.X = model.adata.layers["counts"]
+    create_criticism_report(model, save_folder=model_path, n_samples=2)
+    if os.path.isfile(f"{model_path}/metrics.json"):
+        with open(f"{model_path}/metrics.json") as f:
+            metrics_report = json.load(f)
+    mlflow_log_table(metrics_report, artifact_file="data/criticism.json", run_id=model.run_id)
+
+    # Optional: Save minified model and log artifact (dont save adata!)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
     model.save(model_path, prefix=run_name + "_", overwrite=True, save_anndata=False)
-    mlflow.log_artifact(
+    mlflow_log_artifact(
         model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
     )

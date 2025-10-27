@@ -104,6 +104,7 @@ tutorials = [
     "biomart",
     "cell2location",
     "dataloaders",
+    "decoupler",
     "jupyter",
     "leidenalg",
     "seaborn",

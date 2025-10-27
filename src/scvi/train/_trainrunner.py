@@ -1,5 +1,7 @@
 import gc
 import logging
+import os
+import pickle
 import traceback
 import warnings
 
@@ -13,11 +15,20 @@ from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
-from scvi.utils import is_package_installed
-
-from ._utils import _mlflow_logger, _safe_load_logger_history
+from scvi.utils import is_package_installed, mlflow_logger
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_load_logger_history(trainer):
+    hist = getattr(trainer.logger, "history", None)
+    if hist:
+        return {k: v.copy() for k, v in hist.items()}  # deep copy from memory
+    history_path = getattr(trainer.logger, "history_path", None)  #  file (written by rank-0)
+    if history_path and os.path.exists(history_path):
+        with open(history_path, "rb") as f:
+            return pickle.load(f)
+    return None
 
 
 class TrainRunner:
@@ -157,7 +168,7 @@ class TrainRunner:
                     self.model.run_id = mlflow.active_run().info.run_id
 
                     # log all relevant metrics
-                    _mlflow_logger(
+                    mlflow_logger(
                         model=self.model,
                         trainer=self.trainer,
                         training_plan=self.training_plan,
