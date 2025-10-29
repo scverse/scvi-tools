@@ -10,6 +10,9 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
+    function to {class}`scvi.external.TorchMRVI`, {pr}`35XX`.
+
 #### Fixed
 
 #### Changed
