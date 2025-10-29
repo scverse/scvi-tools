@@ -1553,18 +1553,35 @@ def test_scvi_mlflow(
     mlflow_log_artifact(os.path.join(save_path, "scvi_DE_volcano.png"), run_id=model.run_id)
 
     # SCIB
-    from scib_metrics.benchmark import Benchmarker
+    from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
 
     adata.obs["dummy_batch"] = (
         adata.obsm["_scvi_extra_categorical_covs"]["cell_source"].astype(str)
         + "_"
         + adata.obsm["_scvi_extra_categorical_covs"]["donor"].astype(str)
     )
+    bioc = BioConservation(
+        isolated_labels=True,
+        nmi_ari_cluster_labels_leiden=True,
+        silhouette_label=True,
+        clisi_knn=True,
+        nmi_ari_cluster_labels_kmeans=True,
+    )
+    bc = BatchCorrection(
+        kbet_per_label=True,
+        graph_connectivity=True,
+        ilisi_knn=True,
+        bras=True,
+        pcr_comparison=True,
+    )
+
     bm = Benchmarker(
         adata,
         batch_key="dummy_batch",
-        label_key="_scvi_labels",
+        label_key="cell_type",
         embedding_obsm_keys=["X_pca", SCVI_LATENT_KEY],
+        batch_correction_metrics=bc,
+        bio_conservation_metrics=bioc,
         n_jobs=-1,
     )
     bm.benchmark()
