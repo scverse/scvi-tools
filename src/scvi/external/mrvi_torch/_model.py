@@ -1709,8 +1709,6 @@ class TorchMRVI(
         library_size: float | Literal["latent"] = "latent",
         n_samples: int = 1,
         n_samples_overall: int = None,
-        use_mean: bool = False,
-        mc_samples: int = 20,
         weights: Literal["uniform", "importance"] | None = None,
         batch_size: int | None = None,
         return_mean: bool = False,
@@ -1749,12 +1747,6 @@ class TorchMRVI(
             Number of posterior samples to use for estimation.
         n_samples_overall
             Number of posterior samples to use for estimation. Overrides `n_samples`.
-        use_mean
-            Whether to use the mean of the latent representation as the local sample
-            representation.
-        mc_samples
-            Number of Monte Carlo samples to use for computing the local sample distances. Only
-            relevant if ``use_mean=False``.
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
