@@ -27,6 +27,11 @@ And for Apple Silicon metal (MPS) support:
 pip install -U scvi-tools[metal]
 ```
 
+Note that for some OS you will have to use quotes in order to install with dependencies,e.g.:
+```bash
+pip install -U "scvi-tools[cuda]"
+```
+
 Don't know how to get started with virtual environments or `conda`/`pip`? Check out the
 [prerequisites](#prerequisites) section.
 
