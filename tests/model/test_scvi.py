@@ -1400,7 +1400,6 @@ def test_scvi_mlflow(
     seed: int,
     save_path: str,
 ):
-    # We decorate this run with autotune so it will invoke on the WIS servers only
     from scvi.utils import mlflow_log_artifact, mlflow_log_table, mlflow_log_text
 
     scvi.settings.seed = seed

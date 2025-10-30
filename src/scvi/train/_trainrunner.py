@@ -155,41 +155,46 @@ class TrainRunner:
         if hasattr(self.data_splitter, "n_val"):
             self.training_plan.n_obs_validation = self.data_splitter.n_val
 
-        if settings.mlflow_set_tracking_uri != "" and is_package_installed("mlflow"):
-            import mlflow
+        if settings.mlflow_set_tracking_uri != "":
+            if is_package_installed("mlflow"):
+                import mlflow
 
-            mlflow.set_tracking_uri(settings.mlflow_set_tracking_uri)
-            mlflow.set_experiment(settings.mlflow_set_experiment)
+                mlflow.set_tracking_uri(settings.mlflow_set_tracking_uri)
+                mlflow.set_experiment(settings.mlflow_set_experiment)
 
-            with mlflow.start_run(run_name=self.model.run_name, log_system_metrics=True):
-                try:
-                    self._run_training_core()
+                with mlflow.start_run(run_name=self.model.run_name, log_system_metrics=True):
+                    try:
+                        self._run_training_core()
 
-                    self.model.run_id = mlflow.active_run().info.run_id
+                        self.model.run_id = mlflow.active_run().info.run_id
 
-                    # log all relevant metrics
-                    mlflow_logger(
-                        model=self.model,
-                        trainer=self.trainer,
-                        training_plan=self.training_plan,
-                        data_splitter=self.data_splitter,
-                        run_id=self.model.run_id,
-                    )
+                        # log all relevant metrics
+                        mlflow_logger(
+                            model=self.model,
+                            trainer=self.trainer,
+                            training_plan=self.training_plan,
+                            data_splitter=self.data_splitter,
+                            run_id=self.model.run_id,
+                        )
 
-                    mlflow.set_tag("status", "success")
+                        mlflow.set_tag("status", "success")
 
-                except Exception as e:
-                    # Capture and log error
-                    error_msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
-                    with open("error_log.txt", "w") as f:
-                        f.write(error_msg)
+                    except Exception as e:
+                        # Capture and log error
+                        error_msg = "".join(
+                            traceback.format_exception(type(e), e, e.__traceback__)
+                        )
+                        with open("error_log.txt", "w") as f:
+                            f.write(error_msg)
 
-                    mlflow.log_artifact("error_log.txt", artifact_path="errors")
-                    mlflow.set_tag("status", "failed")
-                    mlflow.log_param("error_type", type(e).__name__)
-                    mlflow.log_param("error_message", str(e))
-                    print(f"Error logged to MLflow: {e}")
-                    raise
+                        mlflow.log_artifact("error_log.txt", artifact_path="errors")
+                        mlflow.set_tag("status", "failed")
+                        mlflow.log_param("error_type", type(e).__name__)
+                        mlflow.log_param("error_message", str(e))
+                        print(f"Error logged to MLflow: {e}")
+                        raise
+            else:
+                raise ModuleNotFoundError("Please install mlflow to use this functionality.")
         else:
             # training without mlflow
             self._run_training_core()

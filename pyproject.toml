@@ -95,7 +95,7 @@ jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow
-mlflow = ["mlflow","psutil","GPUtil","pynvml"]
+mlflow = ["mlflow","psutil","GPUtil"]
 
 optional = [
     "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]"
