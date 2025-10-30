@@ -10,7 +10,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Add {class}`scvi.external.DIAGVI` for integrating spatial and dissociated single-cell datasets {pr}`3570`.
+- Add {class}`scvi.external.DIAGVI` for integrating spatial and dissociated single-cell datasets {pr}`3575`.
 
 #### Fixed
 
