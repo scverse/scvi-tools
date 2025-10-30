@@ -1,4 +1,5 @@
 import logging
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -626,8 +627,8 @@ class SENAModule(BaseModuleClass):
         x_recon = self.decode(u_recon)
 
         return {
-            "y_hat": y_hat, 
-            "x_recon": x_recon, 
+            "y_hat": y_hat,
+            "x_recon": x_recon,
             "G": self.G,
             "z_interv": z_interv,
             "u": u,
