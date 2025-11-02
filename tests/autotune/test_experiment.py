@@ -116,11 +116,11 @@ def test_experiment_init_adata(save_path: str):
     with pytest.raises(AttributeError):
         experiment.resources = "new_resources"
 
-    assert hasattr(experiment, "name")
-    assert experiment.name is not None
-    assert experiment.name.startswith("scvi")
+    assert hasattr(experiment, "experiment_name")
+    assert experiment.experiment_name is not None
+    assert experiment.experiment_name.startswith("scvi")
     with pytest.raises(AttributeError):
-        experiment.name = "new_name"
+        experiment.experiment_name = "new_name"
 
     assert hasattr(experiment, "logging_dir")
     assert experiment.logging_dir is not None
@@ -562,8 +562,6 @@ def test_trainable_mdata(save_path: str):
             "protein_layer": "protein_expression",
         },
     )
-    mdata_path = os.path.join(save_path, "mydata.h5mu")
-    mdata.write_h5mu(mdata_path)
 
     experiment = AutotuneExperiment(
         MULTIVI,
@@ -579,6 +577,8 @@ def test_trainable_mdata(save_path: str):
             },
         },
         num_samples=1,
+        experiment_name="test_multivi_mdata_trainable",
+        mudata_file_name="mydata_multivi.h5mu"
     )
     sample = {
         "model_params": {
@@ -705,11 +705,11 @@ def test_experiment_init_mdata(save_path: str):
     with pytest.raises(AttributeError):
         experiment.resources = "new_resources"
 
-    assert hasattr(experiment, "name")
-    assert experiment.name is not None
-    assert experiment.name.startswith("multivi")
+    assert hasattr(experiment, "experiment_name")
+    assert experiment.experiment_name is not None
+    assert experiment.experiment_name.startswith("multivi")
     with pytest.raises(AttributeError):
-        experiment.name = "new_name"
+        experiment.experiment_name = "new_name"
 
     assert hasattr(experiment, "logging_dir")
     assert experiment.logging_dir is not None

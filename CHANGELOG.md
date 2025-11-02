@@ -12,6 +12,8 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
+- Add configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
+
 #### Changed
 
 #### Removed

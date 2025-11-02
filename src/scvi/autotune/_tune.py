@@ -40,6 +40,7 @@ def run_autotune(
     ignore_reinit_error: bool = False,
     n_jobs: int = 1,
     solver: str = "arpack",
+    mudata_file_name: str = "mydata.h5mu",
 ) -> AutotuneExperiment:
     """Run a hyperparameter sweep.
 
@@ -129,6 +130,8 @@ def run_autotune(
     solver
         SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
         "randomized" or "auto"
+    mudata_file_name
+        name of mudata file. can be a full path, but will not create folders
 
     Returns
     -------
@@ -156,7 +159,7 @@ def run_autotune(
         searcher=searcher,
         seed=seed,
         resources=resources,
-        name=experiment_name,
+        experiment_name=experiment_name,
         logging_dir=logging_dir,
         save_checkpoints=save_checkpoints,
         scheduler_kwargs=scheduler_kwargs,
@@ -166,8 +169,9 @@ def run_autotune(
         scib_indices_list=scib_indices_list,
         n_jobs=n_jobs,
         solver=solver,
+        mudata_file_name=mudata_file_name
     )
-    logger.info(f"Running autotune experiment {experiment.name}.")
+    logger.info(f"Running autotune experiment {experiment.experiment_name}.")
     init(
         log_to_driver=log_to_driver, ignore_reinit_error=ignore_reinit_error, local_mode=local_mode
     )
