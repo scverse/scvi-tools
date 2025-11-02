@@ -770,8 +770,6 @@ class AutotuneExperiment:
         run_config = RunConfig(
             name=self.experiment_name,
             storage_path=self.logging_dir,
-            log_to_file=True,
-            verbose=1,
         )
         return Tuner(
             trainable=trainable,
@@ -811,7 +809,7 @@ def _trainable(
     `documentation <https://docs.ray.io/en/latest/tune/api/trainable.html#function-trainable-api>`_
     for more details.
     """
-    from ray.train import get_context
+    from ray.tune import get_context
     from scib_metrics.benchmark._core import metric_name_cleaner
 
     from scvi import settings
