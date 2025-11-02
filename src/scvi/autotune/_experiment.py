@@ -3,8 +3,8 @@ from __future__ import annotations
 import inspect
 import logging
 from os.path import join
-from typing import TYPE_CHECKING
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch

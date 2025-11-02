@@ -169,7 +169,7 @@ def run_autotune(
         scib_indices_list=scib_indices_list,
         n_jobs=n_jobs,
         solver=solver,
-        mudata_file_name=mudata_file_name
+        mudata_file_name=mudata_file_name,
     )
     logger.info(f"Running autotune experiment {experiment.experiment_name}.")
     init(

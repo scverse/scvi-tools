@@ -295,7 +295,7 @@ def test_run_autotune_scvi_with_scib_ext_indices(metric: str, save_path: str):
         searcher="hyperopt",
         local_mode=True,
         ignore_reinit_error=True,
-        solver="randomized"
+        solver="randomized",
     )
     assert isinstance(experiment, AutotuneExperiment)
     assert hasattr(experiment, "result_grid")

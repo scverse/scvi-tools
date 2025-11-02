@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from scvi import settings
@@ -578,7 +576,7 @@ def test_trainable_mdata(save_path: str):
         },
         num_samples=1,
         experiment_name="test_multivi_mdata_trainable",
-        mudata_file_name="mydata_multivi.h5mu"
+        mudata_file_name="mydata_multivi.h5mu",
     )
     sample = {
         "model_params": {
