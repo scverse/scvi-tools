@@ -677,9 +677,6 @@ class AdversarialTrainingPlan(TrainingPlan):
         ).float()
         if predict_true_class: # train classifier
             z = z.detach()
-        #else: # fool classifier
-        #    adversarial_group_emb = adversarial_group_emb.detach()
-        
         z = torch.cat([z, adversarial_group_], dim=1)
         cls_logits = self.adversarial_classifier(z)
 
