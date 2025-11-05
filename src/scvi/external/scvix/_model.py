@@ -186,6 +186,7 @@ class SCVIX(
             n_input=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
             n_assay=self.summary_stats.n_assay,
+            n_adversarial_group=self.summary_stats.get("n_adversarial_group", 1),
             n_labels=self.summary_stats.get("n_labels", 1),
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
             n_cats_per_cov=n_cats_per_cov,
@@ -337,6 +338,7 @@ class SCVIX(
         batch_key: str | None = None,
         assay_key: str | None = None,
         labels_key: str | None = None,
+        adversarial_group_key: str | None = None,
         unlabeled_category: str = "unlabeled",
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
@@ -352,6 +354,9 @@ class SCVIX(
         assay_key
             Key in ``adata.obs`` that corresponds to the assay of the data.
         %(param_labels_key)s
+        adversarial_group_key
+            Key in ``adata.obs`` that corresponds to the adversarial group for adversarial
+            training. If ``None``, performs no conditional adversarial training.
         %(param_unlabeled_category)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
@@ -368,6 +373,10 @@ class SCVIX(
             anndata_fields.append(
                 LabelsWithUnlabeledObsField(
                     REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category))
+        if adversarial_group_key is not None:
+            anndata_fields.append(
+                CategoricalObsField(
+                    REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, adversarial_group_key))
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:

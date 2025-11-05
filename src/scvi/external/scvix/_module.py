@@ -132,6 +132,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         n_batch: int = 0,
         n_assay: int = 0,
         n_labels: int = 0,
+        n_adversarial_group: int = 0,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -168,6 +169,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.n_batch = n_batch
         self.n_assay = n_assay
         self.n_labels = n_labels
+        self.n_adversarial_group = n_adversarial_group
         self.encode_covariates = encode_covariates
         self.use_observed_lib_size = True
         self.n_hidden = n_hidden
@@ -334,6 +336,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 MODULE_KEYS.ASSAY_INDEX_KEY: tensors.get(REGISTRY_KEYS.ASSAY_KEY, None),
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
+                MODULE_KEYS.ADVERSARIAL_GROUP_KEY: tensors.get(REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, None),
             }
         else:
             return {
@@ -365,6 +368,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         assay_index: torch.Tensor | None = None,
         cont_covs: torch.Tensor | None = None,
         cat_covs: torch.Tensor | None = None,
+        adversarial_group: torch.Tensor | None = None,
         n_samples: int = 1,
     ) -> dict[str, torch.Tensor | Distribution | None]:
         """Run the regular inference process."""
@@ -406,6 +410,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             MODULE_KEYS.Z_KEY: z,
             MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.LIBRARY_KEY: library,
+            MODULE_KEYS.ADVERSARIAL_GROUP_KEY: adversarial_group,
         }
 
     @auto_move_data

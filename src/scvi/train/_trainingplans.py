@@ -655,7 +655,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 self.adversarial_classifier = False
             else:
                 self.adversarial_classifier = Classifier(
-                    n_input=self.module.n_latent,
+                    n_input=self.module.n_latent+self.module.n_adversarial_group,
                     n_hidden=128,
                     n_labels=self.n_output_classifier,
                     n_layers=2,
@@ -663,14 +663,24 @@ class AdversarialTrainingPlan(TrainingPlan):
                     use_batch_norm=False,
                     use_layer_norm=True,
                 )
+
         else:
             self.adversarial_classifier = adversarial_classifier
         self.scale_adversarial_loss = scale_adversarial_loss
         self.automatic_optimization = False
 
-    def loss_adversarial_classifier(self, z, batch_index, predict_true_class=True):
+    def loss_adversarial_classifier(self, z, adversarial_group, batch_index, predict_true_class=True):
         """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
+        adversarial_group_ = torch.nn.functional.one_hot(
+            adversarial_group, num_classes=self.module.n_adversarial_group
+        ).float()
+        if predict_true_class: # train classifier
+            z = z.detach()
+        #else: # fool classifier
+        #    adversarial_group_emb = adversarial_group_emb.detach()
+        
+        z = torch.cat([z, adversarial_group_], dim=1)
         cls_logits = self.adversarial_classifier(z)
 
         if predict_true_class:
@@ -706,11 +716,16 @@ class AdversarialTrainingPlan(TrainingPlan):
 
         inference_outputs, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         z = inference_outputs["z"]
+        adversarial_group = inference_outputs.get("adversarial_group", None)
+        if adversarial_group is None:
+            adversarial_group = torch.zeros(z.size(0)).to(z.device).long()
+        else:
+            adversarial_group = adversarial_group.squeeze(-1).long()
         loss = scvi_loss.loss
         orig_loss = loss
         # fool classifier if doing adversarial training
         if kappa > 0 and self.adversarial_classifier is not False:
-            fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
+            fool_loss = self.loss_adversarial_classifier(z, adversarial_group, batch_tensor, False)
             loss += fool_loss * kappa
 
         self.log("train_loss", loss, on_step=self.on_step, on_epoch=self.on_epoch, prog_bar=True)
@@ -730,8 +745,8 @@ class AdversarialTrainingPlan(TrainingPlan):
             loss = 0.
             for i in range(self.adversarial_steps):
                 qz = inference_outputs["qz"]
-                z = qz.sample().detach()
-                loss_ = kappa * self.loss_adversarial_classifier(z, batch_tensor, True)
+                z = qz.sample()
+                loss_ = kappa * self.loss_adversarial_classifier(z, adversarial_group, batch_tensor, True)
                 if isinstance(self.module.prior, MogPrior) or isinstance(self.module.prior, VampPrior):
                     qz_m, qz_v = qz.loc.detach(), qz.scale.detach()
                     loss_ += self.module.prior.kl(
@@ -794,7 +809,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         if self.adversarial_classifier is not False:
             params2 = filter(lambda p: p.requires_grad, self.adversarial_classifier.parameters())
             optimizer2 = torch.optim.Adam(
-                params2, lr=1e-3, eps=0.01, weight_decay=self.weight_decay
+                params2, lr=3e-4, eps=1e-4, weight_decay=1e-9
             )
             config2 = {"optimizer": optimizer2}
 
