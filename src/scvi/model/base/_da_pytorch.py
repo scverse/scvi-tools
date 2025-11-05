@@ -50,15 +50,15 @@ def get_aggregated_posterior(
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
     qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True)
 
-    qu_loc = torch.tensor(qu_loc, device='cuda').T
-    qu_scale = torch.tensor(qu_scale, device='cuda').T
+    qu_loc = torch.tensor(qu_loc, device=self.device).T
+    qu_scale = torch.tensor(qu_scale, device=self.device).T
     
     if dof is None:
         components = dist.Normal(qu_loc, qu_scale)
     else:
         components = dist.StudentT(dof, qu_loc, qu_scale)
     return dist.MixtureSameFamily(
-        dist.Categorical(logits=torch.ones(qu_loc.shape[1], device='cuda')), components)
+        dist.Categorical(logits=torch.ones(qu_loc.shape[1], device=self.device)), components)
 
 def differential_abundance(
     self,
@@ -110,7 +110,7 @@ def differential_abundance(
         ap = get_aggregated_posterior(self, adata=adata, indices=indices, dof=dof)
         log_probs_ = []
         for u_rep in dataloader:
-            u_rep = u_rep.to('cuda')
+            u_rep = u_rep.to(self.device)
             log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True))
         log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
