@@ -159,12 +159,20 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                         True, False, False, False, False
                     )
                     self.batch_correction_metrics = None
-                elif self.metric == "Leiden NMI" or self.metric == "Leiden ARI":
+                elif (
+                    self.metric == "Leiden NMI"
+                    or self.metric == "Leiden ARI"
+                    or self.metric == "Leiden"
+                ):
                     self.bio_conservation_metrics = BioConservation(
                         False, True, False, False, False
                     )
                     self.batch_correction_metrics = None
-                elif self.metric == "KMeans NMI" or self.metric == "KMeans ARI":
+                elif (
+                    self.metric == "KMeans NMI"
+                    or self.metric == "KMeans ARI"
+                    or self.metric == "KMeans"
+                ):
                     self.bio_conservation_metrics = BioConservation(
                         False, False, True, False, False
                     )
