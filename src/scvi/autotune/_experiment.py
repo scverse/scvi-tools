@@ -154,7 +154,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
 
                 # because originally those classes are frozen we cant just set the metric to True
                 # Need to do it manually unfortunately
-                if self.metric == "silhouette_label":
+                if self.metric == "Isolated labels":
                     self.bio_conservation_metrics = BioConservation(
                         True, False, False, False, False
                     )
@@ -179,7 +179,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                         False, False, False, False, True
                     )
                     self.batch_correction_metrics = None
-                elif self.metric == "Silhouette batch":
+                elif self.metric == "BRAS":
                     self.bio_conservation_metrics = None
                     self.batch_correction_metrics = BatchCorrection(
                         True, False, False, False, False
@@ -214,7 +214,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                     # we run all batch correction and no bio conservation
                     self.bio_conservation_metrics = None
                 elif self.metric == "Bio conservation":
-                    # we run all bio conservation and no batch corredction
+                    # we run all bio conservation and no batch correction
                     self.batch_correction_metrics = None
                 else:
                     # an invalid metric!
@@ -845,7 +845,7 @@ def _trainable(
 
     settings.seed = experiment.seed
     if isinstance(experiment.data, AnnData | str):
-        # str means its the link to the stored mudata (which cant be pickled)
+        # str means it's the link to the stored mudata (which cant be pickled)
         if experiment.is_mudata:
             import muon as mu
 
