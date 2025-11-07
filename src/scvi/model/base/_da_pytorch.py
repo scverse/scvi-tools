@@ -8,6 +8,7 @@ import torch.distributions as dist
 from anndata import AnnData
 from torch import Tensor
 from tqdm import tqdm
+from scipy.sparse import coo_matrix
 
 
 def get_aggregated_posterior(
@@ -65,7 +66,8 @@ def differential_abundance(
     adata: AnnData | None = None,
     sample_key: str | None = None,
     batch_size: int = 128,
-    downsample_cells: int | None = None,
+    downsample: int | None = None,
+    num_cells_posterior: int | None = None,
     dof: float | None = None,
 ) -> pd.DataFrame:
     """Compute the differential abundance between samples.
@@ -81,8 +83,10 @@ def differential_abundance(
         Key for the sample covariate.
     batch_size
         Minibatch size for computing the differential abundance.
-    downsample_cells
-        Number of cells to subset to before computing the differential abundance.
+    downsample
+        Number of cells for which we will compute and store log probabilities.
+    num_cells_posterior
+        Maximum number of cells used to compute aggregated posterior for each sample.
     dof
         Degrees of freedom for the Student's t-distribution components for aggregated posterior. If ``None``, components are Normal.
 
@@ -104,8 +108,8 @@ def differential_abundance(
     log_probs = []
     for sample_name in tqdm(unique_samples):
         indices = np.where(adata.obs[sample_key] == sample_name)[0]
-        if downsample_cells is not None and downsample_cells < indices.shape[0]:
-            indices = np.random.choice(indices, downsample_cells, replace=False)
+        if num_cells_posterior is not None and num_cells_posterior < indices.shape[0]:
+            indices = np.random.choice(indices, num_cells_posterior, replace=False)
 
         ap = get_aggregated_posterior(self, adata=adata, indices=indices, dof=dof)
         log_probs_ = []
