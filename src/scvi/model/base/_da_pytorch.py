@@ -102,9 +102,17 @@ def differential_abundance(
     us = self.get_latent_representation(
         batch_size=batch_size, return_dist=False, give_mean=True
     )
-    
+
+    # Are we computing for all cells?
+    downsampling = downsample and (downsample < us.shape[0])
+    if downsampling:
+        downsample_indices = np.random.choice(range(us.shape[0]), downsample, replace=False)
+    else:
+        downsample_indices = list(range(us.shape[0]))
+
+    dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size, indices=downsample_indices)
     unique_samples = adata.obs[sample_key].unique()
-    dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
+
     log_probs = []
     for sample_name in tqdm(unique_samples):
         indices = np.where(adata.obs[sample_key] == sample_name)[0]
@@ -118,6 +126,16 @@ def differential_abundance(
             log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True))
         log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
+    # If not downsampling, this is the full (num_cells, num_samples) array
+    # If we are downsampling this is (downsample, num_samples) and we must pad with sparse zeros
     log_probs = np.concatenate(log_probs, 1)
+
+    if downsampling:
+        data = log_probs.flatten()
+        row = downsample_indices
+        col = np.tile(list(range(log_probs.shape[1])), downsampling)
+        log_probs = coo_matrix((data, (row, col)), shape=(us.shape[0], len(unique_samples))) # (num_cells, num_samples)
+        
+
     log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names.to_numpy(), columns=unique_samples)
     return log_probs_df
