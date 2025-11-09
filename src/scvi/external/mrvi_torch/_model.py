@@ -250,6 +250,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         super().train(**train_kwargs)
 
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: AnnData | None = None,
@@ -622,6 +623,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 name="sample_distances",
             )
 
+    @torch.inference_mode()
     def get_local_sample_representation(
         self,
         adata: AnnData | None = None,
@@ -663,6 +665,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_vmap=use_vmap,
         ).sample_representations
 
+    @torch.inference_mode()
     def get_local_sample_distances(
         self,
         adata: AnnData | None = None,
@@ -750,6 +753,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             mc_samples=mc_samples,
         )
 
+    @torch.inference_mode()
     def get_aggregated_posterior(
         self,
         adata: AnnData | None = None,
@@ -1003,6 +1007,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         return xr.Dataset(data_vars, coords=coords)
 
+    @torch.inference_mode()
     def get_outlier_cell_sample_pairs(
         self,
         adata: AnnData | None = None,

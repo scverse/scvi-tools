@@ -518,6 +518,7 @@ class TorchMRVAE(BaseModuleClass):
             self.u_prior_means = nn.Parameter(torch.randn(u_prior_mixture_k, u_dim))
             self.u_prior_scales = nn.Parameter(torch.zeros(u_prior_mixture_k, u_dim))
 
+    @torch.inference_mode()
     def _get_inference_input(self, tensors: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
@@ -582,6 +583,7 @@ class TorchMRVAE(BaseModuleClass):
             "library": library,
         }
 
+    @torch.inference_mode()
     def _get_generative_input(
         self,
         tensors: dict[str, torch.Tensor],
