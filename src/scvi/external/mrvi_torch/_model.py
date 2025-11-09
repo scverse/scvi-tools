@@ -1401,6 +1401,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 lfcs = torch.log2(x_1 + eps_lfc) - torch.log2(x_0 + eps_lfc)
                 # Compute weighted average manually: sum(weights * values) / sum(weights)
                 lfcs_mean_over_mc = lfcs.mean(1)  # (n_batch, n_covariates, n_cells, n_genes)
+                batch_weights = batch_weights.to(self.device)
                 lfc_mean = (batch_weights[:, None, None, None] * lfcs_mean_over_mc).sum(
                     0
                 ) / batch_weights.sum()
