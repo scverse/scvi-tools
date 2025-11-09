@@ -67,7 +67,6 @@ def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
     )
 
 
-@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -115,10 +114,9 @@ def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
 )
 def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
     for de_kwarg in de_kwargs:
-        model.differential_expression(**de_kwarg)
+        model.differential_expression(**de_kwarg,use_vmap=False)
 
 
-@pytest.mark.optional
 @pytest.mark.parametrize(
     "sample_key",
     ["sample", "sample_str"],
@@ -137,7 +135,6 @@ def test_torchMRVI_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
-@pytest.mark.optional
 @pytest.mark.parametrize(
     "model_kwargs",
     [
@@ -185,7 +182,7 @@ def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], sa
 def test_torchMRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
-    model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset)
+    model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset, use_vmap=False)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)

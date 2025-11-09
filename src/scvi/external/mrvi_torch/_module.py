@@ -135,6 +135,7 @@ class DecoderZXAttention(nn.Module):
         )
         init.normal_(self.px_r)
 
+    @auto_move_data
     def forward(
         self,
         z: torch.Tensor,
@@ -260,6 +261,7 @@ class EncoderUZ(nn.Module):
         if self.n_latent_u is not None:
             self.fc = nn.Linear(self.n_latent_u, self.n_latent)
 
+    @auto_move_data
     def forward(
         self,
         u: torch.Tensor,
@@ -339,6 +341,7 @@ class EncoderXU(nn.Module):
             self.n_hidden, self.n_latent, self.n_hidden, self.n_layers
         )
 
+    @auto_move_data
     def forward(
         self, x: torch.Tensor, sample_covariate: torch.Tensor, training: bool | None = None
     ) -> dist.Normal:

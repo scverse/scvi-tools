@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 import torch
 from torch import nn
 from torch.distributions import Normal
+from scvi.module.base import auto_move_data
 
 
 class Dense(nn.Linear):
@@ -69,6 +70,7 @@ class ResnetBlock(nn.Module):
         # layer norm
         self.layer_norm2 = nn.LayerNorm(n_out)
 
+    @auto_move_data
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         h = self.fc1(inputs)
         h = self.layer_norm1(h)
@@ -135,6 +137,7 @@ class MLP(nn.Module):
         # dense layer to project to the output dimension
         self.fc = Dense(in_features=n_hidden, out_features=n_out)
 
+    @auto_move_data
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         h = self.resnet_blocks(inputs)
         return self.fc(h)
@@ -187,6 +190,7 @@ class NormalDistOutputNN(nn.Module):
             nn.Softplus(),
         )
 
+    @auto_move_data
     def forward(self, inputs: torch.Tensor) -> Normal:
         h = inputs
         for block in self.resnet_blocks:
@@ -241,6 +245,7 @@ class ConditionalNormalization(nn.Module):
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
+    @auto_move_data
     def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
         # Use pre-initialized normalization layer
         if self.normalization_type == "batch":
@@ -344,6 +349,7 @@ class AttentionBlock(nn.Module):
             activation=activation,
         )
 
+    @auto_move_data
     def forward(
         self,
         query_embed: torch.Tensor,
