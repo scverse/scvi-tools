@@ -110,7 +110,7 @@ def differential_abundance(
     else:
         downsample_indices = list(range(us.shape[0]))
 
-    dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size, indices=downsample_indices)
+    dataloader = torch.utils.data.DataLoader(us[downsample_indices], batch_size=batch_size)
     unique_samples = adata.obs[sample_key].unique()
 
     log_probs = []
