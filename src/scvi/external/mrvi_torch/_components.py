@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 import torch
 from torch import nn
 from torch.distributions import Normal
+
 from scvi.module.base import auto_move_data
 
 

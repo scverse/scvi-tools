@@ -426,9 +426,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     )
                 except RuntimeError as e:
                     if use_vmap:
-                        raise RuntimeError(
-                            "Out of memory. Try setting use_vmap=False."
-                        ) from e
+                        raise RuntimeError("Out of memory. Try setting use_vmap=False.") from e
                     else:
                         raise e
 
@@ -1378,7 +1376,10 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     )
                     mc_samples, _, n_cells_, n_latent = betas_covariates.shape
                     betas_offset_ = (
-                        torch.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent), device=eps_mean_.device)
+                        torch.zeros(
+                            (mc_samples, self.summary_stats.n_batch, n_cells_, n_latent),
+                            device=eps_mean_.device,
+                        )
                         + eps_mean_
                     )
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
@@ -1467,9 +1468,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             except RuntimeError as e:
                 if use_vmap:
-                    raise RuntimeError(
-                        "Out of memory. Try setting use_vmap=False."
-                    ) from e
+                    raise RuntimeError("Out of memory. Try setting use_vmap=False.") from e
                 else:
                     raise e
 
