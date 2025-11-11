@@ -68,7 +68,7 @@ Need help? Reach out on our forum to get your questions answered!
 :::{grid-item-card} GitHub {octicon}`mark-github;1em;`
 :link: https://github.com/scverse/scvi-tools
 
-Find a bug? Interested in improving scvi-tools? Checkout our GitHub for the latest developments.
+Find a bug? Interested in improving scvi-tools? Check out our GitHub for the latest developments.
 :::
 ::::
 

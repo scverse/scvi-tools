@@ -16,7 +16,7 @@ The advantages of TotalANVI are:
 The limitations of TotalANVI include:
 
 -   Effectively requires a GPU for fast inference.
--   May not scale to very large number of cell types.
+-   May not scale to a very large number of cell types.
 
 ```{topic} Tutorials:
 

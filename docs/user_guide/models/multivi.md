@@ -1,7 +1,7 @@
 # MultiVI
 
 **MultiVI** [^ref1] (Python class {class}`~scvi.model.MULTIVI`) multimodal generative model capable of
-integrating multiome, scRNA-seq and scATAC-seq data. After training, it can be used for many common downstream tasks,
+integrating multiome, scRNA-seq and scATAC-seq data. After training, it can be used for many common downstream tasks
 and also for imputation of a missing modality.
 
 The advantages of multiVI are:
@@ -25,7 +25,7 @@ MultiVI takes as input a multiome single-cell matrix $X_{mult}$ with $N$ cells a
 $M$ genomic regions (peaks), or just a scRNA-seq gene expression matrix $X_{rna}$ with $N$ cells and
 $G$ genes or just a scATAC-seq accessibility matrix $X_{acc}$ with $N$ cells and $M$ genomic
 regions (peaks), which can be binary or have count data.
-Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc, is an optional input.
+Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc., is an optional input.
 While $S$ can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with $K$ categories, which represents the common case of having multiple batches of data.
 
@@ -74,10 +74,10 @@ The generative process of MultiVI uses neural networks to produce:
 \end{align}
 ```
 
-which respectively decode the denoised gene expression, non-zero-inflation probability (only if using ZINB) and
+which respectively decodes the denoised gene expression, non-zero-inflation probability (only if using ZINB) and
 estimates the probability of accessibility.
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -127,9 +127,9 @@ neural network params, dispersion params, etc.) and an approximate posterior dis
 
 Here $\eta$ is a set of parameters corresponding to inference neural networks (encoders), which we do not describe
 in detail here, but are described in the MultiVI paper. The underlying class used as the encoder for MultiVI is
-{class}`~scvi.nn.Encoder`. $z_n$ is calculated determinimistically as the average of two latent variables part of
-the variational approximation $z^{acc}_n$ and $z^{rna}_n$. These two variables are Normal and for that
-reason, $z_n$ is Normal. This formalism permits to handle individual modalities by bypassing the average mechanism
+{class}`~scvi.nn.Encoder`. $z_n$ is calculated deterministically as the average of two latent variables part of
+the variational approximation $z^{acc}_n$ and $z^{rna}_n$. These two variables are Normal, and for that
+reason, $z_n$ is Normal. This formalism permits handling individual modalities by bypassing the average mechanism
 and considering each modality variation approximation.
 
 ## Tasks
@@ -173,11 +173,11 @@ where $\ell_n'$ is by default set to 1. See the `library_size` parameter for mor
 >>> model.get_normalized_expression(n_samples=10)
 ```
 
-By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
+By default, the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
 Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 
-It is worth noting that when accessibility data is passed, MultiVI computes imputation of missing gene expression data.
+It is worth noting that when accessibility data is passed, MultiVI computes the imputation of missing gene expression data.
 When gene expression data is passed, MultiVI computes denoised gene expression data.
 
 ### Denoising/imputation of accessibility
@@ -205,7 +205,7 @@ This value is used to compute the mean of the latent variable over these samples
 the `transform_batch` parameter that allows counterfactual prediction of accessibility in an unobserved batch.
 See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 
-It is worth noting that when gene expression data is passed, MultiVI computes imputation of missing accessibility data.
+It is worth noting that when gene expression data is passed, MultiVI computes the imputation of missing accessibility data.
 When accessibility data is passed, MultiVI computes denoised chromatin accessibility.
 
 ### Differential expression
