@@ -6,6 +6,7 @@ import os
 import sys
 import warnings
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from io import StringIO
 from typing import TYPE_CHECKING
 from uuid import uuid4
@@ -148,6 +149,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.validation_indices_ = None
         self.history_ = None
         self.get_normalized_function_name_ = "get_normalized_expression"
+        self.run_name_ = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        self.run_id_ = ""
 
     @property
     def adata(self) -> None | AnnOrMuData:
@@ -598,6 +601,24 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     def history(self):
         """Returns computed metrics during training."""
         return self.history_
+
+    @property
+    def run_name(self) -> str:
+        """Returns the run name of the model. Used in MLFlow"""
+        return self.run_name_
+
+    @run_name.setter
+    def run_name(self, value):
+        self.run_name_ = value
+
+    @property
+    def run_id(self) -> str:
+        """Returns the run id of the model. Used in MLFlow"""
+        return self.run_id_
+
+    @run_id.setter
+    def run_id(self, value):
+        self.run_id_ = value
 
     def _get_user_attributes(self):
         """Returns all the self attributes defined in a model class, e.g., `self.is_trained_`."""

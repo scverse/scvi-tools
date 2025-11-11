@@ -89,6 +89,7 @@ It has many optional dependencies which expand its capabilities:
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
 - _jax_ - for Jax support
+- _mlflow_ - for MLflow support
 - _tests_ - in order to be able to perform tests
 - _editing_ - for code editing
 - _dev_ - for development purposes
@@ -155,3 +156,4 @@ The easiest way to install scvi-tools for R is via conda.
     ```R
     library(reticulate)
     ```
+See rest of R tutorials for further examples.

@@ -4,7 +4,11 @@
  to run scvi-tools with hyperparameters' tuning support, use: pip install scvi-tools[autotune]
 :::
 
-Hyperparameter tuning is the process of adjusting the parameters that control the training process of a machine learning model to find the best configuration for achieving optimal performance. These hyperparameters could include learning rate, batch size, the number of layers, and more. In PyTorch Lightning, when using Ray for hyperparameter tuning, you can leverage [Ray Tune](https://docs.ray.io/en/latest/tune/index.html), which is a scalable library for distributed hyperparameter optimization. To perform hyperparameter tuning in PyTorch Lightning with Ray, you first define a search space for the hyperparameters you want to tune (such as learning rate or batch size). Then, you set up a TuneReportCallback to track the performance of each training run and report the results back to Ray Tune. Ray will then automatically run multiple trials with different hyperparameter combinations and help you find the best-performing set.
+Hyperparameter tuning is the process of adjusting the parameters that control the training process of a machine learning model to find the best configuration for achieving optimal performance. These hyperparameters could include learning rate, batch size, the number of layers, and more. In SCVI-Tools we practically have mechanisms to optimize models:
+
+## RAY
+
+In PyTorch Lightning, when using Ray for hyperparameter tuning, you can leverage [Ray Tune](https://docs.ray.io/en/latest/tune/index.html), which is a scalable library for distributed hyperparameter optimization. To perform hyperparameter tuning in PyTorch Lightning with Ray, you first define a search space for the hyperparameters you want to tune (such as learning rate or batch size). Then, you set up a TuneReportCallback to track the performance of each training run and report the results back to Ray Tune. Ray will then automatically run multiple trials with different hyperparameter combinations and help you find the best-performing set.
 
 ```{topic} Tutorials:
 
@@ -46,4 +50,26 @@ experiment = run_autotune(
     searcher="hyperopt",
 )
 ```
-For a more end to end example, see our scvi autotune tutorial {doc}`/tutorials/notebooks/use_cases/autotune_scvi`
+For a more end to end example, see our scvi autotune tutorial (link above).
+
+## MLFLOW
+
+Starting scvi-tools v1.4.1, users can log their experiments in [mlflow](https://mlflow.org/), a popular MLOPS UI platform.
+In order to use it, user should install mlflow sw as well as scvi-tools dependency:
+
+```bash
+pip install mlflow
+
+pip install -U scvi-tools[mlflow]
+```
+
+Run mlflow on its server:
+
+```bash
+mlflow ui --host 0.0.0.0 --port 5000
+```
+
+Then supply the URL of its UI to scvi-tools settings at the beginning of code and you good to go.
+The experiment will be logged with all possible metrics (model, training, systems and so on) and be compared to previous experiments.
+
+For more information, See this [link](https://yosef-lab.notion.site/MLFLOW-SCVI-Tools-29957932739c809c94c1d866e64ca1cd)
