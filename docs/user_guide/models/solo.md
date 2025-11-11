@@ -19,8 +19,8 @@ The limitations of Solo include:
 
 ## Overview
 
-Solo starts with a trained {class}`~scvi.model.SCVI` instance. First Solo, simulates doublets using
-the original data and second Solo trains a classifer on the model latent space.
+Solo starts with a trained {class}`~scvi.model.SCVI` instance. First Solo simulates doublets using
+the original data, and second Solo trains a classifier on the model latent space.
 
 ### Doublet simulation
 

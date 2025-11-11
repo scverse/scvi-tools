@@ -13,7 +13,7 @@ The limitations of MethylANVI include:
 
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
--   May not scale to very large number of cell types.
+-   May not scale to a very large number of cell types.
 
 ```{topic} Tutorials:
 
@@ -23,16 +23,16 @@ The limitations of MethylANVI include:
 ## Preliminaries
 
 MethylANVI takes as input scBS-seq count matrices representing methylation measurements aggregated over pre-defined
-regions of interest (e.g. gene bodies, known regulatory regions, etc.). Depending on the system being investigated,
-such measurements may be separated based on methylation context (e.g. CpG methylation versus non-CpG methylation).
+regions of interest (e.g., gene bodies, known regulatory regions, etc.). Depending on the system being investigated,
+such measurements may be separated based on methylation context (e.g., CpG methylation versus non-CpG methylation).
 For each context, MethylANVI accepts two count matrices as input $Y^{C}_{mc}$ and $Y^{C}_{cov}$. Here $C$ refers to
 an arbitrary methylation context, and each of these matrices has data from $N$ cells and $M$ genomic regions.
 Each entry in $Y_{cov}$ represents the _total_ number of cytosines profiled at a given region in a cell, while the
-entries in $Y_{mc}$ denote the number of _methylated_ cytosines in a region  for a cell.
+entries in $Y_{mc}$ denote the number of _methylated_ cytosines in a region for a cell.
 
 In addition to methylation measurements, MethylANVI takes as input a vector of partially observed cell-type labels $\mathbf{l}$,
-where $L$ denotes the total number of cell types. Additionally, a vector of  categorical covariates $S$, representing batch,
-donor, etc, is an optional input to the model.
+where $L$ denotes the total number of cell types. Additionally, a vector of categorical covariates $S$, representing batch,
+donor, etc., is an optional input to the model.
 
 ## Generative process
 
@@ -70,8 +70,8 @@ Equivalently, we can express this process more compactly as
 
 We assume no prior knowledge on the distribution of cell types in the data (i.e., we place a uniform prior on the
 distribution of cell type labels). Within-cell-type variations $u_i$ are assumed to follow a fixed standard normal distribution,
-while the distribution over the cell-type-aware latent variables $z_i$ depend on the learnable neural networks $f_z^{\mu}$ and
-$f_z^{\sigma}$. The variables $z_i$ summarize a cell's state as a low-dimensional vector, and have a similar interpretation
+while the distribution over the cell-type-aware latent variables $z_i$ depends on the learnable neural networks $f_z^{\mu}$ and
+$f_z^{\sigma}$. The variables $z_i$ summarize a cell's state as a low-dimensional vector and have a similar interpretation
 as with MethylVI. However, by incorporating cell type labels into the model, MethylANVI may learn a better structured
 latent space compared to MethylVI.
 

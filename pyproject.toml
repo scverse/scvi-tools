@@ -192,21 +192,21 @@ select = [
 ignore = [
     # allow I, O, l as variable names -> I is the identity matrix
     "E741",
-    # Missing docstring in public package
+    # Missing docstring in the public package
     "D104",
-    # Missing docstring in public module
+    # Missing docstring in the public module
     "D100",
     # Missing docstring in __init__
     "D107",
     # Errors from function calls in argument defaults. These are fine when the result is immutable.
     "B008",
-    # first line should end with a period [Bug: doesn't work with single-line docstrings]
+    # the first line should end with a period [Bug: doesn't work with single-line docstrings]
     "D400",
-    # First line should be in imperative mood; try rephrasing
+    # The first line should be in an imperative mood; try rephrasing
     "D401",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
-    # Raising ValueError is sufficient in tests.
+    # Raising ValueError is enough in tests.
     "PT011",
     # We support np.random functions.
     "NPY002"
