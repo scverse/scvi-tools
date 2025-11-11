@@ -9,6 +9,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
+    function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.
+
 #### Fixed
 
 - Fix inference on device for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
