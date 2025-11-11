@@ -13,7 +13,7 @@ The advantages of CellAssign are:
 
 The limitations of CellAssign include:
 
--   Requirement for a cell types by gene markers binary matrix.
+-   Requirement for a cell type by gene markers binary matrix.
 -   The simple linear model may not handle non-linear batch effects.
 
 ```{topic} Tutorials:
@@ -28,12 +28,12 @@ along with a cell-type marker matrix $\rho$ which is a binary matrix of $G$ gene
 denoting if a gene is a marker of a particular cell type. A size factor $s$ for each cell may also
 be provided as input, otherwise it is computed empirically as the total unique molecular identifier
 count of a cell. Additionally, a design matrix $D$ containing $p$ observed covariates,
-such as day, donor, etc, is an optional input.
+such as day, donor, etc., is an optional input.
 
 ## Generative process
 
 CellAssign uses a negative binomial mixture model to make cell-type predictions.
-The cell-type proportion is drawn from a Dirichlet distribution,
+The cell-type proportion is drawn from a Dirichlet distribution.
 
 $$
 (\pi_1, ..., \pi_C) \sim \textrm{Dirichlet}(\alpha, ..., \alpha), \tag{1}
@@ -64,7 +64,7 @@ matrix (weighted by coefficients $\beta_{gi}$). A cell-specific discrete latent 
 represents the cell-type assignment for cell $n$.
 
 Furthermore, the inverse dispersion of the negative binomial, $\tilde{\phi}_{ngc}$ (Equation $\ref{b}$) is computed with a sum of radial basis functions of the mean centered on $v_i$ with parameters $a_i$ and $b$. In total, there are $B$ centers $v_1, v_2, ..., v_{10}$ that are set a priori to be equally spaced between 0 and the maximum count value of $X$.
-Additionally, as in the original implementation we used $B=10$. The parameters $a_i$ and $b$ are
+Additionally, as in the original implementation, we used $B=10$. The parameters $a_i$ and $b$ are
 further described below.
 
 ## Inference
@@ -128,7 +128,7 @@ also clamped $\delta > 2$. We also added early stopping with respect to the log 
 
 ### Cell type prediction
 
-The primary task of CellAssign is to predict cell types for each cell. This is accomplished by:
+The primary task of CellAssign is to predict cell types for each cell. This is achieved by:
 
 ```
 >>> model = CellAssign(adata, marker_gene_matrix, size_factor_key='size_factor')

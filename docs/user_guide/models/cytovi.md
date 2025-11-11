@@ -4,9 +4,9 @@
 
 The advantages of CytoVI are:
 
-- Provides a denoised and batch-corrected low-dimensional cell state representations across antibody-based single cell technologies.
+- Provides a denoised and batch-corrected low-dimensional cell state representation across antibody-based single cell technologies.
 - Facilitates the integration of data from different antibody panels and the imputation of non-overlapping markers.
-- Enables cross-technology integration (e.g. flow cytometry, mass cytometry and CITE-seq) and modality imputation, facilitating unified analysis across cytometry and transcriptomics.
+- Enables cross-technology integration (e.g., flow cytometry, mass cytometry, and CITE-seq) and modality imputation, facilitating unified analysis across cytometry and transcriptomics.
 - Allows for the automated identification of disease-associated cell states (label-free differential abundance analysis) and differential protein expression between groups of cells.
 - Scalable to very large datasets (>20 million cells).
 
@@ -33,13 +33,13 @@ CytoVI can process protein expression matrices from the following technologies:
 
 For each of these technologies CytoVI expects as input:
 - A transformed (and optionally scaled) protein expression matrix $X \in \mathbb{R}^{N \times P}$, where each row is a single cell among $N$ total cells and each column is a protein marker among $P$ total proteins.
-- Optionally, experimental covariates that the user wishes to control for such as batch annotations, different technologies or confounding variables such as donor sex. For simplicity we will describe the case of a one-hot encoded batch identifier $s_n \in \{1,...,S\}$.
-- Optionally, cell label annotations can be utilized to weakly inform the prior of the latent space. We assume a one-hot encoded label identifier $y_n \in\{1,...,Y\}$.
-- Optionally, sample annotations (e.g. indicating which cells were measured from which patient) to inform differential abundance and expression analyses.
+- Optionally, experimental covariates that the user wishes to control for such as batch annotations, different technologies, or confounding variables such as donor sex. For simplicity, we will describe the case of a one-hot encoded batch identifier $s_n \in \{1,...,S\}$.
+- Optionally, cell label annotations can be used to weakly inform the prior of the latent space. We assume a one-hot encoded label identifier $y_n \in\{1,...,Y\}$.
+- Optionally, sample annotations (e.g., indicating which cells were measured from which patient) to inform differential abundance and expression analyses.
 
 
 Preprocessing expected:
-CytoVI expects the input matrix $x_{np}$ to be processed using common preprocessing options for cytometry data in the field. These include for instance arcsinh, log1p, biexponential or logicle transformations and are optionally followed by feature-wise scaling (e.g. z-score, min-max or rank-scaled).
+CytoVI expects the input matrix $x_{np}$ to be processed using common preprocessing options for cytometry data in the field. These include, for instance, arcsinh, log1p, biexponential or logicle transformations and are optionally followed by feature-wise scaling (e.g., z-score, min-max or rank-scaled).
 
 
 ## Descriptive model
@@ -190,9 +190,9 @@ $$
    \mathbb{E}_{q_\eta(z_n \mid x_n)}\left[f_x\left( z_n, s_n \right) \right]
 $$
 
-By default we decode the reconstructed protein expression across all possible batches $S$ and return the mean, yielding a batch corrected version of the protein expression.
+By default, we decode the reconstructed protein expression across all possible batches $S$ and return the mean, yielding a batch-corrected version of the protein expression.
 
-In case of overlapping antibody panels, CytoVI by default returns protein expression of all markers $x_{n,\mathcal{U}}$, thereby effectively imputing missing proteins.
+In the case of overlapping antibody panels, CytoVI by default returns protein expression of all markers $x_{n,\mathcal{U}}$, thereby effectively imputing missing proteins.
 
 ### Differential expression
 Differential expression analysis is achieved with {func}`~scvi.external.CYTOVI.differential_expression`. CytoVI tests differences in magnitude of $f_x\left( z_n, s_n \right)$. More info is in {doc}`/user_guide/background/differential_expression`.
@@ -227,7 +227,7 @@ This approach allows label-free imputation of unobserved modalities, such as gen
     _CytoVI: Deep generative modeling of antibody-based single cell technologies_,
     [bioRxiv](https://doi.org/).
 
-<!-- update ref as soon as its online -->
+<!-- update ref as soon as it's online -->
 
 [^ref2]:
     Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
