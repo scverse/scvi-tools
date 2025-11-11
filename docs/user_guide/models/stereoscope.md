@@ -64,7 +64,7 @@ This generative process is also summarized in the following graphical model:
 single-cell reference LVM graphical model.
 :::
 
-The latent variables for the single-cell reference LVM, along with their description are summarized in the following table:
+The latent variables for the single-cell reference LVM, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -101,7 +101,7 @@ where $\beta_g$ is a gene-specific correction term for technical differences.
 The parameters $r_{gz}$ and $p_g$ are the learned parameters from the first LVM.
 
 An additional latent variable, $\eta_g$, is incorporated into the aggregated cell expression profile
-as a dummy cell type to represent gene specific noise. The dummy cell type's expression profile is distributed
+as a dummy cell type to represent gene-specific noise. The dummy cell type's expression profile is distributed
 as $\varepsilon_g := \mathrm{Softplus}(\eta_g)$ where $\eta_g \sim \mathrm{Normal}(0, 1)$ to avoid the model
 from incorrectly assigning explanatory power to this term.
 Like the other cell types, there is an associated cell type abundance parameter $\gamma_s$ associated with $\varepsilon$.
@@ -116,7 +116,7 @@ This generative process is also summarized in the following graphical model:
 spatial transcriptomics LVM graphical model.
 :::
 
-The latent variables for the spatial transcriptomics LVM, along with their description are summarized in the following table:
+The latent variables for the spatial transcriptomics LVM, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -149,14 +149,14 @@ The latent variables for the spatial transcriptomics LVM, along with their descr
 
 ### Single-cell reference LVM
 
-Stereoscope uses maximum likelihood estimation to estimate the parameters of the first LVM w.r.t. the negative binomial model of
+Stereoscope uses maximum likelihood estimation to estimate the parameters of the first LVM w.r.t. The negative binomial model of
 UMI observations. This is achieved via stochastic gradient ascent on the likelihood function using the Pytorch framework.
 
 ### Spatial transcriptomics LVM
 
 For the spatial transcriptomics LVM, Stereoscope uses MAP inference to estimate the parameters specific to the model. To be exact,
-the only parameter given a non-uniform prior is $\eta_g$ which is posited as a gene-specific random effect distributed by a standard
-Normal prior. Note, the $r_{gz}$ and $p_g$ parameters not inferred in this step, but held fixed as the parameters shared by the
+the only parameter given a non-uniform prior is $\eta_g$ that is posited as a gene-specific random effect distributed by a standard
+Normal prior. Note, the $r_{gz}$ and $p_g$ parameters are not inferred in this step, but held fixed as the parameters shared by the
 single-cell reference LVM.
 
 ## Tasks
@@ -171,9 +171,9 @@ Once the model is trained, one can retrieve the estimated cell type proportions 
 ```
 
 These proportions are computed by normalizing across all learned cell type abundances, $v_{sz}$, for a given spot $s$.
-I.e. the estimated proportion of cell type $z$ for spot $s$ is $\frac{v_{sz}}{\sum_{z'} v_{sz'}}$.
+I.e., the estimated proportion of cell type $z$ for spot $s$ is $\frac{v_{sz}}{\sum_{z'} v_{sz'}}$.
 
-Subsequently for a given cell type, users can plot a heatmap of the cell type proportions spatially using scanpy with:
+Subsequently, for a given cell type, users can plot a heatmap of the cell type proportions spatially using scanpy with:
 
 ```
 >>> import scanpy as sc
