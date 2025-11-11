@@ -49,8 +49,8 @@ here are several factors to consider:
 - **Training parameters**: You may need to adjust parameters such as the learning rate or batch
     size to stabilize training, or use gradient clipping to prevent exploding gradients.
 - **Model activations**: Some models contain exponential activations due to reproducibility
-    reasons, which may be sometimes numrically unstable. Consider using another activation such as
+    reasons, which may sometimes be numerically unstable. Consider using another activation such as
     the softplus for more stability.
 - **Adversarial training**: For models with adversarial training (_e.g._ totalVI), consider turning
     off the component to see if the issue is resolved.
-- **Using SaveCheckpoint Callback**: Starting v1.3.0, we added the on_exception option to the callback, that in case of model error exception during training, will save the best model up to this point. The user will be able to load it back and continue the analysis. Obviously, failing for the first few epochs probably means basic issues with model.
+- **Using SaveCheckpoint Callback**: Starting v1.3.0, we added the on_exception option to the callback, that in case of model error exception during training, will save the best model up to this point. The user will be able to load it back and continue the analysis. Failing for the first few epochs probably means basic issues with the model.

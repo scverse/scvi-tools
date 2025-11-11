@@ -15,7 +15,7 @@ The advantages of amortized LDA are:
 
 The limitations of amortized LDA include:
 
--   Optimal selection of the number of topics is unclear.
+-   The optimal selection of the number of topics is unclear.
 -   Amortization gap in optimizing variational parameters.
 
 ```{topic} Tutorials:
@@ -28,7 +28,7 @@ The limitations of amortized LDA include:
 Amortized LDA takes as input a cell-by-feature matrix $X$ with $C$ cells and $F$ features.
 Because the LDA model assumes the input is ordered, we refer to this format as the bag-of-words (BoW) representation
 of the feature counts.
-Additionally, the number of topics to model must be manually set by the user prior to fitting the model.
+Additionally, the number of topics to model must be manually set by the user before fitting the model.
 
 ## Generative process
 
@@ -47,7 +47,7 @@ for cell $c \in [C]$, the observed feature counts $x_{cn}$ are produced accordin
 
 where $\eta$ denotes the prior on the Dirichlet distribution for the topic feature distribution $\beta$,
 and $\alpha$ denotes the prior on the Dirichlet distribution for the cell topic distribution $\theta_c$.
-In order to compute reparametrization gradients stably, we approximate the Dirichlet distribution with a logistic-Normal
+To compute reparametrization gradients stably, we approximate the Dirichlet distribution with a logistic-Normal
 distribution, followed by a softmax operation. Specifically, we use the Laplace approximation
 which has a diagonal covariance matrix [^ref2]:
 
@@ -62,7 +62,7 @@ which has a diagonal covariance matrix [^ref2]:
 
 for Dirichlet parameter $\alpha \in \mathbb{R}^K$ where $K$ denotes the number of topics.
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -117,7 +117,7 @@ with the same format as the dataset used to train the model:
 If the learned topics generalize well to other datasets, this can serve as a dimensionality reduction method
 to the learned topic latent space.
 
-### Feautre module discovery
+### Feature module discovery
 
 Once the model has been fitted, one can retrieve the estimated feature-by-topic distribution:
 
