@@ -11,6 +11,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
+- Fix inference on device for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+
 #### Changed
 
 #### Removed
