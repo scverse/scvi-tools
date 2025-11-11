@@ -6,11 +6,11 @@ This guide includes various sections that are applicable to maintainers of the p
 
 The [tutorials] repository is included as a git submodule in the main repository under
 `docs/tutorials/notebooks`. This allows us to lower the size of the main repository as the
-notebooks can be quite large. This also means that changes committed to the tutorials repository
-are not immediately reflected in the main repository. In order to update the tutorials in the
+notebooks can be quite large. This also means that changes committed to the tutorials' repository
+are not immediately reflected in the main repository. To update the tutorials in the
 main repository (and subsequently the documentation), run the [update tutorials workflow], which
 will create a PR updating the head reference of the submodule to the latest commit in the
-tutorials repository.
+tutorials' repository.
 
 ## Releases
 
@@ -62,7 +62,7 @@ request if one of the following conditions is met:
 
 1. The pull request contains a label with the title and body set to
     `on-merge: backport to MAJOR.MINOR.x`, where `MAJOR.MINOR.x` is an existing release branch.
-    The PR must be labeled _before_ it is merged in order to trigger the backport.
+    The PR must be labeled _before_ it is merged to trigger the backport.
 
 2. The pull request contains a comment with the following text:
 
@@ -110,8 +110,8 @@ into `main` and then an appropriate backport into the release branch.
 
 #### (Optional) Re-run the tutorials
 
-It is recommended to re-run all the [tutorials] for major and minor releases, and affected
-tutorials for patch releases. This ensures that the tutorials are up-to-date with the latest
+It is recommended to re-run all the [tutorials] for major and minor releases and affected
+tutorials for patch releases. This ensures that the tutorials are up to date with the latest
 changes.
 
 First, trigger a [Docker image build] targeting the release branch. This will build and upload
@@ -125,7 +125,7 @@ It is possible that there are new bugs or issues in the tutorials revealed when 
 automated updates. Any new bugs should be addressed, and the tutorials re-run until they pass
 successfully.
 
-#### Publish a release off the tutorials repository
+#### Publish a release off the tutorials' repository
 
 Once all relevant tutorials have been updated and merged, create a new release on the tutorials
 repository targeting `main`. This release should be named according to the new version, _e.g._,
@@ -133,7 +133,7 @@ repository targeting `main`. This release should be named according to the new v
 
 #### Updating the tutorials
 
-Then, update the tutorials submodule in the main repository using the [update tutorials workflow].
+Then, update the tutorials' submodule in the main repository using the [update tutorials workflow].
 
 #### Run the release workflow
 
@@ -154,7 +154,7 @@ Once a particular version tag is published to PyPI, it **cannot** be republished
 release is yanked or deleted. This is a constraint of PyPI, so it is important to ensure that the
 version is correct before publishing.
 
-If a mistake is made, the version should be incremented and a new release created and published.
+If a mistake is made, the version should be incremented, and a new release created and published.
 Yanking should only be used in exceptional circumstances, but note that this will not remove the
 version from the PyPI index.
 :::
@@ -174,7 +174,7 @@ hatch publish
 Our package is also available on the conda-forge channel. The [feedstock repository] contains
 the recipe for building the package.
 
-Typically a PR into the [feedstock] will be automatically created a couple of days after the
+Typically, a PR into the [feedstock] will be automatically created a couple of days after the
 PyPI release (see [#32] for an example) and will be automatically merged.
 
 If there are any issues with the recipe (_e.g._ due to dependency changes), it may need to be
@@ -215,7 +215,7 @@ a branch.
   `all tests` labels, which can only be added by maintainers.
 - [`test (resolution)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_linux_resolution.yml):
   Optionally triggered on pull requests with the `resolution tests` or `all tests` labels, this
-  workflow runs for various package resolution settings (_e.g._, pre-releases, lowest suppported
+  workflow runs for various package resolution settings (_e.g._, pre-releases, lowest supported
   dependencies). Useful for catching dependency issues early if packages have pre-releases.
 - [`test (macos)`](https://github.com/scverse/scvi-tools/blob/main/.github/workflows/test_macos.yml):
   Runs the test suite on a GitHub-hosted macOS runner. Useful for catching macOS-specific issues.
@@ -250,7 +250,7 @@ The documentation can be viewed by opening `docs/_build/index.html` in a web bro
 Starting with version 1.2, we use [conventional commits] for commits into the main branch. We
 support the following types (loosely based on the [Angular convention]):
 
-- `build`: Changes that primarily affect depdenencies
+- `build`: Changes that primarily affect dependencies
 - `ci`: Changes to our CI configuration files and scripts, typically in the `.github/` directory
 - `docs`: Documentation changes, typically in the `docs/` directory
 - `feat`: A new feature
@@ -265,7 +265,7 @@ support the following types (loosely based on the [Angular convention]):
 
 We support the following scopes, based on our top-level package structure:
 
-- `autotune`: Changes primarly affecting `scvi.autotune`
+- `autotune`: Changes primarily affecting `scvi.autotune`
 - `criticism`: Changes primarily affecting `scvi.criticism`
 - `data`: Changes primarily affecting `scvi.data`
 - `dataloaders`: Changes primarily affecting `scvi.dataloaders`

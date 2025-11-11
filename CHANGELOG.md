@@ -1,8 +1,7 @@
 # Release notes
 
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
-to [Semantic Versioning]. Full commit history is available in the
-[commit logs](https://github.com/scverse/scvi-tools/commits/).
+to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
 ## Version 1.4
 
@@ -10,37 +9,46 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
+- Add MLFlow support, {pr}`3573`.
+- Add support for MuData during Ray autotune {pr}`3545`.
+- Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
+    function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.
+
 #### Fixed
+
+- Add configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
+- Fix inference on device for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
+- Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 
 #### Changed
 
 #### Removed
 
+- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+
 ### 1.4.0 (2025-09-14)
 
 #### Added
 
-- Add support for mudata during ray autotune, {pr}`3545`.
-- Add a PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3304`.
-- Add checkpointing with {class}`scvi.autotune.AutotuneExperiment`, {pr}`3452`.
-- Add Downstream Analysis functions multi GPU support, {pr}`3443`.
+- Add a PyTorch implementation of {class}`scvi.external.MRVI` {pr}`3304`.
+- Add checkpointing with {class}`scvi.autotune.AutotuneExperiment` {pr}`3452`.
+- Add downstream analysis functions multi-GPU support {pr}`3443`.
 - Add {class}`scvi.external.CYTOVI` for dealing with cytometry data {pr}`3456`.
-- Add scArches support for {class}`scvi.external.SCVIVA`, {pr}`3494`.
-- Add a backend parameter and making the class {class}`scvi.external.MRVI` a wrapper to the Jax or
-    Torch implementations, {pr}`3498`.
-- Add lightning checkpointing to trainer fit, {pr}`3501`.
-- Add MuData Minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
-- Add solver parameter for SVD stability in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3524`.
+- Add scArches support for {class}`scvi.external.SCVIVA` {pr}`3494`.
+- Add a backend parameter and make the class {class}`scvi.external.MRVI` a wrapper to the Jax or
+    Torch implementations {pr}`3498`.
+- Add Lightning checkpointing to trainer fit {pr}`3501`.
+- Add MuData minification option to {class}`~scvi.model.MULTIVI` {pr}`3039`.
+- Add solver parameter for SVD stability in {class}`scvi.autotune.AutotuneExperiment` {pr}`3524`.
 
 #### Fixed
 
-- Fix in non multiGPU training to have history in memory, and not on disk by default, {pr}`3543`.
-- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters, {pr}`3561`.
-- Fix in library size calculation in {class}`scvi.model.TOTALVI`, {pr}`3452`.
-- Fix scarches surgery in {class}`scvi.external.SysVI`, {pr}`3466`.
-- Fix VAE load size mismatch when using extra covariates with custom datamodule, {pr}`3461`.
-- Fix in {class}`~scvi.external.POISSONVI` differential_accessibility, {pr}`3473`.
-- Fix missing model history for multiGPU training, and added option to log on step, {pr}`3516`.
+- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
+- Fix library size calculation in {class}`scvi.model.TOTALVI` {pr}`3452`.
+- Fix scArches surgery in {class}`scvi.external.SysVI` {pr}`3466`.
+- Fix VAE load size mismatch when using extra covariates with custom datamodule {pr}`3461`.
+- Fix {class}`~scvi.external.POISSONVI` differential_accessibility {pr}`3473`.
 
 #### Changed
 
@@ -50,7 +58,6 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Remove the support for Python 3.10, {pr}`3441`.
 - Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3486`.
-- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
 
 ## Version 1.3
 
@@ -68,7 +75,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Changed
 
-- Temporary pinned Jax version to \<0.7.0 to be able to install numpyro.
+- Temporarily pinned the Jax version to \<0.7.0 to be able to install numpyro.
 
 #### Removed
 
@@ -87,13 +94,13 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fix bug in {class}`scvi.external.TOTALANVI` scarches. {pr}`3355`.
-- Fix bug in {class}`scvi.external.MRVI` down stream analysis use of external adata. {pr}`3324`.
-- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA`. {pr}`3373`.
+- Fix bug in {class}`scvi.external.TOTALANVI` scArches {pr}`3355`.
+- Fix bug in {class}`scvi.external.MRVI` downstream analysis use of external adata {pr}`3324`.
+- Fix bug in perplexity calculation in {class}`scvi.model.AmortizedLDA` {pr}`3373`.
 
 #### Changed
 
-- Update Read the docs tutorials with one main preprocessing tutorial {pr}`3363`.
+- Update Read the Docs tutorials with one main preprocessing tutorial {pr}`3363`.
 
 #### Removed
 
@@ -104,28 +111,28 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Add {class}`scvi.external.METHYLANVI` for modeling methylation labelled data from single-cell
+- Add {class}`scvi.external.METHYLANVI` for modeling methylation-labeled data from single-cell
     bisulfite sequencing (scBS-seq) {pr}`3066`.
-- Add supervised module class {class}`scvi.module.base.SupervisedModuleClass`. {pr}`3237`.
-- Add get normalized function model property for any generative model {pr}`3238` and changed
-    get_accessibility_estimates to get_normalized_accessibility, where needed.
-- Add {class}`scvi.external.TOTALANVI`. {pr}`3259` for modeling of single-cell RNA and
-    CITE-seq protein data that integrates semi-supervised cell type annotations to jointly infer
-    both protein expression and cell states
-- Add Custom Dataloaders registry support, {pr}`2932`.
+- Add supervised module class {class}`scvi.module.base.SupervisedModuleClass` {pr}`3237`.
+- Add `get_normalized` model property for any generative model, and change
+    `get_accessibility_estimates` to `get_normalized_accessibility` where needed {pr}`3238`
+- Add {class}`scvi.external.TOTALANVI` for modeling single-cell RNA and CITE-seq protein data that
+    integrates semi-supervised cell type annotations to jointly infer both protein expression and
+    cell states {pr}`3259`
+- Add Custom Dataloaders registry support {pr}`2932`
 - Add support for using Census and LaminAI custom dataloaders for {class}`scvi.model.SCVI`
-    and {class}`scvi.model.SCANVI`, {pr}`2932`.
-- Add Early stopping KL warmup steps. {pr}`3262`.
-- Add Minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`.
-- Update Read the docs tutorials index page with interactive filterable options {pr}`3276`.
+    and {class}`scvi.model.SCANVI` {pr}`2932`
+- Add early stopping KL warmup steps {pr}`3262`
+- Add a minification option to {class}`~scvi.model.LinearSCVI` {pr}`3294`
+- Update the Read the Docs tutorials index page with interactive, filterable options {pr}`3276`
 
 #### Fixed
 
-- Add consideration for missing monitor set during early stopping. {pr}`3226`.
-- Fix bug in {class}`scvi.external.SysVI` get_normalized_expression function. {pr}`3255`.
-- Add support for IntegratedGradients for multimodal models. {pr}`3264`.
-- Fix bug in resolVI get_normalized expression function. {pr}`3308`.
-- Fix bug in resolVI gene-assay dispersion. {pr}`3308`.
+- Handle missing `monitor` during early stopping {pr}`3226`
+- Fix a bug in {class}`scvi.external.SysVI` `get_normalized_expression` {pr}`3255`
+- Add support for Integrated Gradients for multimodal models {pr}`3264`
+- Fix a bug in resolVI `get_normalized_expression` {pr}`3308`
+- Fix a bug in resolVI gene-assay dispersion {pr}`3308`
 
 #### Changed
 
@@ -157,7 +164,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add scib-metrics support for {class}`scvi.autotune.AutotuneExperiment` and
     {class}`scvi.train._callbacks.ScibCallback` for autotune for scib metrics {pr}`3168`.
 - Add Support of dask arrays in AnnTorchDataset. {pr}`3193`.
-- Add a common use cases section in the docs user guide. {pr}`3200`.
+- Add a common use cases section in the docs' user guide. {pr}`3200`.
 - Add {class}`scvi.external.SysVI` for cycle consistency loss and VampPrior {pr}`3195`.
 
 #### Fixed
@@ -165,7 +172,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 - Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
 - Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
-    out-of-memory errors. Store distance matrices as numpy array in xarray to reduce
+    out-of-memory errors. Store distance matrices as a numpy array in xarray to reduce
     memory usage {pr}`3146`.
 - Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
 
@@ -175,7 +182,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Set `mode="change"` as default DE method. Compute positive and negative LFC separately
     by default (`test_mode="three"`). Corrected computation of pseudocounts and make if
     default to add a pseudocounts for genes not expressed (`pseudocount=None`). According to
-    Eq. 10 of Boyeau _et al_, _PNAS_ 2023 {pr}`2826`
+    Eq. Ten of Boyeau _et al._, _PNAS_ 2023 {pr}`2826`
 
 #### Removed
 
@@ -186,8 +193,8 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Added
 
 - Add MuData Minification option to {class}`~scvi.model.TOTALVI` {pr}`3061`.
-- Add Support for MPS usage in mac {pr}`3100`.
-- Add support for torch.compile before train (EXPERIMENTAL) {pr}`2931`.
+- Add Support for MPS usage in Mac {pr}`3100`.
+- Add support for torch compile before train (EXPERIMENTAL) {pr}`2931`.
 - Add support for Numpy 2.0 {pr}`2842`.
 - Changed scvi-hub ModelCard and add criticism metrics to the card {pr}`3078`.
 - MuData support for {class}`~scvi.model.MULTIVI` via the method
@@ -212,13 +219,13 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Added
 
-- Added adaptive handling for last training minibatch of 1-2 cells in case of
+- Added adaptive handling for last training minibatch of 1–2 cells in case of
     `datasplitter_kwargs={"drop_last": False}` and `train_size = None` by moving them into
-    validation set, if available. {pr}`3036`.
+    the validation set, if available. {pr}`3036`.
 - Add `batch_key` and `labels_key` to {meth}`scvi.external.SCAR.setup_anndata`. {pr}`3045`.
 - Implemented variance of ZINB distribution. {pr}`3044`.
 - Support for minified mode while retaining counts to skip the encoder.
-- New Trainingplan argument `update_only_decoder` to use stored latent codes and skip training of
+- New Training plan argument `update_only_decoder` to use stored latent codes and skip training of
     the encoder.
 - Refactored code for minified models. {pr}`2883`.
 - Add {class}`scvi.external.METHYLVI` for modeling methylation data from single-cell
@@ -257,11 +264,11 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`scvi.autotune.TuneAnalysis` {pr}`2561`.
 - Add experimental class {class}`scvi.nn.Embedding` implementing methods for extending embeddings
     {pr}`2574`.
-- Add experimental support for representing batches with continuously-valued embeddings by passing
+- Add experimental support for representing batches with continuously valued embeddings by passing
     in `batch_representation="embedding"` to {class}`scvi.model.SCVI` {pr}`2576`.
 - Add experimental mixin classes {class}`scvi.model.base.EmbeddingMixin` and
     {class}`scvi.module.base.EmbeddingModuleMixin` {pr}`2576`.
-- Add option to generate synthetic spatial coordinates in {func}`scvi.data.synthetic_iid` with
+- Add the option to generate synthetic spatial coordinates in {func}`scvi.data.synthetic_iid` with
     argument `generate_coordinates` {pr}`2603`.
 - Add experimental support for using custom {class}`lightning.pytorch.core.LightningDataModule`s
     in {func}`scvi.autotune.run_autotune` {pr}`2605`.
@@ -278,7 +285,7 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2692`.
 - Add support for custom dataloaders in {class}`scvi.model.base.VAEMixin` methods by specifying
     the `dataloader` argument {pr}`2748`.
-- Add option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
+- Add the option to use a normal distribution in the generative model of {class}`scvi.model.SCVI` by
     passing in `gene_likelihood="normal"` {pr}`2780`.
 - Add {class}`scvi.external.MRVI` for modeling sample-level heterogeneity in single-cell RNA-seq
     data {pr}`2756`.
@@ -331,14 +338,14 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fix logging of accuracy for cases with 1 sample per class in scANVI {pr}`2938`.
+- Fix logging of accuracy for cases with one sample per class in scANVI {pr}`2938`.
 - Disable adversarial classifier if training with a single batch.
     Previously this raised a None error {pr}`2914`.
 - {meth}`~scvi.model.SCVI.get_normalized_expression` fixed for Poisson distribution and
     Negative Binomial with latent_library_size {pr}`2915`.
 - Fix {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
 - {meth}`scvi.module.VAE.marginal_ll` when `n_mc_samples_per_pass=1` {pr}`2362`.
-- Enable option to drop_last minibatch during training by `datasplitter_kwargs={"drop_last": True}`
+- Enable the option to drop_last minibatch during training by `datasplitter_kwargs={"drop_last": True}`
     {pr}`2926`.
 - Fix JAX to be deterministic on CUDA when seed is manually set {pr}`2923`.
 
@@ -375,7 +382,7 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabiities
+- Breaking change: Fix {meth}`scvi.external.SOLO.predict` to correctly return probabilities
     instead of logits when passing in `soft=True` (the default option) {pr}`2689`.
 - Breaking change: Fix {class}`scvi.dataloaders.SemiSupervisedDataSplitter` to properly sample
     unlabeled observations without replacement {pr}`2816`.
@@ -419,11 +426,11 @@ to [Semantic Versioning]. Full commit history is available in the
     {pr}`2203`.
 - Add `datasplitter_kwargs` to model `train` methods {pr}`2204`.
 - Add `use_posterior_mean` argument to {meth}`scvi.model.SCANVI.predict` for stochastic prediction
-    of celltype labels {pr}`2224`.
+    of cell type labels {pr}`2224`.
 - Add support for Python 3.10+ type annotations in {class}`scvi.autotune.ModelTuner` {pr}`2239`.
-- Add option to log device statistics in {meth}`scvi.autotune.ModelTuner.fit` with argument
+- Add the option to log device statistics in {meth}`scvi.autotune.ModelTuner.fit` with argument
     `monitor_device_stats` {pr}`2260`.
-- Add option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit` with argument `seed`
+- Add the option to pass in a random seed to {meth}`scvi.autotune.ModelTuner.fit` with argument `seed`
     {pr}`2260`.
 - Automatically log the learning rate when `reduce_lr_on_plateau=True` in training plans
     {pr}`2280`.
@@ -444,12 +451,12 @@ to [Semantic Versioning]. Full commit history is available in the
     {func}`optax.add_weight_decay` {pr}`2396`.
 - Add support for hosting {class}`scvi.hub.HubModel` on AWS S3 via
     {meth}`scvi.hub.HubModel.pull_from_s3` and {meth}`scvi.hub.HubModel.push_to_s3` {pr}`2378`.
-- Add clearer error message for {func}`scvi.data.poisson_gene_selection` when input data does not
+- Add a clearer error message for {func}`scvi.data.poisson_gene_selection` when input data does not
     contain raw counts {pr}`2422`.
 - Add API for using custom dataloaders with {class}`scvi.model.SCVI` by making `adata` argument
     optional on initialization and adding optional argument `data_module` to
     {meth}`scvi.model.base.UnsupervisedTrainingMixin.train` {pr}`2467`.
-- Add support for Ray 2.8-2.9 in {class}`scvi.autotune.ModelTuner` {pr}`2478`.
+- Add support for Ray 2.8–2.9 in {class}`scvi.autotune.ModelTuner` {pr}`2478`.
 
 #### Fixed
 
@@ -486,7 +493,7 @@ to [Semantic Versioning]. Full commit history is available in the
     computations to use `"micro"` reduction rather than `"macro"` {pr}`2339`.
 - Internal refactoring of {meth}`scvi.module.VAE.sample` and
     {meth}`scvi.model.base.RNASeqMixin.posterior_predictive_sample` {pr}`2377`.
-- Change `xarray` and `sparse` from mandatory to optional dependencies {pr}`2480`.
+- Change `xarray` and `sparse` from mandatory-to-optional dependencies {pr}`2480`.
 - Use {class}`anndata.abc.CSCDataset` and {class}`anndata.abc.CSRDataset`
     instead of the deprecated {class}`anndata._core.sparse_dataset.SparseDataset` for type checks
     {pr}`2485`.
@@ -521,7 +528,7 @@ to [Semantic Versioning]. Full commit history is available in the
     argument is ignored {pr}`2162`.
 - Fix missing docstring for `unlabeled_category` in
     {class}`scvi.model.SCANVI.setup_anndata` and reorder arguments {pr}`2189`.
-- Fix Pandas 2.0 unpickling error in {meth}`scvi.model.base.BaseModelClas.convert_legacy_save`
+    — Fix Pandas 2.0 unpickling error in {meth}`scvi.model.base.BaseModelClass.convert_legacy_save`
     by switching to {func}`pandas.read_pickle` for the setup dictionary {pr}`2212`.
 
 ### 1.0.2 (2023-07-05)
@@ -549,10 +556,10 @@ to [Semantic Versioning]. Full commit history is available in the
 - Add {func}`scvi.data.reads_to_fragments` for scATAC data {pr}`1946`
 - Add default `stacklevel` for `warnings` in `scvi.settings` {pr}`1971`.
 - Add scBasset motif injection procedure {pr}`2010`.
-- Add importance sampling based differential expression procedure {pr}`1872`.
+- Add importance-sampling-based differential expression procedure {pr}`1872`.
 - Raise clearer error when initializing {class}`scvi.external.SOLO` from {class}`scvi.model.SCVI`
     with extra categorical or continuous covariates {pr}`2027`.
-- Add option to generate {class}`mudata.MuData` in {meth}`scvi.data.synthetic_iid` {pr}`2028`.
+- Add the option to generate {class}`mudata.MuData` in {meth}`scvi.data.synthetic_iid` {pr}`2028`.
 - Add option for disabling shuffling prior to splitting data in
     {class}`scvi.dataloaders.DataSplitter` {pr}`2037`.
 - Add {meth}`scvi.data.AnnDataManager.create_torch_dataset` and expose custom sampler ability
@@ -563,9 +570,9 @@ to [Semantic Versioning]. Full commit history is available in the
     see <https://github.com/pytorch/pytorch/issues/77764> {pr}`2045`.
 - Add `deregister_manager` function to {class}`scvi.model.base.BaseModelClass`, allowing to clear
     {class}`scvi.data.AnnDataManager` instances from memory {pr}`2060`.
-- Add option to use a linear classifier in {class}`scvi.model.SCANVI` {pr}`2063`.
+- Add the option to use a linear classifier in {class}`scvi.model.SCANVI` {pr}`2063`.
 - Add lower bound 0.12.1 for Numpyro dependency {pr}`2078`.
-- Add new section in scBasset tutorial for motif scoring {pr}`2079`.
+- Add a new section in scBasset tutorial for motif scoring {pr}`2079`.
 
 #### Fixed
 
@@ -586,7 +593,7 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`sparse.GCXS` matrices {pr}`1902`.
 - Add an option to specify `dropout_ratio` in {meth}`scvi.data.synthetic_iid` {pr}`1920`.
 - Update to lightning 2.0 {pr}`1961`
-- Hyperopt is new default searcher for tuner {pr}`1961`
+- Hyperopt is a new default searcher for tuner {pr}`1961`
 - {class}`scvi.train.AdversarialTrainingPlan` no longer encodes data twice during a training step,
     instead uses same latent for both optimizers {pr}`1961`, {pr}`1980`
 - Switch back to using sphinx autodoc typehints {pr}`1970`.
@@ -609,10 +616,10 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Removed
 
-- Remove ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`,
+- Remove the ability to set up ST data in {class}`~scvi.external.SpatialStereoscope.from_rna_model`,
     which was deprecated. ST data should be set up using
     {class}`~scvi.external.SpatialStereoscope.setup_anndata` {pr}`1949`.
-- Remove custom reusable doc decorator which was used for de docs {pr}`1970`.
+- Remove custom reusable doc decorator which was used for the docs {pr}`1970`.
 - Remove `drop_last` as an integer from {class}`~scvi.dataloaders.AnnDataLoader`, add typing and
     code cleanup {pr}`1975`.
 - Remove seqfish and seqfish plus datasets {pr}`2017`.
@@ -656,11 +663,11 @@ to [Semantic Versioning]. Full commit history is available in the
 
 #### Fixed
 
-- Fixed computation of ELBO during training plan logging when using global kl terms. {pr}`1895`
+- Fixed the computation of ELBO during training plan logging when using global kl terms. {pr}`1895`
 - Fixed usage of {class}`scvi.train.SaveBestState` callback, which affected
     {class}`scvi.model.PEAKVI` training. If using {class}`~scvi.model.PEAKVI`, please upgrade.
     {pr}`1913`
-- Fixed original seed for jax-based models to work with jax 0.4.4. {pr}`1907`, {pr}`1909`
+- Fixed the original seed for jax-based models to work with jax 0.4.4. {pr}`1907`, {pr}`1909`
 
 ### New in 0.20.0 (2023-02-01)
 
@@ -730,7 +737,7 @@ to [Semantic Versioning]. Full commit history is available in the
     {class}`~scvi.module.base.LossOutput` [#1749]
 - All training plans require keyword args after the first positional argument [#1749]
 - {class}`~scvi.module.base.JaxBaseModuleClass` absorbed features from the `JaxModuleWrapper`,
-    rendering the `JaxModuleWrapper` obsolote, so it was removed. [#1751]
+    rendering the `JaxModuleWrapper` obsolete, so it was removed. [#1751]
 - Add {class}`scvi.external.Tangram` and {class}`scvi.external.tangram.TangramMapper` that
     implement Tangram for mapping scRNA-seq data to spatial data [#1743].
 
@@ -764,7 +771,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Major Changes
 
 - Add latent mode support in {class}`~scvi.model.SCVI` [#1672]. This allows for loading a model
-    using latent representations only (i.e. without the full counts). Not only does this speed up
+    using latent representations only (i.e., without the full counts). Not only does this speed up
     inference by using the cached latent distribution parameters (thus skipping the encoding step),
     but this also helps in scenarios where the full counts are not available but cached latent
     parameters are. We provide utility functions and methods to dynamically convert a model to
@@ -775,10 +782,10 @@ to [Semantic Versioning]. Full commit history is available in the
 
 - Faster inference in PyTorch with `torch.inference_mode` [#1695].
 - Upgrade to Lightning 1.6 [#1719].
-- Update CI workflow to separate static code checking from pytest [#1710].
+- Update the CI workflow to separate static code checking from pytest [#1710].
 - Add Python 3.10 to CI workflow [#1711].
 - Add {meth}`~scvi.data.AnnDataManager.register_new_fields` [#1689].
-- Use sphinxcontrib-bibtex for references [#1731].
+- Use sphinx-contrib-bibtex for references [#1731].
 - {meth}`~scvi.model.base.VAEMixin.get_latent_representation`: more explicit and better docstring
     [#1732].
 - Replace custom attrdict with {class}`~ml_collections` implementation [#1696].
@@ -810,7 +817,7 @@ to [Semantic Versioning]. Full commit history is available in the
 - Allow `flax` to use any mutable states used by a model generically with
     {class}`~scvi.module.base.TrainStateWithState` [#1665], [#1700].
 - Update publication links in `README` [#1667].
-- Docs now include floating window cross references with `hoverxref`, external links with
+- Docs now include floating window cross-references with `hoverxref`, external links with
     `linkcode`, and `grid` [#1678].
 
 #### Bug Fixes
@@ -821,7 +828,7 @@ to [Semantic Versioning]. Full commit history is available in the
     initialization [#1660].
 - Replace instances of `super().__init__()` with an argument in `super()`, causing `autoreload`
     extension to throw errors [#1671].
-- Change cell2location tutorial causing docs build to fail [#1674].
+- Change cell2location tutorial causing docs to build to fail [#1674].
 - Replace instances of `max_epochs` as `int`s for new PyTorch Lightning [#1686].
 - Catch case when `torch.backends.mps` is not implemented [#1692].
 - Fix Poisson sampling in {meth}`~scvi.module.VAE.sample` [#1702].
@@ -839,7 +846,7 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Changes
 
 - Pin sphinx_gallery to fix tutorial cards on docs [#1657]
-- Use latest tutorials in release [#1657]
+- Use the latest tutorials in release [#1657]
 
 #### Contributors
 
@@ -860,13 +867,13 @@ to [Semantic Versioning]. Full commit history is available in the
 #### Bug Fixes
 
 - Fix CellAssign to accept extra categorical covariates [#1629].
-- Fix an issue where `max_epochs` is never determined heuristically for totalvi, instead it would
-    always default to 400 [#1639].
+    - Fix an issue where `max_epochs` is never determined heuristically for totalVI, instead it would
+        always default to 400 [#1639].
 
 #### Breaking Changes
 
-- Fix an issue where `max_epochs` is never determined heuristically for totalvi, instead it would
-    always default to 400 [#1639].
+- Fix an issue where `max_epochs` is never determined heuristically for totalVI, instead it
+    would always default to 400 [#1639].
 
 #### Contributors
 
@@ -970,7 +977,7 @@ instead of v0.16.3 or v0.16.2. This release fixes a critical bug in the training
 #### Bug Fixes
 
 - Fix critical issue in {class}`~scvi.train.AdversarialTrainingPlan` where `kl_weight` was
-    overwritten to 0 at each step ([#1566]). Users should avoid using v0.16.2 and v0.16.3 which
+    overwritten to 0 at each step ([#1566]). Users should avoid using v0.16.2 and v0.16.3, which
     both include this bug.
 
 #### Contributors
@@ -1004,7 +1011,7 @@ instead of v0.16.3 or v0.16.2. This release fixes a critical bug in the training
 
 #### Bug Fixes
 
-- Raise appropriate error when `backup_url` is not provided and file is missing on
+- Raise appropriate error when `backup_url` is not provided and the file is missing on
     {meth}`~scvi.model.base.BaseModelClass.load` ([#1527]).
 - Pipe `loss_kwargs` properly in {class}`~scvi.train.AdversarialTrainingPlan`, and fix incorrectly
     piped kwargs in {class}`~scvi.model.TOTALVI` and {class}`~scvi.model.MULTIVI` ([#1532]).
@@ -1024,7 +1031,7 @@ instead of v0.16.3 or v0.16.2. This release fixes a critical bug in the training
 
 - {class}`~scvi.dataloaders.SemiSupervisedDataLoader` and
     {class}`~scvi.dataloaders.SemiSupervisedDataSplitter` no longer take `unlabeled_category` as an
-    initial argument. Instead, the `unlabeled_category` is fetched from the labels state registry,
+    initial argument. Instead, the `unlabeled_category` is fetched from the labels' state registry,
     assuming that the {class}`~scvi.data.AnnDataManager` object is registered with a
     {class}`~scvi.data.fields.LabelsWithUnlabeledObsField` ([#1515]).
 
@@ -1053,8 +1060,8 @@ This release features a refactor of {class}`~scvi.model.DestVI` ([#1457]):
 1. Bug fix in library size in {class}`~scvi.model.CondSCVI`, that lead to downstream dependency
     between sum over cell type proportions `v_ind` and library size `library` in
     {class}`~scvi.model.DestVI`.
-1. `neg_log_likelihood_prior` is not computed anymore on random subset of single cells but cell
-    type specific subclustering using cluster variance `var_vprior`, cluster mean `mean_vprior` and
+1. `neg_log_likelihood_prior` is not computed anymore on random subset of single cells but
+    cell-type-specific subclustering using cluster variance `var_vprior`, cluster mean, and
     cluster mixture proportion `mp_vprior` for computation. This leads to more stable results and
     faster computation time. Setting `vamp_prior_p` in {func}`~scvi.model.DestVI.from_rna_model` to
     the expected resolution is critical in this algorithm.
@@ -1063,10 +1070,10 @@ This release features a refactor of {class}`~scvi.model.DestVI` ([#1457]):
     {class}`~scvi.model.DestVI`, we found this to be beneficial after bug fixes listed above.
 1. We changed the weighting of the loss on the variances of beta and the prior of eta.
 
-:::{note}
+::: {note}
 Due to bug fixes listed above this version of {class}`~scvi.model.DestVI` is not backwards
 compatible. Despite instability in training in the outdated version, we were able to reproduce
-results generated with this code. We therefore do not strictly encourage to rerun old experiments.
+results generated with this code. We therefore do not strictly encourage it to rerun old experiments.
 :::
 
 We published a new tutorial. This new tutorial incorporates a new utility package
@@ -1079,7 +1086,7 @@ documentation.
 - Docs changes (installation [#1498], {class}`~scvi.model.DestVI` user guide [#1501] and [#1508],
     dark mode code cells [#1499]).
 - Add `backup_url` to the {meth}`~scvi.model.base.BaseModelClass.load` method of each model class,
-    enabling automatic downloading of model save file ([#1505]).
+    enabling automatic downloading of the model save file ([#1505]).
 
 #### Breaking changes
 
@@ -1108,7 +1115,7 @@ documentation.
 #### Changes
 
 - Add common types file [#1467].
-- New default is to not pin memory during training when using a GPU. This is much better for shared
+- The new default is to not pin memory during training when using a GPU. This is much better for shared
     GPU environments without any performance regression [#1473].
 
 #### Bug fixes
@@ -1152,9 +1159,9 @@ documentation.
     {meth}`scvi.model.SCANVI.load_query_data` run on `adata_target` missing labels column.
     ([#1458]).
 - Fix dataframe rendering in dark mode docs ([#1448])
-- Fix variance constraint in {class}`~scvi.model.AmortizedLDA` that set an artifical bound on
+    \- Fix variance constraint in {class}`~scvi.model.AmortizedLDA` that set an artificial bound on
     latent topic variance ([#1445]).
-- Fix {meth}`scvi.model.base.ArchesMixin.prepare_query_data` to work cross device (e.g., model
+- Fix {meth}`scvi.model.base.ArchesMixin.prepare_query_data` to work cross-device (e.g., model
     trained on cuda but method used on cpu; see [#1451]).
 
 #### Contributors
@@ -1166,8 +1173,8 @@ documentation.
 
 #### Changes
 
-- Remove setuptools pinned requirement due to new PyTorch 1.11 fix ([#1436]).
-- Switch to myst-parsed markdown for docs ([#1435]).
+- Remove the setuptools pinned requirement due to the new PyTorch 1.11 fix ([#1436]).
+- Switch to myst-parsed Markdown for docs ([#1435]).
 - Add `prepare_query_data(adata, reference_model)` to {class}`~scvi.model.base.ArchesMixin` to
     enable query data cleaning prior to reference mapping ([#1441]).
 - Add Human Lung Cell Atlas tutorial ([#1442]).
@@ -1198,7 +1205,7 @@ documentation.
     {class}`~scvi.module.base.JaxBaseModuleClass` ([#1406]).
 - Use multiple particles optionally in {class}`~scvi.model.JaxSCVI` ([#1385]).
 - {class}`~scvi.external.SOLO` no longer warns about count data ([#1411]).
-- Class docs are now one page on docs site ([#1415]).
+- Class docs are now one page on the docs' site ([#1415]).
 - Copied AnnData objects are assigned a new uuid and transfer is attempted ([#1416]).
 
 #### Bug fixes
@@ -1219,10 +1226,10 @@ In this release, we have completely refactored the logic behind our data handlin
 `setup_anndata`) to allow for:
 
 1. Readable data handling for existing models.
-1. Modular code for easy addition of custom data fields to incorporate into models.
+1. Modular code for the easy addition of custom data fields to incorporate into models.
 1. Avoidance of unexpected edge cases when more than one model is instantiated in one session.
 
-**Important Note:** This change will not break pipelines for model users (with the exception of a
+**Important Note:** This change will not break pipelines for model users (except a
 small change to {class}`~scvi.model.SCANVI`). However, there are several breaking changes for model
 developers. The data handling tutorial goes over these changes in detail.
 
@@ -1253,10 +1260,10 @@ Jax integrations in the next releases.
 - Add `size_factor_key` to {class}`~scvi.model.SCVI`, {class}`~scvi.model.MULTIVI`,
     {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` ([#1334]).
 - Add references to the scvi-tools journal publication to the README ([#1338], [#1339]).
-- Addition of {func}`scvi.model.utils.mde` ([#1372]) for accelerated visualization of scvi-tools
+- Addition of {func}`scvi.model.utils.mde` ([#1372]) for faster visualization of scvi-tools
     embeddings.
 - Documentation and user guide fixes ([#1364], [#1361])
-- Fix for {class}`~scvi.external.SOLO` when {class}`~scvi.model.SCVI` was setup with a `labels_key`
+- Fix for {class}`~scvi.external.SOLO` when {class}`~scvi.model.SCVI` was set up with a `labels_key`
     ([#1354])
 - Updates to tutorials ([#1369], [#1371])
 - Furo docs theme ([#1290])
@@ -1268,7 +1275,9 @@ Jax integrations in the next releases.
 - The keyword argument `run_setup_anndata` has been removed from built-in datasets since there is
     no longer a model-agnostic `setup_anndata` method ([#1237]).
 
-- The function `scvi.model._metrics.clustering_scores` has been removed due to incompatbility with
+- The function `scvi.model._metrics.clustering_scores` has been removed
+    due to incompatibility with
+
     new data handling ([#1237]).
 
 - {class}`~scvi.model.SCANVI` now takes `unlabeled_category` as an argument to
@@ -1279,7 +1288,7 @@ Jax integrations in the next releases.
     inheriting from {class}`~scvi.model.base.BaseModelClass` will need to re-implement this method
     ([#1237]).
 
-    - To adapt existing custom models to v0.15.0, one can references the guidelines below. For
+    - To adapt existing custom models to v0.15.0, one can reference the guidelines below. For
         some examples of how this was done for the existing models in the codebase, please
         reference the following PRs: ([#1301], [#1302]).
     - `scvi._CONSTANTS` has been changed to `scvi.REGISTRY_KEYS`.
@@ -1295,7 +1304,7 @@ Jax integrations in the next releases.
         field-specific state registries. These can be retrieved via the function
         {meth}`~scvi.data.AnnDataManager.get_state_registry`.
     - `register_tensor_from_anndata()` has been removed. To register tensors with no relevant
-        `AnnDataField` subclass, create a new a new subclass of
+        `AnnDataField` subclass, create a new subclass of
         {class}`~scvi.data.fields.BaseAnnDataField` and add it to appropriate model's
         `setup_anndata()` function.
 
@@ -1313,14 +1322,14 @@ Bug fixes, minor improvements of docs, code formatting.
 
 #### Changes
 
-- Update black formatting to stable release ([#1324])
+- Update black formatting to the stable release ([#1324])
 - Refresh readme, move tasks image to docs ([#1311]).
-- Add 0.14.5 release note to index ([#1296]).
+- Add a 0.14.5 release note to the index ([#1296]).
 - Add test to ensure extra {class}`~scvi.model.SCANVI` training of a pre-trained
     {class}`~scvi.model.SCVI` model does not change original model weights ([#1284]).
 - Fix issue in {class}`~scvi.model.TOTALVI` protein background prior initialization to not include
     protein measurements that are known to be missing ([#1282]).
-- Upper bound setuptools due to PyTorch import bug ([#1309]).
+- Upper-bound setuptools due to PyTorch import bug ([#1309]).
 
 #### Contributors
 
@@ -1354,12 +1363,12 @@ Bug fixes, some tutorial improvements.
 
 - `kl_weight` handling for Pyro-based models ([#1242]).
 - Allow override of missing protein inference in {class}`~scvi.model.TOTALVI` ([#1251]). This
-    allows to treat all 0s in a particular batch for one protein as biologically valid.
+    allows treating all 0s in a particular batch for one protein as biologically valid.
 - Fix load documentation (e.g., {meth}`~scvi.model.SCVI.load`, {meth}`~scvi.model.TOTALVI.load`)
     ([#1253]).
-- Fix model history on load with Pyro-based models ([#1255]).
+- Fix model history on the load with Pyro-based models ([#1255]).
 - Model construction tutorial uses new static setup anndata ([#1257]).
-- Add codebase overview figure to docs ([#1231]).
+- Add a codebase overview figure to docs ([#1231]).
 
 #### Contributors
 
@@ -1391,7 +1400,7 @@ Bug fix and new tutorial.
 #### Changes
 
 - Bug fix in {class}`~scvi.external.RNAStereoscope` where loss was computed with mean for a
-    minibatch instead of sum. This ensures reproducibility with the original implementation ([#1228]).
+    minibatch instead of the sum. This ensures reproducibility with the original implementation ([#1228]).
 - New Cell2location contributed tutorial ([#1232]).
 
 #### Contributors
@@ -1425,7 +1434,7 @@ new set of user guides that provide:
 1. The relationship between the math and the functions associated with each model
 1. The relationship between math variables and code variables
 
-Our previous User Guide guide has been renamed to Tutorials and contains all of our existing
+Our previous User Guide has been renamed to Tutorials and contains all of our existing
 tutorials (including tutorials for developers).
 
 Another noteworthy addition in this release is the implementation of the (amortized) Latent
@@ -1457,7 +1466,7 @@ before/after for the DESTVI and TOTALVI model classes:
 - Made `setup_anndata` a static method on model classes rather than one global function ([#1150])
 - Used Pytorch Lightning's `seed_everything` method to set seed ([#1151])
 - Fixed a bug in {class}`~scvi.model.base.PyroSampleMixin` for posterior sampling ([#1158])
-- Added CITE-Seq datasets ([#1182])
+- Added CITE-seq datasets ([#1182])
 - Added user guides to our documentation ([#1127], [#1157], [#1180], [#1193], [#1183], [#1204])
 - Early stopping now prints the reason for stopping when applicable ([#1208])
 
@@ -1535,7 +1544,7 @@ This release adds features for tighter integration with Pyro for model developme
 {class}`~scvi.external.SOLO`, and other enhancements. Users of {class}`~scvi.external.SOLO` are
 strongly encouraged to upgrade as previous bugs will affect performance.
 
-#### Enchancements
+#### Enhancements
 
 - Add {class}`scvi.model.base.PyroSampleMixin` for easier posterior sampling with Pyro ([#1059]).
 - Add {class}`scvi.model.base.PyroSviTrainMixin` for automated training of Pyro models ([#1059]).
@@ -1552,8 +1561,8 @@ strongly encouraged to upgrade as previous bugs will affect performance.
 - Slight interface changes to {class}`~scvi.train.PyroTrainingPlan`. `"elbo_train"` and
     `"elbo_test"` are now the average over minibatches as ELBO should be on scale of full data and
     `optim_kwargs` can be set on initialization of training plan ([#1059], [#1101]).
-- Use pandas read pickle function for pbmc dataset metadata loading ([#1099]).
-- Adds `n_samples_overall` parameter to functions for denoised expression/accesibility/etc. This is
+- Use pandas' read pickle function for pbmc dataset metadata loading ([#1099]).
+- Adds `n_samples_overall` parameter to functions for denoised expression/accessibility/etc. This is
     used in during differential expression ([#1090]).
 - Ignore configure optimizers warning when training Pyro-based models ([#1064]).
 
@@ -1602,7 +1611,7 @@ we also made changes to adapt our code to PyTorch Lightning version 1.3.
 - Add DestVI reference ([#1060]).
 - Add PeakVI links to README ([#1046]).
 - Automatic delta and eps computation in differential expression ([#1043]).
-- Allow doublet ratio parameter to be changed for used in SOLO ([#1066]).
+- Allow the doublet ratio parameter to be changed for used in SOLO ([#1066]).
 
 #### Bug fixes
 
@@ -1612,7 +1621,7 @@ we also made changes to adapt our code to PyTorch Lightning version 1.3.
 
 #### Breaking changes
 
-These breaking changes do not affect the user API; though will impact model developers.
+These breaking changes do not affect the user API, though will impact model developers.
 
 - Use PyTorch Lightning data modules for {class}`scvi.dataloaders.DataSplitter` ([#1061]). This
     induces a breaking change in the way the data splitter is used. It is no longer callable and
@@ -1638,7 +1647,7 @@ These breaking changes do not affect the user API; though will impact model deve
 #### Changes
 
 - Includes new optional variance parameterization for the `Encoder` module ([#1037]).
-- Provides new way to select subpopulations for DE using Pandas queries ([#1041]).
+- Provides a new way to select subpopulations for DE using Pandas queries ([#1041]).
 - Update reference to peakVI ([#1046]).
 - Pin Pytorch Lightning version to \<1.3
 
@@ -1666,9 +1675,9 @@ These breaking changes do not affect the user API; though will impact model deve
 #### Bug fixes
 
 - Fix `SaveBestState` warning ([#1024])
-- New default SCANVI max epochs if loaded with pretrained SCVI model ([#1025]), restores old
+- New default SCANVI max epochs if loaded with pretrained SCVI model ([#1025]), restore old
     `<v0.9` behavior.
-- Fix marginal log likelihood computation, which was only being computed on final minibatch of a
+- Fix marginal log likelihood computation, which was only being computed on the final minibatch of a
     dataloader. This bug was introduced in the `0.9.X` versions ([#1033]).
 - Fix bug where extra categoricals were not properly extended in `transfer_anndata_setup` ([#1030]).
 
@@ -1688,10 +1697,10 @@ These breaking changes do not affect the user API; though will impact model deve
 
 #### Changes
 
-- Update Pyro module backend to better enfore usage of `model` and `guide`, automate passing of
+- Update Pyro module backend to better enforce usage of `model` and `guide`, automate passing of
     number of training examples to Pyro modules ([#990])
 - Minimum Pyro version bumped ([#988])
-- Improve docs clarity ([#989])
+- Improve docs' clarity ([#989])
 - Add glossary to developer user guide ([#999])
 - Add num threads config option to `scvi.settings` ([#1001])
 - Add CellAssign tutorial ([#1004])
@@ -1718,7 +1727,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 ##### Breaking change: The `train` method
 
-- `n_epochs` is now `max_epochs` for consistency with PytorchLightning and to better relect the
+- `n_epochs` is now `max_epochs` for consistency with PytorchLightning and to better reflect the
     functionality of the parameter.
 - `use_cuda` is now `use_gpu` for consistency with PytorchLightning.
 - `frequency` is now `check_val_every_n_epoch` for consistency with PytorchLightning.
@@ -1729,8 +1738,8 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 ##### Breaking change: GPU handling
 
-- `use_cuda` was removed from the init of each model and was not replaced by `use_gpu`. By default
-    every model is intialized on CPU but can be moved to a device via `model.to_device()`. If a
+- `use_cuda` was removed from the init of each model and was not replaced by `use_gpu`. By default,
+    every model is initialized on CPU but can be moved to a device via `model.to_device()`. If a
     model is trained with `use_gpu=True` the model will remain on the GPU after training.
 - When loading saved models, scvi-tools will always attempt to load the model on GPU unless
     otherwise specified.
@@ -1743,7 +1752,7 @@ will be compatible with this and future versions. Also, we dropped support for P
     method.
 - `n_epochs_unsupervised` and `n_epochs_semisupervised` have been removed from `train`. It has been
     replaced with `max_epochs` for semisupervised training.
-- `n_samples_per_label` is a new argument which will subsample the number of labelled training
+- `n_samples_per_label` is a new argument which will subsample the number of labeled training
     examples to train on per label each epoch.
 
 #### New Model Implementations
@@ -1766,10 +1775,10 @@ will be compatible with this and future versions. Also, we dropped support for P
 - Option to disable progress bar ([#905])
 - load() documentation improvements ([#913])
 - updated tutorials, guides, documentation ([#924], [#925], [#929], [#934], [#947], [#971])
-- track is now public ([#938])
-- {class}`~scvi.model.SCANVI` now logs classficiation loss ([#966])
+- the track is now public ([#938])
+- {class}`~scvi.model.SCANVI` now logs classification loss ([#966])
 - get_likelihood_parameter() bug ([#967])
-- model.history are now pandas DataFrames ([#949])
+- model.history is now pandas DataFrames ([#949])
 
 #### Contributors
 
@@ -1796,7 +1805,7 @@ will be compatible with this and future versions. Also, we dropped support for P
 
 ##### Online updates of {class}`~scvi.model.SCVI`, {class}`~scvi.model.SCANVI`, and {class}`~scvi.model.TOTALVI` with the scArches method <!-- markdownlint-disable -->
 
-It is now possible to iteratively update these models with new samples, without altering the model
+It is now possible to iteratively update these models with new samples without altering the model
 for the "reference" population. Here we use the
 [scArches method](https://github.com/theislab/scarches). For usage, please see the tutorial in the
 user guide.
@@ -1805,8 +1814,8 @@ To enable scArches in our models, we added a few new options. The first is `enco
 which is an `SCVI` option to encode the one-hotted batch covariate. We also allow users to exchange
 batch norm in the encoder and decoder with layer norm, which can be though of as batch norm but per
 cell. As the layer norm we use has no parameters, it's a bit faster than models with batch norm. We
-don't find many differences between using batch norm or layer norm in our models, though we have
-kept defaults the same in this case. To run scArches effectively, batch norm should be exhanged
+find few differences between using batch norm or layer norm in our models, though we have
+kept defaults the same in this case. To run scArches effectively, batch norm should be exchanged
 with layer norm.
 
 ##### Empirical initialization of protein background parameters with totalVI
@@ -1818,7 +1827,7 @@ background for the cell and those that are foreground, and aggregates the learne
 of the smaller component across cells. This computation is done per batch, if the `batch_key` was
 registered. We emphasize this is just for the initialization of a learned parameter in the model.
 
-##### Use observed library size option
+##### Use the observed library size option
 
 Many of our models like `SCVI`, `SCANVI`, and {class}`~scvi.model.TOTALVI` learn a latent library
 size variable. The option `use_observed_lib_size` may now be passed on model initialization. We
@@ -1830,8 +1839,8 @@ faster.
 - To facilitate these enhancements, saved {class}`~scvi.model.TOTALVI` models from previous
     versions will not load properly. This is due to an architecture change of the totalVI encoder,
     related to latent library size handling.
-- The default latent distribtuion for {class}`~scvi.model.TOTALVI` is now `"normal"`.
-- Autotune was removed from this release. We could not maintain the code given the new API changes
+- The default latent distribution for {class}`~scvi.model.TOTALVI` is now `"normal"`.
+- Autotune was removed from this release. We could not maintain the code given the new API changes,
     and we will soon have alternative ways to tune hyperparameters.
 - Protein names during `setup_anndata` are now stored in `adata.uns["_scvi"]["protein_names"]`,
     instead of `adata.uns["scvi_protein_names"]`.
@@ -1850,7 +1859,7 @@ This small update provides access to our new Discourse forum from the documentat
 
 ### New in 0.7.0 (2020-10-14)
 
-scvi is now scvi-tools. Version 0.7 introduces many breaking changes. The best way to learn how to
+Scvi is now scvi-tools. Version 0.7 introduces many breaking changes. The best way to learn how to
 use scvi-tools is with our documentation and tutorials.
 
 - New high-level API and data loading, please see tutorials and examples for usage.
@@ -1904,18 +1913,18 @@ package by our numerous contributors.
 #### 0.6.7 (2020-8-05)
 
 - downgrade anndata>=0.7 and scanpy>=1.4.6 [@galen]
-- make loompy optional, raise sckmisc import error [@adam]
+- make loompy optional, raise skmisc import error [@adam]
 - fix PBMCDataset download bug [@galen]
 - fix AnnDatasetFromAnnData \_X in adata.obs bug [@galen]
 
 #### 0.6.6 (2020-7-08)
 
 - add tqdm to within cluster DE genes [@adam]
-- restore tqdm to use simple bar instead of ipywidget [@adam]
-- move to numpydoc for doctstrings [@adam]
+- restore tqdm to use a simple bar instead of ipywidget [@adam]
+- move to numpydoc for docstrings [@adam]
 - update issues templates [@adam]
 - Poisson variable gene selection [@valentine-svensson]
-- BrainSmallDataset set defualt save_path_10X [@gokcen-eraslan]
+- BrainSmallDataset set default save_path_10X [@gokcen-eraslan]
 - train_size must be float between 0.0 and 1.0 [@galen]
 - bump dependency versions [@galen]
 - remove reproducibility notebook [@galen]
@@ -1935,7 +1944,7 @@ package by our numerous contributors.
 
 #### 0.6.3 (2020-4-01)
 
-- bug in version for Louvian in setup.py [@adam]
+- bug in the version for Louvain in setup.py [@adam]
 
 #### 0.6.2 (2020-4-01)
 
@@ -1962,7 +1971,7 @@ package by our numerous contributors.
 
 - do not automatically upper case genes [@adam]
 - AutoZI [@oscar]
-- Made the intro tutorial more user friendly [@adam]
+- Made the intro tutorial more user-friendly [@adam]
 - Tests for LDVAE notebook [@adam]
 - black codebase [@achille] [@gabriel] [@adam]
 - fix compatibility issues with sklearn and numba [@romain]
@@ -2041,7 +2050,7 @@ package by our numerous contributors.
 #### 0.1.2 (2018-06-13)
 
 - First release on PyPi
-- Skeleton code & dependencies [@jeff]
+- Skeleton code and dependencies [@jeff]
 - Unit tests [@max]
 - PyTorch implementation of scVI [@eddie] [@max]
 - Dataset preprocessing [@eddie] [@max] [@yining]
