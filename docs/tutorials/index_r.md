@@ -4,6 +4,7 @@
 :maxdepth: 1
 
 notebooks/r/python_in_R
+notebooks/r/api_overview_in_R
 notebooks/r/scvi_in_R
 notebooks/r/totalvi_in_R
 notebooks/r/peakvi_in_R
@@ -15,6 +16,13 @@ notebooks/r/DestVI_in_R
 :tags: Dev
 
 Perform basic Python operations in an R environment
+```
+
+```{customcard}
+:path: notebooks/quick_start/api_overview_in_R
+:tags: Analysis, Differential-comparison, Dimensionality-reduction, Removal-of-variance, Dev, Integration
+
+Go through the typical steps of an scvi-tools workflow in R
 ```
 
 ```{customcard}

@@ -607,8 +607,12 @@ class TorchMRVAE(BaseModuleClass):
         library: torch.Tensor,
         batch_index: torch.Tensor,
         label_index: torch.Tensor,
+        transform_batch: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor | dist.Distribution]:
         """Generative model."""
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         library_exp = torch.exp(library)
         px = self.px(z, batch_index, size_factor=library_exp)
         h = px.mean / library_exp
