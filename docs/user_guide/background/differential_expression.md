@@ -29,8 +29,8 @@ $B$.
 
 In the particular case of single-cell RNA-seq data, existing differential expression models often model that the mean expression level
 $\log h_{g}^C$.
-as a linear function of the cell-state and batch assignments.
-These models face two notable limitations to detect differences in expression between cell-states in large-scale scRNA-seq datasets.
+As a linear function of the cell-state and batch assignments.
+These models face two notable limitations to detecting differences in expression between cell-states in large-scale scRNA-seq datasets.
 First, such linear assumptions may not capture complex batch effects existing in such datasets accurately.
 When comparing two given states $A$
 and
@@ -42,7 +42,7 @@ Using amortization, they can leverage large amounts of data
 to better capture shared correlations between features.
 Consequently, deep generative models have appealing properties for differential expression in large-scale data.
 
-This guide has two objectives.
+This guide has two aims.
 First, it aims to provide insight as to how scVI-tools' differential expression module works for transcript expression (`scVI`), surface protein expression (`TOTALVI`), or chromatin accessibility (`PeakVI`).
 More precisely, we explain how it can:
 
@@ -101,7 +101,7 @@ In turn, a neural network $f^h_\theta$ maps this low-dimensional representation 
 A first step to characterize differences in expression consists in estimating state-specific expression levels.
 For several reasons, most `scVI-tools` models do not explicitly model discrete cell types.
 A given cell's state often is unknown in the first place, and inferred with `scvi-tools`.
-In some cases, states may also have an intricate structure that would be difficult to model.
+In some cases, states may also have an intricate structure that would be challenging to model.
 The class of models we consider here assumes that a latent variable $z$ characterizes cells' biological identity.
 A key component of our differential expression module is to aggregate the information carried by individual cells to estimate population-wide expression levels.
 The strategy to do so is as follows.
@@ -132,9 +132,9 @@ We note $h^A_f, h^B_f$ the respective expression levels in states $A, B$ obtaine
 
 ## Detecting biologically relevant features
 
-Once we have expression levels distributions for each condition, scvi-tools constructs an effect size, which will characterize expression differences.
+Once we have expression levels distributions for each condition, scvi-tools construct an effect size, which will characterize expression differences.
 When considering gene or surface protein expression, log-normalized counts are a traditional choice to characterize expression levels.
-. Consequently, the canonical effect size for feature $f$ is the log fold-change, defined as the difference between log expression between conditions,
+Consequently, the canonical effect size for feature $f$ is the log fold-change, defined as the difference between log expression between conditions.
 
 ```{math}
 :nowrap: true
@@ -148,7 +148,7 @@ When considering gene or surface protein expression, log-normalized counts are a
 
 As chromatin accessibility cannot be interpreted in the same way, we take $\beta_f = h_{f}^B- h_{f}^A$ instead.
 
-scVI-tools provides several ways to formulate the competing hypotheses from the effect sizes to detect DE features.
+scVI-tools provides several ways to formulate the competing hypotheses from the effect sizes to detect the features.
 When `mode = "vanilla"`, we consider point null hypotheses of the form $\mathcal{H}_{0f}: \beta_f = 0$.
 To avoid detecting features of little practical interest, e.g., when expression differences between conditions are significant but very subtle, we recommend users to use `mode = "change"` instead.
 In this formulation, we consider null hypotheses instead, such that
@@ -163,13 +163,13 @@ In this formulation, we consider null hypotheses instead, such that
 \end{align}
 ```
 
-Here, $\delta$ is an hyperparameter specified by `delta`.
+Here, $\delta$ is a hyperparameter specified by `delta`.
 Note that when `delta=None`, we estimate this parameter in a data-driven fashion.
 A straightforward decision consists in detecting genes for which the posterior distribution of the event $\lvert \beta_f \rvert \leq \delta$, that we denote $p_f$, is above a threshold $1 - \epsilon$.
 
 ## Providing easy-to-interpret predictions
 
-The obtained gene sets may be difficult to interpret for some users.
+The obtained gene sets may be challenging to interpret for some users.
 For this reason, we provide a data-supported way to select $\epsilon$, such that the posterior expected False Discovery Proportion (FDP) is below a significance level $\alpha$.
 To clarify how to compute the posterior expectation, we introduce two notations.
 We denote
@@ -187,7 +187,7 @@ We denote
 \end{align}
 ```
 
-the decision rule tagging $k$ features of highest $p_f$ as DE.
+The decision rule tagging $k$ features of highest $p_f$ as DE.
 We also note $d^f$ the binary random variable taking value 1 if feature $f$ is differentially expressed.
 
 The False Discovery Proportion is a random variable corresponding to the ratio of the number of false positives over the total number of predicted positives.

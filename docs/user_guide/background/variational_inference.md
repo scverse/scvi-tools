@@ -1,6 +1,6 @@
 # Variational Inference
 
-Suppose we have data $x$ that we assume are generated via latent variables $z$. In the case of a simplified {class}`scvi.model.SCVI`, the data would
+Suppose we have data $x$ that we assume is generated via latent variables $z$. In the case of a simplified {class}`scvi.model.SCVI`, the data would
 be gene expression counts and the latent variable would be the low-dimensional representation that corresponds to cellular state.
 
 For many interesting models, including all the models in this package, the posterior distribution of $z$
@@ -13,7 +13,7 @@ For many interesting models, including all the models in this package, the poste
  \end{align}
 ```
 
-is intractable because the denominator, which is defined via integral cannot be computed analytically:
+It is intractable because the denominator, which is defined via integral, cannot be computed analytically:
 
 ```{math}
 :nowrap: true
@@ -61,10 +61,10 @@ Manipulation of the last line allows us to rewrite the optimization problem as
  \end{align}
 ```
 
-where the first term is often called the "reconstruction error" and the second term as the KL divergence or "regularizer". Presenting the problem this way reveals that
-the approximate posterior should provide samples that results in high probability of the data (reconstruction) while also being "close" to the prior $p(z)$ (KL divergence).
+where the first term is often called the "reconstruction error" and the second term as the KL divergence or "regularizer." Presenting the problem this way reveals that
+the approximate posterior should provide samples that result in high probability of the data (reconstruction) while also being "close" to the prior $p(z)$ (KL divergence).
 
-## End to end learning
+## End-to-end learning
 
 So far we have an optimization problem that enables us to learn an approximation of the true posterior.
 It is often also the case that we have model parameters $\theta$, which may be unknown, such that we can write the
@@ -93,7 +93,7 @@ where the Evidence Lower Bound is the quantity we derived previously:
  \end{align}
 ```
 
-This quantity is aptly named as it lower bounds the log probability of the data, or the evidence due to the fact that the KL divergence is non-negative by definition:
+This quantity is aptly named as it lower bounds the log probability of the data, or the evidence since the KL divergence is non-negative by definition:
 
 ```{math}
 :nowrap: true

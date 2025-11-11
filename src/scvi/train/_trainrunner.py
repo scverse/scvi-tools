@@ -2,6 +2,7 @@ import gc
 import logging
 import os
 import pickle
+import traceback
 import warnings
 
 import lightning.pytorch as pl
@@ -14,6 +15,7 @@ from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
+from scvi.utils import is_package_installed, mlflow_logger
 
 logger = logging.getLogger(__name__)
 
@@ -119,13 +121,8 @@ class TrainRunner:
 
         self.trainer._model = model  # needed for savecheckpoint callback
 
-    def __call__(self):
-        """Run training."""
-        if hasattr(self.data_splitter, "n_train"):
-            self.training_plan.n_obs_training = self.data_splitter.n_train
-        if hasattr(self.data_splitter, "n_val"):
-            self.training_plan.n_obs_validation = self.data_splitter.n_val
-
+    def _run_training_core(self):
+        # training without mlflow
         try:
             self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
         except BaseException as e:
@@ -148,6 +145,59 @@ class TrainRunner:
         self.model.is_trained_ = True
         self.model.to_device(self.device)
         self.model.trainer = self.trainer
+
+        return
+
+    def __call__(self):
+        """Run training."""
+        if hasattr(self.data_splitter, "n_train"):
+            self.training_plan.n_obs_training = self.data_splitter.n_train
+        if hasattr(self.data_splitter, "n_val"):
+            self.training_plan.n_obs_validation = self.data_splitter.n_val
+
+        if settings.mlflow_set_tracking_uri != "":
+            if is_package_installed("mlflow"):
+                import mlflow
+
+                mlflow.set_tracking_uri(settings.mlflow_set_tracking_uri)
+                mlflow.set_experiment(settings.mlflow_set_experiment)
+
+                with mlflow.start_run(run_name=self.model.run_name, log_system_metrics=True):
+                    try:
+                        self._run_training_core()
+
+                        self.model.run_id = mlflow.active_run().info.run_id
+
+                        # log all relevant metrics
+                        mlflow_logger(
+                            model=self.model,
+                            trainer=self.trainer,
+                            training_plan=self.training_plan,
+                            data_splitter=self.data_splitter,
+                            run_id=self.model.run_id,
+                        )
+
+                        mlflow.set_tag("status", "success")
+
+                    except Exception as e:
+                        # Capture and log error
+                        error_msg = "".join(
+                            traceback.format_exception(type(e), e, e.__traceback__)
+                        )
+                        with open("error_log.txt", "w") as f:
+                            f.write(error_msg)
+
+                        mlflow.log_artifact("error_log.txt", artifact_path="errors")
+                        mlflow.set_tag("status", "failed")
+                        mlflow.log_param("error_type", type(e).__name__)
+                        mlflow.log_param("error_message", str(e))
+                        print(f"Error logged to MLflow: {e}")
+                        raise
+            else:
+                raise ModuleNotFoundError("Please install mlflow to use this functionality.")
+        else:
+            # training without mlflow
+            self._run_training_core()
 
     def _update_history(self):
         # only the global-zero process should touch model.history_
