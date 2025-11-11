@@ -9,19 +9,25 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add support for MuData during Ray autotune {pr}`3545`.
+
 #### Fixed
 
 - Add configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
+- Fix inference on device for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
+- Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 
 #### Changed
 
 #### Removed
 
+- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+
 ### 1.4.0 (2025-09-14)
 
 #### Added
 
-- Add support for MuData during Ray autotune {pr}`3545`.
 - Add a PyTorch implementation of {class}`scvi.external.MRVI` {pr}`3304`.
 - Add checkpointing with {class}`scvi.autotune.AutotuneExperiment` {pr}`3452`.
 - Add downstream analysis functions multi-GPU support {pr}`3443`.
@@ -35,13 +41,11 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
-- Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
 - Fix library size calculation in {class}`scvi.model.TOTALVI` {pr}`3452`.
 - Fix scArches surgery in {class}`scvi.external.SysVI` {pr}`3466`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule {pr}`3461`.
 - Fix {class}`~scvi.external.POISSONVI` differential_accessibility {pr}`3473`.
-- Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 
 #### Changed
 
@@ -51,7 +55,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Remove the support for Python 3.10, {pr}`3441`.
 - Remove the support for setup_anndata in {class}`~scvi.model.MULTIVI`, {pr}`3486`.
-- Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
 
 ## Version 1.3
 
