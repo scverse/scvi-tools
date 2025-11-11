@@ -17,7 +17,7 @@ from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi_torch._module import TorchMRVAE
 from scvi.external.mrvi_torch._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
-from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -153,9 +153,6 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def to_device(self, device):
-        pass
-
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -195,6 +192,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -252,6 +250,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         super().train(**train_kwargs)
 
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: AnnData | None = None,
@@ -428,10 +427,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     )
                 except RuntimeError as e:
                     if use_vmap:
-                        raise RuntimeError(
-                            # TODO: update error message
-                            "Out of memory. Try setting use_vmap=False."
-                        ) from e
+                        raise RuntimeError("Out of memory. Try setting use_vmap=False.") from e
                     else:
                         raise e
 
@@ -571,8 +567,8 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         l2_dists = torch.sqrt(torch.sum((first_half_z - second_half_z) ** 2, axis=2)).T
 
         return (
-            torch.mean(l2_dists, axis=1).detach().numpy(),
-            torch.var(l2_dists, axis=1).detach().numpy(),
+            torch.mean(l2_dists, axis=1).detach().cpu().numpy(),
+            torch.var(l2_dists, axis=1).detach().cpu().numpy(),
         )
 
     def _compute_distances_from_representations(
@@ -627,6 +623,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 name="sample_distances",
             )
 
+    @torch.inference_mode()
     def get_local_sample_representation(
         self,
         adata: AnnData | None = None,
@@ -668,6 +665,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_vmap=use_vmap,
         ).sample_representations
 
+    @torch.inference_mode()
     def get_local_sample_distances(
         self,
         adata: AnnData | None = None,
@@ -755,6 +753,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             mc_samples=mc_samples,
         )
 
+    @torch.inference_mode()
     def get_aggregated_posterior(
         self,
         adata: AnnData | None = None,
@@ -818,7 +817,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         qu_loc = torch.cat(qu_locs, axis=0)  # n_cells x n_latent_u
         qu_scale = torch.cat(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
-            Categorical(probs=torch.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            Categorical(probs=torch.ones(qu_loc.shape[0], device=qu_loc.device) / qu_loc.shape[0]),
             Independent(Normal(qu_loc, qu_scale), 1),
         )
 
@@ -1008,6 +1007,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         return xr.Dataset(data_vars, coords=coords)
 
+    @torch.inference_mode()
     def get_outlier_cell_sample_pairs(
         self,
         adata: AnnData | None = None,
@@ -1089,7 +1089,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             log_probs_ = np.concatenate(log_probs_, axis=0)  # (n_cells, 1)
 
-            threshs.append(np.array(log_probs_s.detach()))
+            threshs.append(np.array(log_probs_s.detach().cpu()))
             log_probs.append(np.array(log_probs_))
 
         threshs_all = np.concatenate(threshs)
@@ -1116,6 +1116,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         }
         return xr.Dataset(data_vars, coords=coords)
 
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: AnnData | None = None,
@@ -1131,7 +1132,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         store_baseline: bool = False,
         eps_lfc: float = 1e-4,
         filter_inadmissible_samples: bool = False,
-        lambd: float = 0.0,  # TODO: should it be 0?
+        lambd: float = 0.0,
         delta: float | None = 0.3,
         **filter_samples_kwargs,
     ) -> xr.Dataset:
@@ -1340,7 +1341,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
 
             chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
-            pvals = 1 - chi2_dist.cdf(ts)
+            pvals = 1 - chi2_dist.cdf(ts.detach().cpu())
 
             betas = betas * eps_std
 
@@ -1380,7 +1381,10 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     )
                     mc_samples, _, n_cells_, n_latent = betas_covariates.shape
                     betas_offset_ = (
-                        torch.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent))
+                        torch.zeros(
+                            (mc_samples, self.summary_stats.n_batch, n_cells_, n_latent),
+                            device=eps_mean_.device,
+                        )
                         + eps_mean_
                     )
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
@@ -1402,6 +1406,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 lfcs = torch.log2(x_1 + eps_lfc) - torch.log2(x_0 + eps_lfc)
                 # Compute weighted average manually: sum(weights * values) / sum(weights)
                 lfcs_mean_over_mc = lfcs.mean(1)  # (n_batch, n_covariates, n_cells, n_genes)
+                batch_weights = batch_weights.to(self.device)
                 lfc_mean = (batch_weights[:, None, None, None] * lfcs_mean_over_mc).sum(
                     0
                 ) / batch_weights.sum()
@@ -1469,9 +1474,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             except RuntimeError as e:
                 if use_vmap:
-                    raise RuntimeError(
-                        "Out of memory. Try setting use_vmap=False."
-                    ) from e  # TODO: update error msg
+                    raise RuntimeError("Out of memory. Try setting use_vmap=False.") from e
                 else:
                     raise e
 
