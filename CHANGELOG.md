@@ -9,6 +9,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add MLFlow support, {pr}`3573`.
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
     function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.

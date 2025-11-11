@@ -58,6 +58,8 @@ class ScviConfig:
         dl_persistent_workers: bool = False,
         jax_preallocate_gpu_memory: bool = False,
         warnings_stacklevel: int = 2,
+        mlflow_set_tracking_uri: str = "",
+        mlflow_set_experiment: str = "mlflow_experiment",
     ):
         self.warnings_stacklevel = warnings_stacklevel
         self.seed = seed
@@ -71,6 +73,8 @@ class ScviConfig:
         self._num_threads = None
         self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
+        self.mlflow_set_tracking_uri = mlflow_set_tracking_uri
+        self.mlflow_set_experiment = mlflow_set_experiment
 
     @property
     def batch_size(self) -> int:
@@ -153,7 +157,8 @@ class ScviConfig:
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
-            # Ensure deterministic CUDA operations for Jax (see https://github.com/google/jax/issues/13672)
+            # Ensure deterministic CUDA operations for Jax
+            # (see https://github.com/google/jax/issues/13672)
             if "XLA_FLAGS" not in os.environ:
                 os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_ops=true"
             else:
@@ -237,6 +242,26 @@ class ScviConfig:
         else:
             raise ValueError("value not understood, need bool or float in (0, 1)")
         self._jax_gpu = value
+
+    @property
+    def mlflow_set_tracking_uri(self) -> str:
+        """Setting the MLFlow tracking URI. Setting it will cause to also use it"""
+        return self._mlflow_set_tracking_uri
+
+    @mlflow_set_tracking_uri.setter
+    def mlflow_set_tracking_uri(self, mlflow_set_tracking_uri: str):
+        """Setting the MLFlow tracking URI. Setting it will cause to also use it"""
+        self._mlflow_set_tracking_uri = mlflow_set_tracking_uri
+
+    @property
+    def mlflow_set_experiment(self) -> str:
+        """Setting the MLFlow experiment name"""
+        return self._mlflow_set_experiment
+
+    @mlflow_set_experiment.setter
+    def mlflow_set_experiment(self, mlflow_set_experiment: str):
+        """Setting the MLFlow experiment name"""
+        self._mlflow_set_experiment = mlflow_set_experiment
 
 
 settings = ScviConfig()
