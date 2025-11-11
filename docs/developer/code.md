@@ -26,6 +26,7 @@ up a local development environment:
 4. Install the development dependencies and the package in editable mode into a virtual
     environment with Python 3.12 - 3.14:
 
+
     ```bash
     pip install -e ".[dev]"
     # or with uv

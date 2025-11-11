@@ -10,7 +10,7 @@ is a model for assessing gene-specific levels of zero-inflation in scRNA-seq dat
 
 ## Generative process
 
-AUTOZI is very similar to scVI but employs a spike-and-slab prior for the zero-inflation mixture assignment for each gene.
+AUTOZI is very similar to scVI but employs a spike-and-slab prior to the zero-inflation mixture assignment for each gene.
 Whether the zero-inflation rate ($\pi_{ng}$ in the original scVI model) is sampled from a set of
 non-negligible values (the "slab" component) or the set of negligible values (the "spike" component) is defined by
 $m_g \sim Bernoulli(\delta_g)$ where $\delta_g \sim Beta(\alpha, \beta)$.
@@ -34,14 +34,14 @@ The full generative model is as follows:
 
 Where $w^g$ and $h^g$ are neural networks taking in $z_n$ and outputting
 the dropout rate and library size frequency respectively. The priors $l_u$ and
-$l_{\sigma^2}$ are the empircal mean and variance of the log library size per batch
+$l_{\sigma^2}$ are the empirical mean and variance of the log library size per batch,
 respectively. The priors for $\delta_g$ are $\alpha^g$ and $\beta^g$ which
 by default are both set to 0.5 to enforce sparsity while maintaining symmetry. Finally,
 $\delta_{\{x\}}$ denotes the Dirac distribution on $x$.
 
 ## Inference Procedure
 
-To learn the parameters, we employ variational inference (see {doc}`/user_guide/background/variational_inference`) with the following approximate posterior
+To learn the parameters, we use variational inference (see {doc}`/user_guide/background/variational_inference`) with the following approximate posterior
 distribution:
 
 ```{math}
@@ -63,7 +63,7 @@ we call:
 >>> beta_posterior = outputs['beta_posterior']
 ```
 
-Then Bayesian decision theory suggests the posterior probability of of zero-inflation
+Then Bayesian decision theory suggests the posterior probability of zero-inflation
 is $q(\delta_g < 0.5)$.
 
 ```

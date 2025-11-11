@@ -5,6 +5,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
+import pandas as pd
 import torch
 import xarray as xr
 from torch.distributions import Independent
@@ -13,11 +14,21 @@ from tqdm import tqdm
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
 from scvi.data._utils import _validate_adata_dataloader_input
+from scvi.distributions._utils import DistributionConcatenator
 from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi_torch._module import TorchMRVAE
 from scvi.external.mrvi_torch._utils import rowwise_max_excluding_diagonal
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
-from scvi.utils import setup_anndata_dsp
+from scvi.model._utils import _get_batch_code_from_category
+from scvi.model.base import (
+    ArchesMixin,
+    BaseMinifiedModeModelClass,
+    EmbeddingMixin,
+    RNASeqMixin,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
+from scvi.utils import setup_anndata_dsp, track
+from scvi.utils._docstrings import de_dsp, devices_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -27,6 +38,8 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from torch import Tensor
     from torch.distributions import Distribution
+
+    from scvi._types import Number
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +61,14 @@ DEFAULT_TRAIN_KWARGS = {
 }
 
 
-class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class TorchMRVI(
+    EmbeddingMixin,
+    RNASeqMixin,
+    VAEMixin,
+    ArchesMixin,
+    UnsupervisedTrainingMixin,
+    BaseMinifiedModeModelClass,
+):
     """Multi-resolution Variational Inference (MrVI) :cite:p:`Boyeau24`.
 
     Parameters
@@ -153,9 +173,6 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         self.init_params_ = self._get_init_params(locals())
 
-    def to_device(self, device):
-        pass
-
     @classmethod
     @setup_anndata_dsp.dedent
     def setup_anndata(
@@ -195,6 +212,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -252,6 +270,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         super().train(**train_kwargs)
 
+    @torch.inference_mode()
     def get_latent_representation(
         self,
         adata: AnnData | None = None,
@@ -428,10 +447,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     )
                 except RuntimeError as e:
                     if use_vmap:
-                        raise RuntimeError(
-                            # TODO: update error message
-                            "Out of memory. Try setting use_vmap=False."
-                        ) from e
+                        raise RuntimeError("Out of memory. Try setting use_vmap=False.") from e
                     else:
                         raise e
 
@@ -571,8 +587,8 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         l2_dists = torch.sqrt(torch.sum((first_half_z - second_half_z) ** 2, axis=2)).T
 
         return (
-            torch.mean(l2_dists, axis=1).detach().numpy(),
-            torch.var(l2_dists, axis=1).detach().numpy(),
+            torch.mean(l2_dists, axis=1).detach().cpu().numpy(),
+            torch.var(l2_dists, axis=1).detach().cpu().numpy(),
         )
 
     def _compute_distances_from_representations(
@@ -627,6 +643,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 name="sample_distances",
             )
 
+    @torch.inference_mode()
     def get_local_sample_representation(
         self,
         adata: AnnData | None = None,
@@ -668,6 +685,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             use_vmap=use_vmap,
         ).sample_representations
 
+    @torch.inference_mode()
     def get_local_sample_distances(
         self,
         adata: AnnData | None = None,
@@ -755,6 +773,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             mc_samples=mc_samples,
         )
 
+    @torch.inference_mode()
     def get_aggregated_posterior(
         self,
         adata: AnnData | None = None,
@@ -818,7 +837,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         qu_loc = torch.cat(qu_locs, axis=0)  # n_cells x n_latent_u
         qu_scale = torch.cat(qu_scales, axis=0)  # n_cells x n_latent_u
         return MixtureSameFamily(
-            Categorical(probs=torch.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
+            Categorical(probs=torch.ones(qu_loc.shape[0], device=qu_loc.device) / qu_loc.shape[0]),
             Independent(Normal(qu_loc, qu_scale), 1),
         )
 
@@ -1008,6 +1027,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             )
         return xr.Dataset(data_vars, coords=coords)
 
+    @torch.inference_mode()
     def get_outlier_cell_sample_pairs(
         self,
         adata: AnnData | None = None,
@@ -1089,7 +1109,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
             log_probs_ = np.concatenate(log_probs_, axis=0)  # (n_cells, 1)
 
-            threshs.append(np.array(log_probs_s.detach()))
+            threshs.append(np.array(log_probs_s.detach().cpu()))
             log_probs.append(np.array(log_probs_))
 
         threshs_all = np.concatenate(threshs)
@@ -1116,6 +1136,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         }
         return xr.Dataset(data_vars, coords=coords)
 
+    @de_dsp.dedent
     def differential_expression(
         self,
         adata: AnnData | None = None,
@@ -1131,7 +1152,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         store_baseline: bool = False,
         eps_lfc: float = 1e-4,
         filter_inadmissible_samples: bool = False,
-        lambd: float = 0.0,  # TODO: should it be 0?
+        lambd: float = 0.0,
         delta: float | None = 0.3,
         **filter_samples_kwargs,
     ) -> xr.Dataset:
@@ -1340,7 +1361,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
 
             chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
-            pvals = 1 - chi2_dist.cdf(ts)
+            pvals = 1 - chi2_dist.cdf(ts.detach().cpu())
 
             betas = betas * eps_std
 
@@ -1380,7 +1401,10 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                     )
                     mc_samples, _, n_cells_, n_latent = betas_covariates.shape
                     betas_offset_ = (
-                        torch.zeros((mc_samples, self.summary_stats.n_batch, n_cells_, n_latent))
+                        torch.zeros(
+                            (mc_samples, self.summary_stats.n_batch, n_cells_, n_latent),
+                            device=eps_mean_.device,
+                        )
                         + eps_mean_
                     )
                 # batch_offset shape (mc_samples, n_batch, n_cells, n_latent)
@@ -1402,6 +1426,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 lfcs = torch.log2(x_1 + eps_lfc) - torch.log2(x_0 + eps_lfc)
                 # Compute weighted average manually: sum(weights * values) / sum(weights)
                 lfcs_mean_over_mc = lfcs.mean(1)  # (n_batch, n_covariates, n_cells, n_genes)
+                batch_weights = batch_weights.to(self.device)
                 lfc_mean = (batch_weights[:, None, None, None] * lfcs_mean_over_mc).sum(
                     0
                 ) / batch_weights.sum()
@@ -1469,9 +1494,7 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 )
             except RuntimeError as e:
                 if use_vmap:
-                    raise RuntimeError(
-                        "Out of memory. Try setting use_vmap=False."
-                    ) from e  # TODO: update error msg
+                    raise RuntimeError("Out of memory. Try setting use_vmap=False.") from e
                 else:
                     raise e
 
@@ -1667,8 +1690,8 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         --------
         >>> import scanpy as sc
         >>> from scvi.external import MRVI
-        >>> MRVI.setup_anndata(adata, sample_key="sample_id")
-        >>> model = MRVI(adata)
+        >>> MRVI.setup_anndata(adata, sample_key="sample_id", backend="torch")
+        >>> model = MRVI(adata, backend="torch")
         >>> model.train()
         >>> # Update sample info with new covariates
         >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}
@@ -1679,3 +1702,209 @@ class TorchMRVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         obs_df = adata.obs.copy()
         obs_df = obs_df.loc[~obs_df._scvi_sample.duplicated("first")]
         self.sample_info = obs_df.set_index("_scvi_sample").sort_index()
+
+    @torch.inference_mode()
+    def get_normalized_expression(
+        self,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
+        transform_batch: list[Number | str] | None = None,
+        gene_list: list[str] | None = None,
+        library_size: float | Literal["latent"] = "latent",
+        n_samples: int = 1,
+        n_samples_overall: int = None,
+        weights: Literal["uniform", "importance"] | None = None,
+        batch_size: int | None = None,
+        return_mean: bool = False,
+        return_numpy: bool | None = None,
+        silent: bool = True,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+        data_loader_kwargs: dict | None = None,
+        **importance_weighting_kwargs,
+    ) -> np.ndarray | pd.DataFrame:
+        r"""Returns the normalized (decoded) gene expression.
+
+        This is denoted as :math:`\rho_n` in the scVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Batch to condition on.
+            If transform_batch is:
+            - None, then real observed batch is used.
+            - int, then batch transform_batch is used.
+            - Otherwise based on string
+        gene_list
+            Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        library_size
+            Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude. If set to `"latent"`, use the latent library size.
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            Number of posterior samples to use for estimation. Overrides `n_samples`.
+        weights
+            Weights to use for sampling. If `None`, defaults to `"uniform"`.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+            to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
+        dataloader
+            An iterator over minibatches of data on which to compute the metric. The minibatches
+            should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
+            the model. If ``None``, a dataloader is created from ``adata``.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
+        importance_weighting_kwargs
+            Keyword arguments passed into
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
+
+        Returns
+        -------
+        If `n_samples` is provided and `return_mean` is False,
+        this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
+        If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
+        of shape (n_cells, n_genes).
+        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
+        of shape (n_samples_overall, n_genes).
+        """
+        _validate_adata_dataloader_input(self, adata, dataloader)
+
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+
+            if indices is None:
+                indices = np.arange(adata.n_obs)
+            if n_samples_overall is not None:
+                assert n_samples == 1  # default value
+                n_samples = n_samples_overall // len(indices) + 1
+            data_loader_kwargs = data_loader_kwargs or {}
+            scdl = self._make_data_loader(
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
+            )
+
+            transform_batch = _get_batch_code_from_category(
+                self.get_anndata_manager(adata, required=True), transform_batch
+            )
+
+            gene_mask = slice(None) if gene_list is None else adata.var_names.isin(gene_list)
+
+        else:
+            scdl = dataloader
+            for param in [indices, batch_size, n_samples]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
+            gene_mask = slice(None)
+            transform_batch = [None]
+
+        if n_samples > 1 and return_mean is False:
+            if return_numpy is False:
+                warnings.warn(
+                    "`return_numpy` must be `True` if `n_samples > 1` and `return_mean` "
+                    "is`False`, returning an `np.ndarray`.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            return_numpy = True
+        if library_size == "latent":
+            generative_output_key = "mu"
+            scaling = 1
+        else:
+            generative_output_key = "scale"
+            scaling = library_size
+
+        store_distributions = weights == "importance"
+        if store_distributions and len(transform_batch) > 1:
+            raise NotImplementedError(
+                "Importance weights cannot be computed when expression levels are averaged across "
+                "batches."
+            )
+
+        exprs = []
+        zs = []
+        qz_store = DistributionConcatenator()
+        px_store = DistributionConcatenator()
+        for tensors in scdl:
+            per_batch_exprs = []
+            for batch in track(transform_batch, disable=silent):
+                generative_kwargs = self._get_transform_batch_gen_kwargs(batch)
+                inference_kwargs = {"use_mean": return_mean, "mc_samples": n_samples}
+                inference_outputs, generative_outputs = self.module.forward(
+                    tensors=tensors,
+                    inference_kwargs=inference_kwargs,
+                    generative_kwargs=generative_kwargs,
+                    compute_loss=False,
+                )
+                px_generative = generative_outputs["px"]
+                if isinstance(px_generative, torch.Tensor):
+                    exp_ = px_generative
+                else:
+                    exp_ = px_generative.get_normalized(generative_output_key)
+                    if n_samples == 1:
+                        exp_ = exp_[0]
+                exp_ = exp_[..., gene_mask]
+                exp_ *= scaling
+                per_batch_exprs.append(exp_[None].cpu())
+                if store_distributions:
+                    qz_store.store_distribution(inference_outputs["qz"])
+                    px_store.store_distribution(generative_outputs["px"])
+                ioz_ = inference_outputs["z"].cpu()
+                if n_samples == 1:
+                    ioz_ = ioz_[0]
+
+            zs.append(ioz_)
+            per_batch_exprs = torch.cat(per_batch_exprs, dim=0).mean(0).numpy()
+            exprs.append(per_batch_exprs)
+
+        cell_axis = 1 if n_samples > 1 else 0
+        exprs = np.concatenate(exprs, axis=cell_axis)
+        zs = torch.concat(zs, dim=cell_axis)
+
+        if n_samples_overall is not None:
+            # Converts the 3d tensor to a 2d tensor
+            exprs = exprs.reshape(-1, exprs.shape[-1])
+            n_samples_ = exprs.shape[0]
+            if (weights is None) or weights == "uniform":
+                p = None
+            else:
+                qz = qz_store.get_concatenated_distributions(axis=0)
+                x_axis = 0 if n_samples == 1 else 1
+                px = px_store.get_concatenated_distributions(axis=x_axis)
+                p = self.get_importance_weights(
+                    adata,
+                    indices,
+                    qz=qz,
+                    px=px,
+                    zs=zs,
+                    **importance_weighting_kwargs,
+                )
+            ind_ = np.random.choice(n_samples_, n_samples_overall, p=p, replace=True)
+            exprs = exprs[ind_]
+        elif n_samples > 1 and return_mean:
+            exprs = exprs.mean(0)
+
+        if (return_numpy is None or return_numpy is False) and dataloader is None:
+            return pd.DataFrame(
+                exprs,
+                columns=adata.var_names[gene_mask],
+                index=adata.obs_names[indices],
+            )
+        else:
+            return exprs
