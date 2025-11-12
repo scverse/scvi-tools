@@ -260,7 +260,7 @@ def test_sysvi_warnings():
     )
     model = SysVI(adata=adata, prior="standard_normal")
 
-    # Assert that warning is printed if kl warmup is used
+    # Assert that a warning is printed if kl warmup is used
     # Step warmup
     with pytest.warns(Warning, match="The use of KL weight warmup") as record:
         model.train(
@@ -284,7 +284,7 @@ def test_sysvi_warnings():
         for rec in record
     )
 
-    # Asert that sampling is disabled
+    # Assert that sampling is disabled
     with pytest.raises(NotImplementedError):
         model.module.sample()
 

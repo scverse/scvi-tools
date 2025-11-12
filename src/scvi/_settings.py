@@ -38,7 +38,7 @@ class ScviConfig:
     >>> import logging
     >>> scvi.settings.verbosity = logging.INFO
 
-    To set the number of threads PyTorch will use
+    To set the number of threads, PyTorch will use
 
     >>> scvi.settings.num_threads = 2
 
@@ -173,9 +173,9 @@ class ScviConfig:
 
     @verbosity.setter
     def verbosity(self, level: str | int):
-        """Sets logging configuration for scvi based on chosen level of verbosity.
+        """Sets logging configuration for scvi based on the chosen level of verbosity.
 
-        If "scvi" logger has no StreamHandler, add one.
+        If the "scvi" logger has no StreamHandler, add one.
         Else, set its level to `level`.
 
         Parameters
@@ -223,7 +223,7 @@ class ScviConfig:
     def jax_preallocate_gpu_memory(self):
         """Jax GPU memory allocation settings.
 
-        If False, Jax will ony preallocate GPU memory it needs.
+        If False, Jax will only preallocate GPU memory it needs.
         If float in (0, 1), Jax will preallocate GPU memory to that
         fraction of the GPU memory.
         """

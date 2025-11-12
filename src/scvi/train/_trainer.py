@@ -76,10 +76,10 @@ class Trainer(pl.Trainer):
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
-        How often to refresh progress bar (in steps). Value 0 disables progress bar.
+        How often to refresh the progress bar (in steps). Value 0 disables the progress bar.
     simple_progress_bar
         Use custom scvi-tools simple progress bar (per epoch rather than per batch).
-        When `False`, uses default PyTorch Lightning progress bar, unless `enable_progress_bar`
+        When `False`, uses the default PyTorch Lightning progress bar, unless `enable_progress_bar`
         is `False`.
     logger
         A valid pytorch lightning logger. Defaults to a simple dictionary logger.
@@ -130,7 +130,7 @@ class Trainer(pl.Trainer):
         save_log_on_disk = True if log_save_dir else False
         if use_distributed_sampler(kwargs.get("strategy", None)):
             warnings.warn(
-                "early_stopping was automaticaly disabled due to the use of DDP",
+                "early_stopping was automatically disabled due to the use of DDP",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -152,7 +152,7 @@ class Trainer(pl.Trainer):
             callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
             check_val_every_n_epoch = 1
         elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
-            # check if user provided already provided the callback
+            # check if the user provided already provided the callback
             enable_checkpointing = True
             check_val_every_n_epoch = 1
 

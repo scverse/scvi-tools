@@ -66,7 +66,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Activation layer to use for px_scale_decoder
     sparsity
         The sparsity of expected native signals. It varies between datasets,
-        e.g. if one prefilters genes -- use only highly variable genes --
+        e.g., if one prefilters genes -- using only highly variable genes --
         the sparsity should be low; on the other hand, it should be set high
         in the case of unflitered genes.
     **model_kwargs
@@ -203,15 +203,15 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             A raw adata object, loaded from raw_feature_bc_matrix using :func:`~scanpy.read`.
         prob
             The probability of each gene, considered as containing ambient RNA if greater than prob
-            (joint prob euqals to the product of all genes for a droplet), by default 0.995.
+            (joint prob equals to the product of all genes for a droplet), by default 0.995.
         min_raw_counts
             Total counts filter for raw_adata, filtering out low counts to save memory, by default
             2.
         iterations
             Total iterations, by default 3.
         n_batch
-            Total number of batches, set it to a bigger number when out of memory issue occurs, by
-            default 1.
+            Total number of batches, set it to a bigger number when the out-of-memory issue occurs,
+            by default 1.
         sample
             Randomly sample droplets to test, if greater than total droplets, use all droplets, by
             default 50000.
@@ -230,11 +230,11 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         )
         raw_adata = raw_adata[idx]
         print(f"Randomly sampling {sample} droplets to calculate the ambient profile.")
-        # initial estimation of ambient profile, will be updated
+        # initial estimation of ambient profile will be updated
         ambient_prof = raw_adata.X.sum(axis=0) / raw_adata.X.sum()
 
         for _ in track(range(iterations)):
-            # calculate joint probability (log) of being cell-free droplets for each droplet
+            # calculate the joint probability (log) of being cell-free droplets for each droplet
             log_prob = []
             batch_idx = np.floor(
                 np.array(range(raw_adata.shape[0])) / raw_adata.shape[0] * n_batch
@@ -287,7 +287,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_samples
             Number of samples for each cell.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
 
         Returns
         -------

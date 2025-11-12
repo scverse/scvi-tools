@@ -78,7 +78,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"ln"``: logistic normal with normal params N(0, 1).
     encode_covariates
         If ``True``, covariates are concatenated to gene expression prior to passing through
-        the encoder(s). Else, only gene expression is used.
+        the encoder(s). Else, only the gene expression is used.
     deeply_inject_covariates
         If ``True`` and ``n_layers > 1``, covariates are concatenated to the outputs of hidden
         layers in the encoder(s) (if ``encoder_covariates`` is ``True``) and the decoder prior to
@@ -756,7 +756,7 @@ class LDVAE(VAE):
     to gene expression levels. It still uses a deep neural network to encode
     the latent representation.
 
-    Compared to standard VAE, this model is less powerful, but can be used to
+    Compared to standard VAE, this model is less powerful but can be used to
     inspect which genes contribute to variation in the dataset. It may also be used
     for all scVI tasks, like differential expression, batch correction, imputation, etc.
     However, batch correction may be less powerful as it assumes a linear model.
@@ -875,7 +875,7 @@ class LDVAE(VAE):
     @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Extract per-gene weights in the linear decoder."""
-        # This is BW, where B is diag(b) batch norm, W is weight matrix
+        # This is BW, where B is diag(b) batch norm, W is the weight matrix
         if self.use_batch_norm is True:
             w = self.decoder.factor_regressor.fc_layers[0][0].weight
             bn = self.decoder.factor_regressor.fc_layers[0][1]
