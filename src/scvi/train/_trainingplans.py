@@ -1815,3 +1815,211 @@ if is_package_installed("jax") and is_package_installed("optax"):
 
         def forward(self, *args, **kwargs):
             pass
+
+
+if is_package_installed("mlx"):
+    import logging
+
+    import mlx.core as mx
+    import mlx.nn as nn
+    import mlx.optimizers as optim
+
+    logger = logging.getLogger(__name__)
+
+    class MlxTrainingPlan:
+        """Training plan for MLX modules.
+
+        This training plan handles the optimization process for MLX models,
+        including forward passes, loss computation, and parameter updates.
+
+        Parameters
+        ----------
+        module
+            MLX module instance.
+        lr
+            Learning rate.
+        weight_decay
+            Weight decay coefficient.
+        n_epochs_kl_warmup
+            Number of epochs over which to scale KL weight from min_kl_weight to max_kl_weight.
+        n_steps_kl_warmup
+            Number of steps over which to scale KL weight from min_kl_weight to max_kl_weight.
+        max_kl_weight
+            Maximum scaling factor for KL divergence during training.
+        min_kl_weight
+            Minimum scaling factor for KL divergence during training.
+        **loss_kwargs
+            Additional keyword arguments passed to the model's loss method.
+        """
+
+        def __init__(
+            self,
+            module,
+            lr: float = 1e-3,
+            weight_decay: float = 1e-6,
+            n_epochs_kl_warmup: int | None = 400,
+            n_steps_kl_warmup: int | None = None,
+            max_kl_weight: float = 1.0,
+            min_kl_weight: float = 0.0,
+            **loss_kwargs,
+        ):
+            self.module = module
+            self.lr = lr
+            self.weight_decay = weight_decay
+            self.n_epochs_kl_warmup = n_epochs_kl_warmup
+            self.n_steps_kl_warmup = n_steps_kl_warmup
+            self.loss_kwargs = loss_kwargs
+            self.max_kl_weight = max_kl_weight
+            self.min_kl_weight = min_kl_weight
+
+            # Initialize step and epoch counters
+            self.current_step = 0
+            self.current_epoch = 0
+
+            # Create MLX optimizer (AdamW includes weight decay)
+            self.optimizer = optim.AdamW(
+                learning_rate=self.lr,
+                weight_decay=self.weight_decay,
+                eps=1e-8,
+                betas=[0.9, 0.999],
+                bias_correction=True,
+            )
+
+        def _set_module_training(self, is_training):
+            """Set the training state of the module.
+
+            Used when standard train() and eval() methods are not available.
+
+            Parameters
+            ----------
+            is_training : bool
+                Whether the module is in training mode.
+            """
+            # Try different possible attributes to be compatible
+            # with different module implementations
+            if callable(self.module._is_training):
+                self.module._is_training = is_training
+            elif hasattr(self.module, "_training"):
+                self.module._training = is_training
+            else:
+                logger.warning(
+                    "Unable to set module training state, may affect training performance"
+                )
+
+        def get_kl_weight(self) -> float:
+            """Compute the KL weight for the current step or epoch.
+
+            Returns
+            -------
+            float
+                Current KL weight value.
+            """
+            if self.n_steps_kl_warmup is not None:
+                kl_weight = min(
+                    self.max_kl_weight,
+                    self.min_kl_weight
+                    + (self.max_kl_weight - self.min_kl_weight)
+                    * (self.current_step / max(1, self.n_steps_kl_warmup)),
+                )
+            elif self.n_epochs_kl_warmup is not None:
+                kl_weight = min(
+                    self.max_kl_weight,
+                    self.min_kl_weight
+                    + (self.max_kl_weight - self.min_kl_weight)
+                    * (self.current_epoch / max(1, self.n_epochs_kl_warmup)),
+                )
+            else:
+                kl_weight = self.max_kl_weight
+
+            return kl_weight
+
+        def train_step(self, batch_dict):
+            """Execute a single training step.
+
+            Parameters
+            ----------
+            batch_dict
+                Dictionary containing batch data.
+
+            Returns
+            -------
+            dict
+                Dictionary containing loss values.
+            """
+            # Set module to training mode
+            if hasattr(self.module, "train"):
+                self.module.train(True)
+            else:
+                self._set_module_training(True)
+
+            # Convert batch data to MLX arrays
+            mlx_batch = {
+                k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
+            }
+
+            # Compute KL weight
+            kl_weight = self.get_kl_weight()
+
+            try:
+                # Define loss function - using MLX style
+                def loss_fn(model, tensors, kl_weight):
+                    _, _, loss_output = model(tensors, kl_weight=kl_weight)
+                    return loss_output.loss
+
+                # Compute loss and gradients using mlx.nn.value_and_grad
+                loss_and_grad_fn = nn.value_and_grad(self.module, loss_fn)
+                # Fixed call method, explicitly pass self.module
+                loss, grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
+
+                # Update module parameters directly using optimizer
+                self.optimizer.update(self.module, grads)
+
+                # Force evaluation of parameters and optimizer state
+                mx.eval(self.module.parameters(), self.optimizer.state)
+
+                return {"loss": float(loss)}
+            except Exception as e:
+                logger.error(f"Error in training step: {str(e)}")
+                raise
+
+        def validate_step(self, batch_dict):
+            """Execute a validation step.
+
+            Parameters
+            ----------
+            batch_dict
+                Dictionary containing batch data.
+
+            Returns
+            -------
+            dict
+                Dictionary containing validation loss values.
+            """
+            # Set module to evaluation mode
+            if hasattr(self.module, "eval"):
+                self.module.eval()
+            else:
+                self._set_module_training(False)
+
+            # Convert batch data to MLX arrays
+            mlx_batch = {
+                k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
+            }
+
+            # Compute KL weight (same as during training for consistency)
+            kl_weight = self.get_kl_weight()
+
+            try:
+                # Forward pass
+                if callable(self.module):
+                    _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
+                    return {"validation_loss": float(loss_output.loss)}
+                else:
+                    # Compatibility mode
+                    logger.warning(
+                        "Module does not have standard __call__ method, using compatibility mode"
+                    )
+                    return {"validation_loss": 0.0}
+            except Exception as e:
+                logger.error(f"Error in validation step: {str(e)}")
+                raise

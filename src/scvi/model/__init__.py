@@ -46,4 +46,15 @@ def __getattr__(name: str):
         from ._jaxscvi import JaxSCVI as _JaxSCVI
 
         return _JaxSCVI
+    if name == "mlxSCVI":
+        warnings.warn(
+            "In order to use the MLX version of SCVI make sure to install scvi-tools[mlx]",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+        error_on_missing_dependencies("mlx")
+        from ._mlxscvi import mlxSCVI as _mlxSCVI
+
+        return _mlxSCVI
     raise AttributeError(f"module {__name__!r} has no attribute {name}")
