@@ -57,7 +57,7 @@ class TrainRunner:
 
     Examples
     --------
-    >>> # Following code should be within a subclass of BaseModelClass
+    >>> # The following code should be within a subclass of BaseModelClass
     >>> data_splitter = DataSplitter(self.adata)
     >>> training_plan = TrainingPlan(self.module, len(data_splitter.train_idx))
     >>> runner = TrainRunner(
@@ -104,7 +104,7 @@ class TrainRunner:
             **trainer_kwargs,
         )
 
-        # Sanity checks for usage of early Stopping"
+        # Sanity checks for usage of early Stopping
         if self.trainer.early_stopping_callback is not None:
             if type(data_splitter).__name__ == "DataSplitter":
                 # for other data splitter need to think on something else...
@@ -112,14 +112,14 @@ class TrainRunner:
                     "valid" in self.trainer.early_stopping_callback.monitor
                 ):
                     raise ValueError(
-                        "Cant run Early Stopping with validation monitor with no validation set"
+                        "Can't run Early Stopping with validation monitor with no validation set"
                     )
                 if (model.adata.n_obs - data_splitter.n_train - data_splitter.n_val) and (
                     "test" in self.trainer.early_stopping_callback.monitor
                 ):
-                    raise ValueError("Cant run Early Stopping with test monitor with no test set")
+                    raise ValueError("Can't run Early Stopping with test monitor with no test set")
 
-        self.trainer._model = model  # needed for savecheckpoint callback
+        self.trainer._model = model  # needed to savecheckpoint callback
 
     def _run_training_core(self):
         # training without mlflow
@@ -205,7 +205,7 @@ class TrainRunner:
             return
 
         # model is being further trained
-        # this was set to true during first training session
+        # this was set to true during the first training session
         if self.model.is_trained_ is True:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):

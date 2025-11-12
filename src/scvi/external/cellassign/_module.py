@@ -32,7 +32,7 @@ class CellAssignModule(VAE):
         initialized `b_g_0`.
     random_b_g_0
         Override to enforce randomly initialized `b_g_0`. If `True`, use
-        random default, if `False` defaults to `b_g_0`.
+        random default if `False` defaults to `b_g_0`.
     n_batch
         Number of batches, if 0, no batch correction is performed.
     n_cats_per_cov
@@ -76,7 +76,7 @@ class CellAssignModule(VAE):
         # compute theta
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
 
-        # compute delta (cell type specific overexpression parameter)
+        # compute delta (cell-type-specific overexpression parameter)
         # will be clamped by callback during training
         self.delta_log = torch.nn.Parameter(
             torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2)
@@ -158,7 +158,7 @@ class CellAssignModule(VAE):
             n_cells, self.n_genes, self.n_labels
         )  # (n, g, c)
 
-        # compute beta (covariate coefficent)
+        # compute beta (covariate coefficient)
         # design_matrix has shape (n,p)
         if design_matrix is not None:
             covariates = torch.einsum("np,gp->gn", design_matrix.float(), self.beta)  # (g, n)
@@ -234,7 +234,7 @@ class CellAssignModule(VAE):
         # take mean of number of cells and multiply by n_obs (instead of summing n)
         q_per_cell = torch.sum(gamma * -p_x_c, 1)
 
-        # third term is log prob of prior terms in Q
+        # the third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit, dim=-1)
         theta_log_prior = Dirichlet(self.dirichlet_concentration)
         theta_log_prob = -theta_log_prior.log_prob(torch.exp(theta_log) + THETA_LOWER_BOUND)

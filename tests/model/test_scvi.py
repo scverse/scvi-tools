@@ -208,7 +208,7 @@ def test_scvi(gene_likelihood: str, n_latent: int):
     )
     assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
-    # Test without observed lib size.
+    # Test without an observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -575,7 +575,7 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    # Handle edge case where registry_key != obs_key.
+    # Handle the edge case where registry_key != obs_key.
     adata.obs.rename(columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True)
     adata2 = adata.copy()
 
@@ -799,7 +799,7 @@ def test_scarches_data_prep(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -846,7 +846,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model3 = SCVI(adata3, n_latent=n_latent)
     # model3.train(1, check_val_every_n_epoch=1)
 
-    # try the opposite - with a the categ covariate - raise the error
+    # try the opposite - with the categ covariate - raise the error
     # adata4 has more genes and a perfect subset of adata1
     adata4 = synthetic_iid(n_genes=110)
     adata4.obs["batch"] = adata4.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -899,7 +899,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model8 = SCVI(adata8, n_latent=n_latent)
     # model8.train(1, check_val_every_n_epoch=1)
 
-    # try also additional categ cov - it  works
+    # try also additional categ cov - it works
     adata9 = synthetic_iid(n_genes=110)
     adata9.obs["batch"] = adata9.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata9.obs["cont1"] = np.random.normal(size=(adata9.shape[0],))
@@ -945,7 +945,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model10.get_latent_representation()
     model10.get_elbo()
 
-    # try also runing with less categories than needed
+    # try also running with fewer categories than needed
     num_categ = 4
     adata11 = synthetic_iid(n_genes=110)
     adata11.obs["batch"] = adata11.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -968,7 +968,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model11.get_latent_representation()
     model11.get_elbo()
 
-    # try also runing with more categories than needed
+    # try also running with more categories than needed
     num_categ = 6
     adata12 = synthetic_iid(n_genes=110)
     adata12.obs["batch"] = adata12.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -1010,7 +1010,7 @@ def test_scarches_data_prep_layer(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -1114,7 +1114,7 @@ def test_scvi_online_update(save_path):
     model3.train(max_epochs=1)
     model3.get_latent_representation()
     assert model3.module.z_encoder.encoder.fc_layers[0][1].momentum == 0
-    # batch norm weight in encoder layer
+    # batch norm weight in the encoder layer
     assert model3.module.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     single_pass_for_online_update(model3)
     grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
@@ -1406,7 +1406,7 @@ def test_scvi_mlflow(
     scvi.settings.mlflow_set_tracking_uri = "http://132.77.80.162:5000"  # For WIS internal
     scvi.settings.mlflow_set_experiment = "scvi_benchmarking"
 
-    # Have several experimetns to be able to compare them by datatime and ID
+    # Have several experiments to be able to compare them by datatime and ID
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_name = f"scvi_model_hca_subsampled_run_{timestamp}"
 
@@ -1592,7 +1592,7 @@ def test_scvi_mlflow(
     bm.plot_results_table(min_max_scale=False, show=False, save_dir=save_path)
     mlflow_log_artifact(os.path.join(save_path, "scib_results.svg"), run_id=model.run_id)
 
-    # CRITISICM
+    # CRITICISM
     from scvi.criticism import create_criticism_report
 
     if sp.issparse(model.adata.layers["counts"]):

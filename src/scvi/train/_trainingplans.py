@@ -39,7 +39,7 @@ def _compute_kl_weight(
 ) -> float | torch.Tensor:
     """Computes the kl weight for the current step or epoch.
 
-    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None `max_kl_weight` is returned.
+    If both `n_epochs_kl_warmup` and `n_steps_kl_warmup` are None, `max_kl_weight` is returned.
 
     Parameters
     ----------
@@ -80,7 +80,7 @@ class TrainingPlan(pl.LightningModule):
     with a scvi-tools module object. It configures the optimizers, defines
     the training step and validation step, and computes metrics to be recorded
     during training. The training step and validation step are functions that
-    take data, run it through the model and return the loss, which will then
+    take data, run it through the model, and return the loss, which will then
     be used to optimize the model parameters in the Trainer. Overall, custom
     training plans can be used to develop complex inference schemes on top of
     modules.
@@ -100,7 +100,7 @@ class TrainingPlan(pl.LightningModule):
         A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
         This allows using any PyTorch optimizer with custom hyperparameters.
     lr
-        Learning rate used for optimization, when `optimizer_creator` is None.
+        Learning rate used for optimization when `optimizer_creator` is None.
     weight_decay
         Weight decay used in optimization, when `optimizer_creator` is None.
     eps
@@ -116,9 +116,9 @@ class TrainingPlan(pl.LightningModule):
         Whether to monitor validation loss and reduce learning rate when validation set
         `lr_scheduler_metric` plateaus.
     lr_factor
-        Factor to reduce learning rate.
+        Factor to reduce the learning rate.
     lr_patience
-        Number of epochs with no improvement after which learning rate will be reduced.
+        Number of epochs with no improvement after which the learning rate will be reduced.
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
@@ -198,7 +198,7 @@ class TrainingPlan(pl.LightningModule):
         self._n_obs_training = None
         self._n_obs_validation = None
 
-        # Whether to compile module first
+        # Whether to compile the module first
         if compile:
             if compile_kwargs is None:
                 compile_kwargs = {}
@@ -233,7 +233,7 @@ class TrainingPlan(pl.LightningModule):
         return elbo, rec_loss, kl_local, kl_global, collection
 
     def initialize_train_metrics(self):
-        """Initialize train related metrics."""
+        """Initialize the train-related metrics."""
         (
             self.elbo_train,
             self.rec_loss_train,
@@ -244,7 +244,7 @@ class TrainingPlan(pl.LightningModule):
         self.elbo_train.reset()
 
     def initialize_val_metrics(self):
-        """Initialize val related metrics."""
+        """Initialize val-related metrics."""
         (
             self.elbo_val,
             self.rec_loss_val,
@@ -345,7 +345,7 @@ class TrainingPlan(pl.LightningModule):
             sync_dist=self.use_sync_dist,
         )
 
-        # accumlate extra metrics passed to loss recorder
+        # accumulate extra metrics passed to loss recorder
         for key in loss_output.extra_metrics_keys:
             met = loss_output.extra_metrics[key]
             if isinstance(met, torch.Tensor):
@@ -374,7 +374,7 @@ class TrainingPlan(pl.LightningModule):
                 )
 
     def prepare_scib_autotune(self, loss_outputs, stage):
-        # this function is used only for the purpose of scib autotune,
+        # this function is used only for the purpose of scib autotune
         # and adds overhead of time and memory thus used only when needed
         if self.trainer.callbacks is not None and len(self.trainer.callbacks) > 0:
             if (
@@ -453,8 +453,8 @@ class TrainingPlan(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         """Validation step for the model."""
-        # loss kwargs here contains `n_obs` equal to n_training_obs
-        # so when relevant, the actual loss value is rescaled to number
+        # loss kwargs here contains `n_obs` equal to the n_training_obs,
+        # so when relevant, the actual loss value is rescaled to the number
         # of training examples
         _, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         self.log(
@@ -471,7 +471,7 @@ class TrainingPlan(pl.LightningModule):
             self.prepare_scib_autotune(scvi_loss.extra_metrics, "validation")
 
     def _optimizer_creator_fn(self, optimizer_cls: torch.optim.Adam | torch.optim.AdamW):
-        """Create optimizer for the model.
+        """Create the optimizer for the model.
 
         This type of function can be passed as the `optimizer_creator`
         """
@@ -480,7 +480,7 @@ class TrainingPlan(pl.LightningModule):
         )
 
     def get_optimizer_creator(self):
-        """Get optimizer creator for the model."""
+        """Get the optimizer creator for the model."""
         if self.optimizer_name == "Adam":
             optim_creator = self._optimizer_creator_fn(torch.optim.Adam)
         elif self.optimizer_name == "AdamW":
@@ -547,7 +547,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         A callable taking in parameters and returning a :class:`~torch.optim.Optimizer`.
         This allows using any PyTorch optimizer with custom hyperparameters.
     lr
-        Learning rate used for optimization, when `optimizer_creator` is None.
+        Learning rate used for the optimization when `optimizer_creator` is None.
     weight_decay
         Weight decay used in optimization, when `optimizer_creator` is None.
     eps
@@ -562,9 +562,9 @@ class AdversarialTrainingPlan(TrainingPlan):
         Whether to monitor validation loss and reduce learning rate when validation set
         `lr_scheduler_metric` plateaus.
     lr_factor
-        Factor to reduce learning rate.
+        Factor to reduce the learning rate.
     lr_patience
-        Number of epochs with no improvement after which learning rate will be reduced.
+        Number of epochs with no improvement after which the learning rate will be reduced.
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
@@ -575,7 +575,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         Whether to use adversarial classifier in the latent space
     scale_adversarial_loss
         Scaling factor on the adversarial components of the loss.
-        By default, adversarial loss is scaled from 1 to 0 following opposite of
+        By default, adversarial loss is scaled from 1 to 0 following the opposite of
         kl warmup.
     compile
         Whether to compile the model for faster training
@@ -657,7 +657,7 @@ class AdversarialTrainingPlan(TrainingPlan):
             cls_target = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
         else:
             one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
-            # place zeroes where true label is
+            # place zeroes where the true label is
             cls_target = (~one_hot_batch.bool()).float()
             cls_target = cls_target / (n_classes - 1)
 
@@ -799,9 +799,9 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
         Whether to monitor validation loss and reduce learning rate when validation set
         `lr_scheduler_metric` plateaus.
     lr_factor
-        Factor to reduce learning rate.
+        Factor to reduce the learning rate.
     lr_patience
-        Number of epochs with no improvement after which learning rate will be reduced.
+        Number of epochs with no improvement after which the learning rate will be reduced.
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
@@ -923,7 +923,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
-        # Potentially dangerous if batch is from a single dataloader with two keys
+        # Potentially dangerous if the batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
@@ -973,7 +973,7 @@ class SemiSupervisedTrainingPlan(TrainingPlan):
 
     def validation_step(self, batch, batch_idx):
         """Validation step for semi-supervised training."""
-        # Potentially dangerous if batch is from a single dataloader with two keys
+        # Potentially dangerous if the batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
@@ -1035,9 +1035,9 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
         Whether to monitor validation loss and reduce learning rate when validation set
         `lr_scheduler_metric` plateaus.
     lr_factor
-        Factor to reduce learning rate.
+        Factor to reduce the learning rate.
     lr_patience
-        Number of epochs with no improvement after which learning rate will be reduced.
+        Number of epochs with no improvement after which the learning rate will be reduced.
     lr_threshold
         Threshold for measuring the new optimum.
     lr_scheduler_metric
@@ -1048,7 +1048,7 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
         Whether to use adversarial classifier in the latent space
     scale_adversarial_loss
         Scaling factor on the adversarial components of the loss.
-        By default, adversarial loss is scaled from 1 to 0 following opposite of
+        By default, adversarial loss is scaled from 1 to 0 following the opposite of
         kl warmup.
     **loss_kwargs
         Keyword args to pass to the loss method of the `module`.
@@ -1138,7 +1138,7 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
             cls_target = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
         else:
             one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes)
-            # place zeroes where true label is
+            # place zeroes where the true label is
             cls_target = (~one_hot_batch.bool()).float()
             cls_target = cls_target / (n_classes - 1)
 
@@ -1149,7 +1149,7 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
 
     def training_step(self, batch, batch_idx):
         """Training step for semi-supervised training."""
-        # Potentially dangerous if batch is from a single dataloader with two keys
+        # Potentially dangerous if the batch is from a single dataloader with two keys
         if len(batch) == 2:
             full_dataset = batch[0]
             labelled_dataset = batch[1]
@@ -1291,7 +1291,7 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         A Pytorch optimizer class, e.g., :class:`~torch.optim.Adam`. If `None`,
         defaults to :class:`torch.optim.Adam`.
     optim_kwargs
-        Keyword arguments for optimiser. If `None`, defaults to `dict(lr=1e-3)`.
+        Keyword arguments for optimizer. If `None`, defaults to `dict(lr=1e-3)`.
     n_steps_kl_warmup
         Number of training steps (minibatches) to scale weight on KL divergences from 0 to 1.
         Only activated when `n_epochs_kl_warmup` is set to None.
@@ -1342,8 +1342,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the
-        # true ELBO.
+        # Note: if applied, ELBO loss in the progress bar is the effective KL annealed loss,
+        # not the true ELBO.
         if self.use_kl_weight:
             kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss
@@ -1480,8 +1480,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         """Training step for Pyro training."""
         args, kwargs = self.module._get_fn_args_from_batch(batch)
         # Set KL weight if necessary.
-        # Note: if applied, ELBO loss in progress bar is the effective KL annealed loss, not the
-        # true ELBO.
+        # Note: if applied, ELBO loss in the progress bar is the effective KL annealed loss,
+        # not the true ELBO.
         if self.use_kl_weight:
             kwargs.update({"kl_weight": self.kl_weight})
         # pytorch lightning requires a Tensor object for loss
@@ -1499,7 +1499,7 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
 
         PyTorch Lightning wants to take steps on an optimizer
         returned by this function in order to increment the global
-        step count. See PyTorch Lighinting optimizer manual loop.
+        step count. See PyTorch Lightning optimizer manual loop.
 
         Here we provide a shim optimizer that we can take steps on
         at minimal computational cost in order to keep Lightning happy :).
@@ -1617,7 +1617,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
             A callable returning a :class:`~optax.GradientTransformation`.
             This allows using any optax optimizer with custom hyperparameters.
         lr
-            Learning rate used for optimization, when `optimizer_creator` is None.
+            Learning rate used for optimization when `optimizer_creator` is None.
         weight_decay
             Weight decay used in optimization, when `optimizer_creator` is None.
         eps
@@ -1663,7 +1663,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
 
         def get_optimizer_creator(self) -> JaxOptimizerCreator:
-            """Get optimizer creator for the model."""
+            """Get the optimizer creator for the model."""
             clip_by = (
                 optax.clip_by_global_norm(self.max_norm) if self.max_norm else optax.identity()
             )
@@ -1800,7 +1800,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
 
             PyTorch Lightning wants to take steps on an optimizer
             returned by this function in order to increment the global
-            step count. See PyTorch Lighinting optimizer manual loop.
+            step count. See PyTorch Lightning optimizer manual loop.
 
             Here we provide a shim optimizer that we can take steps on
             at minimal computational cost in order to keep Lightning happy :).
