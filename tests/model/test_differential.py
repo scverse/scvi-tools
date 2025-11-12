@@ -101,7 +101,7 @@ def test_differential_computation(save_path):
 
     delta = 0.5
 
-    def change_fn_test(x, y):
+    def change_fn_test(x, y, pseudocount=0.0):
         return x - y
 
     def m1_domain_fn_test(samples):
