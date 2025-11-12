@@ -73,7 +73,7 @@ The latent variables, along with their description, are summarized in the follow
      - Low-dimensional representation capturing the state of a cell
      - ``z``
    * - :math:`y_i \in \left[0,1\right]^{M}`
-     - Acessibility probability estimate
+     - Accessibility probability estimate
      - ``p``
    * - :math:`\ell_i \in \left[0,1\right]`
      - Cell-wise scaling factor

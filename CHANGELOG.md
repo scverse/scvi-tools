@@ -16,8 +16,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
-- Add configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
-- Fix inference on device for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
+- Fix configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
+- Fix inference on GPU for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 
@@ -44,7 +45,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
-- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
 - Fix library size calculation in {class}`scvi.model.TOTALVI` {pr}`3452`.
 - Fix scArches surgery in {class}`scvi.external.SysVI` {pr}`3466`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule {pr}`3461`.
@@ -171,7 +171,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 - Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
-- Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
+- Fixed a disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
     out-of-memory errors. Store distance matrices as a numpy array in xarray to reduce
     memory usage {pr}`3146`.
 - Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
@@ -234,7 +234,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
-    to correctly compute the maxmimum log-density across in-sample cells rather than the
+    to correctly compute the maximum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in {meth}`scvi.external.SCAR.setup_anndata`.
 - Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
@@ -1925,7 +1925,7 @@ package by our numerous contributors.
 - update issues templates [@adam]
 - Poisson variable gene selection [@valentine-svensson]
 - BrainSmallDataset set default save_path_10X [@gokcen-eraslan]
-- train_size must be float between 0.0 and 1.0 [@galen]
+- train_size must be a float between 0.0 and 1.0 [@galen]
 - bump dependency versions [@galen]
 - remove reproducibility notebook [@galen]
 - fix scanVI dataloading [@pierre]

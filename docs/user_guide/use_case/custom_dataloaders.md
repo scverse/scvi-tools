@@ -88,7 +88,7 @@ obs_value_filter = (
     'is_primary_data == True and tissue_general in ["kidney"] and nnz >= 3000'
 )
 
-hv_idx = np.arange(100)  # just ot make it smaller and faster for debug
+hv_idx = np.arange(100)  # just to make it smaller and faster for debug
 
 # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
 # which can compute HVGs in constant memory:

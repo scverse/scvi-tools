@@ -71,8 +71,8 @@ def test_transfer_fields_correct_batch(adata1, adata2):
 
 
 def test_transfer_fields_same_batch_and_label(adata1, adata2):
-    # test that transfer_fields assigns same batch and label to cells
-    # if the original anndata was also same batch and label
+    # test that transfer_fields assigns the same batch and label to cells
+    # if the original anndata was also the same batch and label
     adata1_manager = generic_setup_adata_manager(adata1)
     del adata2.obs["batch"]
     adata1_manager.transfer_fields(adata2)
@@ -229,7 +229,7 @@ def test_data_format(adata):
 
 
 def test_data_format_c_contiguous(adata):
-    # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
+    # if obsm is a dataframe, make it C_CONTIGUOUS if it isn't
     pe = np.asfortranarray(adata.obsm["protein_expression"])
     adata.obsm["protein_expression"] = pd.DataFrame(pe, index=adata.obs_names)
     assert adata.obsm["protein_expression"].to_numpy().flags["C_CONTIGUOUS"] is False
@@ -275,14 +275,14 @@ def test_setup_anndata(adata):
 
 
 def test_setup_anndata_view_error(adata):
-    # test that error is thrown if its a view:
+    # test that error is thrown if it's a view:
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata[1])
 
 
 def test_setup_anndata_view_error_df_protein_none(adata):
     # If obsm is a df and protein_names_uns_key is None, protein names should be grabbed from
-    # column of df
+    #  the column of df
     new_protein_names = np.array(random.sample(range(100), 100)).astype("str")
     df = pd.DataFrame(
         adata.obsm["protein_expression"],
@@ -326,14 +326,14 @@ def test_setup_anndata_create_label_batch(adata):
 
 
 def test_setup_anndata_nan(adata):
-    # test error is thrown when categorical obs field contains nans
+    # test error is thrown when the categorical obs field contains nans
     adata.obs["batch"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, batch_key="batch")
 
 
 def test_setup_anndata_cat(adata):
-    # test error is thrown when categorical joint obsm field contains nans
+    # test error is thrown when the categorical joint obsm field contains nans
     adata.obs["cat1"][:10] = np.nan
     with pytest.raises(ValueError):
         generic_setup_adata_manager(adata, categorical_covariate_keys=["cat1"])
@@ -424,7 +424,7 @@ def test_anntorchdataset_getitem(adata):
 
 
 def test_anntorchdataset_from_manager(adata):
-    # check that AnnTorchDataset returns numpy array
+    # check that AnnTorchDataset returns a numpy array
     adata_manager = generic_setup_adata_manager(adata)
     bd = adata_manager.create_torch_dataset()
     assert isinstance(bd, AnnTorchDataset)
@@ -434,7 +434,7 @@ def test_anntorchdataset_from_manager(adata):
 
 
 def test_anntorchdataset_numpy(adata):
-    # check that AnnTorchDataset returns numpy array
+    # check that AnnTorchDataset returns a numpy array
     adata_manager = generic_setup_adata_manager(adata)
     bd = AnnTorchDataset(adata_manager)
     for value in bd[1].values():
@@ -445,7 +445,7 @@ def test_anntorchdataset_numpy(adata):
 def test_anntorchdataset_dask():
     import dask.array as da
 
-    # check that AnnTorchDataset returns numpy array
+    # check that AnnTorchDataset returns a numpy array
     adata = synthetic_iid()
     adata.X = da.from_array(adata.X)
     raw_counts = adata.X.copy()
@@ -477,7 +477,7 @@ def test_anntorchdataset_getitem_numpy_sparse(adata):
 
 
 def test_anntorchdataset_getitem_pro_exp(adata):
-    # check pro exp is being returned as numpy array even if its DF
+    # check pro exp is being returned as a numpy array even if its DF
     adata.obsm["protein_expression"] = pd.DataFrame(
         adata.obsm["protein_expression"], index=adata.obs_names
     )
