@@ -97,10 +97,10 @@ class TOTALVI(
         Set the initialization of protein background prior empirically. This option fits a GMM for
         each of 100 cells per batch and averages the distributions. Note that even with this option
         set to `True`, this only initializes a parameter that is learned during inference. If
-        `False`, randomly initializes. The default (`None`), sets this to `True` if greater than 10
+        `False`, randomly initializes. The default (`None`) sets this to `True` if greater than 10
         proteins are used.
     override_missing_proteins
-        If `True`, will not treat proteins with all 0 expression in a particular batch as missing.
+        If `True` does not treat proteins with all 0 expressions in a particular batch as missing.
     **model_kwargs
         Keyword args for :class:`~scvi.module.TOTALVAE`
 
@@ -108,7 +108,8 @@ class TOTALVI(
     --------
     >>> mdata = mudata.read_h5mu(path_to_mudata)
     >>> scvi.model.TOTALVI.setup_mudata(
-            mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
+    ...     mdata, modalities={"rna_layer": "rna", "protein_layer": "prot"}
+    ... )
     >>> vae = scvi.model.TOTALVI(mdata)
     >>> vae.train()
     >>> mdata.obsm["X_totalVI"] = vae.get_latent_representation()
@@ -267,7 +268,7 @@ class TOTALVI(
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range [0.0, 1.0].
+            Size of the training set in the range [0.0, 1.0].
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
@@ -280,8 +281,8 @@ class TOTALVI(
         early_stopping
             Whether to perform early stopping with respect to the validation set.
         check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping`
-            is `True` or `reduce_lr_on_plateau` is `True`. If either of the latter conditions are
+            Check val every n train epochs. By default, val is not checked unless `early_stopping`
+            is `True` or `reduce_lr_on_plateau` is `True`. If either of the latter conditions is
             met, val is checked every epoch.
         reduce_lr_on_plateau
             Reduce learning rate on plateau of validation metric (default is ELBO).
@@ -379,7 +380,7 @@ class TOTALVI(
         give_mean
             Return the mean or a sample from the posterior distribution.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         """
         self._check_if_trained(warn=False)
 
@@ -619,17 +620,17 @@ class TOTALVI(
             Batch to condition on.
             If transform_batch is:
 
-            - None, then real observed batch is used
+            - None, then a real observed batch is used
             - int, then batch transform_batch is used
             - List[int], then average over batches in list
         protein_list
             Return protein expression for a subset of genes.
-            This can save memory when working with large datasets and few genes are
+            This can save memory when working with large datasets, and few genes are
             of interest.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -643,7 +644,7 @@ class TOTALVI(
         - **foreground_probability** - probability foreground for each protein
 
         If `n_samples` > 1 and `return_mean` is False, then the shape is `(samples, cells, genes)`.
-        Otherwise, shape is `(cells, genes)`. In this case, return type is
+        Otherwise, the shape is `(cells, genes)`. In this case, the return type is
         :class:`~pandas.DataFrame` unless `return_numpy` is True.
         """
         adata = self._validate_anndata(adata)
@@ -816,7 +817,7 @@ class TOTALVI(
         include_protein_background
             Include the protein background component as part of the protein expression
         use_field
-            By default uses protein and RNA field disable here to perform only RNA or protein DE.
+            By default, uses protein and RNA field disable here to perform only RNA or protein DE.
         pseudocounts
             pseudocount offset used for the mode `change`.
             When None, observations from non-expressed genes are used to estimate its value.
@@ -903,7 +904,7 @@ class TOTALVI(
         n_samples
             Number of required samples for each cell
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         gene_list
             Names of genes of interest
         protein_list
@@ -1062,16 +1063,16 @@ class TOTALVI(
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         rna_size_factor
             size factor for RNA prior to sampling gamma distribution
         transform_batch
             Batches to condition on.
             If transform_batch is:
 
-            - None, then real observed batch is used
+            - None, then a real observed batch is used
             - int, then batch transform_batch is used
-            - list of int, then values are averaged over provided batches.
+            - list of int; then values are averaged over provided batches.
         correlation_type
             One of "pearson", "spearman".
         log_transform
@@ -1148,9 +1149,9 @@ class TOTALVI(
         n_samples
             Number of posterior samples to use for estimation.
         give_mean
-            Return expected value of parameters or a samples
+            Return expected value of parameters or samples
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         """
         raise NotImplementedError
 
@@ -1178,7 +1179,7 @@ class TOTALVI(
         return adata
 
     def _get_totalvi_protein_priors(self, adata, n_cells=100):
-        """Compute an empirical prior for protein background."""
+        """Compute an empirical prior for the protein background."""
         from sklearn.exceptions import ConvergenceWarning
         from sklearn.mixture import GaussianMixture
 
@@ -1228,7 +1229,7 @@ class TOTALVI(
                         continue
 
                 # a batch is missing because it's in the reference but not query data
-                # for scarches case, these values will be replaced by original state dict
+                # for scarches case, these values will be replaced by the original state dict
                 if batch_pro_exp.shape[0] == 0:
                     batch_avg_mus.append(0.0)
                     batch_avg_scales.append(0.05)
@@ -1297,12 +1298,12 @@ class TOTALVI(
         Parameters
         ----------
         dir_path
-            Path to directory where legacy model is saved.
+            Path to the directory where the legacy model is saved.
         output_dir_path
             Path to save converted save files.
         overwrite
-            Overwrite existing data or not. If ``False`` and directory
-            already exists at ``output_dir_path``, error will be raised.
+            Overwrite existing data or not. If ``False`` and the directory
+            already exists at ``output_dir_path``, the error will be raised.
         prefix
             Prefix of saved file names.
         **save_kwargs
@@ -1450,9 +1451,9 @@ class TOTALVI(
         ----------
         %(param_mdata)s
         rna_layer
-            RNA layer key. If `None`, will use `.X` of specified modality key.
+            RNA layer key. If `None`, uses `.X` of a specified modality key.
         protein_layer
-            Protein layer key. If `None`, will use `.X` of specified modality key.
+            Protein layer key. If `None`, uses `.X` of a specified modality key.
         %(param_batch_key)s
         panel_key
             key in 'adata.obs' for the various panels used to measure proteins.

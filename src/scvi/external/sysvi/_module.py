@@ -38,7 +38,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         for each categorical covariate.
     embed_categorical_covariates
         If ``True`` embeds categorical covariates and batches
-        into continuously-valued vectors instead of using one-hot encoding.
+        into continuously valued vectors instead of using one-hot encoding.
     prior
         Which prior distribution to use.
         * ``'standard_normal'``: Standard normal distribution.
@@ -51,9 +51,9 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         Initialisation data for VampPrior.
         Should match input tensors structure.
     n_latent
-        Numer of latent space dimensions.
+        Number of latent space dimensions.
     n_hidden
-        Numer of hidden nodes per layer for encoder and decoder.
+        Number of hidden nodes per layer for encoder and decoder.
     n_layers
         Number of hidden layers for encoder and decoder.
     dropout_rate
@@ -260,11 +260,11 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         Keys:
         * ``'cat'``: All covariates that require one-hot encoding.
                      List of tensors with dim = n_samples * 1.
-                     If absent returns empty list.
-        * ``'cont'``: All covariates that are already continous.
-                      Includes continous and embedded categorical covariates.
+                     If absent, returns an empty list.
+        * ``'cont'``: All covariates that are already continuous.
+                      Includes continuous and embedded categorical covariates.
                       Single tensor of dim = n_samples * n_concatenated_cov_features.
-                      If absent returns None.
+                      If absent, returns None.
         """
         cat_parts = []
         cont_parts = []

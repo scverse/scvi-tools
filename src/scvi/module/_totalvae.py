@@ -50,7 +50,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     n_continuous_cov
-        Number of continuous covarites
+        Number of continuous covariates
     n_cats_per_cov
         Number of categories for each extra categorical covariate
     dropout_rate
@@ -91,12 +91,12 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         Array of proteins by batches, the prior initialization for the protein background scale
         (log scale)
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        Use size_factor AnnDataField defined by the user as a scaling factor in mean of conditional
         distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
+        Use observed library size for RNA as a scaling factor in mean of conditional distribution
     extra_payload_autotune
-        If ``True``, will return extra matrices in the loss output to be used during autotune
+        If ``True``, returns extra matrices in the loss output to be used during autotune
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -494,7 +494,6 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         n_samples: int = 1,
     ) -> dict[str, torch.Tensor | dict[str, torch.Tensor]]:
         """Run the cached inference process."""
-        library = observed_lib_size
         qz = Normal(qzm, qzv)
         untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
         z = self.encoder.z_transformation(untran_z)
@@ -538,7 +537,7 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
 
         We use the dictionary ``px_`` to contain the parameters of the ZINB/NB for genes.
         The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
-        `scale` refers to the quanity upon which differential expression is performed. For genes,
+        `scale` refers to the quantity upon which differential expression is performed. For genes,
         this can be viewed as the mean of the underlying gamma distribution.
 
         We use the dictionary ``py_`` to contain the parameters of the Mixture NB distribution for
@@ -655,27 +654,10 @@ class TOTALVAE(BaseMinifiedModeModuleClass):
         tensors,
         inference_outputs,
         generative_outputs,
-        pro_recons_weight=1.0,  # double check these defaults
+        pro_recons_weight=1.0,
         kl_weight=1.0,
     ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
-        """Returns the reconstruction loss and the Kullback divergences.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input_genes)``
-        y
-            tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size``
-        label
-            tensor of cell-types labels with shape (batch_size, n_labels)
-
-        Returns
-        -------
-        type
-            the reconstruction loss and the Kullback divergences
-        """
+        """Returns the reconstruction loss and the Kullback divergences"""
         qz = inference_outputs["qz"]
         ql = inference_outputs["ql"]
         px_ = generative_outputs["px_"]

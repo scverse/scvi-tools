@@ -25,7 +25,7 @@ except ImportError:
 
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
-    """Used in mac Mx devices while broadcasting a tensor
+    """Used in Mac Mx devices while broadcasting a tensor
 
     Parameters
     ----------
@@ -34,7 +34,7 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
 
     Returns
     -------
-    lgamma tensor that perform on a copied version of the tensor
+    lgamma tensor that performs on a copied version of the tensor
     """
     return torch.lgamma(x.contiguous())
 
@@ -299,7 +299,7 @@ class Poisson(PoissonTorch):
         whether to validate input.
     scale
         Normalized mean expression of the distribution.
-        This optional parameter is not used in any computations, but allows to store
+        This optional parameter is not used in any computations but allows storing
         normalization expression levels.
 
     """
@@ -438,7 +438,7 @@ class NegativeBinomial(Distribution):
         gamma_d = self._gamma()  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
         p_means = gamma_d.sample(sample_shape)
 
-        # Clamping as distributions objects can have buggy behaviors when
+        # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
         counts = (
@@ -682,7 +682,7 @@ class NegativeBinomialMixture(Distribution):
         gamma_d = _gamma(theta, mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
         p_means = gamma_d.sample(sample_shape)
 
-        # Clamping as distributions objects can have buggy behaviors when
+        # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
         counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
