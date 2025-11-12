@@ -1,10 +1,13 @@
+import random
 from typing import Any
 
 import mlx.core as mx
 import mlx.nn as nn
+import numpy as np
+import numpyro.distributions as dist
 
 from scvi import REGISTRY_KEYS
-from scvi.module.base import LossOutput
+from scvi.module.base import BaseModuleClass, LossOutput
 
 
 class MlxDense(nn.Module):
@@ -67,7 +70,7 @@ class MlxDecoder(nn.Module):
         self.bn2 = nn.BatchNorm(n_hidden, momentum=0.9)
         self.dropout2 = nn.Dropout(dropout_rate)
         self.dense5 = MlxDense(n_hidden, n_input)
-        key = mx.random.key(0)
+        key = mx.random.key(random.randint(0, 2**31 - 1))
         self.disp = mx.random.normal(key=key, shape=(n_input,))
 
     def __call__(self, z, batch):
@@ -83,7 +86,9 @@ class MlxDecoder(nn.Module):
         return rho_unnorm, self.disp
 
 
-class MlxVAE(nn.Module):
+# TODO: WE CAN INHERIT BaseModuleClass instead of nn.Module AND MODEL SAVE/LOAD WILL BE OK BUT
+# WITH SOME ISSUES WITH GETTING THE TRAINING LOSS
+class MlxVAE(BaseModuleClass):
     """Variational Autoencoder model using the MLX framework."""
 
     def __init__(
@@ -145,10 +150,12 @@ class MlxVAE(nn.Module):
 
     def inference(self, x: mx.array, n_samples: int = 1) -> dict[str, Any]:
         mean, var = self.encoder(x)
-        stddev = mx.sqrt(var) + self.eps
-        key = mx.random.key(0)
-        eps = mx.random.normal(key=key, shape=mean.shape)
+        stddev = mx.sqrt(mx.clip(var, 1e-8, 50.0)) + self.eps
+        key = mx.random.key(random.randint(0, 2**31 - 1))
+        shape = (n_samples,) + mean.shape
+        eps = mx.random.normal(key=key, shape=shape)
         z = mean + stddev * eps
+        mx.eval(z)
         return {"mean": mean, "var": var, "z": z}
 
     def generative(self, z, batch_index) -> dict[str, Any]:
@@ -156,8 +163,9 @@ class MlxVAE(nn.Module):
         rows = mx.arange(batch_index.reshape(-1).shape[0])
         batch = batch.at[rows, batch_index.reshape(-1)].add(1.0)
         rho_unnorm, disp = self.decoder(z, batch)
-        rho_exp = mx.exp(rho_unnorm)
-        rho = rho_exp / mx.sum(rho_exp, axis=-1, keepdims=True)
+        rho_unnorm = mx.clip(rho_unnorm, -50, 50)
+        # Use softmax for numerical stability instead of manual exp normalization
+        rho = mx.softmax(rho_unnorm, axis=-1)
         return {"rho": rho, "disp": disp}
 
     def loss(
@@ -172,13 +180,29 @@ class MlxVAE(nn.Module):
         mu = total_count * rho
 
         eps = 1e-10
+        # Clip dispersion to prevent numerical instability
+        disp = mx.clip(disp, eps, 50.0)
+        # Clip mu to prevent extreme values
+        mu = mx.clip(mu, eps, 1e6)
+
         log_theta_mu_eps = mx.log(disp + mu + eps)
-        log_theta_eps = mx.log(disp + eps)
+        disp_ = dist.NegativeBinomial2(mu, np.exp(np.clip(np.array(disp.tolist()), -10, 10)))
+        log_theta_eps = mx.log(disp_.concentration + eps)
         log_mu_eps = mx.log(mu + eps)
         log_prob = x * (log_mu_eps - log_theta_mu_eps) + disp * (log_theta_eps - log_theta_mu_eps)
-        log_prob += mx.log1p(mx.exp(log_theta_mu_eps)) - mx.log1p(mx.exp(log_theta_eps))
+
+        # Clip arguments to log1p to prevent overflow
+        log_theta_mu_eps_clipped = mx.clip(log_theta_mu_eps, -50, 50)
+        log_theta_eps_clipped = mx.clip(log_theta_eps, -50, 50)
+        log_prob += mx.log1p(mx.exp(log_theta_mu_eps_clipped)) - mx.log1p(
+            mx.exp(log_theta_eps_clipped)
+        )
+
         reconst_loss = -mx.sum(log_prob, axis=-1)
-        kl_divergence = 0.5 * mx.sum(var + mx.square(mean) - 1.0 - mx.log(var + eps), axis=-1)
+        var = mx.clip(var, eps, 50.0)
+        kl_divergence = 0.5 * mx.sum(
+            var + mx.square(mean) - 1.0 - mx.log(mx.maximum(var, eps) + eps), axis=-1
+        )
         weighted_kl = kl_weight * kl_divergence
         loss = mx.mean(reconst_loss + weighted_kl)
         return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)

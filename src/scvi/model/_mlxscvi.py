@@ -147,16 +147,22 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
             mlx_dict = {k: mx.array(v) for k, v in array_dict.items()}
             outputs = self.module.inference(mlx_dict[REGISTRY_KEYS.X_KEY], n_samples=n_samples)
 
-            if give_mean:
-                z = outputs["mean"]
+            if give_mean and n_samples > 1:
+                z = outputs["z"].mean()
             else:
                 z = outputs["z"]
 
             # Convert to NumPy array using the standard method
-            latent.append(np.array(z.tolist()))
+            if give_mean:
+                latent.append(np.array(z[0].tolist()))
+            else:
+                latent.append(np.array(z))
 
         # Concatenate all batches
-        latent = np.concatenate(latent, axis=0)
+        if give_mean:
+            latent = np.concatenate(latent, axis=0)
+        else:
+            latent = np.concatenate(latent, axis=1)
 
         return latent
 

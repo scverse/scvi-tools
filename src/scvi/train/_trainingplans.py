@@ -1826,7 +1826,7 @@ if is_package_installed("mlx"):
 
     logger = logging.getLogger(__name__)
 
-    class MlxTrainingPlan:
+    class MlxTrainingPlan(TrainingPlan):
         """Training plan for MLX modules.
 
         This training plan handles the optimization process for MLX models,
@@ -1861,8 +1861,31 @@ if is_package_installed("mlx"):
             n_steps_kl_warmup: int | None = None,
             max_kl_weight: float = 1.0,
             min_kl_weight: float = 0.0,
+            eps: float = 1e-8,
+            kl_weight: float = 1.0,
             **loss_kwargs,
         ):
+            # Create MLX optimizer (AdamW includes weight decay)
+            self.optimizer = optim.AdamW(
+                learning_rate=lr,
+                weight_decay=weight_decay,
+                eps=eps,
+                betas=[0.9, 0.999],
+                bias_correction=True,
+            )
+            self.kl_weight = kl_weight
+            super().__init__(
+                module=module,
+                lr=lr,
+                weight_decay=weight_decay,
+                eps=eps,
+                optimizer=self.optimizer,
+                n_steps_kl_warmup=n_steps_kl_warmup,
+                n_epochs_kl_warmup=n_epochs_kl_warmup,
+                max_kl_weight=max_kl_weight,
+                min_kl_weight=min_kl_weight,
+                **loss_kwargs,
+            )
             self.module = module
             self.lr = lr
             self.weight_decay = weight_decay
@@ -1876,14 +1899,21 @@ if is_package_installed("mlx"):
             self.current_step = 0
             self.current_epoch = 0
 
-            # Create MLX optimizer (AdamW includes weight decay)
-            self.optimizer = optim.AdamW(
-                learning_rate=self.lr,
-                weight_decay=self.weight_decay,
-                eps=1e-8,
-                betas=[0.9, 0.999],
-                bias_correction=True,
-            )
+        @property
+        def current_epoch(self) -> int:
+            return self._current_epoch
+
+        @current_epoch.setter
+        def current_epoch(self, value: int) -> None:
+            self._current_epoch = value
+
+        @property
+        def kl_weight(self) -> float:
+            return self._kl_weight
+
+        @kl_weight.setter
+        def kl_weight(self, value: float) -> None:
+            self._kl_weight = value
 
         def _set_module_training(self, is_training):
             """Set the training state of the module.
@@ -1971,6 +2001,32 @@ if is_package_installed("mlx"):
                 # Fixed call method, explicitly pass self.module
                 loss, grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
 
+                # Check for NaN or Inf in loss
+                loss_val = float(loss)
+                if not mx.isfinite(loss).item() or mx.isnan(loss).item():
+                    logger.warning(f"NaN or Inf detected in loss: {loss_val}, skipping update")
+                    return {"loss": loss_val}
+
+                # Clip gradients to prevent explosion
+                max_grad_norm = 5.0
+
+                def clip_grads(grads):
+                    if isinstance(grads, dict):
+                        return {k: clip_grads(v) for k, v in grads.items()}
+                    elif isinstance(grads, (list, tuple)):
+                        return type(grads)(clip_grads(g) for g in grads)
+                    elif isinstance(grads, mx.array):
+                        # Clip individual gradient
+                        grad_norm = mx.sqrt(mx.sum(mx.square(grads)))
+                        return mx.where(
+                            grad_norm > max_grad_norm,
+                            grads * (max_grad_norm / (grad_norm + 1e-8)),
+                            grads,
+                        )
+                    else:
+                        return grads
+
+                grads = clip_grads(grads)
                 # Update module parameters directly using optimizer
                 self.optimizer.update(self.module, grads)
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 
+import mlx.core as mx
+
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic
 from scvi.train import MlxTrainingPlan, TrainRunner
@@ -108,6 +110,9 @@ class MlxTrainingMixin:
                 self.training_plan.current_step += 1
                 try:
                     output = self.training_plan.train_step(batch)
+                    if mx.isnan(output["loss"]).any():
+                        logger.warning("Skipping NaN batch")
+                        continue
                     epoch_loss += output["loss"]
                     n_batches += 1
                 except Exception as e:  # noqa: BLE001
