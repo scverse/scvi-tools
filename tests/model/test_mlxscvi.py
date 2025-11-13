@@ -3,7 +3,6 @@ import sys
 import pytest
 
 from scvi.data import synthetic_iid
-from scvi.model import mlxSCVI
 from scvi.utils import attrdict
 
 # the whole file should only run on macOS
@@ -14,6 +13,8 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.mark.parametrize("n_latent", [5])
 def test_mlx_scvi(n_latent: int):
+    from scvi.model import mlxSCVI
+
     adata = synthetic_iid()
     mlxSCVI.setup_anndata(
         adata,
@@ -33,6 +34,8 @@ def test_mlx_scvi(n_latent: int):
 @pytest.mark.parametrize("n_latent", [5])
 @pytest.mark.parametrize("dropout_rate", [0.1])
 def test_mlx_scvi_training(n_latent: int, dropout_rate: float):
+    from scvi.model import mlxSCVI
+
     adata = synthetic_iid()
     mlxSCVI.setup_anndata(
         adata,
@@ -45,6 +48,8 @@ def test_mlx_scvi_training(n_latent: int, dropout_rate: float):
 
 @pytest.mark.parametrize("n_latent", [5])
 def test_mlx_scvi_save_load(n_latent: int, save_path: str):
+    from scvi.model import mlxSCVI
+
     adata = synthetic_iid()
     mlxSCVI.setup_anndata(
         adata,
