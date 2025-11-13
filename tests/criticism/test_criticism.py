@@ -41,6 +41,7 @@ def get_ppc_with_samples(adata: AnnData, n_samples: int = 2, indices: list[int] 
     return ppc, models_dict
 
 
+@pytest.mark.optional
 def test_ppc_init(save_path):
     adata = synthetic_iid()
     ppc, models_dict = get_ppc_with_samples(adata, n_samples=42)

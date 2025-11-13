@@ -103,7 +103,7 @@ class SCANVI(
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/scrna/harmonization`
-    2. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
+    2. :doc:`/tutorials/notebooks/multimodal/scarches_scvi_tools`
     3. :doc:`/tutorials/notebooks/scrna/seed_labeling`
     """
 

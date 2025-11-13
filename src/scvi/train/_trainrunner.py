@@ -1,17 +1,34 @@
+import gc
 import logging
+import os
+import pickle
+import traceback
 import warnings
 
 import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
+import torch
 
 from scvi import settings
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
+from scvi.utils import is_package_installed, mlflow_logger
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_load_logger_history(trainer):
+    hist = getattr(trainer.logger, "history", None)
+    if hist:
+        return {k: v.copy() for k, v in hist.items()}  # deep copy from memory
+    history_path = getattr(trainer.logger, "history_path", None)  #  file (written by rank-0)
+    if history_path and os.path.exists(history_path):
+        with open(history_path, "rb") as f:
+            return pickle.load(f)
+    return None
 
 
 class TrainRunner:
@@ -40,7 +57,7 @@ class TrainRunner:
 
     Examples
     --------
-    >>> # Following code should be within a subclass of BaseModelClass
+    >>> # The following code should be within a subclass of BaseModelClass
     >>> data_splitter = DataSplitter(self.adata)
     >>> training_plan = TrainingPlan(self.module, len(data_splitter.train_idx))
     >>> runner = TrainRunner(
@@ -77,6 +94,8 @@ class TrainRunner:
 
         if getattr(self.training_plan, "reduce_lr_on_plateau", False):
             trainer_kwargs["learning_rate_monitor"] = True
+        ckpt_path = trainer_kwargs.pop("ckpt_path", None)
+        self.ckpt_path = ckpt_path
 
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,
@@ -85,7 +104,7 @@ class TrainRunner:
             **trainer_kwargs,
         )
 
-        # Sanity checks for usage of early Stopping"
+        # Sanity checks for usage of early Stopping
         if self.trainer.early_stopping_callback is not None:
             if type(data_splitter).__name__ == "DataSplitter":
                 # for other data splitter need to think on something else...
@@ -93,32 +112,28 @@ class TrainRunner:
                     "valid" in self.trainer.early_stopping_callback.monitor
                 ):
                     raise ValueError(
-                        "Cant run Early Stopping with validation monitor with no validation set"
+                        "Can't run Early Stopping with validation monitor with no validation set"
                     )
                 if (model.adata.n_obs - data_splitter.n_train - data_splitter.n_val) and (
                     "test" in self.trainer.early_stopping_callback.monitor
                 ):
-                    raise ValueError("Cant run Early Stopping with test monitor with no test set")
+                    raise ValueError("Can't run Early Stopping with test monitor with no test set")
 
-        self.trainer._model = model  # needed for savecheckpoint callback
+        self.trainer._model = model  # needed to savecheckpoint callback
 
-    def __call__(self):
-        """Run training."""
-        if hasattr(self.data_splitter, "n_train"):
-            self.training_plan.n_obs_training = self.data_splitter.n_train
-        if hasattr(self.data_splitter, "n_val"):
-            self.training_plan.n_obs_validation = self.data_splitter.n_val
-
+    def _run_training_core(self):
+        # training without mlflow
         try:
-            self.trainer.fit(self.training_plan, self.data_splitter)
-        except NameError:
-            import gc
-
+            self.trainer.fit(self.training_plan, self.data_splitter, ckpt_path=self.ckpt_path)
+        except BaseException as e:
+            self._update_history()
+            print("Exception raised during training.", NameError, e)
             gc.collect()
-            import torch
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+
+            raise
         self._update_history()
 
         # data splitter only gets these attrs after fit
@@ -131,9 +146,66 @@ class TrainRunner:
         self.model.to_device(self.device)
         self.model.trainer = self.trainer
 
+        return
+
+    def __call__(self):
+        """Run training."""
+        if hasattr(self.data_splitter, "n_train"):
+            self.training_plan.n_obs_training = self.data_splitter.n_train
+        if hasattr(self.data_splitter, "n_val"):
+            self.training_plan.n_obs_validation = self.data_splitter.n_val
+
+        if settings.mlflow_set_tracking_uri != "":
+            if is_package_installed("mlflow"):
+                import mlflow
+
+                mlflow.set_tracking_uri(settings.mlflow_set_tracking_uri)
+                mlflow.set_experiment(settings.mlflow_set_experiment)
+
+                with mlflow.start_run(run_name=self.model.run_name, log_system_metrics=True):
+                    try:
+                        self._run_training_core()
+
+                        self.model.run_id = mlflow.active_run().info.run_id
+
+                        # log all relevant metrics
+                        mlflow_logger(
+                            model=self.model,
+                            trainer=self.trainer,
+                            training_plan=self.training_plan,
+                            data_splitter=self.data_splitter,
+                            run_id=self.model.run_id,
+                        )
+
+                        mlflow.set_tag("status", "success")
+
+                    except Exception as e:
+                        # Capture and log error
+                        error_msg = "".join(
+                            traceback.format_exception(type(e), e, e.__traceback__)
+                        )
+                        with open("error_log.txt", "w") as f:
+                            f.write(error_msg)
+
+                        mlflow.log_artifact("error_log.txt", artifact_path="errors")
+                        mlflow.set_tag("status", "failed")
+                        mlflow.log_param("error_type", type(e).__name__)
+                        mlflow.log_param("error_message", str(e))
+                        print(f"Error logged to MLflow: {e}")
+                        raise
+            else:
+                raise ModuleNotFoundError("Please install mlflow to use this functionality.")
+        else:
+            # training without mlflow
+            self._run_training_core()
+
     def _update_history(self):
+        # only the global-zero process should touch model.history_
+        if not self.trainer.is_global_zero:
+            return
+
         # model is being further trained
-        # this was set to true during first training session
+        # this was set to true during the first training session
         if self.model.is_trained_ is True:
             # if not using the default logger (e.g., tensorboard)
             if not isinstance(self.model.history_, dict):
@@ -145,7 +217,7 @@ class TrainRunner:
                 )
                 return
             else:
-                new_history = self.trainer.logger.history
+                new_history = _safe_load_logger_history(self.trainer) or {}
                 for key, val in self.model.history_.items():
                     # e.g., no validation loss due to training params
                     if key not in new_history:
@@ -165,6 +237,8 @@ class TrainRunner:
             # set history_ attribute if it exists
             # other pytorch lightning loggers might not have history attr
             try:
-                self.model.history_ = self.trainer.logger.history
+                # set model.history_ from persisted or in-memory logger now
+                loaded = _safe_load_logger_history(self.trainer)
+                self.model.history_ = loaded if loaded is not None else {}
             except AttributeError:
                 self.history_ = None

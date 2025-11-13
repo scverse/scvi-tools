@@ -16,7 +16,7 @@ from mudata import MuData
 from scipy.sparse import csr_matrix
 from torch.distributions import transform_to
 
-from scvi import settings
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import _constants
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model._utils import parse_device_args
@@ -60,6 +60,7 @@ class ArchesMixin:
         freeze_batchnorm_encoder: bool = True,
         freeze_batchnorm_decoder: bool = False,
         freeze_classifier: bool = True,
+        transfer_batch: bool = True,
         datamodule: LightningDataModule | None = None,
     ):
         """Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
@@ -71,11 +72,11 @@ class ArchesMixin:
             It is not necessary to run setup_anndata,
             as AnnData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         inplace_subset_query_vars
             Whether to subset and rearrange query vars inplace based on vars used to
-            train reference model.
+            train the reference model.
         %(param_accelerator)s
         %(param_device)s
         unfrozen
@@ -92,6 +93,8 @@ class ArchesMixin:
             Whether to freeze batchnorm weight and bias during training for decoder
         freeze_classifier
             Whether to freeze classifier completely. Only applies to `SCANVI`.
+        transfer_batch
+            Allow for surgery on the batch covariate. Only applies to `SYSVI`.
         datamodule
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
@@ -112,6 +115,25 @@ class ArchesMixin:
         attr_dict, var_names, load_state_dict, pyro_param_store = _get_loaded_data(
             reference_model, device=device, adata=adata
         )
+
+        if not transfer_batch:
+            reference_batches = attr_dict["registry_"]["field_registries"][
+                REGISTRY_KEYS.BATCH_KEY
+            ]["state_registry"]["categorical_mapping"]
+            if adata:
+                batch_col = attr_dict["registry_"]["field_registries"][REGISTRY_KEYS.BATCH_KEY][
+                    "state_registry"
+                ]["original_key"]
+                query_batches = adata.obs[batch_col].unique()
+            else:
+                query_batches = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY][
+                    "state_registry"
+                ]["categorical_mapping"]
+            if any(batch not in reference_batches for batch in query_batches):
+                raise ValueError(
+                    "This model does not allow for query having batch categories "
+                    "missing from the reference."
+                )
 
         if adata:
             if isinstance(adata, MuData):
@@ -278,8 +300,8 @@ class ArchesMixin:
             It is not necessary to run setup_anndata,
             as AnnData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -314,12 +336,12 @@ class ArchesMixin:
         Parameters
         ----------
         mdata
-            MuData organized in the same way as data used to train model.
+            MuData organized in the same way as data used to train the model.
             It is not necessary to run setup_mudata,
             as MuData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -355,12 +377,19 @@ class ArchesMixin:
             adata_out = _pad_and_sort_query_anndata(
                 adata=mdata[modality],
                 reference_var_names=var_names[modality],
-                inplace=inplace,
+                inplace=False,
             )
             adata_dict[modality] = adata_out
 
+        new_mdata = MuData(adata_dict)
+        new_mdata.obs = mdata.obs.copy()
+        new_mdata.uns = mdata.uns.copy()
+
         if not inplace:
-            return MuData(adata_dict)
+            return new_mdata
+        else:
+            if new_mdata is not mdata:
+                mdata._init_as_actual(new_mdata)
 
 
 def _set_params_online_update(
@@ -373,7 +402,7 @@ def _set_params_online_update(
     freeze_expression,
     freeze_classifier,
 ):
-    """Freeze parts of network for scArches."""
+    """Freeze parts of the network for scArches."""
     # do nothing if unfrozen
     if unfrozen:
         return

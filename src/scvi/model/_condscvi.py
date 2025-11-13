@@ -47,7 +47,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, SemisupervisedTrainingMixin, BaseModelClas
     dropout_rate
         Dropout rate for neural networks.
     **module_kwargs
-        Keyword args for :class:`~scvi.modules.VAEC`
+        Keyword args for :class:`~scvi.module.VAEC`
 
     Examples
     --------

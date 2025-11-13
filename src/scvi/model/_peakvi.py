@@ -506,8 +506,10 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         # manually change the results DataFrame to fit a PeakVI differential accessibility results
         result = pd.DataFrame(
             {
-                "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
+                "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"]
+                if mode == "change"
+                else None,
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,

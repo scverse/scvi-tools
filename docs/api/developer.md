@@ -71,11 +71,15 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    :nosignatures:
 
    dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.CollectionAdapter
    dataloaders.ConcatDataLoader
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
    dataloaders.BatchDistributedSampler
+   dataloaders.MappedCollectionDataModule
+   dataloaders.TileDBDataModule
 
 ```
 
@@ -173,7 +177,9 @@ Module classes in the external API with respective generative and inference proc
    :nosignatures:
 
    external.gimvi.JVAE
+   external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
+   external.contrastivevi.ContrastiveDataSplitter
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
@@ -181,11 +187,15 @@ Module classes in the external API with respective generative and inference proc
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
    external.mrvi.MRVAE
+   external.mrvi_jax.JaxMRVAE
+   external.mrvi_torch.TorchMRVAE
    external.methylvi.METHYLVAE
    external.methylvi.METHYLANVAE
    external.decipher.DecipherPyroModule
    external.resolvi.RESOLVAE
    external.totalanvi.TOTALANVAE
+   external.scviva.nicheVAE
+   external.scviva.NicheLossOutput
    external.sysvi.SysVAE
 
 ```
@@ -257,7 +267,9 @@ TrainingPlans define train/test/val optimization steps for modules.
    :nosignatures:
 
    train.AdversarialTrainingPlan
+   train.ClassifierTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.SemiSupervisedAdversarialTrainingPlan
    train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
    train.JaxTrainingPlan

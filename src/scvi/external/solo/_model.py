@@ -47,7 +47,7 @@ class SOLO(BaseModelClass):
     ----------
     adata
         AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
-        Object should contain latent representation of real cells and doublets as `adata.X`.
+        Object should contain the latent representation of real cells and doublets as `adata.X`.
         Object should also be registered, using `.X` and `labels_key="_solo_doub_sim"`.
     **classifier_kwargs
         Keyword args for :class:`~scvi.module.Classifier`
@@ -119,7 +119,7 @@ class SOLO(BaseModelClass):
             Pre-trained :class:`~scvi.model.SCVI` model. The AnnData object used to
             initialize this model should have only been setup with count data, and
             optionally a `batch_key`. Extra categorical and continuous covariates are
-            currenty unsupported.
+            currently unsupported.
         adata
             Optional AnnData to use that is compatible with `scvi_model`.
         restrict_to_batch
@@ -128,7 +128,7 @@ class SOLO(BaseModelClass):
             belonging to `restrict_to_batch` when `scvi_model` was trained on multiple
             batches. If `None`, all cells are used.
         doublet_ratio
-            Ratio of generated doublets to produce relative to number of
+            Ratio of generated doublets to produce relative to the number of
             cells in adata or length of indices, if not `None`.
         **classifier_kwargs
             Keyword args for :class:`~scvi.module.Classifier`
@@ -194,8 +194,7 @@ class SOLO(BaseModelClass):
         doublet_adata = cls.create_doublets(
             adata_manager, indices=batch_indices, doublet_ratio=doublet_ratio
         )
-        # if scvi wasn't trained with batch correction having the
-        # zeros here does nothing.
+        # if scvi wasn't trained with batch correction, having the zeros here does nothing.
         doublet_adata.obs[orig_batch_key] = (
             restrict_to_batch
             if restrict_to_batch is not None
@@ -208,8 +207,8 @@ class SOLO(BaseModelClass):
         dummy_label = orig_labels_key_registry.categorical_mapping[0]
         doublet_adata.obs[orig_labels_key] = dummy_label
 
-        # if model is using observed lib size, needs to get lib sample
-        # which is just observed lib size on log scale
+        # if the model is using observed lib size, needs to get lib sample
+        # which is just observed lib size on the log scale
         give_mean_lib = not scvi_model.module.use_observed_lib_size
 
         # get latent representations and make input anndata
@@ -255,7 +254,7 @@ class SOLO(BaseModelClass):
         adata
             AnnData object setup with setup_anndata.
         doublet_ratio
-            Ratio of generated doublets to produce relative to number of
+            Ratio of generated doublets to produce relative to the number of
             cells in adata or length of indices, if not `None`.
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
@@ -279,7 +278,7 @@ class SOLO(BaseModelClass):
         doublets_ad.var_names = adata.var_names
         doublets_ad.obs_names = [f"sim_doublet_{i}" for i in range(num_doublets)]
 
-        # if adata setup with a layer, need to add layer to doublets adata
+        # if adata setup with a layer, need to add the layer to doublets adata
         layer = adata_manager.data_registry[REGISTRY_KEYS.X_KEY].attr_key
         if layer is not None:
             doublets_ad.layers[layer] = doublets
@@ -333,11 +332,11 @@ class SOLO(BaseModelClass):
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
-            Number of times early stopping metric can not improve over early_stopping_min_delta
+            Number of times early stopping metric cannot improve over early_stopping_min_delta
         early_stopping_warmup_epochs
             Wait for a certain number of warm-up epochs before the early stopping starts monitoring
         early_stopping_min_delta
-            Threshold for counting an epoch torwards patience
+            Threshold for counting an epoch towards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
@@ -418,7 +417,7 @@ class SOLO(BaseModelClass):
         warnings.warn(
             "Prior to scvi-tools 1.1.3, `SOLO.predict` with `soft=True` (the default option) "
             "returned logits instead of probabilities. This behavior has since been corrected to "
-            "return probabiltiies. The previous behavior can be replicated by passing in "
+            "return probabilities. The previous behavior can be replicated by passing in "
             "`return_logits=True`.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,

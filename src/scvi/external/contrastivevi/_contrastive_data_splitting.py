@@ -35,10 +35,10 @@ class ContrastiveDataSplitter(DataSplitter):
         If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
         :class:`~torch.Tensor` with the same layout. Can lead to significant
         speedups in transferring data to GPUs, depending on the sparsity of the data.
-        Passed into :class:`~scvi.data.AnnDataLoader`.
+        Passed into :class:`~scvi.dataloaders.AnnDataLoader`.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.

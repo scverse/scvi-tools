@@ -78,7 +78,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         * ``"ln"``: logistic normal with normal params N(0, 1).
     encode_covariates
         If ``True``, covariates are concatenated to gene expression prior to passing through
-        the encoder(s). Else, only gene expression is used.
+        the encoder(s). Else, only the gene expression is used.
     deeply_inject_covariates
         If ``True`` and ``n_layers > 1``, covariates are concatenated to the outputs of hidden
         layers in the encoder(s) (if ``encoder_covariates`` is ``True``) and the decoder prior to
@@ -156,7 +156,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         dropout_rate: float = 0.1,
         dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         log_variational: bool = True,
-        gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
+        gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "zinb",
         latent_distribution: Literal["normal", "ln"] = "normal",
         encode_covariates: bool = False,
         deeply_inject_covariates: bool = True,
@@ -182,7 +182,10 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
+        self.n_input = n_input
         self.n_labels = n_labels
+        self.n_hidden = n_hidden
+        self.n_layers = n_layers
         self.latent_distribution = latent_distribution
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
@@ -616,7 +619,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Parameters
         ----------
         tensors
-            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
+            Dictionary of tensors passed into ``VAE.forward``.
         n_samples
             Number of Monte Carlo samples to draw from the distribution for each observation.
         max_poisson_rate
@@ -671,7 +674,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         Parameters
         ----------
         tensors
-            Dictionary of tensors passed into :meth:`~scvi.module.VAE.forward`.
+            Dictionary of tensors passed into ``VAE.forward``.
         n_mc_samples
             Number of Monte Carlo samples to use for the estimation of the marginal log-likelihood.
         return_mean
@@ -753,7 +756,7 @@ class LDVAE(VAE):
     to gene expression levels. It still uses a deep neural network to encode
     the latent representation.
 
-    Compared to standard VAE, this model is less powerful, but can be used to
+    Compared to standard VAE, this model is less powerful but can be used to
     inspect which genes contribute to variation in the dataset. It may also be used
     for all scVI tasks, like differential expression, batch correction, imputation, etc.
     However, batch correction may be less powerful as it assumes a linear model.
@@ -872,7 +875,7 @@ class LDVAE(VAE):
     @torch.inference_mode()
     def get_loadings(self) -> np.ndarray:
         """Extract per-gene weights in the linear decoder."""
-        # This is BW, where B is diag(b) batch norm, W is weight matrix
+        # This is BW, where B is diag(b) batch norm, W is the weight matrix
         if self.use_batch_norm is True:
             w = self.decoder.factor_regressor.fc_layers[0][0].weight
             bn = self.decoder.factor_regressor.fc_layers[0][1]

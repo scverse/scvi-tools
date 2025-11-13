@@ -2,8 +2,8 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.model import SCVI, JaxSCVI
-from scvi.train import JaxTrainingPlan, TrainingPlan
+from scvi.model import SCVI
+from scvi.train import TrainingPlan
 from scvi.train._constants import METRIC_KEYS
 from scvi.train._trainingplans import _compute_kl_weight
 
@@ -55,11 +55,8 @@ def test_loss_args():
     """Test that self._loss_args is set correctly."""
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
-    JaxSCVI.setup_anndata(adata)
     vae = SCVI(adata)
-    jax_vae = JaxSCVI(adata)
     tp = TrainingPlan(vae.module)
-    jax_tp = JaxTrainingPlan(jax_vae.module)
 
     loss_args = [
         "tensors",
@@ -68,10 +65,8 @@ def test_loss_args():
         "kl_weight",
     ]
     assert len(tp._loss_args) == len(loss_args)
-    assert len(jax_tp._loss_args) == len(loss_args)
     for arg in loss_args:
         assert arg in tp._loss_args
-        assert arg in jax_tp._loss_args
 
 
 def test_semisupervisedtrainingplan_metrics():

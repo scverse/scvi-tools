@@ -8,7 +8,6 @@ from datetime import datetime
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
-import flax
 import pyro
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
@@ -18,6 +17,7 @@ from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 from scvi import settings
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
+from scvi.utils import dependencies
 
 if TYPE_CHECKING:
     import lightning.pytorch as pl
@@ -42,7 +42,7 @@ class SaveCheckpoint(ModelCheckpoint):
     Known issues:
 
     * Does not set ``train_indices``, ``validation_indices``, and ``test_indices`` for checkpoints.
-    * Does not set ``history`` for checkpoints. This can be accessed in the final model however.
+    * Does not set ``history`` for checkpoints. This can be accessed in the final model, however.
     * Unsupported arguments: ``save_weights_only`` and ``save_last``.
 
     Parameters
@@ -51,14 +51,14 @@ class SaveCheckpoint(ModelCheckpoint):
         Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
         :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
     filename
-        Name for the checkpoint directories, which can contain formatting options for auto-filling.
+        Name for the checkpoint directories, which can contain formatting options for auto filling.
         If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
     load_best_on_end
         If ``True``, loads the best model state into the model at the end of training.
     check_nan_gradients
-        If ``True``, will use the on exception callback to store best model in case of training
+        If ``True``, will use the on exception callback to store the best model in case of training
         exception caused by NaN's in gradients or loss calculations.
     **kwargs
         Additional keyword arguments passed into the constructor for
@@ -108,7 +108,7 @@ class SaveCheckpoint(ModelCheckpoint):
 
     def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
         """Saves the model state on Lightning checkpoint saves."""
-        # set post training state before saving
+        # set a post-training state before saving
         model = trainer._model
         model.module.eval()
         model.is_trained_ = True
@@ -165,7 +165,7 @@ class SaveCheckpoint(ModelCheckpoint):
         pyro_param_store = best_state_dict.pop("pyro_param_store", None)
         pl_module.module.load_state_dict(best_state_dict)
         if pyro_param_store is not None:
-            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            # For scArches shapes are changed, and we don't want to overwrite these changed shapes.
             pyro.get_param_store().set_state(pyro_param_store)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
@@ -200,7 +200,7 @@ class SaveCheckpoint(ModelCheckpoint):
             pyro_param_store = best_state_dict.pop("pyro_param_store", None)
             pl_module.module.load_state_dict(best_state_dict)
             if pyro_param_store is not None:
-                # For scArches shapes are changed and we don't want to overwrite
+                # For scArches shapes are changed, and we don't want to overwrite
                 # these changed shapes.
                 pyro.get_param_store().set_state(pyro_param_store)
             print(self.reason + f". Model saved to {self.best_model_path}")
@@ -274,7 +274,10 @@ class JaxModuleInit(Callback):
         super().__init__()
         self.dataloader = dataloader
 
+    @dependencies("flax")
     def on_train_start(self, trainer, pl_module):
+        import flax
+
         module = pl_module.module
         if self.dataloader is None:
             dl = trainer.datamodule.train_dataloader()

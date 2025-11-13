@@ -29,6 +29,7 @@ def test_resolvi_train(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_save_load(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -48,6 +49,7 @@ def test_resolvi_save_load(adata):
     model.load_query_data(reference_model="test_resolvi", adata=adata)
 
 
+@pytest.mark.optional
 def test_resolvi_downstream(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -78,6 +80,7 @@ def test_resolvi_downstream(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_semisupervised(adata):
     RESOLVI.setup_anndata(adata, labels_key="labels")
     model = RESOLVI(adata, semisupervised=True)

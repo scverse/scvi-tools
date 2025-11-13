@@ -6,13 +6,14 @@ import os
 import sys
 import warnings
 from abc import ABCMeta, abstractmethod
+from datetime import datetime
 from io import StringIO
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
 import pyro
-import rich
+import rich.table
 import torch
 from anndata import AnnData
 from mudata import MuData
@@ -79,7 +80,7 @@ class BaseModelMetaClass(ABCMeta):
     :class:`~scvi.data.AnnDataManager` instances.
 
     This mapping is populated everytime ``cls.setup_anndata()`` is called.
-    ``cls._per_isntance_manager_store`` maps from model instance UUIDs to AnnData UUID:
+    ``cls._per_instance_manager_store`` maps from model instance UUIDs to AnnData UUID:
     :class:`~scvi.data.AnnDataManager` mappings.
     These :class:`~scvi.data.AnnDataManager` instances are tied to a single model instance and
     populated either
@@ -111,8 +112,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     _data_loader_cls = AnnDataLoader
 
     def __init__(self, adata: AnnOrMuData | None = None, registry: object | None = None):
-        # check if the given adata is minified and check if the model being created
-        # supports minified-data mode (i.e. inherits from the abstract BaseMinifiedModeModelClass).
+        # check if the given adata is minified and check if the model being created supports
+        # minified-data mode (i.e., inherits from the abstract BaseMinifiedModeModelClass).
         # If not, raise an error to inform the user of the lack of minified-data functionality
         # for this model
         data_is_minified = adata is not None and _get_adata_minify_type(adata) is not None
@@ -125,17 +126,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             self._adata = adata
             self._adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
             self._register_manager_for_instance(self.adata_manager)
-            # Suffix registry instance variable with _ to include it when saving the model.
+            # Suffix a registry instance variable with _ to include it when saving the model.
             self.registry_ = self._adata_manager._registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(self.registry_)
         elif registry is not None:
             self._adata = None
             self._adata_manager = None
-            # Suffix registry instance variable with _ to include it when saving the model.
+            # Suffix a registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
         elif (self.__class__.__name__ == "GIMVI") or (self.__class__.__name__ == "SCVI"):
-            # note some models do accept empty registry/adata (e.g: gimvi)
+            # note some models do accept empty registry/adata (e.g.: gimvi)
             pass
         else:
             raise ValueError("adata or registry must be provided.")
@@ -148,6 +149,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.validation_indices_ = None
         self.history_ = None
         self.get_normalized_function_name_ = "get_normalized_expression"
+        self.run_name_ = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+        self.run_id_ = ""
 
     @property
     def adata(self) -> None | AnnOrMuData:
@@ -184,13 +187,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         return self._adata_manager
 
     def to_device(self, device: str | int):
-        """Move model to device.
+        """Move the model to the device.
 
         Parameters
         ----------
         device
-            Device to move model to. Options: 'cpu' for CPU, integer GPU index (eg. 0),
-            or 'cuda:X' where X is the GPU index (eg. 'cuda:0'). See torch.device for more info.
+            Device to move model to. Options: 'cpu' for CPU, integer GPU index (e.g., 0),
+            or 'cuda:X' where X is the GPU index (e.g. 'cuda:0'). See torch.device for more info.
 
         Examples
         --------
@@ -247,7 +250,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         modalities
             Dictionary mapping ``setup_mudata()`` argument name to modality name.
         setup_method_args
-            Output of  ``_get_setup_method_args()``.
+            Output of ``_get_setup_method_args()``.
         """
         setup_args = setup_method_args[_SETUP_ARGS_KEY]
         filtered_modalities = {
@@ -295,7 +298,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         registry_key
-            key of object to get from ``self.data_registry``
+            key of an object to get from ``self.data_registry``
 
         Returns
         -------
@@ -352,7 +355,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         adata
-            AnnData object to find manager instance for.
+            AnnData object to find a manager instance for.
         required
             If True, errors on missing manager. Otherwise, returns None when manager is missing.
         """
@@ -393,7 +396,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         adata
-            AnnData object to find manager instance for.
+            AnnData object to find a manager instance for.
         required
             If True, errors on missing manager. Otherwise, returns None when manager is missing.
         """
@@ -446,7 +449,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         registry_key
-            key of object to get from data registry.
+            key of object to get from the data registry.
         adata
             AnnData to pull data from.
 
@@ -471,7 +474,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         data_loader_class=None,
         **data_loader_kwargs,
     ):
-        """Create a AnnDataLoader object for data iteration.
+        """Create an AnnDataLoader object for data iteration.
 
         Parameters
         ----------
@@ -480,7 +483,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         indices
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         shuffle
             Whether observations are shuffled each iteration though
         data_loader_class
@@ -535,7 +538,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
             self._register_manager_for_instance(self.adata_manager.transfer_fields(adata))
         else:
-            # Case where correct AnnDataManager is found, replay registration as necessary.
+            # Case where the correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
 
         return adata
@@ -599,8 +602,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """Returns computed metrics during training."""
         return self.history_
 
+    @property
+    def run_name(self) -> str:
+        """Returns the run name of the model. Used in MLFlow"""
+        return self.run_name_
+
+    @run_name.setter
+    def run_name(self, value):
+        self.run_name_ = value
+
+    @property
+    def run_id(self) -> str:
+        """Returns the run id of the model. Used in MLFlow"""
+        return self.run_id_
+
+    @run_id.setter
+    def run_id(self, value):
+        self.run_id_ = value
+
     def _get_user_attributes(self):
-        """Returns all the self attributes defined in a model class, e.g., `self.is_trained_`."""
+        """Returns all the self-attributes defined in a model class, e.g., `self.is_trained_`."""
         attributes = inspect.getmembers(self, lambda a: not (inspect.isroutine(a)))
         attributes = [a for a in attributes if not (a[0].startswith("__") and a[0].endswith("__"))]
         attributes = [a for a in attributes if not a[0].startswith("_abc_")]
@@ -625,7 +646,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             and k not in ("adata", "registry")
         }
         # not very efficient but is explicit
-        # separates variable params (**kwargs) from non variable params into two dicts
+        # separates variable params (**kwargs) from non-variable params into two dicts
         non_var_params = [p.name for p in parameters if p.kind != p.VAR_KEYWORD]
         non_var_params = {k: v for (k, v) in all_params.items() if k in non_var_params}
         var_params = [p.name for p in parameters if p.kind == p.VAR_KEYWORD]
@@ -634,6 +655,18 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         user_params = {"kwargs": var_params, "non_kwargs": non_var_params}
 
         return user_params
+
+    @staticmethod
+    def _get_decoder_cat_cov_shape(module):
+        """Returns the shape of categ covariate matrix in case of using setup_datamodule in load"""
+        outcome = None
+        if hasattr(module, "decoder"):
+            if hasattr(module.decoder, "px_decoder"):
+                if hasattr(module.decoder.px_decoder, "n_cat_list"):
+                    n_cat_list = module.decoder.px_decoder.n_cat_list
+                    if len(n_cat_list) > 1:
+                        outcome = (sum(n_cat_list[1:]),)
+        return outcome
 
     @abstractmethod
     def train(self):
@@ -664,7 +697,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Prefix to prepend to saved file names.
         overwrite
             Overwrite existing data or not. If `False` and directory
-            already exists at `dir_path`, error will be raised.
+            already exists at `dir_path`, an error will be raised.
         save_anndata
             If True, also saves the anndata
         save_kwargs
@@ -728,6 +761,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                         "extra_continuous_covs"
                     ]["summary_stats"]["n_extra_continuous_covs"],
                     "n_labels": datamodule.n_labels,
+                    "n_sample": datamodule.n_samples,
                     "n_vars": datamodule.n_vars,
                     "batch_labels": datamodule.batch_labels,
                     "label_keys": datamodule.label_keys,
@@ -759,6 +793,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         prefix: str | None = None,
         backup_url: str | None = None,
         datamodule: LightningDataModule | None = None,
+        allowed_classes_names_list: list[str] | None = None,
     ):
         """Instantiate a model from the saved output.
 
@@ -782,6 +817,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        allowed_classes_names_list
+            list of allowed classes names to be loaded (besides the original class name)
 
         Returns
         -------
@@ -815,7 +852,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         adata = new_adata if new_adata is not None else adata
 
         registry = attr_dict.pop("registry_")
-        if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] != cls.__name__:
+        if _MODEL_NAME_KEY in registry and (
+            registry[_MODEL_NAME_KEY] != cls.__name__
+            and registry[_MODEL_NAME_KEY] not in allowed_classes_names_list
+        ):
             raise ValueError("It appears you are loading a model from a different class.")
 
         # Calling ``setup_anndata`` method with the original arguments passed into
@@ -840,6 +880,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         if method_name == "setup_datamodule":
             attr_dict["n_input"] = attr_dict["n_vars"]
+            attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
+            attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
             module_exp_params = inspect.signature(model._module_cls).parameters.keys()
             common_keys1 = list(attr_dict.keys() & module_exp_params)
             common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
@@ -872,12 +914,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         dir_path
-            Path to directory where legacy model is saved.
+            Path to the directory where the legacy model is saved.
         output_dir_path
             Path to save converted save files.
         overwrite
             Overwrite existing data or not. If ``False`` and directory
-            already exists at ``output_dir_path``, error will be raised.
+            already exists at ``output_dir_path``, an error will be raised.
         prefix
             Prefix of saved file names.
         **save_kwargs
@@ -987,7 +1029,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """
         attr_dict = _load_saved_files(dir_path, False, prefix=prefix)[0]
 
-        # Legacy support for old setup dict format.
+        # Legacy support for the old setup dict format.
         if "scvi_setup_dict_" in attr_dict:
             raise NotImplementedError(
                 "Viewing setup args for pre v0.15.0 models is unsupported. "
@@ -1335,7 +1377,7 @@ class BaseMudataMinifiedModeModelClass(BaseModelClass):
                 ``use_latent_qzv_key``.
             - ``"latent_posterior_parameters_with_counts"``: Store the latent posterior mean and
                 variance in :attr:`~mudata.MuData.obsm` using the keys ``use_latent_qzm_key`` and
-                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData.X`.
+                ``use_latent_qzv_key``, and the raw count data in :attr:`~mudata.MuData[mod].X`.
         use_latent_qzm_key
             Key to use for storing the latent posterior mean in :attr:`~mudata.MuData.obsm` when
             ``minified_data_type`` is ``"latent_posterior"``.

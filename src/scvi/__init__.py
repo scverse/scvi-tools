@@ -2,7 +2,6 @@
 
 # Set default logging handler to avoid logging with logging.lastResort logger.
 import logging
-import warnings
 
 from ._constants import REGISTRY_KEYS
 from ._settings import settings

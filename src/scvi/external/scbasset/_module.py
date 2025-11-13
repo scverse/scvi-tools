@@ -26,7 +26,7 @@ def _round(x):
 
 
 class _Linear(nn.Linear):
-    """Linear layer with Keras default initalizations."""
+    """Linear layer with Keras default initializations."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -208,7 +208,7 @@ class ScBassetModule(BaseModuleClass):
     n_repeat_blocks_tower
         Number of layers in the convolutional tower
     filters_mult
-        Proportion by which the number of filters should inrease in the
+        Proportion by which the number of filters should increase in the
         convolutional tower
     n_bottleneck_layer
         Size of the bottleneck layer
@@ -216,7 +216,7 @@ class ScBassetModule(BaseModuleClass):
         Whether to apply batch norm across model layers
     dropout
         Dropout rate across layers, by default we do not do it for
-        convolutional layers but we do it for the dense layers
+        convolutional layers, but we do it for the dense layers
     l2_reg_cell_embedding
         L2 regularization for the cell embedding layer
     """
@@ -277,7 +277,7 @@ class ScBassetModule(BaseModuleClass):
             pool_size=1,
         )
         # NOTE: Bottleneck here assumes that seq_len=1344 and n_repeat_blocks_tower=6
-        # seq_len and tower size are fixed by the in_features shape
+        # seq_len and tower size is fixed by the in_features shape
         self.bottleneck = _DenseBlock(
             in_features=n_filters_pre_bottleneck * 7,
             out_features=n_bottleneck_layer,

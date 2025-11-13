@@ -1,15 +1,20 @@
+import contextlib
 import inspect
+import io
+import json
 import os
 import pickle
 import tarfile
+from datetime import datetime
 from unittest import mock
 
 import anndata
 import numpy as np
 import pytest
+import scanpy as sc
+import scipy.sparse as sp
 import torch
 from lightning.pytorch.callbacks import LearningRateMonitor
-from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
@@ -17,6 +22,7 @@ from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.model import SCVI
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -202,7 +208,7 @@ def test_scvi(gene_likelihood: str, n_latent: int):
     )
     assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
-    # Test without observed lib size.
+    # Test without an observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -473,7 +479,7 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int):
 @pytest.mark.parametrize("n_latent", [5])
 def test_scvi_sparse(n_latent: int):
     adata = synthetic_iid()
-    adata.X = csr_matrix(adata.X)
+    adata.X = sp.csr_matrix(adata.X)
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
@@ -569,7 +575,7 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    # Handle edge case where registry_key != obs_key.
+    # Handle the edge case where registry_key != obs_key.
     adata.obs.rename(columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True)
     adata2 = adata.copy()
 
@@ -793,7 +799,7 @@ def test_scarches_data_prep(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -840,7 +846,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model3 = SCVI(adata3, n_latent=n_latent)
     # model3.train(1, check_val_every_n_epoch=1)
 
-    # try the opposite - with a the categ covariate - raise the error
+    # try the opposite - with the categ covariate - raise the error
     # adata4 has more genes and a perfect subset of adata1
     adata4 = synthetic_iid(n_genes=110)
     adata4.obs["batch"] = adata4.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -893,7 +899,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model8 = SCVI(adata8, n_latent=n_latent)
     # model8.train(1, check_val_every_n_epoch=1)
 
-    # try also additional categ cov - it  works
+    # try also additional categ cov - it works
     adata9 = synthetic_iid(n_genes=110)
     adata9.obs["batch"] = adata9.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata9.obs["cont1"] = np.random.normal(size=(adata9.shape[0],))
@@ -939,7 +945,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model10.get_latent_representation()
     model10.get_elbo()
 
-    # try also runing with less categories than needed
+    # try also running with fewer categories than needed
     num_categ = 4
     adata11 = synthetic_iid(n_genes=110)
     adata11.obs["batch"] = adata11.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -962,7 +968,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model11.get_latent_representation()
     model11.get_elbo()
 
-    # try also runing with more categories than needed
+    # try also running with more categories than needed
     num_categ = 6
     adata12 = synthetic_iid(n_genes=110)
     adata12.obs["batch"] = adata12.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -1004,7 +1010,7 @@ def test_scarches_data_prep_layer(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -1108,7 +1114,7 @@ def test_scvi_online_update(save_path):
     model3.train(max_epochs=1)
     model3.get_latent_representation()
     assert model3.module.z_encoder.encoder.fc_layers[0][1].momentum == 0
-    # batch norm weight in encoder layer
+    # batch norm weight in the encoder layer
     assert model3.module.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     single_pass_for_online_update(model3)
     grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
@@ -1307,6 +1313,7 @@ def test_scvi_batch_embeddings(
         _ = model.get_batch_representation()
 
 
+@pytest.mark.dataloader
 @pytest.mark.parametrize("n_latent", [5])
 def test_scvi_inference_custom_dataloader(n_latent: int):
     adata = synthetic_iid()
@@ -1323,8 +1330,6 @@ def test_scvi_inference_custom_dataloader(n_latent: int):
 
 
 def test_scvi_normal_likelihood():
-    import scanpy as sc
-
     adata = synthetic_iid()
     sc.pp.normalize_total(adata)
     sc.pp.log1p(adata)
@@ -1354,3 +1359,257 @@ def test_scvi_num_workers():
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
+
+
+def test_scvi_log_on_step():
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(
+        20,
+        check_val_every_n_epoch=2,
+        train_size=0.5,
+        plan_kwargs={"on_step": True, "on_epoch": True},
+    )
+    assert len(model.history["elbo_train_epoch"]) == 20
+    assert "train_loss_step" in model.history
+    assert "validation_loss_step" in model.history
+    assert "train_loss_epoch" in model.history
+    assert "validation_loss_epoch" in model.history
+
+
+@pytest.mark.mlflow
+@pytest.mark.parametrize("max_epochs", [10])
+@pytest.mark.parametrize("train_size", [0.75])
+@pytest.mark.parametrize("check_val_every_n_epoch", [1])
+@pytest.mark.parametrize("seed", [0])
+@pytest.mark.parametrize("n_hidden", [128])
+@pytest.mark.parametrize("n_latent", [10])
+@pytest.mark.parametrize("n_layers", [1])
+def test_scvi_mlflow(
+    max_epochs: int,
+    n_hidden: int,
+    n_latent: int,
+    n_layers: int,
+    train_size: float,
+    check_val_every_n_epoch: int,
+    seed: int,
+    save_path: str,
+):
+    from scvi.utils import mlflow_log_artifact, mlflow_log_table, mlflow_log_text
+
+    scvi.settings.seed = seed
+    scvi.settings.mlflow_set_tracking_uri = "http://132.77.80.162:5000"  # For WIS internal
+    scvi.settings.mlflow_set_experiment = "scvi_benchmarking"
+
+    # Have several experiments to be able to compare them by datatime and ID
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_name = f"scvi_model_hca_subsampled_run_{timestamp}"
+
+    model_path = os.path.join(save_path, "scvi_model_" + timestamp)
+
+    # read data
+    adata = scvi.data.heart_cell_atlas_subsampled(save_path=model_path)
+
+    # pre process data
+    adata.layers["counts"] = adata.X.copy()  # preserve counts
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    adata.raw = adata  # freeze the state in `.raw`
+
+    sc.pp.highly_variable_genes(
+        adata,
+        n_top_genes=1200,
+        subset=True,
+        layer="counts",
+        flavor="seurat_v3",
+        batch_key="cell_source",
+    )
+
+    scvi.model.SCVI.setup_anndata(
+        adata,
+        layer="counts",
+        categorical_covariate_keys=["cell_source", "donor"],
+        continuous_covariate_keys=["percent_mito", "percent_ribo"],
+    )
+    model = SCVI(adata, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers)
+    model.run_name = run_name  # This is just for MLFLOW - otherwise will be random
+
+    lr_monitor = LearningRateMonitor()
+    model.train(
+        max_epochs=max_epochs,
+        check_val_every_n_epoch=check_val_every_n_epoch,
+        train_size=train_size,
+        callbacks=[lr_monitor],
+        log_every_n_steps=1,
+    )
+
+    # down stream analysis
+
+    # Create and log the umaps in mlflow
+    SCVI_LATENT_KEY = "X_scVI"
+
+    latent = model.get_latent_representation()
+    adata.obsm[SCVI_LATENT_KEY] = latent
+
+    SCVI_NORMALIZED_KEY = "scvi_normalized"
+    adata.layers[SCVI_NORMALIZED_KEY] = model.get_normalized_expression(library_size=10e4)
+
+    # run PCA then generate UMAP plots
+    sc.tl.pca(adata)
+    sc.pp.neighbors(adata, n_pcs=30, n_neighbors=20, random_state=seed)
+    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
+
+    fig1 = sc.pl.umap(
+        adata,
+        color=["cell_type"],
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig1.savefig(os.path.join(save_path, "pca_cell_type.png"), bbox_inches="tight", dpi=80)
+    fig2 = sc.pl.umap(
+        adata,
+        color=["donor", "cell_source"],
+        ncols=2,
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig2.savefig(os.path.join(save_path, "pca_donor_source.png"), bbox_inches="tight", dpi=80)
+
+    mlflow_log_artifact(
+        os.path.join(save_path, "pca_cell_type.png"),
+        run_id=model.run_id,
+    )
+    mlflow_log_artifact(
+        os.path.join(save_path, "pca_donor_source.png"),
+        run_id=model.run_id,
+    )
+
+    # use scVI latent space for UMAP generation
+    sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY, random_state=seed)
+    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
+
+    fig3 = sc.pl.umap(
+        adata,
+        color=["cell_type"],
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig3.savefig(os.path.join(save_path, "scvi_cell_type.png"), bbox_inches="tight", dpi=80)
+    fig4 = sc.pl.umap(
+        adata,
+        color=["donor", "cell_source"],
+        ncols=2,
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=80)
+
+    mlflow_log_artifact(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
+
+    # Clusters: neighbors were already computed using scVI
+    SCVI_CLUSTERS_KEY = "leiden_scVI"
+    sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5, random_state=seed)
+
+    fig5 = sc.pl.umap(
+        adata,
+        color=[SCVI_CLUSTERS_KEY],
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=80)
+
+    mlflow_log_artifact(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
+
+    # Model Summary
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        print(model)
+        model.view_anndata_setup()
+    logs = buffer.getvalue()
+    mlflow_log_text(logs, "text/model_summary.txt", run_id=model.run_id)
+
+    # DE (table + volcano plot)
+    import decoupler as dc
+
+    de_df = model.differential_expression(groupby="cell_type", mode="change")
+    mlflow_log_table(de_df.head(500), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
+    # de_df.to_csv("cell_type_DE.csv")
+    # mlflow_log_artifact(os.path.join(save_path, "cell_type_DE.csv"), run_id=model.run_id)
+
+    fig6 = dc.pl.volcano(de_df, x="lfc_mean", y="proba_not_de", return_fig=True, thr_stat=1, top=5)
+    fig6.savefig(os.path.join(save_path, "scvi_DE_volcano.png"), bbox_inches="tight", dpi=120)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_DE_volcano.png"), run_id=model.run_id)
+
+    # SCIB
+    from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
+
+    adata.obs["dummy_batch"] = (
+        adata.obsm["_scvi_extra_categorical_covs"]["cell_source"].astype(str)
+        + "_"
+        + adata.obsm["_scvi_extra_categorical_covs"]["donor"].astype(str)
+    )
+    bioc = BioConservation(
+        isolated_labels=True,
+        nmi_ari_cluster_labels_leiden=True,
+        silhouette_label=True,
+        clisi_knn=True,
+        nmi_ari_cluster_labels_kmeans=True,
+    )
+    bc = BatchCorrection(
+        kbet_per_label=True,
+        graph_connectivity=True,
+        ilisi_knn=True,
+        bras=True,
+        pcr_comparison=True,
+    )
+
+    bm = Benchmarker(
+        adata,
+        batch_key="dummy_batch",
+        label_key="cell_type",
+        embedding_obsm_keys=["X_pca", SCVI_LATENT_KEY],
+        batch_correction_metrics=bc,
+        bio_conservation_metrics=bioc,
+        n_jobs=-1,
+    )
+    bm.benchmark()
+    mlflow_log_table(
+        bm.get_results(min_max_scale=False),
+        artifact_file="data/scib_results.json",
+        run_id=model.run_id,
+    )
+    bm.plot_results_table(min_max_scale=False, show=False, save_dir=save_path)
+    mlflow_log_artifact(os.path.join(save_path, "scib_results.svg"), run_id=model.run_id)
+
+    # CRITICISM
+    from scvi.criticism import create_criticism_report
+
+    if sp.issparse(model.adata.layers["counts"]):
+        model.adata.layers["counts"] = model.adata.layers["counts"].toarray()
+    model.adata.X = model.adata.layers["counts"]
+    create_criticism_report(model, save_folder=model_path, n_samples=2)
+    if os.path.isfile(f"{model_path}/metrics.json"):
+        with open(f"{model_path}/metrics.json") as f:
+            metrics_report = json.load(f)
+    mlflow_log_table(metrics_report, artifact_file="data/criticism.json", run_id=model.run_id)
+
+    # Optional: Save minified model and log artifact (dont save adata!)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    model.save(model_path, prefix=run_name + "_", overwrite=True, save_anndata=False)
+    mlflow_log_artifact(
+        model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
+    )

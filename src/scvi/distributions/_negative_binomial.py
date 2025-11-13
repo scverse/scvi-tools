@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import warnings
 
-import jax
-import jax.numpy as jnp
-import numpyro.distributions as dist
 import torch
 import torch.nn.functional as F
-from numpyro.distributions import constraints as numpyro_constraints
-from numpyro.distributions.util import promote_shapes, validate_sample
 from torch.distributions import Distribution, Gamma, constraints
 from torch.distributions import Poisson as PoissonTorch
 from torch.distributions.utils import (
@@ -19,12 +14,18 @@ from torch.distributions.utils import (
 )
 
 from scvi import settings
+from scvi.utils import is_package_installed
 
 from ._constraints import optional_constraint
 
+try:
+    import jax.numpy as jnp
+except ImportError:
+    jnp = None
+
 
 def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
-    """Used in mac Mx devices while broadcasting a tensor
+    """Used in Mac Mx devices while broadcasting a tensor
 
     Parameters
     ----------
@@ -33,7 +34,7 @@ def torch_lgamma_mps(x: torch.Tensor) -> torch.Tensor:
 
     Returns
     -------
-    lgamma tensor that perform on a copied version of the tensor
+    lgamma tensor that performs on a copied version of the tensor
     """
     return torch.lgamma(x.contiguous())
 
@@ -102,13 +103,13 @@ def log_zinb_positive(
 
 
 def log_nb_positive(
-    x: torch.Tensor | jnp.ndarray,
-    mu: torch.Tensor | jnp.ndarray,
-    theta: torch.Tensor | jnp.ndarray,
+    x: torch.Tensor | (jnp.ndarray if jnp else torch.Tensor),
+    mu: torch.Tensor | (jnp.ndarray if jnp else torch.Tensor),
+    theta: torch.Tensor | (jnp.ndarray if jnp else torch.Tensor),
     eps: float = 1e-8,
     log_fn: callable = torch.log,
     lgamma_fn: callable = torch.lgamma,
-) -> torch.Tensor | jnp.ndarray:
+) -> torch.Tensor | (jnp.ndarray if jnp else torch.Tensor):
     """Log likelihood (scalar) of a minibatch according to a nb model.
 
     Parameters
@@ -298,7 +299,7 @@ class Poisson(PoissonTorch):
         whether to validate input.
     scale
         Normalized mean expression of the distribution.
-        This optional parameter is not used in any computations, but allows to store
+        This optional parameter is not used in any computations but allows storing
         normalization expression levels.
 
     """
@@ -437,7 +438,7 @@ class NegativeBinomial(Distribution):
         gamma_d = self._gamma()  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
         p_means = gamma_d.sample(sample_shape)
 
-        # Clamping as distributions objects can have buggy behaviors when
+        # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
         counts = (
@@ -681,7 +682,7 @@ class NegativeBinomialMixture(Distribution):
         gamma_d = _gamma(theta, mu, self.on_mps)  # TODO: TORCH MPS FIX - DONE ON CPU CURRENTLY
         p_means = gamma_d.sample(sample_shape)
 
-        # Clamping as distributions objects can have buggy behaviors when
+        # Clamping as the distribution objects can have buggy behaviors when
         # their parameters are too high
         l_train = torch.clamp(p_means, max=1e8)
         counts = PoissonTorch(l_train).sample()  # Shape : (n_samples, n_cells_batch, n_features)
@@ -722,46 +723,58 @@ class NegativeBinomialMixture(Distribution):
         return self.__class__.__name__ + "(" + args_string + ")"
 
 
-class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
-    """Negative binomial parameterized by mean and inverse dispersion."""
+if is_package_installed("numpyro") and is_package_installed("jax"):
+    import numpyro.distributions as dist
 
-    arg_constraints = {
-        "mean": numpyro_constraints.positive,
-        "inverse_dispersion": numpyro_constraints.positive,
-    }
-    support = numpyro_constraints.nonnegative_integer
+    class JaxNegativeBinomialMeanDisp(dist.NegativeBinomial2):
+        """Negative binomial parameterized by mean and inverse dispersion."""
 
-    def __init__(
-        self,
-        mean: jnp.ndarray,
-        inverse_dispersion: jnp.ndarray,
-        validate_args: bool | None = None,
-        eps: float = 1e-8,
-    ):
-        self._inverse_dispersion, self._mean = promote_shapes(inverse_dispersion, mean)
-        self._eps = eps
-        super().__init__(mean, inverse_dispersion, validate_args=validate_args)
+        import jax.numpy as jnp
+        from numpyro.distributions import constraints as numpyro_constraints
+        from numpyro.distributions.util import validate_sample
 
-    @property
-    def mean(self) -> jnp.ndarray:
-        return self._mean
+        arg_constraints = {
+            "mean": numpyro_constraints.positive,
+            "inverse_dispersion": numpyro_constraints.positive,
+        }
+        support = numpyro_constraints.nonnegative_integer
 
-    @property
-    def inverse_dispersion(self) -> jnp.ndarray:
-        return self._inverse_dispersion
+        def __init__(
+            self,
+            mean: jnp.ndarray,
+            inverse_dispersion: jnp.ndarray,
+            validate_args: bool | None = None,
+            eps: float = 1e-8,
+        ):
+            from numpyro.distributions.util import promote_shapes
 
-    @validate_sample
-    def log_prob(self, value) -> jnp.ndarray:
-        """Log probability."""
-        # theta is inverse_dispersion
-        theta = self._inverse_dispersion
-        mu = self._mean
-        eps = self._eps
-        return log_nb_positive(
-            value,
-            mu,
-            theta,
-            eps=eps,
-            log_fn=jnp.log,
-            lgamma_fn=jax.scipy.special.gammaln,
-        )
+            self._inverse_dispersion, self._mean = promote_shapes(inverse_dispersion, mean)
+            self._eps = eps
+            super().__init__(mean, inverse_dispersion, validate_args=validate_args)
+
+        @property
+        def mean(self) -> jnp.ndarray:
+            return self._mean
+
+        @property
+        def inverse_dispersion(self) -> jnp.ndarray:
+            return self._inverse_dispersion
+
+        @validate_sample
+        def log_prob(self, value) -> jnp.ndarray:
+            """Log probability."""
+            import jax
+            import jax.numpy as jnp
+
+            # theta is inverse_dispersion
+            theta = self._inverse_dispersion
+            mu = self._mean
+            eps = self._eps
+            return log_nb_positive(
+                value,
+                mu,
+                theta,
+                eps=eps,
+                log_fn=jnp.log,
+                lgamma_fn=jax.scipy.special.gammaln,
+            )

@@ -25,7 +25,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
     ----------
     adata
         AnnData object that has been registered via
-        :meth:`~scvi.model.Decipher.setup_anndata`.
+        :meth:`~scvi.external.Decipher.setup_anndata`.
     dim_v
         Dimension of the interpretable latent space v.
     dim_z

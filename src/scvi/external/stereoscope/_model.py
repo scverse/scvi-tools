@@ -96,7 +96,7 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range [0.0, 1.0].
+            Size of the training set in the range [0.0, 1.0].
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
@@ -233,14 +233,14 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         st_adata
-            registed anndata object
+            registered anndata object
         sc_model
             trained RNADeconv model
         prior_weight
             how to reweight the minibatches for stochastic optimization. "n_obs" is the valid
             procedure, "minibatch" is the procedure implemented in Stereoscope.
         **model_kwargs
-            Keyword args for :class:`~scvi.external.SpatialDeconv`
+            Keyword args for :class:`~scvi.external.stereoscope.SpatialDeconv`
         """
         return cls(
             st_adata,
@@ -278,7 +278,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         self,
         y: np.ndarray,
     ) -> np.ndarray:
-        r"""Calculate the cell type specific expression.
+        r"""Calculate the cell-type-specific expression.
 
         Parameters
         ----------
@@ -371,7 +371,7 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         %(param_layer)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        # add index for each cell (provided to pyro plate for correct minibatching)
+        # add the index for each cell (provided to pyro plate for correct minibatching)
         adata.obs["_indices"] = np.arange(adata.n_obs)
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),

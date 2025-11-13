@@ -48,7 +48,7 @@ class RESOLVI(
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.SCVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.RESOLVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -71,25 +71,22 @@ class RESOLVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     **model_kwargs
-        Keyword args for :class:`~scvi.module.VAE`
+        Keyword args for :class:`~scvi.external.resolvi.RESOLVAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.SCVI(adata)
-    >>> vae.train()
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+    >>> scvi.external.RESOLVI.setup_anndata(adata, batch_key="batch")
+    >>> resolvi = scvi.external.RESOLVI(adata)
+    >>> resolvi.train()
+    >>> adata.obsm["X_resolVI"] = resolvi.get_latent_representation()
+    >>> adata.layers["X_normalized_resolVI"] = resolvi.get_normalized_expression()
 
     Notes
     -----
-    See further usage examples in the following tutorials:
+    See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/api_overview`
-    2. :doc:`/tutorials/notebooks/harmonization`
-    3. :doc:`/tutorials/notebooks/scarches_scvi_tools`
-    4. :doc:`/tutorials/notebooks/scvi_in_R`
+    1. :doc:`/tutorials/notebooks/spatial/resolVI_tutorial`
     """
 
     _module_cls = RESOLVAE
@@ -391,7 +388,7 @@ class RESOLVI(
     def compute_dataset_dependent_priors(self, n_small_genes=None):
         x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         n_small_genes = x.shape[1] // 50 if n_small_genes is None else int(n_small_genes)
-        # Computing library size over low expressed genes (expectation for background).
+        # Computing library size over low-expressed genes (expectation for the background).
         # Handles sparse and dense counts.
         smallest_means = x[:, np.array(x.sum(0)).flatten().argsort()[:n_small_genes]].mean(
             1
@@ -618,7 +615,7 @@ class RESOLVI(
         soft
             If True, returns per class probabilities
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         num_samples
             Samples to draw from the posterior for cell-type prediction.
         """
