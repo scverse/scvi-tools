@@ -3,11 +3,9 @@ from typing import Any
 
 import mlx.core as mx
 import mlx.nn as nn
-import numpy as np
-import numpyro.distributions as dist
 
 from scvi import REGISTRY_KEYS
-from scvi.module.base import BaseModuleClass, LossOutput
+from scvi.module.base import LossOutput
 
 
 class MlxDense(nn.Module):
@@ -87,8 +85,8 @@ class MlxDecoder(nn.Module):
 
 
 # TODO: WE CAN INHERIT BaseModuleClass instead of nn.Module AND MODEL SAVE/LOAD WILL BE OK BUT
-# WITH SOME ISSUES WITH GETTING THE TRAINING LOSS
-class MlxVAE(BaseModuleClass):
+# WITH SOME ISSUES WITH GETTING THE TRAINING LOSS (otherwise use BaseModuleClass)
+class MlxVAE(nn.Module):
     """Variational Autoencoder model using the MLX framework."""
 
     def __init__(
@@ -164,8 +162,8 @@ class MlxVAE(BaseModuleClass):
         batch = batch.at[rows, batch_index.reshape(-1)].add(1.0)
         rho_unnorm, disp = self.decoder(z, batch)
         rho_unnorm = mx.clip(rho_unnorm, -50, 50)
-        # Use softmax for numerical stability instead of manual exp normalization
-        rho = mx.softmax(rho_unnorm, axis=-1)
+        rho_exp = mx.exp(rho_unnorm)
+        rho = rho_exp / mx.sum(rho_exp, axis=-1, keepdims=True)
         return {"rho": rho, "disp": disp}
 
     def loss(
@@ -186,8 +184,7 @@ class MlxVAE(BaseModuleClass):
         mu = mx.clip(mu, eps, 1e6)
 
         log_theta_mu_eps = mx.log(disp + mu + eps)
-        disp_ = dist.NegativeBinomial2(mu, np.exp(np.clip(np.array(disp.tolist()), -10, 10)))
-        log_theta_eps = mx.log(disp_.concentration + eps)
+        log_theta_eps = mx.log(disp + eps)
         log_mu_eps = mx.log(mu + eps)
         log_prob = x * (log_mu_eps - log_theta_mu_eps) + disp * (log_theta_eps - log_theta_mu_eps)
 
@@ -205,7 +202,7 @@ class MlxVAE(BaseModuleClass):
         )
         weighted_kl = kl_weight * kl_divergence
         loss = mx.mean(reconst_loss + weighted_kl)
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)
+        return LossOutput(loss=-loss, reconstruction_loss=-reconst_loss, kl_local=-kl_divergence)
 
     def __call__(
         self, tensors: dict[str, mx.array], kl_weight: float = 1.0
