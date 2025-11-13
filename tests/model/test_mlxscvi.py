@@ -1,8 +1,15 @@
+import sys
+
 import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import mlxSCVI
 from scvi.utils import attrdict
+
+# the whole file should only run on macOS
+pytestmark = pytest.mark.skipif(
+    sys.platform != "darwin", reason="This test file runs only on macOS"
+)
 
 
 @pytest.mark.parametrize("n_latent", [5])
