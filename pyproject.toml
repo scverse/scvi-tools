@@ -96,11 +96,9 @@ jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil"]
-# for mlx support
-mlx = ["mlx","pymc"]
 
 optional = [
-    "scvi-tools[autotune,mlx,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]"
+    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]"
 ]
 tutorials = [
     "biomart",
