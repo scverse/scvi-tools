@@ -470,7 +470,6 @@ def test_condscvi_downstream():
     adata.obsm["X_latent_qzm"] = qzm
     adata.obsm["X_latent_qzv"] = qzv
     model.minify_adata()
-    model.get_vamp_prior()
     scvi.model.DestVI.setup_anndata(adata_before_setup)
     scvi.model.DestVI.from_rna_model(
         adata_before_setup, model, amortization="both", vamp_prior_p=10

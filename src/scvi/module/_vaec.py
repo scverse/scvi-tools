@@ -242,7 +242,9 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         return outputs
 
     @auto_move_data
-    def _cached_inference(self, qzm, qzv, observed_lib_size, n_samples=1):
+    def _cached_inference(
+        self, qzm, qzv, observed_lib_size, y=None, batch_index=None, n_samples=1
+    ):
         if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
             qz = Normal(qzm, qzv.sqrt())
             # use dist.sample() rather than rsample because we aren't optimizing the z here
@@ -294,6 +296,9 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     ) -> dict[str, Distribution]:
         """Runs the generative model."""
         batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+        # Handle case when z has an extra sample dimension (n_samples > 1)
+        if z.ndim > batch_rep.ndim:
+            batch_rep = batch_rep.unsqueeze(0).expand(z.shape[0], -1, -1)
         decoder_input = torch.cat([z, batch_rep], dim=-1)
         h = self.decoder(decoder_input, y, batch_index)
         px_scale = torch.nn.Softmax(dim=-1)(self.px_decoder(h) + self.per_ct_bias[y.ravel()])
