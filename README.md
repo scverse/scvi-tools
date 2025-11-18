@@ -121,7 +121,7 @@ Copyright (c) 2025, Yosef Lab, Weizmann Institute of Science
 [codebase overview]: https://docs.scvi-tools.org/en/stable/user_guide/background/codebase_overview.html
 [conda-badge]: https://img.shields.io/conda/dn/conda-forge/scvi-tools?logo=Anaconda
 [conda-link]: https://anaconda.org/conda-forge/scvi-tools
-[contributing guide]: https://docs.scvi-tools.org/en/stable/contributing/index.html
+[contributing guide]: https://docs.scvi-tools.org/en/stable/developer/code.html
 [coverage-badge]: https://codecov.io/gh/scverse/scvi-tools/branch/main/graph/badge.svg
 [coverage-link]: https://codecov.io/gh/scverse/scvi-tools
 [docs-badge]: https://readthedocs.org/projects/scvi/badge/?version=latest
