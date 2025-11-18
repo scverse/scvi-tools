@@ -189,7 +189,7 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/amortizedlda`
      - Topic modeling
      - :cite:p:`Blei03`
-   * - :doc:`notebooks/hub/scvi_hub_intro_and_download`
+   * - :doc:`/tutorials/notebooks/hub/scvi_hub_intro_and_download`
      - Scvi-hub: an actionable repository for model-driven single-cell analysis usign Hugging Face Hub
      - :cite:p:`Ergen25-2`
 
