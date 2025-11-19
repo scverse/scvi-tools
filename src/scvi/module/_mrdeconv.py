@@ -1,5 +1,6 @@
-from collections import OrderedDict
-from typing import Literal
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
@@ -14,13 +15,14 @@ from torch.distributions import kl_divergence as kl
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import (
-    BaseMinifiedModeModuleClass,
-    EmbeddingModuleMixin,
-    LossOutput,
-    auto_move_data,
-)
+from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
+
+if TYPE_CHECKING:
+    from collections import OrderedDict
+    from typing import Literal
+
+    import numpy as np
 
 
 def identity(x):
@@ -28,7 +30,7 @@ def identity(x):
     return x
 
 
-class MRDeconv(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
+class MRDeconv(EmbeddingModuleMixin, BaseModuleClass):
     """Model for multi-resolution deconvolution of spatial transriptomics.
 
     Parameters
@@ -78,8 +80,8 @@ class MRDeconv(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     add_celltypes
         Number of additional cell types compared to single cell data to add to the model
     n_latent_amortization
-        Number of dimensions used in the latent variables
-        for the amortization encoder neural network
+        Number of dimensions used in the latent variables for the amortization encoder
+        neural network
     extra_encoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.FCLayers`.
     extra_decoder_kwargs

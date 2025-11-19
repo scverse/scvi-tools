@@ -11,7 +11,7 @@ from scvi.model import CondSCVI
 @pytest.mark.parametrize("encode_covariates", [True, False])
 @pytest.mark.parametrize("n_labels", [5])
 def test_condscvi_batch_key(
-    save_path: str, n_batches: int, encode_covariates: bool, n_labels: int
+    n_batches: int, encode_covariates: bool, n_labels: int, save_path: str
 ):
     adata = synthetic_iid(n_batches=n_batches, n_labels=n_labels)
     CondSCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
@@ -33,9 +33,7 @@ def test_condscvi_batch_key(
     model = CondSCVI.load(model_path, adata=adata)
 
 
-def test_condscvi_fine_celltype(
-    save_path: str,
-):
+def test_condscvi_fine_celltype(save_path: str):
     adata = synthetic_iid(n_batches=5, n_labels=5)
     adata.obs["fine_labels"] = [i + str(np.random.randint(2)) for i in adata.obs["labels"]]
     CondSCVI.setup_anndata(

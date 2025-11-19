@@ -9,7 +9,7 @@ import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import _ADATA_MINIFY_TYPE_UNS_KEY, ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
-from scvi.model import SCANVI, SCVI, CondSCVI
+from scvi.model import SCANVI, SCVI
 from scvi.model.base import BaseMinifiedModeModelClass
 
 if TYPE_CHECKING:
@@ -450,27 +450,3 @@ def test_scvi_with_minified_adata_get_feature_correlation_matrix():
     )
 
     assert_approx_equal(fcm_new, fcm_orig)
-
-
-def test_condscvi_with_minified_adata_one_sample():
-    run_test_for_model_with_minified_adata(CondSCVI)
-
-
-def test_condscvi_with_minified_adata_one_sample_with_spec_layer():
-    run_test_for_model_with_minified_adata(CondSCVI, layer="data_layer")
-
-
-def test_condscvi_with_minified_adata_n_samples():
-    run_test_for_model_with_minified_adata(CondSCVI, n_samples=10, give_mean=True)
-
-
-def test_condscvi_downstream():
-    model, adata, _, adata_before_setup = prep_model(CondSCVI)
-    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
-    adata.obsm["X_latent_qzm"] = qzm
-    adata.obsm["X_latent_qzv"] = qzv
-    model.minify_adata()
-    scvi.model.DestVI.setup_anndata(adata_before_setup)
-    scvi.model.DestVI.from_rna_model(
-        adata_before_setup, model, amortization="both", vamp_prior_p=10
-    )

@@ -1,26 +1,26 @@
-import numpy as np
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
-from torch.distributions import Categorical, Distribution, Independent, MixtureSameFamily, Normal
+from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal
 from torch.distributions import kl_divergence as kl
 from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
-from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import (
-    BaseMinifiedModeModuleClass,
-    EmbeddingModuleMixin,
-    LossOutput,
-    auto_move_data,
-)
+from scvi.module._constants import MODULE_KEYS
+from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
 from scvi.nn import Encoder, FCLayers
 
 from ._classifier import Classifier
 
-torch.backends.cudnn.benchmark = True
+if TYPE_CHECKING:
+    import numpy as np
+    from torch.distributions import Distribution
 
 
-class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
+class VAEC(EmbeddingModuleMixin, BaseModuleClass):
     """Conditional Variational auto-encoder model.
 
     This is an implementation of the CondSCVI model
@@ -69,7 +69,6 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         encode_covariates: bool = False,
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
-        linear_classifier: bool = True,
         prior: str = "normal",
         num_classes_mog: int | None = 10,
     ):
@@ -79,25 +78,23 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.n_layers = n_layers
         self.n_hidden = n_hidden
         self.dropout_rate = dropout_rate
-        self.encode_covariates = encode_covariates
         self.log_variational = log_variational
         self.gene_likelihood = "nb"
         self.latent_distribution = "normal"
-        # Automatically deactivate if useless
+        self.encode_covariates = encode_covariates
         self.n_batch = n_batch
         self.n_labels = n_labels
         self.n_fine_labels = n_fine_labels
         self.prior = prior
         self.num_classes_mog = num_classes_mog
         self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **{})
-
-        if self.encode_covariates and self.n_batch < 1:
-            raise ValueError("`n_batch` must be greater than 0 if `encode_covariates` is `True`.")
-
         batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
 
         cat_list = [n_labels]
         n_input_encoder = n_input + batch_dim * encode_covariates
+
+        if self.encode_covariates and self.n_batch < 1:
+            raise ValueError("`n_batch` must be greater than 0 if `encode_covariates` is `True`.")
 
         # gene dispersion
         self.px_r = torch.nn.Parameter(torch.randn(n_input))
@@ -175,49 +172,35 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             )
             self.prior_logits = torch.nn.Parameter(torch.zeros([n_labels, self.num_classes_mog]))
 
-    def _get_inference_input(self, tensors):
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-        if self.minified_data_type is None:
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            input_dict = {
-                "x": x,
-                "y": y,
-                "batch_index": batch_index,
-            }
-        else:
-            if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
-                qzm = tensors[REGISTRY_KEYS.LATENT_QZM_KEY]
-                qzv = tensors[REGISTRY_KEYS.LATENT_QZV_KEY]
-                observed_lib_size = tensors[REGISTRY_KEYS.OBSERVED_LIB_SIZE]
-                input_dict = {
-                    "qzm": qzm,
-                    "qzv": qzv,
-                    "observed_lib_size": observed_lib_size,
-                    "y": y,
-                    "batch_index": batch_index,
-                }
-            else:
-                raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
-
-        return input_dict
-
-    def _get_generative_input(self, tensors, inference_outputs):
-        z = inference_outputs["z"]
-        library = inference_outputs["library"]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
-        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
-
-        input_dict = {
-            "z": z,
-            "library": library,
-            "y": y,
-            "batch_index": batch_index,
+    def _get_inference_input(
+        self, tensors: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor | None]:
+        return {
+            MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
+            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            MODULE_KEYS.BATCH_INDEX_KEY: tensors.get(REGISTRY_KEYS.BATCH_KEY, None),
         }
-        return input_dict
+
+    def _get_generative_input(
+        self,
+        tensors: dict[str, torch.Tensor],
+        inference_outputs: dict[str, torch.Tensor | Distribution],
+    ) -> dict[str, torch.Tensor]:
+        return {
+            MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
+            MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
+            MODULE_KEYS.Y_KEY: tensors[REGISTRY_KEYS.LABELS_KEY],
+            MODULE_KEYS.BATCH_INDEX_KEY: tensors.get(REGISTRY_KEYS.BATCH_KEY, None),
+        }
 
     @auto_move_data
-    def _regular_inference(self, x, y, batch_index, n_samples=1):
+    def inference(
+        self,
+        x: torch.Tensor,
+        y: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor | Distribution]:
         """High level inference method.
 
         Runs the inference (encoder) model.
@@ -238,27 +221,11 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             z = self.z_encoder.z_transformation(untran_z)
             library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
 
-        outputs = {"z": z, "qz": qz, "library": library}
-        return outputs
-
-    @auto_move_data
-    def _cached_inference(
-        self, qzm, qzv, observed_lib_size, y=None, batch_index=None, n_samples=1
-    ):
-        if ADATA_MINIFY_TYPE.__contains__(self.minified_data_type):
-            qz = Normal(qzm, qzv.sqrt())
-            # use dist.sample() rather than rsample because we aren't optimizing the z here
-            untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
-            z = self.z_encoder.z_transformation(untran_z)
-            library = observed_lib_size
-            if n_samples > 1:
-                library = library.unsqueeze(0).expand(
-                    (n_samples, library.size(0), library.size(1))
-                )
-        else:
-            raise NotImplementedError(f"Unknown minified-data type: {self.minified_data_type}")
-        outputs = {"z": z, "qz": qz, "library": library}
-        return outputs
+        return {
+            MODULE_KEYS.Z_KEY: z,
+            MODULE_KEYS.QZ_KEY: qz,
+            MODULE_KEYS.LIBRARY_KEY: library,
+        }
 
     @auto_move_data
     def classify(
@@ -300,12 +267,13 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if z.ndim > batch_rep.ndim:
             batch_rep = batch_rep.unsqueeze(0).expand(z.shape[0], -1, -1)
         decoder_input = torch.cat([z, batch_rep], dim=-1)
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
         h = self.decoder(decoder_input, y, batch_index)
         px_scale = torch.nn.Softmax(dim=-1)(self.px_decoder(h) + self.per_ct_bias[y.ravel()])
         px_rate = library * px_scale
         px_r = torch.exp(self.px_r)
-        px = NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)
-        return {"px": px}
+        return {MODULE_KEYS.PX_KEY: NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)}
 
     def loss(
         self,
@@ -319,8 +287,8 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         """Loss computation."""
         x = tensors[REGISTRY_KEYS.X_KEY]
         y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
-        qz = inference_outputs["qz"]
-        px = generative_outputs["px"]
+        qz = inference_outputs[MODULE_KEYS.QZ_KEY]
+        px = generative_outputs[MODULE_KEYS.PX_KEY]
         fine_labels = (
             tensors["fine_labels"].ravel().long() if "fine_labels" in tensors.keys() else None
         )
@@ -348,9 +316,7 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.classifier is not None:
             fine_labels = fine_labels.view(-1)
-            logits = self.classify(
-                qz.loc, label_index=tensors[REGISTRY_KEYS.LABELS_KEY]
-            )  # (n_obs, n_labels)
+            logits = self.classify(qz.loc, label_index=tensors[REGISTRY_KEYS.LABELS_KEY])
             classification_loss_ = F.cross_entropy(logits, fine_labels, reduction="none")
             mask = fine_labels != self.n_fine_labels
             classification_loss = classification_ratio * torch.masked_select(
@@ -378,9 +344,9 @@ class VAEC(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
     @torch.inference_mode()
     def sample(
         self,
-        tensors,
-        n_samples=1,
-    ) -> np.ndarray:
+        tensors: dict[str, torch.Tensor],
+        n_samples: int = 1,
+    ) -> torch.Tensor:
         r"""Generate observation samples from the posterior predictive distribution.
 
         The posterior predictive distribution is written as :math:`p(\hat{x} \mid x)`.

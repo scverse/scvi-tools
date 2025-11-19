@@ -172,7 +172,7 @@ class SemisupervisedTrainingMixin:
         """Set indices for labeled and unlabeled cells."""
         labels_state_registry = self.get_state_registry(REGISTRY_KEYS.LABELS_KEY)
         self.original_label_key = labels_state_registry.original_key
-        self.unlabeled_category_ = getattr(labels_state_registry, "unlabeled_category", None)
+        self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
         if datamodule is None:
             self.labels_ = get_anndata_attribute(

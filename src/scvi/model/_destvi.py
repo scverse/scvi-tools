@@ -7,19 +7,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import torch
+from scipy.sparse import csr_matrix
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._constants import _SETUP_ARGS_KEY
-from scvi.data.fields import (
-    CategoricalObsField,
-    LayerField,
-    NumericalObsField,
-)
+from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
 from scvi.model.base._archesmixin import _get_loaded_data
 from scvi.module import MRDeconv
 from scvi.utils import setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -132,15 +130,15 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         st_adata
-            anndata object will be registered
+            registered anndata object
         sc_model
-            trained CondSCVI model or path to a trained model
+            trained CondSCVI model
         vamp_prior_p
             number of mixture parameter for VampPrior calculations
         anndata_setup_kwargs
             Keyword args for :meth:`~scvi.model.DestVI.setup_anndata`
-        **module_kwargs
-            Keyword args for :class:`~scvi.model.MRDeconv`
+        **model_kwargs
+            Keyword args for :class:`~scvi.model.DestVI`
         """
         attr_dict, var_names, load_state_dict, _ = _get_loaded_data(sc_model)
         registry = attr_dict.pop("registry_")
@@ -218,8 +216,8 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         Parameters
         ----------
         keep_additional
-            whether to account for the additional cell-types as standalone cell types
-            in the proportion estimate.
+            whether to account for the additional cell-types as standalone cell types in the
+            proportion estimate.
         normalize
             whether to normalize the proportions to sum to 1.
         indices
@@ -264,6 +262,81 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
             columns=column_names,
             index=index_names,
         )
+
+    @torch.inference_mode()
+    def get_fine_celltypes(
+        self,
+        sc_model: CondSCVI,
+        indices=None,
+        batch_size: int | None = None,
+    ) -> np.ndarray | dict[str, pd.DataFrame]:
+        """Returns the estimated cell-type specific latent space for the spatial data.
+
+        Parameters
+        ----------
+        sc_model
+            trained CondSCVI model
+        indices
+            Indices of cells in adata to use. Only used if amortization.
+            If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Only used if amortization.
+            Defaults to `scvi.settings.batch_size`.
+        """
+        self._check_if_trained()
+        index_names = self.adata.obs.index
+        stdl = self._make_data_loader(adata=self.adata, indices=indices, batch_size=batch_size)
+        if sc_model.n_fine_labels is None:
+            raise RuntimeError(
+                "Single cell model does not contain fine labels. "
+                "Please train the single-cell model with fine labels."
+            )
+        predicted_fine_celltype_ = []
+        for tensors in stdl:
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
+            generative_inputs = self.module._get_generative_input(tensors, outputs)
+            generative_outputs = self.module.generative(**generative_inputs)
+
+            gamma_local = generative_outputs["gamma"][0, ...].transpose(-2, -4)  #  c, n, p, m
+            proportions_modes_local = generative_outputs["proportion_modes"][0, ...]  # pmc
+            n_modes, batch_size, n_celltypes = proportions_modes_local.shape
+            gamma_local_ = gamma_local.permute((3, 2, 0, 1)).reshape(
+                -1, self.module.n_latent
+            )  # m*p*c, n
+            proportions_modes_local_ = proportions_modes_local.permute(
+                (1, 0, 2)
+            ).flatten()  # m*p*c
+            v_local = (
+                generative_outputs["v"][0, ..., : -self.module.add_celltypes]
+                .flatten()
+                .repeat_interleave(n_modes)
+            )  # m*p*c
+            label = (
+                torch.arange(self.module.n_labels, device=gamma_local.device)
+                .repeat(batch_size)
+                .repeat_interleave(n_modes)
+                .unsqueeze(-1)
+            )  # m*p*c, 1
+            predicted_fine_celltype_local = (
+                v_local.unsqueeze(-1)
+                * proportions_modes_local_.unsqueeze(-1)
+                * torch.nn.functional.softmax(
+                    sc_model.module.classify(gamma_local_, label), dim=-1
+                )
+            )
+            predicted_fine_celltype_sum = predicted_fine_celltype_local.reshape(
+                batch_size, n_celltypes * n_modes, sc_model.n_fine_labels
+            ).sum(1)
+            predicted_fine_celltype_.append(predicted_fine_celltype_sum.detach().cpu())
+        predicted_fine_celltype = torch.cat(predicted_fine_celltype_, dim=0).numpy()
+
+        pred = pd.DataFrame(
+            predicted_fine_celltype,
+            columns=sc_model._fine_label_mapping,
+            index=index_names,
+        )
+        return pred
 
     @torch.inference_mode()
     def get_gamma(
@@ -435,6 +508,132 @@ class DestVI(UnsupervisedTrainingMixin, BaseModelClass):
         if indices is not None:
             index_names = index_names[indices]
         return pd.DataFrame(data=data, columns=column_names, index=index_names)
+
+    @torch.inference_mode()
+    def get_expression_for_ct(
+        self,
+        label: str,
+        indices: Sequence[int] | None = None,
+        batch_size: int | None = None,
+        return_sparse_array: bool = False,
+    ) -> pd.DataFrame:
+        r"""Return the scaled parameter of the NB for every spot in queried cell types.
+
+        Parameters
+        ----------
+        label
+            cell type of interest
+        indices
+            Indices of cells in self.adata to use. If `None`, all cells are used.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_sparse_array
+            If `True`, returns a sparse array instead of a dataframe.
+
+        Returns
+        -------
+        Pandas dataframe of gene_expression
+        """
+        self._check_if_trained()
+
+        if label not in self.cell_type_mapping_extended:
+            raise ValueError("Unknown cell type")
+        y = self.cell_type_mapping_extended.index(label)
+
+        stdl = self._make_data_loader(self.adata, indices=indices, batch_size=batch_size)
+        expression_ct = []
+        for tensors in stdl:
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
+            generative_inputs = self.module._get_generative_input(tensors, outputs)
+            generative_outputs = self.module.generative(**generative_inputs)
+            px_scale, proportions = (
+                generative_outputs["px_mu"][0, ...],
+                generative_outputs["v"][0, ...],
+            )
+            px_scale_expected = torch.einsum("mkl,mk->mkl", px_scale, proportions)
+            px_scale_proportions = px_scale_expected[:, y, :] / px_scale_expected.sum(dim=1)
+            x_ct = tensors["X"].to(px_scale_proportions.device) * px_scale_proportions
+            expression_ct += [x_ct.cpu()]
+
+        data = torch.cat(expression_ct).numpy()
+        if return_sparse_array:
+            data = csr_matrix(data.T)
+            return data
+        else:
+            column_names = self.adata.var.index
+            index_names = self.adata.obs.index
+            if indices is not None:
+                index_names = index_names[indices]
+            return pd.DataFrame(data=data, columns=column_names, index=index_names)
+
+    @devices_dsp.dedent
+    def train(
+        self,
+        max_epochs: int = 2000,
+        lr: float = 0.003,
+        accelerator: str = "auto",
+        devices: int | list[int] | str = "auto",
+        train_size: float = 1.0,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
+        batch_size: int = 128,
+        n_epochs_kl_warmup: int = 200,
+        datasplitter_kwargs: dict | None = None,
+        plan_kwargs: dict | None = None,
+        **kwargs,
+    ):
+        """Trains the model using MAP inference.
+
+        Parameters
+        ----------
+        max_epochs
+            Number of epochs to train for
+        lr
+            Learning rate for optimization.
+        %(param_accelerator)s
+        %(param_devices)s
+        train_size
+            Size of training set in the range [0.0, 1.0].
+        validation_size
+            Size of the test set. If `None`, defaults to 1 - `train_size`. If
+            `train_size + validation_size < 1`, the remaining cells belong to a test set.
+        shuffle_set_split
+            Whether to shuffle indices before splitting. If `False`, the val, train, and test set
+            are split in the sequential order of the data according to `validation_size` and
+            `train_size` percentages.
+        batch_size
+            Minibatch size to use during training.
+        n_epochs_kl_warmup
+            number of epochs needed to reach unit kl weight in the elbo
+        datasplitter_kwargs
+            Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
+        plan_kwargs
+            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
+            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        **kwargs
+            Other keyword args for :class:`~scvi.train.Trainer`.
+        """
+        update_dict = {
+            "lr": lr,
+            "n_epochs_kl_warmup": n_epochs_kl_warmup,
+        }
+        if plan_kwargs is not None:
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = update_dict
+        super().train(
+            max_epochs=max_epochs,
+            accelerator=accelerator,
+            devices=devices,
+            train_size=train_size,
+            validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
+            batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
+            plan_kwargs=plan_kwargs,
+            **kwargs,
+        )
 
     @classmethod
     @setup_anndata_dsp.dedent
