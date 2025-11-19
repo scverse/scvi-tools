@@ -201,6 +201,11 @@ def test_scanvi_with_external_indices():
     train_ind, valid_ind = train_test_split(
         adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
     )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
+    )
     test_ind, valid_ind = train_test_split(
         valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
     )
