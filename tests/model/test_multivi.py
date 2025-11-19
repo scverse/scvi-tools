@@ -49,7 +49,7 @@ def test_multivi_mudata_rna_prot_external():
     model.train(1, train_size=0.9)
 
 
-def test_multivi_mudata_rna_atac_external():
+def test_multivi_mudata_rna_atac():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
     sc.pp.highly_variable_genes(
@@ -79,7 +79,7 @@ def test_multivi_mudata_rna_atac_external():
     model.train(1, train_size=0.9)
 
 
-def test_multivi_mudata_trimodal_external():
+def test_multivi_mudata_trimodal():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
