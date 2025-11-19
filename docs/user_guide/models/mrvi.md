@@ -145,4 +145,4 @@ In particular, large positive (resp. negative) values of $r$ indicate that cell 
 [^ref1]:
      Pierre Boyeau, Justin Hong, Adam Gayoso, Martin Kim, Jose L McFaline-Figueroa, Michael Jordan, Elham Azizi, Can Ergen, Nir Yosef (2024),
     _Deep generative modeling of sample-level heterogeneity in single-cell genomics_,
-    [bioRxiv](https://doi.org/10.1101/2022.10.04.510898).
+    [Nature Methods](https://www.nature.com/articles/s41592-025-02808-x).
