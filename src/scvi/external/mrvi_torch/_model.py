@@ -1147,7 +1147,7 @@ class TorchMRVI(
         use_vmap: Literal["auto", True, False] = "auto",
         normalize_design_matrix: bool = True,
         add_batch_specific_offsets: bool = False,
-        mc_samples: int = 100,
+        mc_samples: int = 50,
         store_lfc: bool = False,
         store_lfc_metadata_subset: list[str] | None = None,
         store_baseline: bool = False,
