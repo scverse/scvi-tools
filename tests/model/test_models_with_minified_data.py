@@ -375,8 +375,12 @@ def test_scvi_save_then_load_with_minified_adata(save_path):
     # loading this model with a minified adata is not allowed because
     # we don't have a way to validate whether the minified-adata was
     # set up correctly
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError) as excinfo:
         SCVI.load(save_path, adata=model.adata)
+    assert (
+        str(excinfo.value)
+        == "It appears you are trying to load a non-minified model with minified adata"
+    )
 
 
 def test_scvi_with_minified_adata_get_latent_representation():
