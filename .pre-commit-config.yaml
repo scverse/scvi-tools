@@ -6,6 +6,16 @@ default_stages:
   - pre-push
 minimum_pre_commit_version: 2.16.0
 repos:
+  - repo: https://github.com/biomejs/pre-commit
+    rev: v2.3.5
+    hooks:
+      - id: biome-format
+        exclude: ^\.cruft\.json$ # inconsistent indentation with cruft - file never to be modified manually.
+  - repo: https://github.com/tox-dev/pyproject-fmt
+    rev: v2.11.1
+    hooks:
+      - id: pyproject-fmt
+
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.20.0
     hooks:
@@ -57,6 +67,19 @@ repos:
         args: [--fix=lf]
       - id: trailing-whitespace
       - id: check-case-conflict
+      - id: check-added-large-files
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: no-commit-to-branch
+        args: ["--branch=main"]
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+        additional_dependencies:
+          - tomli
 
   - repo: local
     hooks:
