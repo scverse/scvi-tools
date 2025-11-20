@@ -1,243 +1,233 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling"]
+requires = [ "hatchling" ]
 
 [project]
 name = "scvi-tools"
 version = "1.4.0.post1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.11"
-license = {file = "LICENSE"}
-authors = [
-    {name = "The scvi-tools development team"},
-]
+license = { file = "LICENSE" }
 maintainers = [
-    {name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il"},
+  { name = "The scvi-tools development team", email = "ori.kronfeld@weizmann.ac.il" },
 ]
 
-urls.Documentation = "https://scvi-tools.org"
-urls.Source = "https://github.com/scverse/scvi-tools"
-urls.Home-page = "https://scvi-tools.org"
+authors = [
+  { name = "The scvi-tools development team" },
+]
+requires-python = ">=3.11"
 classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata>=0.11",
-    "docrep>=0.3.2",
-    "lightning>=2.0",
-    "ml-collections",
-    "mudata",
-    "numba>=0.60.0",
-    "numpy",
-    "pandas",
-    "pyro-ppl",
-    "rich",
-    "scanpy[skmisc]>=1.10",
-    "scikit-learn",
-    "scipy",
-    "sparse>=0.14.0",
-    "tensorboard",
-    "torch",
-    "torchmetrics",
-    "tqdm",
-    "xarray",
+  "anndata>=0.11",
+  "docrep>=0.3.2",
+  "lightning>=2",
+  "ml-collections",
+  "mudata",
+  "numba>=0.60",
+  "numpy",
+  "pandas",
+  "pyro-ppl",
+  "rich",
+  "scanpy[skmisc]>=1.10",
+  "scikit-learn",
+  "scipy",
+  "sparse>=0.14",
+  "tensorboard",
+  "torch",
+  "torchmetrics",
+  "tqdm",
+  "xarray",
 ]
 
-[project.optional-dependencies]
-tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
-editing = ["jupyter", "pre-commit"]
-dev = ["scvi-tools[editing,tests]"]
-test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
-metal = ["torchvision", "torchaudio", "jax-metal"]
-
-docs = [
-    "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "sphinx",
-    "ipython",
-    "sphinx-book-theme>=1.0.1",
-    "sphinx_copybutton",
-    "sphinx-design",
-    "sphinxext-opengraph",
-    "sphinx-hoverxref",
-    "sphinxcontrib-bibtex",
-    "myst-parser",
-    "myst-nb",
-    "sphinx-autodoc-typehints",
-]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
-
+optional-dependencies.all = [ "scvi-tools[dev,docs,tutorials]" ]
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]<2.51", "scib-metrics", "muon"]
-# scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]", "boto3"]
-# scvi.data.add_dna_sequence
-regseq = ["biopython>=1.81", "genomepy"]
-# for files sharing or handling
-file_sharing = ["pooch","gdown","readfcs","fcswrite"]
-# for parallelization engine
-parallel = ["dask[array]", "zarr<3.0.0"]
-# for models interpretability
-interpretability = ["captum", "shap", "decoupler"]
-# for jax support
-jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
+optional-dependencies.autotune = [ "hyperopt>=0.2", "muon", "ray[tune]<2.51", "scib-metrics" ]
+optional-dependencies.cuda = [ "jax[cuda12]", "torchaudio", "torchvision" ]
 # for custom dataloders
-dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+optional-dependencies.dataloaders = [
+  "cellxgene-census",
+  "lamindb>=1.12.1",
+  "tiledbsoma",
+  "tiledbsoma-ml",
+  "torchdata",
+]
+optional-dependencies.dev = [ "scvi-tools[editing,tests]" ]
+optional-dependencies.docs = [
+  "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
+  "ipython",
+  "myst-nb",
+  "myst-parser",
+  "sphinx",
+  "sphinx-autodoc-typehints",
+  "sphinx-book-theme>=1.0.1",
+  "sphinx-copybutton",
+  "sphinx-design",
+  "sphinx-hoverxref",
+  "sphinxcontrib-bibtex",
+  "sphinxext-opengraph",
+]
+optional-dependencies.docsbuild = [ "scvi-tools[autotune,docs,hub,jax]" ]
+optional-dependencies.editing = [ "jupyter", "pre-commit" ]
+# for files sharing or handling
+optional-dependencies.file_sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
+# scvi.hub dependencies
+optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub", "igraph", "leidenalg" ]
+# for models interpretability
+optional-dependencies.interpretability = [ "captum", "decoupler", "shap" ]
+# for jax support
+optional-dependencies.jax = [ "flax", "jax", "jaxlib", "numpyro", "optax" ]
+optional-dependencies.metal = [ "jax-metal", "torchaudio", "torchvision" ]
 # for mlflow
-mlflow = ["mlflow","psutil","GPUtil"]
-
-optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]"
+optional-dependencies.mlflow = [ "gputil", "mlflow", "psutil" ]
+optional-dependencies.optional = [
+  "scvi-tools[autotune,file_sharing,hub,interpretability,jax,mlflow,parallel,regseq]",
 ]
-tutorials = [
-    "biomart",
-    "cell2location",
-    "dataloaders",
-    "jupyter",
-    "leidenalg",
-    "seaborn",
-    "matplotlib",
-    "plotnine",
-    "pynndescent",
-    "igraph",
-    "scrublet",
-    "scvi-tools[optional]",
-    "squidpy>=1.6.0",
-    "umap-learn>=0.5.0",
+# for parallelization engine
+optional-dependencies.parallel = [ "dask[array]", "zarr<3" ]
+# scvi.data.add_dna_sequence
+optional-dependencies.regseq = [ "biopython>=1.81", "genomepy" ]
+optional-dependencies.test = [ "scvi-tools[tests]" ]
+optional-dependencies.tests = [ "coverage", "pytest", "pytest-pretty", "scvi-tools[optional]" ]
+optional-dependencies.tutorials = [
+  "biomart",
+  "cell2location",
+  "dataloaders",
+  "igraph",
+  "jupyter",
+  "leidenalg",
+  "matplotlib",
+  "plotnine",
+  "pynndescent",
+  "scrublet",
+  "scvi-tools[optional]",
+  "seaborn",
+  "squidpy>=1.6",
+  "umap-learn>=0.5",
 ]
-
-all = ["scvi-tools[dev,docs,tutorials]"]
+urls.Documentation = "https://scvi-tools.org"
+urls.Home-page = "https://scvi-tools.org"
+urls.Source = "https://github.com/scverse/scvi-tools"
 
 [tool.hatch.build.targets.wheel]
-packages = ['src/scvi']
-
-[tool.coverage.run]
-source = ["scvi"]
-omit = [
-    "**/test_*.py",
-]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-xfail_strict = true
-markers = [
-    "internet: mark tests that requires internet access",
-    "optional: mark optional tests, usually take more time",
-    "private: mark tests that uses private keys, like HF",
-    "multigpu: mark tests that are used to check multi GPU performance",
-    "autotune: mark tests that are used to check ray autotune capabilities",
-    "custom dataloaders: mark tests that are used to check different custom data loaders",
-]
+packages = [ 'src/scvi' ]
 
 [tool.ruff]
-src = ["src"]
-line-length = 99
-indent-width = 4
 target-version = "py312"
 
+line-length = 99
+indent-width = 4
+src = [ "src" ]
 # Exclude a variety of commonly ignored directories.
 exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".hg",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  "__pypackages__",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "venv",
 ]
-
-[tool.ruff.lint]
-select = [
-    "F",  # Errors detected by Pyflakes
-    "E",  # Error detected by Pycodestyle
-    "W",  # Warning detected by Pycodestyle
-    "I",  # isort
-    "D",  # pydocstyle
-    "B",  # flake8-bugbear
-    "TID",  # flake8-tidy-imports
-    "C4",  # flake8-comprehensions
-    "BLE",  # flake8-blind-except
-    "UP",  # pyupgrade
-    "RUF100",  # Report unused noqa directives
-    "PT", # pytest style
-    "NPY", # numpy formatting
-    "TCH", # flake8-type-checking
-    "FA", # flake8-future-annotations
-]
-ignore = [
-    # allow I, O, l as variable names -> I is the identity matrix
-    "E741",
-    # Missing docstring in the public package
-    "D104",
-    # Missing docstring in the public module
-    "D100",
-    # Missing docstring in __init__
-    "D107",
-    # Errors from function calls in argument defaults. These are fine when the result is immutable.
-    "B008",
-    # the first line should end with a period [Bug: doesn't work with single-line docstrings]
-    "D400",
-    # The first line should be in an imperative mood; try rephrasing
-    "D401",
-    # We want docstrings to start immediately after the opening triple quote
-    "D213",
-    # Raising ValueError is enough in tests.
-    "PT011",
-    # We support np.random functions.
-    "NPY002"
-]
-
-[tool.ruff.lint.pydocstyle]
-convention = "numpy"
-
-[tool.ruff.lint.per-file-ignores]
-"docs/*" = ["I", "BLE001"]
-"tests/*" = ["D"]
-"*/__init__.py" = ["F401"]
-"src/scvi/__init__.py" = ["I"]
-
-[tool.ruff.format]
-docstring-code-format = true
-# Like Black, use double quotes for strings.
-quote-style = "double"
 
 # Like Black, indent with spaces, rather than tabs.
-indent-style = "space"
-
-# Like Black, respect magic trailing commas.
-skip-magic-trailing-comma = false
-
+format.indent-style = "space"
+# Like Black, use double quotes for strings.
+format.quote-style = "double"
 # Like Black, automatically detect the appropriate line ending.
-line-ending = "auto"
+format.line-ending = "auto"
+# Like Black, respect magic trailing commas.
+format.skip-magic-trailing-comma = false
+format.docstring-code-format = true
+lint.select = [
+  "B",      # flake8-bugbear
+  "BLE",    # flake8-blind-except
+  "C4",     # flake8-comprehensions
+  "D",      # pydocstyle
+  "E",      # Error detected by Pycodestyle
+  "F",      # Errors detected by Pyflakes
+  "FA",     # flake8-future-annotations
+  "I",      # isort
+  "NPY",    # numpy formatting
+  "PT",     # pytest style
+  "RUF100", # Report unused noqa directives
+  "TCH",    # flake8-type-checking
+  "TID",    # flake8-tidy-imports
+  "UP",     # pyupgrade
+  "W",      # Warning detected by Pycodestyle
+]
+lint.ignore = [
+  # Errors from function calls in argument defaults. These are fine when the result is immutable.
+  "B008",
+  # Missing docstring in the public module
+  "D100",
+  # Missing docstring in the public package
+  "D104",
+  # Missing docstring in __init__
+  "D107",
+  # We want docstrings to start immediately after the opening triple quote
+  "D213",
+  # the first line should end with a period [Bug: doesn't work with single-line docstrings]
+  "D400",
+  # The first line should be in an imperative mood; try rephrasing
+  "D401",
+  # allow I, O, l as variable names -> I is the identity matrix
+  "E741",
+  # We support np.random functions.
+  "NPY002",
+  # Raising ValueError is enough in tests.
+  "PT011",
+]
+lint.per-file-ignores."*/__init__.py" = [ "F401" ]
+lint.per-file-ignores."docs/*" = [ "BLE001", "I" ]
+lint.per-file-ignores."src/scvi/__init__.py" = [ "I" ]
+lint.per-file-ignores."tests/*" = [ "D" ]
+lint.flake8-type-checking.exempt-modules = [  ]
+lint.flake8-type-checking.strict = true
+lint.pydocstyle.convention = "numpy"
+
+[tool.pytest.ini_options]
+testpaths = [ "tests" ]
+xfail_strict = true
+markers = [
+  "internet: mark tests that requires internet access",
+  "optional: mark optional tests, usually take more time",
+  "private: mark tests that uses private keys, like HF",
+  "multigpu: mark tests that are used to check multi GPU performance",
+  "autotune: mark tests that are used to check ray autotune capabilities",
+  "custom dataloaders: mark tests that are used to check different custom data loaders",
+]
+
+[tool.coverage.run]
+source = [ "scvi" ]
+omit = [
+  "**/test_*.py",
+]
 
 [tool.jupytext]
 formats = "ipynb,md"
-
-[tool.ruff.lint.flake8-type-checking]
-exempt-modules = []
-strict = true
