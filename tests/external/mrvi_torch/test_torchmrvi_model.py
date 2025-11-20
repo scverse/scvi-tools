@@ -122,7 +122,7 @@ def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
 )
 def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
     for de_kwarg in de_kwargs:
-        model.differential_expression(**de_kwarg, use_vmap=False)
+        model.differential_expression(**de_kwarg)
 
 
 @pytest.mark.parametrize(
