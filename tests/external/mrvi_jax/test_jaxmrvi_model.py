@@ -39,7 +39,7 @@ def adata():
 def model(adata: AnnData):
     MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="jax")
     model = MRVI(adata)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(max_steps=1, train_size=0.5)
 
     return model
 
