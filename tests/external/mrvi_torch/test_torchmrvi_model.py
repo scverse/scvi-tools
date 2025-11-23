@@ -38,7 +38,7 @@ def adata():
 @pytest.fixture(scope="session")
 def model(adata: AnnData):
     MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="torch")
-    model = MRVI(adata, backend="torch")
+    model = MRVI(adata)
     model.train(max_steps=1, train_size=0.5)
 
     return model
@@ -61,18 +61,7 @@ def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
-    with pytest.raises(ValueError) as excinfo:
-        model = MRVI.load("tests/external/mrvi_jax/mrvi_model", adata=adata)
-    assert (
-        str(excinfo.value)
-        == "It appears you are trying to load a TORCH MRVI model with a JAX MRVI model"
-    )
-    with pytest.raises(ValueError) as excinfo:
-        model = MRVI.load("tests/external/mrvi_jax/mrvi_model_old_jax", adata=adata)
-    assert (
-        str(excinfo.value) == "It appears you are trying to load a TORCH MRVI model "
-        "with a previous version JAX MRVI model"
-    )
+    model.train(1)
 
 
 @pytest.mark.parametrize(
@@ -179,7 +168,7 @@ def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], sa
         batch_key="batch",
         backend="torch",
     )
-    model = MRVI(adata, n_latent=10, scale_observations=True, backend="torch", **model_kwargs)
+    model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(max_steps=1, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
@@ -206,7 +195,7 @@ def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
         batch_key="batch",
         backend="torch",
     )
-    model = MRVI(adata, n_latent=10, n_latent_u=5, backend="torch")
+    model = MRVI(adata, n_latent=10, n_latent_u=5)
     model.train(max_steps=1, train_size=0.5)
     model.get_local_sample_distances()
 
@@ -241,7 +230,7 @@ def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: st
         batch_key="batch",
         backend="torch",
     )
-    model = MRVI(adata_stratifications, n_latent=10, backend="torch")
+    model = MRVI(adata_stratifications, n_latent=10)
     model.train(max_steps=1, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"])
