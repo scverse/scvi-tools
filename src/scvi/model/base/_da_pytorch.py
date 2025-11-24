@@ -1,14 +1,12 @@
 from collections.abc import Sequence
 
 import numpy as np
-
 import pandas as pd
 import torch
 import torch.distributions as dist
 from anndata import AnnData
-from torch import Tensor
-from tqdm import tqdm
 from scipy.sparse import coo_matrix
+from tqdm import tqdm
 
 
 def get_aggregated_posterior(
@@ -17,7 +15,7 @@ def get_aggregated_posterior(
     sample: str | int | None = None,
     indices: Sequence[int] | None = None,
     batch_size: int | None = None,
-    dof: float | None = 3.,
+    dof: float | None = 3.0,
 ) -> dist.Distribution:
     """Compute the aggregated posterior over the ``u`` latent representations.
 
@@ -49,17 +47,22 @@ def get_aggregated_posterior(
         )
 
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-    qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True)
+    qu_loc, qu_scale = self.get_latent_representation(
+        batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
+    )
 
-    qu_loc = torch.tensor(qu_loc, device=self.device) # (n_cells, n_latent_u)
+    qu_loc = torch.tensor(qu_loc, device=self.device)  # (n_cells, n_latent_u)
     qu_scale = torch.tensor(qu_scale, device=self.device)
-    
+
     if dof is None:
         components = dist.Normal(qu_loc, qu_scale)
     else:
         components = dist.StudentT(dof, qu_loc, qu_scale)
     return dist.MixtureSameFamily(
-        dist.Categorical(logits=torch.ones(qu_loc.shape[0], device=self.device)), dist.Independent(components, 1))
+        dist.Categorical(logits=torch.ones(qu_loc.shape[0], device=self.device)),
+        dist.Independent(components, 1),
+    )
+
 
 def differential_abundance(
     self,
@@ -96,12 +99,9 @@ def differential_abundance(
     for each cell across samples. The rows correspond to cell names from `adata.obs_names`,
     and the columns correspond to unique sample identifiers.
     """
-
     adata = self._validate_anndata(adata)
 
-    us = self.get_latent_representation(
-        batch_size=batch_size, return_dist=False, give_mean=True
-    )
+    us = self.get_latent_representation(batch_size=batch_size, return_dist=False, give_mean=True)
 
     # Are we computing for all cells?
     downsampling = downsample and (downsample < us.shape[0])
@@ -134,6 +134,8 @@ def differential_abundance(
         data = log_probs.flatten()
         row = np.repeat(downsample_indices, log_probs.shape[1])
         col = np.tile(list(range(log_probs.shape[1])), downsample)
-        log_probs = coo_matrix((data, (row, col)), shape=(us.shape[0], len(unique_samples))) # (num_cells, num_samples)
-        
+        log_probs = coo_matrix(
+            (data, (row, col)), shape=(us.shape[0], len(unique_samples))
+        )  # (num_cells, num_samples)
+
     return log_probs
