@@ -51,15 +51,15 @@ def get_aggregated_posterior(
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
     qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True)
 
-    qu_loc = torch.tensor(qu_loc, device=self.device).T
-    qu_scale = torch.tensor(qu_scale, device=self.device).T
+    qu_loc = torch.tensor(qu_loc, device=self.device) # (n_cells, n_latent_u)
+    qu_scale = torch.tensor(qu_scale, device=self.device)
     
     if dof is None:
         components = dist.Normal(qu_loc, qu_scale)
     else:
         components = dist.StudentT(dof, qu_loc, qu_scale)
     return dist.MixtureSameFamily(
-        dist.Categorical(logits=torch.ones(qu_loc.shape[1], device=self.device)), components)
+        dist.Categorical(logits=torch.ones(qu_loc.shape[0], device=self.device)), dist.Independent(components, 1))
 
 def differential_abundance(
     self,
@@ -108,7 +108,7 @@ def differential_abundance(
     if downsampling:
         downsample_indices = np.random.choice(range(us.shape[0]), downsample, replace=False)
     else:
-        downsample_indices = list(range(us.shape[0]))
+        downsample_indices = np.array(list(range(us.shape[0])))
 
     dataloader = torch.utils.data.DataLoader(us[downsample_indices], batch_size=batch_size)
     unique_samples = adata.obs[sample_key].unique()
@@ -123,19 +123,17 @@ def differential_abundance(
         log_probs_ = []
         for u_rep in dataloader:
             u_rep = u_rep.to(self.device)
-            log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True))
+            log_probs_.append(ap.log_prob(u_rep))
         log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
     # If not downsampling, this is the full (num_cells, num_samples) array
     # If we are downsampling this is (downsample, num_samples) and we must pad with sparse zeros
-    log_probs = np.concatenate(log_probs, 1)
+    log_probs = np.array(log_probs).T
 
     if downsampling:
         data = log_probs.flatten()
-        row = downsample_indices
-        col = np.tile(list(range(log_probs.shape[1])), downsampling)
+        row = np.repeat(downsample_indices, log_probs.shape[1])
+        col = np.tile(list(range(log_probs.shape[1])), downsample)
         log_probs = coo_matrix((data, (row, col)), shape=(us.shape[0], len(unique_samples))) # (num_cells, num_samples)
         
-
-    log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names.to_numpy(), columns=unique_samples)
-    return log_probs_df
+    return log_probs
