@@ -12,7 +12,7 @@ from scvi.nn import Encoder, FCLayers
 
 
 class Decoder(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
+    """Decodes data from a latent space of ``n_input`` dimensions ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -38,7 +38,7 @@ class Decoder(nn.Module):
         Whether to use layer norm in layers
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers. If False (default),
-        covairates will only be included in the input layer.
+        covariates will only be included in the input layer.
     **kwargs
         Keyword args for :class:`~scvi.nn.FCLayers`
     """
@@ -80,7 +80,7 @@ class Decoder(nn.Module):
 class PEAKVAE(BaseModuleClass):
     """Variational auto-encoder model for ATAC-seq data.
 
-    This is an implementation of the peakVI model descibed in.
+    This is an implementation of the peakVI model described in.
 
     Parameters
     ----------
@@ -89,10 +89,10 @@ class PEAKVAE(BaseModuleClass):
     n_batch
         Number of batches, if 0, no batch correction is performed.
     n_hidden
-        Number of nodes per hidden layer. If `None`, defaults to square root
-        of number of regions.
+        Number of nodes per hidden layer. If `None`,
+        defaults to the square root of the number of regions.
     n_latent
-        Dimensionality of the latent space. If `None`, defaults to square root
+        Dimensionality of the latent space. If `None`, defaults to the square root
         of `n_hidden`.
     n_layers_encoder
         Number of hidden layers used for encoder NN.
@@ -125,7 +125,7 @@ class PEAKVAE(BaseModuleClass):
         * ``'ln'`` - Logistic normal distribution (Normal(0, I) transformed by softmax)
     deeply_inject_covariates
         Whether to deeply inject covariates into all layers of the decoder. If False (default),
-        covairates will only be included in the input layer.
+        covariates will only be included in the input layer.
     encode_covariates
         Whether to concatenate covariates to expression in encoder.
     extra_encoder_kwargs

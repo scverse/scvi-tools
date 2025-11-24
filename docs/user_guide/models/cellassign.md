@@ -146,7 +146,7 @@ The implementation uses the same variable names as the math.
 > -   The core logic is implemented in {func}`scvi.external.cellassign.CellAssignModule.generative`. In this method, the E step is taken
 >     and the log likelihood $\log p(X \mid \beta, a, \bar{\delta}, \sigma^2, z_n=c)$ is computed for all cell types.
 > -   In {func}`scvi.external.cellassign.CellAssignModule.loss` the full expected log likelihood is computed, as well as
->     the penalities corresponding to the priors on $\pi$ and $\delta$.
+>     the penalties corresponding to the priors on $\pi$ and $\delta$.
 > -   CellAssign uses the standard {class}`~scvi.train.TrainingPlan`.
 
 [^ref1]:

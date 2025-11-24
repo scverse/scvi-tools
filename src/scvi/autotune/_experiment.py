@@ -51,7 +51,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
 
     @PublicAPI
     class ScibTuneReportCheckpointCallback(TuneReportCheckpointCallback):
-        """Ray based PyTorch Lightning report and checkpoint callback, suited for Scib-Metrics
+        """Ray-based PyTorch Lightning report and checkpoint callback, suited for Scib-Metrics
 
         Saves checkpoints after each validation step. Also reports metrics to Tune,
         which is needed for checkpoint registration.
@@ -71,14 +71,14 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                 "train_batch_start", or "train_end". Defaults to "validation_end".
             bio_conservation_metrics: Specification of which bio conservation metrics to run.
             batch_correction_metrics: Specification of which batch correction metrics to run.
-            num_rows_to_select: select number of rows to subsample (5000 default).
+            num_rows_to_select: select the number of rows to subsample (5000 default).
                 This is important to save Scib computation time
-            indices_list: If not empty will be used to select the indices to calc the scib metric
+            indices_list: If not empty, will be used to select the indices to calc the scib metric
                 on, otherwise will use the random indices selection in size of scib_subsample_rows
             n_jobs
                 Number of jobs to use for parallelization of neighbor search.
             solver
-                SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+                SVD solver to use during PCA. it can help stability issues. Choose from: "arpack",
                 "randomized" or "auto"
         """
 
@@ -126,7 +126,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                 if self.metric is None:
                     return
 
-                # we take th pl module from the scib callback
+                # we take the pl module from the scib callback
                 pl_module = trainer.callbacks[0].pl_module
                 if not hasattr(pl_module, f"_{self.stage}_epoch_outputs"):
                     raise ValueError(
@@ -152,7 +152,7 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                 x = x[rand_idx]
                 z = z[rand_idx]
 
-                # because originally those classes are frozen we cant just set the metric to True
+                # because originally those classes are frozen, we can't just set the metric to True
                 # Need to do it manually unfortunately
                 if self.metric == "Isolated labels":
                     self.bio_conservation_metrics = BioConservation(
@@ -319,18 +319,18 @@ class AutotuneExperiment:
         Used when performing scib-metrics tune, select whether to perform on validation (default)
         or training end.
     scib_subsample_rows
-        Used when performing scib-metrics tune, select number of rows to subsample (100 default).
-        This is important to save computation time
+        Used when performing scib-metrics tune, select the number of rows to subsample
+        (100 default). This is important to save computation time
     scib_indices_list
         If not empty will be used to select the indices to calc the scib metric on, otherwise will
         use the random indices selection in size of scib_subsample_rows
     n_jobs
         Number of jobs to use for parallelization of neighbor search.
     solver
-        SVD solver to use during PCA. can help stability issues. Choose from: "arpack",
+        SVD solver to use during PCA. It can help stability issues. Choose from: "arpack",
         "randomized" or "auto"
     mudata_file_name
-        name of mudata file. can be a full path, but will not create folders
+        name of the mudata file. can be a full path, but will not create folders
 
     Notes
     -----
@@ -387,7 +387,7 @@ class AutotuneExperiment:
         self.mudata_file_name = mudata_file_name
 
         if type(data).__name__ == "MuData":
-            # save mudata on disk as it cant be pickled by ray
+            # save mudata on disk as it can't be pickled by ray
             mudata_file_path = join(self._logging_dir, mudata_file_name)
             Path(self._logging_dir).mkdir(parents=True, exist_ok=True)
             data.write_h5mu(mudata_file_path)
@@ -799,7 +799,7 @@ def _trainable(
     """Implements a Ray Tune trainable function for an :class:`~scvi.autotune.AutotuneExperiment`.
 
     Setup on the :class:`~anndata.AnnData` or :class:`~mudata.MuData` has to be performed since Ray
-    opens a new process per trial and thus the initial setup on the main process is not
+    opens a new process per trial, and thus the initial setup on the main process is not
     transferred.
 
     Parameters
@@ -853,7 +853,7 @@ def _trainable(
 
     settings.seed = experiment.seed
     if isinstance(experiment.data, AnnData | str):
-        # str means it's the link to the stored mudata (which cant be pickled)
+        # str means it's the link to the stored mudata (which can't be pickled)
         if experiment.is_mudata:
             import muon as mu
 

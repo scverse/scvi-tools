@@ -49,7 +49,7 @@ def test_multivi_mudata_rna_prot_external():
     model.train(1, train_size=0.9)
 
 
-def test_multivi_mudata_rna_atac_external():
+def test_multivi_mudata_rna_atac():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
     sc.pp.highly_variable_genes(
@@ -79,7 +79,7 @@ def test_multivi_mudata_rna_atac_external():
     model.train(1, train_size=0.9)
 
 
-def test_multivi_mudata_trimodal_external():
+def test_multivi_mudata_trimodal():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
@@ -119,7 +119,7 @@ def test_multivi_mudata_trimodal_external():
 @pytest.mark.parametrize("n_genes", [25, 50, 100])
 @pytest.mark.parametrize("n_regions", [25, 50, 100])
 def test_multivi_mudata(n_genes: int, n_regions: int):
-    # use of syntetic data of rna/proteins/atac for speed
+    # use of synthetic data of rna/proteins/atac for speed
 
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
@@ -389,13 +389,13 @@ def test_scarches_mudata_prep_layer(save_path: str):
     mdata2["accessibility"].var_names = new_var_names
 
     MULTIVI.prepare_query_mudata(mdata2, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(mdata2["rna"][:, mdata2["rna"].var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(
         mdata2["rna"].var_names[:10].to_numpy(), mdata1["rna"].var_names[:10].to_numpy()
     )
 
-    # Note ref model doesnt use accessibility , so neither do here
+    # Note the ref model doesn't use accessibility, so neither do here
 
     # and names should also be the same
     np.testing.assert_equal(

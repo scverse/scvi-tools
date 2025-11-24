@@ -94,6 +94,15 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.train_size_is_none,
             )
         else:
+            self.n_background_train, self.n_background_val = (
+                validate_data_split_with_external_indexing(
+                    self.adata_manager.adata.n_obs,
+                    self.external_indexing,
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.drop_last,
+                )
+            )
+
             # we need to intersect the external indexing given with the bg/target indices
             self.background_train_idx, self.background_val_idx, self.background_test_idx = (
                 np.intersect1d(self.external_indexing[n], self.background_indices)

@@ -208,7 +208,7 @@ def test_scvi(gene_likelihood: str, n_latent: int):
     )
     assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
-    # Test without observed lib size.
+    # Test without an observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -575,7 +575,7 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    # Handle edge case where registry_key != obs_key.
+    # Handle the edge case where registry_key != obs_key.
     adata.obs.rename(columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True)
     adata2 = adata.copy()
 
@@ -799,7 +799,7 @@ def test_scarches_data_prep(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -846,7 +846,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model3 = SCVI(adata3, n_latent=n_latent)
     # model3.train(1, check_val_every_n_epoch=1)
 
-    # try the opposite - with a the categ covariate - raise the error
+    # try the opposite - with the categ covariate - raise the error
     # adata4 has more genes and a perfect subset of adata1
     adata4 = synthetic_iid(n_genes=110)
     adata4.obs["batch"] = adata4.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -899,7 +899,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model8 = SCVI(adata8, n_latent=n_latent)
     # model8.train(1, check_val_every_n_epoch=1)
 
-    # try also additional categ cov - it  works
+    # try also additional categ cov - it works
     adata9 = synthetic_iid(n_genes=110)
     adata9.obs["batch"] = adata9.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata9.obs["cont1"] = np.random.normal(size=(adata9.shape[0],))
@@ -945,7 +945,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model10.get_latent_representation()
     model10.get_elbo()
 
-    # try also runing with less categories than needed
+    # try also running with fewer categories than needed
     num_categ = 4
     adata11 = synthetic_iid(n_genes=110)
     adata11.obs["batch"] = adata11.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -968,7 +968,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model11.get_latent_representation()
     model11.get_elbo()
 
-    # try also runing with more categories than needed
+    # try also running with more categories than needed
     num_categ = 6
     adata12 = synthetic_iid(n_genes=110)
     adata12.obs["batch"] = adata12.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -1010,7 +1010,7 @@ def test_scarches_data_prep_layer(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -1114,7 +1114,7 @@ def test_scvi_online_update(save_path):
     model3.train(max_epochs=1)
     model3.get_latent_representation()
     assert model3.module.z_encoder.encoder.fc_layers[0][1].momentum == 0
-    # batch norm weight in encoder layer
+    # batch norm weight in the encoder layer
     assert model3.module.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     single_pass_for_online_update(model3)
     grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
@@ -1263,6 +1263,164 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int, n_latent: int):
     assert hasattr(model, "adata")
 
 
+@pytest.mark.parametrize("gene_likelihood", ["zinb"])
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_with_external_indices(gene_likelihood: str, n_latent: int):
+    from sklearn.model_selection import train_test_split
+
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        size_factor_key="size_factor",
+    )
+    model = SCVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
+        train_size=0.5,
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+        train_size=0.5,
+    )
+
+    assert model.get_elbo().ndim == 0
+    assert model.get_elbo(return_mean=False).shape == (adata.n_obs,)
+    assert model.get_marginal_ll(n_mc_samples=3).ndim == 0
+    assert model.get_marginal_ll(n_mc_samples=3, return_mean=False).shape == (adata.n_obs,)
+    assert model.get_reconstruction_error()["reconstruction_loss"].ndim == 0
+    assert model.get_reconstruction_error(return_mean=False)["reconstruction_loss"].shape == (
+        adata.n_obs,
+    )
+    assert model.get_normalized_expression(transform_batch="batch_1").shape == (
+        adata.n_obs,
+        adata.n_vars,
+    )
+    assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
+
+    # Test without an observed lib size.
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # tests __repr__
+    print(model)
+    # test view_anndata_setup
+    model.view_anndata_setup()
+    model.view_anndata_setup(hide_state_registries=True)
+
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], n_latent)
+    assert len(model.history["elbo_train"]) == 2
+    model.get_elbo()
+    model.get_elbo(return_mean=False)
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_marginal_ll(n_mc_samples=3, return_mean=False)
+    model.get_reconstruction_error()
+    model.get_reconstruction_error(return_mean=False)
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
+
+    adata2 = synthetic_iid()
+    # test view_anndata_setup with different anndata before transfer setup
+    with pytest.raises(ValueError):
+        model.view_anndata_setup(adata=adata2)
+    with pytest.raises(ValueError):
+        model.view_anndata_setup(adata=adata2, hide_state_registries=True)
+
+    # test differential expression
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
+    model.differential_expression(
+        groupby="labels", group1="label_1", group2="label_2", mode="change"
+    )
+    model.differential_expression(groupby="labels")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2])
+
+    model2 = SCVI(adata, use_observed_lib_size=False)
+    model2.train(1)
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+
+    # transform batch works with all different types
+    a = synthetic_iid()
+    batch = np.zeros(a.n_obs)
+    batch[:64] += 1
+    a.obs["batch"] = batch
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
+    m = SCVI(a)
+    m.train(1, train_size=0.5)
+    m.get_normalized_expression(transform_batch=1)
+    m.get_normalized_expression(transform_batch=[0, 1])
+
+    # test get_likelihood_parameters() when dispersion=='gene-cell'
+    model = SCVI(adata, dispersion="gene-cell")
+    model.get_likelihood_parameters()
+    model.get_likelihood_parameters(indices=np.arange(10))
+    model.get_likelihood_parameters(n_samples=10)
+    model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
+
+    # test get_likelihood_parameters() when gene_likelihood!='zinb'
+    model = SCVI(adata, gene_likelihood="nb")
+    model.get_likelihood_parameters()
+
+    # test different gene_likelihoods
+    for gene_likelihood in ["zinb", "nb", "poisson"]:
+        model = SCVI(adata, gene_likelihood=gene_likelihood)
+        model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model.posterior_predictive_sample()
+        model.get_latent_representation()
+        model.get_normalized_expression()
+        # additional down stream tests for posterior_predictive_sample with transform_batch
+        model.posterior_predictive_sample(
+            indices=[1, 2, 3],
+            gene_list=["gene_1", "gene_2"],
+            n_samples=3,
+            transform_batch=["batch_1"],
+        )
+        model.posterior_predictive_sample(transform_batch=["batch_1", "batch_0"])
+
+    # test train callbacks work
+    a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    m = SCVI(a)
+    lr_monitor = LearningRateMonitor()
+    m.train(
+        callbacks=[lr_monitor],
+        max_epochs=10,
+        check_val_every_n_epoch=1,
+        log_every_n_steps=1,
+        plan_kwargs={"reduce_lr_on_plateau": True},
+    )
+    assert "lr-Adam" in m.history.keys()
+
+
 @pytest.mark.parametrize("embedding_dim", [5, 10])
 @pytest.mark.parametrize("encode_covariates", [True, False])
 @pytest.mark.parametrize("use_observed_lib_size", [True, False])
@@ -1406,7 +1564,7 @@ def test_scvi_mlflow(
     scvi.settings.mlflow_set_tracking_uri = "http://132.77.80.162:5000"  # For WIS internal
     scvi.settings.mlflow_set_experiment = "scvi_benchmarking"
 
-    # Have several experimetns to be able to compare them by datatime and ID
+    # Have several experiments to be able to compare them by datatime and ID
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_name = f"scvi_model_hca_subsampled_run_{timestamp}"
 
@@ -1592,7 +1750,7 @@ def test_scvi_mlflow(
     bm.plot_results_table(min_max_scale=False, show=False, save_dir=save_path)
     mlflow_log_artifact(os.path.join(save_path, "scib_results.svg"), run_id=model.run_id)
 
-    # CRITISICM
+    # CRITICISM
     from scvi.criticism import create_criticism_report
 
     if sp.issparse(model.adata.layers["counts"]):

@@ -97,8 +97,22 @@ def test_contrastive_datasplitter_with_external_indices(
     from sklearn.model_selection import train_test_split
 
     train_bg_ind, valid_bg_ind = train_test_split(background_indices, test_size=0.5)
-    test_bg_ind, valid_bg_ind = train_test_split(valid_bg_ind, test_size=0.6)
     train_tr_ind, valid_tr_ind = train_test_split(target_indices, test_size=0.495)
+
+    contrastive_datasplitter = scvi.external.contrastivevi.ContrastiveDataSplitter(
+        adata_manager=mock_contrastive_adata_manager,
+        background_indices=background_indices,
+        target_indices=target_indices,
+        train_size=0.5,
+        validation_size=0.3,
+        shuffle_set_split=shuffle_set_split,
+        external_indexing=[
+            np.array(train_bg_ind + train_tr_ind),
+            np.array(valid_bg_ind + valid_tr_ind),
+        ],
+    )
+
+    test_bg_ind, valid_bg_ind = train_test_split(valid_bg_ind, test_size=0.6)
     test_tr_ind, valid_tr_ind = train_test_split(valid_tr_ind, test_size=0.6)
 
     contrastive_datasplitter = scvi.external.contrastivevi.ContrastiveDataSplitter(

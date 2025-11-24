@@ -152,7 +152,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range ``[0.0, 1.0]``.
+            Size of the training set in the range ``[0.0, 1.0]``.
         validation_size
             Size of the test set. If ``None``, defaults to ``1 - train_size``. If
             ``train_size + validation_size < 1``, the remaining cells belong to a test set.
@@ -227,14 +227,14 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Indices of cells in adata to use. If ``None``, all cells are used.
         gene_list
             Return frequencies of expression for a subset of genes.
-            This can save memory when working with large datasets and few genes are
+            This can save memory when working with large datasets, and few genes are
             of interest.
         hard_assignment
             Return a hard state assignment
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model. Defaults to
+            Minibatch size for data loading into the model. Defaults to
             `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
@@ -246,8 +246,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         If ``n_samples`` > 1 and ``return_mean`` is ``False``, then the shape is
-        ``(samples, cells, genes)``. Otherwise, shape is ``(cells, genes)``. In this case, return
-        type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
+        ``(samples, cells, genes)``. Otherwise, the shape is ``(cells, genes)``. In this case,
+        the return type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
@@ -331,10 +331,10 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Indices of cells in adata to use. If ``None``, all cells are used.
         gene_list
             Return frequencies of expression for a subset of genes.
-            This can save memory when working with large datasets and few genes are
+            This can save memory when working with large datasets, and few genes are
             of interest.
         time_statistic
-            Whether to compute expected time over states, or maximum a posteriori time over maximal
+            Whether to compute expected time over states or maximum a posteriori time over maximal
             probability state.
         n_samples
             Number of posterior samples to use for estimation.
@@ -353,8 +353,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         If ``n_samples`` > 1 and ``return_mean`` is ``False``, then the shape is
-        ``(samples, cells, genes)``. Otherwise, shape is ``(cells, genes)``. In this case, return
-        type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
+        ``(samples, cells, genes)``. Otherwise, the shape is ``(cells, genes)``. In this case,
+        the return type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
         """
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -470,13 +470,13 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Indices of cells in adata to use. If ``None``, all cells are used.
         gene_list
             Return velocities for a subset of genes. This can save memory when working with large
-            datasets and few genes are of interest.
+            datasets, and few genes are of interest.
         n_samples
             Number of posterior samples to use for estimation for each cell.
         n_samples_overall
             Number of overall samples to return. Setting this forces ``n_samples=1``.
         batch_size
-            Minibatch size for data loading into model. Defaults to
+            Minibatch size for data loading into the model. Defaults to
             `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
@@ -485,8 +485,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             includes gene names as columns. If either ``n_samples=1`` or ``return_mean=True``,
             defaults to ``False``. Otherwise, it defaults to ``True``.
         velo_statistic
-            Whether to compute expected velocity over states, or maximum a posteriori velocity over
-            maximal probability state.
+            Whether to compute expected velocity over the states or maximum a posteriori velocity
+            over maximal probability state.
         velo_mode
             Compute ds/dt or du/dt.
         clip
@@ -495,8 +495,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         If ``n_samples`` > 1 and ``return_mean`` is ``False``, then the shape is
-        ``(samples, cells, genes)``. Otherwise, shape is ``(cells, genes)``. In this case, return
-        type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
+        ``(samples, cells, genes)``. Otherwise, the shape is ``(cells, genes)``. In this case,
+        the return type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
         """
         adata = self._validate_anndata(adata)
         if indices is None:
@@ -651,11 +651,11 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             Indices of cells in adata to use. If ``None``, all cells are used.
         gene_list
             Return frequencies of expression for a subset of genes. This can save memory when
-            working with large datasets and few genes are of interest.
+            working with large datasets, and few genes are of interest.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model. Defaults to
+            Minibatch size for data loading into the model. Defaults to
             `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
@@ -667,8 +667,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         If ``n_samples`` > 1 and ``return_mean`` is ``False``, then the shape is
-        ``(samples, cells, genes)``. Otherwise, shape is ``(cells, genes)``. In this case, return
-        type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
+        ``(samples, cells, genes)``. Otherwise, the shape is ``(cells, genes)``. In this case,
+        the return type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
         """
         adata = self._validate_anndata(adata)
 
@@ -799,19 +799,19 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         transform_batch
             Batch to condition on. One of the following:
 
-            * ``None``: real observed batch is used.
+            * ``None``: the real observed batch is used.
             * ``int``: batch transform_batch is used.
         gene_list
             Return frequencies of expression for a subset of genes. This can save memory when
-            working with large datasets and few genes are of interest.
+            working with large datasets, and few genes are of interest.
         library_size
             Scale the expression frequencies to a common library size. This allows gene expression
             levels to be interpreted on a common scale of relevant magnitude. If set to
-            ``"latent"``, use the latent libary size.
+            ``"latent"``, use the latent library size.
         n_samples
             Number of posterior samples to use for estimation.
         batch_size
-            Minibatch size for data loading into model. Defaults to
+            Minibatch size for data loading into the model. Defaults to
             `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
@@ -823,8 +823,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         Returns
         -------
         If ``n_samples`` > 1 and ``return_mean`` is ``False``, then the shape is
-        ``(samples, cells, genes)``. Otherwise, shape is ``(cells, genes)``. In this case, return
-        type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
+        ``(samples, cells, genes)``. Otherwise, the shape is ``(cells, genes)``. In this case,
+        the return type is :class:`~pandas.DataFrame` unless ``return_numpy`` is ``True``.
         """
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
@@ -978,8 +978,8 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
         Returns
         -------
-        Tuple of DataFrame and AnnData. DataFrame is genes by cell types with score per cell type.
-        AnnData is the permutated version of the original AnnData.
+        Tuple of DataFrame and AnnData. DataFrame is genes by cell types with the score
+        per cell type. AnnData is the permutated version of the original AnnData.
         """
         adata = self._validate_anndata(adata)
         adata_manager = self.get_anndata_manager(adata)
