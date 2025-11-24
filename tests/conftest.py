@@ -28,6 +28,18 @@ def pytest_addoption(parser):
         help="Run tests that are designed for Ray Autotune.",
     )
     parser.addoption(
+        "--mlflow-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that are designed for MLFlow.",
+    )
+    parser.addoption(
+        "--custom-dataloader-tests",
+        action="store_true",
+        default=False,
+        help="Run tests that deals with custom dataloaders. This increases test time.",
+    )
+    parser.addoption(
         "--optional",
         action="store_true",
         default=False,
@@ -78,6 +90,23 @@ def pytest_collection_modifyitems(config, items):
         elif run_internet and ("internet" not in item.keywords):
             item.add_marker(skip_non_internet)
 
+    run_custom_dataloader = config.getoption("--custom-dataloader-tests")
+    skip_custom_dataloader = pytest.mark.skip(
+        reason="need ---custom-dataloader-tests option to run"
+    )
+    skip_non_custom_dataloader = pytest.mark.skip(
+        reason="test not having a pytest.mark.dataloader decorator"
+    )
+    for item in items:
+        # All tests marked with `pytest.mark.dataloader` get skipped unless
+        # `--custom-dataloader-tests` passed
+        if not run_custom_dataloader and ("dataloader" in item.keywords):
+            item.add_marker(skip_custom_dataloader)
+        # Skip all tests not marked with `pytest.mark.dataloader`
+        # if `--custom-dataloader-tests` passed
+        elif run_custom_dataloader and ("dataloader" not in item.keywords):
+            item.add_marker(skip_non_custom_dataloader)
+
     run_optional = config.getoption("--optional")
     skip_optional = pytest.mark.skip(reason="need --optional option to run")
     skip_non_optional = pytest.mark.skip(reason="test not having a pytest.mark.optional decorator")
@@ -126,6 +155,18 @@ def pytest_collection_modifyitems(config, items):
         elif run_autotune and ("autotune" not in item.keywords):
             item.add_marker(skip_non_autotune)
 
+    run_mlflow = config.getoption("--mlflow-tests")
+    skip_mlflow = pytest.mark.skip(reason="need --mlflow-tests option to run")
+    skip_non_mlflow = pytest.mark.skip(reason="test not having a pytest.mark.mlflow decorator")
+    for item in items:
+        # All tests marked with `pytest.mark.mlflow` get skipped unless
+        # `--mlflow-tests` passed
+        if not run_mlflow and ("mlflow" in item.keywords):
+            item.add_marker(skip_mlflow)
+        # Skip all tests not marked with `pytest.mark.mlflow` if `--mlflow-tests` passed
+        elif run_mlflow and ("mlflow" not in item.keywords):
+            item.add_marker(skip_non_mlflow)
+
 
 @pytest.fixture(scope="session")
 def save_path(tmp_path_factory):
@@ -134,7 +175,7 @@ def save_path(tmp_path_factory):
     path = str(dir)
     copy_tree("tests/test_data", path)
     yield path + "/"
-    shutil.rmtree(str(tmp_path_factory.getbasetemp()))
+    shutil.rmtree(str(tmp_path_factory.getbasetemp()), ignore_errors=True)
 
 
 @pytest.fixture(scope="session")

@@ -1,12 +1,14 @@
 import os
 
 import numpy as np
+import pytest
 
 from scvi.data import synthetic_iid
 from scvi.model import AmortizedLDA
 
 
-def test_lda_model_single_step(n_topics: int = 5):
+@pytest.mark.parametrize("n_topics", [5])
+def test_lda_model_single_step(n_topics: int):
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
@@ -14,7 +16,8 @@ def test_lda_model_single_step(n_topics: int = 5):
     assert len(mod1.history["elbo_train"]) == 1
 
 
-def test_lda_model_single_step_with_external_indices(n_topics: int = 5):
+@pytest.mark.parametrize("n_topics", [5])
+def test_lda_model_single_step_with_external_indices(n_topics: int):
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
@@ -24,6 +27,12 @@ def test_lda_model_single_step_with_external_indices(n_topics: int = 5):
     train_ind, valid_ind = train_test_split(
         adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
     )
+    mod1.train(
+        max_steps=1,
+        max_epochs=10,
+        datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
+    )
+
     test_ind, valid_ind = train_test_split(
         valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
     )
@@ -34,10 +43,11 @@ def test_lda_model_single_step_with_external_indices(n_topics: int = 5):
             "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
         },
     )
-    assert len(mod1.history["elbo_train"]) == 1
+    assert len(mod1.history["elbo_train"]) == 2
 
 
-def test_lda_model(n_topics: int = 5):
+@pytest.mark.parametrize("n_topics", [5])
+def test_lda_model(n_topics: int):
     adata = synthetic_iid()
 
     # Test with float and Sequence priors.
@@ -85,7 +95,8 @@ def test_lda_model(n_topics: int = 5):
     mod.get_perplexity(adata2)
 
 
-def test_lda_model_save_load(save_path: str, n_topics: int = 5):
+@pytest.mark.parametrize("n_topics", [5])
+def test_lda_model_save_load(save_path: str, n_topics: int):
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)

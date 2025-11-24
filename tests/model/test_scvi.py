@@ -1,15 +1,20 @@
+import contextlib
 import inspect
+import io
+import json
 import os
 import pickle
 import tarfile
+from datetime import datetime
 from unittest import mock
 
 import anndata
 import numpy as np
 import pytest
+import scanpy as sc
+import scipy.sparse as sp
 import torch
 from lightning.pytorch.callbacks import LearningRateMonitor
-from scipy.sparse import csr_matrix
 from torch.nn import Softplus
 
 import scvi
@@ -17,6 +22,7 @@ from scvi.data import _constants, synthetic_iid
 from scvi.data._compat import LEGACY_REGISTRY_KEY_MAP, registry_from_setup_dict
 from scvi.data._download import _download
 from scvi.model import SCVI
+from scvi.model.base._constants import SAVE_KEYS
 from scvi.utils import attrdict
 
 LEGACY_REGISTRY_KEYS = set(LEGACY_REGISTRY_KEY_MAP.values())
@@ -166,7 +172,8 @@ def test_saving_and_loading(save_path):
 
 
 @pytest.mark.parametrize("gene_likelihood", ["zinb", "nb", "poisson", "normal"])
-def test_scvi(gene_likelihood: str, n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi(gene_likelihood: str, n_latent: int):
     adata = synthetic_iid()
     adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
     SCVI.setup_anndata(
@@ -201,7 +208,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     )
     assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
 
-    # Test without observed lib size.
+    # Test without an observed lib size.
     model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
     model.train(1, check_val_every_n_epoch=1, train_size=0.5)
@@ -250,7 +257,7 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         adata2, indices=[1, 2, 3], transform_batch=["batch_0", "batch_1"]
     )
     assert denoised.shape == (3, adata2.n_vars)
-    sample = model.posterior_predictive_sample(adata2)
+    sample = model.posterior_predictive_sample(adata2, transform_batch=["batch_1", "batch_0"])
     assert sample.shape == adata2.shape
     sample = model.posterior_predictive_sample(
         adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"]
@@ -260,6 +267,15 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         adata2, indices=[1, 2, 3], gene_list=["gene_1", "gene_2"], n_samples=3
     )
     assert sample.shape == (3, 2, 3)
+    # additional down stream tests for posterior_predictive_sample with transform_batch
+    model.posterior_predictive_sample(
+        adata2,
+        indices=[1, 2, 3],
+        gene_list=["gene_1", "gene_2"],
+        n_samples=3,
+        transform_batch=["batch_1"],
+    )
+    model.posterior_predictive_sample(adata2, transform_batch=["batch_1", "batch_0"])
 
     model.get_feature_correlation_matrix(correlation_type="pearson")
     model.get_feature_correlation_matrix(
@@ -373,6 +389,14 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
         model.posterior_predictive_sample()
         model.get_latent_representation()
         model.get_normalized_expression()
+        # additional down stream tests for posterior_predictive_sample with transform_batch
+        model.posterior_predictive_sample(
+            indices=[1, 2, 3],
+            gene_list=["gene_1", "gene_2"],
+            n_samples=3,
+            transform_batch=["batch_1"],
+        )
+        model.posterior_predictive_sample(transform_batch=["batch_1", "batch_0"])
 
     # test train callbacks work
     a = synthetic_iid()
@@ -393,7 +417,8 @@ def test_scvi(gene_likelihood: str, n_latent: int = 5):
     assert "lr-Adam" in m.history.keys()
 
 
-def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_get_latent_rep_backwards_compat(n_latent: int):
     from scvi.module._constants import MODULE_KEYS
 
     adata = synthetic_iid()
@@ -419,7 +444,8 @@ def test_scvi_get_latent_rep_backwards_compat(n_latent: int = 5):
     model.get_latent_representation()
 
 
-def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_get_feature_corr_backwards_compat(n_latent: int):
     from scvi.module._constants import MODULE_KEYS
 
     adata = synthetic_iid()
@@ -450,9 +476,10 @@ def test_scvi_get_feature_corr_backwards_compat(n_latent: int = 5):
     model.get_feature_correlation_matrix()
 
 
-def test_scvi_sparse(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_sparse(n_latent: int):
     adata = synthetic_iid()
-    adata.X = csr_matrix(adata.X)
+    adata.X = sp.csr_matrix(adata.X)
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
     model.train(1, train_size=0.5)
@@ -466,7 +493,8 @@ def test_scvi_sparse(n_latent: int = 5):
     model.differential_expression(groupby="labels", group1="label_1")
 
 
-def test_scvi_error_on_es(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_error_on_es(n_latent: int):
     adata = synthetic_iid()
     SCVI.setup_anndata(adata)
     model = SCVI(adata, n_latent=n_latent)
@@ -474,7 +502,8 @@ def test_scvi_error_on_es(n_latent: int = 5):
         model.train(1, train_size=1.0, early_stopping=True)
 
 
-def test_scvi_n_obs_error(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_n_obs_error(n_latent: int):
     adata = synthetic_iid()
     adata = adata[0:129].copy()
     SCVI.setup_anndata(adata)
@@ -496,7 +525,8 @@ def test_scvi_n_obs_error(n_latent: int = 5):
     assert model.is_trained is True
 
 
-def test_setting_adata_attr(n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_setting_adata_attr(n_latent: int):
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch")
     model = SCVI(adata, n_latent=n_latent)
@@ -545,7 +575,7 @@ def test_new_setup_compat():
     adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
     adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
     adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    # Handle edge case where registry_key != obs_key.
+    # Handle the edge case where registry_key != obs_key.
     adata.obs.rename(columns={"batch": "testbatch", "labels": "testlabels"}, inplace=True)
     adata2 = adata.copy()
 
@@ -769,7 +799,7 @@ def test_scarches_data_prep(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -816,7 +846,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model3 = SCVI(adata3, n_latent=n_latent)
     # model3.train(1, check_val_every_n_epoch=1)
 
-    # try the opposite - with a the categ covariate - raise the error
+    # try the opposite - with the categ covariate - raise the error
     # adata4 has more genes and a perfect subset of adata1
     adata4 = synthetic_iid(n_genes=110)
     adata4.obs["batch"] = adata4.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -869,7 +899,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     # model8 = SCVI(adata8, n_latent=n_latent)
     # model8.train(1, check_val_every_n_epoch=1)
 
-    # try also additional categ cov - it  works
+    # try also additional categ cov - it works
     adata9 = synthetic_iid(n_genes=110)
     adata9.obs["batch"] = adata9.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata9.obs["cont1"] = np.random.normal(size=(adata9.shape[0],))
@@ -915,7 +945,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model10.get_latent_representation()
     model10.get_elbo()
 
-    # try also runing with less categories than needed
+    # try also running with fewer categories than needed
     num_categ = 4
     adata11 = synthetic_iid(n_genes=110)
     adata11.obs["batch"] = adata11.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -938,7 +968,7 @@ def test_scarches_data_prep_with_categorial_covariates(save_path):
     model11.get_latent_representation()
     model11.get_elbo()
 
-    # try also runing with more categories than needed
+    # try also running with more categories than needed
     num_categ = 6
     adata12 = synthetic_iid(n_genes=110)
     adata12.obs["batch"] = adata12.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
@@ -980,7 +1010,7 @@ def test_scarches_data_prep_layer(save_path):
     adata4.var_names = new_var_names
 
     SCVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCVI.load_query_data(adata4, dir_path)
@@ -1084,7 +1114,7 @@ def test_scvi_online_update(save_path):
     model3.train(max_epochs=1)
     model3.get_latent_representation()
     assert model3.module.z_encoder.encoder.fc_layers[0][1].momentum == 0
-    # batch norm weight in encoder layer
+    # batch norm weight in the encoder layer
     assert model3.module.z_encoder.encoder.fc_layers[0][1].weight.requires_grad is False
     single_pass_for_online_update(model3)
     grad = model3.module.z_encoder.encoder.fc_layers[0][0].weight.grad.cpu().numpy()
@@ -1133,7 +1163,9 @@ def test_scvi_library_size_update(save_path):
     assert model2.module.library_log_vars[:, :2].equal(model.module.library_log_vars)
 
 
-def test_set_seed(n_latent: int = 5, seed: int = 1):
+@pytest.mark.parametrize("n_latent", [5])
+@pytest.mark.parametrize("seed", [1])
+def test_set_seed(n_latent: int, seed: int):
     scvi.settings.seed = seed
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
@@ -1148,7 +1180,9 @@ def test_set_seed(n_latent: int = 5, seed: int = 1):
     )
 
 
-def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
+@pytest.mark.parametrize("n_batches", [3])
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_no_anndata(n_batches: int, n_latent: int):
     from scvi.dataloaders import DataSplitter
 
     adata = synthetic_iid(n_batches=n_batches)
@@ -1168,7 +1202,7 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
         model.train(datamodule=datamodule)
 
     # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         model.train()
 
     model.train(max_epochs=1, datamodule=datamodule)
@@ -1182,12 +1216,10 @@ def test_scvi_no_anndata(n_batches: int = 3, n_latent: int = 5):
     assert model.module is not None
     assert hasattr(model, "adata")
 
-    # initialized with adata, cannot pass in datamodule
-    with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
 
-
-def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int = 5):
+@pytest.mark.parametrize("n_batches", [3])
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_no_anndata_with_external_indices(n_batches: int, n_latent: int):
     from scvi.dataloaders import DataSplitter
 
     adata = synthetic_iid(n_batches=n_batches)
@@ -1207,7 +1239,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     datamodule.n_vars = adata.n_vars
     datamodule.n_batch = n_batches
 
-    model = SCVI(n_latent=n_latent)
+    model = SCVI(adata=None, n_latent=n_latent)  # model with no adata
     assert model._module_init_on_train
     assert model.module is None
 
@@ -1216,7 +1248,7 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
         model.train(datamodule=datamodule)
 
     # must pass in datamodule if not initialized with adata
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         model.train()
 
     model.train(max_epochs=1, datamodule=datamodule)
@@ -1230,20 +1262,175 @@ def test_scvi_no_anndata_with_external_indices(n_batches: int = 3, n_latent: int
     assert model.module is not None
     assert hasattr(model, "adata")
 
-    # initialized with adata, cannot pass in datamodule
+
+@pytest.mark.parametrize("gene_likelihood", ["zinb"])
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_with_external_indices(gene_likelihood: str, n_latent: int):
+    from sklearn.model_selection import train_test_split
+
+    adata = synthetic_iid()
+    adata.obs["size_factor"] = np.random.randint(1, 5, size=(adata.shape[0],))
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        size_factor_key="size_factor",
+    )
+    model = SCVI(adata, n_latent=n_latent, gene_likelihood=gene_likelihood)
+
+    train_ind, valid_ind = train_test_split(
+        adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
+        train_size=0.5,
+    )
+    test_ind, valid_ind = train_test_split(
+        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+    )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={
+            "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
+        },
+        train_size=0.5,
+    )
+
+    assert model.get_elbo().ndim == 0
+    assert model.get_elbo(return_mean=False).shape == (adata.n_obs,)
+    assert model.get_marginal_ll(n_mc_samples=3).ndim == 0
+    assert model.get_marginal_ll(n_mc_samples=3, return_mean=False).shape == (adata.n_obs,)
+    assert model.get_reconstruction_error()["reconstruction_loss"].ndim == 0
+    assert model.get_reconstruction_error(return_mean=False)["reconstruction_loss"].shape == (
+        adata.n_obs,
+    )
+    assert model.get_normalized_expression(transform_batch="batch_1").shape == (
+        adata.n_obs,
+        adata.n_vars,
+    )
+    assert model.get_normalized_expression(n_samples=2).shape == (adata.n_obs, adata.n_vars)
+
+    # Test without an observed lib size.
+    model = SCVI(adata, n_latent=n_latent, var_activation=Softplus(), use_observed_lib_size=False)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+
+    # tests __repr__
+    print(model)
+    # test view_anndata_setup
+    model.view_anndata_setup()
+    model.view_anndata_setup(hide_state_registries=True)
+
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (adata.shape[0], n_latent)
+    assert len(model.history["elbo_train"]) == 2
+    model.get_elbo()
+    model.get_elbo(return_mean=False)
+    model.get_marginal_ll(n_mc_samples=3)
+    model.get_marginal_ll(n_mc_samples=3, return_mean=False)
+    model.get_reconstruction_error()
+    model.get_reconstruction_error(return_mean=False)
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(n_samples=2)
+
+    adata2 = synthetic_iid()
+    # test view_anndata_setup with different anndata before transfer setup
     with pytest.raises(ValueError):
-        model.train(datamodule=datamodule)
+        model.view_anndata_setup(adata=adata2)
+    with pytest.raises(ValueError):
+        model.view_anndata_setup(adata=adata2, hide_state_registries=True)
+
+    # test differential expression
+    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", weights="importance")
+    model.differential_expression(
+        groupby="labels", group1="label_1", group2="label_2", mode="change"
+    )
+    model.differential_expression(groupby="labels")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+    model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model.differential_expression(idx1=[0, 1, 2])
+
+    model2 = SCVI(adata, use_observed_lib_size=False)
+    model2.train(1)
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    model2.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5], weights="importance")
+
+    # transform batch works with all different types
+    a = synthetic_iid()
+    batch = np.zeros(a.n_obs)
+    batch[:64] += 1
+    a.obs["batch"] = batch
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+    )
+    m = SCVI(a)
+    m.train(1, train_size=0.5)
+    m.get_normalized_expression(transform_batch=1)
+    m.get_normalized_expression(transform_batch=[0, 1])
+
+    # test get_likelihood_parameters() when dispersion=='gene-cell'
+    model = SCVI(adata, dispersion="gene-cell")
+    model.get_likelihood_parameters()
+    model.get_likelihood_parameters(indices=np.arange(10))
+    model.get_likelihood_parameters(n_samples=10)
+    model.get_likelihood_parameters(n_samples=10, indices=np.arange(10))
+
+    # test get_likelihood_parameters() when gene_likelihood!='zinb'
+    model = SCVI(adata, gene_likelihood="nb")
+    model.get_likelihood_parameters()
+
+    # test different gene_likelihoods
+    for gene_likelihood in ["zinb", "nb", "poisson"]:
+        model = SCVI(adata, gene_likelihood=gene_likelihood)
+        model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+        model.posterior_predictive_sample()
+        model.get_latent_representation()
+        model.get_normalized_expression()
+        # additional down stream tests for posterior_predictive_sample with transform_batch
+        model.posterior_predictive_sample(
+            indices=[1, 2, 3],
+            gene_list=["gene_1", "gene_2"],
+            n_samples=3,
+            transform_batch=["batch_1"],
+        )
+        model.posterior_predictive_sample(transform_batch=["batch_1", "batch_0"])
+
+    # test train callbacks work
+    a = synthetic_iid()
+    SCVI.setup_anndata(
+        a,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    m = SCVI(a)
+    lr_monitor = LearningRateMonitor()
+    m.train(
+        callbacks=[lr_monitor],
+        max_epochs=10,
+        check_val_every_n_epoch=1,
+        log_every_n_steps=1,
+        plan_kwargs={"reduce_lr_on_plateau": True},
+    )
+    assert "lr-Adam" in m.history.keys()
 
 
 @pytest.mark.parametrize("embedding_dim", [5, 10])
 @pytest.mark.parametrize("encode_covariates", [True, False])
 @pytest.mark.parametrize("use_observed_lib_size", [True, False])
+@pytest.mark.parametrize("n_batches", [3])
 def test_scvi_batch_embeddings(
     embedding_dim: int,
     encode_covariates: bool,
     use_observed_lib_size: bool,
     save_path: str,
-    n_batches: int = 3,
+    n_batches: int,
 ):
     from scvi import REGISTRY_KEYS
 
@@ -1284,7 +1471,9 @@ def test_scvi_batch_embeddings(
         _ = model.get_batch_representation()
 
 
-def test_scvi_inference_custom_dataloader(n_latent: int = 5):
+@pytest.mark.dataloader
+@pytest.mark.parametrize("n_latent", [5])
+def test_scvi_inference_custom_dataloader(n_latent: int):
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, batch_key="batch")
 
@@ -1299,8 +1488,6 @@ def test_scvi_inference_custom_dataloader(n_latent: int = 5):
 
 
 def test_scvi_normal_likelihood():
-    import scanpy as sc
-
     adata = synthetic_iid()
     sc.pp.normalize_total(adata)
     sc.pp.log1p(adata)
@@ -1330,3 +1517,257 @@ def test_scvi_num_workers():
     model.get_reconstruction_error()
     model.get_normalized_expression(transform_batch="batch_1")
     model.get_normalized_expression(n_samples=2)
+
+
+def test_scvi_log_on_step():
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata)
+    model.train(
+        20,
+        check_val_every_n_epoch=2,
+        train_size=0.5,
+        plan_kwargs={"on_step": True, "on_epoch": True},
+    )
+    assert len(model.history["elbo_train_epoch"]) == 20
+    assert "train_loss_step" in model.history
+    assert "validation_loss_step" in model.history
+    assert "train_loss_epoch" in model.history
+    assert "validation_loss_epoch" in model.history
+
+
+@pytest.mark.mlflow
+@pytest.mark.parametrize("max_epochs", [10])
+@pytest.mark.parametrize("train_size", [0.75])
+@pytest.mark.parametrize("check_val_every_n_epoch", [1])
+@pytest.mark.parametrize("seed", [0])
+@pytest.mark.parametrize("n_hidden", [128])
+@pytest.mark.parametrize("n_latent", [10])
+@pytest.mark.parametrize("n_layers", [1])
+def test_scvi_mlflow(
+    max_epochs: int,
+    n_hidden: int,
+    n_latent: int,
+    n_layers: int,
+    train_size: float,
+    check_val_every_n_epoch: int,
+    seed: int,
+    save_path: str,
+):
+    from scvi.utils import mlflow_log_artifact, mlflow_log_table, mlflow_log_text
+
+    scvi.settings.seed = seed
+    scvi.settings.mlflow_set_tracking_uri = "http://132.77.80.162:5000"  # For WIS internal
+    scvi.settings.mlflow_set_experiment = "scvi_benchmarking"
+
+    # Have several experiments to be able to compare them by datatime and ID
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_name = f"scvi_model_hca_subsampled_run_{timestamp}"
+
+    model_path = os.path.join(save_path, "scvi_model_" + timestamp)
+
+    # read data
+    adata = scvi.data.heart_cell_atlas_subsampled(save_path=model_path)
+
+    # pre process data
+    adata.layers["counts"] = adata.X.copy()  # preserve counts
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+    adata.raw = adata  # freeze the state in `.raw`
+
+    sc.pp.highly_variable_genes(
+        adata,
+        n_top_genes=1200,
+        subset=True,
+        layer="counts",
+        flavor="seurat_v3",
+        batch_key="cell_source",
+    )
+
+    scvi.model.SCVI.setup_anndata(
+        adata,
+        layer="counts",
+        categorical_covariate_keys=["cell_source", "donor"],
+        continuous_covariate_keys=["percent_mito", "percent_ribo"],
+    )
+    model = SCVI(adata, n_hidden=n_hidden, n_latent=n_latent, n_layers=n_layers)
+    model.run_name = run_name  # This is just for MLFLOW - otherwise will be random
+
+    lr_monitor = LearningRateMonitor()
+    model.train(
+        max_epochs=max_epochs,
+        check_val_every_n_epoch=check_val_every_n_epoch,
+        train_size=train_size,
+        callbacks=[lr_monitor],
+        log_every_n_steps=1,
+    )
+
+    # down stream analysis
+
+    # Create and log the umaps in mlflow
+    SCVI_LATENT_KEY = "X_scVI"
+
+    latent = model.get_latent_representation()
+    adata.obsm[SCVI_LATENT_KEY] = latent
+
+    SCVI_NORMALIZED_KEY = "scvi_normalized"
+    adata.layers[SCVI_NORMALIZED_KEY] = model.get_normalized_expression(library_size=10e4)
+
+    # run PCA then generate UMAP plots
+    sc.tl.pca(adata)
+    sc.pp.neighbors(adata, n_pcs=30, n_neighbors=20, random_state=seed)
+    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
+
+    fig1 = sc.pl.umap(
+        adata,
+        color=["cell_type"],
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig1.savefig(os.path.join(save_path, "pca_cell_type.png"), bbox_inches="tight", dpi=80)
+    fig2 = sc.pl.umap(
+        adata,
+        color=["donor", "cell_source"],
+        ncols=2,
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig2.savefig(os.path.join(save_path, "pca_donor_source.png"), bbox_inches="tight", dpi=80)
+
+    mlflow_log_artifact(
+        os.path.join(save_path, "pca_cell_type.png"),
+        run_id=model.run_id,
+    )
+    mlflow_log_artifact(
+        os.path.join(save_path, "pca_donor_source.png"),
+        run_id=model.run_id,
+    )
+
+    # use scVI latent space for UMAP generation
+    sc.pp.neighbors(adata, use_rep=SCVI_LATENT_KEY, random_state=seed)
+    sc.tl.umap(adata, min_dist=0.3, random_state=seed)
+
+    fig3 = sc.pl.umap(
+        adata,
+        color=["cell_type"],
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig3.savefig(os.path.join(save_path, "scvi_cell_type.png"), bbox_inches="tight", dpi=80)
+    fig4 = sc.pl.umap(
+        adata,
+        color=["donor", "cell_source"],
+        ncols=2,
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig4.savefig(os.path.join(save_path, "scvi_donor_source.png"), bbox_inches="tight", dpi=80)
+
+    mlflow_log_artifact(os.path.join(save_path, "scvi_cell_type.png"), run_id=model.run_id)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_donor_source.png"), run_id=model.run_id)
+
+    # Clusters: neighbors were already computed using scVI
+    SCVI_CLUSTERS_KEY = "leiden_scVI"
+    sc.tl.leiden(adata, key_added=SCVI_CLUSTERS_KEY, resolution=0.5, random_state=seed)
+
+    fig5 = sc.pl.umap(
+        adata,
+        color=[SCVI_CLUSTERS_KEY],
+        frameon=False,
+        return_fig=True,
+        show=False,
+    )
+    fig5.savefig(os.path.join(save_path, "scvi_leiden_cluster.png"), bbox_inches="tight", dpi=80)
+
+    mlflow_log_artifact(os.path.join(save_path, "scvi_leiden_cluster.png"), run_id=model.run_id)
+
+    # Model Summary
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        print(model)
+        model.view_anndata_setup()
+    logs = buffer.getvalue()
+    mlflow_log_text(logs, "text/model_summary.txt", run_id=model.run_id)
+
+    # DE (table + volcano plot)
+    import decoupler as dc
+
+    de_df = model.differential_expression(groupby="cell_type", mode="change")
+    mlflow_log_table(de_df.head(500), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
+    # de_df.to_csv("cell_type_DE.csv")
+    # mlflow_log_artifact(os.path.join(save_path, "cell_type_DE.csv"), run_id=model.run_id)
+
+    fig6 = dc.pl.volcano(de_df, x="lfc_mean", y="proba_not_de", return_fig=True, thr_stat=1, top=5)
+    fig6.savefig(os.path.join(save_path, "scvi_DE_volcano.png"), bbox_inches="tight", dpi=120)
+    mlflow_log_artifact(os.path.join(save_path, "scvi_DE_volcano.png"), run_id=model.run_id)
+
+    # SCIB
+    from scib_metrics.benchmark import BatchCorrection, Benchmarker, BioConservation
+
+    adata.obs["dummy_batch"] = (
+        adata.obsm["_scvi_extra_categorical_covs"]["cell_source"].astype(str)
+        + "_"
+        + adata.obsm["_scvi_extra_categorical_covs"]["donor"].astype(str)
+    )
+    bioc = BioConservation(
+        isolated_labels=True,
+        nmi_ari_cluster_labels_leiden=True,
+        silhouette_label=True,
+        clisi_knn=True,
+        nmi_ari_cluster_labels_kmeans=True,
+    )
+    bc = BatchCorrection(
+        kbet_per_label=True,
+        graph_connectivity=True,
+        ilisi_knn=True,
+        bras=True,
+        pcr_comparison=True,
+    )
+
+    bm = Benchmarker(
+        adata,
+        batch_key="dummy_batch",
+        label_key="cell_type",
+        embedding_obsm_keys=["X_pca", SCVI_LATENT_KEY],
+        batch_correction_metrics=bc,
+        bio_conservation_metrics=bioc,
+        n_jobs=-1,
+    )
+    bm.benchmark()
+    mlflow_log_table(
+        bm.get_results(min_max_scale=False),
+        artifact_file="data/scib_results.json",
+        run_id=model.run_id,
+    )
+    bm.plot_results_table(min_max_scale=False, show=False, save_dir=save_path)
+    mlflow_log_artifact(os.path.join(save_path, "scib_results.svg"), run_id=model.run_id)
+
+    # CRITICISM
+    from scvi.criticism import create_criticism_report
+
+    if sp.issparse(model.adata.layers["counts"]):
+        model.adata.layers["counts"] = model.adata.layers["counts"].toarray()
+    model.adata.X = model.adata.layers["counts"]
+    create_criticism_report(model, save_folder=model_path, n_samples=2)
+    if os.path.isfile(f"{model_path}/metrics.json"):
+        with open(f"{model_path}/metrics.json") as f:
+            metrics_report = json.load(f)
+    mlflow_log_table(metrics_report, artifact_file="data/criticism.json", run_id=model.run_id)
+
+    # Optional: Save minified model and log artifact (dont save adata!)
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    model.save(model_path, prefix=run_name + "_", overwrite=True, save_anndata=False)
+    mlflow_log_artifact(
+        model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
+    )

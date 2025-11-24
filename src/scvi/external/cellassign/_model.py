@@ -46,7 +46,8 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
         same genes as the cell type marker dataframe.
     cell_type_markers
         Binary marker gene DataFrame of genes by cell types. Gene names corresponding to
-        `adata.var_names` should be in DataFrame index, and cell type labels should be the columns.
+        `adata.var_names` should be in the DataFrame index,
+        and cell type labels should be the columns.
     **model_kwargs
         Keyword args for :class:`~scvi.external.cellassign.CellAssignModule`
 
@@ -166,7 +167,7 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range [0.0, 1.0].
+            Size of the training set in the range [0.0, 1.0].
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
@@ -183,11 +184,11 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
         early_stopping
             Adds callback for early stopping on validation_loss
         early_stopping_patience
-            Number of times early stopping metric can not improve over early_stopping_min_delta
+            Number of times early stopping metric cannot improve over early_stopping_min_delta
         early_stopping_warmup_epochs
             Wait for a certain number of warm-up epochs before the early stopping starts monitoring
         early_stopping_min_delta
-            Threshold for counting an epoch torwards patience
+            Threshold for counting an epoch towards patience
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.

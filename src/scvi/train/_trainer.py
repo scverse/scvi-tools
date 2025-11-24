@@ -76,16 +76,18 @@ class Trainer(pl.Trainer):
     enable_progress_bar
         Whether to enable or disable the progress bar.
     progress_bar_refresh_rate
-        How often to refresh progress bar (in steps). Value 0 disables progress bar.
+        How often to refresh the progress bar (in steps). Value 0 disables the progress bar.
     simple_progress_bar
         Use custom scvi-tools simple progress bar (per epoch rather than per batch).
-        When `False`, uses default PyTorch Lightning progress bar, unless `enable_progress_bar`
+        When `False`, uses the default PyTorch Lightning progress bar, unless `enable_progress_bar`
         is `False`.
     logger
         A valid pytorch lightning logger. Defaults to a simple dictionary logger.
         If `True`, defaults to the default pytorch lightning logger.
     log_every_n_steps
         How often to log within steps. This does not affect epoch-level logging.
+    log_save_dir
+        Path to save the lightning logger as pkl file (Optional)
     **kwargs
         Other keyword args for :class:`~pytorch_lightning.trainer.Trainer`
     """
@@ -116,6 +118,7 @@ class Trainer(pl.Trainer):
         logger: Logger | None | bool = None,
         log_every_n_steps: int = 10,
         learning_rate_monitor: bool = False,
+        log_save_dir: str | None = None,
         **kwargs,
     ):
         if default_root_dir is None:
@@ -124,13 +127,15 @@ class Trainer(pl.Trainer):
         check_val_every_n_epoch = check_val_every_n_epoch or sys.maxsize
         callbacks = kwargs.pop("callbacks", [])
 
+        save_log_on_disk = True if log_save_dir else False
         if use_distributed_sampler(kwargs.get("strategy", None)):
             warnings.warn(
-                "early_stopping was automaticaly disabled due to the use of DDP",
+                "early_stopping was automatically disabled due to the use of DDP",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
             early_stopping = False
+            save_log_on_disk = True
 
         if early_stopping:
             early_stopping_callback = LoudEarlyStopping(
@@ -147,7 +152,7 @@ class Trainer(pl.Trainer):
             callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
             check_val_every_n_epoch = 1
         elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
-            # check if user provided already provided the callback
+            # check if the user provided already provided the callback
             enable_checkpointing = True
             check_val_every_n_epoch = 1
 
@@ -161,7 +166,7 @@ class Trainer(pl.Trainer):
             callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
 
         if logger is None:
-            logger = SimpleLogger()
+            logger = SimpleLogger(save_dir=log_save_dir, save_log_on_disk=save_log_on_disk)
 
         super().__init__(
             accelerator=accelerator,
@@ -211,4 +216,5 @@ class Trainer(pl.Trainer):
                     category=UserWarning,
                     message="`LightningModule.configure_optimizers` returned `None`",
                 )
+
             super().fit(*args, **kwargs)

@@ -38,7 +38,7 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         for each categorical covariate.
     embed_categorical_covariates
         If ``True`` embeds categorical covariates and batches
-        into continuously-valued vectors instead of using one-hot encoding.
+        into continuously valued vectors instead of using one-hot encoding.
     prior
         Which prior distribution to use.
         * ``'standard_normal'``: Standard normal distribution.
@@ -51,22 +51,22 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         Initialisation data for VampPrior.
         Should match input tensors structure.
     n_latent
-        Numer of latent space dimensions.
+        Number of latent space dimensions.
     n_hidden
-        Numer of hidden nodes per layer for encoder and decoder.
+        Number of hidden nodes per layer for encoder and decoder.
     n_layers
         Number of hidden layers for encoder and decoder.
     dropout_rate
         Dropout rate for encoder and decoder.
     out_var_mode
         How variance is predicted in decoder,
-        see :class:`~scvi.external.sysvi.nn.VarEncoder`.
+        see :class:`~scvi.external.sysvi._base_components.VarEncoder`.
         One of the following:
         * ``'sample_feature'`` - learn variance per sample and feature.
         * ``'feature'`` - learn variance per feature, constant across samples.
     encoder_decoder_kwargs
         Additional kwargs passed to encoder and decoder.
-        Both encoder and decoder use :class:`~scvi.external.sysvi.nn.EncoderDecoder`.
+        Both encoder and decoder use :class:`~scvi.external.sysvi._base_components.EncoderDecoder`.
     embedding_kwargs
         Keyword arguments passed into :class:`~scvi.nn.Embedding`
         if ``embed_categorical_covariates`` is set to ``True``.
@@ -260,11 +260,11 @@ class SysVAE(BaseModuleClass, EmbeddingModuleMixin):
         Keys:
         * ``'cat'``: All covariates that require one-hot encoding.
                      List of tensors with dim = n_samples * 1.
-                     If absent returns empty list.
-        * ``'cont'``: All covariates that are already continous.
-                      Includes continous and embedded categorical covariates.
+                     If absent, returns an empty list.
+        * ``'cont'``: All covariates that are already continuous.
+                      Includes continuous and embedded categorical covariates.
                       Single tensor of dim = n_samples * n_concatenated_cov_features.
-                      If absent returns None.
+                      If absent, returns None.
         """
         cat_parts = []
         cont_parts = []

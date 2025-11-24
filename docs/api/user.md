@@ -48,6 +48,7 @@ import scvi
    :nosignatures:
 
    external.CellAssign
+   external.CYTOVI
    external.GIMVI
    external.RNAStereoscope
    external.SpatialStereoscope
@@ -59,11 +60,15 @@ import scvi
    external.POISSONVI
    external.VELOVI
    external.MRVI
+   external.TorchMRVI
+   external.JaxMRVI
    external.METHYLVI
    external.METHYLANVI
    external.Decipher
+   external.TOTALANVI
    external.RESOLVI
    external.SysVI
+   external.SCVIVA
 ```
 
 ## Data loading

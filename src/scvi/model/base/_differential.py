@@ -112,7 +112,7 @@ class DifferentialComputation:
         Hypotheses:
 
         .. math::
-            M_1: r \in R_1 ~\text{(effect size r in region inducing differential expression)}
+            M_1: r \in R_1 ~\text{(effect size r in the region inducing differential expression)}
 
         .. math::
             M_2: r  \notin R_1 ~\text{(no differential expression)}
@@ -122,7 +122,7 @@ class DifferentialComputation:
         1. A common case is when the region :math:`[-\delta, \delta]` does not induce differential
            expression. If the user specifies a threshold delta, we suppose that
            :math:`R_1 = \mathbb{R} \setminus [-\delta, \delta]`
-        2. Specify an specific indicator function:
+        2. Specify a specific indicator function:
 
         .. math::
             f: \mathbb{R} \mapsto \{0, 1\} ~\text{s.t.}~ r \in R_1 ~\text{iff.}~ f(r) = 1.
@@ -132,8 +132,8 @@ class DifferentialComputation:
         .. math::
             p(M_1 \mid x_1, x_2).
 
-        Both modes require to sample the posterior distributions.
-        To that purpose, we sample the posterior in the following way:
+        Both modes require sampling the posterior distributions.
+        For that purpose, we sample the posterior in the following way:
 
         1. The posterior is sampled `n_samples_overall` times for each subpopulation.
         2. For computational efficiency (posterior sampling is quite expensive), instead of
@@ -143,12 +143,12 @@ class DifferentialComputation:
 
         Currently, the code covers several batch handling configurations:
 
-        1. If ``use_observed_batches=True``, then batch are considered as observations
+        1. If ``use_observed_batches=True``, then batches are considered as observations
            and cells' normalized means are conditioned on real batch observations.
         2. If case (cell group 1) and control (cell group 2) are conditioned on the same
            batch ids. This requires ``set(batchid1) == set(batchid2)`` or
            ``batchid1 == batchid2 === None``.
-        3. If case and control are conditioned on different batch ids that do not intersect
+        3. If case and control are conditioned on different batch ids that do not intersect,
            i.e., ``set(batchid1) != set(batchid2)`` and
            ``len(set(batchid1).intersection(set(batchid2))) == 0``.
 
@@ -191,15 +191,15 @@ class DifferentialComputation:
         delta
             specific case of region inducing differential expression.
             In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce
-            differential expression (LFC case). If the provided value is `None`, then a proper
-            threshold is determined from the distribution of LFCs accross genes.
+             a differential expression (LFC case). If the provided value is `None`, then a proper
+            threshold is determined from the distribution of LFCs across genes.
         pseudocounts
             pseudocount offset used for the mode `change`.
             When None, observations from non-expressed genes are used to estimate its value.
         threshold_counts
             mean expression threshold in a group to consider a gene as non-expressed
         test_mode
-            consider down- and up-regulated genes seperately (three) or all genes together (two)
+            consider down- and up-regulated genes separately (three) or all genes together (two)
         cred_interval_lvls
             List of credible interval levels to compute for the posterior
             LFC distribution
@@ -232,7 +232,7 @@ class DifferentialComputation:
         px_scale_mean2 = scales_batches_2["scale"].mean(axis=0)
 
         # Sampling pairs
-        # The objective of code section below is to ensure than the samples of normalized
+        # The objective of the code section below is to ensure that the samples of normalized
         # means we consider are conditioned on the same batch id
         batchid1_vals = np.unique(scales_batches_1["batch"])
         batchid2_vals = np.unique(scales_batches_2["batch"])
@@ -265,7 +265,7 @@ class DifferentialComputation:
             scales_1 = np.concatenate(scales_1, axis=0)
             scales_2 = np.concatenate(scales_2, axis=0)
         else:
-            logger.debug("Ignoring batch conditionings to compare means")
+            logger.debug("Ignoring batch conditioning to compare means")
             if len(set(batchid1_vals).intersection(set(batchid2_vals))) >= 1:
                 warnings.warn(
                     "Batchids of cells groups 1 and 2 are different but have an non-null "
@@ -297,7 +297,7 @@ class DifferentialComputation:
         elif mode == "change":
             # Adding pseudocounts to the scales
             if pseudocounts is None:
-                logger.debug("Estimating pseudocounts offet from the data")
+                logger.debug("Estimating pseudocounts offset from the data")
                 x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
                 where_zero_a = np.asarray(np.mean(x[idx1], 0)).flatten() < threshold_counts
                 where_zero_b = np.asarray(np.mean(x[idx2], 0)).flatten() < threshold_counts
@@ -361,10 +361,8 @@ class DifferentialComputation:
                 proba_m2 = np.mean(is_de_minus, 0)
                 if test_mode == "two":
                     proba_de = proba_m1 + proba_m2
-                    sign = 1.0
                 else:
                     proba_de = np.maximum(proba_m1, proba_m2)
-                    sign = np.sign(proba_m1 - proba_m2)
                 change_distribution_props = describe_continuous_distrib(
                     samples=change_fn(scales_1, scales_2, 1e-3 * pseudocounts),
                     credible_intervals_levels=cred_interval_lvls,
@@ -376,7 +374,7 @@ class DifferentialComputation:
                 res = dict(
                     proba_de=proba_de,
                     proba_not_de=1.0 - proba_de,
-                    bayes_factor=sign * (np.log(proba_de + eps) - np.log(1.0 - proba_de + eps)),
+                    bayes_factor=np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
                     scale1=px_scale_mean1,
                     scale2=px_scale_mean2,
                     pseudocounts=pseudocounts,
@@ -435,13 +433,13 @@ class DifferentialComputation:
             associated batch ids
 
         """
-        # Get overall number of desired samples and desired batches
+        # Get the overall number of desired samples and desired batches
         if batchid is None and not use_observed_batches:
             batch_registry = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)
             batchid = batch_registry.categorical_mapping
         if use_observed_batches:
             if batchid is not None:
-                raise ValueError("Unconsistent batch policy")
+                raise ValueError("Inconsistent batch policy")
             batchid = [None]
         if n_samples_overall is None and n_samples_per_cell is None:
             n_samples = 5000
@@ -532,7 +530,7 @@ def estimate_pseudocounts_offset(
 ):
     """Determines pseudocount offset.
 
-    This shrinks LFCs asssociated with non-expressed genes to zero.
+    This shrinks LFCs associated with non-expressed genes to zero.
 
     Parameters
     ----------
@@ -560,15 +558,15 @@ def estimate_pseudocounts_offset(
         artefact_scales_a = max_scales_a[where_zero_a]
         eps_a = np.quantile(artefact_scales_a, q=quantile)
     else:
-        eps_a = 1e-5
+        eps_a = 1e-10
 
     if where_zero_b.sum() >= 1:
         artefact_scales_b = max_scales_b[where_zero_b]
         eps_b = np.quantile(artefact_scales_b, q=quantile)
     else:
-        eps_b = 1e-5
+        eps_b = 1e-10
     res = np.maximum(eps_a, eps_b)
-    return np.maximum(1e-5, res)
+    return np.maximum(1e-10, res / len(max_scales_a))
 
 
 def pairs_sampler(
@@ -583,7 +581,7 @@ def pairs_sampler(
     """Creates more pairs.
 
     In a context where we want to estimate a double sum, virtually increases the number
-    of samples by considering more pairs so as to better estimate the double summation operation
+    of samples by considering more pairs to better estimate the double summation operation
 
     Parameters
     ----------
@@ -597,7 +595,7 @@ def pairs_sampler(
         param sanity_check_perm: If True, resulting mixed arrays arr1 and arr2 are mixed together
         In most cases, this parameter should remain False
     sanity_check_perm
-        TODO
+        do permutation
     weights1
         probabilities associated to array 1 for random sampling
     weights2
@@ -638,7 +636,7 @@ def pairs_sampler(
 def credible_intervals(
     ary: np.ndarray, confidence_level: float | list[float] | np.ndarray = 0.94
 ) -> np.ndarray:
-    """Calculate highest posterior density (HPD) of array for given credible_interval.
+    """Calculate the highest posterior density (HPD) of array for given credible_interval.
 
     Taken from the arviz package
     The HPD is the minimum width Bayesian credible interval (BCI). This implementation works only
@@ -661,7 +659,7 @@ def credible_intervals(
             [credible_intervals(row, confidence_level=confidence_level) for row in ary.T]
         )
         return hpd
-    # Make a copy of trace
+    # Make a copy of the trace
     ary = ary.copy()
     n = len(ary)
     ary = np.sort(ary)
@@ -720,12 +718,12 @@ def describe_continuous_distrib(
 
 
 def save_cluster_xlsx(filepath: str, de_results: list[pd.DataFrame], cluster_names: list):
-    """Saves multi-clusters DE in an xlsx sheet.
+    """Saves multi-clusters DE in a xlsx sheet.
 
     Parameters
     ----------
     filepath
-        xslx save path
+        xlsx save path
     de_results
         list of pandas Dataframes for each cluster
     cluster_names

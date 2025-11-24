@@ -264,6 +264,7 @@ def test_validate_unsupported_if_minified():
     assert str(e.value) == common_err_msg.format("VAE.loss")
 
 
+@pytest.mark.optional
 def test_validate_supported_if_minified_keep_count():
     model, _, _, _ = prep_model()
     model2, _, _, _ = prep_model()

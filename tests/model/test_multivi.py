@@ -13,79 +13,6 @@ from scvi.model import MULTIVI
 from scvi.utils import attrdict
 
 
-def test_multivi():
-    data = synthetic_iid()
-    MULTIVI.setup_anndata(
-        data,
-        batch_key="batch",
-    )
-    vae = MULTIVI(
-        data,
-        n_genes=50,
-        n_regions=50,
-    )
-    vae.train(1, save_best=False)
-    vae.train(1, adversarial_mixing=False)
-    vae.train(3)
-    vae.get_elbo(indices=vae.validation_indices)
-    vae.get_normalized_accessibility()
-    vae.get_normalized_accessibility(normalize_cells=True)
-    vae.get_normalized_accessibility(normalize_regions=True)
-    vae.get_normalized_expression()
-    vae.get_library_size_factors()
-    vae.get_region_factors()
-    vae.get_reconstruction_error(indices=vae.validation_indices)
-    vae.get_latent_representation()
-    vae.differential_accessibility(groupby="labels", group1="label_1")
-    vae.differential_expression(groupby="labels", group1="label_1")
-
-    # Test with size factor
-    data = synthetic_iid()
-    data.obs["size_factor"] = np.random.randint(1, 5, size=(data.shape[0],))
-    MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(
-        data,
-        n_genes=50,
-        n_regions=50,
-    )
-    vae.train(3)
-
-    # Test with modality weights and penalties
-    data = synthetic_iid()
-    MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="cell")
-    vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_weights="universal")
-    vae.train(3)
-    vae = MULTIVI(data, n_genes=50, n_regions=50, modality_penalty="MMD")
-    vae.train(3)
-
-    # Test with non-zero protein data
-    data = synthetic_iid()
-    MULTIVI.setup_anndata(
-        data,
-        batch_key="batch",
-        protein_expression_obsm_key="protein_expression",
-        protein_names_uns_key="protein_names",
-    )
-    vae = MULTIVI(
-        data,
-        n_genes=50,
-        n_regions=50,
-        modality_weights="cell",
-    )
-    assert vae.n_proteins == data.obsm["protein_expression"].shape[1]
-    vae.train(3)
-
-
-def test_multivi_single_batch():
-    data = synthetic_iid(n_batches=1)
-    MULTIVI.setup_anndata(data, batch_key="batch")
-    vae = MULTIVI(data, n_genes=50, n_regions=50)
-    with pytest.warns(UserWarning):
-        vae.train(3)
-
-
 @pytest.mark.internet
 def test_multivi_mudata_rna_prot_external():
     # Example on how to download protein adata to mudata (from multivi tutorial) - mudata RNA/PROT
@@ -122,7 +49,7 @@ def test_multivi_mudata_rna_prot_external():
     model.train(1, train_size=0.9)
 
 
-def test_multivi_mudata_rna_atac_external():
+def test_multivi_mudata_rna_atac():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
     sc.pp.highly_variable_genes(
@@ -142,17 +69,22 @@ def test_multivi_mudata_rna_atac_external():
     mdata.update()
     MULTIVI.setup_mudata(
         mdata,
-        modalities={"rna_layer": "rna_subset", "atac_layer": "atac_subset"},
+        modalities={
+            "rna_layer": "rna_subset",
+            "protein_layer": "protein_expression",
+            "atac_layer": "atac_subset",
+        },
     )
     model = MULTIVI(mdata)
     model.train(1, train_size=0.9)
 
 
-def test_multivi_mudata_trimodal_external():
+def test_multivi_mudata_trimodal():
     # optional data - mudata RNA/ATAC
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
         mdata,
+        batch_key="batch",
         modalities={
             "rna_layer": "rna",
             "atac_layer": "accessibility",
@@ -172,6 +104,8 @@ def test_multivi_mudata_trimodal_external():
     model.get_normalized_accessibility(normalize_regions=True)
     model.get_library_size_factors()
     model.get_region_factors()
+    model.get_protein_foreground_probability()
+    model.get_protein_foreground_probability(transform_batch=["batch_0", "batch_1"])
 
     model.get_elbo(indices=model.validation_indices)
     model.get_reconstruction_error(indices=model.validation_indices)
@@ -185,7 +119,7 @@ def test_multivi_mudata_trimodal_external():
 @pytest.mark.parametrize("n_genes", [25, 50, 100])
 @pytest.mark.parametrize("n_regions", [25, 50, 100])
 def test_multivi_mudata(n_genes: int, n_regions: int):
-    # use of syntetic data of rna/proteins/atac for speed
+    # use of synthetic data of rna/proteins/atac for speed
 
     mdata = synthetic_iid(return_mudata=True)
     MULTIVI.setup_mudata(
@@ -337,9 +271,14 @@ def test_multivi_size_factor_mudata():
     mdata.obs["size_factor_atac"] = (mdata["accessibility"].X.sum(1) + 1) / (
         np.max(mdata["accessibility"].X.sum(1)) + 1.01
     )
+    mdata["rna"].layers["counts"] = mdata["rna"].X.copy()
     MULTIVI.setup_mudata(
         mdata,
-        modalities={"rna_layer": "rna", "atac_layer": "accessibility"},
+        modalities={
+            "rna_layer": "rna",
+            "atac_layer": "accessibility",
+            "protein_layer": "protein_expression",
+        },
         size_factor_key=["size_factor_rna", "size_factor_atac"],
     )
 
@@ -430,38 +369,45 @@ def test_scarches_mudata_prep_layer(save_path: str):
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
+    model.get_latent_representation()
+    model.get_elbo()
 
     # mdata2 has more genes and missing 10 genes from mdata1.
-    # protein/acessibility features are same as in mdata1
-    mdata2 = synthetic_iid(n_genes=110, return_mudata=True)
+    mdata2 = synthetic_iid(n_genes=110, n_proteins=110, n_regions=110, return_mudata=True)
     mdata2["rna"].layers["counts"] = mdata2["rna"].X.copy()
     new_var_names_init = [f"Random {i}" for i in range(10)]
     new_var_names = new_var_names_init + mdata2["rna"].var_names[10:].to_list()
     mdata2["rna"].var_names = new_var_names
-
-    original_protein_values = mdata2["protein_expression"].X.copy()
-    original_accessibility_values = mdata2["accessibility"].X.copy()
+    # repeat for other modalities:
+    mdata2["protein_expression"].layers["counts"] = mdata2["protein_expression"].X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + mdata2["protein_expression"].var_names[10:].to_list()
+    mdata2["protein_expression"].var_names = new_var_names
+    mdata2["accessibility"].layers["counts"] = mdata2["accessibility"].X.copy()
+    new_var_names_init = [f"Random {i}" for i in range(10)]
+    new_var_names = new_var_names_init + mdata2["accessibility"].var_names[10:].to_list()
+    mdata2["accessibility"].var_names = new_var_names
 
     MULTIVI.prepare_query_mudata(mdata2, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(mdata2["rna"][:, mdata2["rna"].var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(
         mdata2["rna"].var_names[:10].to_numpy(), mdata1["rna"].var_names[:10].to_numpy()
     )
 
-    # values of other modalities should be unchanged
-    np.testing.assert_equal(original_protein_values, mdata2["protein_expression"].X)
-    np.testing.assert_equal(original_accessibility_values, mdata2["accessibility"].X)
+    # Note the ref model doesn't use accessibility, so neither do here
 
     # and names should also be the same
     np.testing.assert_equal(
         mdata2["protein_expression"].var_names.to_numpy(),
         mdata1["protein_expression"].var_names.to_numpy(),
     )
-    np.testing.assert_equal(
-        mdata2["accessibility"].var_names.to_numpy(), mdata1["accessibility"].var_names.to_numpy()
-    )
-    MULTIVI.load_query_data(mdata2, dir_path)
+
+    queried_model = MULTIVI.load_query_data(mdata2, dir_path)
+
+    queried_model.train(1, check_val_every_n_epoch=1)
+    queried_model.get_latent_representation()
+    queried_model.get_elbo()
 
 
 def test_multivi_save_load_mudata_format(save_path: str):

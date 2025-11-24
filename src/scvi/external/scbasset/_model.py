@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class SCBASSET(BaseModelClass):
-    """``EXPERIMENTAL`` Reimplementation of scBasset :cite:p:`Yuan2022`.
+    """Reimplementation of scBasset :cite:p:`Yuan2022`.
 
     Performs representation learning of scATAC-seq data. Original implementation:
     https://github.com/calico/scBasset.
@@ -129,7 +129,7 @@ class SCBASSET(BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range [0.0, 1.0].
+            Size of the training set in the range [0.0, 1.0].
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
@@ -146,11 +146,11 @@ class SCBASSET(BaseModelClass):
             Metric logged during validation set epoch. The available metrics will depend on
             the training plan class used. We list the most common options here in the typing.
         early_stopping_mode
-            In 'min' mode, training will stop when the quantity monitored has stopped decreasing
+            In 'min' mode, training will stop when the quantity monitored has stopped decreasing,
             and in 'max' mode it will stop when the quantity monitored has stopped increasing.
         early_stopping_min_delta
             Minimum change in the monitored quantity to qualify as an improvement,
-            i.e. an absolute change of less than min_delta, will count as no improvement.
+            i.e., an absolute change of less than min_delta, will count as no improvement.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
@@ -235,7 +235,7 @@ class SCBASSET(BaseModelClass):
         import tarfile
 
         def rename_members(tarball):
-            """Rename files in the tarball to remove the top level folder"""
+            """Rename files in the tarball to remove the top-level folder"""
             for member in tarball.getmembers():
                 if member.path.startswith(url_name[1]):
                     member.path = member.path.replace(url_name[1] + "/", "")
@@ -273,7 +273,7 @@ class SCBASSET(BaseModelClass):
         motif_seqs
             list of sequences with an injected motif.
         bg_seqs
-            dinucleotide shuffled background sequences.
+            dinucleotide-shuffled background sequences.
         """
         from Bio import SeqIO
 
@@ -323,7 +323,7 @@ class SCBASSET(BaseModelClass):
         motif_dir
             path for the motif library. Will download if not already present.
         lib_size_norm
-            normalize accessibility scores for library size by *substracting* the
+            normalized accessibility scores for library size by *subtracting* the
             cell bias term from each accessibility score prior to comparing motif
             scores to background scores.
         batch_size
@@ -390,7 +390,7 @@ class SCBASSET(BaseModelClass):
         motif_accessibility = motif_accessibility.detach().cpu()
         bg_accessibility = bg_accessibility.detach().cpu()
         if lib_size_norm:
-            # substract the cell bias term so that scores are agnostic to the
+            # subtract the cell bias term so that scores are agnostic to the
             # library size of each observation
             bias = self.module.cell_bias.detach().cpu()
             motif_accessibility = motif_accessibility - bias
@@ -430,7 +430,7 @@ class SCBASSET(BaseModelClass):
 
         Notes
         -----
-        The adata object should be in the regions by cells format. This is due to scBasset
+        The adata object should be in the regions by cells' format. This is due to scBasset
         considering regions as observations and cells as variables. This can be simply achieved
         by transposing the data, `bdata = adata.transpose()`.
         """

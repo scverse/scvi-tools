@@ -73,7 +73,8 @@ def test_getitem_tensors():
         manager.create_torch_dataset(data_and_attributes=1)
 
 
-def test_getitem(n_genes: int = 50):
+@pytest.mark.parametrize("n_genes", [50])
+def test_getitem(n_genes: int):
     adata = scvi.data.synthetic_iid(n_genes=n_genes)
     manager = generic_setup_adata_manager(adata, batch_key="batch")
 
@@ -105,7 +106,8 @@ def test_getitem(n_genes: int = 50):
 
 
 @pytest.mark.parametrize("sparse_format", ["csr_matrix", "csc_matrix"])
-def test_load_sparse_tensor(sparse_format: str | None, n_genes: int = 50):
+@pytest.mark.parametrize("n_genes", [50])
+def test_load_sparse_tensor(sparse_format: str | None, n_genes: int):
     adata = scvi.data.synthetic_iid(sparse_format=sparse_format, n_genes=n_genes)
     manager = generic_setup_adata_manager(adata, batch_key="batch")
 
@@ -136,7 +138,8 @@ def test_load_sparse_tensor(sparse_format: str | None, n_genes: int = 50):
     assert data[REGISTRY_KEYS.BATCH_KEY].shape == (1, 1)
 
 
-def test_load_sparse_tensor_backed(save_path: str, n_genes: int = 50):
+@pytest.mark.parametrize("n_genes", [50])
+def test_load_sparse_tensor_backed(save_path: str, n_genes: int):
     adata = scvi.data.synthetic_iid(sparse_format="csr_matrix", n_genes=n_genes)
     adata_path = os.path.join(save_path, "adata.h5ad")
     adata.write(adata_path)

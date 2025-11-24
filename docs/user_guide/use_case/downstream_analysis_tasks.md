@@ -1,5 +1,9 @@
 # Perform downstream analysis tasks of SCVI models
 
+:::{note}
+ to run scvi-tools with scanpy support, use: pip install scvi-tools[scanpy]
+:::
+
 SCVI provides useful tools for exploring and understanding the learned latent representations, as well as for interpreting various aspects of your single-cell dataset.
 
 1. Latent Space Exploration

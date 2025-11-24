@@ -110,6 +110,54 @@ class ResolVIPredictiveMixin:
         return_mean: bool = True,
         return_numpy: bool | None = None,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+        r"""Returns the normalized (decoded) importance-sampled gene expression.
+
+        This is denoted as :math:`\rho_n` in the scVI paper.
+
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        transform_batch
+            Not supported. Here for consistency with other functions.
+        gene_list
+            Return frequencies of expression for a subset of genes.
+            This can save memory when working with large datasets and few genes are
+            of interest.
+        library_size
+            Scale the expression frequencies to a common library size.
+            This allows gene expression levels to be interpreted on a common scale of relevant
+            magnitude.
+        n_samples
+            Number of posterior samples to use for estimation.
+        n_samples_overall
+            Number of posterior samples to use for estimation. Overrides `n_samples`.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        weights
+            Precomputed weight for importance sampling. If `uniform` no importance sampling is
+            performed.
+        return_mean
+            Whether to return the mean of the samples.
+        return_numpy
+            Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
+            includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
+             to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
+
+        Returns
+        -------
+        If `n_samples` is provided and `return_mean` is False,
+        this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
+        If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
+        of shape (n_cells, n_genes).
+        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
+        of shape (n_samples_overall, n_genes) sampled by importance.
+        """
         adata = self._validate_anndata(adata)
 
         if indices is None:
@@ -171,7 +219,7 @@ class ResolVIPredictiveMixin:
             # Converts the 3d tensor to a 2d tensor
             exprs = exprs.reshape(-1, exprs.shape[-1])
             n_samples_ = exprs.shape[0]
-            if (weights is None) or weights == "uniform":
+            if weights == "uniform":
                 p = None
             else:
                 weighting -= weighting.max()
@@ -229,7 +277,7 @@ class ResolVIPredictiveMixin:
         library_size
             Scale the expression frequencies to a common library size.
             This allows gene expression levels to be interpreted on a common scale of relevant
-            magnitude. If set to `"latent"`, use the latent library size.
+            magnitude.
         n_samples
             Number of posterior samples to use for estimation.
         n_samples_overall
@@ -301,18 +349,14 @@ class ResolVIPredictiveMixin:
                     kwargs["batch_index"],
                     *categorical_input,
                 )
-                z = torch.distributions.Normal(qz_m, qz_v.sqrt()).sample(
-                    [
-                        n_samples,
-                    ]
-                )
+                z = torch.distributions.Normal(qz_m, qz_v.sqrt()).sample([n_samples])
 
                 if kwargs["cat_covs"] is not None:
                     categorical_input = list(torch.split(kwargs["cat_covs"], 1, dim=1))
                 else:
                     categorical_input = ()
                 if batch is not None:
-                    batch = torch.full_like(kwargs["batch"], batch)
+                    batch = torch.full_like(kwargs["batch_index"], batch)
                 else:
                     batch = kwargs["batch_index"]
 
@@ -320,13 +364,13 @@ class ResolVIPredictiveMixin:
                     self.module.model.dispersion, z, kwargs["library"], batch, *categorical_input
                 )
                 if library_size is not None:
-                    exp_ = library_size * px_scale.reshape(-1, px_scale.shape[-1])
+                    exp_ = library_size * px_scale
                 else:
-                    exp_ = px_rate.reshape(-1, px_scale.shape[-1])
+                    exp_ = px_rate
 
                 exp_ = exp_[..., gene_mask]
                 per_batch_exprs.append(exp_[None].cpu())
-            per_batch_exprs = torch.cat(per_batch_exprs, dim=0).numpy()
+            per_batch_exprs = torch.cat(per_batch_exprs, dim=0).mean(0).numpy()
             exprs.append(per_batch_exprs)
 
         exprs = np.concatenate(exprs, axis=1)
@@ -364,9 +408,7 @@ class ResolVIPredictiveMixin:
         return_numpy: bool | None = None,
         **kwargs,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
-        r"""Returns the normalized (decoded) gene expression.
-
-        This is denoted as :math:`\rho_n` in the scVI paper.
+        r"""Returns the abundance of cell-types within spatial proximity of center cells.
 
         Parameters
         ----------
@@ -386,7 +428,8 @@ class ResolVIPredictiveMixin:
         summary_frequency
             Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         weights
-            Spatial weights for each neighbor.
+            Spatial weights for each neighbor. If `None` performs no spatial weighting.
+            Needs to be of shape `n_cells` by `n_neighbors`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy

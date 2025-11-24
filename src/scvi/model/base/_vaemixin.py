@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import torch
 
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.utils import unsupported_if_adata_minified
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ class VAEMixin:
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
+        data_loader_kwargs: dict | None = None,
         **kwargs,
     ) -> float:
         """Compute the evidence lower bound (ELBO) on the data.
@@ -59,6 +61,8 @@ class VAEMixin:
             the model. If ``None``, a dataloader is created from ``adata``.
         return_mean
             Whether to return the mean of the ELBO or the ELBO for each observation.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -72,13 +76,21 @@ class VAEMixin:
         """
         from scvi.model.base._log_likelihood import compute_elbo
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
-        elif dataloader is None:
+        _validate_adata_dataloader_input(self, adata, dataloader)
+
+        if dataloader is None:
             adata = self._validate_anndata(adata)
+            data_loader_kwargs = data_loader_kwargs or {}
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         return -compute_elbo(self.module, dataloader, return_mean=return_mean, **kwargs)
 
@@ -92,6 +104,7 @@ class VAEMixin:
         batch_size: int | None = None,
         return_mean: bool = True,
         dataloader: Iterator[dict[str, Tensor | None]] = None,
+        data_loader_kwargs: dict | None = None,
         **kwargs,
     ) -> float | Tensor:
         """Compute the marginal log-likehood of the data.
@@ -120,6 +133,8 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         **kwargs
             Additional keyword arguments to pass into the module's ``marginal_ll`` method.
 
@@ -139,14 +154,22 @@ class VAEMixin:
                 "The model's module must implement `marginal_ll` to compute the marginal "
                 "log-likelihood."
             )
-        elif adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        else:
+            _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
+            data_loader_kwargs = data_loader_kwargs or {}
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         log_likelihoods: list[float | Tensor] = [
             self.module.marginal_ll(
@@ -169,6 +192,7 @@ class VAEMixin:
         batch_size: int | None = None,
         dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         return_mean: bool = True,
+        data_loader_kwargs: dict | None = None,
         **kwargs,
     ) -> dict[str, float]:
         r"""Compute the reconstruction error on the data.
@@ -197,6 +221,8 @@ class VAEMixin:
         return_mean
             Whether to return the mean reconstruction loss or the reconstruction loss
             for each observation.
+        data_loader_kwargs
+            Keyword args for data loader, in dict form.
         **kwargs
             Additional keyword arguments to pass into the forward method of the module.
 
@@ -210,14 +236,21 @@ class VAEMixin:
         """
         from scvi.model.base._log_likelihood import compute_reconstruction_error
 
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
+            data_loader_kwargs = data_loader_kwargs or {}
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         return compute_reconstruction_error(
             self.module, dataloader, return_mean=return_mean, **kwargs
@@ -233,6 +266,7 @@ class VAEMixin:
         batch_size: int | None = None,
         return_dist: bool = False,
         dataloader: Iterator[dict[str, Tensor | None]] = None,
+        **data_loader_kwargs,
     ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
         """Compute the latent representation of the data.
 
@@ -264,6 +298,8 @@ class VAEMixin:
             An iterator over minibatches of data on which to compute the metric. The minibatches
             should be formatted as a dictionary of :class:`~torch.Tensor` with keys as expected by
             the model. If ``None``, a dataloader is created from ``adata``.
+        **data_loader_kwargs
+            Keyword args for data loader.
 
         Returns
         -------
@@ -277,14 +313,20 @@ class VAEMixin:
         from scvi.module._constants import MODULE_KEYS
 
         self._check_if_trained(warn=False)
-        if adata is not None and dataloader is not None:
-            raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
 
         if dataloader is None:
             adata = self._validate_anndata(adata)
             dataloader = self._make_data_loader(
-                adata=adata, indices=indices, batch_size=batch_size
+                adata=adata, indices=indices, batch_size=batch_size, **data_loader_kwargs
             )
+        else:
+            for param in [indices, batch_size]:
+                if param is not None:
+                    Warning(
+                        f"Using {param} after custom Dataloader was initialize is redundant, "
+                        f"please re-initialize with selected {param}",
+                    )
 
         zs: list[Tensor] = []
         qz_means: list[Tensor] = []

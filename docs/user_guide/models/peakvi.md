@@ -15,17 +15,15 @@ The limitations of peakVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/quick_start/api_overview`
 -   {doc}`/tutorials/notebooks/atac/PeakVI`
--   {doc}`/tutorials/notebooks/atac/peakvi_in_R`
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/r/peakvi_in_R`
 ```
 
 ## Preliminaries
 
 PeakVI takes as input a scATAC-seq accessibility matrix $X$ with $N$ cells and $M$ genomic regions (peaks),
 which can be binary or have count data.
-Additionally, a design matrix $S$ containing $p$ observed covariates, such as batch, donor, etc, is an optional input.
+Additionally, a design matrix $S$ containing $p$ observed covariates, such as batch, donor, etc., is an optional input.
 While $S$ can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with $K$ categories, which represents the common case of having multiple batches of data.
 
@@ -61,7 +59,7 @@ The PeakVI generative process uses a single neural network:
 
 which estimates the probability of accessibility.
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -75,7 +73,7 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing the state of a cell
      - ``z``
    * - :math:`y_i \in \left[0,1\right]^{M}`
-     - Acessibility probability estimate
+     - Accessibility probability estimate
      - ``p``
    * - :math:`\ell_i \in \left[0,1\right]`
      - Cell-wise scaling factor
@@ -100,7 +98,7 @@ PeakVI uses variational inference, specifically auto-encoding variational Bayes 
 
 Here $\eta$ is a set of parameters corresponding to inference neural networks (encoders), which we do not describe in detail here. The underlying class used as the encoder for PeakVI is {class}`~scvi.nn.Encoder`.
 
-It it important to note that by default, PeakVI only receives the accessibility data as input (i.e., not the observed cell-level covariates).
+It is important to note that by default, PeakVI only receives the accessibility data as input (i.e., not the observed cell-level covariates).
 Empirically, we have not seen much of a difference by having the encoder take as input the concatenation of these items (i.e., $q_\eta(z_i, \ell_i \mid x_i, s_i)$, but users can control it manually by passing
 `encode_covariates=True` to {class}`scvi.model.PEAKVI`.
 
@@ -142,7 +140,7 @@ In {func}`~scvi.model.PEAKVI.get_normalized_accessibility` PeakVI returns the ex
 \end{align}
 ```
 
-As the expectation can be expensive to compute, by default, PeakVI uses the mean of $z_i$ as a point estimate, but this behaviour can be changed by setting `use_z_mean=False` argument.
+As the expectation can be expensive to compute, by default, PeakVI uses the mean of $z_i$ as a point estimate, but this behavior can be changed by setting `use_z_mean=False` argument.
 
 Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of accessibility in an unobserved batch. See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 

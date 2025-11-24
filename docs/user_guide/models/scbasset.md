@@ -9,7 +9,7 @@ The advantages of ScBasset are:
 
 The limitations of scBasset include:
 
--   scBasset cannot currently leverage unobserved data and thus cannot curently be used for tranfer learning tasks.
+-   scBasset cannot currently leverage unobserved data and thus cannot currently be used for transfer learning tasks.
 
 ## Overview
 

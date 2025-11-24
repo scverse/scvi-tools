@@ -37,8 +37,13 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+    from lightning import LightningDataModule
 
     from ._scvi import SCVI
+
+_SCANVI_LATENT_QZM = "_scanvi_latent_qzm"
+_SCANVI_LATENT_QZV = "_scanvi_latent_qzv"
+_SCANVI_OBSERVED_LIB_SIZE = "_scanvi_observed_lib_size"
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +103,7 @@ class SCANVI(
     See further usage examples in the following tutorials:
 
     1. :doc:`/tutorials/notebooks/scrna/harmonization`
-    2. :doc:`/tutorials/notebooks/scrna/scarches_scvi_tools`
+    2. :doc:`/tutorials/notebooks/multimodal/scarches_scvi_tools`
     3. :doc:`/tutorials/notebooks/scrna/seed_labeling`
     """
 
@@ -109,7 +114,8 @@ class SCANVI(
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -118,23 +124,48 @@ class SCANVI(
         gene_likelihood: Literal["zinb", "nb", "poisson"] = "zinb",
         use_observed_lib_size: bool = True,
         linear_classifier: bool = False,
+        datamodule: LightningDataModule | None = None,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
         scanvae_model_kwargs = dict(model_kwargs)
 
-        self._set_indices_and_labels()
+        self._set_indices_and_labels(datamodule)
 
-        # ignores unlabeled catgegory
-        n_labels = self.summary_stats.n_labels - 1
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
+        # ignores unlabeled category if inside the labels
+        if self.unlabeled_category_ is not None and self.unlabeled_category_ in self.labels_:
+            n_labels = self.summary_stats.n_labels - 1
+        else:
+            if adata is not None and len(set(self.labels_)) == (self.summary_stats.n_labels - 1):
+                n_labels = self.summary_stats.n_labels - 1
+            else:
+                n_labels = self.summary_stats.n_labels
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else None
+            )
+        else:
+            # custom datamodule
+            if (
+                len(
+                    self.registry["field_registries"][f"{REGISTRY_KEYS.CAT_COVS_KEY}"][
+                        "state_registry"
+                    ]
+                )
+                > 0
+            ):
+                n_cats_per_cov = tuple(
+                    self.registry["field_registries"][f"{REGISTRY_KEYS.CAT_COVS_KEY}"][
+                        "state_registry"
+                    ]["n_cats_per_key"]
+                )
+            else:
+                n_cats_per_cov = None
 
         n_batch = self.summary_stats.n_batch
-        use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
+        use_size_factor_key = self.registry_["setup_args"][f"{REGISTRY_KEYS.SIZE_FACTOR_KEY}_key"]
         library_log_means, library_log_vars = None, None
         if (
             not use_size_factor_key
@@ -184,6 +215,7 @@ class SCANVI(
         unlabeled_category: str,
         labels_key: str | None = None,
         adata: AnnData | None = None,
+        registry: dict | None = None,
         **scanvi_kwargs,
     ):
         """Initialize scanVI model with weights from pretrained :class:`~scvi.model.SCVI` model.
@@ -200,6 +232,8 @@ class SCANVI(
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
             AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
+        registry
+            Registry of the datamodule used to train scANVI model.
         scanvi_kwargs
             kwargs for scANVI model
         """
@@ -229,13 +263,15 @@ class SCANVI(
 
         if adata is None:
             adata = scvi_model.adata
-        else:
+        elif adata:
             if _is_minified(adata):
                 raise ValueError("Please provide a non-minified `adata` to initialize scANVI.")
             # validate new anndata against old model
             scvi_model._validate_anndata(adata)
+        else:
+            adata = None
 
-        scvi_setup_args = deepcopy(scvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
+        scvi_setup_args = deepcopy(scvi_model.registry[_SETUP_ARGS_KEY])
         scvi_labels_key = scvi_setup_args["labels_key"]
         if labels_key is None and scvi_labels_key is None:
             raise ValueError(
@@ -243,13 +279,15 @@ class SCANVI(
             )
         if scvi_labels_key is None:
             scvi_setup_args.update({"labels_key": labels_key})
-        cls.setup_anndata(
-            adata,
-            unlabeled_category=unlabeled_category,
-            use_minified=False,
-            **scvi_setup_args,
-        )
-        scanvi_model = cls(adata, **non_kwargs, **kwargs, **scanvi_kwargs)
+        if adata is not None:
+            cls.setup_anndata(
+                adata,
+                unlabeled_category=unlabeled_category,
+                use_minified=False,
+                **scvi_setup_args,
+            )
+
+        scanvi_model = cls(adata, scvi_model.registry, **non_kwargs, **kwargs, **scanvi_kwargs)
         scvi_state_dict = scvi_model.module.state_dict()
         scanvi_model.module.load_state_dict(scvi_state_dict, strict=False)
         scanvi_model.was_pretrained = True
@@ -296,9 +334,12 @@ class SCANVI(
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         # register new fields if the adata is minified
-        adata_minify_type = _get_adata_minify_type(adata)
-        if adata_minify_type is not None and use_minified:
-            anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
+        if adata:
+            adata_minify_type = _get_adata_minify_type(adata)
+            if adata_minify_type is not None and use_minified:
+                anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
+            adata_manager = AnnDataManager(
+                fields=anndata_fields, setup_method_args=setup_method_args
+            )
+            adata_manager.register_fields(adata, **kwargs)
+            cls.register_manager(adata_manager)

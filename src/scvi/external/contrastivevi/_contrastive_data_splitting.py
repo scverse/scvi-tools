@@ -35,10 +35,10 @@ class ContrastiveDataSplitter(DataSplitter):
         If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
         :class:`~torch.Tensor` with the same layout. Can lead to significant
         speedups in transferring data to GPUs, depending on the sparsity of the data.
-        Passed into :class:`~scvi.data.AnnDataLoader`.
+        Passed into :class:`~scvi.dataloaders.AnnDataLoader`.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
@@ -94,6 +94,15 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.train_size_is_none,
             )
         else:
+            self.n_background_train, self.n_background_val = (
+                validate_data_split_with_external_indexing(
+                    self.adata_manager.adata.n_obs,
+                    self.external_indexing,
+                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.drop_last,
+                )
+            )
+
             # we need to intersect the external indexing given with the bg/target indices
             self.background_train_idx, self.background_val_idx, self.background_test_idx = (
                 np.intersect1d(self.external_indexing[n], self.background_indices)

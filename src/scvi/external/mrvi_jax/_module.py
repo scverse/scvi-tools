@@ -10,12 +10,14 @@ import numpyro.distributions as dist
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.distributions import JaxNegativeBinomialMeanDisp as NegativeBinomial
-from scvi.external.mrvi._components import AttentionBlock, Dense
-from scvi.module.base import JaxBaseModuleClass, LossOutput, flax_configure
+from scvi.external.mrvi_jax._components import AttentionBlock, Dense
+from scvi.module._jaxvae import LossOutput
+from scvi.module.base import JaxBaseModuleClass, flax_configure
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from typing import Any
+
 
 DEFAULT_PX_KWARGS = {
     "n_hidden": 32,
@@ -268,7 +270,7 @@ class EncoderXU(nn.Module):
         sample_covariate: jax.typing.ArrayLike,
         training: bool | None = None,
     ) -> dist.Normal:
-        from scvi.external.mrvi._components import (
+        from scvi.external.mrvi_jax._components import (
             ConditionalNormalization,
             NormalDistOutputNN,
         )
@@ -291,7 +293,7 @@ class EncoderXU(nn.Module):
 
 
 @flax_configure
-class MRVAE(JaxBaseModuleClass):
+class JaxMRVAE(JaxBaseModuleClass):
     """Multi-resolution Variational Inference (MrVI) module.
 
     Parameters
@@ -411,6 +413,7 @@ class MRVAE(JaxBaseModuleClass):
             n_layers=self.encoder_n_layers,
             **qu_kwargs,
         )
+        self.backend = "jax"
 
         if self.learn_z_u_prior_scale:
             self.pz_scale = self.param("pz_scale", nn.initializers.zeros, (self.n_latent,))
@@ -579,9 +582,7 @@ class MRVAE(JaxBaseModuleClass):
         mc_samples: int = 10,
     ):
         """Compute normalized gene expression from observations using predefined eps"""
-        library = 7.0 * jnp.ones_like(
-            sample_index
-        )  # placeholder, has no effect on the value of h.
+        library = 7.0 * jnp.ones_like(sample_index)  # placeholder has no effect on the value of h.
         inference_outputs = self.inference(
             x, sample_index, mc_samples=mc_samples, cf_sample=cf_sample, use_mean=False
         )

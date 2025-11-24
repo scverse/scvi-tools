@@ -67,7 +67,7 @@ This generative process is also summarized in the following graphical model:
 scLVM graphical model.
 :::
 
-The latent variables for the scLVM, along with their description are summarized in the following table:
+The latent variables for the scLVM, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -101,15 +101,15 @@ and gene $g$, the observation is generated as a function of the latent variables
 \end{align}
 ```
 
-where $l_s$ is the library size and $\alpha_g$ is a correction term for
+Where $l_s$ is the library size and $\alpha_g$ is a correction term for
 difference in experimental assays. Like the scLVM, $f$ is a decoder neural network, and
 $p_g$ is the rate parameter for the negative binomial distribution.
 
 To avoid the latent variable $\gamma_s^c$ from incorporating variation attributed to experimental
 assay differences, we assign an empirical prior informed by the scLVM and the corresponding
-cells of the same cell type in the scRNA-seq dataset. To compute this function, we subcluster the latent space of the
-scLVM for each cell type to K cell type specific clusters. For each cluster we compute an empirical mean and variance.
-Above, $\{u_{kc}\}_{k=1}^K$ designates the set of cell type specific subclusters from cell type $c$ in the scRNA-seq dataset, and
+cells of the same cell type in the scRNA-seq dataset. To compute this function, we cluster the latent space of the
+scLVM for each cell type to K cell-type-specific clusters. For each cluster we compute an empirical mean and variance.
+Above, $\{u_{kc}\}_{k=1}^K$ designates the set of cell-type-specific subclusters from cell type $c$ in the scRNA-seq dataset, and
 $q_\Phi$ designates the empirical normal distribution from the computed cluster mean and variance.
 The loss is weighted by the probability of a random cell from this cell type to be in the respective cluster in the
 scRNA-seq dataset (mixture probability, $m_{kc}$).
@@ -117,11 +117,11 @@ In literature, the prior is referred to as a VampPrior ("variational aggregated 
 More can be read on this prior in the DestVI paper.
 
 Lastly, an additional latent variable, $\eta_g$, is incorporated into the aggregated cell expression profile
-as a dummy cell type to represent gene specific noise. The dummy cell type's expression profile is distributed
+as a dummy cell type to represent gene-specific noise. The dummy cell type's expression profile is distributed
 as $\epsilon_g := \mathrm{Softplus}(\eta_g)$ where $\eta_g \sim \mathrm{Normal}(0, 1)$.
 Like the other cell types, there is an associated cell type abundance parameter $\beta_{sc}$ associated with $\eta$.
-We suspect each spot to only contain a fraction of the different cell types. To increase sparsity of the cell type
-proportions, the stLVM supports L1 regularization on the cell types proportions $\beta_{sc}$. By default this loss is
+We suspect each spot to only contain a fraction of the different cell types. To increase the sparsity of the cell type
+proportions, the stLVM supports L1 regularization on the cell types proportions $\beta_{sc}$. By default, this loss is
 not used.
 
 This generative process is also summarized in the following graphical model:
@@ -134,7 +134,7 @@ This generative process is also summarized in the following graphical model:
 stLVM graphical model.
 :::
 
-The latent variables for the stLVM, along with their description are summarized in the following table:
+The latent variables for the stLVM, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -188,9 +188,9 @@ The loss is defined as:
 \end{align}
 ```
 
-where $\mathrm{Var}(\alpha)$ refers to the empirical variance of the parameters alpha across all genes. We used this as a practical form of regularization (a similar regularizer is used in the ZINB-WaVE model [^ref3]).
+Where $\mathrm{Var}(\alpha)$ refers to the empirical variance of the parameters alpha across all genes. We used this as a practical form of regularization (a similar regularizer is used in the ZINB-WaVE model [^ref3]).
 
-$\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend to not change the default value).
+$\lambda_{\beta}$ (`l1_reg` in code), $\lambda_{\eta}$ (`eta_reg` in code) and $\lambda_{\alpha}$ (`beta_reg` in code) are hyperparameters used to scale the loss term. Increasing $\lambda_{\beta}$ leads to increased sparsity of cell type proportions. Increasing $\lambda_{\alpha}$ leads to less model flexibility for technical variation between single cell and spatial sequencing dataset. Increasing $\lambda_{\eta}$ leads to more genes being explained by the dummy cell type (we recommend not changing the default value).
 To avoid overfitting, DestVI amortizes inference using a neural network to parametrize the latent variables.
 Via the `amortization` parameter of {class}`scvi.module.MRDeconv`, the user can specify which of
 $\beta$ and $\gamma^c$ will be parametrized by the neural network.
@@ -207,7 +207,7 @@ Once the model is trained, one can retrieve the estimated cell type proportions 
 ```
 
 These proportions are computed by normalizing across all learned cell type abundances, $\beta_{sc}$, for a given spot $s$.
-I.e. the estimated proportion of cell type $c$ for spot $s$ is $\frac{\beta_{sc}}{\sum_c \beta_{sc}}$.
+I.e., the estimated proportion of cell type $c$ for spot $s$ is $\frac{\beta_{sc}}{\sum_c \beta_{sc}}$.
 
 Subsequently for a given cell type, users can plot a heatmap of the cell type proportions spatially using scanpy with:
 
@@ -245,8 +245,8 @@ from the parameters of the generative distribution predicted for each spot in qu
 
 ### Utilities function
 
-To explore the results of the output of the stLVM, we published a utilities function covering functions
-for automatic thresholding of cell type proportions, a spatial PCA analysis to find main axis of variation
+To explore the results of the output of the stLVM, we published an utilities function covering functions
+for automatic thresholding of cell type proportions, a spatial PCA analysis to find the main axis of variation
 in spatial gene expression and the described frequentist test for differential expression. Further information
 can be found on [destvi_utils](https://destvi-utils.readthedocs.io/en/latest/installation.html)
 

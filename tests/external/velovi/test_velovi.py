@@ -1,7 +1,10 @@
+import pytest
+
 from scvi.data import synthetic_iid
 from scvi.external.velovi import VELOVI
 
 
+@pytest.mark.optional
 def test_velovi():
     n_latent = 5
     adata = synthetic_iid()

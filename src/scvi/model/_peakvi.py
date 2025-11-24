@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -10,7 +9,6 @@ import pandas as pd
 import torch
 from scipy.sparse import csr_matrix, vstack
 
-from scvi import settings
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import (
@@ -26,7 +24,6 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model.base._de_core import _de_core
 from scvi.module import PEAKVAE
-from scvi.train._callbacks import SaveBestState
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -160,7 +157,6 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         eps: float = 1e-08,
         early_stopping: bool = True,
         early_stopping_patience: int = 50,
-        save_best: bool = True,
         check_val_every_n_epoch: int | None = None,
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 50,
@@ -197,9 +193,6 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             Whether to perform early stopping with respect to the validation set.
         early_stopping_patience
             How many epochs to wait for improvement before early stopping
-        save_best
-            ``DEPRECATED`` Save the best model state with respect to the validation loss (default),
-            or use the final state in the training procedure
         check_val_every_n_epoch
             Check val every n train epochs. By default, val is not checked, unless `early_stopping`
             is `True`. If so, val is checked every epoch.
@@ -217,11 +210,6 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
-
-        Notes
-        -----
-        ``save_best`` is deprecated in v1.2 and will be removed in v1.3. Please use
-        ``enable_checkpointing`` instead.
         """
         update_dict = {
             "lr": lr,
@@ -235,18 +223,6 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             plan_kwargs.update(update_dict)
         else:
             plan_kwargs = update_dict
-        if save_best:
-            warnings.warn(
-                "`save_best` is deprecated in v1.2 and will be removed in v1.3. Please use "
-                "`enable_checkpointing` instead. See "
-                "https://github.com/scverse/scvi-tools/issues/2568 for more details.",
-                DeprecationWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-
-            if "callbacks" not in kwargs.keys():
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(SaveBestState(monitor="reconstruction_loss_validation"))
 
         super().train(
             max_epochs=max_epochs,
@@ -530,8 +506,10 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         # manually change the results DataFrame to fit a PeakVI differential accessibility results
         result = pd.DataFrame(
             {
-                "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
+                "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"]
+                if mode == "change"
+                else None,
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,

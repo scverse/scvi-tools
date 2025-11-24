@@ -53,7 +53,7 @@ class ContrastiveVI(BaseModelClass):
     ----------
     adata
         AnnData object that has been registered via
-        :meth:`~scvi.model.ContrastiveVI.setup_anndata`.
+        :meth:`~scvi.external.ContrastiveVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_background_latent
@@ -175,7 +175,7 @@ class ContrastiveVI(BaseModelClass):
             See :class:`~scvi.train.Trainer` for further options.
         datasplitter_kwargs
             Additional keyword arguments passed into
-            :class:`~scvi.dataloaders.ContrastiveDataSplitter`.
+            :class:`~scvi.external.contrastivevi.ContrastiveDataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.

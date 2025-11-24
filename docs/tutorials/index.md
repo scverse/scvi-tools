@@ -11,17 +11,24 @@ For questions about using scvi-tools, or broader questions about modeling data, 
 
 ```{toctree}
 :maxdepth: 2
+:hidden:
 
 index_quick_start
 index_scrna
 index_atac
+index_cytometry
 index_scbs
 index_multimodal
 index_spatial
 index_hub
 index_use_cases
+index_custom_dl
+index_r
 index_dev
 ```
 
 [forum]: https://discourse.scverse.org/
 [ecosystem]: https://scvi-tools.org/ecosystem
+
+```{customlist}
+```

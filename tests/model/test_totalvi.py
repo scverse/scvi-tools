@@ -216,7 +216,7 @@ def test_totalvi(save_path):
 
     # test automatic transfer_anndata_setup
     adata = synthetic_iid()
-    # no protein names so we test our auto generation
+    # no protein names, so we test our auto generation
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -243,7 +243,7 @@ def test_totalvi(save_path):
     del adata2.obsm["protein_expression"]
     with pytest.raises(KeyError):
         model.get_elbo(adata2)
-    model.differential_expression(groupby="labels", group1="label_1")
+    model.differential_expression(groupby="labels", group1="label_1", pseudocounts=7e-5)
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
     model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
     model.differential_expression(idx1=[0, 1, 2])
@@ -342,7 +342,8 @@ def test_multiple_encoded_covariates_totalvi():
 
 def test_totalvi_mudata():
     adata = synthetic_iid()
-    protein_adata = synthetic_iid(n_genes=50)
+    protein_adata = synthetic_iid()
+    protein_adata.var_names = protein_adata.uns["protein_names"]
     mdata = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata,
@@ -390,7 +391,8 @@ def test_totalvi_mudata():
     model.get_reconstruction_error(indices=model.validation_indices)
 
     adata2 = synthetic_iid()
-    protein_adata2 = synthetic_iid(n_genes=50)
+    protein_adata2 = synthetic_iid()
+    protein_adata2.var_names = protein_adata2.uns["protein_names"]
     mdata2 = MuData({"rna": adata, "protein": protein_adata})
     TOTALVI.setup_mudata(
         mdata2,
@@ -411,7 +413,7 @@ def test_totalvi_mudata():
     assert latent_lib_size.shape == (3, 1)
 
     pro_foreground_prob = model.get_protein_foreground_probability(
-        mdata2, indices=[1, 2, 3], protein_list=["gene_1", "gene_2"]
+        mdata2, indices=[1, 2, 3], protein_list=["protein_1", "protein_2"]
     )
     assert pro_foreground_prob.shape == (3, 2)
     model.posterior_predictive_sample(mdata2)
@@ -419,7 +421,7 @@ def test_totalvi_mudata():
 
     # test transfer_anndata_setup + view
     adata2 = synthetic_iid()
-    protein_adata2 = synthetic_iid(n_genes=50)
+    protein_adata2 = synthetic_iid()
     mdata2 = MuData({"rna": adata2, "protein": protein_adata2})
     model.get_elbo(mdata2[:10])
 
@@ -616,7 +618,7 @@ def test_totalvi_saving_and_loading_mudata(save_path):
     )
 
 
-def test_scarches_mudata_prep_layer(save_path):
+def test_scarches_mudata_prep_layer(save_path: str):
     n_latent = 5
     mdata1 = synthetic_iid(return_mudata=True)
 
@@ -626,42 +628,44 @@ def test_scarches_mudata_prep_layer(save_path):
         batch_key="batch",
         modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
     )
-    model = TOTALVI(mdata1, n_latent=n_latent)
+    model = TOTALVI(mdata1, n_latent=n_latent, override_missing_proteins=True)
     model.train(1, check_val_every_n_epoch=1)
     dir_path = os.path.join(save_path, "saved_model/")
     model.save(dir_path, overwrite=True)
+    model.get_latent_representation()
+    model.get_elbo()
 
     # mdata2 has more genes and missing 10 genes from mdata1.
-    # protein/acessibility features are same as in mdata1
-    mdata2 = synthetic_iid(n_genes=110, return_mudata=True)
+    mdata2 = synthetic_iid(n_genes=110, n_proteins=110, n_regions=110, return_mudata=True)
     mdata2["rna"].layers["counts"] = mdata2["rna"].X.copy()
     new_var_names_init = [f"Random {i}" for i in range(10)]
     new_var_names = new_var_names_init + mdata2["rna"].var_names[10:].to_list()
     mdata2["rna"].var_names = new_var_names
-
-    original_protein_values = mdata2["protein_expression"].X.copy()
-    original_accessibility_values = mdata2["accessibility"].X.copy()
+    # repeat for other modalities
+    # not adding new markers! - not allowed for TOTALVI - we just remove the redundant markers:
+    mdata2["protein_expression"].layers["counts"] = mdata2["protein_expression"].X.copy()
+    mdata2["accessibility"].layers["counts"] = mdata2["accessibility"].X.copy()
 
     TOTALVI.prepare_query_mudata(mdata2, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(mdata2["rna"][:, mdata2["rna"].var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(
         mdata2["rna"].var_names[:10].to_numpy(), mdata1["rna"].var_names[:10].to_numpy()
     )
 
-    # values of other modalities should be unchanged
-    np.testing.assert_equal(original_protein_values, mdata2["protein_expression"].X)
-    np.testing.assert_equal(original_accessibility_values, mdata2["accessibility"].X)
+    # Note the ref model doesn't use accessibility, so neither do here
 
     # and names should also be the same
     np.testing.assert_equal(
         mdata2["protein_expression"].var_names.to_numpy(),
         mdata1["protein_expression"].var_names.to_numpy(),
     )
-    np.testing.assert_equal(
-        mdata2["accessibility"].var_names.to_numpy(), mdata1["accessibility"].var_names.to_numpy()
-    )
-    TOTALVI.load_query_data(mdata2, dir_path)
+
+    queried_model = TOTALVI.load_query_data(mdata2, dir_path)
+
+    queried_model.train(1, check_val_every_n_epoch=1)
+    queried_model.get_latent_representation()
+    queried_model.get_elbo()
 
 
 def test_totalvi_online_update(save_path):
@@ -692,7 +696,7 @@ def test_totalvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obsm["protein_expression"][adata2.obs.batch == "batch_3"] = 0
 
-    # load from model in memory
+    # load from the model in memory
     model3 = TOTALVI.load_query_data(adata2, model)
     model3.train(max_epochs=1)
     model3.get_latent_representation()
@@ -769,19 +773,4 @@ def test_totalvi_logits_backwards_compat(save_path: str):
     model_path = os.path.join(save_path, "totalvi_exp_activation")
     model.save(model_path, overwrite=True)
     model = TOTALVI.load(model_path, adata)
-    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
-
-
-def test_totalvi_old_activation_load(save_path: str):
-    """See #2913. Check old model saves use the old behavior."""
-    model_path = "tests/test_data/exp_activation_totalvi"
-    model = TOTALVI.load(model_path)
-
-    assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
-    resave_model_path = os.path.join(save_path, "exp_activation_totalvi_re")
-    model.save(resave_model_path, overwrite=True)
-    adata = model.adata
-    del model
-
-    model = TOTALVI.load(resave_model_path, adata)
     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)

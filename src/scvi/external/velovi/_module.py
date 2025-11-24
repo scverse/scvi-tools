@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class DecoderVELOVI(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions ``n_output``dimensions.
+    """Decodes data from the latent space of ``n_input`` dimensions ``n_output``dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -64,7 +64,7 @@ class DecoderVELOVI(nn.Module):
         **kwargs,
     ):
         super().__init__()
-        self.n_ouput = n_output
+        self.n_output = n_output
         self.linear_decoder = linear_decoder
         self.rho_first_decoder = FCLayers(
             n_in=n_input,
@@ -112,7 +112,7 @@ class DecoderVELOVI(nn.Module):
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
-         #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
+         #. If ``dispersion != 'gene-cell'`` then the value for that param will be ``None``
 
         Parameters
         ----------
@@ -147,7 +147,7 @@ class DecoderVELOVI(nn.Module):
         # cells by genes by 4
         pi_first = self.pi_first_decoder(z)
         px_pi = nn.Softplus()(
-            torch.reshape(self.px_pi_decoder(pi_first), (z.shape[0], self.n_ouput, 4))
+            torch.reshape(self.px_pi_decoder(pi_first), (z.shape[0], self.n_output, 4))
         )
 
         return px_pi, px_rho, px_tau
@@ -157,7 +157,7 @@ class DecoderVELOVI(nn.Module):
 class VELOVAE(BaseModuleClass):
     """Variational auto-encoder model.
 
-    This is an implementation of the veloVI model descibed in :cite:p:`GayosoWeiler23`.
+    This is an implementation of the veloVI model described in :cite:p:`GayosoWeiler23`.
 
     Parameters
     ----------
@@ -181,7 +181,8 @@ class VELOVAE(BaseModuleClass):
     use_layer_norm
         Whether to use layer norm in layers.
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution.
+        Use observed library size for RNA as the scaling factor in mean
+        of conditional distribution.
     var_activation
         Callable used to ensure positivity of the variational distributions' variance.
         When ``None``, defaults to :func:`~torch.exp`.
@@ -360,7 +361,7 @@ class VELOVAE(BaseModuleClass):
         unspliced,
         n_samples=1,
     ):
-        """High level inference method.
+        """High-level inference method.
 
         Runs the inference (encoder) model.
         """
@@ -635,7 +636,7 @@ class VELOVAE(BaseModuleClass):
     @torch.no_grad()
     def get_loadings(self) -> np.ndarray:
         """Extract per-gene weights in the linear decoder."""
-        # This is BW, where B is diag(b) batch norm, W is weight matrix
+        # This is BW, where B is diag(b) batch norm, W is the weight matrix
         if self.decoder.linear_decoder is False:
             raise ValueError("Model not trained with linear decoder")
         w = self.decoder.rho_first_decoder.fc_layers[0][0].weight

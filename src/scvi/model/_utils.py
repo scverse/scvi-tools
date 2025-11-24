@@ -4,7 +4,6 @@ from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
 from typing import Literal
 
-import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
@@ -17,6 +16,7 @@ from scipy.sparse import issparse
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
+from scvi.utils import is_package_installed
 from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ def parse_device_args(
         _devices = connector._devices_flag
         warnings.warn(
             "`accelerator` has been automatically set to `cpu` although 'mps' exists. If you wish "
-            "to run on mps backend, use explicitly accelerator=='mps' in train function."
+            "to run on mps backend, use explicitly accelerator='mps' in train function."
             "In future releases it will become default for mps supported machines.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
@@ -126,7 +126,7 @@ def parse_device_args(
         warnings.warn(
             "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
             "operations are supported with this backend. as a result, some models might be slower "
-            "and less accurate than usuall. Please verify your analysis!"
+            "and less accurate than usual. Please verify your analysis!"
             "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
@@ -149,7 +149,9 @@ def parse_device_args(
         if _accelerator != "cpu":
             device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
-    elif return_device == "jax":
+    elif return_device == "jax" and is_package_installed("jax"):
+        import jax
+
         device = jax.devices("cpu")[0]
         if _accelerator != "cpu":
             if _accelerator == "mps":
@@ -157,6 +159,8 @@ def parse_device_args(
             else:
                 device = jax.devices(_accelerator)[device_idx]
         return _accelerator, _devices, device
+    else:
+        raise ImportError("Please install jax to use this functionality.")
 
     return _accelerator, _devices
 
@@ -233,6 +237,7 @@ def cite_seq_raw_counts_properties(
     adata_manager: AnnDataManager,
     idx1: list[int] | np.ndarray,
     idx2: list[int] | np.ndarray,
+    use_field: list = None,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -244,6 +249,8 @@ def cite_seq_raw_counts_properties(
         subset of indices describing the first population.
     idx2
         subset of indices describing the second population.
+    use_field
+        which fields to use during the DE function.
 
     Returns
     -------
@@ -252,8 +259,9 @@ def cite_seq_raw_counts_properties(
         mean expression per gene, proportion of non-zero expression per gene, mean of normalized
         expression.
     """
+    if use_field is None:
+        use_field = ["rna", "protein"]
     gp = scrna_raw_counts_properties(adata_manager, idx1, idx2)
-    protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
 
     nan = np.array([np.nan] * adata_manager.summary_stats.n_proteins)
     protein_exp = adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY)
@@ -263,14 +271,33 @@ def cite_seq_raw_counts_properties(
     mean2_pro = np.asarray(protein_exp[idx2].mean(0))
     nonz1_pro = np.asarray((protein_exp[idx1] > 0).mean(0))
     nonz2_pro = np.asarray((protein_exp[idx2] > 0).mean(0))
-    properties = {
-        "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
-        "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
-        "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
-        "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
-        "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
-        "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
-    }
+    if "rna" in use_field and "protein" in use_field:
+        properties = {
+            "raw_mean1": np.concatenate([gp["raw_mean1"], mean1_pro]),
+            "raw_mean2": np.concatenate([gp["raw_mean2"], mean2_pro]),
+            "non_zeros_proportion1": np.concatenate([gp["non_zeros_proportion1"], nonz1_pro]),
+            "non_zeros_proportion2": np.concatenate([gp["non_zeros_proportion2"], nonz2_pro]),
+            "raw_normalized_mean1": np.concatenate([gp["raw_normalized_mean1"], nan]),
+            "raw_normalized_mean2": np.concatenate([gp["raw_normalized_mean2"], nan]),
+        }
+    elif "rna" in use_field:
+        properties = {
+            "raw_mean1": gp["raw_mean1"],
+            "raw_mean2": gp["raw_mean2"],
+            "non_zeros_proportion1": gp["non_zeros_proportion1"],
+            "non_zeros_proportion2": gp["non_zeros_proportion2"],
+            "raw_normalized_mean1": gp["raw_normalized_mean1"],
+            "raw_normalized_mean2": gp["raw_normalized_mean2"],
+        }
+    elif "protein" in use_field:
+        properties = {
+            "raw_mean1": mean1_pro,
+            "raw_mean2": mean2_pro,
+            "non_zeros_proportion1": nonz1_pro,
+            "non_zeros_proportion2": nonz2_pro,
+            "raw_normalized_mean1": nan,
+            "raw_normalized_mean2": nan,
+        }
 
     return properties
 
@@ -297,7 +324,7 @@ def scatac_raw_counts_properties(
     Returns
     -------
     type
-        Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
+        Dict of ``np.ndarray`` containing, by pair (one for each subpopulation).
     """
     data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
     data1 = data[idx1]
@@ -347,7 +374,7 @@ def _init_library_size(
         of library size in each batch in adata.
 
         If a certain batch is not present in the adata, the mean defaults to 0,
-        and the variance defaults to 1. These defaults are arbitrary placeholders which
+        and the variance defaults to 1. These defaults are arbitrary placeholders that
         should not be used in any downstream computation.
     """
     data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
@@ -358,7 +385,7 @@ def _init_library_size(
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        batch_data = data[idx_batch.nonzero()[0]]  # h5ad requires integer indexing arrays.
+        batch_data = data[idx_batch.nonzero()[0]]
         sum_counts = batch_data.sum(axis=1)
         masked_log_sum = np.ma.log(sum_counts)
         if np.ma.is_masked(masked_log_sum):

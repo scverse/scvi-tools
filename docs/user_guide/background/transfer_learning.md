@@ -3,7 +3,7 @@
 In scvi-tools, transfer learning is currently supported for the subset of models that represent the data
 in a lower-dimensional space (e.g., scVI, totalVI). For these particular models, which belong to a class of
 models called conditional variational autoencoders (cVAEs), transfer learning
-is tantamount to ingesting new data in order to analyze it in the context of some reference dataset.
+is tantamount to ingesting new data to analyze it in the context of some reference dataset.
 For this, we use the scArches approach [^ref1].
 
 ## Reference mapping with scArches
@@ -12,7 +12,8 @@ The core logic for scArches is implemented in {class}`~scvi.model.base.ArchesMix
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/totalVI_reference_mapping`
 ```
 
 ### Preliminaries
@@ -52,7 +53,7 @@ Also, with scArches, the same architectural surgery is applied to the decoder, w
 
 Some of the cVAEs in scvi-tools use the categorical one-hot encodings in all hidden layers in the encoder.
 For example, the option `deeply_inject_covariates=True` can be used in {class}`~scvi.model.SCVI`.
-Empirically, this improves removal of nuisance variation due to these covariates.
+Empirically, this improves the removal of nuisance variation due to these covariates.
 In this case of "deep injection" there would be new parameters in each hidden layer. With two hidden layers
 this is written as
 
@@ -66,7 +67,7 @@ f_2(x,s, s') = {\textrm{max}}(0,f_1(x,s, s') + W^{(2)}_s s + W^{(2)}_{s'} s').
 
 ### Training
 
-By default, the training of the model with the query data is performed with respect to only the new query-category specific parameters.
+By default, the training of the model with the query data is performed with respect to only the new query-category-specific parameters.
 Thus, all the previous parameters from the reference building stage are frozen.
 This results in a model in which the latent representation $z$ (encoder output) does not change for reference data after the
 query step.

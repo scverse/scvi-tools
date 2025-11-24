@@ -17,7 +17,7 @@ The limitations of totalVI include:
 
 -   {doc}`/tutorials/notebooks/multimodal/totalVI`
 -   {doc}`/tutorials/notebooks/multimodal/cite_scrna_integration_w_totalVI`
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
 ```
 
 ## Preliminaries
@@ -25,7 +25,7 @@ The limitations of totalVI include:
 totalVI takes as input a scRNA-seq gene expression matrix of UMI counts $X$ with $N$ cells and $G$ genes
 along with a paired matrix of protein abundance (UMI counts) $Y$, also of $N$ cells, but with $T$ proteins.
 Thus, for each cell, we observe both RNA and protein information.
-Additionally, a design matrix $S$ containing $p$ observed covariates for each of the cells, such as day, donor, etc, is an optional input.
+Additionally, a design matrix $S$ containing $p$ observed covariates for each of the cells, such as day, donor, etc., is an optional input.
 While $S$ can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with $K$ categories, which represents the common case of having multiple batches of data.
 
@@ -88,10 +88,10 @@ And finally for each protein $t$ in cell $n$,
 ```
 
 Integrating out $v_{nt}$ yields a negative binomial mixture conditional distribution for $y_{nt}$.
-Furthermore, $\beta_{nt}$ represents background protein signal due to ambient antibodies or non-specific antibody binding.
+Furthermore, $\beta_{nt}$ represents a background protein signal due to ambient antibodies or non-specific antibody binding.
 The prior parameters $c_t$ and $d_t$ are unfortunately called `background_pro_alpha` and `background_pro_log_beta` in the code.
-They are learned parameters during infererence, but are initialized through a procedure that fits a two-component Gaussian mixture model for each cell
-and records the mean and variance of the component with smaller mean, aggregating across all cells. This can be disabled by setting `empirical_protein_background_prior=False`,
+They are learned parameters during inference but are initialized through a procedure that fits a two-component Gaussian mixture model for each cell
+and records the mean and variance of the component with a smaller mean, aggregating across all cells. This can be disabled by setting `empirical_protein_background_prior=False`,
 which then forces a random Initialization.
 
 :::{figure} figures/totalvi_graphical_model.svg
@@ -102,7 +102,7 @@ which then forces a random Initialization.
 totalVI graphical model. Shaded nodes represent observed data, unshaded nodes represent latent variables.
 :::
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -134,7 +134,7 @@ The latent variables, along with their description are summarized in the followi
 
 ## Inference
 
-totalVI uses variational inference, and specifically auto-encoding variational bayes (see {doc}`/user_guide/background/variational_inference`), to learn both the model parameters (the
+totalVI uses variational inference, and specifically auto-are encoding variational bayes (see {doc}`/user_guide/background/variational_inference`), to learn both the model parameters (the
 neural network params, dispersion params, etc.), and an approximate posterior distribution with the following factorization:
 
 ```{math}
@@ -147,7 +147,7 @@ neural network params, dispersion params, etc.), and an approximate posterior di
 ```
 
 Here $\eta$ is a set of parameters corresponding to inference neural networks, which we do not describe in detail here,
-but are described in the totalVI paper. totalVI can also handle missing proteins (i.e., a dataset comprised of
+but are described in the totalVI paper. totalVI can also handle missing proteins (i.e., a dataset comprising
 multiple batches, where each batch potentially has a different antibody panel, or no protein data at all).
 We refer the reader to the original publication for these details.
 
@@ -192,9 +192,9 @@ where $l_n'$ is by default set to 1. See the `library_size` parameter for more d
 >>> rna, protein = model.get_normalized_expression(n_samples=10)
 ```
 
-By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
+By default, the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
-In the case of proteins, there are a few important options that control what constitues denoised protein expression.
+In the case of proteins, there are a few important options that control what constitutes denoised protein expression.
 For example, `include_protein_background=True` will result in estimating the expectation of $(1 − \pi_{nt})\beta_{nt}\alpha_{nt} + \pi_{nt}\beta_{nt}$.
 Setting `sampling_protein_mixing=True` will result in sampling $v_{nt} \sim \textrm{Bernoulli}(\pi_{nt})$ and
 replacing $\pi_{nt}$ with $v_{nt}$.

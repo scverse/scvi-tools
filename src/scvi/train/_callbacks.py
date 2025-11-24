@@ -4,23 +4,20 @@ import logging
 import os
 import warnings
 from collections.abc import Callable
-from copy import deepcopy
 from datetime import datetime
 from shutil import rmtree
 from typing import TYPE_CHECKING
 
-import flax
-import numpy as np
 import pyro
 import torch
 from lightning.pytorch.callbacks import Callback, ModelCheckpoint
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-from lightning.pytorch.utilities import rank_zero_info
 from lightning.pytorch.utilities.rank_zero import rank_prefixed_message
 
 from scvi import settings
 from scvi.model.base import BaseModelClass
 from scvi.model.base._save_load import _load_saved_files
+from scvi.utils import dependencies
 
 if TYPE_CHECKING:
     import lightning.pytorch as pl
@@ -33,7 +30,7 @@ log = logging.getLogger(__name__)
 
 
 class SaveCheckpoint(ModelCheckpoint):
-    """``BETA`` Saves model checkpoints based on a monitored metric.
+    """Saves model checkpoints based on a monitored metric.
 
     Inherits from :class:`~lightning.pytorch.callbacks.ModelCheckpoint` and modifies the default
     behavior to save the full model state instead of just the state dict. This is necessary for
@@ -45,7 +42,7 @@ class SaveCheckpoint(ModelCheckpoint):
     Known issues:
 
     * Does not set ``train_indices``, ``validation_indices``, and ``test_indices`` for checkpoints.
-    * Does not set ``history`` for checkpoints. This can be accessed in the final model however.
+    * Does not set ``history`` for checkpoints. This can be accessed in the final model, however.
     * Unsupported arguments: ``save_weights_only`` and ``save_last``.
 
     Parameters
@@ -54,14 +51,14 @@ class SaveCheckpoint(ModelCheckpoint):
         Base directory to save the model checkpoints. If ``None``, defaults to a subdirectory in
         :attr:``scvi.settings.logging_dir`` formatted with the current date, time, and monitor.
     filename
-        Name for the checkpoint directories, which can contain formatting options for auto-filling.
+        Name for the checkpoint directories, which can contain formatting options for auto filling.
         If ``None``, defaults to ``{epoch}-{step}-{monitor}``.
     monitor
         Metric to monitor for checkpointing.
     load_best_on_end
         If ``True``, loads the best model state into the model at the end of training.
     check_nan_gradients
-        If ``True``, will use the on exception callback to store best model in case of training
+        If ``True``, will use the on exception callback to store the best model in case of training
         exception caused by NaN's in gradients or loss calculations.
     **kwargs
         Additional keyword arguments passed into the constructor for
@@ -111,7 +108,7 @@ class SaveCheckpoint(ModelCheckpoint):
 
     def on_save_checkpoint(self, trainer: pl.Trainer, *args) -> None:
         """Saves the model state on Lightning checkpoint saves."""
-        # set post training state before saving
+        # set a post-training state before saving
         model = trainer._model
         model.module.eval()
         model.is_trained_ = True
@@ -168,7 +165,7 @@ class SaveCheckpoint(ModelCheckpoint):
         pyro_param_store = best_state_dict.pop("pyro_param_store", None)
         pl_module.module.load_state_dict(best_state_dict)
         if pyro_param_store is not None:
-            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            # For scArches shapes are changed, and we don't want to overwrite these changed shapes.
             pyro.get_param_store().set_state(pyro_param_store)
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
@@ -203,7 +200,7 @@ class SaveCheckpoint(ModelCheckpoint):
             pyro_param_store = best_state_dict.pop("pyro_param_store", None)
             pl_module.module.load_state_dict(best_state_dict)
             if pyro_param_store is not None:
-                # For scArches shapes are changed and we don't want to overwrite
+                # For scArches shapes are changed, and we don't want to overwrite
                 # these changed shapes.
                 pyro.get_param_store().set_state(pyro_param_store)
             print(self.reason + f". Model saved to {self.best_model_path}")
@@ -228,114 +225,6 @@ class SubSampleLabels(Callback):
         """Subsample labels at the beginning of each epoch."""
         trainer.train_dataloader.resample_labels()
         super().on_train_epoch_start(trainer, pl_module)
-
-
-class SaveBestState(Callback):
-    r"""``DEPRECATED`` Save the best module state and restore into model.
-
-    Parameters
-    ----------
-    monitor
-        quantity to monitor.
-    verbose
-        verbosity, True or False.
-    mode
-        one of ["min", "max"].
-    period
-        Interval (number of epochs) between checkpoints.
-
-    Examples
-    --------
-    from scvi.train import Trainer
-    from scvi.train import SaveBestState
-
-    Notes
-    -----
-    Lifecycle: deprecated in v1.2 and to be removed in v1.3. Please use
-        :class:`~scvi.train.callbacks.SaveCheckpoint` instead.
-    """
-
-    def __init__(
-        self,
-        monitor: str = "elbo_validation",
-        mode: str = "min",
-        verbose=False,
-        period=1,
-    ):
-        super().__init__()
-
-        warnings.warn(
-            "`SaveBestState` is deprecated in v1.2 and will be removed in v1.3. Please use "
-            "`SaveCheckpoint` instead. See https://github.com/scverse/scvi-tools/issues/2568 "
-            "for more details.",
-            DeprecationWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-        self.monitor = monitor
-        self.verbose = verbose
-        self.period = period
-        self.epochs_since_last_check = 0
-        self.best_module_state = None
-
-        if mode not in ["min", "max"]:
-            raise ValueError(
-                f"SaveBestState mode {mode} is unknown",
-            )
-
-        if mode == "min":
-            self.monitor_op = np.less
-            self.best_module_metric_val = np.inf
-            self.mode = "min"
-        elif mode == "max":
-            self.monitor_op = np.greater
-            self.best_module_metric_val = -np.inf
-            self.mode = "max"
-        else:
-            if "acc" in self.monitor or self.monitor.startswith("fmeasure"):
-                self.monitor_op = np.greater
-                self.best_module_metric_val = -np.inf
-                self.mode = "max"
-            else:
-                self.monitor_op = np.less
-                self.best_module_metric_val = np.inf
-                self.mode = "min"
-
-    def check_monitor_top(self, current):
-        return self.monitor_op(current, self.best_module_metric_val)
-
-    def on_validation_epoch_end(self, trainer, pl_module):
-        logs = trainer.callback_metrics
-        self.epochs_since_last_check += 1
-
-        if trainer.current_epoch > 0 and self.epochs_since_last_check >= self.period:
-            self.epochs_since_last_check = 0
-            current = logs.get(self.monitor)
-
-            if current is None:
-                warnings.warn(
-                    f"Can save best module state only with {self.monitor} available, skipping.",
-                    RuntimeWarning,
-                    stacklevel=settings.warnings_stacklevel,
-                )
-            else:
-                if isinstance(current, torch.Tensor):
-                    current = current.item()
-                if self.check_monitor_top(current):
-                    self.best_module_state = deepcopy(pl_module.module.state_dict())
-                    self.best_module_metric_val = current
-
-                    if self.verbose:
-                        rank_zero_info(
-                            f"\nEpoch {trainer.current_epoch:05d}: {self.monitor} reached."
-                            f" Module best state updated."
-                        )
-
-    def on_train_start(self, trainer, pl_module):
-        self.best_module_state = deepcopy(pl_module.module.state_dict())
-
-    def on_train_end(self, trainer, pl_module):
-        pl_module.module.load_state_dict(self.best_module_state)
 
 
 class LoudEarlyStopping(EarlyStopping):
@@ -385,7 +274,10 @@ class JaxModuleInit(Callback):
         super().__init__()
         self.dataloader = dataloader
 
+    @dependencies("flax")
     def on_train_start(self, trainer, pl_module):
+        import flax
+
         module = pl_module.module
         if self.dataloader is None:
             dl = trainer.datamodule.train_dataloader()
