@@ -8,7 +8,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
+from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule, ZarrSparseDataModule
 from scvi.external import MRVI
 from scvi.utils import dependencies
 
@@ -1211,3 +1211,69 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
         max_epochs=1,
         early_stopping=False,
     )
+
+
+@pytest.mark.dataloader
+def test_annbatch(save_path: str):
+    from annbatch import create_anndata_collection
+    from scipy.sparse import csr_matrix
+
+    adata1 = scvi.data.synthetic_iid(batch_size=20000)
+    adata1.X = csr_matrix(adata1.X)
+
+    adata2 = scvi.data.synthetic_iid(batch_size=20000)
+    adata2.X = csr_matrix(adata2.X)
+
+    # create an AnnCollection on a subset of the data
+    adata1.write(os.path.join(save_path, "file1.h5ad"))
+    adata2.write(os.path.join(save_path, "file2.h5ad"))
+
+    create_anndata_collection(
+        adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
+        output_path=".",  # a directory containing `dataset_{i}.zarr`
+        shuffle=True,  # shuffling is needed if you want to use chunked access
+    )
+
+    from annbatch import ZarrSparseDataset
+
+    ds = ZarrSparseDataset(
+        batch_size=4096,  # Total number of obs per yielded batch
+        chunk_size=256,
+        # Number of obs to load from disk contiguously - default settings should work well
+        preload_nchunks=32,
+        # Number of chunks to preload + shuffle - default settings should work well
+        preload_to_gpu=False,
+        # If True, preloaded chunks are moved to GPU memory via `cupy`,
+        # which can put more pressure on GPU memory but will accelerate loading ~20%
+        to_torch=False,
+    )
+    from pathlib import Path
+
+    COLLECTION_PATH = Path(".")
+    import anndata as ad
+    import zarr
+
+    # Add dataset that should be used for training
+    ds.add_anndatas(
+        [
+            ad.AnnData(
+                X=ad.io.sparse_dataset(zarr.open(p)["X"]),
+                obs=ad.io.read_elem(zarr.open(p)["obs"]),
+            )
+            for p in COLLECTION_PATH.glob("*.zarr")
+        ],
+        obs_keys="labels",
+    )
+
+    # adapter = ZarrSparseDatasetAdapter(ds)
+    dm = ZarrSparseDataModule(ds)
+
+    model = scvi.model.SCVI(registry=dm.registry)
+
+    # we're only training for a few epochs to show it works
+    model.train(max_epochs=1, datamodule=dm)
+    model.history.keys()
+
+    # # Generate cell representations
+    # latent = model.get_latent_representation(dataloader=dm)
+    # print(latent.shape)
