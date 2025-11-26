@@ -619,7 +619,7 @@ class TorchMRVAE(BaseModuleClass):
 
         if self.u_prior_mixture:
             offset = (
-                10.0 * nn.functional.one_hot(label_index, self.n_labels)
+                10.0 * nn.functional.one_hot(label_index, self.n_labels).float()
                 if self.n_labels >= 2
                 else 0.0
             )
@@ -704,7 +704,7 @@ class TorchMRVAE(BaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": torch.zeros([x.shape[0], 1]),
+            "label_index": torch.zeros(x.shape[0], dtype=torch.long, device=x.device),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]

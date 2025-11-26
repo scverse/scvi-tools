@@ -19,6 +19,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
 - Fix configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
 - Fix inference on GPU for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix model loading and DE with labels in PyTorch implementation of {class}`scvi.external.MRVI`,
+    {pr}`3615`.
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 - Fix external indices validation in {class}`scvi.dataloaders.SemiSupervisedDataSplitter` {pr}`3601`.
