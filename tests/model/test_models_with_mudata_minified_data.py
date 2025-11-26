@@ -374,12 +374,15 @@ def test_save_then_load_with_minified_mdata(cls, save_path):
     model.minify_mudata()
     assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
 
-    if cls == TOTALVI:
-        # loading this model with a minified mdata is not allowed because
-        # we don't have a way to validate whether the minified-mdata was
-        # set up correctly
-        with pytest.raises(KeyError):
-            cls.load(save_path, adata=model.adata)
+    # loading this model with a minified mdata is not allowed because
+    # we don't have a way to validate whether the minified-mdata was
+    # set up correctly
+    with pytest.raises(ValueError) as excinfo:
+        cls.load(save_path, adata=model.adata)
+    assert (
+        str(excinfo.value)
+        == "It appears you are trying to load a non-minified model with minified mudata"
+    )
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, MULTIVI])
