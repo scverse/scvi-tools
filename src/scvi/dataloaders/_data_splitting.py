@@ -420,6 +420,23 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
 
+        if self.external_indexing is not None:
+            self.n_train, self.n_val = validate_data_split_with_external_indexing(
+                self.adata_manager.adata.n_obs,
+                self.external_indexing,
+                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.drop_last,
+            )
+        else:
+            self.n_train, self.n_val = validate_data_split(
+                self.adata_manager.adata.n_obs,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.drop_last,
+                self.train_size_is_none,
+            )
+
     def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
         n_labeled_idx = len(self._labeled_indices)
@@ -594,6 +611,9 @@ class DeviceBackedDataSplitter(DataSplitter):
         Shuffle test and validation indices.
     batch_size
         batch size of each iteration. If `None`, do not minibatch
+    external_indexing
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
 
     Examples
     --------
@@ -616,6 +636,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: int | None = None,
+        external_indexing: list[np.array, np.array, np.array] | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -623,6 +644,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             train_size=train_size,
             validation_size=validation_size,
             pin_memory=pin_memory,
+            external_indexing=external_indexing,
             **kwargs,
         )
         self.batch_size = batch_size
