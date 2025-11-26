@@ -593,7 +593,7 @@ class MULTIVI(
                 return pd.DataFrame.sparse.from_spmatrix(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    columns=adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask]
                     if isinstance(adata, MuData)
                     else adata.var_names[: self.n_regions][region_mask],
                 )
@@ -601,7 +601,7 @@ class MULTIVI(
                 return pd.DataFrame(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    columns=adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask]
                     if isinstance(adata, MuData)
                     else adata.var_names[: self.n_regions][region_mask],
                 )
