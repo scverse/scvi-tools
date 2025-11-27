@@ -69,10 +69,9 @@ def differential_abundance(
     adata: AnnData | None = None,
     sample_key: str | None = None,
     batch_size: int = 128,
-    downsample: int | None = None,
     num_cells_posterior: int | None = None,
     dof: float | None = None,
-) -> pd.DataFrame:
+):
     """Compute the differential abundance between samples.
 
     Computes the logarithm of the ratio of the probabilities of each sample conditioned on the
@@ -81,13 +80,11 @@ def differential_abundance(
     Parameters
     ----------
     adata
-        The data object to compute the differential abundance for.
+        The data object to compute the differential abundance for. For very large datasets, this should be a subset of the original data object.
     sample_key
         Key for the sample covariate.
     batch_size
         Minibatch size for computing the differential abundance.
-    downsample
-        Number of cells for which we will compute and store log probabilities.
     num_cells_posterior
         Maximum number of cells used to compute aggregated posterior for each sample.
     dof
@@ -102,15 +99,7 @@ def differential_abundance(
     adata = self._validate_anndata(adata)
 
     us = self.get_latent_representation(batch_size=batch_size, return_dist=False, give_mean=True)
-
-    # Are we computing for all cells?
-    downsampling = downsample and (downsample < us.shape[0])
-    if downsampling:
-        downsample_indices = np.random.choice(range(us.shape[0]), downsample, replace=False)
-    else:
-        downsample_indices = np.array(list(range(us.shape[0])))
-
-    dataloader = torch.utils.data.DataLoader(us[downsample_indices], batch_size=batch_size)
+    dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
     unique_samples = adata.obs[sample_key].unique()
 
     log_probs = []
@@ -126,16 +115,7 @@ def differential_abundance(
             log_probs_.append(ap.log_prob(u_rep))
         log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
-    # If not downsampling, this is the full (num_cells, num_samples) array
-    # If we are downsampling this is (downsample, num_samples) and we must pad with sparse zeros
     log_probs = np.array(log_probs).T
+    log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names, columns=unique_samples)
 
-    if downsampling:
-        data = log_probs.flatten()
-        row = np.repeat(downsample_indices, log_probs.shape[1])
-        col = np.tile(list(range(log_probs.shape[1])), downsample)
-        log_probs = coo_matrix(
-            (data, (row, col)), shape=(us.shape[0], len(unique_samples))
-        )  # (num_cells, num_samples)
-
-    return log_probs
+    adata.obsm['da_log_probs'] = log_probs_df
