@@ -39,7 +39,7 @@ def get_aggregated_posterior(
     adata = self._validate_anndata(adata)
 
     if indices is None:
-        indices = np.arange(self.adata.n_obs)
+        indices = np.arange(adata.n_obs)
     if sample is not None:
         indices = np.intersect1d(
             np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
@@ -96,6 +96,8 @@ def differential_abundance(
     and the columns correspond to unique sample identifiers.
     """
     adata = self._validate_anndata(adata)
+
+    # TODO: should be independent of self, because we don't want to get all latent reps, just the subset ones.
 
     us = self.get_latent_representation(batch_size=batch_size, return_dist=False, give_mean=True)
     dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
