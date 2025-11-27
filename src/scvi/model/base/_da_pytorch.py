@@ -5,7 +5,6 @@ import pandas as pd
 import torch
 import torch.distributions as dist
 from anndata import AnnData
-from scipy.sparse import coo_matrix
 from tqdm import tqdm
 
 
@@ -118,4 +117,4 @@ def differential_abundance(
     log_probs = np.array(log_probs).T
     log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names, columns=unique_samples)
 
-    adata.obsm['da_log_probs'] = log_probs_df
+    adata.obsm["da_log_probs"] = log_probs_df
