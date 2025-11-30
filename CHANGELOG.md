@@ -22,6 +22,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 - Fix external indices validation in {class}`scvi.dataloaders.SemiSupervisedDataSplitter` {pr}`3601`.
+- Fix issues with hub model loaded from path scarches query
+    and model loaded with adata=None while adata not exists {pr}`3628`.
 
 #### Changed
 
