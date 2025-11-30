@@ -55,4 +55,15 @@ def __getattr__(name: str):
         from ._jaxmixin import JaxTrainingMixin as _JaxTrainingMixin
 
         return _JaxTrainingMixin
+    if name == "MlxTrainingMixin":
+        warnings.warn(
+            "In order to use the MlxTrainingMixin make sure to install scvi-tools[mlx]",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+        error_on_missing_dependencies("mlx")
+        from ._mlxmixin import MlxTrainingMixin as _MlxTrainingMixin
+
+        return _MlxTrainingMixin
     raise AttributeError(f"module {__name__!r} has no attribute {name}")
