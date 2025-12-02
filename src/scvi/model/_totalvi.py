@@ -339,7 +339,7 @@ class TOTALVI(
             train_size=train_size,
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
             distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
             external_indexing=external_indexing,
             **datasplitter_kwargs,

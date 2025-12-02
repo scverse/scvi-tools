@@ -171,7 +171,7 @@ class PyroSviTrainMixin:
                 train_size=train_size,
                 validation_size=validation_size,
                 shuffle_set_split=shuffle_set_split,
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 **datasplitter_kwargs,
             )
 

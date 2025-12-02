@@ -439,7 +439,7 @@ class CYTOVI(
             self.adata_manager,
             train_size=train_size,
             validation_size=validation_size,
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
         runner = self._train_runner_cls(
