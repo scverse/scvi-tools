@@ -87,13 +87,13 @@ regseq = ["biopython>=1.81", "genomepy"]
 # for files sharing or handling
 file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 # for parallelization engine
-parallel = ["dask[array]", "zarr<3.0.0"]
+parallel = ["dask[array]", "zarr"]
 # for models interpretability
 interpretability = ["captum", "shap", "decoupler"]
 # for jax support
 jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
-dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil"]
 
