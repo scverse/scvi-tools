@@ -1361,7 +1361,8 @@ class TorchMRVI(
             betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
 
-            chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
+            df = torch.clamp(n_samples_per_cell[:, None].float(), min=1.0)  # clamp before chi2
+            chi2_dist = dist.Chi2(df)
             pvals = 1 - chi2_dist.cdf(ts.detach().cpu())
 
             betas = betas * eps_std

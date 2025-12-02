@@ -56,16 +56,26 @@ class MRVI(BaseMinifiedModeModelClass):
         registry: dict | None = None,
         **model_kwargs,
     ):
-        backend = backend.lower()
-        cls.backend = backend
-        if backend == "torch":
-            return TorchMRVI(adata=adata, registry=registry, **model_kwargs)
-        elif backend == "jax":
+        warnings.warn(
+            "backend parameter is ignored from version 1.4.1",
+            UserWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+        if adata is None:
+            raise ValueError("MRVI requires adata to infer backend.")
+        try:
+            model = TorchMRVI(adata=adata, registry=registry, **model_kwargs)
+            model_name = "TorchMRVI"
+        except (ValueError, KeyError):
+            model_name = "JaxMRVI"
+        if model_name == "TorchMRVI":
+            return model
+        if model_name == "JaxMRVI":
             from scvi.external.mrvi_jax import JaxMRVI
 
             return JaxMRVI(adata=adata, **model_kwargs)
         else:
-            raise ValueError(f"Unknown backend '{backend}'. Use 'torch' or 'jax'.")
+            raise ValueError("Unknown backend. Use 'torch' or 'jax' MRVI.")
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -172,23 +182,15 @@ class MRVI(BaseMinifiedModeModelClass):
         >>> model = ModelClass.load(save_path, adata)
         >>> model.get_....
         """
-        if cls.backend == "torch":
+        registry = peek_loaded_model_registry(dir_path, prefix)
+        model_name = registry.get(_MODEL_NAME_KEY, None)
+
+        if model_name == "TorchMRVI":
             warnings.warn(
                 "MRVI model is being loaded with PyTorch backend",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-
-            registry = peek_loaded_model_registry(dir_path, prefix)
-            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] == "JaxMRVI":
-                raise ValueError(
-                    "It appears you are trying to load a TORCH MRVI model with a JAX MRVI model"
-                )
-            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] == "MRVI":
-                raise ValueError(
-                    "It appears you are trying to load a TORCH MRVI model "
-                    "with a previous version JAX MRVI model"
-                )
 
             return TorchMRVI.load(
                 dir_path,
@@ -199,7 +201,7 @@ class MRVI(BaseMinifiedModeModelClass):
                 backup_url=backup_url,
                 datamodule=datamodule,
             )
-        elif cls.backend == "jax":
+        elif model_name == "JaxMRVI" or model_name == "MRVI":
             from scvi.external.mrvi_jax import JaxMRVI
 
             warnings.warn(
@@ -207,12 +209,6 @@ class MRVI(BaseMinifiedModeModelClass):
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
-
-            registry = peek_loaded_model_registry(dir_path, prefix)
-            if _MODEL_NAME_KEY in registry and registry[_MODEL_NAME_KEY] == "TorchMRVI":
-                raise ValueError(
-                    "It appears you are trying to load a JAX MRVI model with a Torch MRVI model"
-                )
 
             return JaxMRVI.load(
                 dir_path,
@@ -227,7 +223,7 @@ class MRVI(BaseMinifiedModeModelClass):
                 ],  # allowing old JAX MRVI models to be loaded TODO: need to change in v1.5
             )
         else:
-            raise ValueError(f"Unknown backend '{cls.backend}'. Use 'torch' or 'jax'.")
+            raise ValueError("Unknown backend . Use 'torch' or 'jax' MRVI.")
 
 
 def peek_loaded_model_registry(dir_path, prefix):
