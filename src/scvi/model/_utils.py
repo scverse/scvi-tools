@@ -307,6 +307,7 @@ def scatac_raw_counts_properties(
     idx1: list[int] | np.ndarray,
     idx2: list[int] | np.ndarray,
     var_idx: list[int] | np.ndarray | None = None,
+    registry_key: str = REGISTRY_KEYS.X_KEY,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -320,13 +321,15 @@ def scatac_raw_counts_properties(
         subset of indices describing the second population.
     var_idx
         subset of variables to extract properties from. if None, all variables are used.
+    registry_key
+        registry_key to fetch data from. model dependent. X by default, but can be atac for multivi
 
     Returns
     -------
     type
         Dict of ``np.ndarray`` containing, by pair (one for each subpopulation).
     """
-    data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+    data = adata_manager.get_from_registry(registry_key)
     data1 = data[idx1]
     data2 = data[idx2]
     if var_idx is not None:

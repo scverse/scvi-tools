@@ -443,3 +443,87 @@ def test_multivi_save_load_mudata_format(save_path: str):
     with pytest.raises(ValueError):
         _ = MULTIVI.load(legacy_model_path, adata=invalid_mdata)
     model = MULTIVI.load(model_path, adata=mdata)
+
+
+def test_multivi_wrong_modality_order():
+    mdata = synthetic_iid(return_mudata=True, n_proteins=50, n_regions=200)
+
+    def rebuild_mudata_in_order(mdata, desired_order):
+        """
+        Returns a NEW MuData object with modalities reordered and
+        all global metadata (var, obs, varmap, uns schema, etc.) rebuilt.
+        """
+        from collections import OrderedDict
+
+        # Build ordered modality dict
+        ordered_mods = OrderedDict()
+        for k in desired_order:
+            if k not in mdata.mod:
+                raise ValueError(f"Modality {k} not present in MuData.")
+            ordered_mods[k] = mdata.mod[k]
+
+        # Append any additional modalities
+        for k in mdata.mod:
+            if k not in ordered_mods:
+                ordered_mods[k] = mdata.mod[k]
+
+        # Rebuild entire MuData object — REQUIRED for correct var_names ordering
+        new_mdata = MuData(ordered_mods)
+
+        return new_mdata
+
+    mdata = rebuild_mudata_in_order(mdata, ["protein_expression", "accessibility", "rna"])
+
+    scvi.model.MULTIVI.setup_mudata(
+        mdata,
+        modalities={
+            "rna_layer": "rna",
+            "atac_layer": "accessibility",
+        },
+    )
+
+    n_genes = len(mdata.mod["rna"].var)
+    n_regions = len(mdata.mod["accessibility"].var)
+    model = scvi.model.MULTIVI(
+        mdata,
+        n_genes=n_genes,
+        n_regions=n_regions,
+    )
+
+    model.train(max_epochs=1)
+    assert model.is_trained is True
+
+    groups = 3
+    n = mdata.n_obs // groups
+    # initialize the column first
+    mdata.obs["modality"] = ""
+    # set modality of first third to rna
+    mdata.obs.iloc[:n, mdata.obs.columns.get_loc("modality")] = "expression"
+    # set modality of second third to both
+    mdata.obs.iloc[n : 2 * n, mdata.obs.columns.get_loc("modality")] = "paired"
+    # set modality of last third to atac
+    mdata.obs.iloc[2 * n :, mdata.obs.columns.get_loc("modality")] = "accessibility"
+
+    imputed_expression = model.get_normalized_expression()
+    assert imputed_expression.shape == (len(mdata), n_genes)
+
+    imputed_accesssibility = model.get_normalized_accessibility()
+    assert imputed_accesssibility.shape == (len(mdata), n_regions)
+
+    de_accessibility = model.differential_accessibility(
+        groupby="modality", group1="expression", mode="vanilla"
+    )
+    de_accessibility = model.differential_accessibility(groupby="modality", group1="expression")
+    assert de_accessibility.shape[0] == n_regions
+
+    de_expression = model.differential_expression(
+        groupby="modality", group1="expression", pseudocounts=7e-5
+    )
+    de_expression = model.differential_expression(
+        groupby="modality", group1="expression", group2="accessibility"
+    )
+    de_expression = model.differential_expression(idx1=[0, 1, 2], idx2=[3, 4, 5])
+    de_expression = model.differential_expression(idx1=[0, 1, 2])
+    assert de_expression.shape[0] == n_genes
+    de_expression = model.differential_expression(groupby="modality")
+    assert de_expression.shape[0] == n_genes * groups

@@ -547,7 +547,10 @@ class MULTIVI(
         if region_list is None:
             region_mask = slice(None)
         else:
-            region_mask = [region in region_list for region in adata.var_names[: self.n_regions]]
+            region_mask = [
+                region in region_list
+                for region in adata[adata.mod_names[1]].var_names[: self.n_regions]
+            ]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -593,17 +596,17 @@ class MULTIVI(
                 return pd.DataFrame.sparse.from_spmatrix(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    columns=adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask]
                     if isinstance(adata, MuData)
-                    else adata.var_names[: self.n_regions][region_mask],
+                    else adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask],
                 )
             else:
                 return pd.DataFrame(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    columns=adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask]
                     if isinstance(adata, MuData)
-                    else adata.var_names[: self.n_regions][region_mask],
+                    else adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask],
                 )
 
     @torch.inference_mode()
@@ -676,7 +679,7 @@ class MULTIVI(
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names[: self.n_genes]
+            all_genes = adata[adata.mod_names[0]].var_names[: self.n_genes]
             gene_mask = [gene in gene_list for gene in all_genes]
 
         exprs = []
@@ -714,7 +717,7 @@ class MULTIVI(
         else:
             return pd.DataFrame(
                 exprs,
-                columns=adata.var_names[: self.n_genes][gene_mask],
+                columns=adata[adata.mod_names[0]].var_names[: self.n_genes][gene_mask],
                 index=adata.obs_names[indices],
             )
 
@@ -736,6 +739,7 @@ class MULTIVI(
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        pseudocounts: float | None = 1e-6,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential accessibility analysis.
@@ -759,6 +763,9 @@ class MULTIVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -790,14 +797,15 @@ class MULTIVI(
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        col_names = adata.var_names[: self.n_genes]
+        col_names = adata[adata.mod_names[1]].var_names[: self.n_regions]
         model_fn = partial(
             self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
-            var_idx=np.arange(adata.shape[1])[: self.n_genes],
+            var_idx=np.arange(adata.shape[1])[: self.n_regions],
+            registry_key=REGISTRY_KEYS.ATAC_X_KEY,
         )
 
         result = _de_core(
@@ -819,7 +827,7 @@ class MULTIVI(
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
-            pseudocounts=1e-6,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 
@@ -860,6 +868,7 @@ class MULTIVI(
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        pseudocounts: float | None = 1e-6,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -883,6 +892,9 @@ class MULTIVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -893,7 +905,7 @@ class MULTIVI(
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
 
-        col_names = adata.var_names[: self.n_genes]
+        col_names = adata[adata.mod_names[0]].var_names[: self.n_genes]
         model_fn = partial(
             self.get_normalized_expression,
             batch_size=batch_size,
@@ -921,7 +933,7 @@ class MULTIVI(
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
-            pseudocounts=1e-6,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 
@@ -1150,6 +1162,39 @@ class MULTIVI(
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+
+        # Define canonical MULTIVI order (rna -> atac -> protein)
+        desired_order = []
+        if modalities.rna_layer is not None:
+            desired_order.append(modalities.rna_layer)
+        if modalities.atac_layer is not None:
+            desired_order.append(modalities.atac_layer)
+        if modalities.protein_layer is not None:
+            desired_order.append(modalities.protein_layer)
+
+        # Current MuData modality order
+        current_order = list(mdata.mod.keys())
+
+        # Determine if reorder is needed:
+        needs_reorder = current_order[: len(desired_order)] != desired_order
+
+        if needs_reorder:
+            from collections import OrderedDict
+
+            # Ordered modalities
+            ordered_mods = OrderedDict()
+            for k in desired_order:
+                ordered_mods[k] = mdata.mod[k]
+            for k in current_order:
+                if k not in ordered_mods:
+                    ordered_mods[k] = mdata.mod[k]
+
+            # Replace in-place
+            mdata.mod = ordered_mods
+
+            # Recompute axes / var concatenation
+            mdata.update()
+
         mdata.obs["_indices"] = np.arange(mdata.n_obs)
 
         batch_field = fields.MuDataCategoricalObsField(

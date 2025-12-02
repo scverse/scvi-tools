@@ -87,22 +87,22 @@ def _generate_synthetic(
     if return_mudata:
         mod_dict = {rna_key: adata}
 
-        if n_proteins > 0:
-            protein_adata = AnnData(protein)
-            protein_adata.var_names = protein_names
-            mod_dict[protein_expression_key] = protein_adata
         if n_regions > 0:
             accessibility_adata = AnnData(accessibility)
             accessibility_adata.var_names = region_names
             mod_dict[accessibility_key] = accessibility_adata
+        if n_proteins > 0:
+            protein_adata = AnnData(protein)
+            protein_adata.var_names = protein_names
+            mod_dict[protein_expression_key] = protein_adata
 
         adata = MuData(mod_dict)
     else:
+        if n_regions > 0:
+            adata.obsm[accessibility_key] = accessibility
         if n_proteins > 0:
             adata.obsm[protein_expression_key] = protein
             adata.uns[protein_names_key] = protein_names
-        if n_regions > 0:
-            adata.obsm[accessibility_key] = accessibility
 
     adata.obs[batch_key] = pd.Categorical(batch)
     if n_labels > 0:
