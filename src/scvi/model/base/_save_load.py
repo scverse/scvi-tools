@@ -53,7 +53,13 @@ def _load_legacy_saved_files(
         if os.path.exists(adata_path):
             adata = read_h5ad(adata_path)
         elif not os.path.exists(adata_path):
-            raise ValueError("Save path contains no saved anndata and no adata was passed.")
+            warnings.warn(
+                "Save path contains no saved anndata and no adata was passed. "
+                "Model will be loaded without anndata.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            adata = False
     else:
         adata = None
 
@@ -96,7 +102,13 @@ def _load_saved_files(
             else:
                 adata = anndata.read_h5ad(adata_path)
         else:
-            raise ValueError("Save path contains no saved anndata and no adata was passed.")
+            warnings.warn(
+                "Save path contains no saved anndata and no adata was passed. "
+                "Model will be loaded without anndata.",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+            adata = False
     else:
         adata = None
 

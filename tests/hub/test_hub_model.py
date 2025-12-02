@@ -294,6 +294,44 @@ def test_hub_model_pull_from_hf():
 
 
 @pytest.mark.private
+def test_hub_model_pull_from_hf_train_make_query(save_path):
+    hub_model = HubModel.pull_from_huggingface_hub(
+        repo_name="scvi-tools/test-scvi", cache_dir=save_path
+    )
+    assert hub_model.model is not None
+    assert hub_model.adata is not None
+
+    adata_orig = hub_model.adata
+    model_orig = hub_model.model
+
+    model_orig.get_latent_representation()
+
+    adata = synthetic_iid()
+    hub_model.load_model(adata=adata)
+
+    surgery_epochs = 1
+    train_kwargs_surgery = {
+        "early_stopping": True,
+        "early_stopping_monitor": "elbo_train",
+        "early_stopping_patience": 10,
+        "early_stopping_min_delta": 0.001,
+        "plan_kwargs": {"weight_decay": 0.0},
+    }
+
+    model_orig.train(max_epochs=surgery_epochs, **train_kwargs_surgery)
+
+    # Prepare query
+    scvi.model.SCVI.prepare_query_anndata(adata_orig, save_path)
+    query_model = scvi.model.SCVI.load_query_data(adata_orig, save_path)
+    query_model.train(max_epochs=surgery_epochs, **train_kwargs_surgery)
+
+    # Prepare query
+    scvi.model.SCVI.prepare_query_anndata(adata, model_orig)
+    model = scvi.model.SCVI.load_query_data(adata, model_orig)
+    model.train(max_epochs=surgery_epochs, **train_kwargs_surgery)
+
+
+@pytest.mark.private
 def test_hub_model_push_to_s3(save_path: str):
     hub_model = prep_scvi_hub_model(save_path)
     hub_model.push_to_s3("scvi-tools-wis", "tests/hub/test-scvi")

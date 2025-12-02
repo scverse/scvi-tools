@@ -124,6 +124,10 @@ def test_saving_and_loading(save_path):
         model = cls.load(save_path, prefix=prefix)
         model.get_latent_representation()
 
+        adata2 = synthetic_iid()
+        model2 = cls.load(save_path, prefix=prefix)
+        model2.get_latent_representation(adata2)
+
         # Load with mismatched genes.
         tmp_adata = synthetic_iid(
             n_genes=200,
@@ -1429,8 +1433,8 @@ def test_scvi_batch_embeddings(
     embedding_dim: int,
     encode_covariates: bool,
     use_observed_lib_size: bool,
-    save_path: str,
     n_batches: int,
+    save_path: str,
 ):
     from scvi import REGISTRY_KEYS
 
