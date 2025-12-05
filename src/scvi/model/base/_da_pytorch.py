@@ -99,7 +99,7 @@ def differential_abundance(
 
     # In case user passes in a subset of model's anndata
     adata_dataloader = self._make_data_loader(adata=adata, batch_size=batch_size)
-    us = self.get_latent_representation(batch_size=batch_size, return_dist=False, dataloader=adata_dataloader, give_mean=True)
+    us = self.get_latent_representation(batch_size=batch_size, dataloader=adata_dataloader, give_mean=True)
     dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
     unique_samples = adata.obs[sample_key].unique()
 
