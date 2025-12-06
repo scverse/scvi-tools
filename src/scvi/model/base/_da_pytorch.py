@@ -29,7 +29,8 @@ def get_aggregated_posterior(
     batch_size
         Batch size to use for computing the latent representation.
     dof
-        Degrees of freedom for the Student's t-distribution components. If ``None``, components are Normal.
+        Degrees of freedom for the Student's t-distribution components.
+        If ``None``, components are Normal.
 
     Returns
     -------
@@ -73,13 +74,14 @@ def differential_abundance(
 ):
     """Compute the differential abundance between samples.
 
-    Computes the logarithm of the ratio of the probabilities of each sample conditioned on the
-    estimated aggregate posterior distribution of each cell.
+    Computes the log probabilities of each sample conditioned on the estimated
+    aggregate posterior distribution of each cell.
 
     Parameters
     ----------
     adata
-        The data object to compute the differential abundance for. For very large datasets, this should be a subset of the original data object.
+        The data object to compute the differential abundance for.
+        For very large datasets, this should be a subset of the original data object.
     sample_key
         Key for the sample covariate.
     batch_size
@@ -87,13 +89,8 @@ def differential_abundance(
     num_cells_posterior
         Maximum number of cells used to compute aggregated posterior for each sample.
     dof
-        Degrees of freedom for the Student's t-distribution components for aggregated posterior. If ``None``, components are Normal.
-
-    Returns
-    -------
-    DataFrame of shape (n_cells, n_samples) containing the log probabilities
-    for each cell across samples. The rows correspond to cell names from `adata.obs_names`,
-    and the columns correspond to unique sample identifiers.
+        Degrees of freedom for the Student's t-distribution components for aggregated posterior.
+        If ``None``, components are Normal.
     """
     adata = self._validate_anndata(adata)
 
