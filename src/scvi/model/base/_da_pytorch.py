@@ -108,7 +108,9 @@ def differential_abundance(
         if num_cells_posterior is not None and num_cells_posterior < indices.shape[0]:
             indices = np.random.choice(indices, num_cells_posterior, replace=False)
 
-        ap = get_aggregated_posterior(self, adata=adata, indices=indices, dof=dof)
+        ap = get_aggregated_posterior(
+            self, adata=adata, indices=indices, dof=dof, batch_size=batch_size
+        )
         log_probs_ = []
         for u_rep in dataloader:
             u_rep = u_rep.to(self.device)
