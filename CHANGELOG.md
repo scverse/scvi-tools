@@ -25,6 +25,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
+- Update model {class}`scvi.model.DestVI` with fine cell-type classifier {pr}`3380`.
+
 #### Removed
 
 - Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
