@@ -11,7 +11,6 @@ from tqdm import tqdm
 def get_aggregated_posterior(
     self,
     adata: AnnData | None = None,
-    sample: str | int | None = None,
     indices: Sequence[int] | None = None,
     batch_size: int | None = None,
     dof: float | None = 3.0,
@@ -22,8 +21,6 @@ def get_aggregated_posterior(
     ----------
     adata
         AnnData object to use. Defaults to the AnnData object used to initialize the model.
-    sample
-        Name or index of the sample to filter on. If ``None``, uses all cells.
     indices
         Indices of cells to use.
     batch_size
@@ -41,10 +38,6 @@ def get_aggregated_posterior(
 
     if indices is None:
         indices = np.arange(adata.n_obs)
-    if sample is not None:
-        indices = np.intersect1d(
-            np.array(indices), np.where(adata.obs[self.sample_key] == sample)[0]
-        )
 
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
     qu_loc, qu_scale = self.get_latent_representation(
