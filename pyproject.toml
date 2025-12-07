@@ -98,19 +98,17 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 mlflow = ["mlflow","psutil","GPUtil"]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]"
+    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
+    "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
     "biomart",
     "cell2location",
     "dataloaders",
     "jupyter",
-    "leidenalg",
     "seaborn",
     "matplotlib",
     "plotnine",
-    "pynndescent",
-    "igraph",
     "scrublet",
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
