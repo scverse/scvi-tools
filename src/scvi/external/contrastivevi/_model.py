@@ -194,7 +194,7 @@ class ContrastiveVI(BaseModelClass):
             target_indices=target_indices,
             train_size=train_size,
             validation_size=validation_size,
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
             shuffle_set_split=shuffle_set_split,
             distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             load_sparse_tensor=load_sparse_tensor,
