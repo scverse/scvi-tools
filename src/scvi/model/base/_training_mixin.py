@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
@@ -126,7 +126,7 @@ class UnsupervisedTrainingMixin:
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
@@ -441,7 +441,7 @@ class SemisupervisedTrainingMixin:
                 shuffle_set_split=shuffle_set_split,
                 n_samples_per_label=n_samples_per_label,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 **datasplitter_kwargs,
             )
         else:

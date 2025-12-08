@@ -19,6 +19,7 @@ from anndata import AnnData
 from mudata import MuData
 from rich import box
 from rich.console import Console
+from scipy import sparse
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -897,6 +898,22 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         model.module.eval()
         if adata:
+            if type(adata) is MuData:
+                if (
+                    sparse.issparse(adata[adata.mod_names[0]].X)
+                    and adata[adata.mod_names[0]].X.nnz == 0
+                    and new_adata is None
+                ):
+                    raise ValueError(
+                        "It appears you are trying to load a non-minified model "
+                        "with minified mudata"
+                    )
+            if type(adata) is AnnData:
+                if sparse.issparse(adata.X) and adata.X.nnz == 0 and new_adata is None:
+                    raise ValueError(
+                        "It appears you are trying to load a non-minified model "
+                        "with minified adata"
+                    )
             model._validate_anndata(adata)
         return model
 

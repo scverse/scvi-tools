@@ -13,6 +13,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
     function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.
+- Add modality auto-ordering for mudata in {class}`~scvi.model.MULTIVI` {pr}`3622` and fix DE.
 
 #### Fixed
 
@@ -24,12 +25,17 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 - Fix external indices validation in {class}`scvi.dataloaders.SemiSupervisedDataSplitter` {pr}`3601`.
+- Fix `batch_size` pop to get in {class}`scvi.external.ContrastiveVI` data loader {pr}`3629`.
 
 #### Changed
+
+- Update model {class}`scvi.model.DestVI` with fine cell-type classifier {pr}`3380`.
 
 #### Removed
 
 - Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+- Removed several {class}`~scvi.external.SCBASSET` tests that caused failure on GitHub actions,
+    {pr}`3632`.
 
 ### 1.4.0 (2025-09-14)
 
