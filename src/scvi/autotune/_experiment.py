@@ -763,8 +763,7 @@ class AutotuneExperiment:
 
     def get_tuner(self) -> Tuner:
         """Configure a :class:`~ray.tune.Tuner` from this experiment."""
-        from ray.train import RunConfig
-        from ray.tune import with_parameters, with_resources
+        from ray.tune import RunConfig, with_parameters, with_resources
         from ray.tune.tune_config import TuneConfig
 
         trainable = with_parameters(_trainable, experiment=self)

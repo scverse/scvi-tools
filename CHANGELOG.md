@@ -31,6 +31,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Removed
 
 - Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+- Removed several {class}`~scvi.external.SCBASSET` tests that caused failure on GitHub actions,
+    {pr}`3632`.
 
 ### 1.4.0 (2025-09-14)
 
