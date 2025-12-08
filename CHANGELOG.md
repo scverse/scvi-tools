@@ -23,6 +23,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 - Fix external indices validation in {class}`scvi.dataloaders.SemiSupervisedDataSplitter` {pr}`3601`.
+- Fix `batch_size` pop to get in {class}`scvi.external.ContrastiveVI` data loader {pr}`3629`.
 
 #### Changed
 
@@ -31,6 +32,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Removed
 
 - Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+- Removed several {class}`~scvi.external.SCBASSET` tests that caused failure on GitHub actions,
+    {pr}`3632`.
 
 ### 1.4.0 (2025-09-14)
 

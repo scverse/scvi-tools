@@ -327,7 +327,7 @@ class MULTIVI(
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
             **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
