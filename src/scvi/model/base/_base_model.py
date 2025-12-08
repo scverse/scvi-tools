@@ -923,8 +923,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if adata:
             if type(adata) is MuData:
                 if (
-                    sparse.issparse(adata["rna"].X)
-                    and adata["rna"].X.nnz == 0
+                    sparse.issparse(adata[adata.mod_names[0]].X)
+                    and adata[adata.mod_names[0]].X.nnz == 0
                     and new_adata is None
                 ):
                     raise ValueError(
