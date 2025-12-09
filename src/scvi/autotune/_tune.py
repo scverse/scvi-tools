@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING
 
 from scvi.autotune._experiment import AutotuneExperiment
@@ -172,6 +173,9 @@ def run_autotune(
         mudata_file_name=mudata_file_name,
     )
     logger.info(f"Running autotune experiment {experiment.experiment_name}.")
+    # Disable Ray's new output engine to avoid verbose parameter issues
+    # See: https://github.com/ray-project/ray/issues/49454
+    os.environ.setdefault("RAY_AIR_NEW_OUTPUT", "0")
     init(
         log_to_driver=log_to_driver, ignore_reinit_error=ignore_reinit_error, local_mode=local_mode
     )

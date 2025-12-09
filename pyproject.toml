@@ -54,7 +54,7 @@ dependencies = [
 
 optional-dependencies.all = [ "scvi-tools[dev,docs,tutorials]" ]
 # scvi.autotune
-optional-dependencies.autotune = [ "hyperopt>=0.2", "muon", "ray[tune]<2.51", "scib-metrics" ]
+optional-dependencies.autotune = [ "hyperopt>=0.2", "muon", "ray[tune]", "scib-metrics" ]
 optional-dependencies.cuda = [ "jax[cuda12]", "torchaudio", "torchvision" ]
 # for custom dataloders
 optional-dependencies.dataloaders = [
@@ -84,7 +84,7 @@ optional-dependencies.editing = [ "jupyter", "pre-commit" ]
 # for files sharing or handling
 optional-dependencies.file_sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
 # scvi.hub dependencies
-optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub", "igraph", "leidenalg" ]
+optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub"]
 # for models interpretability
 optional-dependencies.interpretability = [ "captum", "decoupler", "shap" ]
 # for jax support
@@ -94,6 +94,7 @@ optional-dependencies.metal = [ "jax-metal", "torchaudio", "torchvision" ]
 optional-dependencies.mlflow = [ "gputil", "mlflow", "psutil" ]
 optional-dependencies.optional = [
   "scvi-tools[autotune,file_sharing,hub,interpretability,jax,mlflow,parallel,regseq]",
+  "igraph","leidenalg","pynndescent",
 ]
 # for parallelization engine
 optional-dependencies.parallel = [ "dask[array]", "zarr<3" ]
@@ -105,12 +106,9 @@ optional-dependencies.tutorials = [
   "biomart",
   "cell2location",
   "dataloaders",
-  "igraph",
   "jupyter",
-  "leidenalg",
   "matplotlib",
   "plotnine",
-  "pynndescent",
   "scrublet",
   "scvi-tools[optional]",
   "seaborn",

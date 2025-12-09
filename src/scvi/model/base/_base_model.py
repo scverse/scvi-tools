@@ -19,6 +19,7 @@ from anndata import AnnData
 from mudata import MuData
 from rich import box
 from rich.console import Console
+from scipy import sparse
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
@@ -532,11 +533,34 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         adata_manager = self.get_anndata_manager(adata)
         if adata_manager is None:
-            logger.info(
-                "Input AnnData not setup with scvi-tools. "
-                + "attempting to transfer AnnData setup"
-            )
-            self._register_manager_for_instance(self.adata_manager.transfer_fields(adata))
+            if self.adata_manager is None:
+                # Model was loaded without AnnData, need to set up the new AnnData
+                # using the saved registry
+                logger.info(
+                    "Model was loaded without AnnData. Setting up provided AnnData "
+                    "using saved registry."
+                )
+                cls = self.__class__
+                registry = self.registry_
+                if _SETUP_ARGS_KEY not in registry:
+                    raise ValueError(
+                        "Saved model does not contain original setup inputs. "
+                        "Cannot setup the provided AnnData."
+                    )
+                method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+                getattr(cls, method_name)(
+                    adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
+                )
+                # Now get the manager that was just created
+                self._adata = adata
+                self._adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
+                self._register_manager_for_instance(self.adata_manager)
+            else:
+                logger.info(
+                    "Input AnnData not setup with scvi-tools. "
+                    + "attempting to transfer AnnData setup"
+                )
+                self._register_manager_for_instance(self.adata_manager.transfer_fields(adata))
         else:
             # Case where the correct AnnDataManager is found, replay registration as necessary.
             adata_manager.validate()
@@ -897,6 +921,22 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         model.module.eval()
         if adata:
+            if type(adata) is MuData:
+                if (
+                    sparse.issparse(adata[adata.mod_names[0]].X)
+                    and adata[adata.mod_names[0]].X.nnz == 0
+                    and new_adata is None
+                ):
+                    raise ValueError(
+                        "It appears you are trying to load a non-minified model "
+                        "with minified mudata"
+                    )
+            if type(adata) is AnnData:
+                if sparse.issparse(adata.X) and adata.X.nnz == 0 and new_adata is None:
+                    raise ValueError(
+                        "It appears you are trying to load a non-minified model "
+                        "with minified adata"
+                    )
             model._validate_anndata(adata)
         return model
 
