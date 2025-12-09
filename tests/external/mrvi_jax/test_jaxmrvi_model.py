@@ -56,10 +56,7 @@ def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
     model.train(1)
     # a jax model from prev version - should work!
-    model = MRVI.load(
-        "/Users/orikr/PycharmProjects/scvi-tools2/tests/external/mrvi_jax/mrvi_model_old_jax",
-        adata=adata,
-    )
+    model = MRVI.load("tests/external/mrvi_jax/mrvi_model_old_jax", adata=adata)
     model.train(1)
 
 
