@@ -84,7 +84,7 @@ optional-dependencies.editing = [ "jupyter", "pre-commit" ]
 # for files sharing or handling
 optional-dependencies.file_sharing = [ "fcswrite", "gdown", "pooch", "readfcs" ]
 # scvi.hub dependencies
-optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub"]
+optional-dependencies.hub = [ "boto3", "dvc[s3]", "huggingface-hub" ]
 # for models interpretability
 optional-dependencies.interpretability = [ "captum", "decoupler", "shap" ]
 # for jax support
@@ -93,8 +93,10 @@ optional-dependencies.metal = [ "jax-metal", "torchaudio", "torchvision" ]
 # for mlflow
 optional-dependencies.mlflow = [ "gputil", "mlflow", "psutil" ]
 optional-dependencies.optional = [
+  "igraph",
+  "leidenalg",
+  "pynndescent",
   "scvi-tools[autotune,file_sharing,hub,interpretability,jax,mlflow,parallel,regseq]",
-  "igraph","leidenalg","pynndescent",
 ]
 # for parallelization engine
 optional-dependencies.parallel = [ "dask[array]", "zarr<3" ]
