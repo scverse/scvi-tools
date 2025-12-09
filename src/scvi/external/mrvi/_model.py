@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from scvi._types import AnnOrMuData
 
 
-Backend = Literal["torch", "jax"]
+Backend = Literal["torch", "jax", None]
 
 
 class MRVI(BaseMinifiedModeModelClass):
@@ -44,25 +44,26 @@ class MRVI(BaseMinifiedModeModelClass):
 
     Notes
     -----
-    - When `backend="torch"`, this returns an instance of `TorchMRVI`.
-    - When `backend="jax"`, this returns an instance of `JaxMRVI`.
+    - When setup anndata with `backend="torch"`, this returns an instance of `TorchMRVI`.
+    - When setup anndata with `backend="jax"`, this returns an instance of `JaxMRVI`.
     """
 
     def __new__(
         cls,
         adata=None,
         *,
-        backend: Backend = "jax",
+        backend: Backend = None,
         registry: dict | None = None,
         **model_kwargs,
     ):
-        warnings.warn(
-            "backend parameter is ignored from version 1.4.1",
-            UserWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-        if adata is None:
-            raise ValueError("MRVI requires adata to infer backend.")
+        if backend is not None:
+            warnings.warn(
+                "backend parameter is ignored from version 1.4.1",
+                UserWarning,
+                stacklevel=settings.warnings_stacklevel,
+            )
+        if adata is None and registry is None:
+            raise ValueError("MRVI requires adata or registry to infer backend.")
         try:
             model = TorchMRVI(adata=adata, registry=registry, **model_kwargs)
             model_name = "TorchMRVI"
