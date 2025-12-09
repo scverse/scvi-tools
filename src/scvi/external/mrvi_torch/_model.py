@@ -1693,7 +1693,7 @@ class TorchMRVI(
         >>> import scanpy as sc
         >>> from scvi.external import MRVI
         >>> MRVI.setup_anndata(adata, sample_key="sample_id", backend="torch")
-        >>> model = MRVI(adata, backend="torch")
+        >>> model = MRVI(adata)
         >>> model.train()
         >>> # Update sample info with new covariates
         >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}
