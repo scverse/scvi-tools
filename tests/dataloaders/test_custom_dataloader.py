@@ -443,7 +443,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str, setup_lamindb_instance):
 
     # pprint(datamodule.registry)
 
-    model = MRVI(registry=datamodule.registry, backend="torch")
+    model = MRVI(registry=datamodule.registry)
     # pprint(model.summary_stats)
     # pprint(model.module)
 

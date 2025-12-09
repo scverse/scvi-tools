@@ -81,7 +81,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.n_background,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
                 self.train_size_is_none,
             )
@@ -89,7 +89,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.n_target,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
                 self.train_size_is_none,
             )
@@ -98,7 +98,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 validate_data_split_with_external_indexing(
                     self.adata_manager.adata.n_obs,
                     self.external_indexing,
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             )
@@ -112,7 +112,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 validate_data_split_with_external_indexing(
                     self.n_background,
                     [self.background_train_idx, self.background_val_idx, self.background_test_idx],
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             )
@@ -128,7 +128,7 @@ class ContrastiveDataSplitter(DataSplitter):
             self.n_target_train, self.n_target_val = validate_data_split_with_external_indexing(
                 self.n_target,
                 [self.target_train_idx, self.target_val_idx, self.target_test_idx],
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
             )
             self.target_train_idx, self.target_val_idx, self.target_test_idx = (
