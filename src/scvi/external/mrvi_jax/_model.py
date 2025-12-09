@@ -106,9 +106,9 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
 
         warnings.warn(
             "You are using the Jax Version of MrVI, which is the default. Starting v1.5, "
-            "This class will still be usable won't be as actively maintained as the PyTorch "
-            "implementation of MRVI, which will become the default one. We strongly recommend to "
-            "already train your MRVI with torch backend by stating MRVI(adata...,backend='torch'",
+            "This class will still be usable but won't be as actively maintained as the PyTorch "
+            "implementation of MRVI, which will become the default one. We recommend to train "
+            "your MRVI with torch backend by stating MRVI.setup_anndata(adata...,backend='torch'",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
