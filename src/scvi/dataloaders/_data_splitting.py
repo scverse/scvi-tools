@@ -251,7 +251,7 @@ class DataSplitter(pl.LightningDataModule):
             self.n_train, self.n_val = validate_data_split_with_external_indexing(
                 self.adata_manager.adata.n_obs,
                 self.external_indexing,
-                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
             )
         else:
@@ -259,7 +259,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager.adata.n_obs,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
                 self.train_size_is_none,
             )
@@ -420,6 +420,23 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
 
+        if self.external_indexing is not None:
+            self.n_train, self.n_val = validate_data_split_with_external_indexing(
+                self.adata_manager.adata.n_obs,
+                self.external_indexing,
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
+                self.drop_last,
+            )
+        else:
+            self.n_train, self.n_val = validate_data_split(
+                self.adata_manager.adata.n_obs,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
+                self.drop_last,
+                self.train_size_is_none,
+            )
+
     def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
         n_labeled_idx = len(self._labeled_indices)
@@ -436,7 +453,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
                     n_labeled_idx,
                     [labeled_idx_train, labeled_idx_val, labeled_idx_test],
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             else:
@@ -444,7 +461,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_labeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -477,7 +494,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
                     n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             else:
@@ -485,7 +502,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_unlabeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -594,6 +611,9 @@ class DeviceBackedDataSplitter(DataSplitter):
         Shuffle test and validation indices.
     batch_size
         batch size of each iteration. If `None`, do not minibatch
+    external_indexing
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
 
     Examples
     --------
@@ -616,6 +636,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: int | None = None,
+        external_indexing: list[np.array, np.array, np.array] | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -623,6 +644,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             train_size=train_size,
             validation_size=validation_size,
             pin_memory=pin_memory,
+            external_indexing=external_indexing,
             **kwargs,
         )
         self.batch_size = batch_size

@@ -145,7 +145,8 @@ class HubModel:
         repo_name
             ID of the huggingface repo where this model needs to be uploaded
         repo_token
-            huggingface API token with write permissions if None uses token in HfFolder.get_token()
+            huggingface API token with write permissions. If None, uses the token from the
+            HuggingFace cache or HF_TOKEN environment variable.
         repo_create
             Whether to create the repo
         repo_create_kwargs
@@ -158,7 +159,7 @@ class HubModel:
         **kwargs
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
-        from huggingface_hub import HfApi, HfFolder, add_collection_item, create_repo
+        from huggingface_hub import HfApi, add_collection_item, create_repo
 
         self._repo_name = repo_name
 
@@ -177,7 +178,7 @@ class HubModel:
                 Please refer to scvi-tools tutorials for how to handle this case."
             )
         if repo_token is None:
-            repo_token = HfFolder.get_token()
+            repo_token = HfApi().token
         elif os.path.isfile(repo_token):
             repo_token = Path(repo_token).read_text()
         if repo_create:

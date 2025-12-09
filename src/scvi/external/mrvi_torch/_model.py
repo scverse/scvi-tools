@@ -1147,7 +1147,7 @@ class TorchMRVI(
         use_vmap: Literal["auto", True, False] = "auto",
         normalize_design_matrix: bool = True,
         add_batch_specific_offsets: bool = False,
-        mc_samples: int = 100,
+        mc_samples: int = 50,
         store_lfc: bool = False,
         store_lfc_metadata_subset: list[str] | None = None,
         store_baseline: bool = False,
@@ -1361,7 +1361,8 @@ class TorchMRVI(
             betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
 
-            chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
+            df = torch.clamp(n_samples_per_cell[:, None].float(), min=1.0)  # clamp before chi2
+            chi2_dist = dist.Chi2(df)
             pvals = 1 - chi2_dist.cdf(ts.detach().cpu())
 
             betas = betas * eps_std
@@ -1692,7 +1693,7 @@ class TorchMRVI(
         >>> import scanpy as sc
         >>> from scvi.external import MRVI
         >>> MRVI.setup_anndata(adata, sample_key="sample_id", backend="torch")
-        >>> model = MRVI(adata, backend="torch")
+        >>> model = MRVI(adata)
         >>> model.train()
         >>> # Update sample info with new covariates
         >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}

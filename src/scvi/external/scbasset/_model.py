@@ -249,7 +249,7 @@ class SCBASSET(BaseModelClass):
         # `motif_dir` now has `shuffled_peaks_motifs` as a subdir and
         # `shuffled_peaks.fasta` as a root level file.
         logger.info("Download and extraction complete.")
-        return
+        return 0
 
     @dependencies("Bio")
     def _get_motif_library(
