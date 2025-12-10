@@ -4,7 +4,7 @@ requires = [ "hatchling" ]
 
 [project]
 name = "scvi-tools"
-version = "1.4.0.post1"
+version = "1.4.1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -99,7 +99,7 @@ optional-dependencies.optional = [
   "scvi-tools[autotune,file_sharing,hub,interpretability,jax,mlflow,parallel,regseq]",
 ]
 # for parallelization engine
-optional-dependencies.parallel = [ "dask[array]", "zarr<3" ]
+optional-dependencies.parallel = [ "dask[array]", "zarr" ]
 # scvi.data.add_dna_sequence
 optional-dependencies.regseq = [ "biopython>=1.81", "genomepy" ]
 optional-dependencies.test = [ "scvi-tools[tests]" ]
