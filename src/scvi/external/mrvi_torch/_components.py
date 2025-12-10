@@ -389,7 +389,7 @@ class AttentionBlock(nn.Module):
                 kv_for_att, (kv_for_att.shape[0] * kv_for_att.shape[1], kv_for_att.shape[2], -1)
             )
 
-        eps = self.attention(query_for_att, kv_for_att, kv_for_att, need_weights=False)[
+        eps = self.attention(query_for_att, kv_for_att, kv_for_att)[
             0
         ]  # (batch_size, outerprod_dim, n_channels * n_heads)
 
