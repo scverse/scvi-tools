@@ -94,6 +94,8 @@ interpretability = ["captum", "shap", "decoupler"]
 jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+# for diagvi
+diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil"]
 
