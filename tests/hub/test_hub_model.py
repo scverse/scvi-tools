@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from dataclasses import asdict
 
 import anndata
@@ -295,14 +296,17 @@ def test_hub_model_pull_from_hf():
 
 @pytest.mark.private
 def test_hub_model_pull_from_hf_train_make_query(save_path):
+    save_dir = tempfile.TemporaryDirectory()
+    model_path = os.path.join(save_path, "test_scvi")
     hub_model = HubModel.pull_from_huggingface_hub(
-        repo_name="scvi-tools/test-scvi", cache_dir=save_path
+        repo_name="scvi-tools/test-scvi", cache_dir=save_dir.name
     )
     assert hub_model.model is not None
     assert hub_model.adata is not None
 
     adata_orig = hub_model.adata
     model_orig = hub_model.model
+    model_orig.save(model_path, save_anndata=True, overwrite=True)
 
     model_orig.get_latent_representation()
 
@@ -321,8 +325,8 @@ def test_hub_model_pull_from_hf_train_make_query(save_path):
     model_orig.train(max_epochs=surgery_epochs, **train_kwargs_surgery)
 
     # Prepare query
-    scvi.model.SCVI.prepare_query_anndata(adata_orig, save_path)
-    query_model = scvi.model.SCVI.load_query_data(adata_orig, save_path)
+    scvi.model.SCVI.prepare_query_anndata(adata_orig, model_path)
+    query_model = scvi.model.SCVI.load_query_data(adata_orig, model_path)
     query_model.train(max_epochs=surgery_epochs, **train_kwargs_surgery)
 
     # Prepare query
