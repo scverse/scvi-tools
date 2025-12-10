@@ -19,6 +19,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add support for Python 3.14 {pr}`3563`.
 - Add MLFlow support, {pr}`3573`.
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
