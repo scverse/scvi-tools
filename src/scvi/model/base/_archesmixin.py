@@ -164,8 +164,9 @@ class ArchesMixin:
                     "Cannot load the original setup."
                 )
 
-            if registry[_SETUP_METHOD_NAME] != "setup_datamodule":
-                setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+            setup_method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+            if setup_method_name != "setup_datamodule":
+                setup_method = getattr(cls, setup_method_name)
                 setup_method(
                     adata,
                     source_registry=registry,
