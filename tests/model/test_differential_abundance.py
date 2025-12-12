@@ -9,7 +9,7 @@ import torch.distributions as dist
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
-from scvi.model.base import differential_abundance, get_aggregated_posterior
+from scvi.model.base._da_pytorch import differential_abundance, get_aggregated_posterior
 
 if TYPE_CHECKING:
     from anndata import AnnData
