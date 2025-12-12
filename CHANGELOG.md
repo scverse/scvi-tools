@@ -5,7 +5,17 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.4
 
-### 1.4.1 (2025-XX-XX)
+### 1.4.2 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
+### 1.4.1 (2025-12-10)
 
 #### Added
 
@@ -13,15 +23,21 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
     function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.
+- Add modality auto-ordering for mudata in {class}`~scvi.model.MULTIVI` {pr}`3622` and fix DE.
 
 #### Fixed
 
 - Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
 - Fix configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
 - Fix inference on GPU for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix model loading and DE with labels in PyTorch implementation of {class}`scvi.external.MRVI`,
+    {pr}`3615`.
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
 - Fix external indices validation in {class}`scvi.dataloaders.SemiSupervisedDataSplitter` {pr}`3601`.
+- Fix issues with hub model loaded from path during scarches query
+    and model loaded with adata=None while adata not exists {pr}`3628`.
+- Fix `batch_size` in {class}`scvi.external.ContrastiveVI` data loader {pr}`3629`.
 
 #### Changed
 
@@ -30,6 +46,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Removed
 
 - Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+- Removed several {class}`~scvi.external.SCBASSET` tests that caused failure on GitHub actions,
+    {pr}`3632`.
 
 ### 1.4.0 (2025-09-14)
 
