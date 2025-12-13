@@ -36,7 +36,7 @@ def get_aggregated_posterior(
     self._check_if_trained(warn=False)
     adata = self._validate_anndata(adata)
 
-    if indices is None:
+    if not indices:
         indices = np.arange(adata.n_obs)
 
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)

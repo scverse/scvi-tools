@@ -37,7 +37,7 @@ def model(adata):
         {},
         {"indices": None},
         {"indices": []},
-        {"indices": np.random.choice(1500, 100, replace=False)},
+        {"indices": np.random.choice(500, 100, replace=False)},
         {"indices": list(range(150)), "dof": None},
         {"indices": list(range(150)), "dof": 5},
     ],
@@ -55,7 +55,15 @@ def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
 @pytest.mark.parametrize(
     "da_kwargs",
     [
-        {"adata": adata, "sample_key": "sample_str", "num_cells_posterior": 1000, "dof": 3},
+        {"sample_key": "sample_str", "num_cells_posterior": 100, "dof": 3},
+        {"sample_key": "sample_str", "num_cells_posterior": 5000, "dof": 3},
+        {"sample_key": "sample_str", "num_cells_posterior": None, "dof": 3},
+        {"sample_key": "sample_str", "dof": 3},
+        {"sample_key": "sample", "num_cells_posterior": 100, "dof": 3},
+        {"num_cells_posterior": 100, "dof": 3},
+        {"sample_key": None, "num_cells_posterior": 100, "dof": 3},
+        {"sample_key": "sample_str", "num_cells_posterior": 100},
+        {"sample_key": "sample_str", "num_cells_posterior": 100, "dof": None},
     ],
 )
 def test_differential_abundance(model: SCVI, adata: AnnData, da_kwargs):
