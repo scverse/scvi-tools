@@ -36,10 +36,10 @@ def model(adata):
     [
         {},
         {"indices": None},
-        {"indices": []},
+        {"indices": np.empty()},
         {"indices": np.random.choice(500, 100, replace=False)},
-        {"indices": list(range(150)), "dof": None},
-        {"indices": list(range(150)), "dof": 5},
+        {"indices": np.arange(150), "dof": None},
+        {"indices": np.arange(150), "dof": 5},
     ],
 )
 def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
@@ -66,7 +66,7 @@ def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
     ],
 )
 def test_differential_abundance(model: SCVI, adata: AnnData, da_kwargs):
-    if da_kwargs["saample_key"] is None:
+    if da_kwargs["sample_key"] is None:
         with pytest.raises(KeyError):
             differential_abundance(model, adata, **da_kwargs)
 
