@@ -69,11 +69,11 @@ def test_differential_abundance(model: SCVI, adata: AnnData, da_kwargs):
     if da_kwargs["sample_key"] is None:
         with pytest.raises(KeyError):
             differential_abundance(model, adata, **da_kwargs)
+    else:
+        differential_abundance(model, adata, **da_kwargs)
+        assert isinstance(adata.obsm["da_log_probs"], pd.DataFrame)
 
-    differential_abundance(model, adata, **da_kwargs)
-    assert isinstance(adata.obsm["da_log_probs"], pd.DataFrame)
-
-    subset_indices = np.random.choice(adata.n_obs, adata.n_obs // 2, replace=False)
-    adata_subset = adata[subset_indices, :].copy()
-    differential_abundance(model, adata_subset, **da_kwargs)
-    assert isinstance(adata_subset.obsm["da_log_probs"], pd.DataFrame)
+        subset_indices = np.random.choice(adata.n_obs, adata.n_obs // 2, replace=False)
+        adata_subset = adata[subset_indices, :].copy()
+        differential_abundance(model, adata_subset, **da_kwargs)
+        assert isinstance(adata_subset.obsm["da_log_probs"], pd.DataFrame)
