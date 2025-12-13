@@ -36,7 +36,7 @@ def model(adata):
     [
         {},
         {"indices": None},
-        {"indices": np.empty()},
+        {"indices": np.array([])},
         {"indices": np.random.choice(500, 100, replace=False)},
         {"indices": np.arange(150), "dof": None},
         {"indices": np.arange(150), "dof": 5},
