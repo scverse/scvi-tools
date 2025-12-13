@@ -60,13 +60,16 @@ def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
         {"sample_key": "sample_str", "num_cells_posterior": None, "dof": 3},
         {"sample_key": "sample_str", "dof": 3},
         {"sample_key": "sample", "num_cells_posterior": 100, "dof": 3},
-        {"num_cells_posterior": 100, "dof": 3},
         {"sample_key": None, "num_cells_posterior": 100, "dof": 3},
         {"sample_key": "sample_str", "num_cells_posterior": 100},
         {"sample_key": "sample_str", "num_cells_posterior": 100, "dof": None},
     ],
 )
 def test_differential_abundance(model: SCVI, adata: AnnData, da_kwargs):
+    if da_kwargs["saample_key"] is None:
+        with pytest.raises(KeyError):
+            differential_abundance(model, adata, **da_kwargs)
+
     differential_abundance(model, adata, **da_kwargs)
     assert isinstance(adata.obsm["da_log_probs"], pd.DataFrame)
 
