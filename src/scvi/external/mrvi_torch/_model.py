@@ -391,7 +391,6 @@ class TorchMRVI(
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
         n_sample = self.summary_stats.n_sample
-        cell_names = adata.obs_names[indices].values
 
         reqs = _parse_local_statistics_requirements(reductions)
 
@@ -438,6 +437,8 @@ class TorchMRVI(
             inf_inputs = self.module._get_inference_input(
                 tensor,
             )
+            cell_names = adata.obs_names[indices].values
+
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(

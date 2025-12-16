@@ -377,7 +377,6 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         n_sample = self.summary_stats.n_sample
 
         reqs = _parse_local_statistics_requirements(reductions)
-        cell_names = adata.obs_names[indices].values
 
         vars_in = {"params": self.module.params, **self.module.state}
 
@@ -437,6 +436,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
                 array_dict,
             )
             stacked_rngs = self._generate_stacked_rngs(cf_sample.shape[0])
+            cell_names = adata.obs_names[indices].values
 
             # OK to use stacked rngs here since there is no stochasticity for mean rep.
             if reqs.needs_mean_representations:
