@@ -344,7 +344,9 @@ def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: st
     assert ct_dists.shape == (2, 15, 15)
     assert np.allclose(ct_dists[0].values, ct_dists[0].values.T, atol=1e-6)
 
-    adata_stratifications_sub = adata_stratifications[adata_stratifications.obs["labels"] == 0]
+    adata_stratifications_sub = adata_stratifications[
+        adata_stratifications.obs["labels"] == "label_0"
+    ]
     sub_dists = model.get_local_sample_distances(
         adata=adata_stratifications_sub, groupby=["labels"], batch_size=16
     )
