@@ -137,8 +137,8 @@ if is_package_installed("ray") and is_package_installed("scib_metrics"):
                 outputs = getattr(pl_module, f"_{self.stage}_epoch_outputs")
                 z = outputs["z"].numpy()
                 x = np.zeros(z.shape)  # we don't really need x here, we work on z
-                batch = outputs["batch"].numpy()  # (
-                labels = outputs["labels"].numpy()  # (
+                batch = outputs["batch"].numpy()
+                labels = outputs["labels"].numpy()
 
                 # subsample to save time
                 if self.indices_list is None or len(self.indices_list) == 0:
