@@ -437,6 +437,8 @@ class TorchMRVI(
             inf_inputs = self.module._get_inference_input(
                 tensor,
             )
+            cell_names = adata.obs_names[indices].values
+
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
@@ -455,7 +457,7 @@ class TorchMRVI(
                     mean_zs_.detach().cpu().numpy(),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
-                        "cell_name": adata.obs_names[indices].values,
+                        "cell_name": cell_names,
                         "sample": self.sample_order,
                     },
                     name="sample_representations",
@@ -473,7 +475,7 @@ class TorchMRVI(
                     sampled_zs_.detach().cpu().numpy(),
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
-                        "cell_name": adata.obs_names[indices].values,
+                        "cell_name": cell_names,
                         "sample": self.sample_order,
                     },
                     name="sample_representations",
@@ -481,12 +483,12 @@ class TorchMRVI(
 
             if reqs.needs_mean_distances:
                 mean_dists = self._compute_distances_from_representations(
-                    mean_zs_, indices, norm=norm, return_numpy=True
+                    mean_zs_, cell_names, norm=norm, return_numpy=True
                 )
 
             if reqs.needs_sampled_distances or reqs.needs_normalized_distances:
                 sampled_dists = self._compute_distances_from_representations(
-                    sampled_zs_, indices, norm=norm, return_numpy=True
+                    sampled_zs_, cell_names, norm=norm, return_numpy=True
                 )
 
                 if reqs.needs_normalized_distances:
@@ -528,7 +530,7 @@ class TorchMRVI(
                     group_by_cats = group_by.unique()
                     for cat in group_by_cats:
                         cat_summed_outputs = outputs.sel(
-                            cell_name=adata.obs_names[indices][group_by == cat].values
+                            cell_name=cell_names[group_by == cat]
                         ).sum(dim="cell_name")
                         cat_summed_outputs = cat_summed_outputs.assign_coords(
                             {f"{r.group_by}_name": cat}
@@ -594,7 +596,7 @@ class TorchMRVI(
     def _compute_distances_from_representations(
         self,
         reps: torch.Tensor,
-        indices: torch.Tensor,
+        cell_names: torch.Tensor,
         norm: Literal["l2", "l1", "linf"] = "l2",
         return_numpy: bool = True,
     ) -> xr.DataArray:
@@ -620,7 +622,7 @@ class TorchMRVI(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
                 coords={
-                    "cell_name": self.adata.obs_names[indices].values,
+                    "cell_name": cell_names,
                     "sample_x": self.sample_order,
                     "sample_y": self.sample_order,
                 },
@@ -635,7 +637,7 @@ class TorchMRVI(
                 dists,
                 dims=["cell_name", "mc_sample", "sample_x", "sample_y"],
                 coords={
-                    "cell_name": self.adata.obs_names[indices].values,
+                    "cell_name": cell_names,
                     "mc_sample": np.arange(reps.shape[1]),
                     "sample_x": self.sample_order,
                     "sample_y": self.sample_order,
