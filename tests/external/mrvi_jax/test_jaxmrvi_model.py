@@ -243,6 +243,16 @@ def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str)
     assert ct_dists.shape == (2, 15, 15)
     assert np.allclose(ct_dists[0].values, ct_dists[0].values.T, atol=1e-6)
 
+    adata_stratifications_sub = adata_stratifications[
+        adata_stratifications.obs["labels"] == "label_0"
+    ]
+    sub_dists = model.get_local_sample_distances(
+        adata=adata_stratifications_sub, groupby=["labels"], batch_size=16
+    )
+    assert sub_dists["cell"].shape == (adata_stratifications_sub.shape[0], 15, 15)
+    assert sub_dists["labels"].shape == (1, 15, 15)
+    assert np.allclose(sub_dists["labels"][0].values, sub_dists["labels"][0].values.T, atol=1e-6)
+
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata_stratifications)
