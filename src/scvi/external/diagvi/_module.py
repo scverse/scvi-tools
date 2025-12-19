@@ -4,9 +4,14 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import (
+    Gamma,
+    Log1pNormal,
+    LogNormal,
     NegativeBinomial,
     NegativeBinomialMixture,
     Normal,
+    ZeroInflatedGamma,
+    ZeroInflatedLogNormal,
     ZeroInflatedNegativeBinomial,
 )
 from scvi.external.diagvi import DecoderProteinGLUE, DecoderRNA, GraphEncoder_glue
@@ -30,7 +35,7 @@ class DIAGVAE(BaseModuleClass):
         Number of batches for each modality.
     n_labels : dict[str, int]
         Number of labels/classes for each modality.
-    gene_likelihoods : dict[str, str]
+    modality_likelihoods : dict[str, str]
         Likelihood model for each modality (e.g., 'nb', 'zinb', 'nbmixture', 'normal').
     modalities : dict[str, str]
         Modality type for each input (e.g., 'rna', 'protein').
@@ -57,7 +62,7 @@ class DIAGVAE(BaseModuleClass):
         n_inputs: dict[int],
         n_batches: dict[int],
         n_labels: dict[int],
-        gene_likelihoods: dict[str],
+        modality_likelihoods: dict[str],
         modalities: dict[str],
         guidance_graph,
         use_gmm_prior: dict[bool],
@@ -83,7 +88,7 @@ class DIAGVAE(BaseModuleClass):
         self.n_labels = n_labels
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
-        self.gene_likelihoods = gene_likelihoods
+        self.modality_likelihoods = modality_likelihoods
         self.modalities = modalities
         self.guidance_graph = guidance_graph
         self.n_latent = n_latent
@@ -165,7 +170,7 @@ class DIAGVAE(BaseModuleClass):
 
         self.graph_encoder = GraphEncoder_glue(
             vnum=n_inputs[self.input_names[0]] + n_inputs[self.input_names[1]],
-            out_features=50,
+            out_features=self.n_latent,
         )
 
         if self.semi_supervised[self.input_names[0]]:
@@ -306,18 +311,18 @@ class DIAGVAE(BaseModuleClass):
         elif mode == self.input_names[1]:
             px_scale, px_r, px_rate, px_dropout = self.decoder_1(z, library, batch_index, v)
         px_r = px_r.exp()
-        if self.gene_likelihoods[mode] == "nb":
+        if self.modality_likelihoods[mode] == "nb":
             px = NegativeBinomial(px_r, logits=(px_rate + EPS).log() - px_r)
-        elif self.gene_likelihoods[mode] == "zinb":
+        elif self.modality_likelihoods[mode] == "zinb":
             px = ZeroInflatedNegativeBinomial(
                 mu=px_rate,
                 theta=px_r,
                 zi_logits=px_dropout,
                 scale=px_scale,
             )
-        elif self.gene_likelihoods[mode] == "normal":
+        elif self.modality_likelihoods[mode] == "normal":
             px = Normal(px_rate, px_r, normal_mu=px_scale)
-        elif self.gene_likelihoods[mode] == "nbmixture":
+        elif self.modality_likelihoods[mode] == "nbmixture":
             px = NegativeBinomialMixture(
                 mu1=px_rate[0],
                 mu2=px_rate[1],
@@ -332,6 +337,26 @@ class DIAGVAE(BaseModuleClass):
                 mixture_logits=px_dropout,
             )
             """
+        elif self.modality_likelihoods[mode] == "lognormal":
+            px = LogNormal(mu=px_rate, sigma=px_r, scale=px_scale)
+        elif self.modality_likelihoods[mode] == "log1pnormal":
+            px = Log1pNormal(mu=px_rate, sigma=px_r, scale=px_scale)
+        elif self.modality_likelihoods[mode] == "ziln":
+            px = ZeroInflatedLogNormal(
+                mu=px_rate,
+                sigma=px_r,
+                zi_logits=px_dropout,
+                scale=px_scale,
+            )
+        elif self.modality_likelihoods[mode] == "gamma":
+            px = Gamma(concentration=px_rate, rate=px_r, scale=px_scale)
+        elif self.modality_likelihoods[mode] == "zig":
+            px = ZeroInflatedGamma(
+                concentration=px_rate,
+                rate=px_r,
+                zi_logits=px_dropout,
+                scale=px_scale,
+            )
 
         if self.use_gmm_prior[mode]:
             logits = self.gmm_logits[mode]

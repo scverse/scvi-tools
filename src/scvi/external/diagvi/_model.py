@@ -108,7 +108,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             n_inputs=n_inputs,
             n_batches=n_batches,
             n_labels=n_labels,
-            gene_likelihoods=generative_distributions,
+            modality_likelihoods=generative_distributions,
             modalities=modalities,
             guidance_graph=self.guidance_graph,
             use_gmm_prior=gmm_priors,
@@ -232,7 +232,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         batch_key: str | None = None,
         labels_key: str | None = None,
         layer: str | None = None,
-        likelihood: Literal["nb", "zinb", "nbmixture", "normal"] = "nb",
+        likelihood: Literal[
+            "nb", "zinb", "nbmixture", "normal", "lognormal", "log1pnormal", "ziln", "gamma", "zig"
+        ] = "nb",
         modality: Literal["rna", "protein"] = "rna",
         gmm_prior: bool = False,
         semi_supervised: bool = False,
@@ -253,7 +255,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Key in adata.obs for cell type labels.
         layer : str, optional
             Layer in adata to use as input.
-        likelihood : {'nb', 'zinb', 'nbmixture'}, optional
+        likelihood : {'nb', 'zinb', 'nbmixture', 'normal', 'lognormal', 'log1pnormal', 'ziln', 'gamma', 'zig'}, optional
             Likelihood model for this modality (default: 'nb').
         modality : {'rna', 'protein'}, optional
             Name of the modality (default: 'rna').
