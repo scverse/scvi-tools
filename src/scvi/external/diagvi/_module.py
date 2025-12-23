@@ -1,8 +1,12 @@
+import logging
+
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
 
 from scvi import REGISTRY_KEYS
+
+logger = logging.getLogger(__name__)
 from scvi.distributions import (
     Gamma,
     Log1pNormal,
@@ -14,11 +18,28 @@ from scvi.distributions import (
     ZeroInflatedLogNormal,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.external.diagvi import DecoderProteinGLUE, DecoderRNA, GraphEncoder_glue
+from scvi.external.diagvi import DecoderDualPathway, DecoderSinglePathway, GraphEncoder_glue
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
+
+# Decoder selection based on likelihood function
+# Single-pathway: outputs (scale, r, rate, dropout)
+# Dual-pathway: outputs ((scale1, scale2), r, (rate1, rate2), mixture_logits)
+LIKELIHOOD_TO_DECODER = {
+    # Single-pathway likelihoods (unimodal distributions)
+    "nb": DecoderSinglePathway,
+    "zinb": DecoderSinglePathway,
+    "normal": DecoderSinglePathway,
+    "lognormal": DecoderSinglePathway,
+    "log1pnormal": DecoderSinglePathway,
+    "ziln": DecoderSinglePathway,
+    "gamma": DecoderSinglePathway,
+    "zig": DecoderSinglePathway,
+    # Dual-pathway likelihoods (mixture distributions)
+    "nbmixture": DecoderDualPathway,
+}
 
 
 class DIAGVAE(BaseModuleClass):
@@ -105,6 +126,8 @@ class DIAGVAE(BaseModuleClass):
                 self.gmm_means[name] = nn.Parameter(torch.randn(k, n_latent))
                 self.gmm_scales[name] = nn.Parameter(torch.zeros(k, n_latent))
 
+
+        # encoders
         self.encoder_0 = Encoder(
             n_input=n_inputs[self.input_names[0]],
             n_output=n_latent,
@@ -125,48 +148,29 @@ class DIAGVAE(BaseModuleClass):
             # **kwargs,
         )
 
-        if modalities[self.input_names[0]] == "rna":
-            self.decoder_0 = DecoderRNA(
-                n_output=n_inputs[self.input_names[0]],
-                n_batches=n_batches[self.input_names[0]],
-            )
 
-        if modalities[self.input_names[1]] == "rna":
-            self.decoder_1 = DecoderRNA(
-                n_output=n_inputs[self.input_names[1]],
-                n_batches=n_batches[self.input_names[1]],
-            )
+        # decoders - selected based on likelihood function
+        likelihood_0 = modality_likelihoods[self.input_names[0]]
+        likelihood_1 = modality_likelihoods[self.input_names[1]]
 
-        """
-        if modalities[self.input_names[0]] == "protein":
-            self.decoder_0 = DecoderProtein(
-                n_input=n_latent,
-                n_output_protein=n_inputs[self.input_names[0]],
-                n_batches=n_batches[self.input_names[0]],
-                common_scale=common_scale,
-            )
+        decoder_class_0 = LIKELIHOOD_TO_DECODER.get(likelihood_0, DecoderSinglePathway)
+        decoder_class_1 = LIKELIHOOD_TO_DECODER.get(likelihood_1, DecoderSinglePathway)
 
-        if modalities[self.input_names[1]] == "protein":
-            self.decoder_1 = DecoderProtein(
-                n_input=n_latent,
-                n_output_proteins=n_inputs[self.input_names[1]],
-                n_batches=n_batches[self.input_names[1]],
-                common_scale=common_scale,
-            )
+        logger.info(
+            f"Decoder for '{self.input_names[0]}' (likelihood={likelihood_0}): {decoder_class_0.__name__}"
+        )
+        self.decoder_0 = decoder_class_0(
+            n_output=n_inputs[self.input_names[0]],
+            n_batches=n_batches[self.input_names[0]],
+        )
 
-
-        """
-        if modalities[self.input_names[0]] == "protein":
-            self.decoder_0 = DecoderProteinGLUE(
-                n_output=n_inputs[self.input_names[0]],
-                n_batches=n_batches[self.input_names[0]],
-            )
-
-        if modalities[self.input_names[1]] == "protein":
-            self.decoder_1 = DecoderProteinGLUE(
-                n_output=n_inputs[self.input_names[1]],
-                n_batches=n_batches[self.input_names[1]],
-            )
+        logger.info(
+            f"Decoder for '{self.input_names[1]}' (likelihood={likelihood_1}): {decoder_class_1.__name__}"
+        )
+        self.decoder_1 = decoder_class_1(
+            n_output=n_inputs[self.input_names[1]],
+            n_batches=n_batches[self.input_names[1]],
+        )
 
         self.graph_encoder = GraphEncoder_glue(
             vnum=n_inputs[self.input_names[0]] + n_inputs[self.input_names[1]],
@@ -337,8 +341,6 @@ class DIAGVAE(BaseModuleClass):
                 mixture_logits=px_dropout,
             )
             """
-        elif self.modality_likelihoods[mode] == "lognormal":
-            px = LogNormal(mu=px_rate, sigma=px_r, scale=px_scale)
         elif self.modality_likelihoods[mode] == "log1pnormal":
             px = Log1pNormal(mu=px_rate, sigma=px_r, scale=px_scale)
         elif self.modality_likelihoods[mode] == "ziln":
@@ -348,12 +350,11 @@ class DIAGVAE(BaseModuleClass):
                 zi_logits=px_dropout,
                 scale=px_scale,
             )
-        elif self.modality_likelihoods[mode] == "gamma":
-            px = Gamma(concentration=px_rate, rate=px_r, scale=px_scale)
         elif self.modality_likelihoods[mode] == "zig":
+            # Clamp concentration and rate to avoid lgamma numerical issues
             px = ZeroInflatedGamma(
-                concentration=px_rate,
-                rate=px_r,
+                concentration=torch.clamp(px_rate, min=EPS),
+                rate=torch.clamp(px_r, min=EPS),
                 zi_logits=px_dropout,
                 scale=px_scale,
             )

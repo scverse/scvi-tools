@@ -12,7 +12,13 @@ from scvi.utils import dependencies
 EPS = 1e-8
 
 
-class DecoderRNA(nn.Module):  # integrate the batch index
+class DecoderSinglePathway(nn.Module):
+    """Single-pathway decoder for unimodal likelihoods.
+
+    Outputs a single set of parameters (scale, r, rate, dropout).
+    Use for: nb, zinb, normal, lognormal, log1pnormal, ziln, gamma, zig.
+    """
+
     def __init__(
         self,
         n_output: int,
@@ -59,7 +65,13 @@ class DecoderRNA(nn.Module):  # integrate the batch index
         return px_scale, px_r, px_rate, px_dropout
 
 
-class DecoderProteinGLUE(nn.Module):  # integrate the batch index
+class DecoderDualPathway(nn.Module):
+    """Dual-pathway decoder for mixture likelihoods.
+
+    Outputs two sets of parameters for foreground/background mixture models.
+    Use for: nbmixture.
+    """
+
     def __init__(
         self,
         n_output: int,

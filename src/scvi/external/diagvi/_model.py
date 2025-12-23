@@ -123,6 +123,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             f"generative distributions: {generative_distributions}"
         )
         self.init_params_ = self._get_init_params(locals())
+        logger.info(self._model_summary_string)
 
     def train(
         self,
@@ -233,7 +234,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         labels_key: str | None = None,
         layer: str | None = None,
         likelihood: Literal[
-            "nb", "zinb", "nbmixture", "normal", "lognormal", "log1pnormal", "ziln", "gamma", "zig"
+            "nb", "zinb", "nbmixture", "normal", "log1pnormal", "ziln", "zig"
         ] = "nb",
         modality: Literal["rna", "protein"] = "rna",
         gmm_prior: bool = False,
@@ -255,7 +256,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Key in adata.obs for cell type labels.
         layer : str, optional
             Layer in adata to use as input.
-        likelihood : {'nb', 'zinb', 'nbmixture', 'normal', 'lognormal', 'log1pnormal', 'ziln', 'gamma', 'zig'}, optional
+        likelihood : {'nb', 'zinb', 'nbmixture', 'normal', 'log1pnormal', 'ziln', 'zig'}, optional
             Likelihood model for this modality (default: 'nb').
         modality : {'rna', 'protein'}, optional
             Name of the modality (default: 'rna').
