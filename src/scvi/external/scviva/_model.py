@@ -247,21 +247,22 @@ class SCVIVA(
         sample_key : str or None, optional
              Key in `adata.obs` for sample identifiers. Default is None.
         labels_key : str, optional
-             Key in `adata.obs` for cell type labels. Default is "cell_type".
+             Key in `adata.obs` for cell type labels. the Default is "cell_type".
         cell_coordinates_key : str, optional
              Key in `adata.obsm` for spatial coordinates. Default is "spatial".
         expression_embedding_key : str, optional
-             Key in `adata.obsm` for latent space embeddings. Default is "X_scVI".
+             Key in `adata.obsm` for latent space embeddings. the Default is "X_scVI".
         expression_embedding_niche_key : str, optional
              Key in `adata.obsm` where average latent embeddings per cell type are stored.
-             Default is "niche_activation".
+             the Default is "niche_activation".
         niche_composition_key : str, optional
              Key in `adata.obsm` where neighborhood composition is stored.
-             Default is "niche_composition".
+             the Default is "niche_composition".
         niche_indexes_key : str, optional
-             Key in `adata.obsm` where niche indexes are stored. Default is "niche_indexes".
+             Key in `adata.obsm` where niche indexes are stored. the Default is "niche_indexes".
         niche_distances_key : str, optional
-             Key in `adata.obsm` where neighbor distances are stored. Default is "niche_distances".
+             Key in `adata.obsm` where neighbor distances are stored.
+             the Default is "niche_distances".
         log1p : bool, optional
              Whether to apply log1p to latent space embeddings. Default is False.
 
@@ -677,7 +678,7 @@ class SCVIVA(
     ) -> dict[str, float]:
         r"""Compute the niche state prediction error on the data.
 
-        The  error is the negative log likelihood of the data (eta) given the latent
+        The error is the negative log likelihood of the data (eta) given the latent
         variables. This is typically written as
         :math:`p(eta \mid z)`, the likelihood term given one posterior sample.
 
@@ -746,7 +747,7 @@ class SCVIVA(
         Merges SCVIVA.preprocessing_anndata and ArchesMixin.prepare_query_anndata.
 
         This function will return a new AnnData object with padded zeros
-        for missing features (genes, alpha and eta), as well as correctly sorted features.
+        for missing features (genes, alpha, and eta), as well as correctly sorted features.
 
         Parameters
         ----------
@@ -755,8 +756,8 @@ class SCVIVA(
             It is not necessary to run setup_anndata,
             as AnnData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -766,21 +767,22 @@ class SCVIVA(
         sample_key : str or None, optional
              Key in `adata.obs` for sample identifiers. Default is None.
         labels_key : str, optional
-             Key in `adata.obs` for cell type labels. Default is "cell_type".
+             Key in `adata.obs` for cell type labels. the Default is "cell_type".
         cell_coordinates_key : str, optional
              Key in `adata.obsm` for spatial coordinates. Default is "spatial".
         expression_embedding_key : str, optional
-             Key in `adata.obsm` for latent space embeddings. Default is "X_scVI".
+             Key in `adata.obsm` for latent space embeddings. the Default is "X_scVI".
         expression_embedding_niche_key : str, optional
              Key in `adata.obsm` where average latent embeddings per cell type are stored.
-             Default is "niche_activation".
+             the Default is "niche_activation".
         niche_composition_key : str, optional
              Key in `adata.obsm` where neighborhood composition is stored.
-             Default is "niche_composition".
+             the Default is "niche_composition".
         niche_indexes_key : str, optional
-             Key in `adata.obsm` where niche indexes are stored. Default is "niche_indexes".
+             Key in `adata.obsm` where niche indexes are stored. the Default is "niche_indexes".
         niche_distances_key : str, optional
-             Key in `adata.obsm` where neighbor distances are stored. Default is "niche_distances".
+             Key in `adata.obsm` where neighbor distances are stored.
+             the Default is "niche_distances".
         log1p : bool, optional
              Whether to apply log1p to latent space embeddings. Default is False.
 
@@ -861,7 +863,7 @@ def get_niche_indexes(
     adata
         Anndata object
     sample_key
-        Key in adata.obs that contains the sample of each cell (i.e. the donor slice)
+        Key in adata.obs that contain the sample of each cell (i.e., the donor slice)
     niche_indexes_key
         Key in adata.obsm where the indexes of the neighbors will be stored
     cell_coordinates_key
@@ -886,7 +888,7 @@ def get_niche_indexes(
     )  # for each cell, store the distances to its k_nn neighbors
 
     adata.obs["index"] = np.arange(adata.shape[0])
-    # build a dictionnary giving the index of each 'donor_slice' observation:
+    # build a dictionary giving the index of each 'donor_slice' observation:
     donor_slice_index = {}
     for sample in adata.obs[sample_key].unique():
         donor_slice_index[sample] = adata.obs[adata.obs[sample_key] == sample]["index"].values
@@ -929,8 +931,8 @@ def get_neighborhood_composition(
     n_cell_types = len(adata.obs[cell_type_column].unique())  # number of cell types
     adata.obsm[niche_composition_key] = np.zeros(
         (adata.n_obs, n_cell_types)
-    )  # for each cell, store the composition of its neighborhood as a convex vector of cell type
-    # proportions
+    )  # for each cell, store the composition of its neighborhood
+    # as a convex vector of the cell type proportions
 
     indices = adata.obsm[indices_key].astype(int)
 
@@ -984,7 +986,7 @@ def get_average_latent_per_celltype(
     """Get the average embedding per cell type in the dataset.
 
     For this one needs to provide the cell type of each cell in the
-    dataset and an embedding for each cell, computed for instance with PCA, or scVI.
+    dataset and an embedding for each cell, computed, for instance, with PCA, or scVI.
 
     Parameters
     ----------

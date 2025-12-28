@@ -41,7 +41,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
 
     # large data example
     # ln.track("d1kl7wobCO1H0005")
-    # ln.setup.init(name="lamindb_instance_name", storage=save_path)  # is this need in github test
+    # ln.setup.init(name="lamindb_instance_name", storage=save_path) # is this need in github test
     # ln.setup.init()
     # collection = ln.Collection.using("laminlabs/cellxgene").get(name="covid_normal_lung")
     # artifacts = collection.artifacts.all()
@@ -70,7 +70,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
     model.history.keys()
 
     # The way to extract the internal model analysis is by the inference_dataloader
-    # Datamodule will always require to pass it into all downstream functions.
+    # Datamodule will always require passing it into all downstream functions.
     inference_dataloader = datamodule.inference_dataloader()
     _ = model.get_elbo(dataloader=inference_dataloader)
     _ = model.get_marginal_ll(dataloader=inference_dataloader)
@@ -106,7 +106,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
     )
     _ = model.get_normalized_expression(n_samples=2, dataloader=inference_dataloader_small)
 
-    # load and save and make query with the other data
+    # load and save and make a query with the other data
     model.save("lamin_model", save_anndata=False, overwrite=True, datamodule=datamodule)
     # load it back and do downstream analysis
     loaded_model = scvi.model.SCVI.load("lamin_model", adata=False)
@@ -151,7 +151,7 @@ def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
     model.load("lamin_model", adata=False)
     model.load_query_data(adata=False, reference_model="lamin_model", registry=datamodule.registry)
 
-    # cretae a regular model
+    # create a regular model
     model.load_query_data(adata=adata, reference_model="lamin_model")
     model_adata = model.load("lamin_model", adata=adata)
     scvi.model.SCVI.setup_anndata(adata, batch_key="batch")
@@ -443,7 +443,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str, setup_lamindb_instance):
 
     # pprint(datamodule.registry)
 
-    model = MRVI(registry=datamodule.registry, backend="torch")
+    model = MRVI(registry=datamodule.registry)
     # pprint(model.summary_stats)
     # pprint(model.module)
 
@@ -464,7 +464,7 @@ def test_lamindb_dataloader_mrvi_small(save_path: str, setup_lamindb_instance):
     assert "kl_global_validation" in logged_keys
 
     # The way to extract the internal model analysis is by the inference_dataloader
-    # Datamodule will always require to pass it into all downstream functions.
+    # Datamodule will always require passing it into all downstream functions.
     inference_dataloader = datamodule.inference_dataloader()
     _ = model.get_elbo(dataloader=inference_dataloader)
     _ = model.get_reconstruction_error(dataloader=inference_dataloader)
@@ -556,7 +556,7 @@ def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str, setup_lam
     model.history.keys()
 
     # The way to extract the internal model analysis is by the inference_dataloader
-    # Datamodule will always require to pass it into all downstream functions.
+    # Datamodule will always require passing it into all downstream functions.
     inference_dataloader = datamodule.inference_dataloader()
     _ = model.get_elbo(dataloader=inference_dataloader)
     _ = model.get_marginal_ll(dataloader=inference_dataloader)
@@ -602,7 +602,7 @@ def test_lamindb_dataloader_scvi_small_with_covariates(save_path: str, setup_lam
     )
     _ = model.get_normalized_expression(n_samples=2, dataloader=inference_dataloader_small)
 
-    # load and save and make query with the other data
+    # load and save and make a query with the other data
     model.save("lamin_model_cov", save_anndata=False, overwrite=True, datamodule=datamodule)
     # load it back and do downstream analysis
     loaded_model = scvi.model.SCVI.load("lamin_model_cov", adata=False)
@@ -629,7 +629,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
         'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 5000'
     )
 
-    # in order to save time in this test we manulay filter var
+    # to save time in this test, we manually filter var
     hv_idx = np.arange(10)  # just to make it smaller and faster for debug
 
     # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
@@ -640,7 +640,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
         var_query=soma.AxisQuery(coords=(list(hv_idx),)),
     )
 
-    # We will now use class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
+    # We will now use the class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
     batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
     datamodule = TileDBDataModule(
         hvg_query,
@@ -704,7 +704,7 @@ def test_census_custom_dataloader_scvi(save_path: str):
 
     inference_datamodule.setup()
 
-    # Datamodule will always require to pass it into all downstream functions.
+    # Datamodule will always require passing it into all downstream functions.
     # need to init the inference_dataloader before each of those commands:
     latent = model.get_latent_representation(
         dataloader=inference_datamodule.inference_dataloader()
@@ -828,8 +828,8 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 5000'
     )
 
-    # in order to save time in this test we manually filter var
-    hv_idx = np.arange(10)  # just ot make it smaller and faster for debug
+    # to save time in this test, we manually filter var
+    hv_idx = np.arange(10)  # just to make it smaller and faster for debug
 
     # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
     # which can compute HVGs in constant memory:
@@ -839,7 +839,7 @@ def test_census_custom_dataloader_scanvi(save_path: str):
         var_query=soma.AxisQuery(coords=(list(hv_idx),)),
     )
 
-    # We will now use class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
+    # We will now use the class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
     batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
     label_keys = ["tissue_general"]
     datamodule = TileDBDataModule(
@@ -1090,7 +1090,7 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
         'is_primary_data == True and tissue_general in ["liver","heart"] and nnz >= 5000'
     )
 
-    # in order to save time in this test we manulay filter var
+    # to save time in this test, we manually filter var
     hv_idx = np.arange(10)  # just to make it smaller and faster for debug
 
     # For HVG, we can use the highly_variable_genes function provided in cellxgene_census,
@@ -1101,7 +1101,7 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
         var_query=soma.AxisQuery(coords=(list(hv_idx),)),
     )
 
-    # We will now use class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
+    # We will now use the class TileDBDataModule to connect TileDB-SOMA-ML with PyTorch Lightning.
     batch_keys = ["dataset_id", "assay", "suspension_type", "donor_id"]
     datamodule = TileDBDataModule(
         hvg_query,
@@ -1167,7 +1167,7 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
 
     inference_datamodule.setup()
 
-    # Datamodule will always require to pass it into all downstream functions.
+    # Datamodule will always require passing it into all downstream functions.
     # need to init the inference_dataloader before each of those commands:
     latent = model.get_latent_representation(
         dataloader=inference_datamodule.inference_dataloader()

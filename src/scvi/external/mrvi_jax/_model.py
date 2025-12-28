@@ -106,9 +106,9 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
 
         warnings.warn(
             "You are using the Jax Version of MrVI, which is the default. Starting v1.5, "
-            "This class will still be usable won't be as actively maintained as the PyTorch "
-            "implementation of MRVI, which will become the default one. We strongly recommend to "
-            "already train your MRVI with torch backend by stating MRVI(adata...,backend='torch'",
+            "This class will still be usable but won't be as actively maintained as the PyTorch "
+            "implementation of MRVI, which will become the default one. We recommend to train "
+            "your MRVI with torch backend by stating MRVI.setup_anndata(adata...,backend='torch'",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -150,7 +150,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         else:
             n_sets_1d = np.prod(n_sets)
         rngs_list = [self.module.rngs for _ in range(n_sets_1d)]
-        # Combine list of RNG dicts into a single list. This is necessary for vmap/map.
+        # Combine the list of RNG dicts into a single list. This is necessary for vmap/map.
         rngs = {
             required_rng: jnp.concatenate(
                 [rngs_dict[required_rng][None] for rngs_dict in rngs_list], axis=0
@@ -191,7 +191,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             :meth:`~scvi.data.AnnDataManager.register_fields`.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        # Add index for batched computation of local statistics.
+        # Add the index for batched computation of local statistics.
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
@@ -229,7 +229,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range ``[0.0, 1.0]``.
+            Size of the training set in the range ``[0.0, 1.0]``.
         validation_size
             Size of the validation set. If ``None``, defaults to ``1 - train_size``. If
             ``train_size + validation_size < 1``, the remaining cells belong to a test set.
@@ -426,7 +426,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         for ur in reqs.ungrouped_reductions:
             ungrouped_data_arrs[ur.name] = []
         for gr in reqs.grouped_reductions:
-            grouped_data_arrs[gr.name] = {}  # Will map group category to running group sum.
+            grouped_data_arrs[gr.name] = {}  # Will map group category to running the group sum.
 
         for array_dict in tqdm(scdl):
             indices = array_dict[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
@@ -706,7 +706,8 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         Computes cell-specific distances between samples, of size ``(n_sample, n_sample)``,
         stored as a Dataset, with variable name ``"cell"``, of size
         ``(n_cell, n_sample, n_sample)``. If in addition, ``groupby`` is provided, distances are
-        also aggregated by group. In this case, the group-specific distances via group name key.
+        also aggregated by group. In this case, the group-specific distances
+        via the group name key.
 
         Parameters
         ----------
@@ -861,7 +862,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             when computing the differential abundance. At the moment, only discrete covariates are
             supported.
         sample_subset
-            Only compute differential abundance for these sample labels.
+            Only computes differential abundance for these sample labels.
         compute_log_enrichment
             Whether to compute the log enrichment scores for each covariate value.
         omit_original_sample
@@ -1166,7 +1167,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             How many MC samples should be taken for computing betas.
         store_lfc
             Whether to store the log-fold changes in the module.
-            Storing log-fold changes is memory-intensive and may require to specify
+            Storing log-fold changes is memory-intensive and may require specifying
             a smaller set of cells to analyze, e.g., by specifying ``adata``.
         store_lfc_metadata_subset
             Specifies a subset of metadata for which log-fold changes are computed.
@@ -1213,7 +1214,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 
         if sample_cov_keys is None:
-            # Hack: kept as kwarg to maintain order of arguments.
+            # Hack: kept as kwarg to maintain the order of arguments.
             raise ValueError("Must assign `sample_cov_keys`")
         adata = self.adata if adata is None else adata
         self._check_if_trained(warn=False)
@@ -1566,8 +1567,8 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
 
         1. The design matrix
         2. Names for each column in the design matrix
-        3. A mask precising which coefficients from the design matrix require to compute LFCs.
-        4. A mask precising which coefficients from the design matrix correspond to offsets.
+        3. A mask précising which coefficients from the design matrix requires computing LFCs.
+        4. A mask précising which coefficients from the design matrix correspond to offsets.
         """
         from pandas import Series, get_dummies
 

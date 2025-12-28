@@ -40,7 +40,7 @@ def pbmc_dataset(
     We considered scRNA-seq data from two batches of peripheral blood mononuclear cells (PBMCs)
     from a healthy donor (4K PBMCs and 8K PBMCs). We derived quality control metrics using the
     cellrangerRkit R package (v. 1.1.0). Quality metrics were extracted from CellRanger throughout
-    the molecule specific information file. After filtering, we extract 12,039 cells with 10,310
+    the molecule-specific information file. After filtering, we extract 12,039 cells with 10,310
     sampled genes and get biologically meaningful clusters with the software Seurat. We then filter
     genes that we could not match with the bulk data used for differential expression to be left
     with g = 3346.
@@ -91,7 +91,7 @@ def dataset_10x(
         "heart_1k_v2", "heart_1k_v3", "heart_10k_v3", 5k_pbmc_protein_v3",
         "5k_pbmc_protein_v3_nextgem", 1M_neurons".
     filename
-        manual override of the filename to write to.
+        manually overrides of the filename to write to.
     save_path
         Location to use when saving/loading the data.
     url
@@ -201,7 +201,7 @@ def purified_pbmc_dataset(
     save_path
         Location to use when saving/loading the data.
     subset_datasets
-        index for subsetting the follwing list of datasets
+        index for subsetting the following list of datasets
         which are used to form the ``PurifiedPBMCDataset``:
         "cd4_t_helper", "regulatory_t", "naive_t", "memory_t", "cytotoxic_t", "naive_cytotoxic",
         "b_cells", "cd4_t_helper", "cd34", "cd56_nk", "cd14_monocytes".
@@ -248,7 +248,7 @@ def prefrontalcortex_starmap(save_path: str = "data/") -> anndata.AnnData:
 def frontalcortex_dropseq(save_path: str = "data/") -> anndata.AnnData:
     """Load the cells from the mouse frontal cortex (Saunders et al., 2018).
 
-    Load the 71639 annotated cells located in the frontal cortex of adult mouses among the 690,000
+    Load the 71639 annotated cells located in the frontal cortex of adult mice among the 690,000
     cells studied by (Saunders et al., 2018) using the Drop-seq method. We have a 71639*7611 gene
     expression matrix Among the 7611 genes, we offer the user to provide a list of genes to
     subsample from. If not provided, all genes are kept.
@@ -398,7 +398,7 @@ def spleen_lymph_cite_seq(
 ) -> anndata.AnnData:
     """Immune cells from the murine spleen and lymph nodes :cite:p:`GayosoSteier21`.
 
-    This dataset was used throughout the totalVI manuscript, and named SLN-all.
+    This dataset was used throughout the totalVI manuscript and named SLN-all.
 
     Parameters
     ----------
@@ -536,8 +536,6 @@ def synthetic_iid(
         The number of batches to generate.
     n_labels
         The number of cell type labels, distributed uniformly across batches.
-    sparse
-        Whether to store ZINB generated data as a :class:`scipy.sparse.csr_matrix`.
     dropout_ratio
         The expected percentage of zeros artificially added into the data for RNA
         and accessibility data.
@@ -662,13 +660,13 @@ def pbmc_seurat_v4_cite_seq(
         Location to use when saving/loading the data.
     apply_filters
         Apply filters at cell and protein level. At the cell level,
-        this filters on protein library size, number proteins detected,
+        this filters on protein library size, number of proteins detected,
         percent mito, and removes cells labeled as doublets.
     aggregate_proteins
         Antibodies targeting the same surface protein are added together,
         and isotype controls are removed. See the source code for full details.
     mask_protein_batches
-        Set proteins in this many batches to be all zero (considered missing
+        Set proteins in these many batches to be all zero (considered missing
         for :class:`~scvi.model.TOTALVI`.). This improves transfer learning
         with this dataset.
 

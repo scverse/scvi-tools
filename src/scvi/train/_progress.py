@@ -89,10 +89,3 @@ class ProgressBar(ProgressBarBase):
         super().on_train_end(trainer, pl_module)
         if self.is_enabled:
             self.main_progress_bar.close()
-
-
-def convert_inf(x):
-    """The tqdm doesn't support inf values. We have to convert it to None."""
-    if x == float("inf"):
-        return None
-    return x

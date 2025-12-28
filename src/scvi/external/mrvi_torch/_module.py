@@ -135,6 +135,7 @@ class DecoderZXAttention(nn.Module):
         )
         init.normal_(self.px_r)
 
+    @auto_move_data
     def forward(
         self,
         z: torch.Tensor,
@@ -260,6 +261,7 @@ class EncoderUZ(nn.Module):
         if self.n_latent_u is not None:
             self.fc = nn.Linear(self.n_latent_u, self.n_latent)
 
+    @auto_move_data
     def forward(
         self,
         u: torch.Tensor,
@@ -339,6 +341,7 @@ class EncoderXU(nn.Module):
             self.n_hidden, self.n_latent, self.n_hidden, self.n_layers
         )
 
+    @auto_move_data
     def forward(
         self, x: torch.Tensor, sample_covariate: torch.Tensor, training: bool | None = None
     ) -> dist.Normal:
@@ -515,6 +518,7 @@ class TorchMRVAE(BaseModuleClass):
             self.u_prior_means = nn.Parameter(torch.randn(u_prior_mixture_k, u_dim))
             self.u_prior_scales = nn.Parameter(torch.zeros(u_prior_mixture_k, u_dim))
 
+    @torch.inference_mode()
     def _get_inference_input(self, tensors: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
@@ -579,6 +583,7 @@ class TorchMRVAE(BaseModuleClass):
             "library": library,
         }
 
+    @torch.inference_mode()
     def _get_generative_input(
         self,
         tensors: dict[str, torch.Tensor],
@@ -602,15 +607,19 @@ class TorchMRVAE(BaseModuleClass):
         library: torch.Tensor,
         batch_index: torch.Tensor,
         label_index: torch.Tensor,
+        transform_batch: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor | dist.Distribution]:
         """Generative model."""
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         library_exp = torch.exp(library)
         px = self.px(z, batch_index, size_factor=library_exp)
         h = px.mean / library_exp
 
         if self.u_prior_mixture:
             offset = (
-                10.0 * nn.functional.one_hot(label_index, self.n_labels)
+                10.0 * nn.functional.one_hot(label_index, self.n_labels).float()
                 if self.n_labels >= 2
                 else 0.0
             )
@@ -687,7 +696,7 @@ class TorchMRVAE(BaseModuleClass):
         """Compute normalized gene expression from observations using predefined eps"""
         library = 7.0 * torch.ones_like(
             sample_index
-        )  # placeholder, has no effect on the value of h.
+        )  # placeholder has no effect on the value of h.
         inference_outputs = self.inference(
             x, sample_index, mc_samples=mc_samples, cf_sample=cf_sample, use_mean=False
         )
@@ -695,7 +704,7 @@ class TorchMRVAE(BaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": torch.zeros([x.shape[0], 1]),
+            "label_index": torch.zeros(x.shape[0], dtype=torch.long, device=x.device),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]

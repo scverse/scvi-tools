@@ -88,7 +88,7 @@ class FCLayers(nn.Module):
                                 n_out,
                                 bias=bias,
                             ),
-                            # non-default params come from defaults in original Tensorflow
+                            # non-default params come from defaults in the original Tensorflow
                             # implementation
                             nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
                             if use_batch_norm
@@ -234,7 +234,7 @@ class Encoder(nn.Module):
         Callable used to ensure positivity of the variance.
         Defaults to :meth:`torch.exp`.
     return_dist
-        Return directly the distribution of z instead of its parameters.
+        Directly return the distribution of z instead of its parameters.
     **kwargs
         Keyword args for :class:`~scvi.nn.FCLayers`
     """
@@ -281,7 +281,7 @@ class Encoder(nn.Module):
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
-         #. Samples a new value from an i.i.d. multivariate normal
+         #. Samples a new value from i.i.d. multivariate normal
             \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
         Parameters
@@ -310,7 +310,7 @@ class Encoder(nn.Module):
 
 # Decoder
 class DecoderSCVI(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions into ``n_output`` dimensions.
+    """Decodes data from a latent space of ``n_input`` dimensions into ``n_output`` dimensions.
 
     Uses a fully-connected neural network of ``n_hidden`` layers.
 
@@ -379,7 +379,7 @@ class DecoderSCVI(nn.Module):
             px_scale_activation,
         )
 
-        # dispersion: here we only deal with gene-cell dispersion case
+        # dispersion: here we only deal with a gene-cell dispersion case
         self.px_r_decoder = nn.Linear(n_hidden, n_output)
 
         # dropout
@@ -396,7 +396,7 @@ class DecoderSCVI(nn.Module):
 
          #. Decodes the data from the latent space using the decoder network
          #. Returns parameters for the ZINB distribution of expression
-         #. If ``dispersion != 'gene-cell'`` then value for that param will be ``None``
+         #. If ``dispersion != 'gene-cell'`` then the value for that param will be ``None``
 
         Parameters
         ----------
@@ -407,9 +407,9 @@ class DecoderSCVI(nn.Module):
             * ``'gene-batch'`` - dispersion can differ between different batches
             * ``'gene-label'`` - dispersion can differ between different labels
             * ``'gene-cell'`` - dispersion can differ for every gene in every cell
-        z :
+        z
             tensor with shape ``(n_input,)``
-        library_size
+        library
             library size
         cat_list
             list of category membership(s) for this sample
@@ -707,7 +707,7 @@ class MultiDecoder(nn.Module):
 
 
 class DecoderTOTALVI(nn.Module):
-    """Decodes data from latent space of ``n_input`` dimensions ``n_output`` dimensions.
+    """Decodes data from a latent space of ``n_input`` dimensions ``n_output`` dimensions.
 
     Uses a linear decoder.
 
@@ -867,7 +867,7 @@ class DecoderTOTALVI(nn.Module):
 
          We use the dictionary `px_` to contain the parameters of the ZINB/NB for genes.
          The rate refers to the mean of the NB, dropout refers to Bernoulli mixing parameters.
-         `scale` refers to the quanity upon which differential expression is performed. For genes,
+         `scale` refers to the quantity upon which differential expression is performed. For genes,
          this can be viewed as the mean of the underlying gamma distribution.
 
          We use the dictionary `py_` to contain the parameters of the Mixture NB distribution for

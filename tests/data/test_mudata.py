@@ -53,7 +53,7 @@ def test_setup_mudata():
 
 
 def test_setup_mudata_view():
-    # test that error is thrown if its a view:
+    # test that error is thrown if it's a view:
     adata = synthetic_iid()
     mdata = mudata.MuData({"rna": adata[1]})
     with pytest.raises(ValueError):
@@ -105,7 +105,7 @@ def test_setup_mudata_layer():
 
 
 def test_setup_mudata_default_batch():
-    # test that it creates batch if no batch_key is passed
+    # test that it creates a batch if no batch_key is passed
     adata = synthetic_iid()
     mdata = mudata.MuData({"rna": adata})
     adata_manager = generic_setup_mudata_manager(mdata, layer_mod="rna", batch_mod="rna")
@@ -120,7 +120,7 @@ def test_setup_mudata_default_batch():
 
 
 def test_setup_mudata_nan_batch():
-    # test error is thrown when categorical obs field contains nans
+    # test error is thrown when a categorical obs field contains nans
     adata = synthetic_iid()
     adata.obs["batch"][:10] = np.nan
     mdata = mudata.MuData({"rna": adata})
@@ -273,8 +273,8 @@ def test_transfer_fields_missing_batch():
 
 
 def test_transfer_fields_default_batch():
-    # test that transfer_fields assigns same batch to cells
-    # if the original anndata was also same batch
+    # test that transfer_fields assigns the same batch to cells
+    # if the original anndata was also the same batch
     adata1 = synthetic_iid()
     protein_adata1 = synthetic_iid()
     mdata1 = mudata.MuData({"rna": adata1, "protein": protein_adata1})
@@ -351,7 +351,7 @@ def test_data_format():
         adata_manager.get_from_registry(REGISTRY_KEYS.PROTEIN_EXP_KEY),
     )
 
-    # if obsm is dataframe, make it C_CONTIGUOUS if it isnt
+    # if obsm is a dataframe, make it C_CONTIGUOUS if it isn't
     adata = synthetic_iid()
     protein_adata = synthetic_iid()
     mdata = mudata.MuData({"rna": adata, "protein": protein_adata})

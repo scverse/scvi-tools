@@ -10,6 +10,8 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
+from scvi.module.base import auto_move_data
+
 
 class Dense(nn.Linear):
     def __init__(self, *args, **kwargs):
@@ -69,6 +71,7 @@ class ResnetBlock(nn.Module):
         # layer norm
         self.layer_norm2 = nn.LayerNorm(n_out)
 
+    @auto_move_data
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         h = self.fc1(inputs)
         h = self.layer_norm1(h)
@@ -135,6 +138,7 @@ class MLP(nn.Module):
         # dense layer to project to the output dimension
         self.fc = Dense(in_features=n_hidden, out_features=n_out)
 
+    @auto_move_data
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         h = self.resnet_blocks(inputs)
         return self.fc(h)
@@ -187,6 +191,7 @@ class NormalDistOutputNN(nn.Module):
             nn.Softplus(),
         )
 
+    @auto_move_data
     def forward(self, inputs: torch.Tensor) -> Normal:
         h = inputs
         for block in self.resnet_blocks:
@@ -241,8 +246,9 @@ class ConditionalNormalization(nn.Module):
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
+    @auto_move_data
     def forward(self, x: torch.Tensor, condition: torch.Tensor, training: bool | None = None):
-        # Use pre-initialized normalization layer
+        # Use the pre-initialized normalization layer
         if self.normalization_type == "batch":
             # For BatchNorm, we need to set training mode
             if training is not None:
@@ -344,6 +350,7 @@ class AttentionBlock(nn.Module):
             activation=activation,
         )
 
+    @auto_move_data
     def forward(
         self,
         query_embed: torch.Tensor,
@@ -357,7 +364,7 @@ class AttentionBlock(nn.Module):
             query_embed_stop = query_embed  # (batch_size, query_dim)
 
         # Below, the second projection was not needed in the original JAX code,
-        # but it is needed in the PyTorch version to match the dimensions
+        # but it is necessary in the PyTorch version to match the dimensions
         # of the query and key-value embeddings for the attention mechanism.
         query_for_att = self.query_proj(query_embed_stop).unsqueeze(
             -1
@@ -368,7 +375,7 @@ class AttentionBlock(nn.Module):
         kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)  # (batch_size, outerprod_dim, 1)
         kv_for_att = self.embed_dim_proj_kv(kv_for_att)
 
-        # Unlike with JAX, with torch we can only have one batch dimension
+        # Unlike with JAX, with torch we can only have one batch dimension,
         # so we flatten the batch and mc samples
         if has_mc_samples:
             query_embed_flat_batch = torch.reshape(
@@ -382,7 +389,7 @@ class AttentionBlock(nn.Module):
                 kv_for_att, (kv_for_att.shape[0] * kv_for_att.shape[1], kv_for_att.shape[2], -1)
             )
 
-        eps = self.attention(query_for_att, kv_for_att, kv_for_att, need_weights=False)[
+        eps = self.attention(query_for_att, kv_for_att, kv_for_att)[
             0
         ]  # (batch_size, outerprod_dim, n_channels * n_heads)
 

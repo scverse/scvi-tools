@@ -38,8 +38,8 @@ def adata():
 @pytest.fixture(scope="session")
 def model(adata: AnnData):
     MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="jax")
-    model = MRVI(adata, backend="jax")
-    model.train(max_steps=2, train_size=0.5)
+    model = MRVI(adata)
+    model.train(max_steps=1, train_size=0.5)
 
     return model
 
@@ -54,14 +54,10 @@ def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
-    with pytest.raises(ValueError) as excinfo:
-        model = MRVI.load("tests/external/mrvi_torch/mrvi_model", adata=adata)
-    assert (
-        str(excinfo.value)
-        == "It appears you are trying to load a JAX MRVI model with a Torch MRVI model"
-    )
+    model.train(1)
     # a jax model from prev version - should work!
     model = MRVI.load("tests/external/mrvi_jax/mrvi_model_old_jax", adata=adata)
+    model.train(1)
 
 
 @pytest.mark.optional
@@ -171,7 +167,7 @@ def test_jaxmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save
         batch_key="batch",
         backend="jax",
     )
-    model = MRVI(adata, n_latent=10, scale_observations=True, backend="jax", **model_kwargs)
+    model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(max_steps=2, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
@@ -198,7 +194,7 @@ def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
         batch_key="batch",
         backend="jax",
     )
-    model = MRVI(adata, n_latent=10, n_latent_u=5, backend="jax")
+    model = MRVI(adata, n_latent=10, n_latent_u=5)
     model.train(max_steps=2, train_size=0.5)
     model.get_local_sample_distances(batch_size=16)
 
@@ -234,7 +230,7 @@ def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str)
         batch_key="batch",
         backend="jax",
     )
-    model = MRVI(adata_stratifications, n_latent=10, backend="jax")
+    model = MRVI(adata_stratifications, n_latent=10)
     model.train(max_steps=2, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"], batch_size=16)

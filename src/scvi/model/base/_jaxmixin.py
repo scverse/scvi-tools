@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import warnings
 
+from scvi import settings
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import JaxModuleInit, JaxTrainingPlan, TrainRunner
@@ -87,7 +88,7 @@ class JaxTrainingMixin:
             train_size=train_size,
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
             iter_ndarray=True,
             **datasplitter_kwargs,
         )

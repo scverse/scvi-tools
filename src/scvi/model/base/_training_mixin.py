@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
@@ -70,8 +70,8 @@ class UnsupervisedTrainingMixin:
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Float, or None. Size of training set in the range ``[0.0, 1.0]``. default is None,
-            which is practicaly 0.9 and potentially adding small last batch to validation cells.
+            Float, or None. Size of training set in the range ``[0.0, 1.0]``. The default is None,
+            which is practically 0.9 and potentially adding a small last batch to validation cells.
             Passed into :class:`~scvi.dataloaders.DataSplitter`.
             Not used if ``datamodule`` is passed in.
         validation_size
@@ -126,7 +126,7 @@ class UnsupervisedTrainingMixin:
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
@@ -162,7 +162,7 @@ class UnsupervisedTrainingMixin:
 
 
 class SemisupervisedTrainingMixin:
-    """General purpose semisupervised train, predict and interoperability methods."""
+    """General purpose semisupervised train, predict, and interoperability methods."""
 
     _training_plan_cls = SemiSupervisedTrainingPlan
     _data_splitter_cls = SemiSupervisedDataSplitter
@@ -209,14 +209,14 @@ class SemisupervisedTrainingMixin:
         Parameters
         ----------
         adata
-            AnnData or MuData object that has been registered via corresponding setup
-            method in model class.
+            AnnData or MuData object that has been registered via the corresponding setup
+            method in the model class.
         indices
             Return probabilities for each class label.
         soft
-            If True, returns per class probabilities
+            If True, returns per-class probabilities
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into a model. Defaults to `scvi.settings.batch_size`.
         use_posterior_mean
             If ``True``, uses the mean of the posterior distribution to predict celltype
             labels. Otherwise, uses a sample from the posterior distribution - this
@@ -372,11 +372,11 @@ class SemisupervisedTrainingMixin:
             Number of subsamples for each label class to sample per epoch. By default, there
             is no label subsampling.
         check_val_every_n_epoch
-            Frequency with which metrics are computed on the data for validation set for both
+            Frequency with which metrics are computed on the data for the validation set for both
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
             the semisupervised trainer, set check_val_every_n_epoch in semisupervised_train_kwargs.
         train_size
-            Size of training set in the range [0.0, 1.0].
+            Size of the training set in the range [0.0, 1.0].
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
@@ -441,7 +441,7 @@ class SemisupervisedTrainingMixin:
                 shuffle_set_split=shuffle_set_split,
                 n_samples_per_label=n_samples_per_label,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 **datasplitter_kwargs,
             )
         else:
@@ -475,8 +475,8 @@ class SemisupervisedTrainingMixin:
         Parameters
         ----------
         adata
-            AnnData or MuData object that has been registered via corresponding setup
-            method in model class.
+            AnnData or MuData object that has been registered via the corresponding setup
+            method in the model class.
         attrs: numpy.ndarray
             Attributions matrix.
 
@@ -500,7 +500,7 @@ class SemisupervisedTrainingMixin:
         std_attrs = attrs.std(axis=0)
         idx = mean_attrs.argsort()[::-1] - 1  # their rank
 
-        # check how to populate this features table
+        # check how to populate these features' table
         # self.view_anndata_setup(adata)
         # self._model_summary_string
         # self._get_user_attributes()
@@ -574,7 +574,7 @@ class SemisupervisedTrainingMixin:
         """SHAP Operator (gives soft predictions gives data X)"""
         adata = self._validate_anndata()
 
-        # we need to adjust adata to the shap random selection ..
+        # we need to adjust adata to the shap random selection ...
         if len(X) > len(adata):
             # Repeat the data to expand to a larger size
             n_repeats = len(X) / len(adata)  # how many times you want to repeat the data

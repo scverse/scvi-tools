@@ -2,7 +2,7 @@
 
 **scAR** [^ref1] (single-cell Ambient Remover) is a deep learning model for removal of the ambient signals in droplet-based single cell omics.
 
-This model was ported from another [Github](https://github.com/Novartis/scar).
+This model was ported from another [GitHub](https://github.com/Novartis/scar).
 
 ```{topic} Tutorials:
 
