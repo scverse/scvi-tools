@@ -9,11 +9,11 @@ from scvi import REGISTRY_KEYS
 logger = logging.getLogger(__name__)
 from scvi.distributions import (
     Gamma,
-    Log1pNormal,
+    Normal,
     LogNormal,
+    Log1pNormal,
     NegativeBinomial,
     NegativeBinomialMixture,
-    Normal,
     ZeroInflatedGamma,
     ZeroInflatedLogNormal,
     ZeroInflatedNegativeBinomial,
@@ -251,7 +251,15 @@ class DIAGVAE(BaseModuleClass):
             Dictionary of inference outputs, including latent variables and graph embeddings.
         """
         x_ = x
-        library = torch.log(x.sum(1)).unsqueeze(1)
+        # TODO: check if library size calculation is correct for all likelihoods
+        # Compute library size based on likelihood type
+        if self.modality_likelihoods[mode] in ["nb", "zinb", "nbmixture"]:
+            # For count data: log(total counts) - standard scVI approach
+            library = torch.log(x.sum(1)).unsqueeze(1)
+        else:
+            # For continuous data: log(mean) - normalizes by feature count
+            # This keeps predictions in a similar scale to input values
+            library = torch.log(x.mean(1)).unsqueeze(1)
         graph = self.guidance_graph
         device = x.device
         graph = graph.to(device)
@@ -341,8 +349,16 @@ class DIAGVAE(BaseModuleClass):
                 mixture_logits=px_dropout,
             )
             """
+        elif self.modality_likelihoods[mode] == "lognormal":
+            px = LogNormal(mu=px_rate, sigma=px_r, scale=px_scale)
         elif self.modality_likelihoods[mode] == "log1pnormal":
             px = Log1pNormal(mu=px_rate, sigma=px_r, scale=px_scale)
+        elif self.modality_likelihoods[mode] == "gamma":
+            # Clamp concentration and rate to avoid lgamma numerical issues
+            px = Gamma(
+                concentration=torch.clamp(px_rate, min=EPS),
+                rate=torch.clamp(px_r, min=EPS),
+            )
         elif self.modality_likelihoods[mode] == "ziln":
             px = ZeroInflatedLogNormal(
                 mu=px_rate,
@@ -357,6 +373,11 @@ class DIAGVAE(BaseModuleClass):
                 rate=torch.clamp(px_r, min=EPS),
                 zi_logits=px_dropout,
                 scale=px_scale,
+            )
+        else:
+            raise ValueError(
+                f"Unknown likelihood '{self.modality_likelihoods[mode]}' for modality '{mode}'. "
+                f"Supported likelihoods: {list(LIKELIHOOD_TO_DECODER.keys())}"
             )
 
         if self.use_gmm_prior[mode]:
