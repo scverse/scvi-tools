@@ -271,6 +271,35 @@ class DIAGVI(BaseModelClass, VAEMixin):
         **kwargs : dict
             Additional keyword arguments.
         """
+        continuous_likelihoods = {"ziln", "zig", "lognormal", "log1pnormal", "gamma", "normal"}
+        if likelihood in continuous_likelihoods:
+            # Check for negative values (invalid for most continuous likelihoods)
+            data = adata.X if layer is None else adata.layers[layer]
+            if scipy.sparse.issparse(data):
+                data_min = data.min()
+            else:
+                data_min = np.min(data)
+            
+            if data_min < 0 and likelihood not in {"normal"}:
+                raise ValueError(
+                    f"Likelihood '{likelihood}' requires non-negative data, "
+                    f"but found minimum value {data_min}. Consider using 'normal' instead."
+                )
+            # Warn about zeros for non-zero-inflated likelihoods
+            if likelihood in {"lognormal", "gamma"}:
+                if scipy.sparse.issparse(data):
+                    has_zeros = (data.data == 0).any() or data.nnz < np.prod(data.shape)
+                else:
+                    has_zeros = (data == 0).any()
+                
+                if has_zeros:
+                    warnings.warn(
+                        f"Data contains zeros but likelihood '{likelihood}' does not model zeros. "
+                        f"Consider using '{{'ziln' if likelihood == 'lognormal' else 'zig'}}' instead.",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
+                    )
+
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
         if layer in adata.layers and not isinstance(adata.layers[layer], scipy.sparse.csr_matrix):
@@ -290,6 +319,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             label_field = LabelsWithUnlabeledObsField(
                 REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
             )
+        # TODO: think about how to handle `is_count_data` below
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
@@ -529,7 +559,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         )
         self.module.eval()
         dl = self._make_data_loader(source_adata, batch_size=batch_size)
-        reconstructed_counts = []
+        reconstructed_values = []
         for tensor in dl:
             inference_output = self.module.inference(
                 **self.module._get_inference_input(tensor), mode=source_name
@@ -586,7 +616,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 raise ValueError("There must be exactly two modalities defined.")
             target_name = target_names[0]
             generative_output = self.module.generative(**generative_input, mode=target_name)
-            reconstructed_counts.append(generative_output["px_rate"].cpu().detach())
+            # use distribution mean for correct expected value across all likelihoods
+            # TODO: check if this is correct for all likelihoods
+            px_dist = generative_output[MODULE_KEYS.PX_KEY]
+            reconstructed_values.append(px_dist.mean.cpu().detach())
             # extract the final feature embedding
             feature_embedding = inference_output["v"].cpu().detach().numpy()
         score = self.compute_per_feature_confidence(feature_embedding, conf_method)
@@ -595,8 +628,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 score_norm = (score - score.min()) / (score.max() - score.min())
             else:
                 score_norm = score.copy()
-        reconstructed_count = torch.cat(reconstructed_counts).numpy()
-        return reconstructed_count, score_norm
+        reconstructed_value = torch.cat(reconstructed_values).numpy()
+        return reconstructed_value, score_norm
 
     def save(
         self,
