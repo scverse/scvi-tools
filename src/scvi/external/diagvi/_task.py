@@ -156,9 +156,9 @@ class DiagTrainingPlan(TrainingPlan):
         self.log(
             "class_loss", classification_loss, batch_size=batch_size, on_epoch=True, on_step=False
         )
-        if classification_loss > 0 and self.lam_class == None:
+        if classification_loss > 0 and self.lam_class is None:
             self.lam_class = 100
-        elif classification_loss == 0 and self.lam_class == None:
+        elif classification_loss == 0 and self.lam_class is None:
             self.lam_class = 0
 
         ### UOT loss
@@ -182,8 +182,6 @@ class DiagTrainingPlan(TrainingPlan):
         sinkhorn_loss = sinkhorn(z1, z2)
 
         self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
-
-        
 
         total_loss = (
             self.lam_graph * graph_loss
