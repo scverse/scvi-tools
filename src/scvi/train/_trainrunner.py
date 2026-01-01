@@ -4,6 +4,7 @@ import os
 import pickle
 import traceback
 import warnings
+from typing import TYPE_CHECKING
 
 import lightning.pytorch as pl
 import numpy as np
@@ -15,8 +16,11 @@ from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
-from scvi.train._config import KwargsLike, merge_kwargs
+from scvi.train._config import merge_kwargs
 from scvi.utils import is_package_installed, mlflow_logger
+
+if TYPE_CHECKING:
+    from scvi.train._config import KwargsLike
 
 logger = logging.getLogger(__name__)
 

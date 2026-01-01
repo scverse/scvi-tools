@@ -20,7 +20,7 @@ from scvi.train import (
     TrainRunner,
 )
 from scvi.train._callbacks import SubSampleLabels
-from scvi.train._config import KwargsLike, merge_kwargs
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
     from scvi._types import AnnOrMuData
+    from scvi.train._config import KwargsLike
 
 
 logger = logging.getLogger(__name__)

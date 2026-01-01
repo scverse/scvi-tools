@@ -12,7 +12,7 @@ from scvi import settings
 from scvi.dataloaders import DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
-from scvi.train._config import KwargsLike, merge_kwargs
+from scvi.train._config import merge_kwargs
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
 
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from pyro import PyroBaseModuleClass
 
     from scvi.dataloaders import AnnDataLoader
+    from scvi.train._config import KwargsLike
 
 logger = logging.getLogger(__name__)
 

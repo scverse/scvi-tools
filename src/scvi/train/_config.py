@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol, TypeAlias, runtime_checkable
+from typing import Any, Protocol, TYPE_CHECKING, runtime_checkable
 
 import torch
-from lightning.pytorch.accelerators import Accelerator
-from lightning.pytorch.loggers import Logger
 
 from scvi._constants import REGISTRY_KEYS
 
-TorchOptimizerCreator: TypeAlias = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from lightning.pytorch.accelerators import Accelerator
+    from lightning.pytorch.loggers import Logger
+
+type TorchOptimizerCreator = Callable[[Iterable[torch.Tensor]], torch.optim.Optimizer]
 
 
 @runtime_checkable
@@ -21,7 +25,7 @@ class KwargsConfig(Protocol):
         """Return keyword arguments compatible with a downstream constructor."""
 
 
-KwargsLike: TypeAlias = Mapping[str, Any] | KwargsConfig
+type KwargsLike = Mapping[str, Any] | KwargsConfig
 
 
 def _coerce_kwargs(value: KwargsLike | None, *, name: str) -> dict[str, Any]:
