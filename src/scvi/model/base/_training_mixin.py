@@ -19,6 +19,7 @@ from scvi.train import (
     TrainingPlan,
     TrainRunner,
 )
+from scvi.train._config import KwargsLike, merge_kwargs
 from scvi.train._callbacks import SubSampleLabels
 from scvi.utils._docstrings import devices_dsp
 
@@ -54,8 +55,10 @@ class UnsupervisedTrainingMixin:
         batch_size: int = 128,
         early_stopping: bool = False,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
         datamodule: LightningDataModule | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -98,6 +101,9 @@ class UnsupervisedTrainingMixin:
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
             Values in this argument can be overwritten by arguments directly passed into this
             method, when appropriate. Not used if ``datamodule`` is passed in.
+        plan_config
+            Configuration object or mapping used to build :class:`~scvi.train.TrainingPlan`.
+            Values in ``plan_kwargs`` and explicit arguments take precedence.
         plan_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`. Values in
             this argument can be overwritten by arguments directly passed into this method, when
@@ -106,6 +112,9 @@ class UnsupervisedTrainingMixin:
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -142,7 +151,7 @@ class UnsupervisedTrainingMixin:
                 **self._module_kwargs,
             )
 
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
@@ -156,6 +165,7 @@ class UnsupervisedTrainingMixin:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=devices,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
@@ -358,8 +368,10 @@ class SemisupervisedTrainingMixin:
         devices: int | list[int] | str = "auto",
         adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
         datamodule: LightningDataModule | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -399,10 +411,17 @@ class SemisupervisedTrainingMixin:
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword
             arguments passed to `train()` will overwrite values present in `plan_kwargs`,
             when appropriate.
+        plan_config
+            Configuration object or mapping used to build
+            :class:`~scvi.train.SemiSupervisedTrainingPlan`. Values in ``plan_kwargs`` and
+            explicit arguments take precedence.
         datamodule
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -412,10 +431,10 @@ class SemisupervisedTrainingMixin:
             if adversarial_classifier is None:
                 adversarial_classifier = self._use_adversarial_classifier  # from totalvi
             update_dict = {"adversarial_classifier": adversarial_classifier}
-            if plan_kwargs is not None:
-                plan_kwargs.update(update_dict)
-            else:
-                plan_kwargs = update_dict
+            plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
 
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
@@ -425,7 +444,6 @@ class SemisupervisedTrainingMixin:
 
         logger.info(f"Training for {max_epochs} epochs.")
 
-        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         if datamodule is None:
@@ -463,6 +481,7 @@ class SemisupervisedTrainingMixin:
             accelerator=accelerator,
             devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
