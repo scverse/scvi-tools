@@ -27,6 +27,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import de_dsp, devices_dsp
 
@@ -263,7 +264,7 @@ class TorchMRVI(
             **trainer_kwargs,
         }
         train_kwargs = dict(deepcopy(DEFAULT_TRAIN_KWARGS), **train_kwargs)
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )
