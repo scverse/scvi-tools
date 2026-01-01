@@ -1,0 +1,71 @@
+name: Bug report
+description: Report something that is broken or incorrect
+#title: ...
+type: Bug
+labels:
+  - Triage 🩺
+#assignees: []
+body:
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Please make sure these conditions are met
+      # description: ...
+      options:
+        - label: I have checked that this issue has not already been reported.
+          required: true
+        - label: I have confirmed this bug exists on the latest version of scvi-tools.
+          required: true
+        - label: (optional) I have confirmed this bug exists on the main branch of scvi-tools.
+          required: false
+  - type: markdown
+    attributes:
+      value: |
+        **Note**: Please read [this guide][] detailing how to provide the necessary information for us to reproduce your bug.
+
+        [this guide]: https://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports
+  - type: textarea
+    id: Report
+    attributes:
+      label: Report
+      description: |
+        Describe the bug you encountered, and what you were trying to do. Please use [github markdown][] features for readability.
+
+        [github markdown]: https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax
+      value: |
+        Code:
+
+        ```python
+
+        ```
+
+        Traceback:
+
+        ```pytb
+
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: |
+        Which version of scvi-tools and other related software you used.
+
+        Please install `session-info2`, run the following command in a notebook,
+        click the “Copy as Markdown” button,
+        then paste the results into the text box below.
+
+        ```python
+        In[1]: import scvi, session_info2; session_info2.session_info(dependencies=True)
+        ```
+
+        Alternatively, run this in a console:
+
+        ```python
+        >>> import session_info2; print(session_info2.session_info(dependencies=True)._repr_mimebundle_()["text/markdown"])
+        ```
+      render: python
+    validations:
+      required: true
