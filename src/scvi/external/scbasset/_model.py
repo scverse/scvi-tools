@@ -16,6 +16,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.external.scbasset._module import REGISTRY_KEYS, ScBassetModule
 from scvi.model.base import BaseModelClass
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import dependencies, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -163,8 +164,8 @@ class SCBASSET(BaseModelClass):
             "optimizer": "Custom",
             "optimizer_creator": lambda p: torch.optim.Adam(p, lr=lr, betas=(0.95, 0.9995)),
         }
-        if plan_kwargs is not None:
-            custom_plan_kwargs.update(plan_kwargs)
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        custom_plan_kwargs.update(plan_kwargs)
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 

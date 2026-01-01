@@ -31,6 +31,7 @@ from scvi.model.base import (
 from scvi.model.base._de_core import _de_core
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
+from scvi.train._config import merge_kwargs
 from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
@@ -314,10 +315,8 @@ class MULTIVI(
             "optimizer": "AdamW",
             "scale_adversarial_loss": 1,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 

@@ -90,6 +90,9 @@ nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
 typehints_defaults = "braces"
+autodoc_mock_imports = []
+if os.environ.get("READTHEDOCS") == "True":
+    autodoc_mock_imports += ["hyperopt", "ray", "ray.tune", "scib_metrics", "muon"]
 
 source_suffix = {
     ".rst": "restructuredtext",
