@@ -5,7 +5,6 @@ from ._callbacks import (
     SaveCheckpoint,
     ScibCallback,
 )
-from ._constants import METRIC_KEYS
 from ._config import (
     AdversarialTrainingPlanConfig,
     ClassifierTrainingPlanConfig,
@@ -17,6 +16,7 @@ from ._config import (
     TrainerConfig,
     TrainingPlanConfig,
 )
+from ._constants import METRIC_KEYS
 from ._trainer import Trainer
 from ._trainingplans import (
     AdversarialTrainingPlan,

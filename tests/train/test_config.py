@@ -4,7 +4,7 @@ from types import MappingProxyType
 
 import pytest
 
-from scvi.train._config import TrainingPlanConfig, TrainerConfig, merge_kwargs
+from scvi.train._config import TrainerConfig, TrainingPlanConfig, merge_kwargs
 
 
 def test_merge_kwargs_prefers_overrides():

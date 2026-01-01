@@ -19,8 +19,8 @@ from scvi.train import (
     TrainingPlan,
     TrainRunner,
 )
-from scvi.train._config import KwargsLike, merge_kwargs
 from scvi.train._callbacks import SubSampleLabels
+from scvi.train._config import KwargsLike, merge_kwargs
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
