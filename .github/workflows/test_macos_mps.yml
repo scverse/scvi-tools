@@ -56,7 +56,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m pip install "scvi-tools[tests]"
+          python -m pip install mlx
           python -m pip install jax-metal
+          python -m pip install mlx-metal
           python -m pip install coverage
           python -m pip install pytest
 
