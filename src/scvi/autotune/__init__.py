@@ -36,8 +36,8 @@ if _DOCS_BUILD:
 else:
     try:
         error_on_missing_dependencies("hyperopt", "ray.tune")
-        from ._experiment import AutotuneExperiment, ScibTuneReportCheckpointCallback  # noqa: E402
-        from ._tune import run_autotune  # noqa: E402
+        from ._experiment import AutotuneExperiment, ScibTuneReportCheckpointCallback
+        from ._tune import run_autotune
     except ImportError as _autotune_import_error:  # pragma: no cover - docs/optional deps
         _AUTOTUNE_IMPORT_ERROR = _autotune_import_error
 

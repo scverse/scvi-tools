@@ -95,7 +95,7 @@ autodoc_mock_imports = []
 if os.environ.get("READTHEDOCS") == "True":
     autodoc_mock_imports += ["hyperopt", "ray", "ray.tune", "scib_metrics", "muon"]
     try:
-        import scvi.autotune  # noqa: F401
+        import scvi.autotune
     except Exception:
         import scvi
 
