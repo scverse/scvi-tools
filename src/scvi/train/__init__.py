@@ -5,6 +5,17 @@ from ._callbacks import (
     SaveCheckpoint,
     ScibCallback,
 )
+from ._config import (
+    AdversarialTrainingPlanConfig,
+    ClassifierTrainingPlanConfig,
+    JaxTrainingPlanConfig,
+    LowLevelPyroTrainingPlanConfig,
+    PyroTrainingPlanConfig,
+    SemiSupervisedAdversarialTrainingPlanConfig,
+    SemiSupervisedTrainingPlanConfig,
+    TrainerConfig,
+    TrainingPlanConfig,
+)
 from ._constants import METRIC_KEYS
 from ._trainer import Trainer
 from ._trainingplans import (
@@ -20,18 +31,27 @@ from ._trainrunner import TrainRunner
 
 __all__ = [
     "TrainingPlan",
+    "TrainingPlanConfig",
     "Trainer",
+    "TrainerConfig",
     "PyroTrainingPlan",
+    "PyroTrainingPlanConfig",
     "LowLevelPyroTrainingPlan",
+    "LowLevelPyroTrainingPlanConfig",
     "SemiSupervisedTrainingPlan",
+    "SemiSupervisedTrainingPlanConfig",
     "SemiSupervisedAdversarialTrainingPlan",
+    "SemiSupervisedAdversarialTrainingPlanConfig",
     "AdversarialTrainingPlan",
+    "AdversarialTrainingPlanConfig",
     "ClassifierTrainingPlan",
+    "ClassifierTrainingPlanConfig",
     "TrainRunner",
     "LoudEarlyStopping",
     "SaveCheckpoint",
     "ScibCallback",
     "METRIC_KEYS",
+    "JaxTrainingPlanConfig",
 ]
 
 

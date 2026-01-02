@@ -19,6 +19,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.model._utils import _init_library_size, parse_device_args
 from scvi.model.base import BaseModelClass, RNASeqMixin, VAEMixin
 from scvi.train import Trainer
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -245,7 +246,7 @@ class GIMVI(VAEMixin, RNASeqMixin, BaseModelClass):
             self.validation_indices_.append(ds.val_idx)
         train_dl = TrainDL(train_dls)
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         self._training_plan = GIMVITrainingPlan(
             self.module,
             adversarial_classifier=True,

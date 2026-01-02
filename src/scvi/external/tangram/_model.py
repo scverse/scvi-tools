@@ -15,6 +15,7 @@ from scvi.external.tangram._module import TANGRAM_REGISTRY_KEYS, TangramMapper
 from scvi.model._utils import parse_device_args
 from scvi.model.base import BaseModelClass
 from scvi.train import JaxTrainingPlan
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import devices_dsp
 
@@ -157,10 +158,8 @@ class Tangram(BaseModelClass):
                 "weight_decay": 0,
             }
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         _, _, device = parse_device_args(
             accelerator,

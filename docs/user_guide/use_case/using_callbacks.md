@@ -41,6 +41,23 @@ early_stopping_kwargs = {
 model.train(..., **early_stopping_kwargs)
 ```
 
+You can also pass structured configuration objects instead of loose kwargs:
+
+```python
+from scvi.train import TrainerConfig, TrainingPlanConfig
+
+trainer_config = TrainerConfig(
+    early_stopping=True,
+    early_stopping_monitor="elbo_validation",
+    early_stopping_patience=10,
+    early_stopping_min_delta=0.0,
+    check_val_every_n_epoch=1,
+)
+plan_config = TrainingPlanConfig(lr=1e-3)
+
+model.train(..., trainer_config=trainer_config, plan_config=plan_config)
+```
+
 Several models will be trained with early stopping by default, e.g. {class}`~scvi.model.TOTALVI`, {class}`~scvi.model.MULTIVI` and others. Consider disabling it when there is no need.
 
 2. Model Checkpoint Callback: {class}`scvi.train._callbacks.SaveCheckpoint`

@@ -1,21 +1,29 @@
+from __future__ import annotations
+
 import gc
 import logging
 import os
 import pickle
 import traceback
 import warnings
+from typing import TYPE_CHECKING
 
-import lightning.pytorch as pl
 import numpy as np
 import pandas as pd
 import torch
 
 from scvi import settings
-from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import parse_device_args
-from scvi.model.base import BaseModelClass
 from scvi.train import Trainer
+from scvi.train._config import merge_kwargs
 from scvi.utils import is_package_installed, mlflow_logger
+
+if TYPE_CHECKING:
+    import lightning.pytorch as pl
+
+    from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
+    from scvi.model.base import BaseModelClass
+    from scvi.train._config import KwargsLike
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +60,9 @@ class TrainRunner:
         The devices to use. Can be set to a positive number (int or str), a sequence of
         device indices (list or str), the value -1 to indicate all available devices should
         be used, or "auto" for automatic selection based on the chosen accelerator.
+    trainer_config
+        Configuration for :class:`~scvi.train.Trainer`. Values here are merged with
+        ``trainer_kwargs``; explicitly passed ``trainer_kwargs`` take precedence.
     trainer_kwargs
         Extra kwargs for :class:`~scvi.train.Trainer`
 
@@ -78,6 +89,7 @@ class TrainRunner:
         max_epochs: int,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         self.training_plan = training_plan
@@ -92,10 +104,14 @@ class TrainRunner:
         self.lightning_devices = lightning_devices
         self.device = device
 
+        trainer_kwargs = merge_kwargs(trainer_config, trainer_kwargs, name="trainer")
         if getattr(self.training_plan, "reduce_lr_on_plateau", False):
             trainer_kwargs["learning_rate_monitor"] = True
         ckpt_path = trainer_kwargs.pop("ckpt_path", None)
         self.ckpt_path = ckpt_path
+        trainer_kwargs.pop("max_epochs", None)
+        trainer_kwargs.pop("accelerator", None)
+        trainer_kwargs.pop("devices", None)
 
         self.trainer = self._trainer_cls(
             max_epochs=max_epochs,

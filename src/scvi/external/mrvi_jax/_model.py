@@ -16,6 +16,7 @@ from scvi.external.mrvi._types import MRVIReduction
 from scvi.external.mrvi_jax._module import JaxMRVAE
 from scvi.external.mrvi_jax._utils import rowwise_max_excluding_diagonal
 from scvi.model.base import BaseModelClass, JaxTrainingMixin
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -256,7 +257,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
             **trainer_kwargs,
         }
         train_kwargs = dict(deepcopy(DEFAULT_TRAIN_KWARGS), **train_kwargs)
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         train_kwargs["plan_kwargs"] = dict(
             deepcopy(DEFAULT_TRAIN_KWARGS["plan_kwargs"]), **plan_kwargs
         )

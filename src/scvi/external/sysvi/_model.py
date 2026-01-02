@@ -27,6 +27,7 @@ from scvi.model.base import (
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 
 from ._module import SysVAE
@@ -145,7 +146,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         train_kwargs
             Training kwargs. Passed to `meth`:`scvi.model.base.BaseModelClass.train`.
         """
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         kl_weight_defaults = {"n_epochs_kl_warmup": 0, "n_steps_kl_warmup": 0}
         if any(v != plan_kwargs.get(k, v) for k, v in kl_weight_defaults.items()):
             warnings.warn(

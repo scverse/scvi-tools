@@ -25,6 +25,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import ArchesMixin, BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.model.base._de_core import _de_core
+from scvi.train._config import merge_kwargs
 from scvi.utils import de_dsp, setup_anndata_dsp
 
 from ._module import RESOLVAE
@@ -241,8 +242,7 @@ class RESOLVI(
 
         optim = pyro.optim.Adam(per_param_callable)
 
-        if plan_kwargs is None:
-            plan_kwargs = {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         plan_kwargs.update(
             {
                 "optim_kwargs": {"lr": lr, "weight_decay": weight_decay, "eps": eps},

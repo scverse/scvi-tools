@@ -24,6 +24,7 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model.base._de_core import _de_core
 from scvi.module import PEAKVAE
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -219,10 +220,8 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             "n_steps_kl_warmup": n_steps_kl_warmup,
             "optimizer": "AdamW",
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         super().train(
             max_epochs=max_epochs,

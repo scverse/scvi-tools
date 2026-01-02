@@ -33,6 +33,7 @@ from scvi.model.base import (
 )
 from scvi.model.base._de_core import _de_core
 from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import de_dsp, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -428,12 +429,8 @@ class CYTOVI(
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
             "n_steps_kl_warmup": n_steps_kl_warmup,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         data_splitter = self._data_splitter_cls(
             self.adata_manager,

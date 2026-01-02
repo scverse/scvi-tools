@@ -130,6 +130,24 @@ Here we maintain a few package specific utilities for feature selection, etc.
    autotune.AutotuneExperiment
 ```
 
+## Training configuration
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   train.TrainingPlanConfig
+   train.AdversarialTrainingPlanConfig
+   train.SemiSupervisedTrainingPlanConfig
+   train.SemiSupervisedAdversarialTrainingPlanConfig
+   train.PyroTrainingPlanConfig
+   train.LowLevelPyroTrainingPlanConfig
+   train.ClassifierTrainingPlanConfig
+   train.JaxTrainingPlanConfig
+   train.TrainerConfig
+```
+
 ## Model hub
 
 We have a hub for pre-trained `scvi-tools` models that is hosted on [huggingface](https://huggingface.co/models).
