@@ -9,7 +9,6 @@ import torch.distributions as dist
 
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
-from scvi.model.base._da_pytorch import differential_abundance, get_aggregated_posterior
 
 if TYPE_CHECKING:
     from anndata import AnnData
@@ -43,12 +42,12 @@ def model(adata):
     ],
 )
 def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
-    ap = get_aggregated_posterior(model, adata, **ap_kwargs)
+    ap = model.get_aggregated_posterior(adata, **ap_kwargs)
     assert isinstance(ap, dist.Distribution)
 
     subset_indices = np.random.choice(adata.n_obs, adata.n_obs // 2, replace=False)
     adata_subset = adata[subset_indices, :].copy()
-    ap = get_aggregated_posterior(model, adata_subset, **ap_kwargs)
+    ap = model.get_aggregated_posterior(adata_subset, **ap_kwargs)
     assert isinstance(ap, dist.Distribution)
 
 
@@ -68,12 +67,12 @@ def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
 def test_differential_abundance(model: SCVI, adata: AnnData, da_kwargs):
     if da_kwargs["sample_key"] is None:
         with pytest.raises(KeyError):
-            differential_abundance(model, adata, **da_kwargs)
+            model.differential_abundance(adata, **da_kwargs)
     else:
-        differential_abundance(model, adata, **da_kwargs)
+        model.differential_abundance(adata, **da_kwargs)
         assert isinstance(adata.obsm["da_log_probs"], pd.DataFrame)
 
         subset_indices = np.random.choice(adata.n_obs, adata.n_obs // 2, replace=False)
         adata_subset = adata[subset_indices, :].copy()
-        differential_abundance(model, adata_subset, **da_kwargs)
+        model.differential_abundance(adata_subset, **da_kwargs)
         assert isinstance(adata_subset.obsm["da_log_probs"], pd.DataFrame)
