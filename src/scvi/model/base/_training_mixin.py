@@ -314,7 +314,7 @@ class SemisupervisedTrainingMixin:
                 attribution = ig.attribute(
                     tuple(data_inputs.values()),
                     target=hard_pred,
-                    additional_forward_args=(batch, cat_covs, cont_covs),
+                    additional_forward_args=(batch, cont_covs, cat_covs),
                     **ig_args,
                 )
                 attributions.append(torch.cat(attribution, dim=1))
