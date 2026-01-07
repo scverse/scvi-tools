@@ -390,6 +390,7 @@ class VAEMixin:
         A mixture distribution of the aggregated posterior.
         """
         import numpy as np
+        import torch.distributions as dist
 
         self._check_if_trained(warn=False)
         adata = self._validate_anndata(adata)
@@ -406,12 +407,12 @@ class VAEMixin:
         qu_scale = torch.tensor(qu_scale, device=self.device)
 
         if dof is None:
-            components = torch.dist.Normal(qu_loc, qu_scale)
+            components = dist.Normal(qu_loc, qu_scale)
         else:
-            components = torch.dist.StudentT(dof, qu_loc, qu_scale)
-        return torch.dist.MixtureSameFamily(
-            torch.dist.Categorical(logits=torch.ones(qu_loc.shape[0], device=self.device)),
-            torch.dist.Independent(components, 1),
+            components = dist.StudentT(dof, qu_loc, qu_scale)
+        return dist.MixtureSameFamily(
+            dist.Categorical(logits=torch.ones(qu_loc.shape[0], device=self.device)),
+            dist.Independent(components, 1),
         )
 
     @torch.inference_mode()
@@ -464,7 +465,7 @@ class VAEMixin:
                 indices = np.random.choice(indices, num_cells_posterior, replace=False)
 
             ap = self.get_aggregated_posterior(
-                self, adata=adata, indices=indices, dof=dof, batch_size=batch_size
+                adata=adata, indices=indices, dof=dof, batch_size=batch_size
             )
             log_probs_ = []
             for u_rep in dataloader:
