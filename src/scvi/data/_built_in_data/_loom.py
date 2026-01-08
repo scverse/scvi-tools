@@ -100,7 +100,7 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
-            url="https://exampledata.scverse.org/scvi-tools/" + fileid,
+            url="https://exampledata.scverse.org/scvi-tools/" + fileid + ".h5ad",
             known_hash=known_hash,
             fname=f"simulation_{name}.h5ad",
             path=save_path,
