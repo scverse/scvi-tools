@@ -41,6 +41,9 @@ LIKELIHOOD_TO_DECODER = {
     "nbmixture": DecoderDualPathway,
 }
 
+# Likelihoods that require softmax normalization (count data)
+COUNT_LIKELIHOODS = {"nb", "zinb", "nbmixture"}
+
 
 class DIAGVAE(BaseModuleClass):
     """
@@ -153,23 +156,32 @@ class DIAGVAE(BaseModuleClass):
         likelihood_0 = modality_likelihoods[self.input_names[0]]
         likelihood_1 = modality_likelihoods[self.input_names[1]]
 
+        # Determine decoder class based on likelihood
         decoder_class_0 = LIKELIHOOD_TO_DECODER.get(likelihood_0, DecoderSinglePathway)
         decoder_class_1 = LIKELIHOOD_TO_DECODER.get(likelihood_1, DecoderSinglePathway)
 
+        # Determine whether to apply softmax normalization based on likelihood
+        normalize_0 = likelihood_0 in COUNT_LIKELIHOODS
+        normalize_1 = likelihood_1 in COUNT_LIKELIHOODS
+
         logger.info(
-            f"Decoder for '{self.input_names[0]}' (likelihood={likelihood_0}): {decoder_class_0.__name__}"
+            f"Decoder for '{self.input_names[0]}' (likelihood={likelihood_0}): "
+            f"{decoder_class_0.__name__}, normalize={normalize_0}"
         )
         self.decoder_0 = decoder_class_0(
             n_output=n_inputs[self.input_names[0]],
             n_batches=n_batches[self.input_names[0]],
+            normalize=normalize_0,
         )
 
         logger.info(
-            f"Decoder for '{self.input_names[1]}' (likelihood={likelihood_1}): {decoder_class_1.__name__}"
+            f"Decoder for '{self.input_names[1]}' (likelihood={likelihood_1}): "
+            f"{decoder_class_1.__name__}, normalize={normalize_1}"
         )
         self.decoder_1 = decoder_class_1(
             n_output=n_inputs[self.input_names[1]],
             n_batches=n_batches[self.input_names[1]],
+            normalize=normalize_1,
         )
 
         self.graph_encoder = GraphEncoder_glue(
@@ -251,15 +263,7 @@ class DIAGVAE(BaseModuleClass):
             Dictionary of inference outputs, including latent variables and graph embeddings.
         """
         x_ = x
-        # TODO: check if library size calculation is correct for all likelihoods
-        # Compute library size based on likelihood type
-        if self.modality_likelihoods[mode] in ["nb", "zinb", "nbmixture"]:
-            # For count data: log(total counts) - standard scVI approach
-            library = torch.log(x.sum(1)).unsqueeze(1)
-        else:
-            # For continuous data: log(mean) - normalizes by feature count
-            # This keeps predictions in a similar scale to input values
-            library = torch.log(x.mean(1)).unsqueeze(1)
+        library = torch.log(x.sum(1)).unsqueeze(1)
         graph = self.guidance_graph
         device = x.device
         graph = graph.to(device)

@@ -17,16 +17,29 @@ class DecoderSinglePathway(nn.Module):
 
     Outputs a single set of parameters (scale, r, rate, dropout).
     Use for: nb, zinb, normal, lognormal, log1pnormal, ziln, gamma, zig.
+
+    Parameters
+    ----------
+    n_output
+        Number of output features.
+    n_batches
+        Number of batches.
+    normalize
+        If True, apply softmax normalization to output scale (for count data).
+        If False, output raw scale values (for continuous data).
+        Default is True for backward compatibility.
     """
 
     def __init__(
         self,
         n_output: int,
         n_batches: int,
+        normalize: bool = True,
     ):
         super().__init__()
         self.n_output = n_output
         self.n_batches = n_batches
+        self.normalize = normalize
 
         self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output))
         self.bias = nn.Parameter(torch.zeros(n_batches, n_output))
@@ -55,8 +68,15 @@ class DecoderSinglePathway(nn.Module):
         log_theta = self.log_theta[batch_index]
 
         raw_px_scale = scale * (u @ v.T) + bias
-        px_scale = torch.softmax(raw_px_scale, dim=-1)
-        px_rate = torch.exp(l) * px_scale
+
+        if self.normalize:
+            # Count data: softmax produces proportions, library scales to counts
+            px_scale = torch.softmax(raw_px_scale, dim=-1)
+            px_rate = torch.exp(l) * px_scale
+        else:
+            # Continuous data: no normalization, raw values are absolute
+            px_scale = raw_px_scale
+            px_rate = raw_px_scale
 
         px_dropout = F.softplus(self.px_dropout_param)
 
@@ -70,16 +90,29 @@ class DecoderDualPathway(nn.Module):
 
     Outputs two sets of parameters for foreground/background mixture models.
     Use for: nbmixture.
+
+    Parameters
+    ----------
+    n_output
+        Number of output features.
+    n_batches
+        Number of batches.
+    normalize
+        If True, apply softmax normalization to output scales (for count data).
+        If False, output raw scale values (for continuous data).
+        Default is True for backward compatibility.
     """
 
     def __init__(
         self,
         n_output: int,
         n_batches: int,
+        normalize: bool = True,
     ):
         super().__init__()
         self.n_output = n_output
         self.n_batches = n_batches
+        self.normalize = normalize
 
         self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output))
 
@@ -114,11 +147,18 @@ class DecoderDualPathway(nn.Module):
         raw_px_scale_1 = scale * (u @ v.T) + bias1
         raw_px_scale_2 = scale * (u @ v.T) + bias2
 
-        px_scale_1 = torch.softmax(raw_px_scale_1, dim=-1)
-        px_scale_2 = torch.softmax(raw_px_scale_2, dim=-1)
-
-        px_rate_1 = torch.exp(l) * px_scale_1
-        px_rate_2 = torch.exp(l) * px_scale_2
+        if self.normalize:
+            # Count data: softmax produces proportions, library scales to counts
+            px_scale_1 = torch.softmax(raw_px_scale_1, dim=-1)
+            px_scale_2 = torch.softmax(raw_px_scale_2, dim=-1)
+            px_rate_1 = torch.exp(l) * px_scale_1
+            px_rate_2 = torch.exp(l) * px_scale_2
+        else:
+            # Continuous data: no normalization, raw values are absolute
+            px_scale_1 = raw_px_scale_1
+            px_scale_2 = raw_px_scale_2
+            px_rate_1 = raw_px_scale_1
+            px_rate_2 = raw_px_scale_2
 
         mixture_logits = raw_px_scale_1 - raw_px_scale_2
 
