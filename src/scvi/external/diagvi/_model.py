@@ -159,6 +159,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         **kwargs
             Additional keyword arguments for the Trainer.
         """
+        # TODO: when giving early stopping parameters as kwargs, throws error since multiple values provided
         if max_epochs is None:
             min_obs = np.min(
                 [
@@ -319,9 +320,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
             label_field = LabelsWithUnlabeledObsField(
                 REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
             )
-        # TODO: think about how to handle `is_count_data` below
+        is_count_data = likelihood in {"nb", "zinb", "nbmixture"}
         anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
+            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=is_count_data),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
             label_field,
         ]
