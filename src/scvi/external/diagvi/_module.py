@@ -2,6 +2,7 @@ import logging
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
 
 from scvi import REGISTRY_KEYS
@@ -326,7 +327,11 @@ class DIAGVAE(BaseModuleClass):
             px_scale, px_r, px_rate, px_dropout = self.decoder_0(z, library, batch_index, v)
         elif mode == self.input_names[1]:
             px_scale, px_r, px_rate, px_dropout = self.decoder_1(z, library, batch_index, v)
-        px_r = px_r.exp()
+        if self.modality_likelihoods[mode] in COUNT_LIKELIHOODS:
+            px_r = px_r.exp()
+        else:
+            px_r = F.softplus(px_r) + EPS
+
         if self.modality_likelihoods[mode] == "nb":
             px = NegativeBinomial(px_r, logits=(px_rate + EPS).log() - px_r)
         elif self.modality_likelihoods[mode] == "zinb":
