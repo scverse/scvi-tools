@@ -27,7 +27,7 @@ class DiagTrainingPlan(TrainingPlan):
         lam_kl=1.0,
         lam_data=1.0,
         lam_sinkhorn=1.0,
-        lam_class=1.0,
+        lam_class=None,
         sinkhorn_p=2,
         sinkhorn_blur=1,
         sinkhorn_reach=1,
@@ -156,6 +156,10 @@ class DiagTrainingPlan(TrainingPlan):
         self.log(
             "class_loss", classification_loss, batch_size=batch_size, on_epoch=True, on_step=False
         )
+        if classification_loss > 0 and self.lam_class is None:
+            self.lam_class = 100
+        elif classification_loss == 0 and self.lam_class is None:
+            self.lam_class = 0
 
         ### UOT loss
         z1 = loss_output_objs[0]["z"]
