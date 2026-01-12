@@ -16,6 +16,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
+- Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
+
 #### Removed
 
 ### 1.4.1 (2025-12-10)
