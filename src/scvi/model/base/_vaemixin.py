@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from torch import Tensor
     from torch.distributions import Distribution
 
+    from scvi._types import AnnOrMuData
+
 
 logger = logging.getLogger(__name__)
 
@@ -366,7 +368,7 @@ class VAEMixin:
     @torch.inference_mode()
     def get_aggregated_posterior(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
         dof: float | None = 3.0,
@@ -418,7 +420,7 @@ class VAEMixin:
     @torch.inference_mode()
     def differential_abundance(
         self,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         sample_key: str | None = None,
         batch_size: int = 128,
         num_cells_posterior: int | None = None,
