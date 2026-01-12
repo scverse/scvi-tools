@@ -28,7 +28,13 @@ def adata():
 
 @pytest.fixture(scope="session")
 def mdata():
-    return
+    adata = synthetic_iid(batch_size=500)
+    protein_adata = synthetic_iid(batch_size=500)
+    protein_adata.var_names = protein_adata.uns["protein_names"]
+    mdata = MuData({"rna": adata, "protein": protein_adata})
+    mdata.obs["sample"] = np.random.choice(10, size=mdata.n_obs)
+    mdata.obs["sample_str"] = [chr(i + ord("a")) for i in mdata.obs["sample"]]
+    return mdata
 
 
 @pytest.fixture(
@@ -45,7 +51,11 @@ def model(request, adata, mdata):
             adata=adata, labels_key="type", unlabeled_category="NA", batch_key="batch"
         )
     elif model_cls is TOTALVI:
-        model_cls.setup_mudata(mdata=mdata, rna_layer="", protein_layer="", batch_key="batch")
+        model_cls.setup_mudata(
+            mdata=mdata,
+            batch_key="batch",
+            modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
+        )
 
     model_inst = model_cls(adata)
     model_inst.train(max_epochs=1, train_size=0.5)
