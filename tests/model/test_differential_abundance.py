@@ -6,12 +6,16 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch.distributions as dist
+from mudata import MuData
 
 from scvi.data import synthetic_iid
-from scvi.model import SCVI
+from scvi.external import RESOLVI
+from scvi.model import SCANVI, SCVI, TOTALVI
 
 if TYPE_CHECKING:
     from anndata import AnnData
+
+    from scvi.model.base import VAEMixin
 
 
 @pytest.fixture(scope="session")
@@ -23,11 +27,29 @@ def adata():
 
 
 @pytest.fixture(scope="session")
-def model(adata):
-    SCVI.setup_anndata(adata=adata, batch_key="batch")
-    model = SCVI(adata)
-    model.train(max_epochs=1, train_size=0.5)
-    return model
+def mdata():
+    return
+
+
+@pytest.fixture(
+    scope="session",
+    params=[SCVI, SCANVI, TOTALVI, RESOLVI],
+)
+def model(request, adata, mdata):
+    model_cls = request.param
+
+    if model_cls is SCVI or model_cls is RESOLVI:
+        model_cls.setup_anndata(adata=adata, batch_key="batch")
+    elif model_cls is SCANVI:
+        model_cls.setup_anndata(
+            adata=adata, labels_key="type", unlabeled_category="NA", batch_key="batch"
+        )
+    elif model_cls is TOTALVI:
+        model_cls.setup_mudata(mdata=mdata, rna_layer="", protein_layer="", batch_key="batch")
+
+    model_inst = model_cls(adata)
+    model_inst.train(max_epochs=1, train_size=0.5)
+    return model_inst
 
 
 @pytest.mark.parametrize(
@@ -41,7 +63,10 @@ def model(adata):
         {"indices": np.arange(150), "dof": 5},
     ],
 )
-def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
+def test_get_aggregated_posterior(model: SCVI, adata: AnnData, mdata: MuData, ap_kwargs):
+    if isinstance(model.adata, MuData):
+        adata = mdata
+
     ap = model.get_aggregated_posterior(adata, **ap_kwargs)
     assert isinstance(ap, dist.Distribution)
 
@@ -64,7 +89,9 @@ def test_get_aggregated_posterior(model: SCVI, adata: AnnData, ap_kwargs):
         {"sample_key": "sample_str", "num_cells_posterior": 100, "dof": None},
     ],
 )
-def test_differential_abundance(model: SCVI, adata: AnnData, da_kwargs):
+def test_differential_abundance(model: VAEMixin, adata: AnnData, mdata: MuData, da_kwargs):
+    if isinstance(model.adata, MuData):
+        adata = mdata
     if da_kwargs["sample_key"] is None:
         with pytest.raises(KeyError):
             model.differential_abundance(adata, **da_kwargs)
