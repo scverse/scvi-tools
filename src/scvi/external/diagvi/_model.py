@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+from collections.abc import Sequence
 from itertools import cycle
 from typing import Literal
 
@@ -266,7 +267,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
         semi_supervised : bool, optional
             Whether to use semi-supervised classification for this modality.
         n_mixture_components : int, optional
-            Number of mixture components for the GMM prior.
+            Number of mixture components for the GMM prior. If semi_supervised is True,
+            this parameter is ignored and set to the number of unique labels in labels_key.
         unlabeled_category : str, optional
             Category for unlabeled cells in labels_key.
         **kwargs : dict
@@ -309,6 +311,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         adata.uns["diagvi_modality"] = modality
         adata.uns["diagvi_gmm_prior"] = gmm_prior
         adata.uns["diagvi_semi_supervised"] = semi_supervised
+        # TODO: not used if semi_supervised is True, but registry still shows it
         adata.uns["diagvi_n_mixture_components"] = n_mixture_components
         # Set up the anndata object for the model
         setup_method_args = cls._get_setup_method_args(
@@ -491,6 +494,94 @@ class DIAGVI(BaseModelClass, VAEMixin):
             latent = torch.cat(latent).numpy()
             latents[input_name] = latent
         return latents
+
+    @torch.inference_mode()
+    def posterior_predictive_sample(
+        self,
+        adatas: dict[str, AnnData] | None = None,
+        indices: dict[str, Sequence[int]] | None = None,
+        n_samples: int = 1,
+        batch_size: int | None = None,
+    ) -> dict[str, np.ndarray]:
+        """Generate posterior predictive samples for each modality.
+
+        This method generates samples from the posterior predictive distribution
+        p(x̂|x) for each modality, which can be used for model criticism via
+        :class:`~scvi.criticism.PosteriorPredictiveCheck`.
+
+        Parameters
+        ----------
+        adatas
+            Dictionary mapping modality names to AnnData objects. If ``None``,
+            defaults to the AnnData objects used to initialize the model.
+        indices
+            Dictionary mapping modality names to indices of cells to use.
+            If ``None``, all cells are used for each modality.
+        n_samples
+            Number of posterior predictive samples to generate per cell.
+        batch_size
+            Minibatch size for data loading. Defaults to ``scvi.settings.batch_size``.
+
+        Returns
+        -------
+        dict[str, np.ndarray]
+            Dictionary mapping modality names to arrays of shape
+            ``(n_cells, n_features, n_samples)`` if ``n_samples > 1``, else
+            ``(n_cells, n_features)``.
+        """
+        if adatas is None:
+            adatas = self.adatas
+
+        if indices is None:
+            indices = {name: None for name in adatas.keys()}
+
+        # Validate that all provided modalities are valid
+        if not set(adatas.keys()).issubset(set(self.input_names)):
+            invalid_keys = set(adatas.keys()) - set(self.input_names)
+            raise ValueError(
+                f"Invalid modality names: {invalid_keys}. "
+                f"Must be subset of model input names: {set(self.input_names)}"
+            )
+
+        self.module.eval()
+
+        # Create data loaders for each modality
+        data_loaders = {}
+        for name, adata in adatas.items():
+            mode_indices = indices.get(name)
+            dl = self._make_data_loader(
+                adata,
+                indices=mode_indices,
+                batch_size=batch_size or settings.batch_size,
+            )
+            data_loaders[name] = dl
+
+        # Collect samples for each modality
+        samples_per_modality = {name: [] for name in adatas.keys()}
+
+        # Process each modality separately to handle different numbers of cells
+        for mode in adatas.keys():
+            mode_samples = []
+            for tensors in data_loaders[mode]:
+                # Create a dict with only this modality's tensors
+                mode_tensors_dict = {mode: tensors}
+
+                # Run module.sample which handles inference + generative + sampling
+                mode_result = self.module.sample(mode_tensors_dict, n_samples=n_samples)
+
+                mode_sample = mode_result[mode]
+
+                if n_samples > 1:
+                    # mode_sample shape: (n_samples, n_cells, n_features)
+                    # Transpose to (n_cells, n_features, n_samples)
+                    mode_sample = mode_sample.permute(1, 2, 0)
+
+                mode_samples.append(mode_sample.numpy())
+
+            # Concatenate along cell dimension (axis 0)
+            samples_per_modality[mode] = np.concatenate(mode_samples, axis=0)
+
+        return samples_per_modality
 
     def compute_per_feature_confidence(self, feature_embedding, conf_method):
         knn = NearestNeighbors(n_neighbors=11, metric="cosine")

@@ -478,3 +478,56 @@ class DIAGVAE(BaseModuleClass):
                 "classification_loss": classification_loss,
             },
         )
+
+    @torch.inference_mode()
+    def sample(
+        self,
+        tensors: dict[str, dict[str, torch.Tensor]],
+        n_samples: int = 1,
+    ) -> dict[str, torch.Tensor]:
+        """Sample from the generative model for each modality.
+
+        Parameters
+        ----------
+        tensors
+            Dictionary mapping modality names to their respective input tensors.
+            Can contain one or both modalities.
+        n_samples
+            Number of samples to generate per cell.
+
+        Returns
+        -------
+        dict[str, torch.Tensor]
+            Dictionary mapping modality names to sampled tensors of shape
+            ``(n_samples, n_cells, n_features)`` if ``n_samples > 1``, else
+            ``(n_cells, n_features)``.
+        """
+        samples = {}
+
+        # Iterate only over modalities present in tensors (allows single-modality sampling)
+        for mode in tensors.keys():
+            mode_tensors = tensors[mode]
+
+            # Run inference for this modality
+            inference_outputs = self.inference(
+                **self._get_inference_input(mode_tensors),
+                mode=mode,
+            )
+
+            # Run generative model
+            generative_input = self._get_generative_input(mode_tensors, inference_outputs)
+            generative_outputs = self.generative(**generative_input, mode=mode)
+
+            # Get the distribution and sample from it
+            px = generative_outputs[MODULE_KEYS.PX_KEY]
+
+            if n_samples > 1:
+                # Sample multiple times and stack
+                sample_list = [px.sample() for _ in range(n_samples)]
+                mode_sample = torch.stack(sample_list, dim=0)  # (n_samples, n_cells, n_features)
+            else:
+                mode_sample = px.sample()  # (n_cells, n_features)
+
+            samples[mode] = mode_sample.cpu()
+
+        return samples
