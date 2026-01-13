@@ -452,6 +452,9 @@ class VAEMixin:
 
         adata = self._validate_anndata(adata)
 
+        if not isinstance(adata.obs[sample_key], pd.Categorical):
+            raise TypeError("The DataFrame corresponding to the sample_key should be categorical.")
+
         # In case user passes in a subset of model's anndata
         adata_dataloader = self._make_data_loader(adata=adata, batch_size=batch_size)
         us = self.get_latent_representation(
