@@ -20,9 +20,10 @@ if TYPE_CHECKING:
 
 @pytest.fixture(scope="session")
 def adata():
-    adata = synthetic_iid(batch_size=500)
+    adata = synthetic_iid(batch_size=500, generate_coordinates=True)
     adata.obs["sample"] = np.random.choice(10, size=adata.n_obs)
     adata.obs["sample_str"] = [chr(i + ord("a")) for i in adata.obs["sample"]]
+    adata.obsm["X_spatial"] = adata.obsm["coordinates"]  # For RESOLVI
     return adata
 
 
