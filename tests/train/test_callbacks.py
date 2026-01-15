@@ -1,4 +1,5 @@
 import os
+from shutil import rmtree
 
 import pytest
 import torch
@@ -7,16 +8,14 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 import scvi
 from scvi.data import synthetic_iid
 from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
-from scvi.train._callbacks import ScibCallback
+from scvi.train._callbacks import SaveCheckpoint, ScibCallback
 
 
-@pytest.mark.parametrize("load_best_on_end", [True, False])
-def test_savecheckpoint(save_path: str, load_best_on_end: bool):
-    import torch
+@pytest.mark.parametrize("load_best_on_end", [False, True])
+def test_savecheckpoint(load_best_on_end: bool, save_path: str):
     from anndata import AnnData
 
     from scvi.model.base import BaseModelClass
-    from scvi.train._callbacks import SaveCheckpoint
 
     def check_checkpoint_logging(model: BaseModelClass, adata: AnnData):
         assert any(isinstance(c, SaveCheckpoint) for c in model.trainer.callbacks)
@@ -44,6 +43,7 @@ def test_savecheckpoint(save_path: str, load_best_on_end: bool):
             best_model = model.__class__.load(callback.best_model_path, adata=adata)
             assert best_model.is_trained_
 
+            # we assume that the current model state is equal to the best one (not true always...)
             current_state_dict = model.module.state_dict()
             best_state_dict = best_model.module.state_dict()
             assert len(current_state_dict) == len(best_state_dict)
@@ -54,7 +54,12 @@ def test_savecheckpoint(save_path: str, load_best_on_end: bool):
     def test_model_cls(model_cls, adata: AnnData):
         scvi.settings.logging_dir = os.path.join(save_path, model_cls.__name__)
 
-        # enable_checkpointing=True, default monitor
+        # Clean the folder so this test run is isolated/deterministic.
+        if os.path.exists(scvi.settings.logging_dir):
+            rmtree(scvi.settings.logging_dir)
+        os.makedirs(scvi.settings.logging_dir, exist_ok=True)
+
+        # enable_checkpointing=True, default monitor ("validation_loss" for this test)
         model = model_cls(adata)
         model.train(max_epochs=5, enable_checkpointing=True)
         check_checkpoint_logging(model, adata)
@@ -81,31 +86,55 @@ def test_savecheckpoint(save_path: str, load_best_on_end: bool):
     old_logging_dir = scvi.settings.logging_dir
     adata = scvi.data.synthetic_iid()
 
-    scvi.model.SCVI.setup_anndata(adata)
-    test_model_cls(scvi.model.SCVI, adata)
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+    )
+    test_model_cls(SCVI, adata)
 
-    scvi.model.SCANVI.setup_anndata(adata, "labels", "label_0")
-    test_model_cls(scvi.model.SCANVI, adata)
+    SCANVI.setup_anndata(
+        adata, batch_key="batch", labels_key="labels", unlabeled_category="label_0"
+    )
+    test_model_cls(SCANVI, adata)
+
+    load_best_on_end = False  # hard coded for TOTALVI
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    test_model_cls(TOTALVI, adata)
+
+    mdata = synthetic_iid(return_mudata=True)
+    TOTALVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+    test_model_cls(TOTALVI, adata)
 
     scvi.settings.logging_dir = old_logging_dir
 
 
-def test_exception_callback():
-    import torch
-
-    import scvi
-    from scvi.model import SCVI
-    from scvi.train._callbacks import SaveCheckpoint
-
+@pytest.mark.parametrize("model_cls", [SCVI, TOTALVI])
+def test_exception_callback(model_cls):
     torch.set_float32_matmul_precision("high")
     scvi.settings.seed = 0
 
     # we still need to find a proper way to simulate an adata that fail quickly during training
     adata = synthetic_iid()
 
-    SCVI.setup_anndata(adata, batch_key="batch")
-
-    model = SCVI(adata)
+    if model_cls == SCVI:
+        model_cls.setup_anndata(adata, batch_key="batch")
+    if model_cls == TOTALVI:
+        model_cls.setup_anndata(
+            adata,
+            batch_key="batch",
+            protein_expression_obsm_key="protein_expression",
+            protein_names_uns_key="protein_names",
+        )
+    model = model_cls(adata)
     model.train(max_epochs=5)
 
     ckpt_cb = SaveCheckpoint(
@@ -127,22 +156,30 @@ def test_exception_callback():
 
 
 @pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
-@pytest.mark.parametrize("model_cls", [SCVI, SCANVI])
+@pytest.mark.parametrize("model_cls", [SCVI, SCANVI, TOTALVI])
 def test_scib_callback_adata(model_cls, metric: str):
     adata = synthetic_iid()
-    if model_cls == SCANVI:
+    if model_cls == TOTALVI:
         model_cls.setup_anndata(
             adata,
-            labels_key="labels",
-            unlabeled_category="unknown",
             batch_key="batch",
+            protein_expression_obsm_key="protein_expression",
+            protein_names_uns_key="protein_names",
         )
     else:
-        model_cls.setup_anndata(
-            adata,
-            labels_key="labels",
-            batch_key="batch",
-        )
+        if model_cls == SCANVI:
+            model_cls.setup_anndata(
+                adata,
+                labels_key="labels",
+                unlabeled_category="unknown",
+                batch_key="batch",
+            )
+        else:
+            model_cls.setup_anndata(
+                adata,
+                labels_key="labels",
+                batch_key="batch",
+            )
     model = model_cls(adata)
     model.train(
         1,
@@ -179,14 +216,21 @@ def test_scib_callback_mudata(model_cls, metric: str):
     )
 
 
-def test_lightning_checkpoint():
-    adata = scvi.data.synthetic_iid()
-    scvi.model.SCVI.setup_anndata(
-        adata,
-        labels_key="labels",
-        batch_key="batch",
-    )
-    model = scvi.model.SCVI(adata)
+@pytest.mark.parametrize("model_cls", [SCVI, TOTALVI])
+def test_lightning_checkpoint(model_cls):
+    adata = synthetic_iid()
+
+    if model_cls == SCVI:
+        model_cls.setup_anndata(adata, batch_key="batch")
+    if model_cls == TOTALVI:
+        model_cls.setup_anndata(
+            adata,
+            batch_key="batch",
+            protein_expression_obsm_key="protein_expression",
+            protein_names_uns_key="protein_names",
+        )
+    model = model_cls(adata)
+    model.train(max_epochs=5)
 
     ckpt_cb = ModelCheckpoint(
         dirpath="checkpoints/",

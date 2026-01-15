@@ -198,7 +198,7 @@ class TorchMRVI(
             :meth:`~scvi.data.AnnDataManager.register_fields`.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        # Add index for batched computation of local statistics.
+        # Add the index for batched computation of local statistics.
         adata.obs["_indices"] = np.arange(adata.n_obs).astype(int)
         anndata_fields = [
             fields.LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
@@ -236,7 +236,7 @@ class TorchMRVI(
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Size of training set in the range ``[0.0, 1.0]``.
+            Size of the training set in the range ``[0.0, 1.0]``.
         validation_size
             Size of the validation set. If ``None``, defaults to ``1 - train_size``. If
             ``train_size + validation_size < 1``, the remaining cells belong to a test set.
@@ -428,7 +428,7 @@ class TorchMRVI(
         for ur in reqs.ungrouped_reductions:
             ungrouped_data_arrs[ur.name] = []
         for gr in reqs.grouped_reductions:
-            grouped_data_arrs[gr.name] = {}  # Will map group category to running group sum.
+            grouped_data_arrs[gr.name] = {}  # Will map group category to running the group sum.
 
         for tensor in tqdm(scdl):
             indices = tensor[REGISTRY_KEYS.INDICES_KEY].astype(int).flatten()
@@ -437,6 +437,8 @@ class TorchMRVI(
             inf_inputs = self.module._get_inference_input(
                 tensor,
             )
+            cell_names = adata.obs_names[indices].values
+
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
@@ -455,7 +457,7 @@ class TorchMRVI(
                     mean_zs_.detach().cpu().numpy(),
                     dims=["cell_name", "sample", "latent_dim"],
                     coords={
-                        "cell_name": adata.obs_names[indices].values,
+                        "cell_name": cell_names,
                         "sample": self.sample_order,
                     },
                     name="sample_representations",
@@ -473,7 +475,7 @@ class TorchMRVI(
                     sampled_zs_.detach().cpu().numpy(),
                     dims=["cell_name", "mc_sample", "sample", "latent_dim"],
                     coords={
-                        "cell_name": adata.obs_names[indices].values,
+                        "cell_name": cell_names,
                         "sample": self.sample_order,
                     },
                     name="sample_representations",
@@ -481,12 +483,12 @@ class TorchMRVI(
 
             if reqs.needs_mean_distances:
                 mean_dists = self._compute_distances_from_representations(
-                    mean_zs_, indices, norm=norm, return_numpy=True
+                    mean_zs_, cell_names, norm=norm, return_numpy=True
                 )
 
             if reqs.needs_sampled_distances or reqs.needs_normalized_distances:
                 sampled_dists = self._compute_distances_from_representations(
-                    sampled_zs_, indices, norm=norm, return_numpy=True
+                    sampled_zs_, cell_names, norm=norm, return_numpy=True
                 )
 
                 if reqs.needs_normalized_distances:
@@ -528,7 +530,7 @@ class TorchMRVI(
                     group_by_cats = group_by.unique()
                     for cat in group_by_cats:
                         cat_summed_outputs = outputs.sel(
-                            cell_name=adata.obs_names[indices][group_by == cat].values
+                            cell_name=cell_names[group_by == cat]
                         ).sum(dim="cell_name")
                         cat_summed_outputs = cat_summed_outputs.assign_coords(
                             {f"{r.group_by}_name": cat}
@@ -594,7 +596,7 @@ class TorchMRVI(
     def _compute_distances_from_representations(
         self,
         reps: torch.Tensor,
-        indices: torch.Tensor,
+        cell_names: torch.Tensor,
         norm: Literal["l2", "l1", "linf"] = "l2",
         return_numpy: bool = True,
     ) -> xr.DataArray:
@@ -620,7 +622,7 @@ class TorchMRVI(
                 dists,
                 dims=["cell_name", "sample_x", "sample_y"],
                 coords={
-                    "cell_name": self.adata.obs_names[indices].values,
+                    "cell_name": cell_names,
                     "sample_x": self.sample_order,
                     "sample_y": self.sample_order,
                 },
@@ -635,7 +637,7 @@ class TorchMRVI(
                 dists,
                 dims=["cell_name", "mc_sample", "sample_x", "sample_y"],
                 coords={
-                    "cell_name": self.adata.obs_names[indices].values,
+                    "cell_name": cell_names,
                     "mc_sample": np.arange(reps.shape[1]),
                     "sample_x": self.sample_order,
                     "sample_y": self.sample_order,
@@ -703,7 +705,8 @@ class TorchMRVI(
         Computes cell-specific distances between samples, of size ``(n_sample, n_sample)``,
         stored as a Dataset, with variable name ``"cell"``, of size
         ``(n_cell, n_sample, n_sample)``. If in addition, ``groupby`` is provided, distances are
-        also aggregated by group. In this case, the group-specific distances via group name key.
+        also aggregated by group. In this case, the group-specific distances
+        via the group name key.
 
         Parameters
         ----------
@@ -865,7 +868,7 @@ class TorchMRVI(
             when computing the differential abundance. At the moment, only discrete covariates are
             supported.
         sample_subset
-            Only compute differential abundance for these sample labels.
+            Only computes differential abundance for these sample labels.
         compute_log_enrichment
             Whether to compute the log enrichment scores for each covariate value.
         omit_original_sample
@@ -1146,7 +1149,7 @@ class TorchMRVI(
         use_vmap: Literal["auto", True, False] = "auto",
         normalize_design_matrix: bool = True,
         add_batch_specific_offsets: bool = False,
-        mc_samples: int = 100,
+        mc_samples: int = 50,
         store_lfc: bool = False,
         store_lfc_metadata_subset: list[str] | None = None,
         store_baseline: bool = False,
@@ -1188,7 +1191,7 @@ class TorchMRVI(
             How many MC samples should be taken for computing betas.
         store_lfc
             Whether to store the log-fold changes in the module.
-            Storing log-fold changes is memory-intensive and may require to specify
+            Storing log-fold changes is memory-intensive and may require specifying
             a smaller set of cells to analyze, e.g., by specifying ``adata``.
         store_lfc_metadata_subset
             Specifies a subset of metadata for which log-fold changes are computed.
@@ -1237,7 +1240,7 @@ class TorchMRVI(
         use_vmap = use_vmap if use_vmap != "auto" else self.summary_stats.n_sample < 500
 
         if sample_cov_keys is None:
-            # Hack: kept as kwarg to maintain order of arguments.
+            # Hack: kept as kwarg to maintain the order of arguments.
             raise ValueError("Must assign `sample_cov_keys`")
         adata = self.adata if adata is None else adata
         self._check_if_trained(warn=False)
@@ -1360,7 +1363,8 @@ class TorchMRVI(
             betas_norm = torch.einsum("ankd,nkl->anld", betas, prefactor)
             ts = (betas_norm**2).mean(axis=0).sum(axis=-1)
 
-            chi2_dist = dist.Chi2(n_samples_per_cell[:, None])
+            df = torch.clamp(n_samples_per_cell[:, None].float(), min=1.0)  # clamp before chi2
+            chi2_dist = dist.Chi2(df)
             pvals = 1 - chi2_dist.cdf(ts.detach().cpu())
 
             betas = betas * eps_std
@@ -1609,8 +1613,8 @@ class TorchMRVI(
 
         1. The design matrix
         2. Names for each column in the design matrix
-        3. A mask precising which coefficients from the design matrix require to compute LFCs.
-        4. A mask precising which coefficients from the design matrix correspond to offsets.
+        3. A mask précising which coefficients from the design matrix requires computing LFCs.
+        4. A mask précising which coefficients from the design matrix correspond to offsets.
         """
         from pandas import Series, get_dummies
 
@@ -1691,7 +1695,7 @@ class TorchMRVI(
         >>> import scanpy as sc
         >>> from scvi.external import MRVI
         >>> MRVI.setup_anndata(adata, sample_key="sample_id", backend="torch")
-        >>> model = MRVI(adata, backend="torch")
+        >>> model = MRVI(adata)
         >>> model.train()
         >>> # Update sample info with new covariates
         >>> sample_mapper = {"sample_1": "healthy", "sample_2": "disease"}
@@ -1736,12 +1740,12 @@ class TorchMRVI(
         transform_batch
             Batch to condition on.
             If transform_batch is:
-            - None, then real observed batch is used.
+            - None, then the real observed batch is used.
             - int, then batch transform_batch is used.
             - Otherwise based on string
         gene_list
             Return frequencies of expression for a subset of genes.
-            This can save memory when working with large datasets and few genes are
+            This can save memory when working with large datasets, and few genes are
             of interest.
         library_size
             Scale the expression frequencies to a common library size.
@@ -1754,7 +1758,7 @@ class TorchMRVI(
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -1778,7 +1782,7 @@ class TorchMRVI(
         this method returns a 3d tensor of shape (n_samples, n_cells, n_genes).
         If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
         of shape (n_cells, n_genes).
-        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        In this case, the return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_genes).
         """

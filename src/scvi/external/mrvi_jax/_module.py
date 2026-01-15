@@ -582,9 +582,7 @@ class JaxMRVAE(JaxBaseModuleClass):
         mc_samples: int = 10,
     ):
         """Compute normalized gene expression from observations using predefined eps"""
-        library = 7.0 * jnp.ones_like(
-            sample_index
-        )  # placeholder, has no effect on the value of h.
+        library = 7.0 * jnp.ones_like(sample_index)  # placeholder has no effect on the value of h.
         inference_outputs = self.inference(
             x, sample_index, mc_samples=mc_samples, cf_sample=cf_sample, use_mean=False
         )
