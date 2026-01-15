@@ -851,7 +851,11 @@ class RESOLVAEGuide(PyroModule):
 
         if self.downsample_counts_mean is not None:
             downsample_counts = (
-                int(LogNormal(self.downsample_counts_mean, self.downsample_counts_std).sample())
+                int(
+                    LogNormal(
+                        float(self.downsample_counts_mean), float(self.downsample_counts_std)
+                    ).sample()
+                )
                 + 10
             )
 
