@@ -19,6 +19,7 @@ from scvi.external.velovi._constants import VELOVI_REGISTRY_KEYS
 from scvi.external.velovi._module import VELOVAE
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
@@ -172,7 +173,7 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
-        user_plan_kwargs = plan_kwargs.copy() if isinstance(plan_kwargs, dict) else {}
+        user_plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         plan_kwargs = {"lr": lr, "weight_decay": weight_decay, "optimizer": "AdamW"}
         plan_kwargs.update(user_plan_kwargs)
 
