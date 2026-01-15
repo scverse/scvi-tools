@@ -73,13 +73,13 @@ def test_destvi_new(save_path: str):
     st_adata_path = os.path.join(save_path, "st_lymph_node_preprocessed.h5ad")
     st_adata = sc.read(
         st_adata_path,
-        backup_url="https://figshare.com/ndownloader/files/52947032",
+        backup_url="https://exampledata.scverse.org/scvi-tools/st_lymph_node_preprocessed.h5ad",
     )
 
     sc_adata_path = os.path.join(save_path, "sc_lymph_node_preprocessed.h5ad")
     sc_adata = sc.read(
         sc_adata_path,
-        backup_url="https://figshare.com/ndownloader/files/52947086",
+        backup_url="https://exampledata.scverse.org/scvi-tools/sc_lymph_node_preprocessed.h5ad",
     )
 
     # let us filter some genes
