@@ -719,9 +719,9 @@ class AutotuneExperiment:
             (TuneReportCheckpointCallback, Callback),
             {},
         )
-        on = "validation_end" if "validation" in self.metrics else "train_end"
+        on = "validation_end" if "validation" in self.metrics[0] else "train_end"
 
-        return callback_cls(metrics=self.metrics, on=on, save_checkpoints=self.save_checkpoints)
+        return callback_cls(metrics=self.metrics[0], on=on, save_checkpoints=self.save_checkpoints)
 
     @property
     def scib_metrics_callback(self) -> Callback:
