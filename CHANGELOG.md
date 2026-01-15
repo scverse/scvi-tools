@@ -5,7 +5,22 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.4
 
-### 1.4.1 (2025-XX-XX)
+### 1.4.2 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+- Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
+- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+
+#### Changed
+
+- Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
+
+#### Removed
+
+### 1.4.1 (2025-12-10)
 
 #### Added
 
@@ -14,19 +29,31 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
     function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.
+- Add modality auto-ordering for mudata in {class}`~scvi.model.MULTIVI` {pr}`3622` and fix DE.
 
 #### Fixed
 
-- Add configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
-- Fix inference on device for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
+- Fix configurable mdata filename for {class}`scvi.autotune.AutotuneExperiment`, {pr}`3580`.
+- Fix inference on GPU for PyTorch implementation of {class}`scvi.external.MRVI`, {pr}`3586`.
+- Fix model loading and DE with labels in PyTorch implementation of {class}`scvi.external.MRVI`,
+    {pr}`3615`.
 - Fix in non-multi-GPU training to have history in memory, and not on disk by default {pr}`3543`.
 - Fix missing model history for multi-GPU training, and add an option to log on step {pr}`3516`.
+- Fix external indices validation in {class}`scvi.dataloaders.SemiSupervisedDataSplitter` {pr}`3601`.
+- Fix issues with hub model loaded from path during scarches query
+    and model loaded with adata=None while adata not exists {pr}`3628`.
+- Fix `batch_size` in {class}`scvi.external.ContrastiveVI` data loader {pr}`3629`.
 
 #### Changed
+
+- Update model {class}`scvi.model.DestVI` with fine cell-type classifier {pr}`3380`.
 
 #### Removed
 
 - Removed graceful shutdown from Jupyter notebook, {pr}`3556`.
+- Removed several {class}`~scvi.external.SCBASSET` tests that caused failure on GitHub actions,
+    {pr}`3632`.
 
 ### 1.4.0 (2025-09-14)
 
@@ -45,7 +72,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
-- Fix {class}`scvi.model.TOTALVI` convert_legacy_save function with updated model parameters {pr}`3561`.
 - Fix library size calculation in {class}`scvi.model.TOTALVI` {pr}`3452`.
 - Fix scArches surgery in {class}`scvi.external.SysVI` {pr}`3466`.
 - Fix VAE load size mismatch when using extra covariates with custom datamodule {pr}`3461`.
@@ -172,7 +198,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Fixed bug in distributed {class}`scvi.dataloaders.ConcatDataLoader` {pr}`3053`.
 - Fixed bug when loading Pyro-based models and scArches support for Pyro {pr}`3138`
-- Fixed disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
+- Fixed a disable vmap in {class}`scvi.external.MRVI` for large sample sizes to avoid
     out-of-memory errors. Store distance matrices as a numpy array in xarray to reduce
     memory usage {pr}`3146`.
 - Fixed {class}`scvi.external.MRVI` MixtureSameFamily log probability calculation {pr}`3189`.
@@ -235,7 +261,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Fixed
 
 - Breaking Change: Fix `get_outlier_cell_sample_pairs` function in {class}`scvi.external.MRVI`
-    to correctly compute the maxmimum log-density across in-sample cells rather than the
+    to correctly compute the maximum log-density across in-sample cells rather than the
     aggregated posterior log-density {pr}`3007`.
 - Fix references to `scvi.external` in {meth}`scvi.external.SCAR.setup_anndata`.
 - Fix gimVI to append mini batches first into CPU during get_imputed and get_latent operations {pr}`3058`.
@@ -1678,8 +1704,8 @@ These breaking changes do not affect the user API, though will impact model deve
 - Fix `SaveBestState` warning ([#1024])
 - New default SCANVI max epochs if loaded with pretrained SCVI model ([#1025]), restore old
     `<v0.9` behavior.
-- Fix marginal log likelihood computation, which was only being computed on the final minibatch of a
-    dataloader. This bug was introduced in the `0.9.X` versions ([#1033]).
+- Fix marginal log likelihood computation, which was only being computed on the final minibatch of
+    a dataloader. This bug was introduced in the `0.9.X` versions ([#1033]).
 - Fix bug where extra categoricals were not properly extended in `transfer_anndata_setup` ([#1030]).
 
 #### Contributors
@@ -1926,7 +1952,7 @@ package by our numerous contributors.
 - update issues templates [@adam]
 - Poisson variable gene selection [@valentine-svensson]
 - BrainSmallDataset set default save_path_10X [@gokcen-eraslan]
-- train_size must be float between 0.0 and 1.0 [@galen]
+- train_size must be a float between 0.0 and 1.0 [@galen]
 - bump dependency versions [@galen]
 - remove reproducibility notebook [@galen]
 - fix scanVI dataloading [@pierre]

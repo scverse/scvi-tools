@@ -619,7 +619,7 @@ class TorchMRVAE(BaseModuleClass):
 
         if self.u_prior_mixture:
             offset = (
-                10.0 * nn.functional.one_hot(label_index, self.n_labels)
+                10.0 * nn.functional.one_hot(label_index, self.n_labels).float()
                 if self.n_labels >= 2
                 else 0.0
             )
@@ -696,7 +696,7 @@ class TorchMRVAE(BaseModuleClass):
         """Compute normalized gene expression from observations using predefined eps"""
         library = 7.0 * torch.ones_like(
             sample_index
-        )  # placeholder, has no effect on the value of h.
+        )  # placeholder has no effect on the value of h.
         inference_outputs = self.inference(
             x, sample_index, mc_samples=mc_samples, cf_sample=cf_sample, use_mean=False
         )
@@ -704,7 +704,7 @@ class TorchMRVAE(BaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": torch.zeros([x.shape[0], 1]),
+            "label_index": torch.zeros(x.shape[0], dtype=torch.long, device=x.device),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]

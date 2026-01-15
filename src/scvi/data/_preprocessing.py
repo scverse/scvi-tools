@@ -45,7 +45,7 @@ def poisson_gene_selection(
     The method accounts for library size internally, a raw count matrix should be provided.
 
     Instead of Z-test, enrichment of zeros is quantified by posterior
-    probabilites from a binomial model, computed through sampling.
+    probabilities from a binomial model, computed through sampling.
 
 
     Parameters
@@ -59,16 +59,16 @@ def poisson_gene_selection(
     %(param_accelerator)s
     %(param_device)s
     subset
-        Inplace subset to highly-variable genes if `True` otherwise merely indicate
+        Inplace subset to highly-variable genes if `True` otherwise merely indicates
         highly variable genes.
     inplace
         Whether to place calculated metrics in `.var` or return them.
     n_samples
-        The number of Binomial samples to use to estimate posterior probability
+        The number of Binomial samples to use to estimate the posterior probability
         of enrichment of zeros for each gene.
     batch_key
         key in adata.obs that contains batch info. If None, do not use batch info.
-        Defatult: ``None``.
+        Default: ``None``.
     silent
         If ``True``, disables the progress bar.
     minibatch_size
@@ -124,14 +124,14 @@ def poisson_gene_selection(
         # Calculate empirical statistics.
         sum_0 = np.asarray(data.sum(0)).ravel()
         total_counts = torch.from_numpy(np.asarray(data.sum(1)).ravel()).to(device)
-        # in MPS we need to first change to float 32, as the MPS framework doesn't support float64.
-        # We will thus do it by default for all accelerators
+        # in MPS, we need to first change to float 32, as the MPS framework doesn't support
+        # float64. We will thus do it by default for all accelerators
         scaled_means = torch.from_numpy(np.float32(sum_0 / sum_0.sum())).to(device)
         observed_fraction_zeros = torch.from_numpy(
             np.float32(np.asarray(1.0 - (data > 0).sum(0) / data.shape[0]).ravel())
         ).to(device)
 
-        # Calculate probability of zero for a Poisson model.
+        # Calculate the probability of zero for a Poisson model.
         # Perform in batches to save memory.
         minibatch_size = min(total_counts.shape[0], minibatch_size)
         n_batches = total_counts.shape[0] // minibatch_size
@@ -383,16 +383,16 @@ def add_dna_sequence(
     sequence_varm_key: str = "dna_sequence",
     code_varm_key: str = "dna_code",
 ) -> None:
-    """Add DNA sequence to AnnData object.
+    """Add the DNA sequence to AnnData object.
 
     Uses genomepy under the hood to download the genome.
 
     Parameters
     ----------
     adata
-        AnnData object with chromatin accessiblity data
+        AnnData object with chromatin accessibility data
     seq_len
-        Length of DNA sequence to extract around peak center.
+        Length of the DNA sequence to extract around the peak center.
         Defaults to value used in scBasset.
     genome_name
         Name of genome to use, installed with genomepy
@@ -410,9 +410,9 @@ def add_dna_sequence(
     end_var_key
         Key in `.var` for end position
     sequence_varm_key
-        Key in `.varm` for added DNA sequence
+        Key in `.varm` for the added DNA sequence
     code_varm_key
-        Key in `.varm` for added DNA sequence, encoded as integers
+        Key in `.varm` for the added DNA sequence, encoded as integers
 
     Returns
     -------
@@ -461,7 +461,7 @@ def reads_to_fragments(
     read_layer: str | None = None,
     fragment_layer: str = "fragments",
 ) -> None:
-    """Convert scATAC-seq read counts to appoximate fragment counts.
+    """Convert scATAC-seq read counts to approximate fragment counts.
 
     Parameters
     ----------

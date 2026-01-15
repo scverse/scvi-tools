@@ -72,11 +72,11 @@ class ArchesMixin:
             It is not necessary to run setup_anndata,
             as AnnData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         inplace_subset_query_vars
             Whether to subset and rearrange query vars inplace based on vars used to
-            train reference model.
+            train the reference model.
         %(param_accelerator)s
         %(param_device)s
         unfrozen
@@ -84,9 +84,9 @@ class ArchesMixin:
         freeze_dropout
             Whether to freeze dropout during training
         freeze_expression
-            Freeze neurons corersponding to expression in first layer
+            Freeze neurons corresponding to expression in first layer
         freeze_decoder_first_layer
-            Freeze neurons corersponding to first layer in decoder
+            Freeze neurons corresponding to first layer in decoder
         freeze_batchnorm_encoder
             Whether to freeze batchnorm weight and bias during training for encoder
         freeze_batchnorm_decoder
@@ -164,8 +164,9 @@ class ArchesMixin:
                     "Cannot load the original setup."
                 )
 
-            if registry[_SETUP_METHOD_NAME] != "setup_datamodule":
-                setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
+            setup_method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+            if setup_method_name != "setup_datamodule":
+                setup_method = getattr(cls, setup_method_name)
                 setup_method(
                     adata,
                     source_registry=registry,
@@ -300,8 +301,8 @@ class ArchesMixin:
             It is not necessary to run setup_anndata,
             as AnnData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -336,12 +337,12 @@ class ArchesMixin:
         Parameters
         ----------
         mdata
-            MuData organized in the same way as data used to train model.
+            MuData organized in the same way as data used to train the model.
             It is not necessary to run setup_mudata,
             as MuData is validated against the ``registry``.
         reference_model
-            Either an already instantiated model of the same class, or a path to
-            saved outputs for reference model.
+            Either an already instantiated model of the same class or a path to
+            saved outputs for the reference model.
         return_reference_var_names
             Only load and return reference var names if True.
         inplace
@@ -402,7 +403,7 @@ def _set_params_online_update(
     freeze_expression,
     freeze_classifier,
 ):
-    """Freeze parts of network for scArches."""
+    """Freeze parts of the network for scArches."""
     # do nothing if unfrozen
     if unfrozen:
         return

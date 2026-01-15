@@ -274,6 +274,7 @@ class PosteriorPredictiveCheck:
         self.metrics[METRIC_CALIBRATION] = pd.DataFrame.from_dict(model_cal)
 
     @dependencies("scanpy")
+    @dependencies("leidenalg")
     def differential_expression(
         self,
         de_groupby: str | None = None,

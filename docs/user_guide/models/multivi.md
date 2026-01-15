@@ -97,7 +97,7 @@ The latent variables, along with their description, are summarized in the follow
      - Library size for RNA.
      - N/A
    * - :math:`\theta_g \in (0, \infty)`
-     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
+     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model initialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
      - N/A
    * - :math:`p_r`
      - Accessibility probability estimate

@@ -61,7 +61,7 @@ class LayerFaker:
 
     def __getitem__(self, key):
         """First layer of get item that handles returning an index into a specific layer"""
-        # determine the array's type
+        # to determine the array's type,
         # we first need to draw an AnnCollectionView to get an object that has
         # access to .layers, which is not provided in AnnCollection
         sample = self.collection[: np.min([4, len(self.collection)])]

@@ -43,13 +43,13 @@ class LossOutput:
         Note that loss should be in an array/tensor and not a float.
     reconstruction_loss
         Reconstruction loss for each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "reconstruction_loss" and value as tensor.
+        a dictionary with the key "reconstruction_loss" and value as tensor.
     kl_local
         KL divergence associated with each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "kl_local" and value as tensor.
+        a dictionary with the key "kl_local" and value as tensor.
     kl_global
         Global KL divergence term. Should be one dimensional with one value. If a tensor, converted
-        to a dictionary with key "kl_global" and value as tensor.
+        to a dictionary with the key "kl_global" and value as tensor.
     classification_loss
         Classification loss.
     logits
@@ -60,7 +60,7 @@ class LossOutput:
         Additional metrics can be passed as arrays/tensors or dictionaries of
         arrays/tensors.
     n_obs_minibatch
-        Number of observations in the minibatch. If None, will be inferred from
+        Number of observations in the minibatch. If None, it will be inferred from
         the shape of the reconstruction_loss tensor.
 
 
@@ -213,7 +213,7 @@ class BaseModuleClass(nn.Module):
 
     @abstractmethod
     def _get_inference_input(self, tensors: dict[str, torch.Tensor], **kwargs):
-        """Parse tensors dictionary for inference related values."""
+        """Parse tensors dictionary for inference-related values."""
 
     @abstractmethod
     def _get_generative_input(
@@ -350,7 +350,7 @@ class PyroBaseModuleClass(nn.Module):
 
         Returns
         -------
-        args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
+        args and kwargs for the functions, args should be an Iterable, and kwargs a dictionary.
         """
 
     @property
@@ -373,9 +373,9 @@ class PyroBaseModuleClass(nn.Module):
             inference;
         3. "sites" - dictionary with
             keys - names of variables that belong to the observation plate (used to recognise
-             and merge posterior samples for minibatch variables)
-            values - the dimensions in non-plate axis of each variable (used to construct output
-             layer of encoder network when using amortised inference)
+            and merge posterior samples for minibatch variables)
+            values - the dimensions in the non-plate axis of each variable (used to construct
+            output layer of encoder network when using amortised inference)
         """
         return {"name": "", "in": [], "sites": {}}
 
@@ -389,7 +389,7 @@ class PyroBaseModuleClass(nn.Module):
         model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
         if "pyro_param_store" in kwargs:
-            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            # For scArches shapes are changed, and we don't want to overwrite these changed shapes.
             pyro.get_param_store().set_state(kwargs["pyro_param_store"])
 
     def create_predictive(
@@ -417,7 +417,7 @@ class PyroBaseModuleClass(nn.Module):
             This argument has no effect if ``posterior_samples`` is non-empty, in which case,
             the leading dimension size of samples in ``posterior_samples`` is used.
         return_sites
-            Sites to return; by default only sample sites not present
+            Sites to return; by default, only sample sites not present
             in ``posterior_samples`` are returned.
         parallel
             predict in parallel by wrapping the existing model
@@ -442,7 +442,7 @@ class PyroBaseModuleClass(nn.Module):
         return predictive
 
     def forward(self, *args, **kwargs):
-        """Passthrough to Pyro model."""
+        """Passthrough to a Pyro model."""
         return self.model(*args, **kwargs)
 
 
@@ -489,7 +489,7 @@ if is_package_installed("jax") and is_package_installed("flax"):
             """Flax setup method.
 
             With scvi-tools we prefer to use the setup parameterization of
-            flax.linen Modules. This lends the interface to be more like
+            flax.linen Modules. This tends the interface to be more like
             PyTorch. More about this can be found here:
 
             https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
@@ -544,7 +544,7 @@ if is_package_installed("jax") and is_package_installed("flax"):
 
         @abstractmethod
         def _get_inference_input(self, tensors: dict[str, jnp.ndarray], **kwargs):
-            """Parse tensors dictionary for inference related values."""
+            """Parse tensors dictionary for inference-related values."""
 
         @abstractmethod
         def _get_generative_input(
@@ -661,7 +661,7 @@ if is_package_installed("jax") and is_package_installed("flax"):
             self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
 
         def to(self, device: Device):
-            """Move module to device."""
+            """Move the module to a device."""
             import jax
 
             if device is not self.device:
@@ -696,7 +696,7 @@ if is_package_installed("jax") and is_package_installed("flax"):
             get_inference_input_kwargs
                 Keyword arguments to pass to subclass `_get_inference_input`
             inference_kwargs
-                Keyword arguments  for subclass `inference` method
+                Keyword arguments for subclass `inference` method
 
             Returns
             -------
@@ -877,7 +877,7 @@ class SupervisedModuleClass:
         if int(version_split[0]) >= 1 and int(version_split[1]) >= 1:
             return
 
-        # need this if <1.1 model is resaved with >=1.1 as new registry is
+        # need this if <1.1 model is resaved with >=1.1 as the new registry is
         # updated on setup
         manager.registry[_constants._SCVI_VERSION_KEY] = source_version
 

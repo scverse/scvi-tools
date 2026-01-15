@@ -49,7 +49,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
         The prior distribution to be used.
         You can choose between ``"standard_normal"`` and ``"vamp"``.
     n_prior_components
-        Number of prior components (i.e. modes) to use in VampPrior.
+        Number of prior components (i.e., modes) to use in VampPrior.
     pseudoinputs_data_indices
         By default, VampPrior pseudoinputs are randomly selected from data.
         Alternatively, one can specify pseudoinput indices using this parameter.
@@ -199,7 +199,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseM
           This covariate is expected to correspond to stronger batch effects,
           such as between datasets from different sequencing technology or
           model systems (animal species, in-vitro models and tissue, etc.).
-        - covariate (includes both continous and categorical covariates):
+        - covariate (includes both continuous and categorical covariates):
           Additional covariates to be used only
           as a condition in cVAE, but not corrected via cycle loss.
           These covariates are expected to correspond to weaker batch effects,

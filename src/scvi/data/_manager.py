@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class AnnDataManagerValidationCheck:
-    """Validation checks for AnnOrMudata scvi-tools compat.
+    """Validation checks for AnnOrMudata scvi-tools compatibility.
 
     Parameters
     ----------
@@ -61,7 +61,7 @@ class AnnDataManager:
     Parameters
     ----------
     fields
-        List of AnnDataFields to intialize with.
+        List of AnnDataFields to initialize with.
     setup_method_args
         Dictionary describing the model and arguments passed in by the user
         to setup this AnnDataManager.
@@ -167,7 +167,7 @@ class AnnDataManager:
             Registry created after registering an AnnData using an
             :class:`~scvi.data.AnnDataManager` object.
         transfer_kwargs
-            Additional keywords which modify transfer behavior. Only applicable if
+            Additional keywords, which modify transfer behavior. Only applicable if
             ``source_registry`` is set.
         """
         if self.adata is not None:
@@ -212,11 +212,14 @@ class AnnDataManager:
         }
         field_registry = field_registries[field.registry_key]
 
-        # A field can be empty if the model has optional fields (e.g. extra covariates).
+        # A field can be empty if the model has optional fields (e.g., extra covariates).
         # If empty, we skip registering the field.
         if not field.is_empty:
             # Transfer case: Source registry is used for validation and/or setup.
-            if source_registry is not None:
+            if (
+                source_registry is not None
+                and field.registry_key in source_registry[_constants._FIELD_REGISTRIES_KEY]
+            ):
                 field_registry[_constants._STATE_REGISTRY_KEY] = field.transfer_field(
                     source_registry[_constants._FIELD_REGISTRIES_KEY][field.registry_key][
                         _constants._STATE_REGISTRY_KEY
@@ -253,7 +256,7 @@ class AnnDataManager:
 
         # Source registry is not None if this manager was created from transfer_fields
         # In this case self._registry is originally equivalent to self._source_registry
-        # However, with newly registered fields the equality breaks so we reset it
+        # However, with newly registered fields the equality breaks, so we reset it
         if self._source_registry is not None:
             self._source_registry = deepcopy(self._registry)
 
@@ -264,14 +267,14 @@ class AnnDataManager:
 
         Creates a new :class:`~scvi.data.AnnDataManager` instance with the same set of fields.
         Then, registers the fields with a target AnnData object, incorporating details of the
-        source registry where necessary (e.g. for validation or modified data setup).
+        source registry where necessary (e.g., for validation or modified data setup).
 
         Parameters
         ----------
         adata_target
             AnnData object to be registered.
         kwargs
-            Additional keywords which modify transfer behavior.
+            Additional keywords, which modify transfer behavior.
         """
         self._assert_anndata_registered()
 
@@ -285,13 +288,13 @@ class AnnDataManager:
         return new_adata_manager
 
     def validate(self) -> None:
-        """Checks if AnnData was last setup with this AnnDataManager instanc.
+        """Checks if AnnData was last setup with this AnnDataManager instance.
 
         Reregisters it if not.
         """
         self._assert_anndata_registered()
         most_recent_manager_id = self.adata.uns[_constants._MANAGER_UUID_KEY]
-        # Re-register fields with same arguments if this AnnData object has been
+        # Re-register fields with the same arguments if this AnnData object has been
         # registered with a different AnnDataManager.
         if most_recent_manager_id != self.id:
             adata, self.adata = self.adata, None  # Reset self.adata.
@@ -342,10 +345,10 @@ class AnnDataManager:
             The indices of the observations in the adata to use
         data_and_attributes
             Dictionary with keys representing keys in data registry
-            (``adata_manager.data_registry``) and value equal to desired numpy loading type (later
-            made into torch tensor) or list of such keys. A list can be used to subset to certain
-            keys in the event that more tensors than needed have been registered. If ``None``,
-            defaults to all registered data.
+            (``adata_manager.data_registry``) and value equal to the desired numpy loading type
+            (later made into torch tensor) or list of such keys. A list can be used to subset to
+            certain keys in the event that more tensors than needed have been registered.
+            If ``None``, defaults to all registered data.
         load_sparse_tensor
             ``EXPERIMENTAL`` If ``True``, loads data with sparse CSR or CSC layout as a
             :class:`~torch.Tensor` with the same layout. Can lead to speedups in data transfers to
@@ -399,7 +402,7 @@ class AnnDataManager:
         Parameters
         ----------
         registry_key
-            key of object to get from ``self.data_registry``
+            key of the object to get from ``self.data_registry``
 
         Returns
         -------

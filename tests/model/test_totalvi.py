@@ -216,7 +216,7 @@ def test_totalvi(save_path):
 
     # test automatic transfer_anndata_setup
     adata = synthetic_iid()
-    # no protein names so we test our auto generation
+    # no protein names, so we test our auto generation
     TOTALVI.setup_anndata(
         adata,
         batch_key="batch",
@@ -647,13 +647,13 @@ def test_scarches_mudata_prep_layer(save_path: str):
     mdata2["accessibility"].layers["counts"] = mdata2["accessibility"].X.copy()
 
     TOTALVI.prepare_query_mudata(mdata2, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(mdata2["rna"][:, mdata2["rna"].var_names[:10]].layers["counts"]) == 0
     np.testing.assert_equal(
         mdata2["rna"].var_names[:10].to_numpy(), mdata1["rna"].var_names[:10].to_numpy()
     )
 
-    # Note ref model doesnt use accessibility , so neither do here
+    # Note the ref model doesn't use accessibility, so neither do here
 
     # and names should also be the same
     np.testing.assert_equal(
@@ -696,7 +696,7 @@ def test_totalvi_online_update(save_path):
     adata2.obs["batch"] = adata2.obs.batch.cat.rename_categories(["batch_2", "batch_3"])
     adata2.obsm["protein_expression"][adata2.obs.batch == "batch_3"] = 0
 
-    # load from model in memory
+    # load from the model in memory
     model3 = TOTALVI.load_query_data(adata2, model)
     model3.train(max_epochs=1)
     model3.get_latent_representation()
