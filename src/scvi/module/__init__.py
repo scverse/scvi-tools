@@ -45,4 +45,15 @@ def __getattr__(name: str):
         from ._jaxvae import JaxVAE as _JaxVAE
 
         return _JaxVAE
+    if name == "MlxVAE":
+        warnings.warn(
+            "In order to use the MlxVAE make sure to install scvi-tools[mlx]",
+            DeprecationWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
+
+        error_on_missing_dependencies("mlx")
+        from ._mlxvae import MlxVAE as _MlxVAE
+
+        return _MlxVAE
     raise AttributeError(f"module {__name__!r} has no attribute {name}")

@@ -9,6 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add Support for MLX usage in Mac {pr}`3598`.
+
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
