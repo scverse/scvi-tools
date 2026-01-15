@@ -56,8 +56,7 @@ def model(request, adata, mdata):
         model_cls.setup_mudata(
             mdata=adata,
             batch_key="batch",
-            rna_layer="rna",
-            protein_layer="protein",
+            modalities={"rna_layer": "rna", "protein_layer": "protein"},
         )
 
     model_inst = model_cls(adata)
