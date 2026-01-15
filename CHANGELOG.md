@@ -18,7 +18,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
 - Change explicit training configuration objects for scvi-tools, reducing reliance on loose kwargs
-   and improving clarity across training APIs, {pr}`3666`.
+    and improving clarity across training APIs, {pr}`3666`.
 
 #### Removed
 
