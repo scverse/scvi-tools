@@ -49,7 +49,7 @@ def model(request, adata, mdata):
         model_cls.setup_anndata(adata=adata, batch_key="batch")
     elif model_cls is SCANVI:
         model_cls.setup_anndata(
-            adata=adata, labels_key="type", unlabeled_category="NA", batch_key="batch"
+            adata=adata, labels_key="labels", unlabeled_category="NA", batch_key="batch"
         )
     elif model_cls is TOTALVI:
         adata = mdata
