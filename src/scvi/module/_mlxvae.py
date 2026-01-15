@@ -112,6 +112,72 @@ class MlxVAE(nn.Module):
         self.encoder = MlxEncoder(n_input, n_latent, n_hidden, dropout_rate)
         self.decoder = MlxDecoder(n_input, n_hidden, n_batch, n_latent, dropout_rate)
 
+    def state_dict(self) -> dict[str, Any]:
+        """Return the model parameters as a state dictionary for saving.
+
+        This method provides compatibility with the scvi-tools save/load mechanism
+        by converting MLX parameters to a format that can be serialized.
+        """
+        import mlx.core as mx
+
+        # Get all parameters as a nested dictionary and convert to numpy arrays
+        params = self.parameters()
+
+        def convert_to_numpy(obj):
+            if isinstance(obj, mx.array):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: convert_to_numpy(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_to_numpy(item) for item in obj]
+            else:
+                return obj
+
+        return convert_to_numpy(params)
+
+    def load_state_dict(self, state_dict: dict[str, Any]) -> None:
+        """Load parameters from a state dictionary.
+
+        Parameters
+        ----------
+        state_dict
+            Dictionary containing model parameters.
+        """
+        import mlx.core as mx
+
+        def convert_to_mlx(obj):
+            if isinstance(obj, list):
+                # Check if it's a list of numbers (i.e., an array)
+                if obj and isinstance(obj[0], (int, float)):
+                    return mx.array(obj)
+                elif obj and isinstance(obj[0], list):
+                    return mx.array(obj)
+                else:
+                    return [convert_to_mlx(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {k: convert_to_mlx(v) for k, v in obj.items()}
+            else:
+                return obj
+
+        mlx_params = convert_to_mlx(state_dict)
+        self.update(mlx_params)
+
+    def on_load(self, model, **kwargs) -> None:
+        """Callback function run after loading a saved model.
+
+        This method is called during model loading to perform any necessary
+        post-load initialization. For MLX models, this is a no-op since
+        MLX doesn't use Pyro or require special parameter store handling.
+
+        Parameters
+        ----------
+        model
+            The model instance being loaded.
+        **kwargs
+            Additional keyword arguments (e.g., pyro_param_store for Pyro models).
+        """
+        pass
+
     def _get_inference_input(self, tensors: dict[str, mx.array]) -> dict[str, mx.array]:
         """Get input for the inference model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
