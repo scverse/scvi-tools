@@ -667,7 +667,7 @@ def test_scanvi_interpretability_ig(unlabeled_cat: str):
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    model = SCANVI(adata, n_latent=10)
+    model = SCANVI(adata, n_latent=10, encode_covariates=True)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
     # get the IG for all data

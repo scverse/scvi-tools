@@ -5,7 +5,22 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.4
 
-### 1.4.1 (2025-XX-XX)
+### 1.4.2 (2025-XX-XX)
+
+#### Added
+
+#### Fixed
+
+- Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
+- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+
+#### Changed
+
+- Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
+
+#### Removed
+
+### 1.4.1 (2025-12-10)
 
 #### Added
 
@@ -1689,8 +1704,8 @@ These breaking changes do not affect the user API, though will impact model deve
 - Fix `SaveBestState` warning ([#1024])
 - New default SCANVI max epochs if loaded with pretrained SCVI model ([#1025]), restore old
     `<v0.9` behavior.
-- Fix marginal log likelihood computation, which was only being computed on the final minibatch of a
-    dataloader. This bug was introduced in the `0.9.X` versions ([#1033]).
+- Fix marginal log likelihood computation, which was only being computed on the final minibatch of
+    a dataloader. This bug was introduced in the `0.9.X` versions ([#1033]).
 - Fix bug where extra categoricals were not properly extended in `transfer_anndata_setup` ([#1030]).
 
 #### Contributors

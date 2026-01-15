@@ -688,6 +688,7 @@ class AdversarialTrainingPlan(TrainingPlan):
         inference_outputs, _, scvi_loss = self.forward(batch, loss_kwargs=self.loss_kwargs)
         z = inference_outputs["z"]
         loss = scvi_loss.loss
+        orig_loss = loss
         # fool classifier if doing adversarial training
         if kappa > 0 and self.adversarial_classifier is not False:
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
@@ -716,6 +717,8 @@ class AdversarialTrainingPlan(TrainingPlan):
         # next part is for the usage of scib-metrics autotune with scvi
         if scvi_loss.extra_metrics is not None and len(scvi_loss.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(scvi_loss.extra_metrics, "training")
+
+        return orig_loss
 
     def on_train_epoch_end(self):
         """Update the learning rate via scheduler steps."""
@@ -1179,6 +1182,7 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
         inference_outputs, _, loss_output = self.forward(full_dataset, loss_kwargs=input_kwargs)
         z = inference_outputs["z"]
         loss = loss_output.loss
+        orig_loss = loss
         # fool classifier if doing adversarial training
         if self.adversarial_classifier is not False:
             fool_loss = self.loss_adversarial_classifier(z, batch_tensor, False)
@@ -1217,6 +1221,8 @@ class SemiSupervisedAdversarialTrainingPlan(SemiSupervisedTrainingPlan):
         # next part is for the usage of scib-metrics autotune with scvi
         if loss_output.extra_metrics is not None and len(loss_output.extra_metrics.keys()) > 0:
             self.prepare_scib_autotune(loss_output.extra_metrics, "training")
+
+        return orig_loss
 
     def on_train_epoch_end(self):
         """Update the learning rate via scheduler steps."""
