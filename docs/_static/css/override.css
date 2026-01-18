@@ -21,7 +21,9 @@
 .filter-btn:hover {
     color: var(--pst-color-table-row-hover);
     border-color: var(--pst-color-table-row-hover);
-    background-color: var(--pst-color-hover-background); /* Add hover background */
+    background-color: var(
+        --pst-color-hover-background
+    ); /* Add hover background */
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhance shadow on hover */
 }
 
@@ -52,7 +54,7 @@
 
 .card a {
     text-decoration: none;
-    }
+}
 
 .card {
     border-radius: 1rem; /* Uniform border radius */
@@ -112,7 +114,9 @@
 }
 
 .tab:hover {
-    background-color: var(--pst-color-hover-background); /* Add hover background */
+    background-color: var(
+        --pst-color-hover-background
+    ); /* Add hover background */
     color: var(--pst-color-table-row-hover);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Enhance shadow on hover */
 }
