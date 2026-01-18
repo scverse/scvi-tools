@@ -9,6 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Added dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
