@@ -774,3 +774,21 @@ def test_totalvi_logits_backwards_compat(save_path: str):
     model.save(model_path, overwrite=True)
     model = TOTALVI.load(model_path, adata)
     assert isinstance(model.module.decoder.activation_function_bg, ExpActivation)
+
+
+@pytest.mark.parametrize("gene_dispersion", ["gene", "gene-batch"])
+@pytest.mark.parametrize("protein_dispersion", ["protein", "protein-batch"])
+def test_totalvi_dispersion(gene_dispersion: str, protein_dispersion: str):
+    adata = synthetic_iid()
+    TOTALVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        protein_names_uns_key="protein_names",
+    )
+    model = TOTALVI(
+        adata,
+        gene_dispersion=gene_dispersion,
+        protein_dispersion=protein_dispersion,
+    )
+    model.train(1)
