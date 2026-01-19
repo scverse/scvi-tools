@@ -10,6 +10,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Added
 
 - Added dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+- Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
+    {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3679`.
 
 #### Fixed
 
