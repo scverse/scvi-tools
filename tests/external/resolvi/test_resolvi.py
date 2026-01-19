@@ -9,8 +9,8 @@ from scvi.external import RESOLVI
 def adata():
     adata = synthetic_iid(
         generate_coordinates=True,
-        n_regions=0,
-        n_proteins=0,
+        n_regions=5,
+        n_proteins=10,
     )
     adata.obsm["X_spatial"] = adata.obsm["coordinates"]
     print(adata)
@@ -125,3 +125,13 @@ def test_resolvi_scarches(adata):
         query_adata, num_samples=3, soft=False
     )
     query_adata.obsm["X_resolVI"] = query_resolvi.get_latent_representation(query_adata)
+
+
+@pytest.mark.parametrize("weights", ["uniform", "importance"])
+@pytest.mark.parametrize("n_samples", [1, 3])
+@pytest.mark.parametrize("run_IS_DE", [False, True])
+def test_resolvi_differential_expression_IS(adata, weights: str, n_samples: int, run_IS_DE: bool):
+    RESOLVI.setup_anndata(adata)
+    model = RESOLVI(adata)
+    model.train(max_epochs=1)
+    model.differential_expression(groupby="labels", run_IS_DE=run_IS_DE, n_samples=n_samples)
