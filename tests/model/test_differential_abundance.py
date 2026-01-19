@@ -47,6 +47,11 @@ def model(request, adata, mdata):
 
     if model_cls is SCVI or model_cls is RESOLVI:
         model_cls.setup_anndata(adata=adata, batch_key="batch")
+    elif model_cls is RESOLVI:
+        model_cls.setup_anndata(adata=adata, batch_key="batch")
+        model_inst = model_cls(adata)
+        model_inst.train(max_epochs=2)
+        return model_inst
     elif model_cls is SCANVI:
         model_cls.setup_anndata(
             adata=adata, labels_key="labels", unlabeled_category="NA", batch_key="batch"
