@@ -418,3 +418,24 @@ def test_scviva_scarches_same_features(split_ref_query_adata):
         ).shape[0]
         == query_adata.shape[0]
     )
+
+
+@pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-label", "gene-cell"])
+def test_scviva_dispersion(adata: AnnData, dispersion: str):
+    SCVIVA.preprocessing_anndata(
+        adata,
+        k_nn=K_NN,
+        **setup_kwargs,
+    )
+
+    SCVIVA.setup_anndata(
+        adata,
+        layer="counts",
+        batch_key="batch",
+        **setup_kwargs,
+    )
+
+    model = SCVIVA(adata, dispersion=dispersion)
+    model.train(
+        max_epochs=2,
+    )

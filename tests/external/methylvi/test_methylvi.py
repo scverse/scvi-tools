@@ -5,6 +5,30 @@ from scvi.data import synthetic_iid
 from scvi.external import METHYLVI
 
 
+@pytest.mark.parametrize("dispersion", ["region", "region-cell"])
+def test_methylvi_dispersion(dispersion: str):
+    adata1 = synthetic_iid()
+    adata1.layers["mc"] = adata1.X
+    adata1.layers["cov"] = adata1.layers["mc"] + 10
+
+    adata2 = synthetic_iid()
+    adata2.layers["mc"] = adata2.X
+    adata2.layers["cov"] = adata2.layers["mc"] + 10
+
+    mdata = MuData({"mod1": adata1, "mod2": adata2})
+
+    METHYLVI.setup_mudata(
+        mdata,
+        mc_layer="mc",
+        cov_layer="cov",
+        methylation_contexts=["mod1", "mod2"],
+        batch_key="batch",
+        modalities={"batch_key": "mod1"},
+    )
+    vae = METHYLVI(mdata, dispersion=dispersion)
+    vae.train(1)
+
+
 def test_methylvi():
     adata1 = synthetic_iid()
     adata1.layers["mc"] = adata1.X
