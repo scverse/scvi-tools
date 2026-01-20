@@ -45,7 +45,7 @@ def mdata():
 def model(request, adata, mdata):
     model_cls = request.param
 
-    if model_cls is SCVI or model_cls is RESOLVI:
+    if model_cls is SCVI:
         model_cls.setup_anndata(adata=adata, batch_key="batch")
     elif model_cls is RESOLVI:
         model_cls.setup_anndata(adata=adata, batch_key="batch")
