@@ -11,6 +11,7 @@ from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
 from scvi.train._callbacks import SaveCheckpoint, ScibCallback
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize("load_best_on_end", [False, True])
 def test_savecheckpoint(load_best_on_end: bool, save_path: str):
     from anndata import AnnData
