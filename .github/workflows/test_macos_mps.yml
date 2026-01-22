@@ -55,10 +55,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m pip install --with-deps "scvi-tools[tests]"
-          python -m pip install --with-deps jax-metal
-          python -m pip install --with-deps coverage
-          python -m pip install --with-deps pytest
+          python -m pip install --system .[tests]
+          python -m pip install jax-metal
+          python -m pip install coverage
+          python -m pip install pytest
 
       - name: Run pytest
         env:

@@ -57,8 +57,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install --system --with-deps "scvi-tools[tests] @ ."
-          python -m uv pip install --system --with-deps cellxgene-census
+          python -m uv pip install --system .[tests]
+          python -m uv pip install --system cellxgene-census
 
       - name: Run pytest
         env:

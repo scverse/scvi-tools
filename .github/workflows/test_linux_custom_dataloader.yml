@@ -55,7 +55,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install --system --with-deps "scvi-tools[tests,dataloaders] @ ."
+          python -m uv pip install --system .[tests,dataloaders]
 
       - name: Run specific custom dataloader pytest
         env:

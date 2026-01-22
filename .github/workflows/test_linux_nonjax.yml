@@ -53,12 +53,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install --system --with-deps "pytest"
-          python -m uv pip install --system --with-deps "pytest-pretty"
-          python -m uv pip install --system --with-deps "coverage"
-          python -m uv pip install --system --with-deps "igraph"
-          python -m uv pip install --system --with-deps "leidenalg"
-          python -m uv pip install --system --with-deps "scvi-tools[autotune,hub,mlflow,file_sharing,regseq,parallel,interpretability] @ ."
+          python -m uv pip install --system "pytest"
+          python -m uv pip install --system "pytest-pretty"
+          python -m uv pip install --system "coverage"
+          python -m uv pip install --system "igraph"
+          python -m uv pip install --system "leidenalg"
+          python -m uv pip install --system .[autotune,hub,mlflow,file_sharing,regseq,parallel,interpretability]
 
       - name: Run pytest
         env:

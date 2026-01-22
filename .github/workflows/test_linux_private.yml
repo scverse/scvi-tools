@@ -64,7 +64,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install --system --with-deps "scvi-tools[tests] @ ."
+          python -m uv pip install --system .[tests]
 
       - name: Run pytest
         env:
