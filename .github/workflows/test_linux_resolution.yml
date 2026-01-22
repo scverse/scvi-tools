@@ -54,7 +54,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel uv
-          python -m uv pip install ${{ matrix.install-flags }} --system .[tests]
+          python -m uv pip install ${{ matrix.install-flags }} --system "scvi-tools[tests] @ ."
+          pip install git+https://github.com/scverse/anndata
 
       - name: Run pytest
         env:

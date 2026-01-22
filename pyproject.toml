@@ -32,10 +32,8 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
-[tool.hatch.metadata]
-allow-direct-references = true #TODO remove once Anndata is released
 dependencies = [
-    "anndata @ git+https://github.com/scverse/anndata.git@main", #TODO remove once Anndata released
+    "anndata",
     "docrep>=0.3.2",
     "lightning>=2.0",
     "ml-collections",
