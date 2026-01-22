@@ -32,15 +32,17 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
+[tool.hatch.metadata]
+allow-direct-references = true #TODO remove once Anndata is released
 dependencies = [
-    "anndata @ git+https://github.com/scverse/anndata.git@main",
+    "anndata @ git+https://github.com/scverse/anndata.git@main", #TODO remove once Anndata released
     "docrep>=0.3.2",
     "lightning>=2.0",
     "ml-collections",
     "mudata",
     "numba>=0.60.0",
     "numpy",
-    "pandas>=3.0.0",
+    "pandas>=3.0.0", #TODO remove pinning once Anndata is released
     "pyro-ppl",
     "rich",
     "scanpy[skmisc]>=1.10",
