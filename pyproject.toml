@@ -64,7 +64,7 @@ metal = ["torchvision", "torchaudio", "jax-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "sphinx",
+    "sphinx<9",
     "ipython",
     "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",

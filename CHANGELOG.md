@@ -9,6 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Added dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
@@ -17,6 +19,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Changed
 
 - Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
+- Change explicit training configuration objects for scvi-tools, reducing reliance on loose kwargs
+    and improving clarity across training APIs, {pr}`3666`.
 
 #### Removed
 

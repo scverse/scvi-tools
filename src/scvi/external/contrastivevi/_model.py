@@ -31,6 +31,7 @@ from scvi.model._utils import (
 from scvi.model.base import BaseModelClass
 from scvi.model.base._de_core import _de_core
 from scvi.train import TrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import devices_dsp
 
@@ -185,7 +186,7 @@ class ContrastiveVI(BaseModelClass):
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         data_splitter = self._data_splitter_cls(
