@@ -33,7 +33,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata @ git+https://github.com/scverse/anndata.git@main",
+    "git+https://github.com/scverse/anndata",
     "docrep>=0.3.2",
     "lightning>=2.0",
     "ml-collections",
