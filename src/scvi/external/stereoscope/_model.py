@@ -12,6 +12,7 @@ from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
 from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -117,10 +118,8 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         update_dict = {
             "lr": lr,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         super().train(
             max_epochs=max_epochs,
@@ -339,10 +338,8 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         update_dict = {
             "lr": lr,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
         super().train(
             max_epochs=max_epochs,
             accelerator=accelerator,
