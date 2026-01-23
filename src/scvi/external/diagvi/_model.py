@@ -21,7 +21,7 @@ from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import AnnDataLoader, DataSplitter
 from scvi.external.diagvi._utils import (
-    _check_guidance_graph_consisteny,
+    _check_guidance_graph_consistency,
     _construct_guidance_graph,
     _load_saved_diagvi_files,
 )
@@ -125,7 +125,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             self.guidance_graph = guidance_graph
         else:
             self.guidance_graph = _construct_guidance_graph(self.adatas, mapping_df)
-        _check_guidance_graph_consisteny(self.guidance_graph, adatas)
+        _check_guidance_graph_consistency(self.guidance_graph, self.adatas)
         
         self.module = DIAGVAE(
             n_inputs=n_inputs,
