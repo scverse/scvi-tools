@@ -213,33 +213,33 @@ class DecoderDualPathway(nn.Module):
 class DecoderProtein(nn.Module):
     """Protein decoder with optional background/foreground separation.
 
-        Decodes latent representations to protein expression parameters using
-        neural networks for flexible foreground scaling and mixture modeling.
+    Decodes latent representations to protein expression parameters using
+    neural networks for flexible foreground scaling and mixture modeling.
 
-        Parameters
-        ----------
-        n_input
-            Dimensionality of the input (cell latent space).
-        n_output_proteins
-            Number of protein features.
-        n_batches
-            Number of batches.
-        n_cat_list
-            List of categorical covariate dimensions.
-        dropout_rate
-            Dropout rate for hidden layers.
-        use_batch_norm
-            Whether to use batch normalization.
-        use_layer_norm
-            Whether to use layer normalization.
-        n_hidden
-            Number of hidden units in FC layers.
-        n_layers
-            Number of hidden layers.
-        common_scale
-            If True, use shared scale parameters for background/foreground.
-            If False, use separate parameters for each.
-        """
+    Parameters
+    ----------
+    n_input
+        Dimensionality of the input (cell latent space).
+    n_output_proteins
+        Number of protein features.
+    n_batches
+        Number of batches.
+    n_cat_list
+        List of categorical covariate dimensions.
+    dropout_rate
+        Dropout rate for hidden layers.
+    use_batch_norm
+        Whether to use batch normalization.
+    use_layer_norm
+        Whether to use layer normalization.
+    n_hidden
+        Number of hidden units in FC layers.
+    n_layers
+        Number of hidden layers.
+    common_scale
+        If True, use shared scale parameters for background/foreground.
+        If False, use separate parameters for each.
+    """
     
     def __init__(
         self,
