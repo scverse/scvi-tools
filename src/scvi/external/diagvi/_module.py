@@ -62,8 +62,6 @@ class DIAGVAE(BaseModuleClass):
         Number of labels/classes for each modality.
     modality_likelihoods : dict[str, str]
         Likelihood model for each modality (e.g., 'nb', 'zinb', 'nbmixture', 'normal').
-    modalities : dict[str, str]
-        Modality type for each input (e.g., 'rna', 'protein').
     guidance_graph : torch_geometric.data.Data
         Graph object encoding feature correspondences.
     use_gmm_prior : dict[str, bool]
@@ -88,7 +86,6 @@ class DIAGVAE(BaseModuleClass):
         n_batches: dict[int],
         n_labels: dict[int],
         modality_likelihoods: dict[str],
-        modalities: dict[str],
         guidance_graph,
         use_gmm_prior: dict[bool],
         semi_supervised: dict[bool],
@@ -114,7 +111,6 @@ class DIAGVAE(BaseModuleClass):
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
         self.modality_likelihoods = modality_likelihoods
-        self.modalities = modalities
         self.guidance_graph = guidance_graph
         self.n_latent = n_latent
 
