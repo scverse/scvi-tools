@@ -1,24 +1,49 @@
+from __future__ import annotations
+
 import logging
 import os
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import anndata as ad
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from anndata import AnnData
 
 from scvi.data._download import _download
-
-# from torch_geometric.data import Data
-# from torch_geometric.utils import structured_negative_sampling
 from scvi.utils import dependencies
+
+if TYPE_CHECKING:
+    from torch_geometric.data import Data
 
 logger = logging.getLogger(__name__)
 
 
 @dependencies("torch_geometric")
-def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
+def _construct_guidance_graph(
+    adatas: dict[str, AnnData],
+    mapping_df: pd.DataFrame,
+    weight: float = 1.0,
+    sign: float = 1.0,
+) -> Data:
+    """Constructs a guidance graph for DiagVI.
+
+    Parameters
+    ----------
+    adatas
+        A dictionary of AnnData objects for each modality.
+    mapping_df
+        A DataFrame defining feature mappings between modalities. If None, uses overlapping features.
+    weight
+        The weight assigned to each edge in the graph.
+    sign
+        The sign assigned to each edge in the graph.
+
+    Returns
+    -------
+        A PyTorch Geometric Data object representing the guidance graph.
+    """
     from torch_geometric.data import Data
 
     if len(adatas) != 2:
@@ -94,7 +119,21 @@ def _construct_guidance_graph(adatas, mapping_df, weight=1.0, sign=1):
     )
 
 
-def _check_guidance_graph_consisteny(graph, adatas: dict[AnnData]):
+def _check_guidance_graph_consistency(graph: Data, adatas: dict[str, AnnData]):
+    """Performs consistency checks on the guidance graph.
+
+    Parameters
+    ----------
+    graph
+        A PyTorch Geometric Data object representing the guidance graph.
+    adatas
+        A dictionary of AnnData objects for each modality.
+    
+    Raises
+    ------
+        ValueError
+            If any consistency check fails.
+    """
     n_expected = sum(adata.shape[1] for adata in adatas.values())
 
     # 1. Check variable coverage via counts
@@ -134,7 +173,28 @@ def _load_saved_diagvi_files(
     prefix: str | None = None,
     map_location: Literal["cpu", "cuda"] | None = None,
     backup_url: str | None = None,
-) -> tuple[dict, dict, np.ndarray, np.ndarray, dict, AnnData | None, AnnData | None]:
+) -> tuple[dict, dict[str, np.ndarray], dict, dict[str, AnnData | None]]:
+    """Loads saved DiagVI model and AnnData files from a directory.
+
+    Parameters
+    ----------
+    dir_path
+        Directory path where the model and AnnData files are stored.
+    prefix
+        Optional prefix for the file names.
+    map_location
+        Device mapping for loading the model.
+    backup_url
+        Optional URL to download the model file if not found locally.
+    
+    Returns
+    -------
+        A tuple containing:
+        - attr_dict: Dictionary of model attributes.
+        - var_names: Dictionary of variable names for each modality.
+        - model_state_dict: State dictionary of the model.
+        - adatas: Dictionary of AnnData objects for each modality.
+    """
     file_name_prefix = prefix or ""
 
     model_file_name = f"{file_name_prefix}model.pt"
@@ -170,8 +230,20 @@ def _load_saved_diagvi_files(
 
 
 @dependencies("torch_geometric")
-def compute_graph_loss(graph, feature_embeddings):
-    # from torch_geometric.utils import structured_negative_sampling
+def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.Tensor:
+    """Computes the graph loss using positive and negative sampling.
+
+    Parameters
+    ----------
+    graph
+        A PyTorch Geometric Data object representing the guidance graph.
+    feature_embeddings
+        A tensor of feature embeddings.
+
+    Returns
+    -------
+        The computed graph loss as a tensor.
+    """
     import torch_geometric
 
     edge_index = graph.edge_index
@@ -196,7 +268,26 @@ def compute_graph_loss(graph, feature_embeddings):
     return total_loss
 
 
-def compute_sinkhorn_lam(lam_sinkhorn, epoch_current, epoch_sinkhorn):
+def compute_sinkhorn_lam(
+    lam_sinkhorn: float,
+    epoch_current: int,
+    epoch_sinkhorn: int
+) -> float:
+    """Computes the current Sinkhorn loss weight with optional warm-up.
+
+    Parameters
+    ----------
+    lam_sinkhorn
+        The base weight for the Sinkhorn loss.
+    epoch_current
+        The current training epoch.
+    epoch_sinkhorn
+        The epoch at which the Sinkhorn loss weight reaches its full value.
+    
+    Returns
+    -------
+        The current Sinkhorn loss weight.
+    """
     lam_sinkhorn_curr = lam_sinkhorn
     if epoch_sinkhorn:
         if epoch_current < epoch_sinkhorn:
@@ -204,7 +295,20 @@ def compute_sinkhorn_lam(lam_sinkhorn, epoch_current, epoch_sinkhorn):
     return lam_sinkhorn_curr
 
 
-def kl_divergence_graph(mu, logvar):
+def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
+    """Computes the KL divergence for graph latent variables.
+
+    Parameters
+    ----------
+    mu
+        Mean tensor of the latent variables.
+    logvar
+        Log-variance tensor of the latent variables.
+
+    Returns
+    -------
+        The mean KL divergence as a tensor.
+    """
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
     kl_mean = kl.mean()
     return kl_mean
