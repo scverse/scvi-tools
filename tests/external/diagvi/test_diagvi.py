@@ -730,3 +730,126 @@ def test_construct_custom_guidance_graph_self_loops(guidance_graph_adatas):
     # Check that all edges are self-loops (src == dst)
     src, dst = graph.edge_index
     assert (src == dst).all()
+
+
+# =============================================================================
+# Tests for DiagTrainingPlan lam_class initialization and loss_annealing
+# =============================================================================
+
+
+class MockModule(torch.nn.Module):
+    """Mock module for testing DiagTrainingPlan initialization."""
+
+    def __init__(self, semi_supervised):
+        super().__init__()
+        self.semi_supervised = semi_supervised
+        # TrainingPlan expects these attributes
+        self.linear = torch.nn.Linear(1, 1)
+
+    def loss(self, *args, **kwargs):
+        """Mock loss method required by TrainingPlan."""
+        pass
+
+
+@pytest.mark.parametrize(
+    ("semi_supervised", "expected_lam_class"),
+    [
+        # Boolean cases
+        (True, 100.0),
+        (False, 0.0),
+        # Dict cases with at least one True
+        ({"diss": True, "spatial": False}, 100.0),
+        ({"diss": False, "spatial": True}, 100.0),
+        ({"diss": True, "spatial": True}, 100.0),
+        # Dict cases with all False
+        ({"diss": False, "spatial": False}, 0.0),
+    ],
+)
+def test_lam_class_initialization_auto(semi_supervised, expected_lam_class):
+    """Test that lam_class is automatically set based on semi_supervised."""
+    from scvi.external.diagvi._task import DiagTrainingPlan
+
+    mock_module = MockModule(semi_supervised)
+    plan = DiagTrainingPlan(mock_module)
+
+    assert plan.lam_class == expected_lam_class, (
+        f"Expected lam_class={expected_lam_class} for semi_supervised={semi_supervised}, "
+        f"got {plan.lam_class}"
+    )
+
+
+@pytest.mark.parametrize("explicit_lam_class", [0.0, 50.0, 100.0, 200.0])
+def test_lam_class_initialization_explicit(explicit_lam_class):
+    """Test that explicit lam_class values are respected."""
+    from scvi.external.diagvi._task import DiagTrainingPlan
+
+    # Even with semi_supervised=True, explicit value should be used
+    mock_module = MockModule(semi_supervised=True)
+    plan = DiagTrainingPlan(mock_module, lam_class=explicit_lam_class)
+
+    assert plan.lam_class == explicit_lam_class, (
+        f"Expected explicit lam_class={explicit_lam_class}, got {plan.lam_class}"
+    )
+
+
+def test_lam_class_initialization_no_semi_supervised_attr():
+    """Test lam_class defaults to 0.0 when module has no semi_supervised attribute."""
+    from scvi.external.diagvi._task import DiagTrainingPlan
+
+    class ModuleWithoutSemiSupervised(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.linear = torch.nn.Linear(1, 1)
+
+        def loss(self, *args, **kwargs):
+            """Mock loss method required by TrainingPlan."""
+            pass
+
+    mock_module = ModuleWithoutSemiSupervised()
+    plan = DiagTrainingPlan(mock_module)
+
+    assert plan.lam_class == 0.0, (
+        f"Expected lam_class=0.0 when semi_supervised attr is missing, got {plan.lam_class}"
+    )
+
+
+def test_diagvi_training_with_loss_annealing(adata_seq, adata_spatial):
+    """Test training with loss_annealing=True to cover the annealing branch."""
+    DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
+    DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb")
+    model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
+
+    # Train with loss_annealing enabled
+    model.train(
+        max_epochs=2,
+        batch_size=16,
+        plan_kwargs={
+            "loss_annealing": True,
+            "lam_sinkhorn": 1.0,
+            "sinkhorn_blur": 1.0,
+            "sinkhorn_reach": 1.0,
+        },
+    )
+
+    assert model.is_trained_ is True
+
+
+def test_anneal_param_function():
+    """Test the _anneal_param helper function directly."""
+    from scvi.external.diagvi._task import _anneal_param
+
+    # Test at epoch 0 (start of training)
+    result = _anneal_param(current_epoch=0, max_epochs=30, init_value=10.0, target_value=1.0)
+    assert result == 10.0, f"Expected 10.0 at epoch 0, got {result}"
+
+    # Test at epoch 5 (halfway through annealing period of 10 epochs)
+    result = _anneal_param(current_epoch=5, max_epochs=30, init_value=10.0, target_value=1.0)
+    assert result == 5.5, f"Expected 5.5 at epoch 5, got {result}"
+
+    # Test at epoch 10 (end of annealing period)
+    result = _anneal_param(current_epoch=10, max_epochs=30, init_value=10.0, target_value=1.0)
+    assert result == 1.0, f"Expected 1.0 at epoch 10, got {result}"
+
+    # Test at epoch 20 (after annealing period)
+    result = _anneal_param(current_epoch=20, max_epochs=30, init_value=10.0, target_value=1.0)
+    assert result == 1.0, f"Expected 1.0 at epoch 20, got {result}"
