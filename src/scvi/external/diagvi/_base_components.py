@@ -1,18 +1,32 @@
-from collections.abc import Iterable
+"""Base neural network components for DIAGVI model."""
+
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-# from torch_geometric.nn import GCNConv
-from scvi.nn import FCLayers
 from scvi.utils import dependencies
 
 EPS = 1e-8
 
 
-class DecoderRNA(nn.Module):  # integrate the batch index
+class DecoderRNA(nn.Module):
+    """Decoder for RNA modality using feature embeddings.
+
+    Decodes latent representations to RNA expression using batch-specific
+    scale and bias parameters combined with feature embeddings from the
+    guidance graph.
+
+    Parameters
+    ----------
+    n_output
+        Number of output features (genes).
+    n_batches
+        Number of batches in the data.
+    """
+
     def __init__(
         self,
         n_output: int,
@@ -34,8 +48,26 @@ class DecoderRNA(nn.Module):  # integrate the batch index
         l: torch.Tensor,
         batch_index: torch.Tensor,
         v: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        # bring batch index in the right dimension
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Decode latent representation to RNA expression parameters.
+
+        Parameters
+        ----------
+        u
+            Latent representation tensor of shape (n_cells, n_latent).
+        l
+            Log library size tensor of shape (n_cells, 1).
+        batch_index
+            Batch indices tensor of shape (n_cells,) or (n_cells, 1).
+        v
+            Feature embedding tensor from graph encoder.
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+            Tuple of (px_scale, px_r, px_rate, px_dropout) for negative binomial
+            distribution parameters.
+        """
         if batch_index.dim() > 1:
             batch_index = batch_index.squeeze(-1)
 
@@ -59,7 +91,20 @@ class DecoderRNA(nn.Module):  # integrate the batch index
         return px_scale, px_r, px_rate, px_dropout
 
 
-class DecoderProteinGLUE(nn.Module):  # integrate the batch index
+class DecoderProteinGLUE(nn.Module):
+    """Decoder for protein modality using GLUE-style mixture model.
+
+    Decodes latent representations to protein expression using a mixture
+    of two components with batch-specific parameters.
+
+    Parameters
+    ----------
+    n_output
+        Number of output features (proteins).
+    n_batches
+        Number of batches in the data.
+    """
+
     def __init__(
         self,
         n_output: int,
@@ -82,8 +127,31 @@ class DecoderProteinGLUE(nn.Module):  # integrate the batch index
         l: torch.Tensor,
         batch_index: torch.Tensor,
         v: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        # bring batch index in the right dimension
+    ) -> tuple[
+        tuple[torch.Tensor, torch.Tensor],
+        torch.Tensor,
+        tuple[torch.Tensor, torch.Tensor],
+        torch.Tensor,
+    ]:
+        """Decode latent representation to protein expression parameters.
+
+        Parameters
+        ----------
+        u
+            Latent representation tensor of shape (n_cells, n_latent).
+        l
+            Log library size tensor of shape (n_cells, 1).
+        batch_index
+            Batch indices tensor of shape (n_cells,) or (n_cells, 1).
+        v
+            Feature embedding tensor from graph encoder.
+
+        Returns
+        -------
+        tuple
+            Tuple of ((px_scale_1, px_scale_2), px_r, (px_rate_1, px_rate_2),
+            mixture_logits) for negative binomial mixture distribution.
+        """
         if batch_index.dim() > 1:
             batch_index = batch_index.squeeze(-1)
 
@@ -115,163 +183,44 @@ class DecoderProteinGLUE(nn.Module):  # integrate the batch index
         return (px_scale_1, px_scale_2), px_r, (px_rate_1, px_rate_2), mixture_logits
 
 
-class DecoderProtein(nn.Module):
-    def __init__(
-        self,
-        n_input: int,
-        n_output_proteins: int,
-        n_batches: int,
-        n_cat_list: Iterable[int] = None,
-        dropout_rate: float = 0,
-        use_batch_norm: float = True,
-        use_layer_norm: float = False,
-        n_hidden: int = 256,
-        n_layers: int = 1,
-        common_scale: bool = True,
-    ):
-        super().__init__()
-        self.n_output_proteins = n_output_proteins
-        self.n_batches = n_batches
-        self.common_scale = common_scale
+class GraphEncoder(nn.Module):
+    """Graph convolutional encoder for feature embeddings.
 
-        if common_scale:
-            self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-            self.bias = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+    Encodes feature nodes in the guidance graph to learn feature
+    embeddings that capture cross-modality relationships.
 
-        else:
-            self.scale_lin_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-            self.bias_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
+    Parameters
+    ----------
+    vnum
+        Number of nodes (features) in the graph.
+    out_features
+        Dimensionality of the output feature embeddings.
+    """
 
-            self.scale_lin_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-            self.bias_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-
-        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-
-        linear_args = {
-            "n_layers": 1,
-            "use_activation": False,
-            "use_batch_norm": False,
-            "use_layer_norm": False,
-            "dropout_rate": 0,
-        }
-
-        # foreground scale network
-        self.py_fore_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
-            n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
-        )
-        # bredict increment factor making fg > bg
-        self.py_fore_scale_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
-            n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=True,
-            use_batch_norm=False,
-            use_layer_norm=False,
-            dropout_rate=0,
-            activation_fn=nn.ReLU,
-        )
-
-        # mixing probability network
-        self.sigmoid_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
-            n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
-        )
-        # predict mixing probability - (1 - protein_mixing) = fg probability
-        self.py_background_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
-            n_cat_list=n_cat_list,
-            **linear_args,
-        )
-
-    def forward(
-        self, u: torch.Tensor, l: torch.Tensor, batch_index: torch.Tensor, v: torch.Tensor
-    ):
-        # bring batch index in the right dimension
-        if batch_index.dim() > 1:
-            batch_index = batch_index.squeeze(-1)
-
-        py_ = {}
-        py_["r"] = self.log_theta[batch_index]  # px_r
-
-        if self.common_scale:
-            scale = F.softplus(self.scale_lin[batch_index])
-            bias = self.bias[batch_index]
-
-            # parametrize the background mean using the feature/cell matrix product
-            raw_px_scale = scale * (u @ v.T) + bias
-            py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
-            # for fg different act function (positive + 1)
-            py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
-
-            # learn foreground scaling factor with a NN
-            py_fore = self.py_fore_decoder(u, batch_index)
-            py_fore_cat_z = torch.cat([py_fore, u], dim=-1)
-            py_["scale_fore"] = self.py_fore_scale_decoder(py_fore_cat_z, batch_index) + 1 + 1e-8
-            py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
-
-        else:
-            scale_back = F.softplus(self.scale_lin_back[batch_index])
-            bias_back = self.bias_back[batch_index]
-
-            scale_fore = F.softplus(self.scale_lin_fore[batch_index])
-            bias_fore = self.bias_fore[batch_index]
-
-            # parametrize the background mean using the feature/cell matrix product
-            raw_px_scale = scale_back * (u @ v.T) + bias_back
-            py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
-            # for fg different act function (positive + 1)
-            py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
-
-            # parametrize the background mean using the feature/cell matrix product
-            raw_px_scale = scale_fore * (u @ v.T) + bias_fore
-            activation_func = nn.ReLU()
-            py_["scale_fore"] = activation_func(raw_px_scale) + 1 + 1e-8
-            # for fg different act function (positive + 1)
-            py_["rate_fore"] = torch.exp(l) * py_["scale_fore"]  # calculate mean
-
-        # learn the mixing logits with a NN
-        p_mixing = self.sigmoid_decoder(u, batch_index)
-        p_mixing_cat_z = torch.cat([p_mixing, u], dim=-1)
-
-        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, batch_index)
-
-        return (
-            (py_["scale_back"], py_["scale_fore"]),
-            py_["r"],
-            (py_["rate_back"], py_["rate_fore"]),
-            py_["mixing"],
-        )
-
-
-class GraphEncoder_glue(nn.Module):
     @dependencies("torch_geometric")
     def __init__(self, vnum: int, out_features: int):
         import torch_geometric
 
         super().__init__()
         self.vrepr = nn.Parameter(torch.zeros(vnum, out_features))
-        self.conv = torch_geometric.nn.GCNConv(
-            out_features, out_features
-        )  # evtl auch GAT - user parameter
+        self.conv = torch_geometric.nn.GCNConv(out_features, out_features)
         self.loc = nn.Linear(out_features, out_features)
         self.std_lin = nn.Linear(out_features, out_features)
 
-    def forward(self, edge_index):
+    def forward(self, edge_index: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Encode graph to feature embeddings.
+
+        Parameters
+        ----------
+        edge_index
+            Edge index tensor of shape (2, n_edges).
+
+        Returns
+        -------
+        tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+            Tuple of (z, mu, logvar) where z is the sampled embedding,
+            mu is the mean, and logvar is the log variance.
+        """
         h = self.conv(self.vrepr, edge_index)
         loc = self.loc(h)
         std = F.softplus(self.std_lin(h)) + EPS
