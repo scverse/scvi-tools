@@ -72,8 +72,6 @@ class DiagTrainingPlan(TrainingPlan):
         Reach parameter for unbalanced optimal transport.
     lr
         Learning rate.
-    n_epochs_sinkhorn_warmup
-        Number of epochs for Sinkhorn warmup. If None, no warmup.
     loss_annealing
         Whether to anneal loss parameters during training.
     *args
@@ -94,7 +92,6 @@ class DiagTrainingPlan(TrainingPlan):
         sinkhorn_blur: float = 1.0,
         sinkhorn_reach: float = 1.0,
         lr: float = 1e-3,
-        n_epochs_sinkhorn_warmup: int | None = None,
         loss_annealing: bool = False,
         *args,
         **kwargs,
@@ -126,7 +123,6 @@ class DiagTrainingPlan(TrainingPlan):
 
         # Training parameters
         self.lr = lr
-        self.n_epochs_sinkhorn_warmup = n_epochs_sinkhorn_warmup
         self.loss_annealing = loss_annealing
 
         # Initial values for annealing (10x larger for smoother optimization start)
@@ -168,6 +164,7 @@ class DiagTrainingPlan(TrainingPlan):
             )
 
             # Log per-modality metrics
+            # validation and training step
             if log_prefix:
                 self.log(
                     f"{log_prefix}loss_{name}",
@@ -177,6 +174,7 @@ class DiagTrainingPlan(TrainingPlan):
                     on_step=True,
                 )
 
+            # only training step
             if log_prefix == "train_":
                 reconstruction_loss = torch.mean(
                     loss_output.reconstruction_loss["reconstruction_loss"]
