@@ -12,7 +12,6 @@ import numpy as np
 import scipy.sparse
 import torch
 from mudata import MuData
-from sklearn.neighbors import NearestNeighbors
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS, settings
@@ -551,41 +550,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             latents[input_name] = latent
         return latents
 
-    def _compute_per_feature_confidence(self, feature_embedding, conf_method):
-        """Compute confidence scores for each feature based on kNN distances.
-
-        Uses k-nearest neighbors in the feature embedding space to estimate
-        how well each feature is represented. Lower distances indicate higher
-        confidence.
-
-        Parameters
-        ----------
-        feature_embedding : np.ndarray
-            Feature embedding matrix of shape (n_features, n_dims).
-        conf_method : {'min', 'mean', 'max', 'median'}
-            Method for aggregating kNN distances into a single score per feature.
-
-        Returns
-        -------
-        np.ndarray
-            Per-feature confidence scores (lower values = higher confidence).
-        """
-        knn = NearestNeighbors(n_neighbors=11, metric="cosine")
-        knn.fit(feature_embedding)
-        distances, indices = knn.kneighbors(feature_embedding)
-        distances = distances[:, 1:]
-        indices = indices[:, 1:]
-        score = []
-        if conf_method == "min":
-            score = distances.min(axis=1)
-        elif conf_method == "mean":
-            score = distances.mean(axis=1)
-        elif conf_method == "max":
-            score = distances.max(axis=1)
-        elif conf_method == "median":
-            score = np.median(distances, axis=1)
-        return score
-
     @torch.inference_mode()
     def get_imputed_values(
         self,
@@ -691,16 +655,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
             target_name = target_names[0]
             generative_output = self.module.generative(**generative_input, mode=target_name)
             reconstructed_counts.append(generative_output["px_rate"].cpu().detach())
-            # extract the final feature embedding
-            feature_embedding = inference_output["v"].cpu().detach().numpy()
-        score = self._compute_per_feature_confidence(feature_embedding, conf_method)
-        if min_max_scale:
-            if len(score) > 0:
-                score_norm = (score - score.min()) / (score.max() - score.min())
-            else:
-                score_norm = score.copy()
+
         reconstructed_count = torch.cat(reconstructed_counts).numpy()
-        return reconstructed_count, score_norm
+        return reconstructed_count
 
     def save(
         self,
