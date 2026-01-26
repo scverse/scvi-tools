@@ -214,6 +214,7 @@ class DIAGVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         mode: str | None = None,
+        deterministic: bool = False,
     ) -> dict[str, torch.Tensor]:
         """Run the inference (encoder and graph) step for a given modality.
 
@@ -237,6 +238,10 @@ class DIAGVAE(BaseModuleClass):
 
         # graph inference
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
+
+        if deterministic:
+            v_all = mu_all
+
         v = v_all[getattr(graph, f"{mode}_indices")]
         other_mode = [m for m in self.input_names if m != mode][0]
         v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
@@ -246,6 +251,10 @@ class DIAGVAE(BaseModuleClass):
             qz, z = self.encoder_0(x)
         else:
             qz, z = self.encoder_1(x)
+
+        if deterministic:
+            z = qz.loc
+
         return {
             MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.Z_KEY: z,

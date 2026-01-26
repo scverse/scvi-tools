@@ -591,6 +591,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         self,
         source_name: str,
         source_adata: AnnData | None = None,
+        deterministic: bool = True,
         batch_size: int = 1024,
         target_batch: int | str | np.ndarray | None = None,
         target_libsize: float | np.ndarray | None = None,
@@ -634,7 +635,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         reconstructed_counts = []
         for tensor in dl:
             inference_output = self.module.inference(
-                **self.module._get_inference_input(tensor), mode=source_name
+                **self.module._get_inference_input(tensor),
+                mode=source_name,
+                deterministic=deterministic,
             )
             # use the feature embedding of the other modality for reconstruction
             inference_output["v"] = inference_output["v_other"]
