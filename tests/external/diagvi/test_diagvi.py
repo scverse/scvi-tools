@@ -114,12 +114,12 @@ def test_diagvi_get_imputed_values(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     # Impute spatial from diss
-    imputed, _ = model.get_imputed_values(source_name="spatial")
+    imputed = model.get_imputed_values(source_name="spatial")
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape[0] == adata_spatial.shape[0]
     assert imputed.shape[1] == adata_seq.shape[1]
     # Impute diss from spatial
-    imputed2, _ = model.get_imputed_values(source_name="diss")
+    imputed2 = model.get_imputed_values(source_name="diss")
     assert isinstance(imputed2, np.ndarray)
     assert imputed2.shape[0] == adata_seq.shape[0]
     assert imputed2.shape[1] == adata_spatial.shape[1]
@@ -153,20 +153,14 @@ def test_get_imputed_values_target_batch_scalar(trained_model, target_batch):
     model, adata_seq, adata_spatial = trained_model
 
     # Impute from spatial to diss
-    imputed, confidence = model.get_imputed_values(
-        source_name="spatial", target_batch=target_batch
-    )
+    imputed = model.get_imputed_values(source_name="spatial", target_batch=target_batch)
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape == (N_OBS_SPATIAL, N_VARS)
-    assert isinstance(confidence, np.ndarray)
-    assert len(confidence) == N_VARS
 
     # Impute from diss to spatial
-    imputed2, confidence2 = model.get_imputed_values(source_name="diss", target_batch=target_batch)
+    imputed2 = model.get_imputed_values(source_name="diss", target_batch=target_batch)
     assert isinstance(imputed2, np.ndarray)
     assert imputed2.shape == (N_OBS_SEQ, N_VARS)
-    assert isinstance(confidence2, np.ndarray)
-    assert len(confidence2) == N_VARS
 
 
 @pytest.mark.parametrize(
@@ -184,13 +178,9 @@ def test_get_imputed_values_target_batch_array(trained_model, batch_array_type):
         # String array matching spatial obs count
         target_batch = np.random.choice(["batch1", "batch2"], size=N_OBS_SPATIAL)
 
-    imputed, confidence = model.get_imputed_values(
-        source_name="spatial", target_batch=target_batch
-    )
+    imputed = model.get_imputed_values(source_name="spatial", target_batch=target_batch)
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape == (N_OBS_SPATIAL, N_VARS)
-    assert isinstance(confidence, np.ndarray)
-    assert len(confidence) == N_VARS
 
 
 @pytest.mark.parametrize("target_libsize", [100.0, 1000.0, 10000.0])
@@ -198,13 +188,9 @@ def test_get_imputed_values_target_libsize_scalar(trained_model, target_libsize)
     """Test get_imputed_values with scalar target_libsize."""
     model, adata_seq, adata_spatial = trained_model
 
-    imputed, confidence = model.get_imputed_values(
-        source_name="spatial", target_libsize=target_libsize
-    )
+    imputed = model.get_imputed_values(source_name="spatial", target_libsize=target_libsize)
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape == (N_OBS_SPATIAL, N_VARS)
-    assert isinstance(confidence, np.ndarray)
-    assert len(confidence) == N_VARS
 
 
 def test_get_imputed_values_target_libsize_array(trained_model):
@@ -214,13 +200,9 @@ def test_get_imputed_values_target_libsize_array(trained_model):
     # Array of library sizes matching obs count
     target_libsize = np.random.uniform(500, 2000, size=N_OBS_SPATIAL)
 
-    imputed, confidence = model.get_imputed_values(
-        source_name="spatial", target_libsize=target_libsize
-    )
+    imputed = model.get_imputed_values(source_name="spatial", target_libsize=target_libsize)
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape == (N_OBS_SPATIAL, N_VARS)
-    assert isinstance(confidence, np.ndarray)
-    assert len(confidence) == N_VARS
 
 
 def test_get_imputed_values_combined_batch_and_libsize(trained_model):
@@ -228,7 +210,7 @@ def test_get_imputed_values_combined_batch_and_libsize(trained_model):
     model, adata_seq, adata_spatial = trained_model
 
     # Use scalar values
-    imputed, confidence = model.get_imputed_values(
+    imputed = model.get_imputed_values(
         source_name="spatial", target_batch=1, target_libsize=1000.0
     )
     assert isinstance(imputed, np.ndarray)
@@ -238,7 +220,7 @@ def test_get_imputed_values_combined_batch_and_libsize(trained_model):
     target_batch_arr = np.random.choice([0, 1], size=N_OBS_SPATIAL)
     target_libsize_arr = np.random.uniform(500, 2000, size=N_OBS_SPATIAL)
 
-    imputed2, confidence2 = model.get_imputed_values(
+    imputed2 = model.get_imputed_values(
         source_name="spatial",
         target_batch=target_batch_arr,
         target_libsize=target_libsize_arr,
@@ -247,7 +229,7 @@ def test_get_imputed_values_combined_batch_and_libsize(trained_model):
     assert imputed2.shape == (N_OBS_SPATIAL, N_VARS)
 
     # Mixed: scalar batch, array libsize
-    imputed3, confidence3 = model.get_imputed_values(
+    imputed3 = model.get_imputed_values(
         source_name="spatial",
         target_batch="batch1",
         target_libsize=target_libsize_arr,
@@ -393,12 +375,12 @@ def test_diagvi_mudata_imputation(mudata_fixture):
     model.train(max_epochs=1, batch_size=16)
 
     # Impute from spatial to rna
-    imputed, confidence = model.get_imputed_values(source_name="spatial")
+    imputed = model.get_imputed_values(source_name="spatial")
     assert isinstance(imputed, np.ndarray)
     assert imputed.shape[0] == N_OBS_SPATIAL
 
     # Impute from rna to spatial
-    imputed2, confidence2 = model.get_imputed_values(source_name="rna")
+    imputed2 = model.get_imputed_values(source_name="rna")
     assert isinstance(imputed2, np.ndarray)
     assert imputed2.shape[0] == N_OBS_SEQ
 
