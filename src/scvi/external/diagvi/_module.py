@@ -1,3 +1,9 @@
+"""DIAGVAE module for multi-modal variational autoencoder."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
@@ -9,70 +15,71 @@ from scvi.distributions import (
     Normal,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.external.diagvi import DecoderProteinGLUE, DecoderRNA, GraphEncoder_glue
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
 
+from ._base_components import DecoderProteinGLUE, DecoderRNA, GraphEncoder
+
+if TYPE_CHECKING:
+    from torch_geometric.data import Data
+
 
 class DIAGVAE(BaseModuleClass):
-    """
-    Variational autoencoder module for DIAGVI multi-modal integration.
+    """Variational autoencoder module for DIAGVI multi-modal integration.
 
-    Supports GMM priors, semi-supervised classification, and flexible modality-specific decoders.
+    Supports GMM priors, semi-supervised classification, and flexible
+    modality-specific decoders.
 
     Parameters
     ----------
-    n_inputs : dict[str, int]
+    n_inputs
         Number of input features for each modality.
-    n_batches : dict[str, int]
+    n_batches
         Number of batches for each modality.
-    n_labels : dict[str, int]
+    n_labels
         Number of labels/classes for each modality.
-    gene_likelihoods : dict[str, str]
-        Likelihood model for each modality (e.g., 'nb', 'zinb', 'nbmixture', 'normal').
-    modalities : dict[str, str]
-        Modality type for each input (e.g., 'rna', 'protein').
-    guidance_graph : torch_geometric.data.Data
+    gene_likelihoods
+        Likelihood model for each modality ('nb', 'zinb', 'nbmixture', 'normal').
+    modalities
+        Modality type for each input ('rna', 'protein').
+    guidance_graph
         Graph object encoding feature correspondences.
-    use_gmm_prior : dict[str, bool]
+    use_gmm_prior
         Whether to use a GMM prior for each modality.
-    semi_supervised : dict[str, bool]
+    semi_supervised
         Whether to use semi-supervised classification for each modality.
-    n_mixture_components : dict[str, int]
+    n_mixture_components
         Number of mixture components for the GMM prior for each modality.
-    n_latent : int, optional
-        Dimensionality of the latent space (default: 50).
-    n_hidden : int, optional
-        Number of nodes per hidden layer (default: 256).
-    n_layers : int, optional
-        Number of hidden layers (default: 2).
-    dropout_rate : float, optional
-        Dropout rate for encoders (default: 0.1).
+    n_latent
+        Dimensionality of the latent space.
+    n_hidden
+        Number of nodes per hidden layer.
+    n_layers
+        Number of hidden layers.
+    dropout_rate
+        Dropout rate for encoders.
     """
 
     def __init__(
         self,
-        n_inputs: dict[int],
-        n_batches: dict[int],
-        n_labels: dict[int],
-        gene_likelihoods: dict[str],
-        modalities: dict[str],
-        guidance_graph,
-        use_gmm_prior: dict[bool],
-        semi_supervised: dict[bool],
-        n_mixture_components: dict[int],
+        n_inputs: dict[str, int],
+        n_batches: dict[str, int],
+        n_labels: dict[str, int],
+        gene_likelihoods: dict[str, str],
+        modalities: dict[str, str],
+        guidance_graph: Data,
+        use_gmm_prior: dict[str, bool],
+        semi_supervised: dict[str, bool],
+        n_mixture_components: dict[str, int],
         n_latent: int = 50,
         n_hidden: int = 256,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
-        common_scale: bool = True,
-        # **kwargs: dict,
-    ) -> None:
+    ):
         super().__init__()
 
-        # learnable parameters
         self.gmm_logits = nn.ParameterDict()
         self.gmm_means = nn.ParameterDict()
         self.gmm_scales = nn.ParameterDict()
@@ -90,12 +97,15 @@ class DIAGVAE(BaseModuleClass):
 
         self.input_names = list(n_inputs.keys())
 
+        # In semi-supervised mode, always use GMM prior with k = n_labels
+        for name in self.input_names:
+            if self.semi_supervised[name]:
+                self.use_gmm_prior[name] = True
+                self.n_mixture_components[name] = self.n_labels[name]
+
         for name in use_gmm_prior.keys():
             if self.use_gmm_prior[name]:
                 k = self.n_mixture_components[name]
-                # overwrite the number of mixture components if semi_supervised = True
-                if self.semi_supervised[name]:
-                    k = self.n_labels[name]
                 self.gmm_logits[name] = nn.Parameter(torch.zeros(k))
                 self.gmm_means[name] = nn.Parameter(torch.randn(k, n_latent))
                 self.gmm_scales[name] = nn.Parameter(torch.zeros(k, n_latent))
@@ -107,7 +117,6 @@ class DIAGVAE(BaseModuleClass):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             return_dist=True,
-            # **kwargs,
         )
 
         self.encoder_1 = Encoder(
@@ -117,7 +126,6 @@ class DIAGVAE(BaseModuleClass):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             return_dist=True,
-            # **kwargs,
         )
 
         if modalities[self.input_names[0]] == "rna":
@@ -132,25 +140,6 @@ class DIAGVAE(BaseModuleClass):
                 n_batches=n_batches[self.input_names[1]],
             )
 
-        """
-        if modalities[self.input_names[0]] == "protein":
-            self.decoder_0 = DecoderProtein(
-                n_input=n_latent,
-                n_output_protein=n_inputs[self.input_names[0]],
-                n_batches=n_batches[self.input_names[0]],
-                common_scale=common_scale,
-            )
-
-        if modalities[self.input_names[1]] == "protein":
-            self.decoder_1 = DecoderProtein(
-                n_input=n_latent,
-                n_output_proteins=n_inputs[self.input_names[1]],
-                n_batches=n_batches[self.input_names[1]],
-                common_scale=common_scale,
-            )
-
-
-        """
         if modalities[self.input_names[0]] == "protein":
             self.decoder_0 = DecoderProteinGLUE(
                 n_output=n_inputs[self.input_names[0]],
@@ -163,7 +152,7 @@ class DIAGVAE(BaseModuleClass):
                 n_batches=n_batches[self.input_names[1]],
             )
 
-        self.graph_encoder = GraphEncoder_glue(
+        self.graph_encoder = GraphEncoder(
             vnum=n_inputs[self.input_names[0]] + n_inputs[self.input_names[1]],
             out_features=50,
         )
@@ -225,37 +214,47 @@ class DIAGVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         mode: str | None = None,
+        deterministic: bool = False,
     ) -> dict[str, torch.Tensor]:
-        """
-        Run the inference (encoder and graph) step for a given modality.
+        """Run the inference (encoder and graph) step for a given modality.
 
         Parameters
         ----------
-        x : torch.Tensor
+        x
             Input data tensor.
-        mode : str, optional
+        mode
             Name of the modality.
 
         Returns
         -------
         dict[str, torch.Tensor]
-            Dictionary of inference outputs, including latent variables and graph embeddings.
+            Dictionary of inference outputs, including latent variables and
+            graph embeddings.
         """
-        x_ = x
         library = torch.log(x.sum(1)).unsqueeze(1)
         graph = self.guidance_graph
         device = x.device
         graph = graph.to(device)
+
         # graph inference
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
+
+        if deterministic:
+            v_all = mu_all
+
         v = v_all[getattr(graph, f"{mode}_indices")]
         other_mode = [m for m in self.input_names if m != mode][0]
         v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
+
         # data inference
         if mode == self.input_names[0]:
-            qz, z = self.encoder_0(x_)
+            qz, z = self.encoder_0(x)
         else:
-            qz, z = self.encoder_1(x_)
+            qz, z = self.encoder_1(x)
+
+        if deterministic:
+            z = qz.loc
+
         return {
             MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.Z_KEY: z,
@@ -277,22 +276,21 @@ class DIAGVAE(BaseModuleClass):
         v: torch.Tensor | None = None,
         mode: str | None = 0,
     ) -> dict[str, torch.Tensor]:
-        """
-        Run the generative (decoder) model for a given modality.
+        """Run the generative (decoder) model for a given modality.
 
         Parameters
         ----------
-        z : torch.Tensor
+        z
             Latent variable tensor.
-        library : torch.Tensor
+        library
             Library size tensor.
-        batch_index : torch.Tensor, optional
+        batch_index
             Batch index tensor.
-        y : torch.Tensor, optional
+        y
             Cell type labels (for semi-supervised GMM prior).
-        v : torch.Tensor, optional
+        v
             Feature embedding from the graph encoder.
-        mode : str, optional
+        mode
             Name of the modality.
 
         Returns
@@ -324,14 +322,6 @@ class DIAGVAE(BaseModuleClass):
                 theta1=px_r,
                 mixture_logits=px_dropout,
             )
-            """
-            px = NegativeBinomialMixture(
-                mu1=px_scale,
-                mu2=px_r,
-                theta1=px_rate,
-                mixture_logits=px_dropout,
-            )
-            """
 
         if self.use_gmm_prior[mode]:
             logits = self.gmm_logits[mode]
@@ -373,7 +363,28 @@ class DIAGVAE(BaseModuleClass):
         lam_data: torch.Tensor | float = 1.0,
         mode: str | None = None,
     ) -> LossOutput:
-        """Compute the loss for a batch"""
+        """Compute the loss for a batch.
+
+        Parameters
+        ----------
+        tensors
+            Dictionary of input tensors.
+        inference_outputs
+            Dictionary of inference outputs.
+        generative_outputs
+            Dictionary of generative outputs.
+        lam_kl
+            Weight for the KL divergence term.
+        lam_data
+            Weight for the reconstruction loss term.
+        mode
+            Name of the modality.
+
+        Returns
+        -------
+        LossOutput
+            Loss output object containing loss components and extra metrics.
+        """
         x = tensors[REGISTRY_KEYS.X_KEY]
         n_obs = x.shape[0]
         n_var = x.shape[1]
