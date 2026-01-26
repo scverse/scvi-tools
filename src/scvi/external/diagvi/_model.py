@@ -812,7 +812,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             
             generative_output = self.module.generative(**generative_input, mode=target_name)
             # Use distribution mean for correct expected value across all likelihoods
-            # TODO: check if this is correct for all likelihoods
             px_dist = generative_output[MODULE_KEYS.PX_KEY]
             reconstructed_values.append(px_dist.mean.cpu().detach())
             

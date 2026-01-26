@@ -128,7 +128,6 @@ class DiagTrainingPlan(TrainingPlan):
         dict[str, torch.Tensor]
             A dictionary containing the total loss for backpropagation.
         """
-        # TODO: check where batch_size and where total_batch_size should be used
         import geomloss
 
         # Compute losses for each modality
@@ -288,7 +287,6 @@ class DiagTrainingPlan(TrainingPlan):
         None
             Returns none. Logs validation losses.
         """
-        # TODO: check where batch_size and where total_batch_size should be used
         import geomloss
 
         # Compute losses for each modality
@@ -356,10 +354,6 @@ class DiagTrainingPlan(TrainingPlan):
             loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
         )
         sinkhorn_loss = sinkhorn(z1, z2)
-        # TODO: can be removed?
-        # lam_sinkhorn_curr = compute_sinkhorn_lam(
-        #    self.lam_sinkhorn, self.current_epoch, self.n_epochs_sinkhorn_warmup
-        # )
 
         # Total loss (lam_kl and lam_data are already included in data_loss)
         total_loss = (
