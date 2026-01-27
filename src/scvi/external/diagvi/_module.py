@@ -404,18 +404,19 @@ class DIAGVAE(BaseModuleClass):
             means = self.gmm_means[mode]
             scales = torch.exp(self.gmm_scales[mode]) + 1e-4
             if self.semi_supervised[mode]:
-                logits_input = (
-                    torch.stack(
-                        [
-                            torch.nn.functional.one_hot(y_i, self.n_labels[mode])
-                            if y_i < self.n_labels[mode]
-                            else torch.zeros(self.n_labels[mode])
-                            for y_i in y.ravel()
-                        ]
-                    )
-                    .to(z.device)
-                    .float()
-                )
+                # Vectorized one-hot encoding
+                n_labels = self.n_labels[mode]
+                y_flat = y.ravel().to(z.device)
+                 
+                # Clamp invalid labels to 0 (will be zeroed out below)
+                valid_mask = (y_flat >= 0) & (y_flat < n_labels)
+                y_clamped = y_flat.clamp(0, n_labels - 1).long()
+                 
+                # One-hot encode on device
+                logits_input = F.one_hot(y_clamped, num_classes=n_labels).float()
+                 
+                # Zero out rows for invalid labels (unlabeled cells)
+                logits_input = logits_input * valid_mask.unsqueeze(-1).float()
                 logits = logits + 100 * logits_input
                 means = means.expand(y.shape[0], -1, -1)
                 scales = scales.expand(y.shape[0], -1, -1)
