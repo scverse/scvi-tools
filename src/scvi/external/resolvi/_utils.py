@@ -252,6 +252,7 @@ class ResolVIPredictiveMixin:
         return_mean: bool = True,
         return_numpy: bool | None = None,
         silent: bool = True,
+        **kwargs,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -291,6 +292,8 @@ class ResolVIPredictiveMixin:
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
              to `False`. Otherwise, it defaults to `True`.
         %(de_silent)s
+        **kwargs
+            Additional keyword arguments passed
 
         Returns
         -------
