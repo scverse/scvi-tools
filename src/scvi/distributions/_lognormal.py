@@ -215,7 +215,6 @@ class Log1pNormal(Distribution):
         log_samples = normal_dist.sample(sample_shape)
         # Transform: expm1(x) = exp(x) - 1, inverse of log1p
         # Clamp to ensure non-negative values (expm1 can be negative when log_samples < 0)
-        # TODO: verify if clamp is necessary
         return torch.clamp(torch.expm1(log_samples), min=0.0)
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
