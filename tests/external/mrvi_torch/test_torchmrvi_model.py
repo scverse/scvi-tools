@@ -95,6 +95,7 @@ def test_torchMRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
     model2.train(1)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -145,6 +146,7 @@ def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict
         model.differential_expression(**de_kwarg)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
