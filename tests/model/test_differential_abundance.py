@@ -10,7 +10,7 @@ from mudata import MuData
 
 from scvi.data import synthetic_iid
 from scvi.external import SCVIVA
-from scvi.model import SCANVI, SCVI, TOTALVI, DestVI
+from scvi.model import SCANVI, SCVI, TOTALVI
 
 if TYPE_CHECKING:
     from anndata import AnnData
@@ -41,7 +41,7 @@ def mdata():
 
 @pytest.fixture(
     scope="session",
-    params=[SCVI, SCANVI, TOTALVI, SCVIVA, DestVI],
+    params=[SCVI, SCANVI, TOTALVI, SCVIVA],
 )
 def model(request, adata, mdata):
     model_cls = request.param
@@ -114,9 +114,6 @@ def model(request, adata, mdata):
     ],
 )
 def test_get_aggregated_posterior(model: VAEMixin, adata: AnnData, mdata: MuData, ap_kwargs):
-    if isinstance(model, DestVI):
-        with pytest.raises(NotImplementedError):
-            model.get_aggregated_posterior(adata, **ap_kwargs)
     if isinstance(model.adata, MuData):
         adata = mdata
 
@@ -143,10 +140,6 @@ def test_get_aggregated_posterior(model: VAEMixin, adata: AnnData, mdata: MuData
     ],
 )
 def test_differential_abundance(model: VAEMixin, adata: AnnData, mdata: MuData, da_kwargs):
-    if isinstance(model, DestVI):
-        with pytest.raises(NotImplementedError):
-            model.differential_abundance(adata, **da_kwargs)
-
     if isinstance(model.adata, MuData):
         adata = mdata
     if da_kwargs["sample_key"] is None:
