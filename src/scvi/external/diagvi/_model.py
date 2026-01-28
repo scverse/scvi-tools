@@ -72,9 +72,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
         Dropout rate for neural networks.
-    common_scale
-        Whether to use a common scale parameter across modalities. Only used for
-        protein decoder with optional background/foreground separation.
     **model_kwargs
         Additional keyword arguments for :class:`~scvi.external.diagvi._module.DIAGVAE`.
 
@@ -98,7 +95,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         n_hidden: int = 256,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
-        common_scale: bool = True,
         **model_kwargs,
     ):
         super().__init__()
@@ -158,7 +154,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             n_hidden=n_hidden,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
-            common_scale=common_scale,
             **model_kwargs,
         )
 
