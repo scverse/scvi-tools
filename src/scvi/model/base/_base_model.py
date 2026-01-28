@@ -187,14 +187,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """Manager instance associated with self.adata."""
         return self._adata_manager
 
-    def to_device(self, device: str | int):
+    def to_device(self, device: str | int | torch.device):
         """Move the model to the device.
 
         Parameters
         ----------
         device
             Device to move model to. Options: 'cpu' for CPU, integer GPU index (e.g., 0),
-            or 'cuda:X' where X is the GPU index (e.g. 'cuda:0'). See torch.device for more info.
+            'cuda:X' where X is the GPU index (e.g. 'cuda:0'), or a torch.device object
+            (including XLA devices for TPU). See torch.device for more info.
 
         Examples
         --------
@@ -204,7 +205,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.to_device("cuda:0")  # moves model to GPU 0
         >>> model.to_device(0)  # also moves model to GPU 0
         """
-        my_device = torch.device(device)
+        # Handle XLA/TPU devices which are already torch.device objects
+        if isinstance(device, torch.device):
+            my_device = device
+        else:
+            my_device = torch.device(device)
         self.module.to(my_device)
 
     @property

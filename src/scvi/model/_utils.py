@@ -147,7 +147,20 @@ def parse_device_args(
     if return_device == "torch":
         device = torch.device("cpu")
         if _accelerator != "cpu":
-            device = torch.device(f"{_accelerator}:{device_idx}")
+            if _accelerator == "tpu":
+                # TPU requires torch_xla and uses "xla" device type, not "tpu"
+                if not is_package_installed("torch_xla"):
+                    raise ImportError(
+                        "TPU support requires torch_xla. Please install it with:\n"
+                        "  pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html\n"
+                        "or for Colab:\n"
+                        "  pip install torch_xla[colab] -f https://storage.googleapis.com/libtpu-releases/index.html"
+                    )
+                import torch_xla.core.xla_model as xm
+
+                device = xm.xla_device()
+            else:
+                device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
     elif return_device == "jax" and is_package_installed("jax"):
         import jax
@@ -161,8 +174,6 @@ def parse_device_args(
         return _accelerator, _devices, device
     else:
         raise ImportError("Please install jax to use this functionality.")
-
-    return _accelerator, _devices
 
 
 def scrna_raw_counts_properties(
