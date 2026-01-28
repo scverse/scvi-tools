@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from typing import Any, Literal
 
     import pandas as pd
+    import numpy as np
     from anndata import AnnData
     from torch_geometric.data import Data
 
