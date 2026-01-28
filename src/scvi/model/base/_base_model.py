@@ -927,9 +927,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 and REGISTRY_KEYS.MINIFY_TYPE_KEY in registry[_FIELD_REGISTRIES_KEY]
             )
             # Check if the adata has latent params, which allows minify_adata() to be called
-            adata_has_latent_params = "_scvi_latent_qzm" in getattr(
-                adata, "obsm", {}
-            ) and "_scvi_latent_qzv" in getattr(adata, "obsm", {})
+            adata_obsm = getattr(adata, "obsm", None) or {}
+            adata_has_latent_params = (
+                "_scvi_latent_qzm" in adata_obsm and "_scvi_latent_qzv" in adata_obsm
+            )
             if type(adata) is MuData:
                 first_mod = adata[adata.mod_names[0]]
                 mudata_has_latent_params = "_scvi_latent_qzm" in getattr(
