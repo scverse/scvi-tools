@@ -1304,7 +1304,7 @@ def test_scvi_with_external_indices(gene_likelihood: str, n_latent: int):
         train_size=0.5,
     )
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     model.train(
         1,

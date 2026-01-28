@@ -10,6 +10,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Added
 
 - Added dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+- Added support for Pandas3, {pr}`3638`.
 
 #### Fixed
 
