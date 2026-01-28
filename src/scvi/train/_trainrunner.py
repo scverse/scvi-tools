@@ -149,6 +149,12 @@ class TrainRunner:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
+            # Clean up XLA/TPU memory if using TPU
+            if self.accelerator == "tpu" and is_package_installed("torch_xla"):
+                import torch_xla.core.xla_model as xm
+
+                xm.mark_step()  # Ensure all operations are completed
+
             raise
         self._update_history()
 

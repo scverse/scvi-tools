@@ -124,6 +124,8 @@ class Trainer(pl.Trainer):
         if default_root_dir is None:
             default_root_dir = settings.logging_dir
 
+        # Store user-provided value before applying defaults
+        user_check_val_every_n_epoch = check_val_every_n_epoch
         check_val_every_n_epoch = check_val_every_n_epoch or sys.maxsize
         callbacks = kwargs.pop("callbacks", [])
 
@@ -146,21 +148,27 @@ class Trainer(pl.Trainer):
                 warmup_epochs=early_stopping_warmup_epochs,
             )
             callbacks.append(early_stopping_callback)
-            check_val_every_n_epoch = 1
+            # Only default to 1 if user didn't specify a value
+            # (allows users to set higher values for TPU/performance)
+            if user_check_val_every_n_epoch is None:
+                check_val_every_n_epoch = 1
 
         if enable_checkpointing and not any(isinstance(c, SaveCheckpoint) for c in callbacks):
             callbacks.append(SaveCheckpoint(monitor=checkpointing_monitor))
-            check_val_every_n_epoch = 1
+            if user_check_val_every_n_epoch is None:
+                check_val_every_n_epoch = 1
         elif any(isinstance(c, SaveCheckpoint) for c in callbacks):
             # check if the user provided already provided the callback
             enable_checkpointing = True
-            check_val_every_n_epoch = 1
+            if user_check_val_every_n_epoch is None:
+                check_val_every_n_epoch = 1
 
         if learning_rate_monitor and not any(
             isinstance(c, LearningRateMonitor) for c in callbacks
         ):
             callbacks.append(LearningRateMonitor())
-            check_val_every_n_epoch = 1
+            if user_check_val_every_n_epoch is None:
+                check_val_every_n_epoch = 1
 
         if simple_progress_bar and enable_progress_bar:
             callbacks.append(ProgressBar(refresh_rate=progress_bar_refresh_rate))
