@@ -1,3 +1,7 @@
+"""Training plan for DIAGVI model."""
+
+from __future__ import annotations
+
 import torch
 
 from scvi import REGISTRY_KEYS
@@ -36,46 +40,51 @@ def _anneal_param(
     anneal_epochs = max_epochs // 3
     if current_epoch >= anneal_epochs:
         return target_value
-    else:
-        progress = current_epoch / anneal_epochs
-        return init_value + (target_value - init_value) * progress
+    progress = current_epoch / anneal_epochs
+    return init_value + (target_value - init_value) * progress
 
 
 class DiagTrainingPlan(TrainingPlan):
-    """Training plan for DiagVI model.
+    """Training plan for DIAGVI model.
+
+    Handles multi-modal loss computation including reconstruction, KL divergence,
+    graph loss, Sinkhorn (optimal transport) loss, and classification loss.
 
     Parameters
     ----------
     module
-        The DiagVI module to be trained.
+        DIAGVAE module to train.
     lam_graph
-        Weight for the graph loss component.
+        Weight for the graph reconstruction loss.
     lam_kl
-        Weight for the KL divergence loss component.
+        Weight for the KL divergence loss.
     lam_data
-        Weight for the data reconstruction loss component.
+        Weight for the data reconstruction loss.
     lam_sinkhorn
-        Weight for the Sinkhorn loss component.
+        Weight for the Sinkhorn (optimal transport) loss.
     lam_class
-        Weight for the classification loss component. 
-        If None, it will be set dynamically based on the presence of labels.
+        Weight for the classification loss. If None, automatically set based
+        on whether classification is used.
     sinkhorn_p
-        The p parameter for the Sinkhorn loss.
+        Order of the Wasserstein distance (p-norm).
     sinkhorn_blur
-        The blur parameter for the Sinkhorn loss.
+        Blur parameter for Sinkhorn algorithm.
     sinkhorn_reach
-        The reach parameter for the Sinkhorn loss.
+        Reach parameter for unbalanced optimal transport.
     lr
-        Learning rate for the optimizer.
-    n_epochs_sinkhorn_warmup
-        Number of epochs for warming up the Sinkhorn loss weight.
+        Learning rate.
     loss_annealing
-        Whether to anneal the Sinkhorn loss parameters over training.
+        Whether to anneal loss parameters during training.
+    log_train
+        Whether to log individual train loss components.
+    log_val
+        Whether to log individual validation loss components.
     *args
         Additional positional arguments passed to :class:`~scvi.train.TrainingPlan`.
     **kwargs
         Additional keyword arguments passed to :class:`~scvi.train.TrainingPlan`.
     """
+
     def __init__(
         self,
         module: torch.nn.Module,
@@ -83,35 +92,194 @@ class DiagTrainingPlan(TrainingPlan):
         lam_kl: float = 1.0,
         lam_data: float = 1.0,
         lam_sinkhorn: float = 1.0,
-        lam_class: float | None = None,
+        lam_class: float = 100.0,
         sinkhorn_p: int = 2,
         sinkhorn_blur: float = 1.0,
         sinkhorn_reach: float = 1.0,
         lr: float = 1e-3,
-        n_epochs_sinkhorn_warmup: int | None = None,
         loss_annealing: bool = True,
+        log_train: bool = True,
+        log_val: bool = False,
         *args,
         **kwargs,
     ) -> None:
         super().__init__(module, *args, **kwargs)
 
+        # Loss weights
         self.lam_graph = lam_graph
         self.lam_kl = lam_kl
         self.lam_data = lam_data
         self.lam_sinkhorn = lam_sinkhorn
         self.lam_class = lam_class
+
+        # Sinkhorn parameters
         self.sinkhorn_p = sinkhorn_p
-        self.sinkhorn_reach = sinkhorn_reach
         self.sinkhorn_blur = sinkhorn_blur
+        self.sinkhorn_reach = sinkhorn_reach
+
+        # Training parameters
         self.lr = lr
-        self.n_epochs_sinkhorn_warmup = n_epochs_sinkhorn_warmup
         self.loss_annealing = loss_annealing
-        
-        # Use larger values initially to do annealing for OT parameters
+        self.log_train = log_train
+        self.log_val = log_val
+
+        # Initial values for annealing (10x larger for smoother optimization start)
         self.init_blur = 10 * self.sinkhorn_blur
         self.init_reach = 10 * self.sinkhorn_reach
 
+    def _compute_modality_losses(
+        self, batch: dict[str, dict[str, torch.Tensor]], log_prefix: str = ""
+    ) -> tuple[list[dict], dict, int]:
+        """Compute per-modality losses (reconstruction + KL).
+
+        Returns
+        -------
+        loss_outputs
+            Per-modality loss information containing z, modality_loss, graph_v, classification_loss
+        last_loss_output
+            The last loss output object (contains shared info like guidance_graph)
+        total_batch_size
+            Total number of samples across all modalities
+        """
+        loss_outputs = []
+
+        for name, tensors in batch.items():
+            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
+
+            # Update loss kwargs for current modality
+            self.loss_kwargs.update(
+                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
+            )
+            inference_kwargs = {"mode": name}
+            generative_kwargs = {"mode": name}
+
+            # Calculate reconstruction, KL, and classification losses
+            _, _, loss_output = self.forward(
+                tensors,
+                loss_kwargs=self.loss_kwargs,
+                inference_kwargs={"mode": name},
+                generative_kwargs={"mode": name},
+            )
+
+            # Log per-modality metrics
+            # validation and training step
+            if log_prefix:
+                self.log(
+                    f"{log_prefix}loss_{name}",
+                    loss_output.loss,
+                    batch_size=batch_size,
+                    on_epoch=True,
+                    on_step=True,
+                )
+
+            # only training step
+            if log_prefix == "train_":
+                reconstruction_loss = torch.mean(
+                    loss_output.reconstruction_loss["reconstruction_loss"]
+                )
+                self.log(f"nll_{name}", reconstruction_loss, batch_size=batch_size, on_epoch=True)
+                self.log(
+                    f"kl_{name}",
+                    loss_output.kl_local["kl_local"],
+                    batch_size=batch_size,
+                    on_epoch=True,
+                )
+
+            loss_outputs.append(
+                {
+                    "z": loss_output.extra_metrics["z"],
+                    "modality_loss": loss_output.loss,
+                    "graph_v": loss_output.extra_metrics["v_all"],
+                    "classification_loss": loss_output.extra_metrics["classification_loss"],
+                }
+            )
+
+        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
+
+        return loss_outputs, loss_output, total_batch_size
+
+    def _compute_graph_loss(
+        self, loss_output, feature_embeddings: torch.Tensor, log: bool = False, batch_size: int = 0
+    ) -> torch.Tensor:
+        """Compute graph reconstruction and KL loss."""
+        graph = loss_output.extra_metrics["guidance_graph"]
+
+        # Graph reconstruction loss
+        graph_nll = compute_graph_loss(graph, feature_embeddings)
+
+        # Graph KL divergence (normalized by number of features)
+        graph_kl = kl_divergence_graph(
+            loss_output.extra_metrics["mu_all"],
+            loss_output.extra_metrics["logvar_all"],
+        )
+        graph_kl_norm = graph_kl / feature_embeddings.shape[0]
+
+        if log:
+            self.log("nll_graph", graph_nll, batch_size=batch_size, on_epoch=True)
+            self.log("kl_graph", graph_kl_norm, batch_size=batch_size, on_epoch=True)
+
+        return graph_nll + graph_kl_norm
+
     @dependencies("geomloss")
+    def _compute_sinkhorn_loss(
+        self, z1: torch.Tensor, z2: torch.Tensor, use_annealing: bool = False
+    ) -> torch.Tensor:
+        """Compute Sinkhorn (Unbalanced Optimal Transport) loss between latent spaces."""
+        import geomloss
+
+        if use_annealing and self.loss_annealing:
+            max_epochs = self.trainer.max_epochs
+            blur = _anneal_param(
+                self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur
+            )
+            reach = _anneal_param(
+                self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach
+            )
+        else:
+            blur = self.sinkhorn_blur
+            reach = self.sinkhorn_reach
+        sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=blur, reach=reach)
+        return sinkhorn(z1, z2)
+
+    def _compute_total_loss(
+        self,
+        loss_outputs: list[dict],
+        loss_output,
+        total_batch_size: int,
+        use_annealing: bool = False,
+        log: bool = False,
+    ) -> torch.Tensor:
+        """Compute total loss combining all components."""
+        # 1. Data loss (reconstruction + KL for each modality)
+        data_loss = sum(out["modality_loss"] for out in loss_outputs)
+
+        # 2. Graph loss
+        feature_embeddings = loss_outputs[0]["graph_v"]
+        graph_loss = self._compute_graph_loss(
+            loss_output, feature_embeddings, log=log, batch_size=total_batch_size
+        )
+
+        # 3. Classification loss
+        classification_loss = sum(out["classification_loss"] for out in loss_outputs)
+        if log:
+            self.log("class_loss", classification_loss, batch_size=total_batch_size, on_epoch=True)
+
+        # 4. Sinkhorn (UOT) loss
+        z1, z2 = loss_outputs[0]["z"], loss_outputs[1]["z"]
+        sinkhorn_loss = self._compute_sinkhorn_loss(z1, z2, use_annealing=use_annealing)
+        if log:
+            self.log("uot_loss", sinkhorn_loss, batch_size=total_batch_size, on_epoch=True)
+
+        # Combine all losses
+        total_loss = (
+            data_loss
+            + self.lam_graph * graph_loss
+            + self.lam_sinkhorn * sinkhorn_loss
+            + self.lam_class * classification_loss
+        )
+
+        return total_loss
+
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step.
         
@@ -128,137 +296,14 @@ class DiagTrainingPlan(TrainingPlan):
         dict[str, torch.Tensor]
             A dictionary containing the total loss for backpropagation.
         """
-        import geomloss
-
-        # Compute losses for each modality
-        loss_output_objs = []
-        for _i, (name, tensors) in enumerate(batch.items()):
-            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
-
-            # Update loss kwargs for current modality
-            self.loss_kwargs.update(
-                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
-            )
-            inference_kwargs = {"mode": name}
-            generative_kwargs = {"mode": name}
-
-            # Calculate reconstruction, KL, and classification losses
-            _, _, loss_output = self.forward(
-                tensors,
-                loss_kwargs=self.loss_kwargs,
-                inference_kwargs=inference_kwargs,
-                generative_kwargs=generative_kwargs,
-            )
-
-            # Log reconstruction loss
-            reconstruction_loss = loss_output.reconstruction_loss["reconstruction_loss"]
-            reconstruction_loss = torch.mean(reconstruction_loss)
-            self.log(
-                f"nll_{name}",
-                reconstruction_loss,
-                batch_size=batch_size,
-                on_epoch=True,
-                on_step=False,
-            )
-
-            # Log KL divergence loss
-            kl_divergence = loss_output.kl_local["kl_local"]
-            self.log(
-                f"kl_{name}",
-                kl_divergence,
-                batch_size=batch_size,
-                on_epoch=True,
-                on_step=False,
-            )
-
-            # Log total loss
-            loss = loss_output.loss
-            self.log(
-                f"train_loss_{name}",
-                loss,
-                batch_size=batch_size,
-                on_epoch=True,
-                on_step=True,
-            )
-
-            loss_dict = {
-                "z": loss_output.extra_metrics["z"],
-                "modality_loss": loss,
-                "graph_v": loss_output.extra_metrics["v_all"],
-                "classification_loss": loss_output.extra_metrics["classification_loss"],
-            }
-            loss_output_objs.append(loss_dict)
-
-        ### Graph nll
-        graph = loss_output.extra_metrics["guidance_graph"]
-        feature_embeddings = loss_output_objs[0]["graph_v"]
-        graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
-
-        ### Graph KL - mu_all and mu_logvar is the same for both modalities
-        graph_kl_loss = kl_divergence_graph(
-            loss_output.extra_metrics["mu_all"],
-            loss_output.extra_metrics["logvar_all"],
-        )
-        graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
-
-        # Log individual graph losses
-        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
-        self.log(
-            "nll_graph",
-            graph_likelihood_loss,
-            batch_size=total_batch_size,
-            on_epoch=True,
-            on_step=False,
-        )
-        self.log(
-            "kl_graph",
-            graph_kl_loss_norm,
-            batch_size=total_batch_size,
-            on_epoch=True,
-            on_step=False,
+        loss_outputs, loss_output, total_batch_size = self._compute_modality_losses(
+            batch, log_prefix="train_"
         )
 
-        # Graph loss
-        graph_loss = graph_likelihood_loss + graph_kl_loss_norm
-
-        # Data loss
-        data_loss = sum(i["modality_loss"] for i in loss_output_objs)
-
-        # Classification loss
-        classification_loss = sum(i["classification_loss"] for i in loss_output_objs)
-        self.log(
-            "class_loss", classification_loss, batch_size=batch_size, on_epoch=True, on_step=False
+        total_loss = self._compute_total_loss(
+            loss_outputs, loss_output, total_batch_size, use_annealing=self.loss_annealing, log=self.log_train
         )
-        if classification_loss > 0 and self.lam_class is None:
-            self.lam_class = 100
-        elif classification_loss == 0 and self.lam_class is None:
-            self.lam_class = 0
 
-        # UOT loss (with annealing if specified)
-        z1 = loss_output_objs[0]["z"]
-        z2 = loss_output_objs[1]["z"]
-        max_epochs = self.trainer.max_epochs
-        if self.loss_annealing:
-            blur = _anneal_param(
-                self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur
-            )
-            reach = _anneal_param(
-                self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach
-            )
-        else:
-            blur = self.sinkhorn_blur
-            reach = self.sinkhorn_reach
-        sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=blur, reach=reach)
-        sinkhorn_loss = sinkhorn(z1, z2)
-        self.log("uot_loss", sinkhorn_loss, batch_size=batch_size, on_epoch=True, on_step=False)
-
-        # Total loss (lam_kl and lam_data are already included in data_loss)
-        total_loss = (
-            self.lam_graph * graph_loss
-            + data_loss
-            + self.lam_sinkhorn * sinkhorn_loss
-            + self.lam_class * classification_loss
-        )
         self.log(
             "training_loss",
             total_loss,
@@ -270,7 +315,6 @@ class DiagTrainingPlan(TrainingPlan):
 
         return {"loss": total_loss}
 
-    @dependencies("geomloss")
     def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> None:
         """Validation step.
         
@@ -287,82 +331,14 @@ class DiagTrainingPlan(TrainingPlan):
         None
             Returns none. Logs validation losses.
         """
-        import geomloss
-
-        # Compute losses for each modality
-        loss_output_objs = []
-        for _i, (name, tensors) in enumerate(batch.items()):
-            batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
-
-            # Update loss kwargs for current modality
-            self.loss_kwargs.update(
-                {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
-            )
-            inference_kwargs = {"mode": name}
-            generative_kwargs = {"mode": name}
-
-            # Calculate reconstruction, KL, and classification losses
-            _, _, loss_output = self.forward(
-                tensors,
-                loss_kwargs=self.loss_kwargs,
-                inference_kwargs=inference_kwargs,
-                generative_kwargs=generative_kwargs,
-            )
-
-            loss = loss_output.loss
-            self.log(
-                f"val_loss_{name}",
-                loss,
-                batch_size=batch_size,
-                on_epoch=True,
-                on_step=True,
-            )
-
-            loss_dict = {
-                "z": loss_output.extra_metrics["z"],
-                "modality_loss": loss,
-                "graph_v": loss_output.extra_metrics["v_all"],
-                "classification_loss": loss_output.extra_metrics["classification_loss"],
-            }
-            loss_output_objs.append(loss_dict)
-
-        # Graph nll
-        graph = loss_output.extra_metrics["guidance_graph"]
-        feature_embeddings = loss_output_objs[0]["graph_v"]
-        graph_likelihood_loss = compute_graph_loss(graph, feature_embeddings)
-
-        # Graph KL - mu_all and mu_logvar is the same for both modalities
-        graph_kl_loss = kl_divergence_graph(
-            loss_output.extra_metrics["mu_all"],
-            loss_output.extra_metrics["logvar_all"],
+        loss_outputs, loss_output, total_batch_size = self._compute_modality_losses(
+            batch, log_prefix="val_"
         )
-        graph_kl_loss_norm = graph_kl_loss / feature_embeddings.shape[0]
 
-        # Graph loss
-        graph_loss = graph_likelihood_loss + graph_kl_loss_norm
-
-        # Data loss
-        data_loss = sum(i["modality_loss"] for i in loss_output_objs)
-
-        # Classification loss
-        classification_loss = sum(i["classification_loss"] for i in loss_output_objs)
-
-        # UOT loss
-        z1 = loss_output_objs[0]["z"]
-        z2 = loss_output_objs[1]["z"]
-        sinkhorn = geomloss.SamplesLoss(
-            loss="sinkhorn", p=self.sinkhorn_p, blur=self.sinkhorn_blur, reach=self.sinkhorn_reach
+        total_loss = self._compute_total_loss(
+            loss_outputs, loss_output, total_batch_size, use_annealing=False, log=self.log_val
         )
-        sinkhorn_loss = sinkhorn(z1, z2)
 
-        # Total loss (lam_kl and lam_data are already included in data_loss)
-        total_loss = (
-            self.lam_graph * graph_loss
-            + data_loss
-            + self.lam_sinkhorn * sinkhorn_loss
-            + self.lam_class * classification_loss
-        )
-        total_batch_size = sum(tensors[REGISTRY_KEYS.X_KEY].shape[0] for tensors in batch.values())
         self.log(
             "validation_loss",
             total_loss,

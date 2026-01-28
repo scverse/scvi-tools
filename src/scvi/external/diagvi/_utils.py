@@ -1,20 +1,23 @@
+"""Utility functions for the DIAGVI model."""
+
 from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import anndata as ad
-import numpy as np
-import pandas as pd
 import torch
 import torch.nn.functional as F
-from anndata import AnnData
 
 from scvi.data._download import _download
 from scvi.utils import dependencies
 
 if TYPE_CHECKING:
+    from typing import Any, Literal
+
+    import pandas as pd
+    from anndata import AnnData
     from torch_geometric.data import Data
 
 logger = logging.getLogger(__name__)
@@ -23,26 +26,39 @@ logger = logging.getLogger(__name__)
 @dependencies("torch_geometric")
 def _construct_guidance_graph(
     adatas: dict[str, AnnData],
-    mapping_df: pd.DataFrame,
+    mapping_df: pd.DataFrame | None,
     weight: float = 1.0,
     sign: float = 1.0,
 ) -> Data:
-    """Constructs a guidance graph for DiagVI.
+    """Construct a guidance graph linking features across modalities.
+
+    Creates a bipartite graph where nodes represent features from each modality
+    and edges connect corresponding features based on the mapping DataFrame or
+    shared feature names.
 
     Parameters
     ----------
     adatas
-        A dictionary of AnnData objects for each modality.
+        Dictionary mapping modality names to AnnData objects.
     mapping_df
-        A DataFrame defining feature mappings between modalities. If None, uses overlapping features.
+        DataFrame with columns matching modality names, containing feature
+        mappings. If None, uses shared feature names.
     weight
-        The weight assigned to each edge in the graph.
+        Edge weight for cross-modality connections.
     sign
-        The sign assigned to each edge in the graph.
+        Edge sign for cross-modality connections.
 
     Returns
     -------
-        A PyTorch Geometric Data object representing the guidance graph.
+    guidance_graph
+        PyTorch Geometric Data object with node features, edge indices,
+        edge weights, edge signs, and modality index tensors.
+
+    Raises
+    ------
+    ValueError
+        If not exactly two modalities are provided or no overlapping features
+        exist when mapping_df is None.
     """
     from torch_geometric.data import Data
 
@@ -62,11 +78,9 @@ def _construct_guidance_graph(
         features1 = [f"{f}_{input_names[0]}" for f in adata1.var_names]
         features2 = [f"{f}_{input_names[1]}" for f in adata2.var_names]
 
-    # Build node list
     all_features = features1 + features2
     feature_to_index = {f: i for i, f in enumerate(all_features)}
 
-    # Edges for matching features
     edge_index = []
     edge_weight = []
     edge_sign = []
@@ -93,7 +107,6 @@ def _construct_guidance_graph(
             edge_weight += [weight, weight]
             edge_sign += [sign, sign]
 
-    # Add self-loops
     for feature in all_features:
         i = feature_to_index[feature]
         edge_index.append([i, i])
@@ -104,9 +117,8 @@ def _construct_guidance_graph(
     edge_weight = torch.tensor(edge_weight, dtype=torch.float)
     edge_sign = torch.tensor(edge_sign, dtype=torch.float)
 
-    x = torch.eye(len(all_features))  # node features as identity for simplicity
+    x = torch.eye(len(all_features))
 
-    # Extract seq/spa indices
     indices1 = torch.tensor([feature_to_index[f] for f in features1], dtype=torch.long)
     indices2 = torch.tensor([feature_to_index[f] for f in features2], dtype=torch.long)
 
@@ -120,19 +132,25 @@ def _construct_guidance_graph(
 
 
 def _check_guidance_graph_consistency(graph: Data, adatas: dict[str, AnnData]):
-    """Performs consistency checks on the guidance graph.
+    """Validate guidance graph structure and consistency with AnnData objects.
+
+    Performs several consistency checks on the guidance graph:
+    1. Node count matches total number of features across modalities
+    2. Required edge attributes (edge_weight, edge_sign) are present
+    3. Self-loops exist for all nodes
+    4. Graph is symmetric (undirected)
 
     Parameters
     ----------
     graph
-        A PyTorch Geometric Data object representing the guidance graph.
+        PyTorch Geometric Data object representing the guidance graph.
     adatas
-        A dictionary of AnnData objects for each modality.
-    
+        Dictionary mapping modality names to AnnData objects.
+
     Raises
     ------
-        ValueError
-            If any consistency check fails.
+    ValueError
+        If any consistency check fails.
     """
     n_expected = sum(adata.shape[1] for adata in adatas.values())
 
@@ -194,6 +212,11 @@ def _load_saved_diagvi_files(
         - var_names: Dictionary of variable names for each modality.
         - model_state_dict: State dictionary of the model.
         - adatas: Dictionary of AnnData objects for each modality.
+
+    Raises
+    ------
+    ValueError
+        If model file cannot be loaded.
     """
     file_name_prefix = prefix or ""
 
@@ -231,18 +254,23 @@ def _load_saved_diagvi_files(
 
 @dependencies("torch_geometric")
 def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.Tensor:
-    """Computes the graph loss using positive and negative sampling.
+    """Compute graph reconstruction loss using negative sampling.
+
+    Uses structured negative sampling to compute a contrastive loss that
+    encourages connected nodes to have similar embeddings and unconnected
+    nodes to have dissimilar embeddings.
 
     Parameters
     ----------
     graph
-        A PyTorch Geometric Data object representing the guidance graph.
+        PyTorch Geometric Data object with edge_index.
     feature_embeddings
-        A tensor of feature embeddings.
+        Tensor of shape (n_features, embedding_dim) containing feature embeddings.
 
     Returns
     -------
-        The computed graph loss as a tensor.
+    torch.Tensor
+        Scalar tensor containing the graph reconstruction loss.
     """
     import torch_geometric
 
@@ -267,32 +295,6 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
 
     return total_loss
 
-
-def compute_sinkhorn_lam(
-    lam_sinkhorn: float,
-    epoch_current: int,
-    epoch_sinkhorn: int
-) -> float:
-    """Computes the current Sinkhorn loss weight with optional warm-up.
-
-    Parameters
-    ----------
-    lam_sinkhorn
-        The base weight for the Sinkhorn loss.
-    epoch_current
-        The current training epoch.
-    epoch_sinkhorn
-        The epoch at which the Sinkhorn loss weight reaches its full value.
-    
-    Returns
-    -------
-        The current Sinkhorn loss weight.
-    """
-    lam_sinkhorn_curr = lam_sinkhorn
-    if epoch_sinkhorn:
-        if epoch_current < epoch_sinkhorn:
-            lam_sinkhorn_curr = (epoch_current / epoch_sinkhorn) * lam_sinkhorn
-    return lam_sinkhorn_curr
 
 
 def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:

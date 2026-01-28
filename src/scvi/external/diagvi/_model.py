@@ -1,3 +1,5 @@
+"""DIAGVI model for multi-modal integration with guidance graphs."""
+
 from __future__ import annotations
 
 import logging
@@ -8,19 +10,18 @@ from itertools import cycle
 from typing import TYPE_CHECKING, Literal
 
 import numpy as np
-import pandas as pd
 import scipy.sparse
 import torch
-from anndata import AnnData
-from sklearn.neighbors import NearestNeighbors
+from mudata import MuData
 from torch.utils.data import DataLoader
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
-from scvi.dataloaders import AnnDataLoader, DataSplitter
+from scvi.dataloaders import DataSplitter
 from scvi.external.diagvi._utils import (
+    _check_guidance_graph_consistency,
     _check_guidance_graph_consistency,
     _construct_guidance_graph,
     _load_saved_diagvi_files,
@@ -29,13 +30,20 @@ from scvi.model._utils import get_max_epochs_heuristic, parse_device_args, use_d
 from scvi.model.base import BaseModelClass, VAEMixin
 from scvi.module._constants import MODULE_KEYS
 from scvi.train import Trainer
-from scvi.utils import dependencies
+from scvi.utils import dependencies, setup_anndata_dsp
+from scvi.utils._docstrings import devices_dsp
 
 from ._module import DIAGVAE
 from ._task import DiagTrainingPlan
 
 if TYPE_CHECKING:
+    from typing import Literal
+
+    import pandas as pd
+    from anndata import AnnData
     from torch_geometric.data import Data
+
+    from scvi.dataloaders import AnnDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +85,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
     >>> model.train()
     """
 
+    _module_cls = DIAGVAE
+    _data_splitter_cls = DataSplitter
+    _training_plan_cls = DiagTrainingPlan
+
     def __init__(
         self,
-        adatas: dict[str, AnnData],
+        adatas: dict[str, AnnData] | MuData,
         guidance_graph: Data | None = None,
         mapping_df: pd.DataFrame | None = None,
         n_latent: int = 50,
@@ -90,9 +102,12 @@ class DIAGVI(BaseModelClass, VAEMixin):
         **model_kwargs,
     ):
         super().__init__()
-
-        self.adatas = adatas
-        self.input_names = list(adatas.keys())
+        # Handle MuData input by extracting modalities as dict
+        if isinstance(adatas, MuData):
+            self.adatas = {mod_key: adatas.mod[mod_key] for mod_key in adatas.mod.keys()}
+        else:
+            self.adatas = adatas
+        self.input_names = list(self.adatas.keys())
         self.adata_managers = {
             name: self._get_most_recent_anndata_manager(adata, required=True)
             for name, adata in self.adatas.items()
@@ -112,6 +127,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         generative_distributions = {
             name: adata.uns["diagvi_likelihood"] for name, adata in self.adatas.items()
         }
+        normalize_lib = {
+            name: adata.uns["diagvi_normalize_lib"] for name, adata in self.adatas.items()
+        }
         gmm_priors = {name: adata.uns["diagvi_gmm_prior"] for name, adata in self.adatas.items()}
         semi_supervised = {
             name: adata.uns["diagvi_semi_supervised"] for name, adata in self.adatas.items()
@@ -126,12 +144,12 @@ class DIAGVI(BaseModelClass, VAEMixin):
         else:
             self.guidance_graph = _construct_guidance_graph(self.adatas, mapping_df)
         _check_guidance_graph_consistency(self.guidance_graph, self.adatas)
-        
-        self.module = DIAGVAE(
+        self.module = self._module_cls(
             n_inputs=n_inputs,
             n_batches=n_batches,
             n_labels=n_labels,
             modality_likelihoods=generative_distributions,
+            normalize_lib=normalize_lib,
             guidance_graph=self.guidance_graph,
             use_gmm_prior=gmm_priors,
             semi_supervised=semi_supervised,
@@ -154,6 +172,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         self.init_params_ = self._get_init_params(locals())
         logger.info(self._model_summary_string)
 
+    @devices_dsp.dedent
     def train(
         self,
         max_epochs: int | None = None,
@@ -165,21 +184,17 @@ class DIAGVI(BaseModelClass, VAEMixin):
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **kwargs,
-    ) -> None:
+    ):
         """Train the DIAGVI model.
 
         Parameters
         ----------
         max_epochs
             Maximum number of training epochs. If None, a heuristic is used.
-        batch_size
-            Minibatch size for training.
+        %(param_accelerator)s
+        %(param_devices)s
         train_size
             Proportion of data to use for training (rest for validation).
-        accelerator
-            Accelerator to use for training (e.g., 'cpu', 'gpu', 'auto').
-        devices
-            Devices to use for training.
         shuffle_set_split
             Whether to shuffle data before splitting into train/validation.
         datasplitter_kwargs
@@ -234,7 +249,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         train_dls, test_dls, val_dls = {}, {}, {}
         datasplitter_kwargs = datasplitter_kwargs if isinstance(datasplitter_kwargs, dict) else {}
         for name, adm in self.adata_managers.items():
-            ds = DataSplitter(
+            ds = self._data_splitter_cls(
                 adm,
                 train_size=train_size,
                 validation_size=validation_size,
@@ -256,7 +271,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         
         # Initialize and run training plan
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
-        self._training_plan = DiagTrainingPlan(
+        self._training_plan = self._training_plan_cls(
             self.module,
             **plan_kwargs,
         )
@@ -277,6 +292,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         self.is_trained_ = True
 
     @classmethod
+    @setup_anndata_dsp.dedent
     def setup_anndata(
         cls,
         adata: AnnData,
@@ -284,25 +300,23 @@ class DIAGVI(BaseModelClass, VAEMixin):
         batch_key: str | None = None,
         labels_key: str | None = None,
         likelihood: Literal["nb", "zinb", "nbmixture", "normal", "log1pnormal", "ziln", "zig"] = "nb",
+        normalize_lib: bool = True,
         gmm_prior: bool = False,
         semi_supervised: bool = False,
         n_mixture_components: int = 10,
         unlabeled_category: str = "unknown",
         **kwargs,
-    ) -> None:
-        """Register an AnnData object for use with DIAGVI.
+    ):
+        """%(summary)s.
 
         Parameters
         ----------
         adata
             AnnData object to register.
-        batch_key
-            Key in adata.obs for batch annotation.
-        labels_key
-            Key in adata.obs for cell type labels.
-        layer
-            Layer in adata to use as input.
-        likelihood :
+        %(param_batch_key)s
+        %(param_labels_key)s
+        %(param_layer)s
+        likelihood
             Likelihood model for this modality (default: 'nb').
             One of:
             - 'nb' : Negative Binomial
@@ -312,6 +326,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
             - 'log1pnormal' : Log1p Normal distribution
             - 'ziln' : Zero-Inflated Log Normal distribution
             - 'zig' : Zero-Inflated Gamma distribution
+        normalize_lib
+            Whether to normalize counts with library size in the model.
         gmm_prior
             Whether to use a GMM prior for this modality.
         semi_supervised
@@ -360,6 +376,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             adata.layers[layer] = adata.layers[layer].tocsr()
         
         adata.uns["diagvi_likelihood"] = likelihood
+        adata.uns["diagvi_normalize_lib"] = normalize_lib
         adata.uns["diagvi_gmm_prior"] = gmm_prior
         adata.uns["diagvi_semi_supervised"] = semi_supervised
 
@@ -367,12 +384,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
         if semi_supervised and labels_key is not None:
             n_mixture_components = adata.obs[labels_key].nunique()
         adata.uns["diagvi_n_mixture_components"] = n_mixture_components
-        
-        # Set up the anndata object for the model
-        setup_method_args = cls._get_setup_method_args(
-            **locals()
-        )  # Returns dict organizing the args used to call setup anndata
-        
+
+        setup_method_args = cls._get_setup_method_args(**locals())
         if labels_key is None:
             label_field = CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key)
         else:
@@ -387,8 +400,93 @@ class DIAGVI(BaseModelClass, VAEMixin):
             label_field,
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata)
+        adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @classmethod
+    def setup_mudata(
+        cls,
+        mdata: MuData,
+        modalities: list[str],
+        batch_key: dict[str, str] | str | None = None,
+        labels_key: dict[str, str] | str | None = None,
+        layer: dict[str, str | None] | str | None = None,
+        likelihood: dict[str, Literal["nb", "zinb", "nbmixture", "normal"]] | str = "nb",
+        normalize_lib: dict[str, bool] | bool = True,
+        gmm_prior: dict[str, bool] | bool = False,
+        semi_supervised: dict[str, bool] | bool = False,
+        n_mixture_components: dict[str, int] | int = 10,
+        unlabeled_category: dict[str, str] | str = "unknown",
+        **kwargs,
+    ):
+        """Register a MuData object for use with DIAGVI.
+
+        Parameters
+        ----------
+        mdata : MuData
+            MuData object containing multiple modalities.
+        modalities : list[str]
+            List of two modality names from mdata.mod to use.
+        batch_key : dict[str, str] or str, optional
+            Key(s) in adata.obs for batch annotation. Can be a single string
+            (applied to all modalities) or a dict mapping modality names to keys.
+        labels_key : dict[str, str] or str, optional
+            Key(s) in adata.obs for cell type labels.
+        layer : dict[str, str] or str, optional
+            Layer(s) in adata to use as input.
+        likelihood : dict[str, str] or str, optional
+            Likelihood model(s) for each modality. Options: 'nb', 'zinb',
+            'nbmixture', 'normal'. Default is 'nb'.
+        normalize_lib : dict[str, bool] or bool, optional
+            Whether to normalize counts with library size in the model for each modality.
+        gmm_prior : dict[str, bool] or bool, optional
+            Whether to use GMM prior for each modality. Default is False.
+        semi_supervised : dict[str, bool] or bool, optional
+            Whether to use semi-supervised learning for each modality.
+            Default is False.
+        n_mixture_components : dict[str, int] or int, optional
+            Number of GMM mixture components for each modality. Default is 10.
+        unlabeled_category : dict[str, str] or str, optional
+            Category name for unlabeled cells. Default is 'unknown'.
+        **kwargs
+            Additional keyword arguments passed to setup_anndata.
+        """
+        for mod_key in modalities:
+            adata = mdata.mod[mod_key]
+
+            batch_key_mod = batch_key[mod_key] if isinstance(batch_key, dict) else batch_key
+            labels_key_mod = labels_key[mod_key] if isinstance(labels_key, dict) else labels_key
+            layer_mod = layer[mod_key] if isinstance(layer, dict) else layer
+            likelihood_mod = likelihood[mod_key] if isinstance(likelihood, dict) else likelihood
+            normalize_lib_mod = normalize_lib[mod_key] if isinstance(normalize_lib, dict) else normalize_lib
+            gmm_prior_mod = gmm_prior[mod_key] if isinstance(gmm_prior, dict) else gmm_prior
+            semi_supervised_mod = (
+                semi_supervised[mod_key] if isinstance(semi_supervised, dict) else semi_supervised
+            )
+            n_mixture_components_mod = (
+                n_mixture_components[mod_key]
+                if isinstance(n_mixture_components, dict)
+                else n_mixture_components
+            )
+            unlabeled_category_mod = (
+                unlabeled_category[mod_key]
+                if isinstance(unlabeled_category, dict)
+                else unlabeled_category
+            )
+
+            cls.setup_anndata(
+                adata=adata,
+                batch_key=batch_key_mod,
+                labels_key=labels_key_mod,
+                layer=layer_mod,
+                likelihood=likelihood_mod,
+                normalize_lib=normalize_lib_mod,
+                gmm_prior=gmm_prior_mod,
+                semi_supervised=semi_supervised_mod,
+                n_mixture_components=n_mixture_components_mod,
+                unlabeled_category=unlabeled_category_mod,
+                **kwargs,
+            )
 
     @staticmethod
     @dependencies("torch_geometric")
@@ -408,27 +506,26 @@ class DIAGVI(BaseModelClass, VAEMixin):
             The keys in this dictionary must match the column names in `mapping_df`.
         mapping_df
             DataFrame specifying feature correspondences between modalities.
-            Each column should correspond to a modality name in `input_dict`,
+            Each column should correspond to a modality name in input_dict,
             and each row defines a feature pair.
         weight
-            Edge weight assigned to all edges in the graph.
+            Edge weight assigned to cross-modality edges.
         sign
-            Edge sign assigned to all edges in the graph.
+            Edge sign assigned to cross-modality edges.
 
         Returns
         -------
         guidance_graph
             A PyTorch Geometric Data object representing the guidance graph,
             including node features, edge indices, edge weights, edge signs,
+            including node features, edge indices, edge weights, edge signs,
             and modality-specific feature indices.
 
         Notes
         -----
-        - The function renames features in each AnnData object
-        to include the modality name as a suffix.
-        - Self-loops are added for all features.
-        - The mapping DataFrame must have column names that exactly match
-        the keys in `input_dict`.
+        - Features are renamed to include the modality name as a suffix.
+        - Self-loops are added for all features with weight=1.0 and sign=1.0.
+        - Missing features in the mapping are silently skipped.
         """
         from torch_geometric.data import Data
 
@@ -437,9 +534,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         ad_1_ft = [f"{f}_{modality_names[0]}" for f in adata1.var_names]
         ad_2_ft = [f"{f}_{modality_names[1]}" for f in adata2.var_names]
-
-        adata1.var_names = ad_1_ft
-        adata2.var_names = ad_2_ft
 
         all_features = ad_1_ft + ad_2_ft
         feature_to_index = {f: i for i, f in enumerate(all_features)}
@@ -469,20 +563,18 @@ class DIAGVI(BaseModelClass, VAEMixin):
             edge_weight += [weight, weight]
             edge_sign += [sign, sign]
 
-        # Add self-loops
         for feature in all_features:
             i = feature_to_index[feature]
             edge_index.append([i, i])
-            edge_weight.append(weight)
-            edge_sign.append(sign)
+            edge_weight.append(1.0)
+            edge_sign.append(1.0)
 
         edge_index = torch.tensor(edge_index, dtype=torch.long).t().contiguous()
         edge_weight = torch.tensor(edge_weight, dtype=torch.float)
         edge_sign = torch.tensor(edge_sign, dtype=torch.float)
 
-        x = torch.eye(len(all_features))  # node features as identity for simplicity
+        x = torch.eye(len(all_features))
 
-        # Extract seq/spa indices
         indices_1 = torch.tensor([feature_to_index[f] for f in ad_1_ft], dtype=torch.long)
         indices_2 = torch.tensor([feature_to_index[f] for f in ad_2_ft], dtype=torch.long)
 
@@ -526,7 +618,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
     @torch.inference_mode()
     def get_latent_representation(
         self,
-        adatas: dict[str, AnnData] | list[AnnData] = None,
+        adatas: dict[str, AnnData] | list[AnnData] | None = None,
         batch_size: int = 1024,
     ) -> dict[str, np.ndarray]:
         """Return the latent space embedding for each dataset.
@@ -659,57 +751,16 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         return samples_per_modality
 
-    def compute_per_feature_confidence(
-        self,
-        feature_embedding: np.ndarray,
-        conf_method: str,
-    ) -> np.ndarray:
-        """Compute per-feature confidence scores based on kNN distances.
-
-        Parameters
-        ----------
-        feature_embedding
-            Array of shape (n_features, n_latent) representing feature embeddings.
-        conf_method
-            Method for aggregating kNN distances. One of 'min', 'mean', 'max', 'median'.
-
-        Returns
-        -------
-        np.ndarray
-            Array of confidence scores for each feature.
-        """
-        knn = NearestNeighbors(n_neighbors=11, metric="cosine")
-        knn.fit(feature_embedding)
-        distances, indices = knn.kneighbors(feature_embedding)
-
-        # Remove self (first neighbor is always the point itself)
-        distances = distances[:, 1:]
-        indices = indices[:, 1:]
-
-        # Compute statistics for every node
-        score = []
-        if conf_method == "min":
-            score = distances.min(axis=1)
-        elif conf_method == "mean":
-            score = distances.mean(axis=1)
-        elif conf_method == "max":
-            score = distances.max(axis=1)
-        elif conf_method == "median":
-            score = np.median(distances, axis=1)
-        
-        return score
-
     @torch.inference_mode()
     def get_imputed_values(
         self,
-        source_name: int,
+        source_name: str,
         source_adata: AnnData | None = None,
+        deterministic: bool = True,
         batch_size: int = 1024,
-        target_batch: int | None = None,
-        target_libsize: float | None = None,
-        conf_method: Literal["min", "mean", "max", "median"] = "min",
-        min_max_scale: bool = True,
-    ) -> tuple[np.ndarray, np.ndarray]:
+        target_batch: int | str | np.ndarray | None = None,
+        target_libsize: float | np.ndarray | None = None,
+    ) -> np.ndarray:
         """Return imputed values and feature confidence scores for a given source modality.
 
         Parameters
@@ -724,20 +775,14 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Target batch index or array for imputation.
         target_libsize
             Target library size(s) for imputation.
-        conf_method
-            Method for aggregating kNN distances for confidence scoring.
-        min_max_scale
-            Whether to min-max scale the confidence scores.
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray]
-            Imputed values and per-feature confidence scores.
+        Imputed values
         """
         # Choose source adata according to mode
         if source_name not in self.adatas:
             raise ValueError(f"`source_name` must be one of {list(self.adatas.keys())}!")
-        # Choose source AnnData
         if source_adata is None:
             source_adata = self.adatas[source_name]
         
@@ -752,7 +797,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         reconstructed_values = []
         for tensor in dl:
             inference_output = self.module.inference(
-                **self.module._get_inference_input(tensor), mode=source_name
+                **self.module._get_inference_input(tensor),
+                mode=source_name,
+                deterministic=deterministic,
             )
             # Use the feature embedding of the other modality for reconstruction
             inference_output["v"] = inference_output["v_other"]
@@ -766,11 +813,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
             batch_size_ = generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0]
             if target_batch is not None:
                 b = np.asarray(target_batch)
-                if b.size == 1:  # if size 1: broadcast to array of length Batch size
+                if b.size == 1:
                     b = np.full(batch_size_, b.item())
                 elif b.size != batch_size_:  # raise error if wrong size
                     raise ValueError("`target_batch` must have the same size as adata!")
-                # Map categorical names to indices if needed
                 if batch_categories is not None and not np.issubdtype(b.dtype, np.integer):
                     b = np.array([np.where(batch_categories == lbl)[0][0] for lbl in b])
             # Use batch index zero if no target batch is provided
@@ -789,7 +835,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 if not isinstance(l, np.ndarray):
                     l = np.asarray(l)
                 l = l.squeeze()
-                if l.ndim == 0:  # Scalar
+                if l.ndim == 0:
                     l = l[np.newaxis]
                 elif l.ndim > 1:
                     raise ValueError("`target_libsize` cannot be >1 dimensional")
@@ -814,19 +860,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
             # Use distribution mean for correct expected value across all likelihoods
             px_dist = generative_output[MODULE_KEYS.PX_KEY]
             reconstructed_values.append(px_dist.mean.cpu().detach())
-            
-            # Extract the final feature embedding
-            feature_embedding = inference_output["v"].cpu().detach().numpy()
-        
-        score = self.compute_per_feature_confidence(feature_embedding, conf_method)
-        if min_max_scale:
-            if len(score) > 0:
-                score_norm = (score - score.min()) / (score.max() - score.min())
-            else:
-                score_norm = score.copy()
         
         reconstructed_value = torch.cat(reconstructed_values).numpy()
-        return reconstructed_value, score_norm
+        return reconstructed_value
 
     def save(
         self,
@@ -835,7 +871,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         overwrite: bool = False,
         save_anndata: bool = False,
         save_kwargs: dict | None = None,
-        **anndata_write_kwargs,
     ):
         """Save the DIAGVI model and optionally the AnnData objects.
 
@@ -851,8 +886,11 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Whether to save the AnnData objects used to train the model.
         save_kwargs
             Additional keyword arguments for torch.save.
-        **anndata_write_kwargs
-            Additional keyword arguments for AnnData.write when saving AnnData objects.
+
+        Raises
+        ------
+        ValueError
+            If dir_path exists and overwrite is False.
         """
         if not os.path.exists(dir_path) or overwrite:
             os.makedirs(dir_path, exist_ok=overwrite)
@@ -897,36 +935,37 @@ class DIAGVI(BaseModelClass, VAEMixin):
         )
 
     @classmethod
-    # @devices_dsp.dedent
+    @devices_dsp.dedent
     def load(
         cls,
         dir_path: str,
-        # adata_seq: AnnData | None = None,
-        # adata_spatial: AnnData | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         prefix: str | None = None,
         backup_url: str | None = None,
-    ) -> "DIAGVI":
-        """Load a saved DIAGVI model.
+    ) -> DIAGVI:
+        """Load a saved DIAGVI model from disk.
 
         Parameters
         ----------
         dir_path
-            Directory path where the model and AnnData objects are saved.
-        accelerator
-            Accelerator to use for loading the model (e.g., 'cpu', 'gpu', 'auto').
-        device
-            Device to use for loading the model.
+            Directory path where the model was saved.
+        %(param_accelerator)s
+        %(param_device)s
         prefix
-            Prefix for the saved model file name.
+            Prefix used when saving the model.
         backup_url
-            Backup URL to download the model files if not found locally.
-        
+            URL to download the model from if not found locally.
+
         Returns
         -------
         DIAGVI
-            Loaded DIAGVI model.
+            Loaded DIAGVI model instance.
+
+        Raises
+        ------
+        ValueError
+            If the saved model is from a different class or missing setup inputs.
         """
         _, _, device = parse_device_args(
             accelerator=accelerator,
@@ -987,7 +1026,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             kwargs = {k: v for k, v in init_params.items() if isinstance(v, dict)}
             kwargs = {k: v for (i, j) in kwargs.items() for (k, v) in j.items()}
 
-        # Remove 'adatas' from non_kwargs and kwargs if present
         non_kwargs.pop("adatas", None)
         kwargs.pop("adatas", None)
 
@@ -1032,7 +1070,6 @@ class TrainDL(DataLoader):
 
         super().__init__(
             self.largest_dl,
-            # shuffle=True,
             num_workers=settings.dl_num_workers,
             persistent_workers=getattr(settings, "dl_persistent_workers", False),
             pin_memory=getattr(settings, "dl_pin_memory_gpu_training", False),

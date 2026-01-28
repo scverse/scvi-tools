@@ -1,8 +1,10 @@
+"""DIAGVAE module for multi-modal variational autoencoder."""
+
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
+import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -21,11 +23,12 @@ from scvi.distributions import (
     ZeroInflatedLogNormal,
     ZeroInflatedNegativeBinomial,
 )
-from scvi.external.diagvi import DecoderDualPathway, DecoderSinglePathway, GraphEncoder_glue
 from scvi.module import Classifier
 from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from scvi.nn import Encoder
+
+from ._base_components import DecoderDualPathway, DecoderSinglePathway, GraphEncoder
 
 if TYPE_CHECKING:
     from torch_geometric.data import Data
@@ -50,13 +53,15 @@ LIKELIHOOD_TO_DECODER = {
 }
 
 # Likelihoods that require softmax normalization (count data)
-COUNT_LIKELIHOODS = {"nb", "zinb", "nbmixture"}
+NORMALIZE_LIKELIHOODS = {"nb", "zinb", "nbmixture"}
+OTHER_LIKELIHOODS = {"normal"}
 
 
 class DIAGVAE(BaseModuleClass):
     """Variational autoencoder module for DIAGVI multi-modal integration.
 
-    Supports GMM priors, semi-supervised classification, and flexible modality-specific decoders.
+    Supports GMM priors, semi-supervised classification, and flexible
+    modality-specific decoders.
 
     Parameters
     ----------
@@ -69,6 +74,8 @@ class DIAGVAE(BaseModuleClass):
     modality_likelihoods
         Likelihood model for each modality.
         One of: 'nb', 'zinb', 'normal', 'lognormal', 'log1pnormal', 'gamma', 'zig', 'nbmixture'.
+    normalize_lib
+        Whether to normalize counts with library size in the model for each modality.
     guidance_graph
         Graph object encoding feature correspondences.
     use_gmm_prior
@@ -86,9 +93,6 @@ class DIAGVAE(BaseModuleClass):
         Number of hidden layers.
     dropout_rate
         Dropout rate for encoders.
-    common_scale
-        Whether to use a common scale parameter across modalities. Only used for
-        protein decoder with optional background/foreground separation.
     """
 
     def __init__(
@@ -97,6 +101,7 @@ class DIAGVAE(BaseModuleClass):
         n_batches: dict[str, int],
         n_labels: dict[str, int],
         modality_likelihoods: dict[str, str],
+        normalize_lib: dict[str, bool],
         guidance_graph: Data,
         use_gmm_prior: dict[str, bool],
         semi_supervised: dict[str, bool],
@@ -105,9 +110,7 @@ class DIAGVAE(BaseModuleClass):
         n_hidden: int = 256,
         n_layers: int = 2,
         dropout_rate: float = 0.1,
-        common_scale: bool = True,
-        # **kwargs,
-    ) -> None:
+    ):
         super().__init__()
 
         # Learnable parameters
@@ -123,6 +126,7 @@ class DIAGVAE(BaseModuleClass):
         self.n_input_list = n_inputs
         self.n_batches_list = n_batches
         self.modality_likelihoods = modality_likelihoods
+        self.normalize_lib = normalize_lib
         self.guidance_graph = guidance_graph
         self.n_latent = n_latent
 
@@ -147,7 +151,6 @@ class DIAGVAE(BaseModuleClass):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             return_dist=True,
-            # **kwargs,
         )
 
         self.encoder_1 = Encoder(
@@ -157,7 +160,6 @@ class DIAGVAE(BaseModuleClass):
             n_layers=n_layers,
             dropout_rate=dropout_rate,
             return_dist=True,
-            # **kwargs,
         )
 
         # Decoders - selected based on likelihood function
@@ -169,8 +171,12 @@ class DIAGVAE(BaseModuleClass):
         decoder_class_1 = LIKELIHOOD_TO_DECODER.get(likelihood_1, DecoderSinglePathway)
 
         # Determine whether to apply softmax normalization based on likelihood
-        normalize_0 = likelihood_0 in COUNT_LIKELIHOODS
-        normalize_1 = likelihood_1 in COUNT_LIKELIHOODS
+        normalize_0 = likelihood_0 in NORMALIZE_LIKELIHOODS
+        normalize_1 = likelihood_1 in NORMALIZE_LIKELIHOODS
+        if likelihood_0 in OTHER_LIKELIHOODS:
+            normalize_0 = normalize_lib[self.input_names[0]]
+        if likelihood_1 in OTHER_LIKELIHOODS:
+            normalize_1 = normalize_lib[self.input_names[1]]
 
         logger.info(
             f"Decoder for '{self.input_names[0]}' (likelihood={likelihood_0}): "
@@ -193,7 +199,7 @@ class DIAGVAE(BaseModuleClass):
         )
 
         # Graph encoder
-        self.graph_encoder = GraphEncoder_glue(
+        self.graph_encoder = GraphEncoder(
             vnum=n_inputs[self.input_names[0]] + n_inputs[self.input_names[1]],
             out_features=self.n_latent,
         )
@@ -256,6 +262,7 @@ class DIAGVAE(BaseModuleClass):
         self,
         x: torch.Tensor,
         mode: str | None = None,
+        deterministic: bool = False,
     ) -> dict[str, torch.Tensor]:
         """Run the inference (encoder and graph) step for a given modality.
 
@@ -269,9 +276,9 @@ class DIAGVAE(BaseModuleClass):
         Returns
         -------
         dict[str, torch.Tensor]
-            Dictionary of inference outputs, including latent variables and graph embeddings.
+            Dictionary of inference outputs, including latent variables and
+            graph embeddings.
         """
-        x_ = x
         library = torch.log(x.sum(1)).unsqueeze(1)
         graph = self.guidance_graph
         device = x.device
@@ -279,16 +286,23 @@ class DIAGVAE(BaseModuleClass):
         
         # Graph inference
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
+
+        if deterministic:
+            v_all = mu_all
+
         v = v_all[getattr(graph, f"{mode}_indices")]
         other_mode = [m for m in self.input_names if m != mode][0]
         v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]
 
         # Data inference
         if mode == self.input_names[0]:
-            qz, z = self.encoder_0(x_)
+            qz, z = self.encoder_0(x)
         else:
-            qz, z = self.encoder_1(x_)
-        
+            qz, z = self.encoder_1(x)
+
+        if deterministic:
+            z = qz.loc
+
         return {
             MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.Z_KEY: z,
@@ -341,7 +355,9 @@ class DIAGVAE(BaseModuleClass):
             px_scale, px_r, px_rate, px_dropout = self.decoder_1(z, library, batch_index, v)
         
         # Adjust parameters based on likelihood (count vs continuous)
-        if self.modality_likelihoods[mode] in COUNT_LIKELIHOODS:
+        if self.modality_likelihoods[mode] in NORMALIZE_LIKELIHOODS:
+            px_r = px_r.exp()
+        elif self.modality_likelihoods[mode] in OTHER_LIKELIHOODS and self.normalize_lib[mode]:
             px_r = px_r.exp()
         else:
             px_r = F.softplus(px_r) + EPS

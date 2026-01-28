@@ -1,11 +1,12 @@
-from collections.abc import Iterable
+"""Base neural network components for DIAGVI model."""
+
+from __future__ import annotations
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 
-from scvi.nn import FCLayers
 from scvi.utils import dependencies
 
 EPS = 1e-8
@@ -212,218 +213,18 @@ class DecoderDualPathway(nn.Module):
         return (px_scale_1, px_scale_2), px_r, (px_rate_1, px_rate_2), mixture_logits
 
 
-class DecoderProtein(nn.Module):
-    """Protein decoder with optional background/foreground separation.
+class GraphEncoder(nn.Module):
+    """Graph convolutional encoder for feature embeddings.
 
-    Decodes latent representations to protein expression parameters using
-    neural networks for flexible foreground scaling and mixture modeling.
-
-    Parameters
-    ----------
-    n_input
-        Dimensionality of the input (cell latent space).
-    n_output_proteins
-        Number of protein features.
-    n_batches
-        Number of batches.
-    n_cat_list
-        List of categorical covariate dimensions.
-    dropout_rate
-        Dropout rate for hidden layers.
-    use_batch_norm
-        Whether to use batch normalization.
-    use_layer_norm
-        Whether to use layer normalization.
-    n_hidden
-        Number of hidden units in FC layers.
-    n_layers
-        Number of hidden layers.
-    common_scale
-        If True, use shared scale parameters for background/foreground.
-        If False, use separate parameters for each.
-    """
-    
-    def __init__(
-        self,
-        n_input: int,
-        n_output_proteins: int,
-        n_batches: int,
-        n_cat_list: Iterable[int] = None,
-        dropout_rate: float = 0,
-        use_batch_norm: bool = True,
-        use_layer_norm: bool = False,
-        n_hidden: int = 256,
-        n_layers: int = 1,
-        common_scale: bool = True,
-    ):
-        super().__init__()
-        self.n_output_proteins = n_output_proteins
-        self.n_batches = n_batches
-        self.common_scale = common_scale
-
-        if common_scale:
-            self.scale_lin = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-            self.bias = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-
-        else:
-            self.scale_lin_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-            self.bias_back = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-
-            self.scale_lin_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-            self.bias_fore = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-
-        self.log_theta = nn.Parameter(torch.zeros(n_batches, n_output_proteins))
-
-        linear_args = {
-            "n_layers": 1,
-            "use_activation": False,
-            "use_batch_norm": False,
-            "use_layer_norm": False,
-            "dropout_rate": 0,
-        }
-
-        # Foreground scale network
-        self.py_fore_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
-            n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
-        )
-        # Predict increment factor making fg > bg
-        self.py_fore_scale_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
-            n_cat_list=n_cat_list,
-            n_layers=1,
-            use_activation=True,
-            use_batch_norm=False,
-            use_layer_norm=False,
-            dropout_rate=0,
-            activation_fn=nn.ReLU,
-        )
-
-        # Mixing probability network
-        self.sigmoid_decoder = FCLayers(
-            n_in=n_input,
-            n_out=n_hidden,
-            n_cat_list=n_cat_list,
-            n_layers=n_layers,
-            n_hidden=n_hidden,
-            dropout_rate=dropout_rate,
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=use_layer_norm,
-        )
-        # Predict mixing probability - (1 - protein_mixing) = fg probability
-        self.py_background_decoder = FCLayers(
-            n_in=n_hidden + n_input,
-            n_out=n_output_proteins,
-            n_cat_list=n_cat_list,
-            **linear_args,
-        )
-
-    def forward(
-        self,
-        u: torch.Tensor,
-        l: torch.Tensor,
-        batch_index: torch.Tensor,
-        v: torch.Tensor
-    ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor, tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
-        """Forward pass through the protein decoder.
-
-        Parameters
-        ----------
-        u
-            Cell latent representation, shape (n_cells, n_latent).
-        l
-            Library size (log-scale), shape (n_cells, 1).
-        batch_index
-            Batch indices for cells, shape (n_cells,) or (n_cells, 1).
-        v
-            Feature latent representation, shape (n_proteins, n_latent).
-
-        Returns
-        -------
-        tuple of 4 elements
-            - scales: Tuple of (background, foreground) scale parameters.
-              Each has shape (n_cells, n_proteins).
-            - px_r: Overdispersion parameter, shape (n_cells, n_proteins).
-            - rates: Tuple of (background, foreground) rate parameters.
-              Each has shape (n_cells, n_proteins).
-            - mixing: Logits for background/foreground mixture weights, shape (n_cells, n_proteins).
-        """
-        # Check batch index dimension
-        if batch_index.dim() > 1:
-            batch_index = batch_index.squeeze(-1)
-
-        py_ = {}
-        py_["r"] = self.log_theta[batch_index]  # px_r
-
-        if self.common_scale:
-            scale = F.softplus(self.scale_lin[batch_index])
-            bias = self.bias[batch_index]
-
-            # Parametrize the background mean using the feature/cell matrix product
-            raw_px_scale = scale * (u @ v.T) + bias
-            py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
-            # for fg different act function (positive + 1)
-            py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
-
-            # Learn foreground scaling factor with a NN
-            py_fore = self.py_fore_decoder(u, batch_index)
-            py_fore_cat_z = torch.cat([py_fore, u], dim=-1)
-            py_["scale_fore"] = self.py_fore_scale_decoder(py_fore_cat_z, batch_index) + 1 + 1e-8
-            py_["rate_fore"] = py_["rate_back"] * py_["scale_fore"]
-
-        else:
-            scale_back = F.softplus(self.scale_lin_back[batch_index])
-            bias_back = self.bias_back[batch_index]
-
-            scale_fore = F.softplus(self.scale_lin_fore[batch_index])
-            bias_fore = self.bias_fore[batch_index]
-
-            # Parametrize the background mean using the feature/cell matrix product
-            raw_px_scale = scale_back * (u @ v.T) + bias_back
-            py_["scale_back"] = torch.softmax(raw_px_scale, dim=-1)
-            # for fg different act function (positive + 1)
-            py_["rate_back"] = torch.exp(l) * py_["scale_back"]  # calculate mean
-
-            # Parametrize the background mean using the feature/cell matrix product
-            raw_px_scale = scale_fore * (u @ v.T) + bias_fore
-            activation_func = nn.ReLU()
-            py_["scale_fore"] = activation_func(raw_px_scale) + 1 + 1e-8
-            # For fg different act function (positive + 1)
-            py_["rate_fore"] = torch.exp(l) * py_["scale_fore"]  # calculate mean
-
-        # Learn the mixing logits with a NN
-        p_mixing = self.sigmoid_decoder(u, batch_index)
-        p_mixing_cat_z = torch.cat([p_mixing, u], dim=-1)
-
-        py_["mixing"] = self.py_background_decoder(p_mixing_cat_z, batch_index)
-
-        return (
-            (py_["scale_back"], py_["scale_fore"]),
-            py_["r"],
-            (py_["rate_back"], py_["rate_fore"]),
-            py_["mixing"],
-        )
-
-
-class GraphEncoder_glue(nn.Module):
-    """Graph convolutional encoder for graph-structured data.
-
-    Uses a Graph Convolutional Network (GCN) to encode node features and
-    outputs a latent distribution.
+    Encodes feature nodes in the guidance graph to learn feature
+    embeddings that capture cross-modality relationships.
 
     Parameters
     ----------
     vnum
-        Number of nodes (vertices) in the graph.
+        Number of nodes (features) in the graph.
     out_features
-        Number of output features / latent dimension.
+        Dimensionality of the output feature embeddings.
     """
 
     @dependencies("torch_geometric")
@@ -432,6 +233,7 @@ class GraphEncoder_glue(nn.Module):
 
         super().__init__()
         self.vrepr = nn.Parameter(torch.zeros(vnum, out_features))
+        self.conv = torch_geometric.nn.GCNConv(out_features, out_features)
         self.conv = torch_geometric.nn.GCNConv(out_features, out_features)
         self.loc = nn.Linear(out_features, out_features)
         self.std_lin = nn.Linear(out_features, out_features)
