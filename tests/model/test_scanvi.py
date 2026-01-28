@@ -207,7 +207,7 @@ def test_scanvi_with_external_indices():
         datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
     )
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     model.train(
         1,
