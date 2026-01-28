@@ -234,7 +234,6 @@ class GraphEncoder(nn.Module):
         super().__init__()
         self.vrepr = nn.Parameter(torch.zeros(vnum, out_features))
         self.conv = torch_geometric.nn.GCNConv(out_features, out_features)
-        self.conv = torch_geometric.nn.GCNConv(out_features, out_features)
         self.loc = nn.Linear(out_features, out_features)
         self.std_lin = nn.Linear(out_features, out_features)
 

@@ -22,7 +22,6 @@ from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, L
 from scvi.dataloaders import DataSplitter
 from scvi.external.diagvi._utils import (
     _check_guidance_graph_consistency,
-    _check_guidance_graph_consistency,
     _construct_guidance_graph,
     _load_saved_diagvi_files,
 )
