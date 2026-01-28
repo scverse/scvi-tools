@@ -97,6 +97,7 @@ class DecoderSinglePathway(nn.Module):
             px_rate = torch.exp(l) * px_scale
         else:
             # Continuous data: no normalization, scale is positive, rate is unbounded
+            # inspired by CytoVI
             px_scale = F.softplus(raw_px_scale) + EPS
             px_rate = raw_px_scale
 
@@ -199,6 +200,7 @@ class DecoderDualPathway(nn.Module):
             px_rate_2 = torch.exp(l) * px_scale_2
         else:
             # Continuous data: no normalization, scales are positive, rates are unbounded
+            # inspired by CytoVI
             px_scale_1 = F.softplus(raw_px_scale_1) + EPS
             px_scale_2 = F.softplus(raw_px_scale_2) + EPS
             px_rate_1 = raw_px_scale_1
