@@ -921,18 +921,37 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         model.module.eval()
         if adata:
+            # Check if the saved model supports minified data by looking at registry
+            model_supports_minified = (
+                _FIELD_REGISTRIES_KEY in registry
+                and REGISTRY_KEYS.MINIFY_TYPE_KEY in registry[_FIELD_REGISTRIES_KEY]
+            )
+            # Check if the adata has latent params, which allows minify_adata() to be called
+            adata_has_latent_params = "_scvi_latent_qzm" in getattr(
+                adata, "obsm", {}
+            ) and "_scvi_latent_qzv" in getattr(adata, "obsm", {})
             if type(adata) is MuData:
+                first_mod = adata[adata.mod_names[0]]
+                mudata_has_latent_params = "_scvi_latent_qzm" in getattr(
+                    first_mod, "obsm", {}
+                ) and "_scvi_latent_qzv" in getattr(first_mod, "obsm", {})
                 if (
-                    sparse.issparse(adata[adata.mod_names[0]].X)
-                    and adata[adata.mod_names[0]].X.nnz == 0
-                    and new_adata is None
+                    sparse.issparse(first_mod.X)
+                    and first_mod.X.nnz == 0
+                    and not model_supports_minified
+                    and not mudata_has_latent_params
                 ):
                     raise ValueError(
                         "It appears you are trying to load a non-minified model "
                         "with minified mudata"
                     )
             if type(adata) is AnnData:
-                if sparse.issparse(adata.X) and adata.X.nnz == 0 and new_adata is None:
+                if (
+                    sparse.issparse(adata.X)
+                    and adata.X.nnz == 0
+                    and not model_supports_minified
+                    and not adata_has_latent_params
+                ):
                     raise ValueError(
                         "It appears you are trying to load a non-minified model "
                         "with minified adata"

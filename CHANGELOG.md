@@ -15,7 +15,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
-- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+- Fix Integrated Gradients gets cont and categ covs in the reverse order, {pr}`3660`.
+- Fix minified adata load into non-minified model, {pr}`3691`.
 
 #### Changed
 
