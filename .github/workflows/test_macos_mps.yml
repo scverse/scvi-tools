@@ -59,7 +59,6 @@ jobs:
           python -m pip install jax-metal
           python -m pip install coverage
           python -m pip install pytest
-          pip install git+https://github.com/scverse/anndata
 
       - name: Run pytest
         env:

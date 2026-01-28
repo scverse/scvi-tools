@@ -40,7 +40,7 @@ dependencies = [
     "mudata",
     "numba>=0.60.0",
     "numpy",
-    "pandas>=3.0.0", #TODO remove pinning once Anndata is released
+    "pandas",
     "pyro-ppl",
     "rich",
     "scanpy[skmisc]>=1.10",

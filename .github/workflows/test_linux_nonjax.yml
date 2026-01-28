@@ -59,7 +59,6 @@ jobs:
           python -m uv pip install --system "igraph"
           python -m uv pip install --system "leidenalg"
           python -m uv pip install --system "scvi-tools[autotune,hub,mlflow,file_sharing,regseq,parallel,interpretability] @ ."
-          pip install git+https://github.com/scverse/anndata
 
       - name: Run pytest
         env:

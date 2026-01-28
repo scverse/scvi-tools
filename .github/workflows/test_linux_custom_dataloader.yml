@@ -56,7 +56,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests,dataloaders] @ ."
-          pip install git+https://github.com/scverse/anndata
 
       - name: Run specific custom dataloader pytest
         env:
