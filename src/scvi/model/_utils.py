@@ -142,7 +142,13 @@ def parse_device_args(
 
     if devices == "auto" and _accelerator != "cpu":
         # auto device should not use multiple devices for non-cpu accelerators
-        _devices = [device_idx]
+        if _accelerator == "tpu":
+            # For TPU, device_idx from connector is a count (e.g., 1), not an index
+            # TPU device indices start from 0, so use [0] for single device
+            _devices = [0]
+            device_idx = 0
+        else:
+            _devices = [device_idx]
 
     if return_device == "torch":
         device = torch.device("cpu")
