@@ -759,3 +759,279 @@ def test_anneal_param_function():
     # Test at epoch 20 (after annealing period)
     result = _anneal_param(current_epoch=20, max_epochs=30, init_value=10.0, target_value=1.0)
     assert result == 1.0, f"Expected 1.0 at epoch 20, got {result}"
+
+
+# =============================================================================
+# Tests for Stratified Sampling
+# =============================================================================
+
+
+@pytest.fixture(scope="module")
+def stratified_adatas():
+    """AnnData objects with matching cell type labels for stratified sampling tests."""
+    n_obs = 100
+    n_vars = 50
+    n_labels = 5
+
+    # Create matching label distributions
+    labels = [f"celltype_{i}" for i in range(n_labels)]
+    # Fixed proportions: 40%, 25%, 20%, 10%, 5%
+    label_counts = [40, 25, 20, 10, 5]
+    cell_labels = []
+    for label, count in zip(labels, label_counts):
+        cell_labels.extend([label] * count)
+
+    adata_seq = AnnData(
+        X=np.random.poisson(1.0, size=(n_obs, n_vars)),
+        obs=pd.DataFrame({
+            "batch": pd.Categorical(np.random.choice(["batch1", "batch2"], size=n_obs)),
+            "cell_type": pd.Categorical(cell_labels),
+        }),
+        var=pd.DataFrame(index=[f"gene{i}" for i in range(n_vars)]),
+    )
+
+    adata_spatial = AnnData(
+        X=np.random.poisson(1.0, size=(n_obs, n_vars)),
+        obs=pd.DataFrame({
+            "batch": pd.Categorical(np.random.choice(["batch1", "batch2"], size=n_obs)),
+            "cell_type": pd.Categorical(cell_labels),
+        }),
+        var=pd.DataFrame(index=[f"gene{i}" for i in range(n_vars)]),
+    )
+
+    return adata_seq, adata_spatial
+
+
+def test_stratified_label_sampler_initialization(stratified_adatas):
+    """Test StratifiedLabelSampler initialization and basic properties."""
+    from scvi.external.diagvi._samplers import StratifiedLabelSampler
+
+    adata_seq, adata_spatial = stratified_adatas
+    n_obs = adata_seq.n_obs
+
+    # Set up labels (integer-encoded)
+    labels_seq = adata_seq.obs["cell_type"].cat.codes.values
+    labels_spatial = adata_spatial.obs["cell_type"].cat.codes.values
+
+    labels_per_modality = {"diss": labels_seq, "spatial": labels_spatial}
+    indices_per_modality = {
+        "diss": np.arange(n_obs),
+        "spatial": np.arange(n_obs),
+    }
+
+    sampler = StratifiedLabelSampler(
+        labels_per_modality=labels_per_modality,
+        indices_per_modality=indices_per_modality,
+        batch_size=16,
+    )
+
+    # Check that sampler found all labels
+    assert len(sampler.all_labels) == 5  # 5 cell types
+    assert sampler.total_cells == n_obs
+    assert len(sampler) == (n_obs + 15) // 16  # ceil(100/16) = 7
+
+
+def test_stratified_label_sampler_batch_composition(stratified_adatas):
+    """Test that batches have consistent label proportions across modalities."""
+    from scvi.external.diagvi._samplers import StratifiedLabelSampler
+
+    adata_seq, adata_spatial = stratified_adatas
+    n_obs = adata_seq.n_obs
+
+    labels_seq = adata_seq.obs["cell_type"].cat.codes.values
+    labels_spatial = adata_spatial.obs["cell_type"].cat.codes.values
+
+    labels_per_modality = {"diss": labels_seq, "spatial": labels_spatial}
+    indices_per_modality = {
+        "diss": np.arange(n_obs),
+        "spatial": np.arange(n_obs),
+    }
+
+    sampler = StratifiedLabelSampler(
+        labels_per_modality=labels_per_modality,
+        indices_per_modality=indices_per_modality,
+        batch_size=20,
+        shuffle=False,  # Deterministic for testing
+    )
+
+    # Collect batches and verify label counts match
+    for batch_indices in sampler:
+        diss_indices = batch_indices["diss"]
+        spatial_indices = batch_indices["spatial"]
+
+        # Both modalities should have same batch size
+        assert len(diss_indices) == len(spatial_indices)
+
+        # Count labels in each modality's batch
+        diss_labels = [labels_seq[i] for i in diss_indices]
+        spatial_labels = [labels_spatial[i] for i in spatial_indices]
+
+        diss_label_counts = {}
+        spatial_label_counts = {}
+        for label in diss_labels:
+            diss_label_counts[label] = diss_label_counts.get(label, 0) + 1
+        for label in spatial_labels:
+            spatial_label_counts[label] = spatial_label_counts.get(label, 0) + 1
+
+        # Label counts should match across modalities
+        assert diss_label_counts == spatial_label_counts, (
+            f"Label counts mismatch: diss={diss_label_counts}, spatial={spatial_label_counts}"
+        )
+
+
+def test_stratified_label_sampler_all_cells_used(stratified_adatas):
+    """Test that all cells are used exactly once per epoch."""
+    from scvi.external.diagvi._samplers import StratifiedLabelSampler
+
+    adata_seq, adata_spatial = stratified_adatas
+    n_obs = adata_seq.n_obs
+
+    labels_seq = adata_seq.obs["cell_type"].cat.codes.values
+    labels_spatial = adata_spatial.obs["cell_type"].cat.codes.values
+
+    labels_per_modality = {"diss": labels_seq, "spatial": labels_spatial}
+    indices_per_modality = {
+        "diss": np.arange(n_obs),
+        "spatial": np.arange(n_obs),
+    }
+
+    sampler = StratifiedLabelSampler(
+        labels_per_modality=labels_per_modality,
+        indices_per_modality=indices_per_modality,
+        batch_size=16,
+        drop_last=False,
+    )
+
+    # Collect all sampled indices
+    diss_all_indices = []
+    spatial_all_indices = []
+
+    for batch_indices in sampler:
+        diss_all_indices.extend(batch_indices["diss"])
+        spatial_all_indices.extend(batch_indices["spatial"])
+
+    # All indices should be covered (since label distributions match)
+    assert len(diss_all_indices) == n_obs
+    assert len(spatial_all_indices) == n_obs
+
+    # Each cell should be sampled exactly once
+    assert len(set(diss_all_indices)) == n_obs
+    assert len(set(spatial_all_indices)) == n_obs
+
+
+def test_diagvi_training_with_stratified_sampling(stratified_adatas):
+    """Test DIAGVI training with stratified sampling enabled."""
+    adata_seq, adata_spatial = stratified_adatas
+
+    # Make copies to avoid state pollution
+    adata_seq = adata_seq.copy()
+    adata_spatial = adata_spatial.copy()
+
+    DIAGVI.setup_anndata(
+        adata_seq,
+        batch_key="batch",
+        labels_key="cell_type",
+        likelihood="nb",
+    )
+    DIAGVI.setup_anndata(
+        adata_spatial,
+        batch_key="batch",
+        labels_key="cell_type",
+        likelihood="nb",
+    )
+
+    model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
+    model.train(
+        max_epochs=2,
+        batch_size=16,
+        stratified_sampling=True,
+    )
+
+    assert model.is_trained_ is True
+
+    # Verify latent representations work
+    latents = model.get_latent_representation()
+    assert latents["diss"].shape[0] == adata_seq.n_obs
+    assert latents["spatial"].shape[0] == adata_spatial.n_obs
+
+
+def test_stratified_sampling_with_unlabeled_cells():
+    """Test that unlabeled cells are treated as a separate stratum."""
+    from scvi.external.diagvi._samplers import StratifiedLabelSampler
+
+    n_obs = 100
+    n_vars = 50
+
+    # Create labels with some unlabeled cells (represented as a separate category)
+    labels = ["celltype_0"] * 40 + ["celltype_1"] * 30 + ["unlabeled"] * 30
+
+    # Convert to integer codes (unlabeled will be a separate integer code)
+    label_codes = pd.Categorical(labels).codes
+
+    labels_per_modality = {"diss": label_codes, "spatial": label_codes.copy()}
+    indices_per_modality = {
+        "diss": np.arange(n_obs),
+        "spatial": np.arange(n_obs),
+    }
+
+    sampler = StratifiedLabelSampler(
+        labels_per_modality=labels_per_modality,
+        indices_per_modality=indices_per_modality,
+        batch_size=20,
+    )
+
+    # Should have 3 labels (including unlabeled as a stratum)
+    assert len(sampler.all_labels) == 3
+    assert sampler.total_cells == n_obs
+
+
+def test_stratified_train_dl_integration(stratified_adatas):
+    """Test StratifiedTrainDL works with DIAGVI's training loop."""
+    from scvi.external.diagvi._model import StratifiedTrainDL
+
+    adata_seq, adata_spatial = stratified_adatas
+
+    # Make copies
+    adata_seq = adata_seq.copy()
+    adata_spatial = adata_spatial.copy()
+
+    DIAGVI.setup_anndata(
+        adata_seq,
+        batch_key="batch",
+        labels_key="cell_type",
+        likelihood="nb",
+    )
+    DIAGVI.setup_anndata(
+        adata_spatial,
+        batch_key="batch",
+        labels_key="cell_type",
+        likelihood="nb",
+    )
+
+    model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
+
+    # Create StratifiedTrainDL manually
+    train_indices = {
+        "diss": np.arange(adata_seq.n_obs),
+        "spatial": np.arange(adata_spatial.n_obs),
+    }
+
+    stratified_dl = StratifiedTrainDL(
+        adata_managers=model.adata_managers,
+        train_indices=train_indices,
+        batch_size=16,
+    )
+
+    # Verify we can iterate and get proper batch structure
+    for batch in stratified_dl:
+        assert "diss" in batch
+        assert "spatial" in batch
+
+        # Each batch should have X and other registered fields
+        assert "X" in batch["diss"]
+        assert "X" in batch["spatial"]
+
+        # Batch sizes should match
+        assert batch["diss"]["X"].shape[0] == batch["spatial"]["X"].shape[0]
+        break  # Just test first batch
+
