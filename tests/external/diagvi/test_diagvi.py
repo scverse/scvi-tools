@@ -457,35 +457,6 @@ def test_diagvi_gmm_prior_custom_components(adata_seq, adata_spatial):
     assert model.module.gmm_means["spatial"].shape[0] == n_components
 
 
-def test_diagvi_semi_supervised_forces_gmm_prior(adata_seq_with_labels, adata_spatial_with_labels):
-    """Test that semi_supervised=True forces use_gmm_prior=True even if gmm_prior=False."""
-    DIAGVI.setup_anndata(
-        adata_seq_with_labels,
-        batch_key="batch",
-        labels_key="cell_type",
-        likelihood="nb",
-        semi_supervised=True,
-        gmm_prior=False,  # Explicitly set False
-    )
-    DIAGVI.setup_anndata(
-        adata_spatial_with_labels,
-        batch_key="batch",
-        labels_key="cell_type",
-        likelihood="nb",
-        semi_supervised=True,
-        gmm_prior=False,
-    )
-
-    model = DIAGVI({"diss": adata_seq_with_labels, "spatial": adata_spatial_with_labels})
-
-    # GMM prior should still be enabled due to semi_supervised=True
-    assert model.module.use_gmm_prior["diss"] is True
-    assert model.module.use_gmm_prior["spatial"] is True
-    # Number of components should equal number of labels
-    assert model.module.gmm_means["diss"].shape[0] == model.module.n_labels["diss"]
-    assert model.module.gmm_means["spatial"].shape[0] == model.module.n_labels["spatial"]
-
-
 def test_diagvi_semi_supervised_one_modality(adata_seq_with_labels, adata_spatial):
     """Test semi-supervised on only one modality."""
     DIAGVI.setup_anndata(
@@ -494,6 +465,7 @@ def test_diagvi_semi_supervised_one_modality(adata_seq_with_labels, adata_spatia
         labels_key="cell_type",
         likelihood="nb",
         semi_supervised=True,
+        gmm_prior=True,
     )
     DIAGVI.setup_anndata(
         adata_spatial, batch_key="batch", likelihood="nb", semi_supervised=False, gmm_prior=False
@@ -733,33 +705,6 @@ class MockModule(torch.nn.Module):
         pass
 
 
-@pytest.mark.parametrize(
-    ("semi_supervised", "expected_lam_class"),
-    [
-        # Boolean cases
-        (True, 100.0),
-        (False, 0.0),
-        # Dict cases with at least one True
-        ({"diss": True, "spatial": False}, 100.0),
-        ({"diss": False, "spatial": True}, 100.0),
-        ({"diss": True, "spatial": True}, 100.0),
-        # Dict cases with all False
-        ({"diss": False, "spatial": False}, 0.0),
-    ],
-)
-def test_lam_class_initialization_auto(semi_supervised, expected_lam_class):
-    """Test that lam_class is automatically set based on semi_supervised."""
-    from scvi.external.diagvi._task import DiagTrainingPlan
-
-    mock_module = MockModule(semi_supervised)
-    plan = DiagTrainingPlan(mock_module)
-
-    assert plan.lam_class == expected_lam_class, (
-        f"Expected lam_class={expected_lam_class} for semi_supervised={semi_supervised}, "
-        f"got {plan.lam_class}"
-    )
-
-
 @pytest.mark.parametrize("explicit_lam_class", [0.0, 50.0, 100.0, 200.0])
 def test_lam_class_initialization_explicit(explicit_lam_class):
     """Test that explicit lam_class values are respected."""
@@ -771,27 +716,6 @@ def test_lam_class_initialization_explicit(explicit_lam_class):
 
     assert plan.lam_class == explicit_lam_class, (
         f"Expected explicit lam_class={explicit_lam_class}, got {plan.lam_class}"
-    )
-
-
-def test_lam_class_initialization_no_semi_supervised_attr():
-    """Test lam_class defaults to 0.0 when module has no semi_supervised attribute."""
-    from scvi.external.diagvi._task import DiagTrainingPlan
-
-    class ModuleWithoutSemiSupervised(torch.nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.linear = torch.nn.Linear(1, 1)
-
-        def loss(self, *args, **kwargs):
-            """Mock loss method required by TrainingPlan."""
-            pass
-
-    mock_module = ModuleWithoutSemiSupervised()
-    plan = DiagTrainingPlan(mock_module)
-
-    assert plan.lam_class == 0.0, (
-        f"Expected lam_class=0.0 when semi_supervised attr is missing, got {plan.lam_class}"
     )
 
 
