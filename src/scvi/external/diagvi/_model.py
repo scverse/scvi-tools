@@ -53,6 +53,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
     Integrates multi-modal single-cell data using a guidance graph and supports
     semi-supervised learning and GMM priors.
 
+    The model architecture is inspired by GLUE (Cao & Gao, 2022).
+    This scvi-tools implementation is based on GimVI. 
+
     Parameters
     ----------
     adatas
