@@ -34,8 +34,7 @@ def _anneal_param(
 
     Returns
     -------
-    float
-        Annealed parameter value.
+    Annealed parameter value.
     """
     anneal_epochs = max_epochs // 3
     if current_epoch >= anneal_epochs:
@@ -132,6 +131,13 @@ class DiagTrainingPlan(TrainingPlan):
     ) -> tuple[list[dict], dict, int]:
         """Compute per-modality losses (reconstruction + KL).
 
+        Parameters
+        ----------
+        batch
+            A batch of data containing tensors for each modality.
+        log_prefix
+            Prefix for logging keys (e.g., "train_" or "val_").
+
         Returns
         -------
         loss_outputs
@@ -162,7 +168,7 @@ class DiagTrainingPlan(TrainingPlan):
             )
 
             # Log per-modality metrics
-            # validation and training step
+            # Validation and training step
             if log_prefix:
                 self.log(
                     f"{log_prefix}loss_{name}",
@@ -172,7 +178,7 @@ class DiagTrainingPlan(TrainingPlan):
                     on_step=True,
                 )
 
-            # only training step
+            # Only training step
             if log_prefix == "train_":
                 reconstruction_loss = torch.mean(
                     loss_output.reconstruction_loss["reconstruction_loss"]
@@ -199,9 +205,29 @@ class DiagTrainingPlan(TrainingPlan):
         return loss_outputs, loss_output, total_batch_size
 
     def _compute_graph_loss(
-        self, loss_output, feature_embeddings: torch.Tensor, log: bool = False, batch_size: int = 0
+        self,
+        loss_output: dict,
+        feature_embeddings: torch.Tensor,
+        log: bool = False,
+        batch_size: int = 0
     ) -> torch.Tensor:
-        """Compute graph reconstruction and KL loss."""
+        """Compute graph reconstruction and KL loss.
+        
+        Parameters
+        ----------
+        loss_output
+            Loss output object containing graph information.
+        feature_embeddings
+            Tensor of shape (n_features, embedding_dim) containing feature embeddings.
+        log
+            Whether to log graph loss components.
+        batch_size
+            Batch size for logging.
+
+        Returns
+        -------
+        Scalar tensor containing the total graph loss.
+        """
         graph = loss_output.extra_metrics["guidance_graph"]
 
         # Graph reconstruction loss
@@ -222,9 +248,26 @@ class DiagTrainingPlan(TrainingPlan):
 
     @dependencies("geomloss")
     def _compute_sinkhorn_loss(
-        self, z1: torch.Tensor, z2: torch.Tensor, use_annealing: bool = False
+        self,
+        z1: torch.Tensor,
+        z2: torch.Tensor,
+        use_annealing: bool = False
     ) -> torch.Tensor:
-        """Compute Sinkhorn (Unbalanced Optimal Transport) loss between latent spaces."""
+        """Compute Sinkhorn (Unbalanced Optimal Transport) loss between latent spaces.
+        
+        Parameters
+        ----------
+        z1
+            Latent representations from modality 1, shape (n_cells, n_latent).
+        z2
+            Latent representations from modality 2, shape (n_cells, n_latent).
+        use_annealing
+            Whether to use annealed Sinkhorn parameters.
+
+        Returns
+        -------
+        Scalar tensor containing the Sinkhorn loss.
+        """
         import geomloss
 
         if use_annealing and self.loss_annealing:
@@ -244,12 +287,30 @@ class DiagTrainingPlan(TrainingPlan):
     def _compute_total_loss(
         self,
         loss_outputs: list[dict],
-        loss_output,
+        loss_output: dict,
         total_batch_size: int,
         use_annealing: bool = False,
         log: bool = False,
     ) -> torch.Tensor:
-        """Compute total loss combining all components."""
+        """Compute total loss combining all components.
+        
+        Parameters
+        ----------
+        loss_outputs
+            List of per-modality loss information.
+        loss_output
+            The last loss output object (contains shared info like guidance_graph).
+        total_batch_size
+            Total number of samples across all modalities.
+        use_annealing
+            Whether to use annealed Sinkhorn parameters.
+        log
+            Whether to log loss components.
+
+        Returns
+        -------
+        Scalar tensor containing the total loss.
+        """
         # 1. Data loss (reconstruction + KL for each modality)
         data_loss = sum(out["modality_loss"] for out in loss_outputs)
 
@@ -293,8 +354,7 @@ class DiagTrainingPlan(TrainingPlan):
 
         Returns
         -------
-        dict[str, torch.Tensor]
-            A dictionary containing the total loss for backpropagation.
+        A dictionary containing the total loss for backpropagation.
         """
         loss_outputs, loss_output, total_batch_size = self._compute_modality_losses(
             batch, log_prefix="train_"
@@ -328,8 +388,7 @@ class DiagTrainingPlan(TrainingPlan):
 
         Returns
         -------
-        None
-            Returns none. Logs validation losses.
+        Returns none. Logs validation losses.
         """
         loss_outputs, loss_output, total_batch_size = self._compute_modality_losses(
             batch, log_prefix="val_"
