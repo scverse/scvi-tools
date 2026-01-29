@@ -174,35 +174,3 @@ class StratifiedLabelSampler(Sampler):
             # Only yield if we have cells in the batch
             if all(len(indices) > 0 for indices in batch_indices.values()):
                 yield batch_indices
-
-
-class StratifiedBatchSampler(Sampler):
-    """Batch sampler wrapper for a single modality using stratified sampling.
-
-    This is used internally by StratifiedTrainDL to create individual
-    data loaders that are coordinated through shared label sampling.
-
-    Parameters
-    ----------
-    indices_iterator
-        An iterator that yields lists of indices for each batch.
-    """
-
-    def __init__(self, indices_iterator):
-        self._indices_iterator = indices_iterator
-        self._cached_batches = None
-
-    def set_batches(self, batches: list[list[int]]):
-        """Set the pre-computed batches for this sampler."""
-        self._cached_batches = batches
-
-    def __iter__(self):
-        if self._cached_batches is None:
-            raise RuntimeError("Batches not set. Call set_batches() first.")
-        for batch in self._cached_batches:
-            yield batch
-
-    def __len__(self):
-        if self._cached_batches is None:
-            return 0
-        return len(self._cached_batches)
