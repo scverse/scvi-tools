@@ -417,30 +417,30 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Parameters
         ----------
-        mdata : MuData
+        mdata
             MuData object containing multiple modalities.
-        modalities : list[str]
+        modalities
             List of two modality names from mdata.mod to use.
-        batch_key : dict[str, str] or str, optional
+        batch_key
             Key(s) in adata.obs for batch annotation. Can be a single string
             (applied to all modalities) or a dict mapping modality names to keys.
-        labels_key : dict[str, str] or str, optional
+        labels_key
             Key(s) in adata.obs for cell type labels.
-        layer : dict[str, str] or str, optional
+        layer
             Layer(s) in adata to use as input.
-        likelihood : dict[str, str] or str, optional
+        likelihood
             Likelihood model(s) for each modality. Options: 'nb', 'zinb',
             'nbmixture', 'normal'. Default is 'nb'.
-        normalize_lib : dict[str, bool] or bool, optional
+        normalize_lib
             Whether to normalize counts with library size in the model for each modality.
-        gmm_prior : dict[str, bool] or bool, optional
+        gmm_prior
             Whether to use GMM prior for each modality. Default is False.
-        semi_supervised : dict[str, bool] or bool, optional
+        semi_supervised
             Whether to use semi-supervised learning for each modality.
             Default is False.
-        n_mixture_components : dict[str, int] or int, optional
+        n_mixture_components
             Number of GMM mixture components for each modality. Default is 10.
-        unlabeled_category : dict[str, str] or str, optional
+        unlabeled_category
             Category name for unlabeled cells. Default is 'unknown'.
         **kwargs
             Additional keyword arguments passed to setup_anndata.
@@ -509,11 +509,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Returns
         -------
-        guidance_graph
-            A PyTorch Geometric Data object representing the guidance graph,
-            including node features, edge indices, edge weights, edge signs,
-            including node features, edge indices, edge weights, edge signs,
-            and modality-specific feature indices.
+        A PyTorch Geometric Data object representing the guidance graph,
+        including node features, edge indices, edge weights, edge signs,
+        including node features, edge indices, edge weights, edge signs,
+        and modality-specific feature indices.
 
         Notes
         -----
@@ -599,8 +598,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Returns
         -------
-        list[AnnDataLoader]
-            List of data loaders, one per modality.
+        List of data loaders, one per modality.
         """
         if adatas is None:
             adatas = self.adatas
@@ -626,8 +624,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Returns
         -------
-        dict[str, np.ndarray]
-            Dictionary mapping modality names to latent embeddings.
+        Dictionary mapping modality names to latent embeddings.
         """
         if adatas is None:
             adatas = self.adatas
@@ -686,10 +683,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Returns
         -------
-        dict[str, np.ndarray]
-            Dictionary mapping modality names to arrays of shape
-            ``(n_cells, n_features, n_samples)`` if ``n_samples > 1``, else
-            ``(n_cells, n_features)``.
+        Dictionary mapping modality names to arrays of shape
+        ``(n_cells, n_features, n_samples)`` if ``n_samples > 1``, else
+        ``(n_cells, n_features)``.
         """
         if adatas is None:
             adatas = self.adatas
@@ -755,7 +751,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         target_batch: int | str | np.ndarray | None = None,
         target_libsize: float | np.ndarray | None = None,
     ) -> np.ndarray:
-        """Return imputed values and feature confidence scores for a given source modality.
+        """Return imputed values for a given source modality.
 
         Parameters
         ----------
@@ -772,7 +768,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Returns
         -------
-        Imputed values
+        Imputed values.
         """
         # Choose source adata according to mode
         if source_name not in self.adatas:
@@ -953,8 +949,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         Returns
         -------
-        DIAGVI
-            Loaded DIAGVI model instance.
+        Loaded DIAGVI model instance.
 
         Raises
         ------

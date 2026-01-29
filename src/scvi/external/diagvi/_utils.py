@@ -51,9 +51,8 @@ def _construct_guidance_graph(
 
     Returns
     -------
-    guidance_graph
-        PyTorch Geometric Data object with node features, edge indices,
-        edge weights, edge signs, and modality index tensors.
+    PyTorch Geometric Data object with node features, edge indices,
+    edge weights, edge signs, and modality index tensors.
 
     Raises
     ------
@@ -208,11 +207,11 @@ def _load_saved_diagvi_files(
     
     Returns
     -------
-        A tuple containing:
-        - attr_dict: Dictionary of model attributes.
-        - var_names: Dictionary of variable names for each modality.
-        - model_state_dict: State dictionary of the model.
-        - adatas: Dictionary of AnnData objects for each modality.
+    A tuple containing:
+    - attr_dict: Dictionary of model attributes.
+    - var_names: Dictionary of variable names for each modality.
+    - model_state_dict: State dictionary of the model.
+    - adatas: Dictionary of AnnData objects for each modality.
 
     Raises
     ------
@@ -270,8 +269,7 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
 
     Returns
     -------
-    torch.Tensor
-        Scalar tensor containing the graph reconstruction loss.
+    Scalar tensor containing the graph reconstruction loss.
     """
     import torch_geometric
 
@@ -310,7 +308,7 @@ def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
 
     Returns
     -------
-        The mean KL divergence as a tensor.
+    The mean KL divergence as a tensor.
     """
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
     kl_mean = kl.mean()

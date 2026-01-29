@@ -54,6 +54,7 @@ LIKELIHOOD_TO_DECODER = {
 
 # Likelihoods that require softmax normalization (count data)
 NORMALIZE_LIKELIHOODS = {"nb", "zinb", "nbmixture"}
+NON_NORMALIZE_LIKELIHOODS = {"lognormal", "log1pnormal", "gamma", "ziln", "zig"}
 OTHER_LIKELIHOODS = {"normal"}
 
 
@@ -275,9 +276,8 @@ class DIAGVAE(BaseModuleClass):
 
         Returns
         -------
-        dict[str, torch.Tensor]
-            Dictionary of inference outputs, including latent variables and
-            graph embeddings.
+        Dictionary of inference outputs, including latent variables and
+        graph embeddings.
         """
         library = torch.log(x.sum(1)).unsqueeze(1)
         graph = self.guidance_graph
@@ -343,8 +343,7 @@ class DIAGVAE(BaseModuleClass):
 
         Returns
         -------
-        dict[str, torch.Tensor]
-            Dictionary containing generative model outputs and distributions.
+        Dictionary containing generative model outputs and distributions.
         """
         EPS = 1e-8
 
@@ -476,8 +475,7 @@ class DIAGVAE(BaseModuleClass):
 
         Returns
         -------
-        LossOutput
-            Object containing loss components and metrics.
+        Object containing loss components and metrics.
         """
         x = tensors[REGISTRY_KEYS.X_KEY]
         n_obs = x.shape[0]
@@ -551,10 +549,9 @@ class DIAGVAE(BaseModuleClass):
 
         Returns
         -------
-        dict[str, torch.Tensor]
-            Dictionary mapping modality names to sampled tensors of shape
-            ``(n_samples, n_cells, n_features)`` if ``n_samples > 1``, else
-            ``(n_cells, n_features)``.
+        Dictionary mapping modality names to sampled tensors of shape
+        ``(n_samples, n_cells, n_features)`` if ``n_samples > 1``, else
+        ``(n_cells, n_features)``.
         """
         samples = {}
 
