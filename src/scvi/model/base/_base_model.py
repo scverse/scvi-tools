@@ -187,14 +187,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         """Manager instance associated with self.adata."""
         return self._adata_manager
 
-    def to_device(self, device: str | int):
+    def to_device(self, device: str | int | torch.device):
         """Move the model to the device.
 
         Parameters
         ----------
         device
             Device to move model to. Options: 'cpu' for CPU, integer GPU index (e.g., 0),
-            or 'cuda:X' where X is the GPU index (e.g. 'cuda:0'). See torch.device for more info.
+            'cuda:X' where X is the GPU index (e.g. 'cuda:0'), or a torch.device object
+            (including XLA devices for TPU). See torch.device for more info.
 
         Examples
         --------
@@ -204,7 +205,11 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         >>> model.to_device("cuda:0")  # moves model to GPU 0
         >>> model.to_device(0)  # also moves model to GPU 0
         """
-        my_device = torch.device(device)
+        # Handle XLA/TPU devices which are already torch.device objects
+        if isinstance(device, torch.device):
+            my_device = device
+        else:
+            my_device = torch.device(device)
         self.module.to(my_device)
 
     @property
@@ -921,18 +926,38 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         model.module.eval()
         if adata:
+            # Check if the saved model supports minified data by looking at registry
+            model_supports_minified = (
+                _FIELD_REGISTRIES_KEY in registry
+                and REGISTRY_KEYS.MINIFY_TYPE_KEY in registry[_FIELD_REGISTRIES_KEY]
+            )
+            # Check if the adata has latent params, which allows minify_adata() to be called
+            adata_obsm = getattr(adata, "obsm", None) or {}
+            adata_has_latent_params = (
+                "_scvi_latent_qzm" in adata_obsm and "_scvi_latent_qzv" in adata_obsm
+            )
             if type(adata) is MuData:
+                first_mod = adata[adata.mod_names[0]]
+                mudata_has_latent_params = "_scvi_latent_qzm" in getattr(
+                    first_mod, "obsm", {}
+                ) and "_scvi_latent_qzv" in getattr(first_mod, "obsm", {})
                 if (
-                    sparse.issparse(adata[adata.mod_names[0]].X)
-                    and adata[adata.mod_names[0]].X.nnz == 0
-                    and new_adata is None
+                    sparse.issparse(first_mod.X)
+                    and first_mod.X.nnz == 0
+                    and not model_supports_minified
+                    and not mudata_has_latent_params
                 ):
                     raise ValueError(
                         "It appears you are trying to load a non-minified model "
                         "with minified mudata"
                     )
             if type(adata) is AnnData:
-                if sparse.issparse(adata.X) and adata.X.nnz == 0 and new_adata is None:
+                if (
+                    sparse.issparse(adata.X)
+                    and adata.X.nnz == 0
+                    and not model_supports_minified
+                    and not adata_has_latent_params
+                ):
                     raise ValueError(
                         "It appears you are trying to load a non-minified model "
                         "with minified adata"

@@ -9,14 +9,17 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Added dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3679`.
+- Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+- Add support for Pandas3, {pr}`3638`.
+- Add support for running scVI-Tools on TPU, {pr}`3690`.
 
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
-- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+- Fix Integrated Gradients gets cont and categ covs in the reverse order, {pr}`3660`.
+- Fix minified adata load into non-minified model, {pr}`3691`.
 
 #### Changed
 
