@@ -15,6 +15,7 @@ from ._config import (
     SemiSupervisedTrainingPlanConfig,
     TrainerConfig,
     TrainingPlanConfig,
+    merge_kwargs,
 )
 from ._constants import METRIC_KEYS
 from ._trainer import Trainer
@@ -30,6 +31,7 @@ from ._trainingplans import (
 from ._trainrunner import TrainRunner
 
 __all__ = [
+    "merge_kwargs",
     "TrainingPlan",
     "TrainingPlanConfig",
     "Trainer",
