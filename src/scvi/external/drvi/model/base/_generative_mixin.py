@@ -501,7 +501,7 @@ class GenerativeMixin:
 
         Examples
         --------
-        >>> import utils.plotting._interpretability
+        >>> from scvi.external.drvi.utils.pl import show_top_differential_vars
         >>>
         >>> # Get empirical maximum effects
         >>> max_effects = model.get_max_effect_of_splits_within_distribution(add_to_counts=0.1)
@@ -517,8 +517,8 @@ class GenerativeMixin:
         ...     .T
         ... )
         >>> plot_info = list(effect_data.to_dict(orient="series").items())
-        >>> utils.plotting._interpretability._bar_plot_top_differential_vars(plot_info)
-        >>> utils.plotting._interpretability._umap_of_relevant_genes(adata, embed, plot_info, dim_subset=["DR 1"])
+        >>> # Use show_top_differential_vars for visualization
+        >>> # show_top_differential_vars(traverse_adata, key="combined_score")
         """
 
         def calculate_effect(

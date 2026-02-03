@@ -5,12 +5,12 @@ from matplotlib import pyplot as plt
 from scipy import sparse
 
 from scvi.external.drvi import DRVI
-from scvi.external.drvi.utils.plotting import (
+from scvi.external.drvi.utils.pl import (
     plot_latent_dimension_stats,
     plot_latent_dims_in_heatmap,
     show_top_differential_vars,
 )
-from scvi.external.drvi.utils.tools import (
+from scvi.external.drvi.utils.tl import (
     calculate_differential_vars,
     iterate_on_top_differential_vars,
     set_latent_dimension_stats,
