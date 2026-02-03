@@ -20,7 +20,6 @@ from scvi.data import AnnDataManager
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY
 from scvi.data.fields import CategoricalObsField, LabelsWithUnlabeledObsField, LayerField
 from scvi.dataloaders import DataSplitter
-from scvi.external.diagvi._samplers import StratifiedLabelSampler
 from scvi.external.diagvi._utils import (
     _check_guidance_graph_consistency,
     _construct_guidance_graph,
@@ -180,7 +179,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
         shuffle_set_split: bool = True,
-        stratified_sampling: bool = False,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         **kwargs,
@@ -197,11 +195,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Proportion of data to use for training (rest for validation).
         shuffle_set_split
             Whether to shuffle data before splitting into train/validation.
-        stratified_sampling
-            Whether to use cell type stratified sampling. If True, each batch will
-            contain cells with similar cell type proportions across modalities.
-            Requires labels_key to be set during setup_anndata. Unlabeled cells
-            (if any) are treated as a separate stratum.
         datasplitter_kwargs
             Additional keyword arguments for the DataSplitter and DataLoaders.
         plan_kwargs
@@ -253,8 +246,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = {}, {}, {}
         datasplitter_kwargs = datasplitter_kwargs if isinstance(datasplitter_kwargs, dict) else {}
-        # Store data splitters for stratified sampling access
-        data_splitters = {}
         for name, adm in self.adata_managers.items():
             ds = self._data_splitter_cls(
                 adm,
@@ -266,7 +257,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 **datasplitter_kwargs,
             )
             ds.setup()
-            data_splitters[name] = ds
             train_dls[name] = ds.train_dataloader()
             test_dls[name] = ds.test_dataloader()
             val_dls[name] = ds.val_dataloader()
@@ -274,15 +264,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        # Create train dataloader (stratified or regular)
-        if stratified_sampling:
-            train_dl = StratifiedTrainDL(
-                adata_managers=self.adata_managers,
-                train_indices={name: ds.train_idx for name, ds in data_splitters.items()},
-                batch_size=batch_size,
-            )
-        else:
-            train_dl = TrainDL(train_dls)
+        
+        train_dl = TrainDL(train_dls)
         val_dl = TrainDL(val_dls)
         
         # Initialize and run training plan
@@ -1104,96 +1087,3 @@ class TrainDL(DataLoader):
         # Return a dict of modality_name -> batch for each step
         for batches in zip(*train_dls, strict=False):
             yield dict(zip(self.input_names, batches, strict=False))
-
-
-class StratifiedTrainDL(DataLoader):
-    """DataLoader with cell type stratified sampling across modalities.
-
-    Ensures that each batch contains cells with similar cell type proportions
-    across both modalities. Samples labels first, then independently samples
-    cells from each modality based on those labels.
-
-    Parameters
-    ----------
-    adata_managers
-        Dictionary mapping modality names to their AnnDataManager objects.
-    train_indices
-        Dictionary mapping modality names to arrays of training cell indices.
-    batch_size
-        Number of cells to sample per batch per modality.
-    drop_last
-        If True, drop the last incomplete batch.
-    shuffle
-        If True, shuffle cells within each label group at the start of each epoch.
-    """
-
-    def __init__(
-        self,
-        adata_managers: dict[str, AnnDataManager],
-        train_indices: dict[str, np.ndarray],
-        batch_size: int = 128,
-        drop_last: bool = False,
-        shuffle: bool = True,
-    ):
-        self.adata_managers = adata_managers
-        self.train_indices = train_indices
-        self.batch_size = batch_size
-        self.drop_last = drop_last
-        self.shuffle = shuffle
-        self.modality_names = list(adata_managers.keys())
-
-        # Get labels for each modality from their AnnDataManagers
-        self.labels_per_modality = {}
-        for name, adm in adata_managers.items():
-            # Get labels from the registered data
-            labels_data = adm.get_from_registry(REGISTRY_KEYS.LABELS_KEY)
-            self.labels_per_modality[name] = labels_data.ravel()
-
-        # Create the stratified sampler
-        self.stratified_sampler = StratifiedLabelSampler(
-            labels_per_modality=self.labels_per_modality,
-            indices_per_modality=train_indices,
-            batch_size=batch_size,
-            drop_last=drop_last,
-            shuffle=shuffle,
-        )
-
-        # Create torch datasets for each modality
-        self.datasets = {}
-        for name, adm in adata_managers.items():
-            self.datasets[name] = adm.create_torch_dataset(
-                indices=np.arange(adm.adata.n_obs),  # All indices, we'll subset in __iter__
-            )
-
-        # Initialize parent DataLoader with minimal config
-        # We override __iter__ and __len__ so most params don't matter
-        super().__init__(
-            dataset=list(self.datasets.values())[0],
-            batch_size=1,  # We handle batching ourselves
-            num_workers=settings.dl_num_workers,
-            persistent_workers=getattr(settings, "dl_persistent_workers", False),
-            pin_memory=getattr(settings, "dl_pin_memory_gpu_training", False),
-        )
-
-    def __len__(self) -> int:
-        """Return number of batches per epoch."""
-        return len(self.stratified_sampler)
-
-    def __iter__(self):
-        """Yield batches with stratified cell type composition.
-
-        Each iteration yields a dictionary mapping modality names to
-        tensor dictionaries (same format as regular AnnDataLoader batches).
-        """
-        for batch_indices in self.stratified_sampler:
-            batch_dict = {}
-            for name in self.modality_names:
-                indices = batch_indices[name]
-                # Get data for these indices from the torch dataset
-                batch_data = self.datasets[name][indices]
-                # Convert all arrays in batch_data to torch tensors if needed
-                for k, v in batch_data.items():
-                    if isinstance(v, np.ndarray):
-                        batch_data[k] = torch.from_numpy(v)
-                batch_dict[name] = batch_data
-            yield batch_dict
