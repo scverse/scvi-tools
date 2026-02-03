@@ -45,9 +45,6 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
         Number of nodes in hidden layers of the decoder.
     prior
         Prior model type.
-    prior_init_obs
-        When using "gmm_x" or "vamp_x" priors, these observations are used to initialize the prior parameters.
-        Number of observations must match the x value in the prior name.
     categorical_embedding_dims
         Dictionary mapping categorical covariate names to their embedding dimensions.
         Used only if `covariate_modeling_strategy` passed to DRVIModule is based on embedding (not onehot encoding).
@@ -77,8 +74,7 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
         n_latent: int = 32,
         encoder_dims: Sequence[int] = (128, 128),
         decoder_dims: Sequence[int] = (128, 128),
-        prior: Literal["normal", "gmm_x", "vamp_x"] = "normal",
-        prior_init_obs: np.ndarray | None = None,
+        prior: Literal["normal"] = "normal",
         categorical_embedding_dims: dict[str, int] | None = None,
         **model_kwargs,
     ) -> None:
@@ -99,14 +95,6 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
             n_cats_per_cov, categorical_embedding_dims
         )
 
-        prior_init_dataloader = None
-        if prior_init_obs is not None:
-            assert "_" in prior
-            assert len(prior_init_obs) == int(prior.split("_")[-1])
-            prior_init_dataloader = self._make_data_loader(
-                adata=adata[prior_init_obs], batch_size=len(prior_init_obs), shuffle=False
-            )
-
         self._module_kwargs = dict(
             n_input=self.summary_stats["n_vars"],
             n_latent=n_latent,
@@ -115,7 +103,6 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
             n_cats_per_cov=n_cats_per_cov,
             n_continuous_cov=n_continuous_cov,
             prior=prior,
-            prior_init_dataloader=prior_init_dataloader,
             categorical_covariate_dims=categorical_covariates_dims,
             **model_kwargs,
         )

@@ -162,13 +162,10 @@ class TestDRVIModel:
 
     def test_integration_with_different_priors(self):
         adata = self.make_test_adata()
-        for prior, prior_init_obs in [
-            ("normal", None),
-            ("gmm_5", None),
-            ("gmm_5", adata.obs.index.to_series().sample(5)),
-            ("vamp_5", adata.obs.index.to_series().sample(5)),
+        for prior in [
+            ("normal"),
         ]:
-            self._general_integration_test(adata, prior=prior, prior_init_obs=prior_init_obs)
+            self._general_integration_test(adata, prior=prior)
 
     def test_multilevel_batch_integration(self):
         adata = self.make_test_adata()
@@ -191,20 +188,6 @@ class TestDRVIModel:
         self._general_integration_test(
             adata,
             data_kwargs=dict(batch_key="batch"),  # noqa: C408
-        )
-        # Scenario 4 with VaMP prior
-        self._general_integration_test(
-            adata,
-            data_kwargs=dict(categorical_covariate_keys=["batch", "batch_2"]),  # noqa: C408
-            prior="vamp_5",
-            prior_init_obs=adata.obs.index.to_series().sample(5),
-        )
-        # Scenario 5 with VaMP prior
-        self._general_integration_test(
-            adata,
-            data_kwargs=dict(batch_key="batch", categorical_covariate_keys=["batch_2"]),  # noqa: C408
-            prior="vamp_5",
-            prior_init_obs=adata.obs.index.to_series().sample(5),
         )
 
     def _general_query_to_reference(self, adata_reference, adata_query, layer="lognorm", data_kwargs=None, **kwargs):

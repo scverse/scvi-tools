@@ -7,7 +7,6 @@ import torch
 from scvi import REGISTRY_KEYS
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from torch.distributions import Normal
-from torch.utils.data import DataLoader
 
 from scvi.external.drvi.nn_modules.embedding import MultiEmbedding
 from scvi.external.drvi.nn_modules.layer.factory import LayerFactory
@@ -17,7 +16,7 @@ from scvi.external.drvi.nn_modules.noise_model import (
     NormalNoiseModel,
     PoissonNoiseModel,
 )
-from scvi.external.drvi.nn_modules.prior import GaussianMixtureModelPrior, StandardPrior, VampPrior
+from scvi.external.drvi.nn_modules.prior import StandardPrior
 from scvi.external.drvi.module._constants import MODULE_KEYS
 from scvi.external.drvi.nn import DecoderDRVI, Encoder
 
@@ -97,8 +96,6 @@ class DRVIModule(BaseModuleClass):
         - "pnb": Log negative binomial distributions
     prior
         Prior model.
-    prior_init_dataloader
-        Dataloader constructed to initialize the prior (or maintain in vamp).
     var_activation
         The activation function to ensure positivity of the variational distribution.
         Options include "exp", "pow2", "2sig" or a custom callable.
@@ -150,8 +147,7 @@ class DRVIModule(BaseModuleClass):
         encoder_dropout_rate: float = 0.1,
         decoder_dropout_rate: float = 0.0,
         gene_likelihood: Literal["normal", "normal_v", "normal_sv", "poisson", "nb", "pnb"] = "pnb",
-        prior: Literal["normal", "gmm_x", "vamp_x"] = "normal",
-        prior_init_dataloader: DataLoader | None = None,
+        prior: Literal["normal"] = "normal",
         var_activation: Callable | Literal["exp", "pow2", "2sig"] = "exp",
         mean_activation: Callable | str = "identity",
         encoder_layer_factory: LayerFactory | None = None,
@@ -241,7 +237,7 @@ class DRVIModule(BaseModuleClass):
             **(extra_decoder_kwargs or {}),
         )
 
-        self.prior = self._construct_prior(prior, prior_init_dataloader)
+        self.prior = self._construct_prior(prior)
         self.inspect_mode = False
 
     @property
@@ -289,60 +285,21 @@ class DRVIModule(BaseModuleClass):
         else:
             raise NotImplementedError()
 
-    def _construct_prior(self, prior: str, prior_init_dataloader: DataLoader | None = None) -> Any:
+    def _construct_prior(self, prior: str) -> Any:
         """Construct the prior model based on the specified type.
 
         Parameters
         ----------
         prior
             Type of prior model to construct.
-        prior_init_dataloader
-            Dataloader for initializing the prior (required for some prior types).
 
         Returns
         -------
         object
             Constructed prior model.
-
-        Raises
-        ------
-        ValueError
-            If VaMP prior is specified without a dataloader.
-        NotImplementedError
-            If the prior type is not supported.
         """
         if prior == "normal":
             return StandardPrior()
-        elif prior.startswith("gmm_"):
-            n_components = int(prior.split("_")[1])
-            if prior_init_dataloader is not None:
-                inference_output = self.inference(**self._get_inference_input(next(iter(prior_init_dataloader))))
-                init_data = inference_output[MODULE_KEYS.QZM_KEY], inference_output[MODULE_KEYS.QZV_KEY]
-            else:
-                init_data = None
-            return GaussianMixtureModelPrior(n_components, self.n_latent, data=init_data)
-        elif prior.startswith("vamp_"):
-            n_components = int(prior.split("_")[1])
-            if prior_init_dataloader is not None:
-
-                def preparation_function(prepared_input: dict[str, Any]) -> tuple[torch.Tensor, list, dict[str, Any]]:
-                    x = prepared_input[MODULE_KEYS.X_KEY]
-                    args = []
-                    kwargs = {"cat_full_tensor": prepared_input[MODULE_KEYS.CAT_COVS_KEY]}
-                    return x, args, kwargs
-
-                model_input = self._input_pre_processing(**self._get_inference_input(next(iter(prior_init_dataloader))))
-            else:
-                raise ValueError("VaMP prior needs input samples as pseudo-inputs.")
-            return VampPrior(
-                n_components,
-                self.z_encoder,
-                model_input,
-                input_type="scvi",
-                trainable_keys=(MODULE_KEYS.X_KEY,),
-                fixed_keys=(MODULE_KEYS.CAT_COVS_KEY,),
-                preparation_function=preparation_function,
-            )
         else:
             raise NotImplementedError()
 
