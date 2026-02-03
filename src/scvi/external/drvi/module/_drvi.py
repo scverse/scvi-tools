@@ -92,9 +92,9 @@ class DRVIModule(BaseModuleClass):
     gene_likelihood
         Gene likelihood model. Options include:
         - "normal", "normal_v", "normal_sv" : Normal distributions
-        - "poisson", "poisson_orig" : Poisson distributions
-        - "nb", "nb_sv", "nb_libnorm", "nb_loglib_rec", "nb_libnorm_loglib_rec", "nb_loglibnorm_all", "nb_orig", "nb_softmax", "nb_softplus", "nb_none", "nb_orig_libnorm" : Negative binomial distributions
-        - "pnb", "pnb_sv", "pnb_softmax" : Log negative binomial distributions
+        - "poisson" : Poisson distributions
+        - "nb" : Negative binomial distributions
+        - "pnb": Log negative binomial distributions
     prior
         Prior model.
     prior_init_dataloader
@@ -149,27 +149,7 @@ class DRVIModule(BaseModuleClass):
         input_dropout_rate: float = 0.0,
         encoder_dropout_rate: float = 0.1,
         decoder_dropout_rate: float = 0.0,
-        gene_likelihood: Literal[
-            "normal",
-            "normal_v",
-            "normal_sv",
-            "poisson",
-            "poisson_orig",
-            "nb",
-            "nb_sv",
-            "nb_libnorm",
-            "nb_loglib_rec",
-            "nb_libnorm_loglib_rec",
-            "nb_loglibnorm_all",
-            "nb_orig",
-            "nb_softmax",
-            "nb_softplus",
-            "nb_none",
-            "nb_orig_libnorm",
-            "pnb",
-            "pnb_sv",
-            "pnb_softmax",
-        ] = "pnb_softmax",
+        gene_likelihood: Literal["normal", "normal_v", "normal_sv", "poisson", "nb", "pnb"] = "pnb",
         prior: Literal["normal", "gmm_x", "vamp_x"] = "normal",
         prior_init_dataloader: DataLoader | None = None,
         var_activation: Callable | Literal["exp", "pow2", "2sig"] = "exp",
@@ -297,38 +277,12 @@ class DRVIModule(BaseModuleClass):
         elif gene_likelihood == "normal_sv":
             return NormalNoiseModel(model_var="feature")
         elif gene_likelihood == "poisson":
-            return PoissonNoiseModel(mean_transformation="exp", library_normalization="none")
-        elif gene_likelihood == "poisson_orig":
             return PoissonNoiseModel(mean_transformation="softmax", library_normalization="none")
-        elif gene_likelihood in ["nb", "nb_sv"]:
-            return NegativeBinomialNoiseModel(dispersion="feature", library_normalization="none")
-        elif gene_likelihood in ["nb_libnorm"]:
-            return NegativeBinomialNoiseModel(dispersion="feature", library_normalization="x_lib")
-        elif gene_likelihood in ["nb_loglib_rec"]:
-            return NegativeBinomialNoiseModel(dispersion="feature", library_normalization="x_loglib")
-        elif gene_likelihood in ["nb_libnorm_loglib_rec"]:
-            return NegativeBinomialNoiseModel(dispersion="feature", library_normalization="div_lib_x_loglib")
-        elif gene_likelihood in ["nb_loglibnorm_all"]:
-            return NegativeBinomialNoiseModel(dispersion="feature", library_normalization="x_loglib_all")
-        elif gene_likelihood in ["nb_orig", "nb_softmax"]:
+        elif gene_likelihood in ["nb"]:
             return NegativeBinomialNoiseModel(
                 dispersion="feature", mean_transformation="softmax", library_normalization="none"
             )
-        elif gene_likelihood in ["nb_softplus"]:
-            return NegativeBinomialNoiseModel(
-                dispersion="feature", mean_transformation="softplus", library_normalization="none"
-            )
-        elif gene_likelihood in ["nb_none"]:
-            return NegativeBinomialNoiseModel(
-                dispersion="feature", mean_transformation="none", library_normalization="none"
-            )
-        elif gene_likelihood == "nb_orig_libnorm":
-            return NegativeBinomialNoiseModel(
-                dispersion="feature", mean_transformation="softmax", library_normalization="x_lib"
-            )
-        elif gene_likelihood in ["pnb", "pnb_sv"]:
-            return LogNegativeBinomialNoiseModel(dispersion="feature", library_normalization="none")
-        elif gene_likelihood in ["pnb_softmax"]:
+        elif gene_likelihood in ["pnb"]:
             return LogNegativeBinomialNoiseModel(
                 dispersion="feature", mean_transformation="softmax", library_normalization="none"
             )
