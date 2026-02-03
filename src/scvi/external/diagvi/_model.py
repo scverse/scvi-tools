@@ -54,7 +54,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
     semi-supervised learning and GMM priors.
 
     The model architecture is inspired by GLUE (Cao & Gao, 2022).
-    This scvi-tools implementation is based on GimVI. 
+    This scvi-tools implementation is based on GimVI.
+    Handling of continuous data in decoder is inspired by CytoVI.
 
     Parameters
     ----------
