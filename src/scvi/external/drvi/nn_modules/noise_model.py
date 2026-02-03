@@ -317,7 +317,10 @@ class NormalNoiseModel(NoiseModel):
         var = parameters["var"]
         if self.model_var:
             var = torch.nan_to_num(torch.exp(var), posinf=100, neginf=0) + self.eps
-        output_dist = scvi_distributions.Normal(mean, torch.abs(var).sqrt())
+        output_dist = scvi_distributions.Normal(mean, torch.abs(var).sqrt(), normal_mu=mean)
+        # Just for scvi RNASeqMixin compatibility.
+        output_dist.mu = output_dist.loc
+        output_dist.theta = output_dist.scale
         return output_dist
 
 
@@ -403,6 +406,9 @@ class PoissonNoiseModel(NoiseModel):
         else:
             raise NotImplementedError()
         output_dist = scvi_distributions.Poisson(trans_mean, scale=trans_scale)
+        # Just for scvi RNASeqMixin compatibility.
+        output_dist.mu = trans_mean
+        output_dist.theta = torch.ones_like(trans_mean)
         return output_dist
 
 
@@ -619,6 +625,19 @@ class LogNegativeBinomial(Distribution):
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         return self.negative_binomial_log_ver(value, self.log_m, self.log_r, eps=self._eps)
+
+    # Next 3 properties: Just for scvi RNASeqMixin backward compatibility.
+    @property
+    def mu(self) -> torch.Tensor:
+        return self.get_normalized("mu")
+
+    @property
+    def theta(self) -> torch.Tensor:
+        return self.get_normalized("theta")
+
+    @property
+    def scale(self) -> torch.Tensor:
+        return self.get_normalized("scale")
 
     def get_normalized(self, key: str) -> torch.Tensor:
         if key == "mu":
