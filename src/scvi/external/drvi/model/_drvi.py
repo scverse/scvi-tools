@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+from importlib.metadata import version
 
 import numpy as np
-import scvi
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalJointObsField, CategoricalJointObsField
@@ -25,7 +25,7 @@ _DRVI_LATENT_QZM = "_drvi_latent_qzm"
 _DRVI_LATENT_QZV = "_drvi_latent_qzv"
 _DRVI_OBSERVED_LIB_SIZE = "_drvi_observed_lib_size"
 
-DRVI_VERSION = scvi.__version__
+SCVI_VERSION = version("scvi-tools")
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +186,7 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
         )  # "0.1.0" for legacy code before pypi release
         logger.info(f"The model is trained with DRVI version {source_registry_drvi_version}.")
 
-        while source_registry_drvi_version < Version(DRVI_VERSION):
+        while source_registry_drvi_version < Version(SCVI_VERSION):
             if source_registry_drvi_version < Version("0.1.10"):
                 # No braking change up to 0.1.10
                 source_registry_drvi_version = Version("0.1.10")
@@ -204,8 +204,8 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
                 logger.info("Done updating source registry from 0.1.10 to 0.1.11.")
             else:
                 # No braking change yet!
-                source_registry_drvi_version = Version(DRVI_VERSION)
-        logger.info(f"Loading source in DRVI version {DRVI_VERSION}.")
+                source_registry_drvi_version = Version(SCVI_VERSION)
+        logger.info(f"Loading source in DRVI version {SCVI_VERSION}.")
 
         return source_registry
 
@@ -239,7 +239,7 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
         %(returns)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
-        setup_method_args["drvi_version"] = DRVI_VERSION
+        setup_method_args["drvi_version"] = SCVI_VERSION
 
         # Manipulate kwargs in case of version updates (only when loading a model).
         if "source_registry" in kwargs:
