@@ -264,7 +264,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
 
-        
         train_dl = TrainDL(train_dls)
         val_dl = TrainDL(val_dls)
         
