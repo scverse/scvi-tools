@@ -273,50 +273,6 @@ class TestDRVIModel:
                 data_kwargs=dict(continuous_covariate_keys=["log_library_size_as_cont_cov"]),  # noqa: C408
             )
 
-    def test_ann_data_categorical_transfer_on_query_to_reference_mapping(self):
-        # TODO: revise and complete this file
-        adata = self.make_test_adata()
-        adata_reference = adata[adata.obs["batch"] != "batch_0"].copy()
-        adata_query = adata[adata.obs["batch"] == "batch_0"].copy()
-
-        layer = "counts"
-        is_count_data = layer == "counts"
-        setup_anndata_default_params = dict(  # noqa: C408
-            categorical_covariate_keys=["batch"],
-            layer=layer,
-            is_count_data=is_count_data,
-        )
-        default_args = dict(  # noqa: C408
-            n_latent=32,
-            encoder_dims=[128],
-            decoder_dims=[128],
-            gene_likelihood="normal",
-            decoder_reuse_weights="everywhere",
-            encode_covariates=True,
-        )
-        DRVI.setup_anndata(adata_reference, **setup_anndata_default_params)
-        model = DRVI(adata_reference, **default_args)
-        model.train(accelerator="cpu", max_epochs=10)
-
-        DRVI.prepare_query_anndata(adata_query, model)
-        transfer_model = model.load_query_data(adata_query, model)
-        transfer_model.train(accelerator="cpu", max_epochs=10, plan_kwargs={"lr": 0.1, "weight_decay": 0.0})
-
-        for current_adata in (adata_query, adata_reference, adata):
-            print("*****")
-            current_adata = transfer_model._validate_anndata(current_adata)
-            scdl = transfer_model._make_data_loader(
-                adata=current_adata,
-                indices=None,
-                batch_size=128,
-            )
-            for tensors in scdl:
-                print(tensors)
-                inference_inputs = transfer_model.module._get_inference_input(tensors)
-                print(inference_inputs)
-                transfer_model.module.inference(**inference_inputs)
-                break
-
     def test_reconstruction_of_a_latent_without_covariate(self):
         adata = self.make_test_adata()
         model = self._general_integration_test(

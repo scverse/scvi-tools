@@ -398,8 +398,6 @@ class DRVIModule(BaseModuleClass):
             assert cont_covs is None  # We do not consider cont_cov here
             x_mask = torch.where(torch.rand_like(x_) >= self.fill_in_the_blanks_ratio, 1.0, 0.0)
             x_ = x_ * x_mask
-            # TODO: check this:
-            # x_ = x_ * x_mask / x_mask.mean(dim=1, keepdim=True)
         else:
             x_mask = None
 
