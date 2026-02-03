@@ -175,7 +175,6 @@ class TestDRVIModel:
         # Scenario 0
         self._general_integration_test(
             adata,
-            batch_key="batch",
             data_kwargs=dict(batch_key="batch", categorical_covariate_keys=[]),  # noqa: C408
         )
         # Scenario 1
@@ -186,13 +185,11 @@ class TestDRVIModel:
         # Scenario 2
         self._general_integration_test(
             adata,
-            batch_key="batch",
             data_kwargs=dict(batch_key="batch", categorical_covariate_keys=["batch_2"]),  # noqa: C408
         )
         # Scenario 3 (just batch key)
         self._general_integration_test(
             adata,
-            batch_key="batch",
             data_kwargs=dict(batch_key="batch"),  # noqa: C408
         )
         # Scenario 4 with VaMP prior
@@ -205,7 +202,6 @@ class TestDRVIModel:
         # Scenario 5 with VaMP prior
         self._general_integration_test(
             adata,
-            batch_key="batch",
             data_kwargs=dict(batch_key="batch", categorical_covariate_keys=["batch_2"]),  # noqa: C408
             prior="vamp_5",
             prior_init_obs=adata.obs.index.to_series().sample(5),
@@ -362,7 +358,6 @@ class TestDRVIModel:
         adata = self.make_test_adata()
         model = self._general_integration_test(
             adata,
-            batch_key="batch",
             data_kwargs=dict(batch_key="batch", categorical_covariate_keys=["batch_2"]),  # noqa: C408
         )["model"]
         batch_values = adata.obs[["batch"]].values
