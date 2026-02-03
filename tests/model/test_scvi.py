@@ -753,6 +753,18 @@ def test_early_stopping_with_parameters(
     assert len(model.history["elbo_train"]) < n_epochs
 
 
+@pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-label", "gene-cell"])
+def test_scvi_dispersion(dispersion: str):
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, dispersion=dispersion)
+    model.train(1)
+
+
 def test_de_features():
     adata = synthetic_iid(batch_size=50, n_genes=20, n_proteins=20, n_regions=20)
     SCVI.setup_anndata(
@@ -1292,7 +1304,7 @@ def test_scvi_with_external_indices(gene_likelihood: str, n_latent: int):
         train_size=0.5,
     )
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     model.train(
         1,

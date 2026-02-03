@@ -207,7 +207,7 @@ def test_scanvi_with_external_indices():
         datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
     )
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     model.train(
         1,
@@ -730,3 +730,16 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     # # select the label we want to understand (usually the '1' class)
     shap_top_features_test = model.get_ranked_features(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)
+
+
+@pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-cell"])
+def test_scanvi_dispersion(dispersion: str):
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        unlabeled_category="label_0",
+    )
+    model = SCANVI(adata, dispersion=dispersion)
+    model.train(1)

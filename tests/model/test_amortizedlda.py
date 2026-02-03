@@ -34,7 +34,7 @@ def test_lda_model_single_step_with_external_indices(n_topics: int):
     )
 
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     mod1.train(
         max_steps=1,

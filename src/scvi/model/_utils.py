@@ -142,12 +142,31 @@ def parse_device_args(
 
     if devices == "auto" and _accelerator != "cpu":
         # auto device should not use multiple devices for non-cpu accelerators
-        _devices = [device_idx]
+        if _accelerator == "tpu":
+            # For TPU, device_idx from connector is a count (e.g., 1), not an index
+            # TPU device indices start from 0, so use [0] for single device
+            _devices = [0]
+            device_idx = 0
+        else:
+            _devices = [device_idx]
 
     if return_device == "torch":
         device = torch.device("cpu")
         if _accelerator != "cpu":
-            device = torch.device(f"{_accelerator}:{device_idx}")
+            if _accelerator == "tpu":
+                # TPU requires torch_xla and uses "xla" device type, not "tpu"
+                if not is_package_installed("torch_xla"):
+                    raise ImportError(
+                        "TPU support requires torch_xla. Please install it with:\n"
+                        "  pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html\n"
+                        "or for Colab:\n"
+                        "  pip install torch_xla[colab] -f https://storage.googleapis.com/libtpu-releases/index.html"
+                    )
+                import torch_xla.core.xla_model as xm
+
+                device = xm.xla_device()
+            else:
+                device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
     elif return_device == "jax" and is_package_installed("jax"):
         import jax
@@ -161,8 +180,6 @@ def parse_device_args(
         return _accelerator, _devices, device
     else:
         raise ImportError("Please install jax to use this functionality.")
-
-    return _accelerator, _devices
 
 
 def scrna_raw_counts_properties(
