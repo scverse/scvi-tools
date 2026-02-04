@@ -3,17 +3,21 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import scvi
 import torch
 from lightning import LightningDataModule
-from scvi import REGISTRY_KEYS
-from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
-from scvi.model._utils import parse_device_args
-from scvi.model.base import BaseModelClass
-from scvi.model.base._archesmixin import ArchesMixin, _get_loaded_data, _initialize_model, _validate_var_names
 from torch import nn
 
+from scvi import REGISTRY_KEYS
+from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.external.drvi.nn import FCLayers
+from scvi.model._utils import parse_device_args
+from scvi.model.base import BaseModelClass
+from scvi.model.base._archesmixin import (
+    ArchesMixin,
+    _get_loaded_data,
+    _initialize_model,
+    _validate_var_names,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -90,7 +94,9 @@ class DRVIArchesMixin(ArchesMixin):
         )
 
         # We limit to [:3] as from scvi version 1.1.5 additional output (pyro_param_store) is returned
-        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)[:3]
+        attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)[
+            :3
+        ]
 
         if adata:
             if inplace_subset_query_vars:
@@ -103,7 +109,9 @@ class DRVIArchesMixin(ArchesMixin):
                 raise ValueError("It appears you are loading a model from a different class.")
 
             if _SETUP_ARGS_KEY not in registry:
-                raise ValueError("Saved model does not contain original setup inputs. Cannot load the original setup.")
+                raise ValueError(
+                    "Saved model does not contain original setup inputs. Cannot load the original setup."
+                )
 
             if registry[_SETUP_METHOD_NAME] != "setup_datamodule":
                 setup_method = getattr(cls, registry[_SETUP_METHOD_NAME])
@@ -126,11 +134,15 @@ class DRVIArchesMixin(ArchesMixin):
         model = _initialize_model(cls, adata, registry, attr_dict, datamodule)
         adata_manager = model.get_anndata_manager(adata, required=True)
 
-        previous_n_batch = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY]["summary_stats"]["n_batch"]
+        previous_n_batch = registry["field_registries"][REGISTRY_KEYS.BATCH_KEY]["summary_stats"][
+            "n_batch"
+        ]
         n_batch = model.summary_stats.n_batch
         if REGISTRY_KEYS.CAT_COVS_KEY in adata_manager.data_registry:
             previous_n_cats_per_cov = [previous_n_batch] + list(
-                registry["field_registries"][REGISTRY_KEYS.CAT_COVS_KEY]["state_registry"]["n_cats_per_key"]
+                registry["field_registries"][REGISTRY_KEYS.CAT_COVS_KEY]["state_registry"][
+                    "n_cats_per_key"
+                ]
             )
             n_cats_per_cov = [n_batch] + list(
                 model.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
@@ -184,10 +196,18 @@ class DRVIArchesMixin(ArchesMixin):
                         cum_n_cat_new = cum_n_cat_old
                         fixed_ten = [load_ten[:, :cum_n_cat_old]] if cum_n_cat_old > 0 else []
                         # Iterate and get old covariates deom load_ten and new ones from new_ten
-                        for n_cat_new, n_cat_old in zip(n_cats_per_cov, previous_n_cats_per_cov, strict=False):
-                            fixed_ten.append(load_ten[:, cum_n_cat_old : cum_n_cat_old + n_cat_old])
+                        for n_cat_new, n_cat_old in zip(
+                            n_cats_per_cov, previous_n_cats_per_cov, strict=False
+                        ):
+                            fixed_ten.append(
+                                load_ten[:, cum_n_cat_old : cum_n_cat_old + n_cat_old]
+                            )
                             if n_cat_new > n_cat_old:
-                                fixed_ten.append(new_ten[:, cum_n_cat_new : cum_n_cat_new + n_cat_new - n_cat_old])
+                                fixed_ten.append(
+                                    new_ten[
+                                        :, cum_n_cat_new : cum_n_cat_new + n_cat_new - n_cat_old
+                                    ]
+                                )
                             cum_n_cat_old += n_cat_old
                             cum_n_cat_new += n_cat_new
                         # Concat and set as init tensor
@@ -198,7 +218,8 @@ class DRVIArchesMixin(ArchesMixin):
                         # 3D tensors
                         # extend weight of stacked linears along dim 1 (input)
                         assert (
-                            sum(n_cats_per_cov) - sum(previous_n_cats_per_cov) == new_ten.size()[1] - load_ten.size()[1]
+                            sum(n_cats_per_cov) - sum(previous_n_cats_per_cov)
+                            == new_ten.size()[1] - load_ten.size()[1]
                         )
                         assert new_ten.size()[0] == load_ten.size()[0]
                         assert new_ten.size()[2] == load_ten.size()[2]
@@ -207,10 +228,18 @@ class DRVIArchesMixin(ArchesMixin):
                         cum_n_cat_new = cum_n_cat_old
                         fixed_ten = [load_ten[:, :cum_n_cat_old, :]] if cum_n_cat_old > 0 else []
                         # Iterate and get old covariates deom load_ten and new ones from new_ten
-                        for n_cat_new, n_cat_old in zip(n_cats_per_cov, previous_n_cats_per_cov, strict=False):
-                            fixed_ten.append(load_ten[:, cum_n_cat_old : cum_n_cat_old + n_cat_old, :])
+                        for n_cat_new, n_cat_old in zip(
+                            n_cats_per_cov, previous_n_cats_per_cov, strict=False
+                        ):
+                            fixed_ten.append(
+                                load_ten[:, cum_n_cat_old : cum_n_cat_old + n_cat_old, :]
+                            )
                             if n_cat_new > n_cat_old:
-                                fixed_ten.append(new_ten[:, cum_n_cat_new : cum_n_cat_new + n_cat_new - n_cat_old])
+                                fixed_ten.append(
+                                    new_ten[
+                                        :, cum_n_cat_new : cum_n_cat_new + n_cat_new - n_cat_old
+                                    ]
+                                )
                             cum_n_cat_old += n_cat_old
                             cum_n_cat_new += n_cat_new
                         # Concat and set as init tensor
@@ -288,7 +317,9 @@ def _set_params_online_update(
     for key, mod in module.named_modules():
         # skip over protected modules
         if isinstance(mod, FCLayers):
-            freeze_fc_layers = ("decoder" in key and freeze_decoder) or ("z_encoder" in key and freeze_encoder)
+            freeze_fc_layers = ("decoder" in key and freeze_decoder) or (
+                "z_encoder" in key and freeze_encoder
+            )
             # This will make requires_frad for layers after one_hot to True
             if freeze_fc_layers:
                 print(f"Setting hooks for {key}")

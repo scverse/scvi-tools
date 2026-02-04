@@ -17,4 +17,3 @@ __all__ = [
     "show_top_differential_vars",
     "cmap",
 ]
-

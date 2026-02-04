@@ -57,7 +57,9 @@ class TestDRVIModel:
 
         return adata
 
-    def _general_integration_test(self, adata, max_epochs=10, layer="lognorm", data_kwargs=None, **kwargs):
+    def _general_integration_test(
+        self, adata, max_epochs=10, layer="lognorm", data_kwargs=None, **kwargs
+    ):
         is_count_data = layer == "counts"
         setup_anndata_default_params = dict(  # noqa: C408
             categorical_covariate_keys=["batch"],
@@ -114,10 +116,18 @@ class TestDRVIModel:
 
     def test_simple_integration_mean_activation(self):
         adata = self.make_test_adata()
-        self._general_integration_test(adata, n_latent=32, n_split_latent=32, mean_activation="identity")
-        self._general_integration_test(adata, n_latent=32, n_split_latent=32, mean_activation="relu")
-        self._general_integration_test(adata, n_latent=32, n_split_latent=32, mean_activation="leaky_relu_0.4")
-        self._general_integration_test(adata, n_latent=32, n_split_latent=32, mean_activation="elu_0.4")
+        self._general_integration_test(
+            adata, n_latent=32, n_split_latent=32, mean_activation="identity"
+        )
+        self._general_integration_test(
+            adata, n_latent=32, n_split_latent=32, mean_activation="relu"
+        )
+        self._general_integration_test(
+            adata, n_latent=32, n_split_latent=32, mean_activation="leaky_relu_0.4"
+        )
+        self._general_integration_test(
+            adata, n_latent=32, n_split_latent=32, mean_activation="elu_0.4"
+        )
 
     def test_decoder_reusing(self):
         adata = self.make_test_adata()
@@ -190,7 +200,9 @@ class TestDRVIModel:
             data_kwargs=dict(batch_key="batch"),  # noqa: C408
         )
 
-    def _general_query_to_reference(self, adata_reference, adata_query, layer="lognorm", data_kwargs=None, **kwargs):
+    def _general_query_to_reference(
+        self, adata_reference, adata_query, layer="lognorm", data_kwargs=None, **kwargs
+    ):
         is_count_data = layer == "counts"
         setup_anndata_default_params = dict(  # noqa: C408
             categorical_covariate_keys=["batch"],
@@ -205,7 +217,9 @@ class TestDRVIModel:
             decoder_reuse_weights="everywhere",
             encode_covariates=True,
         )
-        DRVI.setup_anndata(adata_reference, **{**setup_anndata_default_params, **(data_kwargs or {})})
+        DRVI.setup_anndata(
+            adata_reference, **{**setup_anndata_default_params, **(data_kwargs or {})}
+        )
         model = DRVI(adata_reference, **{**default_args, **kwargs})
         model.train(accelerator="cpu", max_epochs=10)
 
@@ -213,9 +227,13 @@ class TestDRVIModel:
 
         DRVI.prepare_query_anndata(adata_query, model)
         transfer_model = model.load_query_data(adata_query, model)
-        transfer_model.train(accelerator="cpu", max_epochs=10, plan_kwargs={"lr": 0.1, "weight_decay": 0.0})
+        transfer_model.train(
+            accelerator="cpu", max_epochs=10, plan_kwargs={"lr": 0.1, "weight_decay": 0.0}
+        )
         latent_query = transfer_model.get_latent_representation(adata_query)
-        transfer_model.train(accelerator="cpu", max_epochs=10, plan_kwargs={"lr": 0.1, "weight_decay": 0.0})
+        transfer_model.train(
+            accelerator="cpu", max_epochs=10, plan_kwargs={"lr": 0.1, "weight_decay": 0.0}
+        )
         latent_reference_after_train = transfer_model.get_latent_representation(adata_reference)
         latent_query_after_train = transfer_model.get_latent_representation(adata_query)
 
@@ -242,14 +260,18 @@ class TestDRVIModel:
             "emb_linear",
         ]:
             print(f"Testing query to reference mapping for {cms}")
-            self._general_query_to_reference(adata_reference, adata_query, covariate_modeling_strategy=cms)
+            self._general_query_to_reference(
+                adata_reference, adata_query, covariate_modeling_strategy=cms
+            )
 
     def test_query_to_reference_mapping_with_different_splits(self):
         adata = self.make_test_adata()
         adata_reference = adata[adata.obs["batch"] != "batch_0"].copy()
         adata_query = adata[adata.obs["batch"] == "batch_0"].copy()
         for n_split_latent in [1, 4, 32]:
-            self._general_query_to_reference(adata_reference, adata_query, n_split_latent=n_split_latent)
+            self._general_query_to_reference(
+                adata_reference, adata_query, n_split_latent=n_split_latent
+            )
 
     def test_query_to_reference_mapping_with_different_splits_and_different_cov_models(self):
         adata = self.make_test_adata()
@@ -258,7 +280,10 @@ class TestDRVIModel:
         for cms in ["one_hot", "emb_shared", "emb", "one_hot_linear", "emb_shared", "emb_linear"]:
             for n_split_latent in [1, 4, 32]:
                 self._general_query_to_reference(
-                    adata_reference, adata_query, n_split_latent=n_split_latent, covariate_modeling_strategy=cms
+                    adata_reference,
+                    adata_query,
+                    n_split_latent=n_split_latent,
+                    covariate_modeling_strategy=cms,
                 )
 
     def test_continues_covariates(self):
@@ -290,7 +315,9 @@ class TestDRVIModel:
         cat_values = adata.obs[["batch"]].values
 
         latent = model.get_latent_representation(adata)
-        reconstruction = model.decode_latent_samples(latent, cat_values=cat_values, map_cat_values=True)
+        reconstruction = model.decode_latent_samples(
+            latent, cat_values=cat_values, map_cat_values=True
+        )
         assert reconstruction.shape == adata.X.shape
 
     def test_reconstruction_of_a_latent_multi_batch(self):
@@ -311,13 +338,18 @@ class TestDRVIModel:
     def test_no_split_model_with_random_reconstructions(self):
         adata = self.make_test_adata()
         for reconstruction_strategy in ["random_batch@20"]:
-            self._general_integration_test(adata, n_split_latent=1, reconstruction_strategy=reconstruction_strategy)
+            self._general_integration_test(
+                adata, n_split_latent=1, reconstruction_strategy=reconstruction_strategy
+            )
 
     def test_fill_in_the_blanks_training_with_random_reconstructions(self):
         adata = self.make_test_adata()
         for reconstruction_strategy in ["random_batch@20"]:
             self._general_integration_test(
-                adata, n_split_latent=1, reconstruction_strategy=reconstruction_strategy, fill_in_the_blanks_ratio=0.5
+                adata,
+                n_split_latent=1,
+                reconstruction_strategy=reconstruction_strategy,
+                fill_in_the_blanks_ratio=0.5,
             )
 
     def test_split_model_with_random_reconstructions(self):

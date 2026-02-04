@@ -30,7 +30,9 @@ class TestRNASeqMixinCompatibility:
         g_mean_list = np.exp((np.random.random(G) + 0.5) * 2)[:, np.newaxis]
 
         # Generate expression matrix (negative binomial-like)
-        exp_matrix = np.random.negative_binomial(n=5, p=1 / (1 + exp_indicator * g_mean_list.T)).astype(np.float32)
+        exp_matrix = np.random.negative_binomial(
+            n=5, p=1 / (1 + exp_indicator * g_mean_list.T)
+        ).astype(np.float32)
 
         adata = ad.AnnData(
             X=sparse.csr_matrix(exp_matrix) if is_sparse else exp_matrix,
@@ -63,7 +65,9 @@ class TestRNASeqMixinCompatibility:
 
         return adata
 
-    def _setup_and_train_model(self, adata, n_latent=8, max_epochs=10, gene_likelihood="nb", model_kwargs=None):
+    def _setup_and_train_model(
+        self, adata, n_latent=8, max_epochs=10, gene_likelihood="nb", model_kwargs=None
+    ):
         """Setup and train a DRVI model for testing."""
         # Setup model
         DRVI.setup_anndata(
@@ -112,7 +116,9 @@ class TestRNASeqMixinCompatibility:
         model = self._setup_and_train_model(adata, max_epochs=2)
 
         # Test get_normalized_expression
-        normalized_expr = model.get_normalized_expression(adata=adata, n_samples=1, return_mean=True, return_numpy=True)
+        normalized_expr = model.get_normalized_expression(
+            adata=adata, n_samples=1, return_mean=True, return_numpy=True
+        )
 
         assert normalized_expr.shape == (adata.n_obs, adata.n_vars), (
             f"Expected shape {(adata.n_obs, adata.n_vars)}, got {normalized_expr.shape}"
@@ -206,7 +212,9 @@ class TestRNASeqMixinCompatibility:
         # so we use give_mean=False to use the observed library size instead
         library_size = model.get_latent_library_size(adata=adata, give_mean=False, batch_size=32)
 
-        assert library_size.shape == (adata.n_obs,), f"Expected shape {(adata.n_obs,)}, got {library_size.shape}"
+        assert library_size.shape == (adata.n_obs,), (
+            f"Expected shape {(adata.n_obs,)}, got {library_size.shape}"
+        )
         assert np.all(library_size > 0), "Library size should be positive"
 
     def test_get_feature_correlation_matrix(self):
@@ -223,7 +231,9 @@ class TestRNASeqMixinCompatibility:
         assert corr_matrix.shape == (adata.n_vars, adata.n_vars), (
             f"Expected shape {(adata.n_vars, adata.n_vars)}, got {corr_matrix.shape}"
         )
-        assert np.allclose(corr_matrix.values, corr_matrix.values.T), "Correlation matrix should be symmetric"
+        assert np.allclose(corr_matrix.values, corr_matrix.values.T), (
+            "Correlation matrix should be symmetric"
+        )
         assert np.allclose(np.diag(corr_matrix.values), 1.0), "Diagonal should be 1.0"
 
     def _test_module_methods(self):
@@ -239,7 +249,9 @@ class TestRNASeqMixinCompatibility:
         import inspect
 
         gen_sig = inspect.signature(DRVIModule.generative)
-        assert "transform_batch" in gen_sig.parameters, "generative method missing transform_batch parameter"
+        assert "transform_batch" in gen_sig.parameters, (
+            "generative method missing transform_batch parameter"
+        )
 
     def _test_module_properties(self):
         """Test that DRVI module has required properties."""
@@ -247,8 +259,12 @@ class TestRNASeqMixinCompatibility:
 
         # Test instance properties
         module = DRVIModule(n_input=50, n_latent=8, gene_likelihood="nb")
-        assert hasattr(module, "gene_likelihood"), "Module instance missing gene_likelihood property"
-        assert module.gene_likelihood == "nb", f"Expected gene_likelihood='nb', got '{module.gene_likelihood}'"
+        assert hasattr(module, "gene_likelihood"), (
+            "Module instance missing gene_likelihood property"
+        )
+        assert module.gene_likelihood == "nb", (
+            f"Expected gene_likelihood='nb', got '{module.gene_likelihood}'"
+        )
 
     def test_module_compatibility(self):
         """Test that DRVI module has required methods and properties."""
@@ -262,10 +278,14 @@ class TestRNASeqMixinCompatibility:
 
         # Get latent representation
         latent = model.get_latent_representation(adata)
-        assert latent.shape == (adata.n_obs, 8), f"Expected latent shape {(adata.n_obs, 8)}, got {latent.shape}"
+        assert latent.shape == (adata.n_obs, 8), (
+            f"Expected latent shape {(adata.n_obs, 8)}, got {latent.shape}"
+        )
 
         # Get normalized expression
-        normalized_expr = model.get_normalized_expression(adata=adata, n_samples=1, return_mean=True, return_numpy=True)
+        normalized_expr = model.get_normalized_expression(
+            adata=adata, n_samples=1, return_mean=True, return_numpy=True
+        )
 
         # Perform differential expression analysis
         de_results = model.differential_expression(
@@ -276,7 +296,9 @@ class TestRNASeqMixinCompatibility:
         )
 
         # Get likelihood parameters
-        likelihood_params = model.get_likelihood_parameters(adata=adata, n_samples=1, give_mean=True)
+        likelihood_params = model.get_likelihood_parameters(
+            adata=adata, n_samples=1, give_mean=True
+        )
 
         # Get latent library size
         # Note: DRVI doesn't compute posterior distribution for library size (ql),
@@ -306,10 +328,14 @@ class TestRNASeqMixinCompatibility:
 
         # Get latent representation
         latent = model.get_latent_representation(adata)
-        assert latent.shape == (adata.n_obs, 8), f"Expected latent shape {(adata.n_obs, 8)}, got {latent.shape}"
+        assert latent.shape == (adata.n_obs, 8), (
+            f"Expected latent shape {(adata.n_obs, 8)}, got {latent.shape}"
+        )
 
         # Get normalized expression
-        normalized_expr = model.get_normalized_expression(adata=adata, n_samples=1, return_mean=True, return_numpy=True)
+        normalized_expr = model.get_normalized_expression(
+            adata=adata, n_samples=1, return_mean=True, return_numpy=True
+        )
 
         # Perform differential expression analysis
         de_results = model.differential_expression(
@@ -320,7 +346,9 @@ class TestRNASeqMixinCompatibility:
         )
 
         # Get likelihood parameters
-        likelihood_params = model.get_likelihood_parameters(adata=adata, n_samples=1, give_mean=True)
+        likelihood_params = model.get_likelihood_parameters(
+            adata=adata, n_samples=1, give_mean=True
+        )
 
         # Get latent library size
         # Note: DRVI doesn't compute posterior distribution for library size (ql),
@@ -348,4 +376,3 @@ class TestRNASeqMixinCompatibility:
         for gene_likelihood in ["nb", "poisson", "pnb", "normal_sv"]:
             print(f"Testing gene likelihood: {gene_likelihood}")
             self._end_to_end_rnaseq_workflow(max_epochs=2, gene_likelihood=gene_likelihood)
-

@@ -44,7 +44,11 @@ def make_balanced_subsample(adata: AnnData, col: str, min_count: int = 10) -> An
     n_sample_per_cond = adata.obs[col].value_counts().min()
     balanced_sample_index = (
         adata.obs.groupby(col)
-        .sample(n=max(min_count, n_sample_per_cond), random_state=0, replace=n_sample_per_cond < min_count)
+        .sample(
+            n=max(min_count, n_sample_per_cond),
+            random_state=0,
+            replace=n_sample_per_cond < min_count,
+        )
         .index
     )
     adata = adata[balanced_sample_index].copy()
@@ -127,7 +131,12 @@ def plot_latent_dimension_stats(
         ncols = len(columns)
 
     fig, axes = plt.subplots(
-        nrows, ncols, figsize=(figsize[0] * ncols, figsize[1] * nrows), sharey=False, sharex=False, squeeze=False
+        nrows,
+        ncols,
+        figsize=(figsize[0] * ncols, figsize[1] * nrows),
+        sharey=False,
+        sharex=False,
+        squeeze=False,
     )
 
     # Iterate through columns and plot the data
@@ -175,7 +184,15 @@ def plot_latent_dimension_stats(
             color = "black" if vanished_status_to_plot else "blue"
             label = "Vanished" if vanished_status_to_plot else "Non-vanished"
             handles.append(
-                plt.Line2D([0], [0], marker="o", color="w", markerfacecolor=color, markersize=5, label=label)
+                plt.Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    markerfacecolor=color,
+                    markersize=5,
+                    label=label,
+                )
             )
 
         # Add the legend to the first subplot or the entire figure
@@ -272,7 +289,9 @@ def plot_latent_dims_in_heatmap(
     >>> # Basic heatmap of latent dimensions by cell type
     >>> plot_latent_dims_in_heatmap(embed, categorical_column="cell_type")
     >>> # Heatmap with balanced sampling and custom sorting
-    >>> plot_latent_dims_in_heatmap(embed, categorical_column="condition", sort_by_categorical=True, make_balanced=True)
+    >>> plot_latent_dims_in_heatmap(
+    ...     embed, categorical_column="condition", sort_by_categorical=True, make_balanced=True
+    ... )
     >>> # Heatmap with custom figure size
     >>> plot_latent_dims_in_heatmap(embed, categorical_column="batch", figsize=(12, 8))
     """

@@ -4,10 +4,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from scvi import REGISTRY_KEYS
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 from torch.distributions import Normal
 
+from scvi import REGISTRY_KEYS
+from scvi.external.drvi.module._constants import MODULE_KEYS
+from scvi.external.drvi.nn import DecoderDRVI, Encoder
 from scvi.external.drvi.nn_modules.embedding import MultiEmbedding
 from scvi.external.drvi.nn_modules.layer.factory import LayerFactory
 from scvi.external.drvi.nn_modules.noise_model import (
@@ -17,8 +18,7 @@ from scvi.external.drvi.nn_modules.noise_model import (
     PoissonNoiseModel,
 )
 from scvi.external.drvi.nn_modules.prior import StandardPrior
-from scvi.external.drvi.module._constants import MODULE_KEYS
-from scvi.external.drvi.nn import DecoderDRVI, Encoder
+from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
@@ -122,7 +122,9 @@ class DRVIModule(BaseModuleClass):
         n_split_latent: int | None = -1,
         split_aggregation: Literal["sum", "logsumexp", "max"] = "logsumexp",
         split_method: Literal["split", "power", "split_map", "split_diag"] | str = "split_map",
-        decoder_reuse_weights: Literal["everywhere", "last", "intermediate", "nowhere", "not_first"] = "everywhere",
+        decoder_reuse_weights: Literal[
+            "everywhere", "last", "intermediate", "nowhere", "not_first"
+        ] = "everywhere",
         encoder_dims: Sequence[int] = (128, 128),
         decoder_dims: Sequence[int] = (128, 128),
         n_cats_per_cov: Iterable[int] | None = (),
@@ -146,7 +148,9 @@ class DRVIModule(BaseModuleClass):
         input_dropout_rate: float = 0.0,
         encoder_dropout_rate: float = 0.1,
         decoder_dropout_rate: float = 0.0,
-        gene_likelihood: Literal["normal", "normal_v", "normal_sv", "poisson", "nb", "pnb"] = "pnb",
+        gene_likelihood: Literal[
+            "normal", "normal_v", "normal_sv", "poisson", "nb", "pnb"
+        ] = "pnb",
         prior: Literal["normal"] = "normal",
         var_activation: Callable | Literal["exp", "pow2", "2sig"] = "exp",
         mean_activation: Callable | str = "identity",
@@ -187,7 +191,10 @@ class DRVIModule(BaseModuleClass):
             "emb_linear",
             "emb_shared_linear",
         ]
-        if covariate_modeling_strategy in ["emb_shared", "emb_shared_linear"] and len(n_cats_per_cov) > 0:
+        if (
+            covariate_modeling_strategy in ["emb_shared", "emb_shared_linear"]
+            and len(n_cats_per_cov) > 0
+        ):
             self.shared_covariate_emb = MultiEmbedding(
                 n_cats_per_cov, categorical_covariate_dims, init_method="normal", max_norm=1.0
             )
@@ -210,7 +217,9 @@ class DRVIModule(BaseModuleClass):
             mean_activation=mean_activation,
             layer_factory=encoder_layer_factory,
             covariate_modeling_strategy=covariate_modeling_strategy,
-            categorical_covariate_dims=categorical_covariate_dims if self.encode_covariates else [],
+            categorical_covariate_dims=categorical_covariate_dims
+            if self.encode_covariates
+            else [],
             **(extra_encoder_kwargs or {}),
         )
 
@@ -328,11 +337,18 @@ class DRVIModule(BaseModuleClass):
             else:
                 cat_covs = batch_index
 
-        input_dict = {MODULE_KEYS.X_KEY: x, MODULE_KEYS.CONT_COVS_KEY: cont_covs, MODULE_KEYS.CAT_COVS_KEY: cat_covs}
+        input_dict = {
+            MODULE_KEYS.X_KEY: x,
+            MODULE_KEYS.CONT_COVS_KEY: cont_covs,
+            MODULE_KEYS.CAT_COVS_KEY: cat_covs,
+        }
         return input_dict
 
     def _input_pre_processing(
-        self, x: torch.Tensor, cont_covs: torch.Tensor | None = None, cat_covs: torch.Tensor | None = None
+        self,
+        x: torch.Tensor,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
     ) -> dict[str, Any]:
         """Pre-process input data for the model.
 
@@ -435,7 +451,9 @@ class DRVIModule(BaseModuleClass):
                 if outputs[key] is None:
                     continue
                 assert outputs[key].shape[0] == z.shape[0]
-                outputs[key] = outputs[key].unsqueeze(0).repeat(n_samples, *([1] * outputs[key].ndim))
+                outputs[key] = (
+                    outputs[key].unsqueeze(0).repeat(n_samples, *([1] * outputs[key].ndim))
+                )
             outputs[MODULE_KEYS.Z_KEY] = Normal(
                 outputs[MODULE_KEYS.QZM_KEY], outputs[MODULE_KEYS.QZV_KEY].sqrt()
             ).rsample()
@@ -454,7 +472,9 @@ class DRVIModule(BaseModuleClass):
             random_indices = torch.randperm(x.shape[1])[:n_random_features]
             return random_indices
         else:
-            raise NotImplementedError(f"Reconstruction strategy {self.reconstruction_strategy} not implemented.")
+            raise NotImplementedError(
+                f"Reconstruction strategy {self.reconstruction_strategy} not implemented."
+            )
 
     def _get_library_size(
         self, x_original: TensorDict, reconstruction_indices: torch.Tensor | None = None
@@ -466,7 +486,9 @@ class DRVIModule(BaseModuleClass):
         elif reconstruction_indices.dim() == 1:
             return x_original[:, reconstruction_indices.to(x_original.device)].sum(1)
         else:
-            raise NotImplementedError(f"Reconstruction indices {reconstruction_indices} not implemented.")
+            raise NotImplementedError(
+                f"Reconstruction indices {reconstruction_indices} not implemented."
+            )
 
     def _get_generative_input(
         self,
@@ -516,7 +538,9 @@ class DRVIModule(BaseModuleClass):
         if library_to_inject is not None:
             library = library_to_inject
             assert reconstruction_indices is None
-        elif reconstruction_indices is not None:  # Override library size as we do not decode everything
+        elif (
+            reconstruction_indices is not None
+        ):  # Override library size as we do not decode everything
             library = self._get_library_size(tensors[REGISTRY_KEYS.X_KEY], reconstruction_indices)
         elif MODULE_KEYS.LIBRARY_KEY in inference_outputs:
             library = inference_outputs[MODULE_KEYS.LIBRARY_KEY]
@@ -537,7 +561,9 @@ class DRVIModule(BaseModuleClass):
             for key in [MODULE_KEYS.CAT_COVS_KEY, MODULE_KEYS.CONT_COVS_KEY]:
                 if input_dict[key] is None:
                     continue
-                input_dict[key] = input_dict[key].repeat(n_samples, *([1] * (input_dict[key].ndim - 1)))
+                input_dict[key] = input_dict[key].repeat(
+                    n_samples, *([1] * (input_dict[key].ndim - 1))
+                )
             # Combine samples and batch dimensions into the first dimension
             for key in [MODULE_KEYS.Z_KEY, MODULE_KEYS.LIBRARY_KEY]:
                 if input_dict[key] is not None:
@@ -595,7 +621,9 @@ class DRVIModule(BaseModuleClass):
         if n_samples > 1:
             n_batch = z.shape[0] // n_samples
             for key, value in params.items():
-                value = value.reshape(n_samples, n_batch, *value.shape[1:])  # Shape : (n_batch, n_samples, n_genes)
+                value = value.reshape(
+                    n_samples, n_batch, *value.shape[1:]
+                )  # Shape : (n_batch, n_samples, n_genes)
                 params[key] = value
 
             library = library.reshape(n_samples, n_batch, *library.shape[1:])
@@ -626,11 +654,17 @@ class DRVIModule(BaseModuleClass):
             if fill_in_the_blanks:
                 x_mask = x_mask[:, reconstruction_indices]
         else:
-            raise NotImplementedError(f"Reconstruction strategy {self.reconstruction_strategy} not implemented.")
+            raise NotImplementedError(
+                f"Reconstruction strategy {self.reconstruction_strategy} not implemented."
+            )
 
         if fill_in_the_blanks:
             reconst_loss = -(px.log_prob(x) * (1 - x_mask)).sum(dim=-1)
-            mse = torch.nn.functional.mse_loss(x * x_mask, px.mean * x_mask, reduction="none").sum(dim=1).mean(dim=0)
+            mse = (
+                torch.nn.functional.mse_loss(x * x_mask, px.mean * x_mask, reduction="none")
+                .sum(dim=1)
+                .mean(dim=0)
+            )
         else:
             reconst_loss = -px.log_prob(x).sum(dim=-1)
             mse = torch.nn.functional.mse_loss(x, px.mean, reduction="none").sum(dim=1).mean(dim=0)

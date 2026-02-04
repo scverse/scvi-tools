@@ -226,7 +226,9 @@ class TestInterpretabilityPipeline:
         plt.close()
 
         # Test show_top_differential_vars
-        show_top_differential_vars(traverse_adata, key="combined_score", score_threshold=0.0, show=False)
+        show_top_differential_vars(
+            traverse_adata, key="combined_score", score_threshold=0.0, show=False
+        )
         plt.close()
 
         # Test iterate_on_top_differential_vars (already tested above, but also test with plotting)
@@ -245,4 +247,3 @@ class TestInterpretabilityPipeline:
                 show=False,
             )
             plt.close()
-

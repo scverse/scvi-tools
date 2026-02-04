@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 from importlib.metadata import version
+from typing import TYPE_CHECKING
 
 import numpy as np
+
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import CategoricalObsField, LayerField, NumericalJointObsField, CategoricalJointObsField
-from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
-from scvi.utils import setup_anndata_dsp
-
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.external.drvi.model.base import DRVIArchesMixin, GenerativeMixin
 from scvi.external.drvi.module import DRVIModule
+from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
+from scvi.utils import setup_anndata_dsp
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -30,7 +35,14 @@ SCVI_VERSION = version("scvi-tools")
 logger = logging.getLogger(__name__)
 
 
-class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, BaseModelClass, GenerativeMixin):
+class DRVI(
+    RNASeqMixin,
+    VAEMixin,
+    DRVIArchesMixin,
+    UnsupervisedTrainingMixin,
+    BaseModelClass,
+    GenerativeMixin,
+):
     """DRVI model based on scvi-tools framework for disentangled representation learning.
 
     Parameters
@@ -127,7 +139,9 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
     def _get_n_cats_per_cov(self) -> list[int]:
         """Get the number of categories per categorical covariate."""
         if REGISTRY_KEYS.CAT_COVS_KEY in self.registry["field_registries"]:
-            cat_cov_stats = self.registry["field_registries"][REGISTRY_KEYS.CAT_COVS_KEY]["state_registry"]
+            cat_cov_stats = self.registry["field_registries"][REGISTRY_KEYS.CAT_COVS_KEY][
+                "state_registry"
+            ]
             return cat_cov_stats.get("n_cats_per_key", [])
         return []
 
@@ -151,20 +165,28 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
             List of embedding dimensions for each categorical covariate.
         """
         categorical_embedding_dims = categorical_embedding_dims or {}
-        categorical_covariates_dims = [self._DEFAULT_CATEGORICAL_EMBEDDING_DIM] * len(n_cats_per_cov)
+        categorical_covariates_dims = [self._DEFAULT_CATEGORICAL_EMBEDDING_DIM] * len(
+            n_cats_per_cov
+        )
         if n_cats_per_cov[0] > 1:
-            batch_original_key = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).original_key
+            batch_original_key = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.BATCH_KEY
+            ).original_key
             if batch_original_key in categorical_embedding_dims:
                 categorical_covariates_dims[0] = categorical_embedding_dims[batch_original_key]
         if len(n_cats_per_cov) > 1:
-            cat_cov_names = self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).field_keys
+            cat_cov_names = self.adata_manager.get_state_registry(
+                REGISTRY_KEYS.CAT_COVS_KEY
+            ).field_keys
             for i, obs_name in enumerate(cat_cov_names):
                 if obs_name in categorical_embedding_dims:
                     categorical_covariates_dims[i + 1] = categorical_embedding_dims[obs_name]
         return categorical_covariates_dims
 
     @staticmethod
-    def _update_source_registry_for_existing_model(source_registry: dict[str, Any]) -> dict[str, Any]:
+    def _update_source_registry_for_existing_model(
+        source_registry: dict[str, Any],
+    ) -> dict[str, Any]:
         """Update the source registry for an existing model to the latest version if any updates are needed."""
         from packaging.version import Version
 
@@ -184,7 +206,10 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
                 source_registry["setup_args"]["batch_key"] = None
                 source_registry["field_registries"]["batch"] = {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
-                    "state_registry": {"categorical_mapping": np.array([0]), "original_key": "_scvi_batch"},
+                    "state_registry": {
+                        "categorical_mapping": np.array([0]),
+                        "original_key": "_scvi_batch",
+                    },
                     "summary_stats": {"n_batch": 1},
                 }
                 source_registry_drvi_version = Version("0.1.11")
@@ -230,7 +255,9 @@ class DRVI(RNASeqMixin, VAEMixin, DRVIArchesMixin, UnsupervisedTrainingMixin, Ba
 
         # Manipulate kwargs in case of version updates (only when loading a model).
         if "source_registry" in kwargs:
-            kwargs["source_registry"] = cls._update_source_registry_for_existing_model(kwargs["source_registry"])
+            kwargs["source_registry"] = cls._update_source_registry_for_existing_model(
+                kwargs["source_registry"]
+            )
 
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=is_count_data),

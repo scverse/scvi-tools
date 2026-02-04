@@ -38,13 +38,17 @@ class LayerFactory:
     architectures while maintaining a consistent interface.
     """
 
-    def __init__(self, intermediate_arch: Literal["SAME", "FC"] = "SAME", residual_preferred: bool = False) -> None:
+    def __init__(
+        self, intermediate_arch: Literal["SAME", "FC"] = "SAME", residual_preferred: bool = False
+    ) -> None:
         assert intermediate_arch in ["SAME", "FC"]
 
         self.intermediate_arch = intermediate_arch
         self.residual_preferred = residual_preferred
 
-    def _get_normal_layer(self, d_in: int, d_out: int, bias: bool = True, **kwargs: Any) -> nn.Module:
+    def _get_normal_layer(
+        self, d_in: int, d_out: int, bias: bool = True, **kwargs: Any
+    ) -> nn.Module:
         """Create a normal layer (to be implemented by subclasses).
 
         Parameters
@@ -70,7 +74,9 @@ class LayerFactory:
         """
         raise NotImplementedError()
 
-    def _get_stacked_layer(self, d_channel: int, d_in: int, d_out: int, bias: bool = True, **kwargs: Any) -> nn.Module:
+    def _get_stacked_layer(
+        self, d_channel: int, d_in: int, d_out: int, bias: bool = True, **kwargs: Any
+    ) -> nn.Module:
         """Create a stacked layer (to be implemented by subclasses).
 
         Parameters
@@ -99,7 +105,12 @@ class LayerFactory:
         raise NotImplementedError()
 
     def get_normal_layer(
-        self, d_in: int, d_out: int, bias: bool = True, intermediate_layer: bool | None = None, **kwargs: Any
+        self,
+        d_in: int,
+        d_out: int,
+        bias: bool = True,
+        intermediate_layer: bool | None = None,
+        **kwargs: Any,
     ) -> nn.Module:
         """Create a normal layer with optional residual connection.
 
@@ -258,13 +269,21 @@ class FCLayerFactory(LayerFactory):
     >>> print(type(layer))  # <class 'torch.nn.modules.linear.Linear'>
     >>> # Create a stacked layer
     >>> stacked_layer = factory.get_stacked_layer(4, 64, 128)
-    >>> print(type(stacked_layer))  # <class 'drvi.nn_modules.layer.linear_layer.StackedLinearLayer'>
+    >>> print(
+    ...     type(stacked_layer)
+    ... )  # <class 'drvi.nn_modules.layer.linear_layer.StackedLinearLayer'>
     """
 
-    def __init__(self, intermediate_arch: Literal["SAME", "FC"] = "SAME", residual_preferred: bool = False) -> None:
-        super().__init__(intermediate_arch=intermediate_arch, residual_preferred=residual_preferred)
+    def __init__(
+        self, intermediate_arch: Literal["SAME", "FC"] = "SAME", residual_preferred: bool = False
+    ) -> None:
+        super().__init__(
+            intermediate_arch=intermediate_arch, residual_preferred=residual_preferred
+        )
 
-    def _get_normal_layer(self, d_in: int, d_out: int, bias: bool = True, **kwargs: Any) -> LinearLayer:
+    def _get_normal_layer(
+        self, d_in: int, d_out: int, bias: bool = True, **kwargs: Any
+    ) -> LinearLayer:
         """Create a fully connected layer.
 
         Parameters

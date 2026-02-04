@@ -34,4 +34,3 @@ class TestGradientScaler:
             # Gradient should be scaled by the scale factor
             expected_grad = 2 * x * scale_value  # 2*x from loss derivative
             assert torch.allclose(x.grad, expected_grad)
-

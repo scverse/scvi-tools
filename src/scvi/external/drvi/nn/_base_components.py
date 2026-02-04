@@ -141,7 +141,9 @@ class FCLayers(nn.Module):
                 layer_needs_injection = True
                 cat_dim = sum(covariate_embs_dim)
                 if self.covariate_vector_modeling == "emb":
-                    batch_emb = MultiEmbedding(self.n_cat_list, covariate_embs_dim, init_method="normal", max_norm=1.0)
+                    batch_emb = MultiEmbedding(
+                        self.n_cat_list, covariate_embs_dim, init_method="normal", max_norm=1.0
+                    )
                     output.append(batch_emb)
                 if self.covariate_projection_modeling == "cat":
                     n_in += cat_dim
@@ -149,7 +151,9 @@ class FCLayers(nn.Module):
                     if (reuse_weights is None) or reuse_weights[i]:
                         linear_batch_projection = nn.Linear(cat_dim, n_out, bias=False)
                     else:
-                        linear_batch_projection = StackedLinearLayer(n_split, cat_dim, n_out, bias=False)
+                        linear_batch_projection = StackedLinearLayer(
+                            n_split, cat_dim, n_out, bias=False
+                        )
                     output.append(linear_batch_projection)
                     self.linear_batch_projections.append(linear_batch_projection)
                 else:
@@ -181,14 +185,20 @@ class FCLayers(nn.Module):
             if n_split == 1:
                 if use_batch_norm:
                     # non-default params come from defaults in original Tensorflow implementation
-                    output.append(FreezableBatchNorm1d(n_out, momentum=0.01, eps=0.001, affine=affine_batch_norm))
+                    output.append(
+                        FreezableBatchNorm1d(
+                            n_out, momentum=0.01, eps=0.001, affine=affine_batch_norm
+                        )
+                    )
                 if use_layer_norm:
                     output.append(FreezableLayerNorm(n_out, elementwise_affine=False))
             else:
                 if use_batch_norm:
                     # non-default params come from defaults in original Tensorflow implementation
                     output.append(
-                        FreezableBatchNorm1d(n_out * n_split, momentum=0.01, eps=0.001, affine=affine_batch_norm)
+                        FreezableBatchNorm1d(
+                            n_out * n_split, momentum=0.01, eps=0.001, affine=affine_batch_norm
+                        )
                     )
                 if use_layer_norm:
                     output.append(FreezableLayerNorm(n_out, elementwise_affine=False))
@@ -214,12 +224,16 @@ class FCLayers(nn.Module):
                             ]
                         ),
                     )
-                    for i, (n_in, n_out) in enumerate(zip(layers_dim[:-1], layers_dim[1:], strict=True))
+                    for i, (n_in, n_out) in enumerate(
+                        zip(layers_dim[:-1], layers_dim[1:], strict=True)
+                    )
                 ]
             )
         )
 
-    def set_online_update_hooks(self, previous_n_cats_per_cov: Sequence[int], n_cats_per_cov: Sequence[int]) -> None:
+    def set_online_update_hooks(
+        self, previous_n_cats_per_cov: Sequence[int], n_cats_per_cov: Sequence[int]
+    ) -> None:
         """Set online update hooks for handling new categories.
 
         Parameters
@@ -243,14 +257,26 @@ class FCLayers(nn.Module):
                     if w_size[1] == sum_n_cats_per_cov:
                         transfer_mask = []
                     else:
-                        transfer_mask = [torch.zeros([w_size[0], w_size[1] - sum_n_cats_per_cov], device=weight.device)]
+                        transfer_mask = [
+                            torch.zeros(
+                                [w_size[0], w_size[1] - sum_n_cats_per_cov], device=weight.device
+                            )
+                        ]
                     # Iterate over the categories and Freeze old caterogies and make new ones trainable
-                    for n_cat_new, n_cat_old in zip(n_cats_per_cov, previous_n_cats_per_cov, strict=False):
+                    for n_cat_new, n_cat_old in zip(
+                        n_cats_per_cov, previous_n_cats_per_cov, strict=False
+                    ):
                         n_cat_new = n_cat_new if n_cat_new > 1 else 0
                         n_cat_old = n_cat_old if n_cat_old > 1 else 0
-                        transfer_mask.append(torch.zeros([w_size[0], n_cat_old], device=weight.device))
+                        transfer_mask.append(
+                            torch.zeros([w_size[0], n_cat_old], device=weight.device)
+                        )
                         if n_cat_new > n_cat_old:
-                            transfer_mask.append(torch.ones([w_size[0], n_cat_new - n_cat_old], device=weight.device))
+                            transfer_mask.append(
+                                torch.ones(
+                                    [w_size[0], n_cat_new - n_cat_old], device=weight.device
+                                )
+                            )
                     transfer_mask = torch.cat(transfer_mask, dim=1)
             elif weight.dim() == 3:
                 # 3D tensors
@@ -260,16 +286,26 @@ class FCLayers(nn.Module):
                         transfer_mask = []
                     else:
                         transfer_mask = [
-                            torch.zeros([w_size[0], w_size[1] - sum_n_cats_per_cov, w_size[2]], device=weight.device)
+                            torch.zeros(
+                                [w_size[0], w_size[1] - sum_n_cats_per_cov, w_size[2]],
+                                device=weight.device,
+                            )
                         ]
                     # Iterate over the categories and Freeze old caterogies and make new ones trainable
-                    for n_cat_new, n_cat_old in zip(n_cats_per_cov, previous_n_cats_per_cov, strict=False):
+                    for n_cat_new, n_cat_old in zip(
+                        n_cats_per_cov, previous_n_cats_per_cov, strict=False
+                    ):
                         n_cat_new = n_cat_new if n_cat_new > 1 else 0
                         n_cat_old = n_cat_old if n_cat_old > 1 else 0
-                        transfer_mask.append(torch.zeros([w_size[0], n_cat_old, w_size[2]], device=weight.device))
+                        transfer_mask.append(
+                            torch.zeros([w_size[0], n_cat_old, w_size[2]], device=weight.device)
+                        )
                         if n_cat_new > n_cat_old:
                             transfer_mask.append(
-                                torch.ones([w_size[0], n_cat_new - n_cat_old, w_size[2]], device=weight.device)
+                                torch.ones(
+                                    [w_size[0], n_cat_new - n_cat_old, w_size[2]],
+                                    device=weight.device,
+                                )
                             )
                     transfer_mask = torch.cat(transfer_mask, dim=1)
             else:
@@ -295,11 +331,17 @@ class FCLayers(nn.Module):
                 elif self.covariate_vector_modeling == "one_hot":
                     assert self.covariate_projection_modeling in ["cat", "linear"]
                     # Freeze everything but linears right after one_hot (new weights)
-                    if (self.covariate_projection_modeling == "cat" and layer in self.injectable_layers) or (
-                        self.covariate_projection_modeling == "linear" and layer in self.linear_batch_projections
+                    if (
+                        self.covariate_projection_modeling == "cat"
+                        and layer in self.injectable_layers
+                    ) or (
+                        self.covariate_projection_modeling == "linear"
+                        and layer in self.linear_batch_projections
                     ):
                         assert layer.weight.requires_grad
-                        print(f"Registering backward hook parameter with shape {layer.weight.size()}")
+                        print(
+                            f"Registering backward hook parameter with shape {layer.weight.size()}"
+                        )
                         layer.weight.register_hook(make_hook_function(layer.weight))
                         if layer.bias is not None:
                             assert not layer.bias.requires_grad
@@ -379,7 +421,9 @@ class FCLayers(nn.Module):
                         if layer in self.injectable_layers:
                             if self.covariate_projection_modeling == "cat":
                                 if len(concat_list_layer) > 0:
-                                    current_cat_tensor = dimension_transformation(torch.cat(concat_list_layer, dim=-1))
+                                    current_cat_tensor = dimension_transformation(
+                                        torch.cat(concat_list_layer, dim=-1)
+                                    )
                                     x = torch.cat((x, current_cat_tensor), dim=-1)
                             elif self.covariate_projection_modeling in ["linear"]:
                                 to_be_added = dimension_transformation(projected_batch_layer)
@@ -710,7 +754,9 @@ class DecoderDRVI(nn.Module):
         n_split: int = 1,
         split_aggregation: Literal["sum", "logsumexp", "max"] = "logsumexp",
         split_method: Literal["split", "power", "split_map", "split_diag"] | str = "split",
-        reuse_weights: Literal["everywhere", "last", "intermediate", "nowhere", "not_first"] = "everywhere",
+        reuse_weights: Literal[
+            "everywhere", "last", "intermediate", "nowhere", "not_first"
+        ] = "everywhere",
         layers_dim: Sequence[int] = (128,),
         dropout_rate: float = 0.1,
         inject_covariates: bool = True,
@@ -833,7 +879,9 @@ class DecoderDRVI(nn.Module):
         elif self.split_method.startswith("power"):
             if "@" in self.split_method:
                 effective_dim = int(self.split_method.split("@")[-1])
-            self.split_transformation = nn.Sequential(nn.Linear(n_input, effective_dim * self.n_split), nn.ReLU())
+            self.split_transformation = nn.Sequential(
+                nn.Linear(n_input, effective_dim * self.n_split), nn.ReLU()
+            )
         else:
             raise NotImplementedError()
         return effective_dim
@@ -857,7 +905,9 @@ class DecoderDRVI(nn.Module):
             if self.split_method == "split":
                 z = torch.reshape(z, (batch_size, self.n_split, -1))
             elif self.split_method == "split_diag":
-                z = torch.diag_embed(z)  # (batch_size, n_latent) -> (batch_size, n_latent, n_latent)
+                z = torch.diag_embed(
+                    z
+                )  # (batch_size, n_latent) -> (batch_size, n_latent, n_latent)
             elif self.split_method.startswith("power"):
                 z = self.split_transformation(z)
                 z = torch.reshape(z, (batch_size, self.n_split, -1))
@@ -935,12 +985,16 @@ class DecoderDRVI(nn.Module):
                 if reconstruction_indices is None:
                     params[param_name] = param_net.reshape(1, 1).expand(batch_size, self.n_output)
                 elif reconstruction_indices.dim() == 1:
-                    params[param_name] = param_net.reshape(1, 1).expand(batch_size, reconstruction_indices.shape[0])
+                    params[param_name] = param_net.reshape(1, 1).expand(
+                        batch_size, reconstruction_indices.shape[0]
+                    )
                 else:
                     raise NotImplementedError()
                 original_params[param_name] = params[param_name]
             elif param_info == "no_transformation":
-                param_value = param_net(last_tensor, cat_full_tensor, output_subset_indices=reconstruction_indices)
+                param_value = param_net(
+                    last_tensor, cat_full_tensor, output_subset_indices=reconstruction_indices
+                )
                 original_params[param_name] = param_value
                 if self.n_split > 1:
                     params[param_name] = self._aggregate_split(param_value, dim=-2)

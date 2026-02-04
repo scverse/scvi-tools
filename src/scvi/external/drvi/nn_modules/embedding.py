@@ -56,7 +56,12 @@ class FreezableEmbedding(nn.Embedding):
     """
 
     def __init__(
-        self, num_embeddings: int, embedding_dim: int, n_freeze_x: int = 0, n_freeze_y: int = 0, **kwargs: Any
+        self,
+        num_embeddings: int,
+        embedding_dim: int,
+        n_freeze_x: int = 0,
+        n_freeze_y: int = 0,
+        **kwargs: Any,
     ) -> None:
         self._freeze_hook = None
         self.n_freeze_x = None
@@ -111,7 +116,12 @@ class FreezableEmbedding(nn.Embedding):
             assert self.n_freeze_x is not None and self.n_freeze_y is not None
             mask = F.pad(
                 torch.zeros(self.n_freeze_x, self.n_freeze_y, device=grad.device),
-                (0, self.embedding_dim - self.n_freeze_y, 0, self.num_embeddings - self.n_freeze_x),
+                (
+                    0,
+                    self.embedding_dim - self.n_freeze_y,
+                    0,
+                    self.num_embeddings - self.n_freeze_x,
+                ),
                 value=1.0,
             )
             return grad * mask
@@ -158,7 +168,9 @@ class MultiEmbedding(nn.Module):
     --------
     >>> import torch
     >>> # Create multi-embedding with different vocab sizes and dimensions
-    >>> multi_emb = MultiEmbedding(n_embedding_list=[100, 50, 200], embedding_dim_list=[32, 16, 64], normalization="l2")
+    >>> multi_emb = MultiEmbedding(
+    ...     n_embedding_list=[100, 50, 200], embedding_dim_list=[32, 16, 64], normalization="l2"
+    ... )
     >>> # Test forward pass
     >>> indices = torch.randint(0, 100, (10, 3))  # 3 indices per sample
     >>> output = multi_emb(indices)
@@ -179,7 +191,9 @@ class MultiEmbedding(nn.Module):
         self.emb_list = nn.ParameterList(
             [
                 FreezableEmbedding(n_embedding, embedding_dim, **kwargs)
-                for n_embedding, embedding_dim in zip(n_embedding_list, embedding_dim_list, strict=False)
+                for n_embedding, embedding_dim in zip(
+                    n_embedding_list, embedding_dim_list, strict=False
+                )
             ]
         )
         assert normalization in [None, "l2"]
@@ -246,7 +260,9 @@ class MultiEmbedding(nn.Module):
         the corresponding table, and the results are concatenated.
         """
         assert index_list.shape[-1] == len(self.emb_list)
-        emb = torch.concat([emb(index_list[..., i]) for i, emb in enumerate(self.emb_list)], dim=-1)
+        emb = torch.concat(
+            [emb(index_list[..., i]) for i, emb in enumerate(self.emb_list)], dim=-1
+        )
         if self.normalization is None:
             return emb
         elif self.normalization == "l2":
@@ -275,7 +291,9 @@ class MultiEmbedding(nn.Module):
         """
         raise NotImplementedError()
 
-    def load_weights_from_trained_module(self, other: MultiEmbedding, freeze_old: bool = False) -> None:
+    def load_weights_from_trained_module(
+        self, other: MultiEmbedding, freeze_old: bool = False
+    ) -> None:
         """Load weights from another MultiEmbedding module.
 
         Parameters
@@ -294,7 +312,9 @@ class MultiEmbedding(nn.Module):
         """
         assert len(self.emb_list) >= len(other.emb_list)
         if len(self.emb_list) > len(other.emb_list):
-            logging.warning(f"Extending feature embedding {other} to {self} with more feature categories.")
+            logging.warning(
+                f"Extending feature embedding {other} to {self} with more feature categories."
+            )
         else:
             logging.info(f"Extending feature embedding {other} to {self}")
         for self_emb, other_emb in zip(self.emb_list, other.emb_list, strict=False):
@@ -406,7 +426,9 @@ class FeatureEmbedding(nn.Module):
     >>> print(output.shape)  # torch.Size([2, 56])  # 16+8+32=56
     """
 
-    def __init__(self, vocab_list: list[list[str]], embedding_dims: list[int], **kwargs: Any) -> None:
+    def __init__(
+        self, vocab_list: list[list[str]], embedding_dims: list[int], **kwargs: Any
+    ) -> None:
         super().__init__()
         assert len(vocab_list) == len(embedding_dims)
         self.device_container = nn.Parameter(torch.tensor([]))
@@ -452,7 +474,9 @@ class FeatureEmbedding(nn.Module):
         return self.__vocab_map_list_cache
 
     @staticmethod
-    def define_embeddings(n_embedding_list: list[int], embedding_dims: list[int], **kwargs: Any) -> MultiEmbedding:
+    def define_embeddings(
+        n_embedding_list: list[int], embedding_dims: list[int], **kwargs: Any
+    ) -> MultiEmbedding:
         """Define the underlying embedding layers.
 
         Parameters
@@ -500,14 +524,22 @@ class FeatureEmbedding(nn.Module):
         values to their corresponding embedding indices.
         """
         assert index_sentences.shape[-1] == len(self.vocab_map_list)
-        mapping_list = map(lambda mapping: np.vectorize(lambda key: mapping[key]), self.vocab_map_list)
+        mapping_list = map(
+            lambda mapping: np.vectorize(lambda key: mapping[key]), self.vocab_map_list
+        )
 
         indices = torch.concat(
-            [torch.from_numpy(mapping(index_sentences[..., [i]])) for i, mapping in enumerate(mapping_list)], dim=-1
+            [
+                torch.from_numpy(mapping(index_sentences[..., [i]]))
+                for i, mapping in enumerate(mapping_list)
+            ],
+            dim=-1,
         )
         return indices.to(self.device_container.device)
 
-    def forward(self, index_sentences: np.ndarray, index_cache_key: str | None = None) -> torch.Tensor:
+    def forward(
+        self, index_sentences: np.ndarray, index_cache_key: str | None = None
+    ) -> torch.Tensor:
         """Forward pass through the feature embedding layer.
 
         Parameters
@@ -631,7 +663,9 @@ class FeatureEmbedding(nn.Module):
         """
         raise NotImplementedError()
 
-    def load_weights_from_trained_module(self, other: FeatureEmbedding, freeze_old: bool = False) -> None:
+    def load_weights_from_trained_module(
+        self, other: FeatureEmbedding, freeze_old: bool = False
+    ) -> None:
         """Load weights from another FeatureEmbedding module.
 
         Parameters

@@ -83,9 +83,13 @@ class TestFeatureEmbedding:
         accessed_data_post_transfer = feature_embedding_extended(key_array)
 
         # First row should come from feature_embedding (overwritten)
-        assert ((feature_embedding(key_array[0:1, :]) - accessed_data_post_transfer[0:1, :]) ** 2).sum() < 1e-8
+        assert (
+            (feature_embedding(key_array[0:1, :]) - accessed_data_post_transfer[0:1, :]) ** 2
+        ).sum() < 1e-8
         # In second row, 'p4', 'g9' should not change
-        assert ((accessed_data_pre_transfer[1, :4] - accessed_data_post_transfer[1, :4]) ** 2).sum() < 1e-8
+        assert (
+            (accessed_data_pre_transfer[1, :4] - accessed_data_post_transfer[1, :4]) ** 2
+        ).sum() < 1e-8
 
     def test_feature_embedding_full_extension(self):
         sample_df, _, full_extension_df = self.make_test_data()
@@ -105,11 +109,17 @@ class TestFeatureEmbedding:
         accessed_data_post_transfer = feature_embedding_extended(key_array)
 
         # 'g1', 'g3', 'GE (dim1)' should come from feature_embedding (overwritten)
-        assert ((feature_embedding(key_array[0:1, :3]) - accessed_data_post_transfer[0:1, :-3]) ** 2).sum() < 1e-8
+        assert (
+            (feature_embedding(key_array[0:1, :3]) - accessed_data_post_transfer[0:1, :-3]) ** 2
+        ).sum() < 1e-8
         # Last 3 dims (1 for 'feature_type' and 2 for 'new_feature') should not change (new)
-        assert ((accessed_data_pre_transfer[:, -3:] - accessed_data_post_transfer[:, -3:]) ** 2).sum() < 1e-8
+        assert (
+            (accessed_data_pre_transfer[:, -3:] - accessed_data_post_transfer[:, -3:]) ** 2
+        ).sum() < 1e-8
         # Second row should not change (new)
-        assert ((accessed_data_pre_transfer[1, :] - accessed_data_post_transfer[1, :]) ** 2).sum() < 1e-8
+        assert (
+            (accessed_data_pre_transfer[1, :] - accessed_data_post_transfer[1, :]) ** 2
+        ).sum() < 1e-8
 
     def test_feature_embedding_freeze_on_extension(self):
         sample_df, _, full_extension_df = self.make_test_data()
@@ -124,7 +134,9 @@ class TestFeatureEmbedding:
                 ["p100", "g100", "KK", "NEW_FEATURE_2"],
             ]
         )
-        feature_embedding_extended.load_weights_from_trained_module(feature_embedding, freeze_old=True)
+        feature_embedding_extended.load_weights_from_trained_module(
+            feature_embedding, freeze_old=True
+        )
         # grad(x^2/2) = 2 -> grad = data if not freeze
         loss = sum([(p**2 / 2).sum() for _, p in feature_embedding_extended.named_parameters()])
         loss.backward()
@@ -134,9 +146,10 @@ class TestFeatureEmbedding:
 
         accessed_data_post_transfer = feature_embedding_extended(key_array)
         # 'g1', 'g3', 'GE (dim1)' should come from feature_embedding (overwritten)
-        assert ((feature_embedding(key_array[0:1, :3]) - accessed_data_post_transfer[0:1, :-3]) ** 2).sum() < 1e-8
+        assert (
+            (feature_embedding(key_array[0:1, :3]) - accessed_data_post_transfer[0:1, :-3]) ** 2
+        ).sum() < 1e-8
         # Last 3 dims should become zero
         assert ((accessed_data_post_transfer[:, -3:]) ** 2).sum() < 1e-8
         # Second row should become zero
         assert ((accessed_data_post_transfer[1, :]) ** 2).sum() < 1e-8
-

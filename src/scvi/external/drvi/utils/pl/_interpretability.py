@@ -49,10 +49,13 @@ def make_heatmap_groups(ordered_list: list) -> tuple[list[tuple[int, int]], list
     >>> print(f"Labels: {labels}")  # ['A', 'B', 'A']
     """
     n_groups, group_names = zip(
-        *[(len(list(group)), key) for (key, group) in itertools.groupby(ordered_list)], strict=False
+        *[(len(list(group)), key) for (key, group) in itertools.groupby(ordered_list)],
+        strict=False,
     )
     group_positions = [0] + list(itertools.accumulate(n_groups))
-    group_positions = list(zip(group_positions[:-1], [c - 1 for c in group_positions[1:]], strict=False))
+    group_positions = list(
+        zip(group_positions[:-1], [c - 1 for c in group_positions[1:]], strict=False)
+    )
     return group_positions, group_names
 
 
@@ -230,10 +233,17 @@ def show_top_differential_vars(
     >>> show_top_differential_vars(traverse_adata, "combined_score")
     >>> # Custom parameters with gene symbols
     >>> show_top_differential_vars(
-    ...     traverse_adata, "max_possible", gene_symbols="gene_symbol", score_threshold=1.0, n_top_genes=15, ncols=3
+    ...     traverse_adata,
+    ...     "max_possible",
+    ...     gene_symbols="gene_symbol",
+    ...     score_threshold=1.0,
+    ...     n_top_genes=15,
+    ...     ncols=3,
     ... )
     >>> # Subset of dimensions
-    >>> show_top_differential_vars(traverse_adata, "combined_score", dim_subset=["DR 5+", "DR 12+", "DR 14+"])
+    >>> show_top_differential_vars(
+    ...     traverse_adata, "combined_score", dim_subset=["DR 5+", "DR 12+", "DR 14+"]
+    ... )
     """
     plot_info = iterate_on_top_differential_vars(
         traverse_adata, key, title_col, order_col, gene_symbols, score_threshold

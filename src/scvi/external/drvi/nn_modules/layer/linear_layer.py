@@ -95,7 +95,9 @@ class StackedLinearLayer(nn.Module):
         self.n_channels = n_channels
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = nn.Parameter(torch.empty((n_channels, in_features, out_features), **factory_kwargs))
+        self.weight = nn.Parameter(
+            torch.empty((n_channels, in_features, out_features), **factory_kwargs)
+        )
         if bias:
             self.bias = nn.Parameter(torch.empty(n_channels, out_features, **factory_kwargs))
         else:
@@ -199,11 +201,15 @@ class StackedLinearLayer(nn.Module):
             if output_subset is None or output_subset.dim() == 1:
                 # weight: (c, i, o), bias: (c, o)
                 # x: (b, c, i), output_subset: (o_subset) -> output: (b, c, o_subset)
-                weight = self.weight if output_subset is None else self.weight[:, :, output_subset]  # (c, i, o_subset)
+                weight = (
+                    self.weight if output_subset is None else self.weight[:, :, output_subset]
+                )  # (c, i, o_subset)
                 # slower: mm = torch.einsum("bci,cio->bco", x, weight)
                 mm = torch.bmm(x.transpose(0, 1), weight).transpose(0, 1)  # (b, c, o_subset)
                 if self.bias is not None:
-                    bias = self.bias if output_subset is None else self.bias[:, output_subset]  # (c, o_subset)
+                    bias = (
+                        self.bias if output_subset is None else self.bias[:, output_subset]
+                    )  # (c, o_subset)
                     mm = mm + bias  # They (bco, co) will broadcast well
                 return mm
             else:

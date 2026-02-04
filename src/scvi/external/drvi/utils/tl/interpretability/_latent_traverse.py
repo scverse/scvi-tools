@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import scvi
 from anndata import AnnData
 from scipy import sparse
 
+import scvi
 from scvi.external.drvi import DRVI
 
 
@@ -105,7 +105,9 @@ def iterate_dimensions(
         * np.ones(n_samples).reshape(1, -1)
     ).reshape(-1)  # n_latent * n_steps * n_samples
 
-    span_vectors = sparse.coo_matrix((span_values, (np.arange(len(dim_ids)), dim_ids)), dtype=np.float32)
+    span_vectors = sparse.coo_matrix(
+        (span_values, (np.arange(len(dim_ids)), dim_ids)), dtype=np.float32
+    )
     span_vectors = span_vectors.tocsr()  # n_latent * n_steps * n_samples x n_latent
 
     span_adata = AnnData(
@@ -217,14 +219,20 @@ def make_traverse_adata(
 
     # make categorical covariates for each sample
     if model.adata_manager.get_state_registry(scvi.REGISTRY_KEYS.CAT_COVS_KEY):
-        n_cats_per_key = model.adata_manager.get_state_registry(scvi.REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-        sample_wise_cats = np.stack([np.random.randint(0, n_cat, size=n_samples) for n_cat in n_cats_per_key], axis=1)
+        n_cats_per_key = model.adata_manager.get_state_registry(
+            scvi.REGISTRY_KEYS.CAT_COVS_KEY
+        ).n_cats_per_key
+        sample_wise_cats = np.stack(
+            [np.random.randint(0, n_cat, size=n_samples) for n_cat in n_cats_per_key], axis=1
+        )
         cat_vector = sample_wise_cats[span_adata.obs["sample_id"]]
     else:
         cat_vector = None
 
     if model.adata_manager.get_state_registry(scvi.REGISTRY_KEYS.CONT_COVS_KEY):
-        raise NotImplementedError("Interpretability of models with continuous covariates are not implemented yet.")
+        raise NotImplementedError(
+            "Interpretability of models with continuous covariates are not implemented yet."
+        )
 
     # lib size
     lib_vector = np.ones(n_samples) * 1e4
@@ -244,7 +252,9 @@ def make_traverse_adata(
     effect_mean_param = model.decode_latent_samples(
         effect_data, lib=lib_vector, cat_values=cat_vector, cont_values=None, **kwargs
     )
-    print(f"Output mean param shape: control: {control_mean_param.shape}, effect: {effect_mean_param.shape}")
+    print(
+        f"Output mean param shape: control: {control_mean_param.shape}, effect: {effect_mean_param.shape}"
+    )
 
     if copy_adata_var_info:
         traverse_adata_var = model.adata.var.copy()
@@ -402,8 +412,9 @@ def traverse_latent(
 
     # enrich traverse_adata with the additional info
     for col in ["title", "vanished", "order"]:
-        mapping = dict(zip(embed.var["original_dim_id"].values, embed.var[col].values, strict=False))
+        mapping = dict(
+            zip(embed.var["original_dim_id"].values, embed.var[col].values, strict=False)
+        )
         traverse_adata.obs[col] = traverse_adata.obs["dim_id"].map(mapping)
 
     return traverse_adata
-

@@ -4,11 +4,11 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
-import scvi
 import torch
-from scvi import REGISTRY_KEYS
 from torch.nn import functional as F
 
+import scvi
+from scvi import REGISTRY_KEYS
 from scvi.external.drvi.module._constants import MODULE_KEYS
 
 if TYPE_CHECKING:
@@ -126,7 +126,9 @@ class GenerativeMixin:
             if map_cat_values:
                 mapped_values = np.zeros_like(cat_values)
                 for i, (_label, map_keys) in enumerate(
-                    self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)["mappings"].items()
+                    self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY)[
+                        "mappings"
+                    ].items()
                 ):
                     cat_mapping = dict(zip(map_keys, range(len(map_keys)), strict=False))
                     mapped_values[:, i] = np.vectorize(cat_mapping.get)(cat_values[:, i])
@@ -135,7 +137,9 @@ class GenerativeMixin:
         if batch_values is not None:
             batch_values = batch_values.flatten()
             if map_cat_values:
-                map_keys = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)["categorical_mapping"]
+                map_keys = self.adata_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY)[
+                    "categorical_mapping"
+                ]
                 batch_mapping = dict(zip(map_keys, range(len(map_keys)), strict=False))
                 batch_values = np.vectorize(batch_mapping.get)(batch_values)
                 batch_values = batch_values.astype(np.int32)
@@ -163,7 +167,9 @@ class GenerativeMixin:
                     }
                     library_to_inject = lib_tensor
                 else:
-                    raise NotImplementedError(f"Module {self.module.__class__.__name__} not supported.")
+                    raise NotImplementedError(
+                        f"Module {self.module.__class__.__name__} not supported."
+                    )
 
                 gen_input = self.module._get_generative_input(
                     tensors={
@@ -335,7 +341,10 @@ class GenerativeMixin:
         ...     return torch.cat(store, dim=0).numpy()
         >>> # Process data through autoencoder
         >>> latents = model.iterate_on_ae_output(
-        ...     adata=adata, step_func=extract_latent_means, aggregation_func=concatenate_latents, deterministic=True
+        ...     adata=adata,
+        ...     step_func=extract_latent_means,
+        ...     aggregation_func=concatenate_latents,
+        ...     deterministic=True,
         ... )
         >>> print(latents.shape)  # (n_cells, n_latent)
         """
@@ -349,7 +358,9 @@ class GenerativeMixin:
                 self.module.fully_deterministic = True
             for tensors in data_loader:
                 loss_kwargs = {"kl_weight": 1}
-                inference_outputs, generative_outputs, losses = self.module(tensors, loss_kwargs=loss_kwargs)
+                inference_outputs, generative_outputs, losses = self.module(
+                    tensors, loss_kwargs=loss_kwargs
+                )
                 step_func(inference_outputs, generative_outputs, losses, store)
         except Exception as e:
             self.module.fully_deterministic = False
@@ -415,12 +426,17 @@ class GenerativeMixin:
         >>> print(effects.shape)  # (n_splits,)
         >>> print("Effect of each split:", effects)
         >>> # Get per-cell effects
-        >>> cell_effects = model.get_reconstruction_effect_of_each_split(aggregate_over_cells=False)
+        >>> cell_effects = model.get_reconstruction_effect_of_each_split(
+        ...     aggregate_over_cells=False
+        ... )
         >>> print(cell_effects.shape)  # (n_cells, n_splits)
         """
 
         def calculate_effect(
-            inference_outputs: dict[str, Any], generative_outputs: dict[str, Any], losses: Any, store: list[Any]
+            inference_outputs: dict[str, Any],
+            generative_outputs: dict[str, Any],
+            losses: Any,
+            store: list[Any],
         ) -> None:
             if self.module.split_aggregation == "logsumexp":
                 log_mean_params = generative_outputs[MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY][
@@ -433,11 +449,13 @@ class GenerativeMixin:
                     dim=-1
                 )  # n_samples x n_splits
             elif self.module.split_aggregation == "sum":
-                effect_share = torch.abs(generative_outputs[MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]["mean"]).sum(
-                    dim=-1
-                )  # n_samples x n_splits
+                effect_share = torch.abs(
+                    generative_outputs[MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]["mean"]
+                ).sum(dim=-1)  # n_samples x n_splits
             else:
-                raise NotImplementedError("Only logsumexp and sum aggregations are supported for now.")
+                raise NotImplementedError(
+                    "Only logsumexp and sum aggregations are supported for now."
+                )
             effect_share = effect_share.detach().cpu()
             store.append(effect_share)
 
@@ -522,7 +540,10 @@ class GenerativeMixin:
         """
 
         def calculate_effect(
-            inference_outputs: dict[str, Any], generative_outputs: dict[str, Any], losses: Any, store: list[Any]
+            inference_outputs: dict[str, Any],
+            generative_outputs: dict[str, Any],
+            losses: Any,
+            store: list[Any],
         ) -> None:
             if self.module.split_aggregation == "logsumexp":
                 log_mean_params = generative_outputs[MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY][
@@ -533,9 +554,13 @@ class GenerativeMixin:
                 )  # n_samples x (n_splits + 1) x n_genes
                 effect_share = -torch.log(1 - F.softmax(log_mean_params, dim=-2)[:, :-1, :])
             elif self.module.split_aggregation == "sum":
-                effect_share = torch.abs(generative_outputs[MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]["mean"])
+                effect_share = torch.abs(
+                    generative_outputs[MODULE_KEYS.PX_UNAGGREGATED_PARAMS_KEY]["mean"]
+                )
             else:
-                raise NotImplementedError("Only logsumexp and sum aggregations are supported for now.")
+                raise NotImplementedError(
+                    "Only logsumexp and sum aggregations are supported for now."
+                )
             effect_share = effect_share.amax(dim=0).detach().cpu().numpy(force=True)
             if len(store) == 0:
                 store.append(effect_share)

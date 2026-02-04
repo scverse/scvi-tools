@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
-from scvi import distributions as scvi_distributions
 from torch.distributions import Distribution
 from torch.nn import functional as F
+
+from scvi import distributions as scvi_distributions
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -65,7 +66,9 @@ class NoiseModel:
         """
         return "mean"
 
-    def initial_transformation(self, x: torch.Tensor, x_mask: torch.Tensor | None = None) -> torch.Tensor:
+    def initial_transformation(
+        self, x: torch.Tensor, x_mask: torch.Tensor | None = None
+    ) -> torch.Tensor:
         """Apply initial transformation to input data.
 
         Parameters
@@ -399,7 +402,9 @@ class PoissonNoiseModel(NoiseModel):
 
         if self.mean_transformation == "exp":
             trans_scale = torch.exp(mean)
-            trans_mean = library_size_correction(trans_scale, library_size, self.library_normalization, log_space=False)
+            trans_mean = library_size_correction(
+                trans_scale, library_size, self.library_normalization, log_space=False
+            )
         elif self.mean_transformation == "softmax":
             trans_scale = torch.softmax(mean, dim=-1)
             trans_mean = library_size.unsqueeze(-1) * trans_scale
@@ -496,17 +501,23 @@ class NegativeBinomialNoiseModel(NoiseModel):
 
         if self.mean_transformation == "exp":
             px_scale = torch.exp(mean)
-            px_rate = library_size_correction(px_scale, library_size, self.library_normalization, log_space=False)
+            px_rate = library_size_correction(
+                px_scale, library_size, self.library_normalization, log_space=False
+            )
         elif self.mean_transformation == "softmax":
             px_scale = torch.softmax(mean, dim=-1)
             px_rate = library_size.unsqueeze(-1) * px_scale
         # `softplus` and `none` for ablation. Useless in practice.
         elif self.mean_transformation == "softplus":
             px_scale = F.softplus(mean)
-            px_rate = library_size_correction(px_scale, library_size, self.library_normalization, log_space=False)
+            px_rate = library_size_correction(
+                px_scale, library_size, self.library_normalization, log_space=False
+            )
         elif self.mean_transformation == "none":
             px_scale = mean
-            px_rate = library_size_correction(px_scale, library_size, self.library_normalization, log_space=False)
+            px_rate = library_size_correction(
+                px_scale, library_size, self.library_normalization, log_space=False
+            )
         else:
             raise NotImplementedError()
         trans_r = torch.exp(r)
@@ -538,7 +549,12 @@ class LogNegativeBinomial(Distribution):
     """
 
     def __init__(
-        self, log_m, log_r, log_scale: torch.Tensor | None = None, eps: float = 1e-8, validate_args=False
+        self,
+        log_m,
+        log_r,
+        log_scale: torch.Tensor | None = None,
+        eps: float = 1e-8,
+        validate_args=False,
     ) -> None:
         self.log_m = log_m
         self.log_r = log_r
@@ -739,7 +755,9 @@ class LogNegativeBinomialNoiseModel(NoiseModel):
 
         if self.mean_transformation == "none":
             trans_scale = mean
-            trans_mean = library_size_correction(trans_scale, library_size, self.library_normalization, log_space=True)
+            trans_mean = library_size_correction(
+                trans_scale, library_size, self.library_normalization, log_space=True
+            )
         elif self.mean_transformation == "softmax":
             trans_scale = mean - torch.logsumexp(mean, dim=-1, keepdim=True)
             trans_mean = torch.log(library_size.clip(1)).unsqueeze(-1) + trans_scale
