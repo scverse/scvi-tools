@@ -403,7 +403,8 @@ class DiagTrainingPlan(TrainingPlan):
             # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
             blur = eps ** (1.0 / self.sinkhorn_p)
         else:
-            eps = blur**self.sinkhorn_p
+            eps = self.sinkhorn_blur**self.sinkhorn_p
+            blur = self.sinkhorn_blur
 
         # Step 5: Compute adaptive reach if needed
         if self.sinkhorn_reach is None:
