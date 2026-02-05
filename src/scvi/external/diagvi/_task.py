@@ -373,7 +373,13 @@ class DiagTrainingPlan(TrainingPlan):
             batch_size=total_batch_size,
         )
 
-        return {"loss": total_loss}
+        # Return embeddings along with loss for callbacks (detached to avoid graph issues)
+        embeddings = {
+            name: out["z"].detach()
+            for name, out in zip(batch.keys(), loss_outputs, strict=False)
+        }
+
+        return {"loss": total_loss, "embeddings": embeddings}
 
     def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> None:
         """Validation step.
