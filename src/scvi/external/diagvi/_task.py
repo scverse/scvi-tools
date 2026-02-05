@@ -409,6 +409,8 @@ class DiagTrainingPlan(TrainingPlan):
         # Step 5: Compute adaptive reach if needed
         if self.sinkhorn_reach is None:
             reach = self.reach_scale * blur  # Heuristic: reach should be larger than blur
+        else:
+            reach = self.sinkhorn_reach
 
         # Step 6: Scale embeddings so geomloss sees scaled cost
         # We want: cost(x_scaled, y_scaled) = C_st / cost_scale = C_scaled
