@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
+import logging
 
 from scvi import REGISTRY_KEYS
 from scvi.external.diagvi._utils import (
@@ -11,6 +14,78 @@ from scvi.external.diagvi._utils import (
 )
 from scvi.train import TrainingPlan
 from scvi.utils import dependencies
+
+try:
+    from pykeops.torch import LazyTensor
+
+    keops_available = True
+except ImportError:
+    keops_available = False
+
+logger = logging.getLogger(__name__)
+
+
+def squared_distances(x: torch.Tensor, y: torch.Tensor, use_keops: bool = False) -> torch.Tensor:
+    """Compute squared Euclidean distances between point sets."""
+    if use_keops and keops_available:
+        if x.dim() == 2:
+            x_i = LazyTensor(x[:, None, :])
+            y_j = LazyTensor(y[None, :, :])
+        elif x.dim() == 3:
+            x_i = LazyTensor(x[:, :, None, :])
+            y_j = LazyTensor(y[:, None, :, :])
+        else:
+            raise ValueError(f"Incorrect number of dimensions: {x.shape}")
+        return ((x_i - y_j) ** 2).sum(-1)
+
+    if x.dim() == 2:
+        D_xx = (x * x).sum(-1).unsqueeze(1)
+        D_xy = torch.matmul(x, y.permute(1, 0))
+        D_yy = (y * y).sum(-1).unsqueeze(0)
+    elif x.dim() == 3:
+        D_xx = (x * x).sum(-1).unsqueeze(2)
+        D_xy = torch.matmul(x, y.permute(0, 2, 1))
+        D_yy = (y * y).sum(-1).unsqueeze(1)
+    else:
+        raise ValueError(f"Incorrect number of dimensions: {x.shape}")
+
+    return D_xx - 2 * D_xy + D_yy
+
+
+def distances(x: torch.Tensor, y: torch.Tensor, use_keops: bool = False) -> torch.Tensor:
+    """Compute Euclidean distances between point sets."""
+    if use_keops and keops_available:
+        return squared_distances(x, y, use_keops=use_keops).sqrt()
+    return torch.sqrt(torch.clamp_min(squared_distances(x, y), 1e-8))
+
+
+cost_routines = {
+    1: lambda x, y: distances(x, y),
+    2: lambda x, y: squared_distances(x, y) / 2,
+}
+
+
+def _compute_cost_scale(
+    C: torch.Tensor,
+    method: float | Literal["mean", "max", "median", "std"] | None,
+) -> float:
+    """Compute scale factor for cost matrix (OTT-JAX style).
+
+    Returns the scale factor s such that C_scaled = C / s has unit statistic.
+    """
+    if method is None or method == 1.0:
+        return 1.0
+    if isinstance(method, (int | float)):
+        return float(method)
+    if method == "mean":
+        return C.mean().item()
+    if method == "max":
+        return C.max().item()
+    if method == "median":
+        return C.median().item()
+    if method == "std":
+        return C.std().item()
+    raise ValueError(f"Unknown scale_cost method: {method}")
 
 
 def _anneal_param(
@@ -67,9 +142,20 @@ class DiagTrainingPlan(TrainingPlan):
     sinkhorn_p
         Order of the Wasserstein distance (p-norm).
     sinkhorn_blur
-        Blur parameter for Sinkhorn algorithm.
+        Blur for geomloss Sinkhorn (epsilon = blur^p). If None, computed
+        adaptively from cost matrix like OTT-JAX, by default None.
+    epsilon_from_cost
+        Statistic of scaled cost to compute epsilon: "std" or "mean", by default "mean".
+    epsilon_scale
+        Scaling factor: `epsilon = epsilon_scale * statistic(C_scaled)`, by default 0.05.
+    scale_cost
+        How to scale cost matrix. Either a float (C_scaled = C / float) or
+        one of "mean", "max", "median", "std" (C_scaled = C / statistic(C)).
+        Use None or 1.0 for no scaling. By default 1.0.
     sinkhorn_reach
-        Reach parameter for unbalanced optimal transport.
+        Reach parameter for unbalanced OT. If None, calculate adaptive reach from blur.
+    reach_scale
+        Scaling factor for adaptive reach: `reach = reach_scale * blur`, by default 10.0.
     lr
         Learning rate.
     loss_annealing
@@ -93,10 +179,14 @@ class DiagTrainingPlan(TrainingPlan):
         lam_sinkhorn: float = 1.0,
         lam_class: float = 100.0,
         sinkhorn_p: int = 2,
-        sinkhorn_blur: float = 1.0,
-        sinkhorn_reach: float = 1.0,
+        sinkhorn_blur: float | None = None,
+        epsilon_from_cost: Literal["mean", "std"] = "mean",
+        epsilon_scale: float = 0.05,
+        scale_cost: float | Literal["mean", "max", "median", "std"] | None = 1.0,
+        sinkhorn_reach: float | None = None,
+        reach_scale: float = 10.0,
         lr: float = 1e-3,
-        loss_annealing: bool = True,
+        loss_annealing: bool = False,
         log_train: bool = True,
         log_val: bool = False,
         *args,
@@ -115,6 +205,10 @@ class DiagTrainingPlan(TrainingPlan):
         self.sinkhorn_p = sinkhorn_p
         self.sinkhorn_blur = sinkhorn_blur
         self.sinkhorn_reach = sinkhorn_reach
+        self.epsilon_from_cost = epsilon_from_cost
+        self.epsilon_scale = epsilon_scale
+        self.scale_cost = scale_cost
+        self.reach_scale = reach_scale
 
         # Training parameters
         self.lr = lr
@@ -123,8 +217,8 @@ class DiagTrainingPlan(TrainingPlan):
         self.log_val = log_val
 
         # Initial values for annealing (10x larger for smoother optimization start)
-        self.init_blur = 10 * self.sinkhorn_blur
-        self.init_reach = 10 * self.sinkhorn_reach
+        self.init_blur = 10 * self.sinkhorn_blur if self.sinkhorn_blur is not None else None
+        self.init_reach = 10 * self.sinkhorn_reach if self.sinkhorn_reach is not None else None
 
     def _compute_modality_losses(
         self, batch: dict[str, dict[str, torch.Tensor]], log_prefix: str = ""
@@ -270,7 +364,66 @@ class DiagTrainingPlan(TrainingPlan):
         """
         import geomloss
 
+        logger.info(
+            f"Computing UOT with p={self.sinkhorn_p}, blur={self.sinkhorn_blur}, reach={self.sinkhorn_reach}"
+        )
+        logger.info(f"Cost scaling method: {self.scale_cost}")
+        if self.sinkhorn_blur is None:
+            logger.info(
+                f"blur not provided, will compute adaptively from cost matrix using epsilon_from_cost={self.epsilon_from_cost} and epsilon_scale={self.epsilon_scale}"
+            )
+        if self.sinkhorn_reach is None:
+            logger.info(
+                f"reach not provided, will compute adaptively from blur using reach_scale={self.reach_scale}."
+            )
+
+        # Step 1: Compute cost matrix C
+        cost_fn = cost_routines[self.sinkhorn_p]
+        C_st = cost_fn(z1, z2.detach())
+
+        # Step 2: Compute cost scale factor (OTT-JAX style)
+        cost_scale = _compute_cost_scale(C_st, self.scale_cost)
+        if cost_scale <= 0:
+            cost_scale = 1.0  # Fallback for edge cases
+
+        # Step 3: Scale cost matrix: C_scaled = C / cost_scale
+        C_scaled = C_st / cost_scale
+
+        # Step 4: Compute adaptive epsilon from SCALED cost (OTT-JAX approach)
+        if self.sinkhorn_blur is None:
+            if self.epsilon_from_cost == "std":
+                eps = self.epsilon_scale * C_scaled.std().item()
+            elif self.epsilon_from_cost == "mean":
+                eps = self.epsilon_scale * C_scaled.mean().item()
+            else:
+                raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
+
+            eps = max(eps, 1e-8)  # Ensure positive
+
+            # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
+            blur = eps ** (1.0 / self.sinkhorn_p)
+        else:
+            eps = blur**self.sinkhorn_p
+
+        # Step 5: Compute adaptive reach if needed
+        if self.sinkhorn_reach is None:
+            reach = self.reach_scale * blur  # Heuristic: reach should be larger than blur
+
+        # Step 6: Scale embeddings so geomloss sees scaled cost
+        # We want: cost(x_scaled, y_scaled) = C_st / cost_scale = C_scaled
+        # For cost = ||x-y||^p / p:
+        #   ||x_scaled - y_scaled||^p / p = ||x - y||^p / (p * cost_scale)
+        # If x_scaled = x * k, then k^p = 1 / cost_scale → k = cost_scale^(-1/p)
+        if cost_scale != 1.0:
+            embed_scale = cost_scale ** (-1.0 / self.sinkhorn_p)
+            z1_scaled = z1 * embed_scale
+            z2_scaled = z2 * embed_scale
+        else:
+            z1_scaled = z1
+            z2_scaled = z2
+        
         if use_annealing and self.loss_annealing:
+            logger.info("Using annealed Sinkhorn parameters.")
             max_epochs = self.trainer.max_epochs
             blur = _anneal_param(
                 self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur
@@ -279,10 +432,11 @@ class DiagTrainingPlan(TrainingPlan):
                 self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach
             )
         else:
-            blur = self.sinkhorn_blur
-            reach = self.sinkhorn_reach
+            blur = blur
+            reach = reach
+        
         sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=blur, reach=reach)
-        return sinkhorn(z1, z2)
+        return sinkhorn(z1_scaled, z2_scaled)
 
     def _compute_total_loss(
         self,
