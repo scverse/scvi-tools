@@ -4,7 +4,10 @@ from scvi.external.drvi.nn_modules.gradients import GradientScaler
 
 
 class TestGradientScaler:
-    """Test cases for GradientScaler class. The rest of the parts are used here, so not separate test."""
+    """Test cases for GradientScaler class.
+
+    The rest of the parts are used here, so not separate test.
+    """
 
     def test_gradient_scaler_forward_pass(self):
         """Test that forward pass returns input unchanged."""

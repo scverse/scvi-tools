@@ -192,8 +192,6 @@ class TestInterpretabilityPipeline:
     def test_iterate_on_top_differential_vars(self):
         """Test iterate_on_top_differential_vars function."""
         train_results = self._whole_integration_and_interpretability_pipeline()
-        model = train_results["model"]
-        embed = train_results["embed"]
         traverse_adata = train_results["traverse_adata"]
 
         # Test iterate_on_top_differential_vars

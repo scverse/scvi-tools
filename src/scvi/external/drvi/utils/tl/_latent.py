@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from scipy import sparse
 
-from scvi.external.drvi import DRVI
-
 if TYPE_CHECKING:
     from anndata import AnnData
+
+    from scvi.external.drvi import DRVI
 
 
 def _sparse_std(X: sparse.csr_matrix, axis: int = 0, ddof: int = 0) -> np.ndarray:

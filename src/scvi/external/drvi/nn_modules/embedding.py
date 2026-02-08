@@ -113,7 +113,8 @@ class FreezableEmbedding(nn.Embedding):
         regions while preserving gradients for the non-frozen regions.
         """
         with torch.no_grad():
-            assert self.n_freeze_x is not None and self.n_freeze_y is not None
+            assert self.n_freeze_x is not None
+            assert self.n_freeze_y is not None
             mask = F.pad(
                 torch.zeros(self.n_freeze_x, self.n_freeze_y, device=grad.device),
                 (
@@ -137,7 +138,10 @@ class FreezableEmbedding(nn.Embedding):
         if self._freeze_hook is None:
             return f"Emb({self.num_embeddings}, {self.embedding_dim})"
         else:
-            return f"Emb({self.num_embeddings}, {self.embedding_dim} | freeze: {self.n_freeze_x}, {self.n_freeze_y})"
+            return (
+                f"Emb({self.num_embeddings}, {self.embedding_dim} | "
+                f"freeze: {self.n_freeze_x}, {self.n_freeze_y})"
+            )
 
 
 class MultiEmbedding(nn.Module):

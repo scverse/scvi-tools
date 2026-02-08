@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from torch import nn
-
 from scvi.external.drvi.nn_modules.layer.linear_layer import LinearLayer, StackedLinearLayer
 from scvi.external.drvi.nn_modules.layer.structures import SimpleResidual
 
 if TYPE_CHECKING:
     from typing import Any, Literal
+
+    from torch import nn
 
 
 class LayerFactory:

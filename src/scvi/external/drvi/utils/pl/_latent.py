@@ -297,12 +297,14 @@ def plot_latent_dims_in_heatmap(
     """
     if order_col is not None and order_col not in embed.var:
         raise ValueError(
-            f'Column "{order_col}" not found in `embed.var`. Please run `set_latent_dimension_stats` to set order.'
+            f'Column "{order_col}" not found in `embed.var`. '
+            "Please run `set_latent_dimension_stats` to set order."
         )
     if remove_vanished:
         if "vanished" not in embed.var:
             raise ValueError(
-                'Column "vanished" not found in `embed.var`. Please run `set_latent_dimension_stats` to set vanished status.'
+                'Column "vanished" not found in `embed.var`. '
+                "Please run `set_latent_dimension_stats` to set vanished status."
             )
         embed = embed[:, ~embed.var["vanished"]]
 

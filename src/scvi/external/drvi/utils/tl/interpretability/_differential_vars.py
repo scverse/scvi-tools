@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import scipy
 
-from scvi.external.drvi import DRVI
 from scvi.external.drvi.utils.tl.interpretability._latent_traverse import (
     get_dimensions_of_traverse_data,
     traverse_latent,
@@ -16,6 +15,8 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+
+    from scvi.external.drvi import DRVI
 
 
 def find_differential_effects(
@@ -155,16 +156,21 @@ def find_differential_effects(
     )
 
     # Helper functions
-    average_over_samples = lambda x: x.mean(axis=2)
-    add_eps_in_count_space = lambda x: scipy.special.logsumexp(
-        np.stack([x, np.log(add_to_counts) * np.ones_like(x)]), axis=0
-    )
-    find_relative_effect = lambda x, baseline: (
-        scipy.special.logsumexp(
-            np.stack([x, np.log(add_to_counts) * np.ones_like(x), baseline]), axis=0
+    def average_over_samples(x):
+        return x.mean(axis=2)
+
+    def add_eps_in_count_space(x):
+        return scipy.special.logsumexp(
+            np.stack([x, np.log(add_to_counts) * np.ones_like(x)]), axis=0
         )
-        - baseline
-    )
+
+    def find_relative_effect(x, baseline):
+        return (
+            scipy.special.logsumexp(
+                np.stack([x, np.log(add_to_counts) * np.ones_like(x), baseline]), axis=0
+            )
+            - baseline
+        )
 
     # Find DE for each sample and average over samples
     if method == "max_possible":
@@ -365,7 +371,7 @@ def combine_differential_effects(
 
 
 def calculate_differential_vars(traverse_adata: AnnData, **kwargs) -> None:
-    """Calculate differential variables based on a combination of max_possible and min_possible effects.
+    """Calculate differential variables based on max_possible and min_possible effects.
 
     This function performs a comprehensive differential variable analysis by
     calculating effects using both "max_possible" and "min_possible" methods,
@@ -586,7 +592,8 @@ def iterate_on_top_differential_vars(
         Must contain differential effect data for the specified `key`.
     key
         Key prefix for the differential variables in `traverse_adata`.
-        Should correspond to a key used in `find_differential_effects` or `calculate_differential_vars`.
+        Should correspond to a key used in `find_differential_effects` or
+        `calculate_differential_vars`.
         Common value: "combined_score".
     title_col
         Column name in `traverse_adata.obs` containing dimension titles.

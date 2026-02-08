@@ -12,7 +12,27 @@ if TYPE_CHECKING:
 
 
 class LinearLayer(nn.Linear):
+    """Linear layer with optional output subsetting.
+
+    This layer extends torch.nn.Linear to support output subsetting, allowing
+    selective computation of specific output features.
+    """
+
     def forward(self, x: torch.Tensor, output_subset: torch.Tensor | None = None) -> torch.Tensor:
+        """Forward pass with optional output subsetting.
+
+        Parameters
+        ----------
+        x
+            Input tensor.
+        output_subset
+            Optional indices to subset the output features.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor, optionally subsetted.
+        """
         if output_subset is None:
             # x: (..., i) -> output: (..., o)
             return super().forward(x)
@@ -174,7 +194,8 @@ class StackedLinearLayer(nn.Module):
         The forward pass applies the linear transformation to each channel:
 
         .. math::
-            \text{output}[b, c, o] = \\sum_{i} \text{input}[b, c, i] \\cdot \text{weight}[c, i, o] + \text{bias}[c, o]
+            \text{output}[b, c, o] = \\sum_{i} \text{input}[b, c, i] \\cdot
+            \text{weight}[c, i, o] + \text{bias}[c, o]
 
         where:
         - b: batch index

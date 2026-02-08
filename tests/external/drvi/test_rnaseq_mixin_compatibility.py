@@ -196,7 +196,8 @@ class TestRNASeqMixinCompatibility:
                 f"Mean shape should be {(adata.n_obs, adata.n_vars)}, got {mean.shape}"
             )
             assert dispersions.shape == (adata.n_obs, adata.n_vars), (
-                f"Dispersions shape should be {(adata.n_obs, adata.n_vars)}, got {dispersions.shape}"
+                f"Dispersions shape should be {(adata.n_obs, adata.n_vars)}, "
+                f"got {dispersions.shape}"
             )
 
             assert np.all(mean >= 0), "Mean should be non-negative"

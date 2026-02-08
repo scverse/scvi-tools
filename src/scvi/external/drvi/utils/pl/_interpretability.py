@@ -4,7 +4,6 @@ import itertools
 from typing import TYPE_CHECKING
 
 import numpy as np
-import pandas as pd
 from matplotlib import pyplot as plt
 
 from scvi.external.drvi.utils.tl import iterate_on_top_differential_vars
@@ -13,6 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import Any
 
+    import pandas as pd
     from anndata import AnnData
 
 

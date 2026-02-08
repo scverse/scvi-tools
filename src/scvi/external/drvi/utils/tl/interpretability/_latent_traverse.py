@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData
 from scipy import sparse
 
 import scvi
-from scvi.external.drvi import DRVI
+
+if TYPE_CHECKING:
+    from scvi.external.drvi import DRVI
 
 
 def iterate_dimensions(
@@ -253,7 +257,8 @@ def make_traverse_adata(
         effect_data, lib=lib_vector, cat_values=cat_vector, cont_values=None, **kwargs
     )
     print(
-        f"Output mean param shape: control: {control_mean_param.shape}, effect: {effect_mean_param.shape}"
+        f"Output mean param shape: control: {control_mean_param.shape}, "
+        f"effect: {effect_mean_param.shape}"
     )
 
     if copy_adata_var_info:
@@ -380,7 +385,8 @@ def traverse_latent(
     3. Generates random categorical covariates for individual samples if the model uses them
     4. Decodes both control (noise only) and effect (noise + traversal) conditions
     5. Returns the difference between effect and control as the main data
-    6. Enriches the traversal data with dimension-specific information like titles, vanished status, and ordering.
+    6. Enriches the traversal data with dimension-specific information like titles,
+       vanished status, and ordering.
 
     The function expects the following columns in `embed.var`:
     - `original_dim_id`: Original dimension indices
@@ -398,7 +404,8 @@ def traverse_latent(
     """
     if "original_dim_id" not in embed.var:
         raise ValueError(
-            'Column "original_dim_id" not found in `embed.var`. Please run `set_latent_dimension_stats` to set vanished status.'
+            'Column "original_dim_id" not found in `embed.var`. '
+            "Please run `set_latent_dimension_stats` to set vanished status."
         )
 
     traverse_adata = make_traverse_adata(

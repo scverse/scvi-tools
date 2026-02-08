@@ -660,7 +660,8 @@ class Encoder(nn.Module):
 
          #. Encodes the data into latent space using the encoder network
          #. Generates a mean \\( q_m \\) and variance \\( q_v \\)
-         #. Samples a new value from an i.i.d. multivariate normal \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
+         #. Samples a new value from an i.i.d. multivariate normal
+         #    \\( \\sim Ne(q_m, \\mathbf{I}q_v) \\)
 
         Parameters
         ----------
@@ -674,8 +675,10 @@ class Encoder(nn.Module):
         Returns
         -------
         tuple
-            If return_dist=False: (mean, variance, sample) tensors of shape (batch_size, n_latent).
-            If return_dist=True: (distribution, sample) where distribution is a Normal distribution.
+            If return_dist=False: (mean, variance, sample) tensors of shape
+            (batch_size, n_latent).
+            If return_dist=True: (distribution, sample) where distribution is a
+            Normal distribution.
 
         """
         if cont_full_tensor is not None:
@@ -722,7 +725,8 @@ class DecoderDRVI(nn.Module):
         How to make splits:
         - "split" : Split the latent space
         - "power" : Transform the latent space to n_split vectors of size n_latent
-        - "split_map" : Split the latent space then map each to latent space using unique transformations
+        - "split_map" : Split the latent space then map each to latent space
+          using unique transformations
     reuse_weights
         Where to reuse the weights of the decoder layers when using splitting.
     layers_dim
@@ -902,7 +906,8 @@ class DecoderDRVI(nn.Module):
         Returns
         -------
         torch.Tensor
-            Transformed latent tensor with shape ``(batch_size, n_split, effective_dim)`` or ``(batch_size, effective_dim)``
+            Transformed latent tensor with shape ``(batch_size, n_split,
+            effective_dim)`` or ``(batch_size, effective_dim)``
         """
         batch_size = z.shape[0]
 

@@ -640,22 +640,49 @@ class LogNegativeBinomial(Distribution):
         return choice_part + log_pow_k + log_pow_r
 
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
+        """Compute log probability of values under the distribution.
+
+        Parameters
+        ----------
+        value
+            Values to compute log probability for.
+
+        Returns
+        -------
+        torch.Tensor
+            Log probabilities.
+        """
         return self.negative_binomial_log_ver(value, self.log_m, self.log_r, eps=self._eps)
 
     # Next 3 properties: Just for scvi RNASeqMixin backward compatibility.
     @property
     def mu(self) -> torch.Tensor:
+        """Mean parameter (for scvi RNASeqMixin backward compatibility)."""
         return self.get_normalized("mu")
 
     @property
     def theta(self) -> torch.Tensor:
+        """Theta parameter (for scvi RNASeqMixin backward compatibility)."""
         return self.get_normalized("theta")
 
     @property
     def scale(self) -> torch.Tensor:
+        """Scale parameter (for scvi RNASeqMixin backward compatibility)."""
         return self.get_normalized("scale")
 
     def get_normalized(self, key: str) -> torch.Tensor:
+        """Get normalized parameter value.
+
+        Parameters
+        ----------
+        key
+            Parameter key ('mu', 'theta', or 'scale').
+
+        Returns
+        -------
+        torch.Tensor
+            Normalized parameter value.
+        """
         if key == "mu":
             return torch.exp(self.log_m)
         elif key == "theta":
