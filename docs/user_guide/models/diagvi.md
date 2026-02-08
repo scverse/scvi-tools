@@ -2,22 +2,23 @@
 
 **DiagVI** (Diagonal Multi-Modal Integration Variational Inference; Python class {class}`~scvi.external.DIAGVI`) is a deep generative model for integrating unpaired multi-modal single-cell data using prior biological knowledge encoded as a guidance graph.
 
-DiagVI is inspired by the GLUE architecture , which uses modality-specific variational autoencoders (VAEs) to project heterogeneous data types into a shared latent space. In contrast to GLUE’s adversarial alignment strategy, DiagVI aligns modalities using Unbalanced Optimal Transport (UOT) via the Sinkhorn divergence, explicitly accounting for differences in cell-type composition across modalities.
-
-This design makes DiagVI particularly well suited for settings with modality-specific or rare cell populations, such as spatial proteomics vs. scRNA-seq.
+DiagVI is inspired by the GLUE [^ref1] architecture, which uses modality-specific variational autoencoders (VAEs) to project heterogeneous data types into a shared latent space. In contrast to GLUE’s adversarial alignment strategy, DiagVI aligns modalities using Unbalanced Optimal Transport (UOT) via the Sinkhorn divergence, explicitly accounting for differences in cell-type composition across modalities. This design makes DiagVI particularly well suited for settings with modality-specific or rare cell populations, such as the integration of spatial proteomics and scRNA-seq.
 
 The advantages of DiagVI are:
 
 -   Flexible two-modality integration of various data types (e.g., scRNA-seq, spatial transcriptomics, spatial proteomics).
--   Modality specific likelihoods tailored to the properties of the data.
--   Full feature utilization: all features (not only overlapping ones) contribute to model training via the guidance graph.
-- Biologically informed alignment using prior feature correspondences.
+-   Modality specific generative likelihoods tailored to data properties.
+-   Full feature utilization: all features (not only overlapping ones) contribute to model training via the guidance graph and modality-specific VAEs.
+- Biologically informed alignment using prior feature correspondences via the guidance graph.
+- Robust integration of modality-specific or rare cell populations via UOT.
 -   Optional Gaussian mixture prior and semi-supervised learning with cell-type labels.
 
 The limitations of DiagVI include:
 
--   Supports two modalities only.
+-   Currently supports integration of two modalities only.
 -   Requires prior information on cross-modal feature correspondences (explicitly or implicitly).
+- Effectively requires a GPU for fast inference.
+- Requires careful tuning of hyperparameters. 
 
 ```{topic} Tutorials:
  Tutorial placeholder
@@ -25,19 +26,36 @@ The limitations of DiagVI include:
 
 ## Preliminaries
 
-DiagVI takes as input two unpaired modalities with independent feature sets $\mathcal{V}_1, \mathcal{V}_2$ and observations $N_1, N_2$. 
+DiagVI takes as input expression matrices $X_1 \in \mathbb{R}^{N_1 \times \mathcal{V}_1}$ and $X_2 \in \mathbb{R}^{N_2 \times \mathcal{V}_2}$ from two unpaired modalities with independent feature sets $\mathcal{V}_1, \mathcal{V}_2$ and observations $N_1, N_2$.
 
-### Supported modalities
+For count data such as scRNA-seq data DiagVI expects as input:
+- A raw count expression matrix $X \in \mathbb{R}^{N \times \mathcal{V}}$, where each row is a single cell among $N$ total cells and each column is a feature (e.g., a gene) among $\mathcal{V}$ total features.
+- Optionally, experimental covariates such as batch annotations or confounding variables such as donor sex.
+- Optionally, cell label annotations that weakly inform the prior of the latent space and guide a classifier in semi-supervised training.
+
+For continuous data such as antibody-based single-cell proteomics data DiagVI expects as input:
+- A transformed (and optionally scaled) protein expression matrix $X \in \mathbb{R}^{N \times \mathcal{V}}$, where each row is a single cell among $N$ total cells and each column is a feature (e.g., a marker protein) among $\mathcal{V}$ total features.
+- Preprocessing expected: the input matrix is expected to be processed using for instance arcsinh, log1p, biexponential or logicle transformations which are optionally followed by feature-wise scaling (e.g., z-score, min-max or rank-scaled).
+- Optionally, experimental covariates such as batch annotations or confounding variables such as donor sex.
+- Optionally, cell label annotations that weakly inform the prior of the latent space and guide a classifier in semi-supervised training.
+
 Currently supported modalities include:
 
 - scRNA-seq
 - Spatial transcriptomics
-- Spatial proteomics
+- Spatial proteomics (e.g., CITE-seq, any other antibody-based single cell measurement of protein expression)
 - Other count or continuous measurements
 
-Each modality may optionally include a batch covariate.
+## Model components
 
-### Guidance Graph
+### Modality-specific variational autoencoders
+DiagVI integrates two unpaired modalities  by projecting heterogeneous data types into a shared latent space. The main assumption thereby is that the observed data from both modalities originates from a common, shared cell state based on which integration can be performed. The modality specific differences between the datasets are assumed to result from the different ways of measuring this common cell state. 
+
+To find this shared state, the observed data from each modality is modeled using an independently parametrized VAE. The dimensionality of the embedding that is generated by this process is identical for both modalities. In this way, the observed data from both modalities is projected into a common low-dimensional space.
+
+This process alone does not result in a semantically consistent embedding in which identical cell types are assigned to the same region across both modalities. The reason for this is that the modality-specific VAEs are trained and parametrized independently. To ensure biological consistency in the latent space, a guidance graph establishes a kogical associations between the two modalities.
+
+### Guidance graph and graph encoder
 Feature correspondences are encoded in the guidance graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$, where $\mathcal{V} = \mathcal{V}_1 \cup \mathcal{V}_2$.
 Each edge $\mathcal{E} = \{(i,j)\mid i,j \in \mathcal{V}\}$ is associated with
 - a weight $w_{ij} \in (0, 1]$ reflecting the confidence of the link
@@ -53,6 +71,12 @@ Useful when feature naming conventions differ (e.g., genes vs. proteins in CITE-
 
 - Explicit graph specification: \
 For full control, pass a `torch_geometric.data.Data` object directly.
+
+The graph decoder encourages embeddings $v_i$ and $v_j$ of linked features to be close in latent space, with strength modulated by edge weights and signs. Unrelated features are pushed apart.
+
+### Unbalanced optimal transport
+
+### Classifier
 
 ## Descriptive model
 <span style="color:red"> TODO: plate model </span>
@@ -79,15 +103,18 @@ If cell-type labels are provided, a Gaussian mixture prior is used with one comp
 $\mathbf{z}$ is trained jointly.
 
 ## Generative process
-The graph decoder encourages embeddings $v_i$ and $v_j$ of linked features to be close in latent space, with strength modulated by edge weights and signs. Unrelated features are pushed apart.
 
-Given cell latent $\mathbf{z}_n$ and feature embeddings $\mathbf{V}$, DiagVI generates the denoised, normalized data
+Given cell latent $\mathbf{z}_n$ and feature embeddings $\mathbf{V}$, DiagVI generates the denoised, normalized count data
 $$
 \boldsymbol{\rho}_n = \mathrm{softmax}\left( \boldsymbol{\alpha}_n \odot \left(  \mathbf{z}_n\mathbf{V}^\top \right) + \boldsymbol{\beta}_n \right)
 $$
-where $\boldsymbol{\alpha}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ and $\boldsymbol{\beta}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ are feature specific scaling and bias parameters, respectively. When a batch covariate is provided, batch-specific versions of these parameters are learned.
+where $\boldsymbol{\alpha}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ and $\boldsymbol{\beta}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ are feature specific scaling and bias parameters, respectively. When a batch covariate is provided, batch-specific versions of these parameters are learned. Observed library sizes $l_n$ are then used to reconstruct raw counts.
 
-Observed library sizes $l_n$ are used to reconstruct raw counts.
+In the case of continuous measurements, again given cell latent $\mathbf{z}_n$ and feature embeddings $\mathbf{V}$, DiagVI generates denoised data 
+$$
+\boldsymbol{\rho}_n = \boldsymbol{\alpha}_n \odot \left(  \mathbf{z}_n\mathbf{V}^\top \right) + \boldsymbol{\beta}_n
+$$
+where $\boldsymbol{\alpha}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ and $\boldsymbol{\beta}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ are feature specific scaling and bias parameters, respectively. When a batch covariate is provided, batch-specific versions of these parameters are learned. No library size normalization is performed.
 
 ## Likelihood models
 
