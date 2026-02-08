@@ -119,6 +119,7 @@ def test_resolvi_downstream_size_scaling(adata):
         model=model.module.model_residuals, num_samples=30, return_samples=False, batch_size=1000
     )
     model_query = model.load_query_data(reference_model=model, adata=adata)
+    model.save("test_resolvi", save_anndata=True, overwrite=True)
     model_query = model.load_query_data(reference_model="test_resolvi", adata=adata)
     model_query.train(
         max_epochs=2,

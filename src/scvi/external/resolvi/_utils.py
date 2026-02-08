@@ -241,7 +241,7 @@ class ResolVIPredictiveMixin:
             # Converts the 3d tensor to a 2d tensor
             exprs = exprs.reshape(-1, exprs.shape[-1])
             n_samples_ = exprs.shape[0]
-            if (weights is None) or weights == "uniform":
+            if weights == "uniform":
                 p = None
             else:
                 weighting -= weighting.max()
@@ -397,6 +397,7 @@ class ResolVIPredictiveMixin:
                     if "size_factor" in self.adata_manager.data_registry:
                         size_factor = kwargs["size_factor"]
                         px_rate = px_rate / size_factor.reshape(-1, 1, 1)
+                        exp_ = px_rate
                     else:
                         raise ValueError(
                             "size_scaling is True but no size_factor_key was provided "

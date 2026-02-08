@@ -426,7 +426,13 @@ class RESOLVAEModel(PyroModule):
             with pyro.poutine.scale(scale=kl_weight):
                 z = pyro.sample("latent", pyro.distributions.MixtureSameFamily(cats, normal_dists))
             if self.size_scaling:
-                library = torch.log(self.scale_encoder(z, batch_index)[1] * size_factor)
+                if size_factor is not None:
+                    library = torch.log(self.scale_encoder(z, batch_index)[1] * size_factor)
+                else:
+                    raise ValueError(
+                        "size_scaling is True but no size_factor_key was provided "
+                        "in setup_anndata."
+                    )
             # get the "normalized" mean of the negative binomial
             if cat_covs is not None:
                 categorical_input = list(torch.split(cat_covs, 1, dim=1))
