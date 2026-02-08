@@ -26,7 +26,7 @@ from ._dataframe_field import (
 from ._layer_field import LayerField, MuDataLayerField
 from ._mudata import BaseMuDataWrapperClass, MuDataWrapper
 from ._protein import MuDataProteinLayerField, ProteinObsmField
-from ._scanvi import LabelsWithUnlabeledObsField
+from ._scanvi import LabelsWithUnlabeledObsField, MuDataLabelsWithUnlabeledObsField
 from ._uns_field import StringUnsField
 
 __all__ = [
@@ -59,5 +59,6 @@ __all__ = [
     "MuDataCategoricalJointVarField",
     "ProteinObsmField",
     "LabelsWithUnlabeledObsField",
+    "MuDataLabelsWithUnlabeledObsField",
     "StringUnsField",
 ]

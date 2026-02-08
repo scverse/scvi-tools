@@ -12,6 +12,7 @@ from scvi import settings
 from scvi.dataloaders import DataSplitter, DeviceBackedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, parse_device_args
 from scvi.train import PyroTrainingPlan, TrainRunner
+from scvi.train._config import merge_kwargs
 from scvi.utils import track
 from scvi.utils._docstrings import devices_dsp
 
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from pyro import PyroBaseModuleClass
 
     from scvi.dataloaders import AnnDataLoader
+    from scvi.train._config import KwargsLike
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +107,9 @@ class PyroSviTrainMixin:
         lr: float | None = None,
         training_plan: PyroTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -142,13 +146,20 @@ class PyroSviTrainMixin:
         plan_kwargs
             Keyword args for :class:`~scvi.train.PyroTrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        plan_config
+            Configuration object or mapping used to build
+            :class:`~scvi.train.PyroTrainingPlan`. Values in ``plan_kwargs`` and explicit arguments
+            take precedence.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
 
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         if lr is not None and "optim" not in plan_kwargs.keys():
             plan_kwargs.update({"optim_kwargs": {"lr": lr}})
 
@@ -171,7 +182,7 @@ class PyroSviTrainMixin:
                 train_size=train_size,
                 validation_size=validation_size,
                 shuffle_set_split=shuffle_set_split,
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 **datasplitter_kwargs,
             )
 
@@ -194,6 +205,7 @@ class PyroSviTrainMixin:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=device,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
@@ -529,7 +541,7 @@ class PyroSampleMixin:
             self.to_device(device)
 
             if i == 0:
-                return_observed = getattr(sample_kwargs, "return_observed", False)
+                return_observed = sample_kwargs.get("return_observed", False)
                 obs_plate_sites = self._get_obs_plate_sites(
                     args, kwargs, return_observed=return_observed
                 )

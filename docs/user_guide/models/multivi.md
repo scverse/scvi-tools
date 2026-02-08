@@ -1,7 +1,7 @@
 # MultiVI
 
 **MultiVI** [^ref1] (Python class {class}`~scvi.model.MULTIVI`) multimodal generative model capable of
-integrating multiome, scRNA-seq and scATAC-seq data. After training, it can be used for many common downstream tasks,
+integrating multiome, scRNA-seq and scATAC-seq data. After training, it can be used for many common downstream tasks
 and also for imputation of a missing modality.
 
 The advantages of multiVI are:
@@ -16,7 +16,6 @@ The limitations of MultiVI include:
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/quick_start/api_overview`
 -   {doc}`/tutorials/notebooks/multimodal/MultiVI_tutorial`
 ```
 
@@ -26,7 +25,7 @@ MultiVI takes as input a multiome single-cell matrix $X_{mult}$ with $N$ cells a
 $M$ genomic regions (peaks), or just a scRNA-seq gene expression matrix $X_{rna}$ with $N$ cells and
 $G$ genes or just a scATAC-seq accessibility matrix $X_{acc}$ with $N$ cells and $M$ genomic
 regions (peaks), which can be binary or have count data.
-Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc, is an optional input.
+Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc., is an optional input.
 While $S$ can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with $K$ categories, which represents the common case of having multiple batches of data.
 
@@ -55,7 +54,7 @@ variance of the log library size over cells. The expression data are generated f
 distribution, which here, we denote as the $\mathrm{ObservationModel}$. While by default the
 $\mathrm{ObservationModel}$ is a $\mathrm{ZeroInflatedNegativeBinomial}$ (ZINB) distribution parameterized
 by its mean, inverse dispersion, and non-zero-inflation probability, respectively, users can pass
-`gene_likelihood = "negative_binomial"` to {class}`~scvi.model.MultiVI`, for example, to use a simpler
+`gene_likelihood = "negative_binomial"` to {class}`~scvi.model.MULTIVI`, for example, to use a simpler
 $\mathrm{NegativeBinomial}$ distribution.
 
 For ATAC-seq, detecting a region as accessible ($y_{nj} > 0$) is
@@ -75,10 +74,10 @@ The generative process of MultiVI uses neural networks to produce:
 \end{align}
 ```
 
-which respectively decode the denoised gene expression, non-zero-inflation probability (only if using ZINB) and
+which respectively decodes the denoised gene expression, non-zero-inflation probability (only if using ZINB) and
 estimates the probability of accessibility.
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -92,19 +91,19 @@ The latent variables, along with their description are summarized in the followi
      - Low-dimensional representation capturing the state of a cell.
      - N/A
    * - :math:`\rho_n \in \Delta^{G-1}`
-     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.MULTVI.setup_anndata`, in which case this is only forced to be non-negative via softplus.
+     - Denoised/normalized gene expression. This is a vector that sums to 1 within a cell, unless `size_factor_key is not None` in :class:`~scvi.model.MULTIVI.setup_mudata`, in which case this is only forced to be non-negative via softplus.
      - ``px_scale``
    * - :math:`\ell_n \in (0, \infty)`
      - Library size for RNA.
      - N/A
    * - :math:`\theta_g \in (0, \infty)`
-     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
+     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model initialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
      - N/A
    * - :math:`p_r`
      - Accessibility probability estimate
      - N/A
    * - :math:`\ell_n \in \left[0,1\right]`
-     - Cell-wise scaling factor. Learned, but can be set manually with `size_factor_key` in :class:`~scvi.model.MULTIVI.setup_anndata`.
+     - Cell-wise scaling factor. Learned, but can be set manually with `size_factor_key` in :class:`~scvi.model.MULTIVI.setup_mudata`.
      - ``d``
    * - :math:`r_j \in \left[0,1\right]`
      - Region-wise scaling factor
@@ -128,9 +127,9 @@ neural network params, dispersion params, etc.) and an approximate posterior dis
 
 Here $\eta$ is a set of parameters corresponding to inference neural networks (encoders), which we do not describe
 in detail here, but are described in the MultiVI paper. The underlying class used as the encoder for MultiVI is
-{class}`~scvi.nn.Encoder`. $z_n$ is calculated determinimistically as the average of two latent variables part of
-the variational approximation $z^{acc}_n$ and $z^{rna}_n$. These two variables are Normal and for that
-reason, $z_n$ is Normal. This formalism permits to handle individual modalities by bypassing the average mechanism
+{class}`~scvi.nn.Encoder`. $z_n$ is calculated deterministically as the average of two latent variables part of
+the variational approximation $z^{acc}_n$ and $z^{rna}_n$. These two variables are Normal, and for that
+reason, $z_n$ is Normal. This formalism permits handling individual modalities by bypassing the average mechanism
 and considering each modality variation approximation.
 
 ## Tasks
@@ -174,16 +173,16 @@ where $\ell_n'$ is by default set to 1. See the `library_size` parameter for mor
 >>> model.get_normalized_expression(n_samples=10)
 ```
 
-By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
+By default, the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
 Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 
-It is worth noting that when accessibility data is passed, MultiVI computes imputation of missing gene expression data.
+It is worth noting that when accessibility data is passed, MultiVI computes the imputation of missing gene expression data.
 When gene expression data is passed, MultiVI computes denoised gene expression data.
 
 ### Denoising/imputation of accessibility
 
-In {func}`~scvi.model.MULTIVI.get_accessibility_estimates` MultiVI returns the expected value of $y_i$ under the
+In {func}`~scvi.model.MULTIVI.get_normalized_accessibility` MultiVI returns the expected value of $y_i$ under the
 approximate posterior. For one cell $i$, this can be written as:
 
 ```{math}
@@ -199,14 +198,14 @@ then, using this value to decode the accessibility probability estimate $p_r$. A
 the variational mean, a number of samples can be passed as an argument in the code:
 
 ```
->>> model.get_accessibility_estimates(n_samples_overall=10)
+>>> model.get_normalized_accessibility(n_samples_overall=10)
 ```
 
 This value is used to compute the mean of the latent variable over these samples. Notably, this function also has
 the `transform_batch` parameter that allows counterfactual prediction of accessibility in an unobserved batch.
 See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 
-It is worth noting that when gene expression data is passed, MultiVI computes imputation of missing accessibility data.
+It is worth noting that when gene expression data is passed, MultiVI computes the imputation of missing accessibility data.
 When accessibility data is passed, MultiVI computes denoised chromatin accessibility.
 
 ### Differential expression

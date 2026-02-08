@@ -49,7 +49,7 @@ def _load_smfish(save_path: str = "data/", use_high_level_cluster=True) -> annda
     save_path = os.path.abspath(save_path)
     adata = anndata.read_h5ad(
         pooch.retrieve(
-            url="https://figshare.com/ndownloader/files/51096518",
+            url="https://exampledata.scverse.org/scvi-tools/smfish.h5ad",
             known_hash="a6bba682cf6804e4c1db07cbd2cb16a08143e0b814fd1bd1f936596aa1e27fd1",
             fname="smfish.h5ad",
             path=save_path,

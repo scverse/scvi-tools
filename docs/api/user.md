@@ -34,8 +34,6 @@ import scvi
    model.MULTIVI
    model.AmortizedLDA
    model.JaxSCVI
-
-
 ```
 
 ```{eval-rst}
@@ -50,6 +48,7 @@ import scvi
    :nosignatures:
 
    external.CellAssign
+   external.CYTOVI
    external.GIMVI
    external.RNAStereoscope
    external.SpatialStereoscope
@@ -61,9 +60,15 @@ import scvi
    external.POISSONVI
    external.VELOVI
    external.MRVI
+   external.TorchMRVI
+   external.JaxMRVI
    external.METHYLVI
+   external.METHYLANVI
    external.Decipher
+   external.TOTALANVI
    external.RESOLVI
+   external.SysVI
+   external.SCVIVA
 ```
 
 ## Data loading
@@ -123,6 +128,24 @@ Here we maintain a few package specific utilities for feature selection, etc.
 
    autotune.run_autotune
    autotune.AutotuneExperiment
+```
+
+## Training configuration
+
+```{eval-rst}
+.. autosummary::
+   :toctree: reference/
+   :nosignatures:
+
+   train.TrainingPlanConfig
+   train.AdversarialTrainingPlanConfig
+   train.SemiSupervisedTrainingPlanConfig
+   train.SemiSupervisedAdversarialTrainingPlanConfig
+   train.PyroTrainingPlanConfig
+   train.LowLevelPyroTrainingPlanConfig
+   train.ClassifierTrainingPlanConfig
+   train.JaxTrainingPlanConfig
+   train.TrainerConfig
 ```
 
 ## Model hub

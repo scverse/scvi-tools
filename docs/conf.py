@@ -4,6 +4,7 @@ import os
 import re
 import subprocess
 import sys
+import types
 from pathlib import Path
 from importlib.metadata import metadata
 from datetime import datetime
@@ -13,7 +14,7 @@ if TYPE_CHECKING:
     from typing import Any
 
 HERE = Path(__file__).parent
-sys.path[:0] = [str(HERE.parent), str(HERE / "extensions")]
+sys.path[:0] = [str(HERE.parent / "src"), str(HERE.parent), str(HERE / "extensions")]
 
 # -- Project information -----------------------------------------------------
 
@@ -90,6 +91,45 @@ nb_output_stderr = "remove"
 nb_execution_mode = "off"
 nb_merge_streams = True
 typehints_defaults = "braces"
+autodoc_mock_imports = []
+if os.environ.get("READTHEDOCS") == "True":
+    autodoc_mock_imports += ["hyperopt", "ray", "ray.tune", "scib_metrics", "muon"]
+    try:
+        import scvi.autotune
+    except Exception:
+        import scvi
+
+        _autotune_error = ModuleNotFoundError(
+            "Autotune requires optional dependencies; install scvi-tools[autotune]."
+        )
+        autotune_stub = types.ModuleType("scvi.autotune")
+
+        class AutotuneExperiment:
+            """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+
+            def __init__(self, *args, **kwargs):
+                raise _autotune_error
+
+        class ScibTuneReportCheckpointCallback:
+            """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+
+            def __init__(self, *args, **kwargs):
+                raise _autotune_error
+
+        def run_autotune(*args, **kwargs):
+            """Autotune requires optional dependencies; install scvi-tools[autotune]."""
+            raise _autotune_error
+
+        autotune_stub.AutotuneExperiment = AutotuneExperiment
+        autotune_stub.ScibTuneReportCheckpointCallback = ScibTuneReportCheckpointCallback
+        autotune_stub.run_autotune = run_autotune
+        autotune_stub.__all__ = [
+            "AutotuneExperiment",
+            "ScibTuneReportCheckpointCallback",
+            "run_autotune",
+        ]
+        sys.modules["scvi.autotune"] = autotune_stub
+        scvi.autotune = autotune_stub
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -156,6 +196,7 @@ pygments_style = "default"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["css/override.css"]
+html_js_files = ["js/custom.js"]
 html_show_sphinx = False
 
 

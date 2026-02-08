@@ -163,8 +163,7 @@ class RESOLVAEModel(PyroModule):
             init_px_r = torch.full([n_input, n_batch], 0.01)
         else:
             raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch', 'gene-label'], but input was "
-                "{}.format(self.dispersion)"
+                f"dispersion must be one of ['gene', 'gene-batch'], but input was {dispersion}."
             )
         self.register_buffer("px_r", init_px_r)
 
@@ -751,8 +750,7 @@ class RESOLVAEGuide(PyroModule):
             init_px_r = torch.full([n_input, n_batch], 0.01)
         else:
             raise ValueError(
-                "dispersion must be one of ['gene', 'gene-batch', 'gene-label'], but input was "
-                "{}.format(dispersion)"
+                f"dispersion must be one of ['gene', 'gene-batch'], but input was {dispersion}."
             )
         self.register_buffer("px_r", init_px_r)
         self.register_buffer("per_neighbor_diffusion_init", torch.zeros([n_obs, n_neighbors]))
@@ -853,7 +851,11 @@ class RESOLVAEGuide(PyroModule):
 
         if self.downsample_counts_mean is not None:
             downsample_counts = (
-                int(LogNormal(self.downsample_counts_mean, self.downsample_counts_std).sample())
+                int(
+                    LogNormal(
+                        float(self.downsample_counts_mean), float(self.downsample_counts_std)
+                    ).sample()
+                )
                 + 10
             )
 
@@ -868,7 +870,10 @@ class RESOLVAEGuide(PyroModule):
 
             if self.dispersion == "gene-batch":
                 px_r_inv = F.linear(
-                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch), px_r_mle
+                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch).to(
+                        px_r_mle.dtype
+                    ),
+                    px_r_mle,
                 )
             elif self.dispersion == "gene":
                 px_r_inv = px_r_mle

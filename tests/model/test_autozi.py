@@ -91,7 +91,7 @@ def test_saving_and_loading(save_path):
 
 def test_autozi():
     data = synthetic_iid(
-        n_batches=1,
+        n_batches=2,
     )
     AUTOZI.setup_anndata(
         data,
@@ -112,6 +112,10 @@ def test_autozi():
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
+        autozivae.get_normalized_expression()
+        autozivae.get_normalized_expression(transform_batch="batch_1")
+        autozivae.get_normalized_expression(n_samples=2)
+        autozivae.differential_expression(groupby="labels", group1="label_1")
 
     # Model library size.
     for disp_zi in ["gene", "gene-label"]:
@@ -130,3 +134,7 @@ def test_autozi():
         autozivae.get_reconstruction_error(indices=autozivae.validation_indices)
         autozivae.get_marginal_ll(indices=autozivae.validation_indices, n_mc_samples=3)
         autozivae.get_alphas_betas()
+        autozivae.get_normalized_expression()
+        autozivae.get_normalized_expression(transform_batch="batch_1")
+        autozivae.get_normalized_expression(n_samples=2)
+        autozivae.differential_expression(groupby="labels", group1="label_1")

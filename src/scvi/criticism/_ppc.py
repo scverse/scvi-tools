@@ -48,7 +48,7 @@ def _make_dataset_dense(dataset: Dataset) -> Dataset:
 
 class PosteriorPredictiveCheck:
     """
-    ``EXPERIMENTAL`` Posterior predictive checks for comparing scRNA-seq generative models.
+    Posterior predictive checks for comparing scRNA-seq generative models.
 
     Parameters
     ----------
@@ -102,6 +102,15 @@ class PosteriorPredictiveCheck:
         self.metrics = {}
 
         self._store_posterior_predictive_samples(indices=indices)
+
+        # check if raw counts are indeed int (required for std computation trick)
+        if np.issubdtype(raw_counts.dtype, np.floating):
+            self.is_float_data = not np.all(raw_counts == raw_counts.astype(int))
+        else:
+            self.is_float_data = False
+
+        if self.is_float_data:
+            self.samples_dataset = _make_dataset_dense(self.samples_dataset)
 
     def __repr__(self) -> str:
         return (
@@ -185,11 +194,17 @@ class PosteriorPredictiveCheck:
         """
         identifier = METRIC_CV_CELL if dim == "features" else METRIC_CV_GENE
         mean = self.samples_dataset.mean(dim=dim, skipna=False)
-        # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
-        # a square followed by a sqrt is ok here because this is counts data (no negative values)
-        self.samples_dataset = np.square(self.samples_dataset)
-        std = np.sqrt(self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean))
-        self.samples_dataset = np.sqrt(self.samples_dataset)
+
+        if self.is_float_data:
+            std = self.samples_dataset.std(dim=dim, skipna=False)
+        else:
+            # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
+            # a square followed by a sqrt is ok here because
+            # this is counts data (no negative values)
+            self.samples_dataset = np.square(self.samples_dataset)
+            std = np.sqrt(self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean))
+            self.samples_dataset = np.sqrt(self.samples_dataset)
+
         # now compute the CV
         cv = std / mean
         # It's ok to make things dense here
@@ -259,6 +274,7 @@ class PosteriorPredictiveCheck:
         self.metrics[METRIC_CALIBRATION] = pd.DataFrame.from_dict(model_cal)
 
     @dependencies("scanpy")
+    @dependencies("leidenalg")
     def differential_expression(
         self,
         de_groupby: str | None = None,
@@ -278,7 +294,7 @@ class PosteriorPredictiveCheck:
         de_groupby
             The column name in `adata_obs_raw` that contains the groupby information.
         de_method
-            The DE method to use. See :meth:`~scanpy.tl.rank_genes_groups` for more details.
+            The DE method to use. See :func:`~scanpy.tl.rank_genes_groups` for more details.
         n_samples
             The number of posterior predictive samples to use for the DE analysis.
         cell_scale_factor

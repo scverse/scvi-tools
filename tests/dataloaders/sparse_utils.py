@@ -1,5 +1,6 @@
 from typing import Literal
 
+import numpy as np
 import torch
 from anndata import AnnData
 
@@ -90,11 +91,13 @@ class TestSparseModel(scvi.model.base.BaseModelClass):
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
         expected_sparse_layout: Literal["csr", "csc"] = None,
+        external_indexing: list[np.array, np.array, np.array] | None = None,
     ):
         data_splitter = TestSparseDataSplitter(
             self.adata_manager,
             expected_sparse_layout=expected_sparse_layout,
             load_sparse_tensor=True,
+            external_indexing=external_indexing,
         )
         training_plan = TestSparseTrainingPlan(self.module)
         runner = TrainRunner(

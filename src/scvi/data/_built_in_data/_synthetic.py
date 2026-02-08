@@ -10,6 +10,8 @@ from anndata import AnnData
 from mudata import MuData
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
@@ -37,6 +39,7 @@ def _generate_synthetic(
     accessibility_key: str = "accessibility",
     region_names_prefix: str = "region",
     coordinates_key: str = "coordinates",
+    rna_dist: Literal["nb", "normal"] = "nb",
 ) -> AnnOrMuData:
     n_obs = batch_size * n_batches
 
@@ -45,7 +48,12 @@ def _generate_synthetic(
             data = getattr(scipy.sparse, sparse_format)(data)
         return data
 
-    rna = np.random.negative_binomial(5, 0.3, size=(n_obs, n_genes))
+    if rna_dist == "normal":
+        rna = np.random.normal(loc=5, scale=2, size=(n_obs, n_genes))
+    elif rna_dist == "nb":
+        rna = np.random.negative_binomial(5, 0.3, size=(n_obs, n_genes))
+    else:
+        raise ValueError(f"Unknown RNA distribution: {rna_dist}")
     mask = np.random.binomial(n=1, p=dropout_ratio, size=(n_obs, n_genes))
     rna = rna * mask
     rna = sparsify_data(rna)
@@ -79,22 +87,22 @@ def _generate_synthetic(
     if return_mudata:
         mod_dict = {rna_key: adata}
 
-        if n_proteins > 0:
-            protein_adata = AnnData(protein)
-            protein_adata.var_names = protein_names
-            mod_dict[protein_expression_key] = protein_adata
         if n_regions > 0:
             accessibility_adata = AnnData(accessibility)
             accessibility_adata.var_names = region_names
             mod_dict[accessibility_key] = accessibility_adata
+        if n_proteins > 0:
+            protein_adata = AnnData(protein)
+            protein_adata.var_names = protein_names
+            mod_dict[protein_expression_key] = protein_adata
 
         adata = MuData(mod_dict)
     else:
+        if n_regions > 0:
+            adata.obsm[accessibility_key] = accessibility
         if n_proteins > 0:
             adata.obsm[protein_expression_key] = protein
             adata.uns[protein_names_key] = protein_names
-        if n_regions > 0:
-            adata.obsm[accessibility_key] = accessibility
 
     adata.obs[batch_key] = pd.Categorical(batch)
     if n_labels > 0:

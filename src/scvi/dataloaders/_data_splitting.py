@@ -115,8 +115,8 @@ def validate_data_split_with_external_indexing(
     if not isinstance(external_indexing, list):
         raise ValueError("External indexing is not of list type")
 
-    # validate the structure of it
-    # make sure 3 elements exists and impute with None if not
+    # validate the structure of it,
+    # make sure 3 elements exist and impute with None if not
     if len(external_indexing) == 0:
         external_indexing = [None, None, None]
     if len(external_indexing) == 1:
@@ -124,7 +124,7 @@ def validate_data_split_with_external_indexing(
         external_indexing.append(None)
     if len(external_indexing) == 2:
         external_indexing.append(None)
-    # (we can assume not all lists are given by user and impute the rest with empty arrays)
+    # (we can assume not all lists are given by the user and impute the rest with empty arrays)
     external_indexing[0], external_indexing[1], external_indexing[2] = (
         np.array([]) if external_indexing[n] is None else external_indexing[n] for n in range(3)
     )
@@ -146,7 +146,7 @@ def validate_data_split_with_external_indexing(
     if len(external_indexing_unique[2]) < len(external_indexing[2]):
         raise Warning("There are duplicate indexing in test set")
 
-    # check for total number of indexes (overlapping or missing)
+    # check for the total number of indexes (overlapping or missing)
     if (
         len(external_indexing_unique[0])
         + len(external_indexing_unique[1])
@@ -182,15 +182,15 @@ def validate_data_split_with_external_indexing(
 class DataSplitter(pl.LightningDataModule):
     """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
-    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+    If ``train_size + validation_set < 1``, then ``test_set`` is non-empty.
 
     Parameters
     ----------
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is None, which is practicaly 0.9 and potentially adding small last
-        batch to validation cells)
+        float, or None (default is None, which is practically 0.9 and potentially
+        adding a small last batch to validation cells)
     validation_size
         float, or None (default is None)
     shuffle_set_split
@@ -203,14 +203,14 @@ class DataSplitter(pl.LightningDataModule):
         transferring data to GPUs, depending on the sparsity of the data.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
     **kwargs
-        Keyword args for data loader. If adata has labeled data, data loader
+        Keyword args for data loader. If adata has labeled data, the data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
-        else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+        else the data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
 
     Examples
     --------
@@ -251,7 +251,7 @@ class DataSplitter(pl.LightningDataModule):
             self.n_train, self.n_val = validate_data_split_with_external_indexing(
                 self.adata_manager.adata.n_obs,
                 self.external_indexing,
-                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
             )
         else:
@@ -259,7 +259,7 @@ class DataSplitter(pl.LightningDataModule):
                 self.adata_manager.adata.n_obs,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
                 self.train_size_is_none,
             )
@@ -287,7 +287,7 @@ class DataSplitter(pl.LightningDataModule):
             self.test_idx = indices[(n_val + n_train) :]
 
     def train_dataloader(self):
-        """Create train data loader."""
+        """Create a train data loader."""
         return self.data_loader_cls(
             self.adata_manager,
             indices=self.train_idx,
@@ -314,7 +314,7 @@ class DataSplitter(pl.LightningDataModule):
             pass
 
     def test_dataloader(self):
-        """Create test data loader."""
+        """Create a test data loader."""
         if len(self.test_idx) > 0:
             return self.data_loader_cls(
                 self.adata_manager,
@@ -342,7 +342,7 @@ class DataSplitter(pl.LightningDataModule):
 class SemiSupervisedDataSplitter(pl.LightningDataModule):
     """Creates data loaders ``train_set``, ``validation_set``, ``test_set``.
 
-    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+    If ``train_size + validation_set < 1 ``, then ``test_set`` is non-empty.
     The ratio between labeled and unlabeled data in adata will be preserved
     in the train/test/val sets.
 
@@ -351,8 +351,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is None, which is practicaly 0.9 and potentially adding small last
-        batch to validation cells)
+        float, or None (default is None, which is practically 0.9 and potentially
+        adding a small last batch to validation cells)
     validation_size
         float, or None (default is None)
     shuffle_set_split
@@ -363,15 +363,15 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         Number of subsamples for each label class to sample per epoch
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
         Note that per group (train,valid,test) it will cover both the labeled and unlebeled parts
     **kwargs
-        Keyword args for data loader. If adata has labeled data, data loader
+        Keyword args for data loader. If adata has labeled data, the data loader
         class is :class:`~scvi.dataloaders.SemiSupervisedDataLoader`,
-        else data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
+        else the data loader class is :class:`~scvi.dataloaders.AnnDataLoader`.
 
     Examples
     --------
@@ -386,7 +386,8 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
     def __init__(
         self,
-        adata_manager: AnnDataManager,
+        adata_manager: AnnDataManager | None = None,
+        datamodule: pl.LightningDataModule | None = None,
         train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
@@ -410,6 +411,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             adata_manager.adata,
             adata_manager.data_registry.labels.attr_name,
             labels_state_registry.original_key,
+            mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
         ).ravel()
         self.unlabeled_category = labels_state_registry.unlabeled_category
         self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category).ravel()
@@ -418,13 +420,30 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
         self.pin_memory = pin_memory
         self.external_indexing = external_indexing
 
+        if self.external_indexing is not None:
+            self.n_train, self.n_val = validate_data_split_with_external_indexing(
+                self.adata_manager.adata.n_obs,
+                self.external_indexing,
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
+                self.drop_last,
+            )
+        else:
+            self.n_train, self.n_val = validate_data_split(
+                self.adata_manager.adata.n_obs,
+                self.train_size,
+                self.validation_size,
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
+                self.drop_last,
+                self.train_size_is_none,
+            )
+
     def setup(self, stage: str | None = None):
         """Split indices in train/test/val sets."""
         n_labeled_idx = len(self._labeled_indices)
         n_unlabeled_idx = len(self._unlabeled_indices)
 
         if n_labeled_idx != 0:
-            # Need to separate to the external and non-external cases of the labeled indices
+            # Need to separate the external and non-external cases of the labeled indices
             if self.external_indexing is not None:
                 # first we need to intersect the external indexing given with the labeled indices
                 labeled_idx_train, labeled_idx_val, labeled_idx_test = (
@@ -434,7 +453,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_labeled_train, n_labeled_val = validate_data_split_with_external_indexing(
                     n_labeled_idx,
                     [labeled_idx_train, labeled_idx_val, labeled_idx_test],
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             else:
@@ -442,7 +461,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_labeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -465,7 +484,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
             labeled_idx_val = []
 
         if n_unlabeled_idx != 0:
-            # Need to separate to the external and non-external cases of the unlabeled indices
+            # Need to separate the external and non-external cases of the unlabeled indices
             if self.external_indexing is not None:
                 # we need to intersect the external indexing given with the labeled indices
                 unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test = (
@@ -475,7 +494,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                 n_unlabeled_train, n_unlabeled_val = validate_data_split_with_external_indexing(
                     n_unlabeled_idx,
                     [unlabeled_idx_train, unlabeled_idx_val, unlabeled_idx_test],
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             else:
@@ -483,7 +502,7 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
                     n_unlabeled_idx,
                     self.train_size,
                     self.validation_size,
-                    self.data_loader_kwargs.get("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                     self.train_size_is_none,
                 )
@@ -568,30 +587,33 @@ class SemiSupervisedDataSplitter(pl.LightningDataModule):
 
 @devices_dsp.dedent
 class DeviceBackedDataSplitter(DataSplitter):
-    """Creates loaders for data that is already on device, e.g., GPU.
+    """Creates loaders for data that is already on a device, e.g., GPU.
 
-    If ``train_size + validation_set < 1`` then ``test_set`` is non-empty.
+    If ``train_size + validation_set < 1 ``, then ``test_set`` is non-empty.
 
     Parameters
     ----------
     adata_manager
         :class:`~scvi.data.AnnDataManager` object that has been created via ``setup_anndata``.
     train_size
-        float, or None (default is None, which is practicaly 0.9 and potentially adding small last
-        batch to validation cells)
+        float, or None (default is None, which is practically 0.9 and potentially
+        adding a small last batch to validation cells)
     validation_size
         float, or None (default is None)
     %(param_accelerator)s
     %(param_device)s
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     shuffle
         if ``True``, shuffles indices before sampling for training set
     shuffle_test_val
         Shuffle test and validation indices.
     batch_size
         batch size of each iteration. If `None`, do not minibatch
+    external_indexing
+        A list of data split indices in the order of training, validation, and test sets.
+        Validation and test set are not required and can be left empty.
 
     Examples
     --------
@@ -614,6 +636,7 @@ class DeviceBackedDataSplitter(DataSplitter):
         shuffle: bool = False,
         shuffle_test_val: bool = False,
         batch_size: int | None = None,
+        external_indexing: list[np.array, np.array, np.array] | None = None,
         **kwargs,
     ):
         super().__init__(
@@ -621,6 +644,7 @@ class DeviceBackedDataSplitter(DataSplitter):
             train_size=train_size,
             validation_size=validation_size,
             pin_memory=pin_memory,
+            external_indexing=external_indexing,
             **kwargs,
         )
         self.batch_size = batch_size

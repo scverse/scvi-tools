@@ -6,6 +6,8 @@ import pytest
 import torch
 
 from scvi.data import synthetic_iid
+from scvi.data._constants import ADATA_MINIFY_TYPE
+from scvi.data._utils import _is_minified
 from scvi.model import LinearSCVI
 from scvi.utils import attrdict
 
@@ -131,3 +133,25 @@ def test_linear_scvi_use_observed_lib_size():
     model.get_loadings()
     model.differential_expression(groupby="labels", group1="label_1")
     model.differential_expression(groupby="labels", group1="label_1", group2="label_2")
+
+
+def test_linear_scvi_with_minification(save_path):
+    adata = synthetic_iid()
+    adata = adata[:, :10].copy()
+    LinearSCVI.setup_anndata(adata)
+    model = LinearSCVI(adata, n_latent=10, use_observed_lib_size=True)
+    model.train(1, check_val_every_n_epoch=1, train_size=0.5)
+    assert len(model.history["elbo_train"]) == 1
+    assert len(model.history["elbo_validation"]) == 1
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    model.minify_adata()
+    assert model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+    assert model.adata_manager.registry is model.registry_
+    assert not _is_minified(adata)
+    assert adata is not model.adata
+    assert len(model.adata.X.data) == 0
+    assert model.adata.raw is None
+    minified_model_path = os.path.join(save_path, "linear_scvi_minified")
+    model.save(minified_model_path, save_anndata=True, overwrite=True)

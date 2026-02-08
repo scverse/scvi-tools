@@ -46,7 +46,9 @@ def test_embedding_extend(
         assert not torch.equal(grad, torch.zeros_like(grad))
 
 
-def test_embedding_extend_invalid_init(num_embeddings: int = 10, embedding_dim: int = 5):
+@pytest.mark.parametrize("num_embeddings", [10])
+@pytest.mark.parametrize("embedding_dim", [5])
+def test_embedding_extend_invalid_init(num_embeddings: int, embedding_dim: int):
     embedding = Embedding(num_embeddings, embedding_dim)
     with pytest.raises(ValueError):
         Embedding.extend(embedding, init=0)
@@ -54,12 +56,16 @@ def test_embedding_extend_invalid_init(num_embeddings: int = 10, embedding_dim: 
         Embedding.extend(embedding, init="invalid")
 
 
+@pytest.mark.parametrize("num_embeddings", [10])
+@pytest.mark.parametrize("embedding_dim", [5])
+@pytest.mark.parametrize("init", [2])
+@pytest.mark.parametrize("freeze_prev", [True])
 def test_embedding_save_load(
     save_path: str,
-    num_embeddings: int = 10,
-    embedding_dim: int = 5,
-    init: int = 2,
-    freeze_prev: bool = True,
+    num_embeddings: int,
+    embedding_dim: int,
+    init: int,
+    freeze_prev: bool,
 ):
     embedding = Embedding(num_embeddings, embedding_dim)
     ext_embedding = Embedding.extend(embedding, init=init, freeze_prev=freeze_prev)

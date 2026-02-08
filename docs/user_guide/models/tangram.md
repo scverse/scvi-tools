@@ -6,7 +6,7 @@ This is a reimplementation of Tangram, which can originally be found [here](http
 
 ## Overview
 
-Tangram learns a matrix $M$ with shape ($n_{sc} \times n_{sp}$), in which each row sums to 1. Thus this matrix can be viewed as a map from single cells to the spatial observations.
+Tangram learns a matrix $M$ with shape ($n_{sc} \times n_{sp}$), in which each row sums to 1. Thus, this matrix can be viewed as a map from single cells to the spatial observations.
 
 ```{topic} Tutorials:
 

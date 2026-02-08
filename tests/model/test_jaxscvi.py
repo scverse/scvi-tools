@@ -2,14 +2,15 @@ from unittest import mock
 
 import numpy as np
 import pytest
-from flax import linen as nn
 
 from scvi.data import synthetic_iid
 from scvi.model import JaxSCVI
+from scvi.train import JaxTrainingPlan
 from scvi.utils import attrdict
 
 
-def test_jax_scvi(n_latent=5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_jax_scvi(n_latent: int):
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -28,7 +29,11 @@ def test_jax_scvi(n_latent=5):
     assert z2.shape[0] == 15
 
 
-def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
+@pytest.mark.parametrize("n_latent", [5])
+@pytest.mark.parametrize("dropout_rate", [0.1])
+def test_jax_scvi_training(n_latent: int, dropout_rate: float):
+    from flax import linen as nn
+
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -52,7 +57,8 @@ def test_jax_scvi_training(n_latent: int = 5, dropout_rate: float = 0.1):
         )
 
 
-def test_jax_scvi_save_load(save_path: str, n_latent: int = 5):
+@pytest.mark.parametrize("n_latent", [5])
+def test_jax_scvi_save_load(save_path: str, n_latent: int):
     adata = synthetic_iid()
     JaxSCVI.setup_anndata(
         adata,
@@ -88,3 +94,21 @@ def test_jax_scvi_save_load(save_path: str, n_latent: int = 5):
 
     z2 = model.get_latent_representation()
     np.testing.assert_array_equal(z1, z2)
+
+
+def test_loss_args_jax():
+    """Test that self._loss_args is set correctly."""
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(adata)
+    jax_vae = JaxSCVI(adata)
+    jax_tp = JaxTrainingPlan(jax_vae.module)
+
+    loss_args = [
+        "tensors",
+        "inference_outputs",
+        "generative_outputs",
+        "kl_weight",
+    ]
+    assert len(jax_tp._loss_args) == len(loss_args)
+    for arg in loss_args:
+        assert arg in jax_tp._loss_args

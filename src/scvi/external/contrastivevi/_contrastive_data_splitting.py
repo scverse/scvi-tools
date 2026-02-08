@@ -35,10 +35,10 @@ class ContrastiveDataSplitter(DataSplitter):
         If `True`, loads sparse CSR or CSC arrays in the input dataset as sparse
         :class:`~torch.Tensor` with the same layout. Can lead to significant
         speedups in transferring data to GPUs, depending on the sparsity of the data.
-        Passed into :class:`~scvi.data.AnnDataLoader`.
+        Passed into :class:`~scvi.dataloaders.AnnDataLoader`.
     pin_memory
         Whether to copy tensors into device-pinned memory before returning them. Passed
-        into :class:`~scvi.data.AnnDataLoader`.
+        into :class:`~scvi.dataloaders.AnnDataLoader`.
     external_indexing
         A list of data split indices in the order of training, validation, and test sets.
         Validation and test set are not required and can be left empty.
@@ -81,7 +81,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.n_background,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
                 self.train_size_is_none,
             )
@@ -89,11 +89,20 @@ class ContrastiveDataSplitter(DataSplitter):
                 self.n_target,
                 self.train_size,
                 self.validation_size,
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
                 self.train_size_is_none,
             )
         else:
+            self.n_background_train, self.n_background_val = (
+                validate_data_split_with_external_indexing(
+                    self.adata_manager.adata.n_obs,
+                    self.external_indexing,
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
+                    self.drop_last,
+                )
+            )
+
             # we need to intersect the external indexing given with the bg/target indices
             self.background_train_idx, self.background_val_idx, self.background_test_idx = (
                 np.intersect1d(self.external_indexing[n], self.background_indices)
@@ -103,7 +112,7 @@ class ContrastiveDataSplitter(DataSplitter):
                 validate_data_split_with_external_indexing(
                     self.n_background,
                     [self.background_train_idx, self.background_val_idx, self.background_test_idx],
-                    self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                    self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                     self.drop_last,
                 )
             )
@@ -119,7 +128,7 @@ class ContrastiveDataSplitter(DataSplitter):
             self.n_target_train, self.n_target_val = validate_data_split_with_external_indexing(
                 self.n_target,
                 [self.target_train_idx, self.target_val_idx, self.target_test_idx],
-                self.data_loader_kwargs.pop("batch_size", settings.batch_size),
+                self.data_loader_kwargs.get("batch_size") or settings.batch_size,
                 self.drop_last,
             )
             self.target_train_idx, self.target_val_idx, self.target_test_idx = (

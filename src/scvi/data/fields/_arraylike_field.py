@@ -4,7 +4,7 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-import rich
+import rich.table
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 
@@ -240,9 +240,13 @@ class BaseJointField(BaseArrayLikeField):
     def validate_field(self, adata: AnnData) -> None:
         """Validate the field."""
         super().validate_field(adata)
-        for key in self.attr_keys:
-            if key not in getattr(adata, self.source_attr_name):
-                raise KeyError(f"{key} not found in adata.{self.source_attr_name}.")
+        if isinstance(self.attr_keys, str):
+            if self.attr_keys not in getattr(adata, self.source_attr_name):
+                raise KeyError(f"{self.attr_keys} not found in adata.{self.source_attr_name}.")
+        else:
+            for key in self.attr_keys:
+                if key not in getattr(adata, self.source_attr_name):
+                    raise KeyError(f"{key} not found in adata.{self.source_attr_name}.")
 
     def _combine_fields(self, adata: AnnData) -> None:
         """Combine the .obs or .var fields into a single .obsm or .varm field."""

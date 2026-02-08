@@ -16,10 +16,13 @@ from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
 from scvi import REGISTRY_KEYS, settings
+from scvi.utils import is_package_installed
 
 from . import _constants
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import numpy.typing as npt
     from pandas.api.types import CategoricalDtype
     from torch import Tensor
@@ -247,6 +250,11 @@ def _check_nonnegative_integers(
     # for backed anndata
     if isinstance(data, h5py.Dataset) or isinstance(data, SparseDataset):
         data = data[:100]
+    elif is_package_installed("dask"):
+        import dask.array as da
+
+        if isinstance(data, da.Array):
+            data = data[:100, :100].compute()
 
     if isinstance(data, np.ndarray):
         data = data
@@ -323,6 +331,14 @@ def _check_fragment_counts(
             data = data[:400]
         else:
             data = data[:]
+    elif is_package_installed("dask"):
+        import dask.array as da
+
+        if isinstance(data, da.Array):
+            if data.shape[0] >= 400:
+                data = data[:400].compute()
+            else:
+                data = data[:].compute()
 
     # check that n_obs is greater than n_to_check
     if data.shape[0] < n_to_check:
@@ -347,3 +363,21 @@ def _check_fragment_counts(
     )  # True if there are more 2s than 1s
     ret = not (non_fragments or binary)
     return ret
+
+
+def _validate_adata_dataloader_input(
+    model,
+    adata: AnnOrMuData | None = None,
+    dataloader: Iterator[dict[str, Tensor | None]] | None = None,
+):
+    """Validate that model uses adata or custom dataloader"""
+    if adata is not None and dataloader is not None:
+        raise ValueError("Only one of `adata` or `dataloader` can be provided.")
+    elif (
+        hasattr(model, "registry")
+        and "setup_method_name" in model.registry.keys()
+        and model.registry["setup_method_name"] == "setup_datamodule"
+        and dataloader is None
+    ):
+        raise ValueError("`dataloader` must be provided.")
+    return

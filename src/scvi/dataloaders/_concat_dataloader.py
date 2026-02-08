@@ -48,7 +48,7 @@ class ConcatDataLoader(DataLoader):
         **data_loader_kwargs,
     ):
         self.adata_manager = adata_manager
-        self.dataloader_kwargs = data_loader_kwargs
+        self.data_loader_kwargs = data_loader_kwargs
         self.data_and_attributes = data_and_attributes
         self._shuffle = shuffle
         self._batch_size = batch_size
@@ -57,6 +57,8 @@ class ConcatDataLoader(DataLoader):
 
         self.dataloaders = []
         for indices in indices_list:
+            if self._distributed_sampler:
+                self.data_loader_kwargs.pop("sampler", None)
             self.dataloaders.append(
                 AnnDataLoader(
                     adata_manager,
@@ -66,12 +68,13 @@ class ConcatDataLoader(DataLoader):
                     data_and_attributes=data_and_attributes,
                     drop_last=drop_last,
                     distributed_sampler=distributed_sampler,
-                    **self.dataloader_kwargs,
+                    **self.data_loader_kwargs,
                 )
             )
         lens = [len(dl) for dl in self.dataloaders]
         self.largest_dl = self.dataloaders[np.argmax(lens)]
-        super().__init__(self.largest_dl, **data_loader_kwargs)
+        self.data_loader_kwargs.pop("drop_dataset_tail", None)
+        super().__init__(self.largest_dl, **self.data_loader_kwargs)
 
     def __len__(self):
         return len(self.largest_dl)
@@ -83,5 +86,10 @@ class ConcatDataLoader(DataLoader):
         the data in the other dataloaders. The order of data in returned iter_list
         is the same as indices_list.
         """
-        iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
-        return zip(*iter_list, strict=True)
+        if not self._distributed_sampler:
+            iter_list = [cycle(dl) if dl != self.largest_dl else dl for dl in self.dataloaders]
+            strict = True
+        else:
+            iter_list = self.dataloaders
+            strict = False
+        return zip(*iter_list, strict=strict)

@@ -97,17 +97,23 @@ You can cite the scverse publication as follows:
 >
 > _Nature Biotechnology_ 2023 Apr 10. doi: [10.1038/s41587-023-01733-8](https://doi.org/10.1038/s41587-023-01733-8).
 
-scvi-tools is part of the scverse project ([website](https://scverse.org),
-[governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS]. Please
-consider making a tax-deductible [donation] to help the project pay for developer time,
+scvi-tools is part of the scverse® project ([website](https://scverse.org),
+[governance](https://scverse.org/about/roles)) and is fiscally sponsored by [NumFOCUS](https://numfocus.org/).
+
+If you like scverse® and want to support our mission, please consider making a tax-deductible
+[donation](https://numfocus.org/donate-to-scverse) to help the project pay for developer time,
 professional services, travel, workshops, and a variety of other needs.
 
+<div align="center">
 <a href="https://numfocus.org/project/scverse">
   <img
     src="https://raw.githubusercontent.com/numfocus/templates/master/images/numfocus-logo.png"
     width="200"
   >
 </a>
+</div>
+
+Copyright (c) 2025, Yosef Lab, Weizmann Institute of Science
 
 [anndata]: https://anndata.readthedocs.io/en/latest/
 [build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg
@@ -115,18 +121,16 @@ professional services, travel, workshops, and a variety of other needs.
 [codebase overview]: https://docs.scvi-tools.org/en/stable/user_guide/background/codebase_overview.html
 [conda-badge]: https://img.shields.io/conda/dn/conda-forge/scvi-tools?logo=Anaconda
 [conda-link]: https://anaconda.org/conda-forge/scvi-tools
-[contributing guide]: https://docs.scvi-tools.org/en/stable/contributing/index.html
+[contributing guide]: https://docs.scvi-tools.org/en/stable/developer/code.html
 [coverage-badge]: https://codecov.io/gh/scverse/scvi-tools/branch/main/graph/badge.svg
 [coverage-link]: https://codecov.io/gh/scverse/scvi-tools
 [docs-badge]: https://readthedocs.org/projects/scvi/badge/?version=latest
 [docs-link]: https://scvi.readthedocs.io/en/stable/?badge=stable
 [documentation]: https://docs.scvi-tools.org/
-[donation]: https://numfocus.org/donate-to-scverse
 [forum]: https://discourse.scvi-tools.org
 [gh-stars-badge]: https://img.shields.io/github/stars/scverse/scvi-tools?style=flat&logo=GitHub&color=blue
 [gh-stars-link]: https://github.com/scverse/scvi-tools/stargazers
 [issues]: https://github.com/scverse/scvi-tools/issues
-[numfocus]: https://numfocus.org/
 [pepy-badge]: https://static.pepy.tech/badge/scvi-tools
 [pepy-link]: https://pepy.tech/project/scvi-tools
 [pypi-badge]: https://img.shields.io/pypi/v/scvi-tools.svg

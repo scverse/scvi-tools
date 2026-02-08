@@ -6,14 +6,15 @@ from torch.distributions import Dirichlet, Normal
 
 from scvi import REGISTRY_KEYS
 from scvi.distributions import NegativeBinomial
-from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
+from scvi.module import VAE
+from scvi.module.base import LossOutput, auto_move_data
 
 LOWER_BOUND = 1e-10
 THETA_LOWER_BOUND = 1e-20
 B = 10
 
 
-class CellAssignModule(BaseModuleClass):
+class CellAssignModule(VAE):
     """Model for CellAssign.
 
     Parameters
@@ -31,7 +32,7 @@ class CellAssignModule(BaseModuleClass):
         initialized `b_g_0`.
     random_b_g_0
         Override to enforce randomly initialized `b_g_0`. If `True`, use
-        random default, if `False` defaults to `b_g_0`.
+        random default if `False` defaults to `b_g_0`.
     n_batch
         Number of batches, if 0, no batch correction is performed.
     n_cats_per_cov
@@ -51,7 +52,7 @@ class CellAssignModule(BaseModuleClass):
         n_cats_per_cov: Iterable[int] | None = None,
         n_continuous_cov: int = 0,
     ):
-        super().__init__()
+        super().__init__(n_genes)
         self.n_genes = n_genes
         self.n_labels = rho.shape[1]
         self.n_batch = n_batch
@@ -75,7 +76,7 @@ class CellAssignModule(BaseModuleClass):
         # compute theta
         self.theta_logit = torch.nn.Parameter(torch.randn(self.n_labels))
 
-        # compute delta (cell type specific overexpression parameter)
+        # compute delta (cell-type-specific overexpression parameter)
         # will be clamped by callback during training
         self.delta_log = torch.nn.Parameter(
             torch.FloatTensor(self.n_genes, self.n_labels).uniform_(-2, 2)
@@ -103,10 +104,7 @@ class CellAssignModule(BaseModuleClass):
 
         self.register_buffer("basis_means", torch.tensor(basis_means, dtype=torch.float32))
 
-    def _get_inference_input(self, tensors):
-        return {}
-
-    def _get_generative_input(self, tensors, inference_outputs):
+    def _get_generative_input(self, tensors, inference_outputs, transform_batch=None):
         x = tensors[REGISTRY_KEYS.X_KEY]
         size_factor = tensors[REGISTRY_KEYS.SIZE_FACTOR_KEY]
 
@@ -127,19 +125,27 @@ class CellAssignModule(BaseModuleClass):
 
         design_matrix = torch.cat(to_cat, dim=1) if len(to_cat) > 0 else None
 
+        batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         input_dict = {
             "x": x,
             "size_factor": size_factor,
             "design_matrix": design_matrix,
+            "batch_index": batch_index,
         }
         return input_dict
 
     @auto_move_data
-    def inference(self):
-        return {}
-
-    @auto_move_data
-    def generative(self, x, size_factor, design_matrix=None):
+    def generative(
+        self,
+        x,
+        size_factor,
+        batch_index,
+        design_matrix=None,
+        transform_batch: torch.Tensor | None = None,
+    ):
         """Run the generative model."""
         # x has shape (n, g)
         delta = torch.exp(self.delta_log)  # (g, c)
@@ -152,7 +158,7 @@ class CellAssignModule(BaseModuleClass):
             n_cells, self.n_genes, self.n_labels
         )  # (n, g, c)
 
-        # compute beta (covariate coefficent)
+        # compute beta (covariate coefficient)
         # design_matrix has shape (n,p)
         if design_matrix is not None:
             covariates = torch.einsum("np,gp->gn", design_matrix.float(), self.beta)  # (g, n)
@@ -193,12 +199,22 @@ class CellAssignModule(BaseModuleClass):
         normalizer_over_c = normalizer_over_c.unsqueeze(-1).expand(n_cells, self.n_labels)
         gamma = torch.exp(p_x_c - normalizer_over_c)  # (n, c)
 
+        px = torch.sum(x_log_prob_raw, -1)
+        normalizer_over_c2 = torch.logsumexp(px, 1)
+        normalizer_over_c2 = normalizer_over_c2.unsqueeze(-1).expand(n_cells, self.n_genes)
+        gamma2 = torch.exp(px - normalizer_over_c2)  # (n, g)
+
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         return {
             "mu": mu_ngc,
             "phi": phi,
             "gamma": gamma,
             "p_x_c": p_x_c,
+            "px": gamma2,
             "s": size_factor,
+            "batch_index": batch_index,
         }
 
     def loss(
@@ -218,7 +234,7 @@ class CellAssignModule(BaseModuleClass):
         # take mean of number of cells and multiply by n_obs (instead of summing n)
         q_per_cell = torch.sum(gamma * -p_x_c, 1)
 
-        # third term is log prob of prior terms in Q
+        # the third term is log prob of prior terms in Q
         theta_log = F.log_softmax(self.theta_logit, dim=-1)
         theta_log_prior = Dirichlet(self.dirichlet_concentration)
         theta_log_prob = -theta_log_prior.log_prob(torch.exp(theta_log) + THETA_LOWER_BOUND)

@@ -13,12 +13,12 @@ The limitations of scANVI include:
 
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
--   May not scale to very large number of cell types.
+-   May not scale to a very large number of cell types.
 
 ```{topic} Tutorials:
 
 -   {doc}`/tutorials/notebooks/scrna/harmonization`
--   {doc}`/tutorials/notebooks/scrna/scarches_scvi_tools`
+-   {doc}`/tutorials/notebooks/multimodal/scarches_scvi_tools`
 ```
 
 ## Preliminaries
@@ -26,7 +26,7 @@ The limitations of scANVI include:
 scANVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes,
 as well as a vector $\mathbf{c}$ containing the partially observed cell type annotations.
 Let $C$ be the number of observed cell types in the data.
-Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc, is an optional input.
+Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc., is an optional input.
 While $S$ can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with $K$ categories, which represents the common case of having multiple batches of data.
 
@@ -55,7 +55,7 @@ This modeling choice helps ensure a proper handling of rare cell types in the da
 We assume that the within-cell-type characterization of the cell follows a Normal distribution, s.t. $u_n \sim \mathcal{N}(0, I_d)$.
 The distribution over the random vector $z_n$ contains learnable parameters in the form of
 the neural networks $f_z^\mu$, $f_z^\sigma$. Qualitatively, $z_n$ characterizes each cell
-cellular state as a continuous, low-dimensional random variable, and has the same interpretation as in the scVI model.
+cellular state as a continuous, low-dimensional random variable and has the same interpretation as in the scVI model.
 However, the prior for this variable takes into account the partial cell-type information to better structure the latent space.
 
 The rest of the model closely follows scVI. In particular, it represents the library size as a random variable,

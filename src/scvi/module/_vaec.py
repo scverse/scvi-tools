@@ -3,17 +3,24 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import torch
+from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal
+from torch.distributions import kl_divergence as kl
+from torch.nn import functional as F
 
 from scvi import REGISTRY_KEYS
+from scvi.distributions import NegativeBinomial
 from scvi.module._constants import MODULE_KEYS
-from scvi.module.base import BaseModuleClass, auto_move_data
+from scvi.module.base import BaseModuleClass, EmbeddingModuleMixin, LossOutput, auto_move_data
+from scvi.nn import Encoder, FCLayers
+
+from ._classifier import Classifier
 
 if TYPE_CHECKING:
     import numpy as np
     from torch.distributions import Distribution
 
 
-class VAEC(BaseModuleClass):
+class VAEC(EmbeddingModuleMixin, BaseModuleClass):
     """Conditional Variational auto-encoder model.
 
     This is an implementation of the CondSCVI model
@@ -52,6 +59,7 @@ class VAEC(BaseModuleClass):
         n_input: int,
         n_batch: int = 0,
         n_labels: int = 0,
+        n_fine_labels: int | None = None,
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
@@ -61,9 +69,9 @@ class VAEC(BaseModuleClass):
         encode_covariates: bool = False,
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
+        prior: str = "normal",
+        num_classes_mog: int | None = 10,
     ):
-        from scvi.nn import Encoder, FCLayers
-
         super().__init__()
         self.dispersion = "gene"
         self.n_latent = n_latent
@@ -76,15 +84,27 @@ class VAEC(BaseModuleClass):
         self.encode_covariates = encode_covariates
         self.n_batch = n_batch
         self.n_labels = n_labels
+        self.n_fine_labels = n_fine_labels
+        self.prior = prior
+        self.num_classes_mog = num_classes_mog
+        self.init_embedding(REGISTRY_KEYS.BATCH_KEY, n_batch, **{})
+        batch_dim = self.get_embedding(REGISTRY_KEYS.BATCH_KEY).embedding_dim
+
+        cat_list = [n_labels]
+        n_input_encoder = n_input + batch_dim * encode_covariates
 
         if self.encode_covariates and self.n_batch < 1:
             raise ValueError("`n_batch` must be greater than 0 if `encode_covariates` is `True`.")
 
+        # gene dispersion
         self.px_r = torch.nn.Parameter(torch.randn(n_input))
+
+        # z encoder goes from the n_input-dimensional data to an n_latent-d
+        _extra_encoder_kwargs = {}
         self.z_encoder = Encoder(
-            n_input,
+            n_input_encoder,
             n_latent,
-            n_cat_list=[n_labels] + ([n_batch] if n_batch > 0 and encode_covariates else []),
+            n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -94,11 +114,39 @@ class VAEC(BaseModuleClass):
             return_dist=True,
             **(extra_encoder_kwargs or {}),
         )
+        if n_fine_labels is not None:
+            cls_parameters = {
+                "n_layers": 0,
+                "n_hidden": 0,
+                "dropout_rate": dropout_rate,
+                "logits": True,
+            }
+            # linear mapping from latent space to a coarse-celltype aware space
+            self.linear_mapping = FCLayers(
+                n_in=n_latent,
+                n_out=n_hidden,
+                n_cat_list=[n_labels],
+                use_layer_norm=True,
+                dropout_rate=0.0,
+            )
 
+            self.classifier = Classifier(
+                n_hidden,
+                n_labels=n_fine_labels,
+                use_batch_norm=False,
+                use_layer_norm=True,
+                **cls_parameters,
+            )
+        else:
+            self.classifier = None
+
+        # decoder goes from n_latent-dimensional space to n_input-d data
+        _extra_decoder_kwargs = {}
+        n_input_decoder = n_latent + batch_dim
         self.decoder = FCLayers(
-            n_in=n_latent,
+            n_in=n_input_decoder,
             n_out=n_hidden,
-            n_cat_list=[n_labels] + ([n_batch] if n_batch > 0 else []),
+            n_cat_list=cat_list,
             n_layers=n_layers,
             n_hidden=n_hidden,
             dropout_rate=dropout_rate,
@@ -107,18 +155,22 @@ class VAEC(BaseModuleClass):
             use_layer_norm=True,
             **(extra_decoder_kwargs or {}),
         )
-        self.px_decoder = torch.nn.Sequential(
-            torch.nn.Linear(n_hidden, n_input), torch.nn.Softplus()
-        )
+        self.px_decoder = torch.nn.Linear(n_hidden, n_input)
+        self.per_ct_bias = torch.nn.Parameter(torch.zeros(n_labels, n_input))
 
-        self.register_buffer(
-            "ct_weight",
-            (
-                torch.ones((self.n_labels,), dtype=torch.float32)
-                if ct_weight is None
-                else torch.tensor(ct_weight, dtype=torch.float32)
-            ),
-        )
+        if ct_weight is not None:
+            ct_weight = torch.tensor(ct_weight, dtype=torch.float32)
+        else:
+            ct_weight = torch.ones((self.n_labels,), dtype=torch.float32)
+        self.register_buffer("ct_weight", ct_weight)
+        if self.prior == "mog":
+            self.prior_means = torch.nn.Parameter(
+                torch.randn([n_labels, self.num_classes_mog, n_latent])
+            )
+            self.prior_log_std = torch.nn.Parameter(
+                torch.zeros([n_labels, self.num_classes_mog, n_latent]) - 2.0
+            )
+            self.prior_logits = torch.nn.Parameter(torch.zeros([n_labels, self.num_classes_mog]))
 
     def _get_inference_input(
         self, tensors: dict[str, torch.Tensor]
@@ -157,12 +209,12 @@ class VAEC(BaseModuleClass):
         library = x.sum(1).unsqueeze(1)
         if self.log_variational:
             x_ = torch.log1p(x_)
-
-        encoder_input = [x, y]
-        if batch_index is not None and self.encode_covariates:
-            encoder_input.append(batch_index)
-
-        qz, z = self.z_encoder(*encoder_input)
+        if self.encode_covariates:
+            batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+            encoder_input = torch.cat([x_, batch_rep], dim=-1)
+        else:
+            encoder_input = x_
+        qz, z = self.z_encoder(encoder_input, y)
 
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
@@ -176,6 +228,31 @@ class VAEC(BaseModuleClass):
         }
 
     @auto_move_data
+    def classify(
+        self,
+        z: torch.Tensor,
+        label_index: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Forward pass through the encoder and classifier.
+
+        Parameters
+        ----------
+        z
+            Tensor of shape ``(n_obs, n_latent)``.
+        label_index
+            Tensor of shape ``(n_obs,)`` denoting label indices.
+
+        Returns
+        -------
+        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
+        """
+        if len(label_index.shape) == 1:
+            label_index = label_index.unsqueeze(1)
+        classifier_latent = self.linear_mapping(z, label_index)
+        w_y = self.classifier(classifier_latent)
+        return w_y
+
+    @auto_move_data
     def generative(
         self,
         z: torch.Tensor,
@@ -185,19 +262,18 @@ class VAEC(BaseModuleClass):
         transform_batch: torch.Tensor | None = None,
     ) -> dict[str, Distribution]:
         """Runs the generative model."""
-        from scvi.distributions import NegativeBinomial
-
-        decoder_input = [z, y]
+        batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+        # Handle case when z has an extra sample dimension (n_samples > 1)
+        if z.ndim > batch_rep.ndim:
+            batch_rep = batch_rep.unsqueeze(0).expand(z.shape[0], -1, -1)
+        decoder_input = torch.cat([z, batch_rep], dim=-1)
         if transform_batch is not None:
             batch_index = torch.ones_like(batch_index) * transform_batch
-
-        if batch_index is not None:
-            decoder_input.append(batch_index)
-
-        h = self.decoder(*decoder_input)
-        px_scale = self.px_decoder(h)
+        h = self.decoder(decoder_input, y, batch_index)
+        px_scale = torch.nn.Softmax(dim=-1)(self.px_decoder(h) + self.per_ct_bias[y.ravel()])
         px_rate = library * px_scale
-        return {MODULE_KEYS.PX_KEY: NegativeBinomial(px_rate, logits=self.px_r)}
+        px_r = torch.exp(self.px_r)
+        return {MODULE_KEYS.PX_KEY: NegativeBinomial(mu=px_rate, theta=px_r, scale=px_scale)}
 
     def loss(
         self,
@@ -205,28 +281,65 @@ class VAEC(BaseModuleClass):
         inference_outputs: dict[str, torch.Tensor | Distribution],
         generative_outputs: dict[str, Distribution],
         kl_weight: float = 1.0,
+        labelled_tensors: dict[str, torch.Tensor] | None = None,
+        classification_ratio=5.0,
     ):
         """Loss computation."""
-        from torch.distributions import Normal
-        from torch.distributions import kl_divergence as kl
-
-        from scvi.module.base import LossOutput
-
         x = tensors[REGISTRY_KEYS.X_KEY]
-        y = tensors[REGISTRY_KEYS.LABELS_KEY]
+        y = tensors[REGISTRY_KEYS.LABELS_KEY].ravel().long()
         qz = inference_outputs[MODULE_KEYS.QZ_KEY]
         px = generative_outputs[MODULE_KEYS.PX_KEY]
+        fine_labels = (
+            tensors["fine_labels"].ravel().long() if "fine_labels" in tensors.keys() else None
+        )
 
-        mean = torch.zeros_like(qz.loc)
-        scale = torch.ones_like(qz.scale)
-
-        kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
+        if self.prior == "mog":
+            indexed_means = self.prior_means[y]
+            indexed_log_std = self.prior_log_std[y]
+            indexed_logits = self.prior_logits[y]
+            cats = Categorical(logits=indexed_logits)
+            normal_dists = Independent(
+                Normal(indexed_means, torch.exp(indexed_log_std) + 1e-4),
+                reinterpreted_batch_ndims=1,
+            )
+            prior = MixtureSameFamily(cats, normal_dists)
+            u = qz.rsample(sample_shape=(30,))
+            # (sample, n_obs, n_latent) -> (sample, n_obs,)
+            kl_divergence_z = (qz.log_prob(u).sum(-1) - prior.log_prob(u)).mean(0)
+        else:
+            mean = torch.zeros_like(qz.loc)
+            scale = torch.ones_like(qz.scale)
+            kl_divergence_z = kl(qz, Normal(mean, scale)).sum(dim=1)
 
         reconst_loss = -px.log_prob(x).sum(-1)
-        scaling_factor = self.ct_weight[y.long()[:, 0]]
-        loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
+        scaling_factor = self.ct_weight[y]
 
-        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z)
+        if self.classifier is not None:
+            fine_labels = fine_labels.view(-1)
+            logits = self.classify(qz.loc, label_index=tensors[REGISTRY_KEYS.LABELS_KEY])
+            classification_loss_ = F.cross_entropy(logits, fine_labels, reduction="none")
+            mask = fine_labels != self.n_fine_labels
+            classification_loss = classification_ratio * torch.masked_select(
+                classification_loss_, mask
+            ).mean(0)
+
+            loss = torch.mean(
+                scaling_factor * (reconst_loss + classification_loss + kl_weight * kl_divergence_z)
+            )
+
+            return LossOutput(
+                loss=loss,
+                reconstruction_loss=reconst_loss,
+                kl_local=kl_divergence_z,
+                classification_loss=classification_loss,
+                logits=logits,
+                true_labels=fine_labels,
+            )
+        else:
+            loss = torch.mean(scaling_factor * (reconst_loss + kl_weight * kl_divergence_z))
+            return LossOutput(
+                loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z
+            )
 
     @torch.inference_mode()
     def sample(
@@ -257,7 +370,10 @@ class VAEC(BaseModuleClass):
             compute_loss=False,
         )[1]
 
-        dist = generative_outputs[MODULE_KEYS.PX_KEY]
+        px_r = generative_outputs["px_r"]
+        px_rate = generative_outputs["px_rate"]
+
+        dist = NegativeBinomial(px_rate, logits=px_r)
         if n_samples > 1:
             exprs = dist.sample().permute([1, 2, 0])  # Shape : (n_cells_batch, n_genes, n_samples)
         else:

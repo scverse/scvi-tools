@@ -15,13 +15,13 @@ class Normal(NormalTorch):
     ----------
     mu
         loc of the Normal distribution.
-    var
+    scale
         scale of the Normal distribution.
     validate_args
         whether to validate input.
     normal_mu
         Normalized mean expression of the distribution.
-        This optional parameter is not used in any computations, but allows to store
+        This optional parameter is not used in any computations but allows storing
         normalization expression levels.
 
     """

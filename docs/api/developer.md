@@ -71,10 +71,15 @@ DataLoaders for loading tensors from AnnData objects. DataSplitters for splittin
    :nosignatures:
 
    dataloaders.AnnDataLoader
+   dataloaders.AnnTorchDataset
+   dataloaders.CollectionAdapter
    dataloaders.ConcatDataLoader
    dataloaders.DataSplitter
    dataloaders.SemiSupervisedDataLoader
    dataloaders.SemiSupervisedDataSplitter
+   dataloaders.BatchDistributedSampler
+   dataloaders.MappedCollectionDataModule
+   dataloaders.TileDBDataModule
 
 ```
 
@@ -119,6 +124,7 @@ These classes should be used to construct user-facing model classes.
     model.base.RNASeqMixin
     model.base.ArchesMixin
     model.base.UnsupervisedTrainingMixin
+    model.base.SemisupervisedTrainingMixin
     model.base.PyroSviTrainMixin
     model.base.PyroSampleMixin
     model.base.PyroJitGuideWarmup
@@ -171,7 +177,9 @@ Module classes in the external API with respective generative and inference proc
    :nosignatures:
 
    external.gimvi.JVAE
+   external.cytovi.CytoVAE
    external.cellassign.CellAssignModule
+   external.contrastivevi.ContrastiveDataSplitter
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
    external.tangram.TangramMapper
@@ -179,9 +187,16 @@ Module classes in the external API with respective generative and inference proc
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
    external.mrvi.MRVAE
+   external.mrvi_jax.JaxMRVAE
+   external.mrvi_torch.TorchMRVAE
    external.methylvi.METHYLVAE
+   external.methylvi.METHYLANVAE
    external.decipher.DecipherPyroModule
    external.resolvi.RESOLVAE
+   external.totalanvi.TOTALANVAE
+   external.scviva.nicheVAE
+   external.scviva.NicheLossOutput
+   external.sysvi.SysVAE
 
 ```
 
@@ -201,6 +216,7 @@ These classes should be used to construct module classes that define generative 
 
    module.base.BaseModuleClass
    module.base.BaseMinifiedModeModuleClass
+   module.base.SupervisedModuleClass
    module.base.PyroBaseModuleClass
    module.base.JaxBaseModuleClass
    module.base.EmbeddingModuleMixin
@@ -227,8 +243,11 @@ Basic neural network building blocks.
    nn.Encoder
    nn.Decoder
    nn.DecoderSCVI
+   nn.LinearDecoderSCVI
    nn.one_hot
    nn.Embedding
+   nn.DecoderTOTALVI
+   nn.EncoderTOTALVI
 
 ```
 
@@ -248,14 +267,16 @@ TrainingPlans define train/test/val optimization steps for modules.
    :nosignatures:
 
    train.AdversarialTrainingPlan
+   train.ClassifierTrainingPlan
    train.SemiSupervisedTrainingPlan
+   train.SemiSupervisedAdversarialTrainingPlan
    train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
    train.JaxTrainingPlan
    train.Trainer
    train.TrainingPlan
    train.TrainRunner
-   train.SaveBestState
+   train.ScibCallback
    train.SaveCheckpoint
    train.LoudEarlyStopping
 
@@ -278,4 +299,5 @@ Utility functions used by scvi-tools.
    utils.setup_anndata_dsp
    utils.attrdict
    model.get_max_epochs_heuristic
+   external.decipher.utils.Trajectory
 ```

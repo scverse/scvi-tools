@@ -12,23 +12,23 @@ The limitations of resolVI include:
 
 -   Effectively requires a GPU for fast inference.
 -   Latent space is not interpretable, unlike that of a linear method.
--   Assumes single cells are observed and does not work with low resolution ST like Visium or Slide-Seq.
+-   Assumes single cells are observed and do not work with low-resolution ST like Visium or Slide-Seq.
 
 ```{topic} Tutorials:
 
--   {doc}`/tutorials/notebooks/spatial/resolVI_tutorial.ipynb`
+-   {doc}`/tutorials/notebooks/spatial/resolVI_tutorial`
 ```
 
 ## Preliminaries
 
-ResolVI takes as input spatially-resolved RNA_seq count matrices downstream of cellular segmentation and molecule
-assignments to cells. These counts can be either derived from sequencing spatially-resolved molecules or fluorescent
+ResolVI takes as input spatially resolved RNA_seq count matrices downstream of cellular segmentation and molecule
+assignments to cells. These counts can be either derived from sequencing spatially resolved molecules or fluorescent
 imaging. ResolVI leverages the gene expression of neighboring cells and reassigns observed gene expression to neighboring
 cells as well as an unspecific background.
 
 ResolVI accepts as input the observed expression of the cell itself, its spatial neighbors and their gene expression
 as well as the distance between these cells. Additionally, a vector of categorical covariates $S$, representing
-batch, donor, etc, is an optional input to the model. ResolVI provides a semi-supervised mode, adjusting the prior in
+batch, donor, etc., is an optional input to the model. ResolVI provides a semi-supervised mode, adjusting the prior in
 the latent space for different cell types and training a classifier to predict cell types from latent embeddings.
 
 ## Generative process
@@ -49,7 +49,7 @@ ResolVI posits that the observed expression of cell $n$ in gene $g$, $x_{ng}$ is
 ```
 
 In particular, $z$ and $z_{N(n)}$ are the latent embeddings of the cell itself as well as its spatial neighbors
-both of dimension $L$. ResolVI uses a mixture of Gaussians prior on $z$:
+both of dimension $L$. ResolVI uses a mixture of Gaussians prior to $z$:
 
 ```{math}
 :nowrap: true
@@ -80,7 +80,7 @@ This generative process uses a neural network:
 
 which estimates the normalized gene expression of cell $n$. We use the observed counts per cell to scale these rates.
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -155,11 +155,11 @@ The latent representation can be used to create a nearest neighbor graph with sc
 
 ### Transfer learning
 
-A resolVI model can be pre-trained on reference data and updated with query data using {meth}`~scvi.external.RESOLVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. $\beta_{N(n)n}$ is extended to the new cells and learned on these cells. The encoder by default does not see the batch covariate and $z_n$ can be predicted without performing query model training. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
+A resolVI model can be pre-trained on reference data and updated with query data using {meth}`~scvi.external.RESOLVI.load_query_data`, which then facilitates transfer of metadata like cell type annotations. $\beta_{N(n)n}$ is extended to the new cells and learned on these cells. The encoder by default does not see the batch covariate, and $z_n$ can be predicted without performing query model training. See the {doc}`/user_guide/background/transfer_learning` guide for more information.
 
 ### Estimation of true expression levels
 
-In {meth}`~scvi.external.RESOLVI.get_normalized_methylation` ResolVI returns the expected true expression value of $\rho_n$ under the approximate posterior. For one cell $n$, this can be written as:
+In {meth}`~scvi.external.RESOLVI.get_normalized_expression` ResolVI returns the expected true expression value of $\rho_n$ under the approximate posterior. For one cell $n$, this can be written as:
 
 ```{math}
 :nowrap: true
@@ -173,7 +173,7 @@ In {meth}`~scvi.external.RESOLVI.get_normalized_methylation` ResolVI returns the
 
 Differential expression analysis is achieved with {meth}`~scvi.external.RESOLVI.differential_expression`.
 ResolVI tests differences in expression levels $\rho_{n} = f_{\theta}\left(z_n, s_n\right)$.
-We allow for importance based sampling using pyro's built-in function.
+We allow for importance-based sampling using pyro's built-in function.
 
 ### Cell-type prediction
 

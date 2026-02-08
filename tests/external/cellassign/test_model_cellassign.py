@@ -28,12 +28,15 @@ def test_cellassign():
     model = CellAssign(adata, marker_df)
     model.train(max_epochs=1)
     model.predict()
+    model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch="batch_1")
+    # model.get_normalized_expression(n_samples=2)
 
 
 def test_cellassign_error_duplicates():
     adata, marker_df = get_test_adata_marker_mat()
     # Add a duplicate for internal test
-    marker_df = marker_df._append(marker_df.iloc[1], ignore_index=False)
+    marker_df = pd.concat([marker_df, marker_df.iloc[[1]]], ignore_index=False)
     CellAssign.setup_anndata(
         adata,
         "size_factor",

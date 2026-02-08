@@ -1,19 +1,18 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from dataclasses import field
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import flax
-import jax
 import numpy as np
 import pyro
-from flax.training import train_state
-from jax import random
+import torch
 from torch import nn
+from torch.nn import functional as F
 
-from scvi import settings
-from scvi.utils._jax import device_selecting_PRNGKey
+from scvi import REGISTRY_KEYS, settings
+from scvi.data import _constants
+from scvi.utils import is_package_installed
 
 from ._decorators import auto_move_data
 from ._pyro import AutoMoveDataPredictive
@@ -22,16 +21,13 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from typing import Any
 
-    import jax.numpy as jnp
-    import torch
-    from jaxlib.xla_extension import Device
-    from numpyro.distributions import Distribution
     from pyro.infer.predictive import Predictive
 
     from scvi._types import LossRecord, MinifiedDataType, Tensor
+    from scvi.model.base import BaseModelClass
 
 
-@flax.struct.dataclass
+@dataclass
 class LossOutput:
     """Loss signature for models.
 
@@ -47,13 +43,13 @@ class LossOutput:
         Note that loss should be in an array/tensor and not a float.
     reconstruction_loss
         Reconstruction loss for each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "reconstruction_loss" and value as tensor.
+        a dictionary with the key "reconstruction_loss" and value as tensor.
     kl_local
         KL divergence associated with each observation in the minibatch. If a tensor, converted to
-        a dictionary with key "kl_local" and value as tensor.
+        a dictionary with the key "kl_local" and value as tensor.
     kl_global
         Global KL divergence term. Should be one dimensional with one value. If a tensor, converted
-        to a dictionary with key "kl_global" and value as tensor.
+        to a dictionary with the key "kl_global" and value as tensor.
     classification_loss
         Classification loss.
     logits
@@ -64,7 +60,7 @@ class LossOutput:
         Additional metrics can be passed as arrays/tensors or dictionaries of
         arrays/tensors.
     n_obs_minibatch
-        Number of observations in the minibatch. If None, will be inferred from
+        Number of observations in the minibatch. If None, it will be inferred from
         the shape of the reconstruction_loss tensor.
 
 
@@ -217,7 +213,7 @@ class BaseModuleClass(nn.Module):
 
     @abstractmethod
     def _get_inference_input(self, tensors: dict[str, torch.Tensor], **kwargs):
-        """Parse tensors dictionary for inference related values."""
+        """Parse tensors dictionary for inference-related values."""
 
     @abstractmethod
     def _get_generative_input(
@@ -354,7 +350,7 @@ class PyroBaseModuleClass(nn.Module):
 
         Returns
         -------
-        args and kwargs for the functions, args should be an Iterable and kwargs a dictionary.
+        args and kwargs for the functions, args should be an Iterable, and kwargs a dictionary.
         """
 
     @property
@@ -377,9 +373,9 @@ class PyroBaseModuleClass(nn.Module):
             inference;
         3. "sites" - dictionary with
             keys - names of variables that belong to the observation plate (used to recognise
-             and merge posterior samples for minibatch variables)
-            values - the dimensions in non-plate axis of each variable (used to construct output
-             layer of encoder network when using amortised inference)
+            and merge posterior samples for minibatch variables)
+            values - the dimensions in the non-plate axis of each variable (used to construct
+            output layer of encoder network when using amortised inference)
         """
         return {"name": "", "in": [], "sites": {}}
 
@@ -393,7 +389,7 @@ class PyroBaseModuleClass(nn.Module):
         model.train(max_steps=1, **self.on_load_kwargs)
         model.history_ = old_history
         if "pyro_param_store" in kwargs:
-            # For scArches shapes are changed and we don't want to overwrite these changed shapes.
+            # For scArches shapes are changed, and we don't want to overwrite these changed shapes.
             pyro.get_param_store().set_state(kwargs["pyro_param_store"])
 
     def create_predictive(
@@ -421,7 +417,7 @@ class PyroBaseModuleClass(nn.Module):
             This argument has no effect if ``posterior_samples`` is non-empty, in which case,
             the leading dimension size of samples in ``posterior_samples`` is used.
         return_sites
-            Sites to return; by default only sample sites not present
+            Sites to return; by default, only sample sites not present
             in ``posterior_samples`` are returned.
         parallel
             predict in parallel by wrapping the existing model
@@ -446,284 +442,304 @@ class PyroBaseModuleClass(nn.Module):
         return predictive
 
     def forward(self, *args, **kwargs):
-        """Passthrough to Pyro model."""
+        """Passthrough to a Pyro model."""
         return self.model(*args, **kwargs)
 
 
-class TrainStateWithState(train_state.TrainState):
-    """TrainState with state attribute."""
+if is_package_installed("jax") and is_package_installed("flax"):
+    import flax
+    from flax.training import train_state
 
-    state: dict[str, Any]
+    class TrainStateWithState(train_state.TrainState):
+        """TrainState with state attribute."""
 
+        state: dict[str, Any]
 
-class JaxBaseModuleClass(flax.linen.Module):
-    """Abstract class for Jax-based scvi-tools modules.
+    class JaxBaseModuleClass(flax.linen.Module):
+        """Abstract class for Jax-based scvi-tools modules.
 
-    The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed
-    modules consistent with the :class:`~scvi.module.base.BaseModuleClass`.
+        The :class:`~scvi.module.base.JaxBaseModuleClass` provides an interface for Jax-backed
+        modules consistent with the :class:`~scvi.module.base.BaseModuleClass`.
 
-    Any subclass must has a `training` parameter in its constructor, as well as
-    use the `@flax_configure` decorator.
+        Any subclass must have a `training` parameter in its constructor, as well as
+        use the `@flax_configure` decorator.
 
-    Children of :class:`~scvi.module.base.JaxBaseModuleClass` should
-    use the instance attribute ``self.training`` to appropriately modify
-    the behavior of the model whether it is in training or evaluation mode.
-    """
-
-    def configure(self) -> None:
-        """Add necessary attrs."""
-        self.training = None
-        self.train_state = None
-        self.seed = settings.seed if settings.seed is not None else 0
-        self.seed_rng = device_selecting_PRNGKey()(self.seed)
-        self._set_rngs()
-
-    @abstractmethod
-    def setup(self):
-        """Flax setup method.
-
-        With scvi-tools we prefer to use the setup parameterization of
-        flax.linen Modules. This lends the interface to be more like
-        PyTorch. More about this can be found here:
-
-        https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
+        Children of :class:`~scvi.module.base.JaxBaseModuleClass` should
+        use the instance attribute ``self.training`` to appropriately modify
+        the behavior of the model whether it is in training or evaluation mode.
         """
 
-    @property
-    @abstractmethod
-    def required_rngs(self):
-        """Returns a tuple of rng sequence names required for this Flax module."""
-        return ("params",)
+        if TYPE_CHECKING:
+            import jax.numpy as jnp
+            from jaxlib.xla_extension import Device
+            from numpyro.distributions import Distribution
 
-    def __call__(
-        self,
-        tensors: dict[str, jnp.ndarray],
-        get_inference_input_kwargs: dict | None = None,
-        get_generative_input_kwargs: dict | None = None,
-        inference_kwargs: dict | None = None,
-        generative_kwargs: dict | None = None,
-        loss_kwargs: dict | None = None,
-        compute_loss=True,
-    ) -> tuple[jnp.ndarray, jnp.ndarray] | tuple[jnp.ndarray, jnp.ndarray, LossOutput]:
-        """Forward pass through the network.
+        def configure(self) -> None:
+            """Add necessary attrs."""
+            from scvi.utils._jax import device_selecting_PRNGKey
 
-        Parameters
-        ----------
-        tensors
-            tensors to pass through
-        get_inference_input_kwargs
-            Keyword args for ``_get_inference_input()``
-        get_generative_input_kwargs
-            Keyword args for ``_get_generative_input()``
-        inference_kwargs
-            Keyword args for ``inference()``
-        generative_kwargs
-            Keyword args for ``generative()``
-        loss_kwargs
-            Keyword args for ``loss()``
-        compute_loss
-            Whether to compute loss on forward pass. This adds
-            another return value.
-        """
-        return _generic_forward(
+            self.training = None
+            self.train_state = None
+            self.seed = settings.seed if settings.seed is not None else 0
+            self.seed_rng = device_selecting_PRNGKey()(self.seed)
+            self._set_rngs()
+
+        @abstractmethod
+        def setup(self):
+            """Flax setup method.
+
+            With scvi-tools we prefer to use the setup parameterization of
+            flax.linen Modules. This tends the interface to be more like
+            PyTorch. More about this can be found here:
+
+            https://flax.readthedocs.io/en/latest/design_notes/setup_or_nncompact.html
+            """
+
+        @property
+        @abstractmethod
+        def required_rngs(self):
+            """Returns a tuple of rng sequence names required for this Flax module."""
+            return ("params",)
+
+        def __call__(
             self,
-            tensors,
-            inference_kwargs,
-            generative_kwargs,
-            loss_kwargs,
-            get_inference_input_kwargs,
-            get_generative_input_kwargs,
-            compute_loss,
-        )
+            tensors: dict[str, jnp.ndarray],
+            get_inference_input_kwargs: dict | None = None,
+            get_generative_input_kwargs: dict | None = None,
+            inference_kwargs: dict | None = None,
+            generative_kwargs: dict | None = None,
+            loss_kwargs: dict | None = None,
+            compute_loss=True,
+        ) -> tuple[jnp.ndarray, jnp.ndarray] | tuple[jnp.ndarray, jnp.ndarray, LossOutput]:
+            """Forward pass through the network.
 
-    @abstractmethod
-    def _get_inference_input(self, tensors: dict[str, jnp.ndarray], **kwargs):
-        """Parse tensors dictionary for inference related values."""
-
-    @abstractmethod
-    def _get_generative_input(
-        self,
-        tensors: dict[str, jnp.ndarray],
-        inference_outputs: dict[str, jnp.ndarray],
-        **kwargs,
-    ):
-        """Parse tensors dictionary for generative related values."""
-
-    @abstractmethod
-    def inference(
-        self,
-        *args,
-        **kwargs,
-    ) -> dict[str, jnp.ndarray | Distribution]:
-        """Run the recognition model.
-
-        In the case of variational inference, this function will perform steps related to
-        computing variational distribution parameters. In a VAE, this will involve running
-        data through encoder networks.
-
-        This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
-        """
-
-    @abstractmethod
-    def generative(self, *args, **kwargs) -> dict[str, jnp.ndarray | Distribution]:
-        """Run the generative model.
-
-        This function should return the parameters associated with the likelihood of the data.
-        This is typically written as :math:`p(x|z)`.
-
-        This function should return a dictionary with str keys and :class:`~jnp.ndarray` values.
-        """
-
-    @abstractmethod
-    def loss(self, *args, **kwargs) -> LossOutput:
-        """Compute the loss for a minibatch of data.
-
-        This function uses the outputs of the inference and generative functions to compute
-        a loss. This many optionally include other penalty terms, which should be computed here.
-
-        This function should return an object of type :class:`~scvi.module.base.LossOutput`.
-        """
-
-    @property
-    def device(self):
-        devices = self.seed_rng.devices()
-        if len(devices) > 1:
-            raise RuntimeError("Module rng on multiple devices.")
-        return next(iter(devices))
-
-    def train(self):
-        """Switch to train mode. Emulates Pytorch's interface."""
-        self.training = True
-
-    def eval(self):
-        """Switch to evaluation mode. Emulates Pytorch's interface."""
-        self.training = False
-
-    @property
-    def rngs(self) -> dict[str, jnp.ndarray]:
-        """Dictionary of RNGs mapping required RNG name to RNG values.
-
-        Calls ``self._split_rngs()`` resulting in newly generated RNGs on
-        every reference to ``self.rngs``.
-        """
-        return self._split_rngs()
-
-    def _set_rngs(self):
-        """Creates RNGs split off of the seed RNG for each RNG required by the module."""
-        required_rngs = self.required_rngs
-        rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
-        self.seed_rng, module_rngs = rng_keys[0], rng_keys[1:]
-        self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
-
-    def _split_rngs(self):
-        """Regenerates the current set of RNGs and returns newly split RNGs.
-
-        Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
-        """
-        new_rngs = {}
-        ret_rngs = {}
-        for k, v in self._rngs.items():
-            new_rngs[k], ret_rngs[k] = random.split(v)
-        self._rngs = new_rngs
-        return ret_rngs
-
-    @property
-    def params(self) -> dict[str, Any]:
-        self._check_train_state_is_not_none()
-        return self.train_state.params
-
-    @property
-    def state(self) -> dict[str, Any]:
-        self._check_train_state_is_not_none()
-        return self.train_state.state
-
-    def state_dict(self) -> dict[str, Any]:
-        """Returns a serialized version of the train state as a dictionary."""
-        self._check_train_state_is_not_none()
-        return flax.serialization.to_state_dict(self.train_state)
-
-    def load_state_dict(self, state_dict: dict[str, Any]):
-        """Load a state dictionary into a train state."""
-        if self.train_state is None:
-            raise RuntimeError(
-                "Train state is not set. Train for one iteration prior to loading state dict."
+            Parameters
+            ----------
+            tensors
+                tensors to pass through
+            get_inference_input_kwargs
+                Keyword args for ``_get_inference_input()``
+            get_generative_input_kwargs
+                Keyword args for ``_get_generative_input()``
+            inference_kwargs
+                Keyword args for ``inference()``
+            generative_kwargs
+                Keyword args for ``generative()``
+            loss_kwargs
+                Keyword args for ``loss()``
+            compute_loss
+                Whether to compute loss on forward pass. This adds
+                another return value.
+            """
+            return _generic_forward(
+                self,
+                tensors,
+                inference_kwargs,
+                generative_kwargs,
+                loss_kwargs,
+                get_inference_input_kwargs,
+                get_generative_input_kwargs,
+                compute_loss,
             )
-        self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
 
-    def to(self, device: Device):
-        """Move module to device."""
-        if device is not self.device:
-            if self.train_state is not None:
-                self.train_state = jax.tree_util.tree_map(
-                    lambda x: jax.device_put(x, device), self.train_state
+        @abstractmethod
+        def _get_inference_input(self, tensors: dict[str, jnp.ndarray], **kwargs):
+            """Parse tensors dictionary for inference-related values."""
+
+        @abstractmethod
+        def _get_generative_input(
+            self,
+            tensors: dict[str, jnp.ndarray],
+            inference_outputs: dict[str, jnp.ndarray],
+            **kwargs,
+        ):
+            """Parse tensors dictionary for generative related values."""
+
+        @abstractmethod
+        def inference(
+            self,
+            *args,
+            **kwargs,
+        ) -> dict[str, jnp.ndarray | Distribution]:
+            """Run the recognition model.
+
+            In the case of variational inference, this function will perform steps related to
+            computing variational distribution parameters. In a VAE, this will involve running
+            data through encoder networks.
+
+            This function should return a dictionary with str keys and :class:`~jnp.ndarray` values
+            """
+
+        @abstractmethod
+        def generative(self, *args, **kwargs) -> dict[str, jnp.ndarray | Distribution]:
+            """Run the generative model.
+
+            This function should return the parameters associated with the likelihood of the data.
+            This is typically written as :math:`p(x|z)`.
+
+            This function should return a dictionary with str keys and :class:`~jnp.ndarray` values
+            """
+
+        @abstractmethod
+        def loss(self, *args, **kwargs) -> LossOutput:
+            """Compute the loss for a minibatch of data.
+
+            This function uses the outputs of the inference and generative functions to compute
+            a loss. This many optionally include other penalty terms, which should be computed here
+
+            This function should return an object of type :class:`~scvi.module.base.LossOutput`.
+            """
+
+        @property
+        def device(self):
+            devices = self.seed_rng.devices()
+            if len(devices) > 1:
+                raise RuntimeError("Module rng on multiple devices.")
+            return next(iter(devices))
+
+        def train(self):
+            """Switch to train mode. Emulates Pytorch's interface."""
+            self.training = True
+
+        def eval(self):
+            """Switch to evaluation mode. Emulates Pytorch's interface."""
+            self.training = False
+
+        @property
+        def rngs(self) -> dict[str, jnp.ndarray]:
+            """Dictionary of RNGs mapping required RNG name to RNG values.
+
+            Calls ``self._split_rngs()`` resulting in newly generated RNGs on
+            every reference to ``self.rngs``.
+            """
+            return self._split_rngs()
+
+        def _set_rngs(self):
+            """Creates RNGs split off of the seed RNG for each RNG required by the module."""
+            from jax import random
+
+            required_rngs = self.required_rngs
+            rng_keys = random.split(self.seed_rng, num=len(required_rngs) + 1)
+            self.seed_rng, module_rngs = rng_keys[0], rng_keys[1:]
+            self._rngs = {k: module_rngs[i] for i, k in enumerate(required_rngs)}
+
+        def _split_rngs(self):
+            """Regenerates the current set of RNGs and returns newly split RNGs.
+
+            Importantly, this method does not reuse RNGs in future references to ``self.rngs``.
+            """
+            from jax import random
+
+            new_rngs = {}
+            ret_rngs = {}
+            for k, v in self._rngs.items():
+                new_rngs[k], ret_rngs[k] = random.split(v)
+            self._rngs = new_rngs
+            return ret_rngs
+
+        @property
+        def params(self) -> dict[str, Any]:
+            self._check_train_state_is_not_none()
+            return self.train_state.params
+
+        @property
+        def state(self) -> dict[str, Any]:
+            self._check_train_state_is_not_none()
+            return self.train_state.state
+
+        def state_dict(self) -> dict[str, Any]:
+            """Returns a serialized version of the train state as a dictionary."""
+            self._check_train_state_is_not_none()
+            return flax.serialization.to_state_dict(self.train_state)
+
+        def load_state_dict(self, state_dict: dict[str, Any]):
+            """Load a state dictionary into a train state."""
+            if self.train_state is None:
+                raise RuntimeError(
+                    "Train state is not set. Train for one iteration prior to loading state dict."
                 )
+            self.train_state = flax.serialization.from_state_dict(self.train_state, state_dict)
 
-            self.seed_rng = jax.device_put(self.seed_rng, device)
-            self._rngs = jax.device_put(self._rngs, device)
+        def to(self, device: Device):
+            """Move the module to a device."""
+            import jax
 
-    def _check_train_state_is_not_none(self):
-        if self.train_state is None:
-            raise RuntimeError("Train state is not set. Module has not been trained.")
+            if device is not self.device:
+                if self.train_state is not None:
+                    self.train_state = jax.tree_util.tree_map(
+                        lambda x: jax.device_put(x, device), self.train_state
+                    )
 
-    def as_bound(self) -> JaxBaseModuleClass:
-        """Module bound with parameters learned from training."""
-        return self.bind(
-            {"params": self.params, **self.state},
-            rngs=self.rngs,
-        )
+                self.seed_rng = jax.device_put(self.seed_rng, device)
+                self._rngs = jax.device_put(self._rngs, device)
 
-    def get_jit_inference_fn(
-        self,
-        get_inference_input_kwargs: dict[str, Any] | None = None,
-        inference_kwargs: dict[str, Any] | None = None,
-    ) -> Callable[[dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]]:
-        """Create a method to run inference using the bound module.
+        def _check_train_state_is_not_none(self):
+            if self.train_state is None:
+                raise RuntimeError("Train state is not set. Module has not been trained.")
 
-        Parameters
-        ----------
-        get_inference_input_kwargs
-            Keyword arguments to pass to subclass `_get_inference_input`
-        inference_kwargs
-            Keyword arguments  for subclass `inference` method
-
-        Returns
-        -------
-        A callable taking rngs and array_dict as input and returning the output
-        of the `inference` method. This callable runs `_get_inference_input`.
-        """
-        vars_in = {"params": self.params, **self.state}
-        get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
-        inference_kwargs = _get_dict_if_none(inference_kwargs)
-
-        @jax.jit
-        def _run_inference(rngs, array_dict):
-            module = self.clone()
-            inference_input = module._get_inference_input(array_dict)
-            out = module.apply(
-                vars_in,
-                rngs=rngs,
-                method=module.inference,
-                **inference_input,
-                **inference_kwargs,
+        def as_bound(self) -> JaxBaseModuleClass:
+            """Module bound with parameters learned from training."""
+            return self.bind(
+                {"params": self.params, **self.state},
+                rngs=self.rngs,
             )
-            return out
 
-        return _run_inference
+        def get_jit_inference_fn(
+            self,
+            get_inference_input_kwargs: dict[str, Any] | None = None,
+            inference_kwargs: dict[str, Any] | None = None,
+        ) -> Callable[[dict[str, jnp.ndarray], dict[str, jnp.ndarray]], dict[str, jnp.ndarray]]:
+            """Create a method to run inference using the bound module.
 
-    @staticmethod
-    def on_load(model, **kwargs):
-        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
+            Parameters
+            ----------
+            get_inference_input_kwargs
+                Keyword arguments to pass to subclass `_get_inference_input`
+            inference_kwargs
+                Keyword arguments for subclass `inference` method
 
-        Run one training step prior to loading state dict in order to initialize params.
-        """
-        old_history = model.history_.copy()
-        model.train(max_steps=1)
-        model.history_ = old_history
+            Returns
+            -------
+            A callable taking rngs and array_dict as input and returning the output
+            of the `inference` method. This callable runs `_get_inference_input`.
+            """
+            import jax
 
-    @staticmethod
-    def as_numpy_array(x: jnp.ndarray):
-        """Converts a jax device array to a numpy array."""
-        return np.array(jax.device_get(x))
+            vars_in = {"params": self.params, **self.state}
+            get_inference_input_kwargs = _get_dict_if_none(get_inference_input_kwargs)
+            inference_kwargs = _get_dict_if_none(inference_kwargs)
+
+            @jax.jit
+            def _run_inference(rngs, array_dict):
+                module = self.clone()
+                inference_input = module._get_inference_input(array_dict)
+                out = module.apply(
+                    vars_in,
+                    rngs=rngs,
+                    method=module.inference,
+                    **inference_input,
+                    **inference_kwargs,
+                )
+                return out
+
+            return _run_inference
+
+        @staticmethod
+        def on_load(model, **kwargs):
+            """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
+
+            Run one training step prior to loading state dict in order to initialize params.
+            """
+            old_history = model.history_.copy()
+            model.train(max_steps=1)
+            model.history_ = old_history
+
+        @staticmethod
+        def as_numpy_array(x: jnp.ndarray):
+            """Converts a jax device array to a numpy array."""
+            import jax
+
+            return np.array(jax.device_get(x))
 
 
 def _generic_forward(
@@ -757,3 +773,119 @@ def _generic_forward(
         return inference_outputs, generative_outputs, losses
     else:
         return inference_outputs, generative_outputs
+
+
+class SupervisedModuleClass:
+    """General purpose supervised classify and loss calculations methods."""
+
+    @auto_move_data
+    def classify_helper(self, z):
+        if self.use_labels_groups:
+            w_g = self.classifier_groups(z)
+            unw_y = self.classifier(z)
+            w_y = torch.zeros_like(unw_y)
+            for i, group_index in enumerate(self.groups_index):
+                unw_y_g = unw_y[:, group_index]
+                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
+                w_y[:, group_index] *= w_g[:, [i]]
+        else:
+            w_y = self.classifier(z)
+        return w_y
+
+    @auto_move_data
+    def classify(
+        self,
+        x: torch.Tensor,
+        batch_index: torch.Tensor | None = None,
+        cont_covs: torch.Tensor | None = None,
+        cat_covs: torch.Tensor | None = None,
+        use_posterior_mean: bool = True,
+    ) -> torch.Tensor:
+        """Forward pass through the encoder and classifier.
+
+        Parameters
+        ----------
+        x
+            Tensor of shape ``(n_obs, n_vars)``.
+        batch_index
+            Tensor of shape ``(n_obs,)`` denoting batch indices.
+        cont_covs
+            Tensor of shape ``(n_obs, n_continuous_covariates)``.
+        cat_covs
+            Tensor of shape ``(n_obs, n_categorical_covariates)``.
+        use_posterior_mean
+            Whether to use the posterior mean of the latent distribution for
+            classification.
+
+        Returns
+        -------
+        Tensor of shape ``(n_obs, n_labels)`` denoting logit scores per label.
+        Before v1.1, this method by default returned probabilities per label,
+        see #2301 for more details.
+        """
+        if self.log_variational:
+            x = torch.log1p(x)
+
+        if cont_covs is not None and self.encode_covariates:
+            encoder_input = torch.cat((x, cont_covs), dim=-1)
+        else:
+            encoder_input = x
+        if cat_covs is not None and self.encode_covariates:
+            categorical_input = torch.split(cat_covs, 1, dim=1)
+        else:
+            categorical_input = ()
+
+        qz, z = self.z_encoder(encoder_input, batch_index, *categorical_input)
+        z = qz.loc if use_posterior_mean else z
+
+        return self.classify_helper(z)
+
+    @auto_move_data
+    def classification_loss(
+        self, labelled_dataset: dict[str, torch.Tensor]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        inference_inputs = self._get_inference_input(labelled_dataset)  # (n_obs, n_vars)
+        data_inputs = {
+            key: inference_inputs[key]
+            for key in inference_inputs.keys()
+            if key not in ["batch_index", "cont_covs", "cat_covs", "panel_index"]
+        }
+
+        y = labelled_dataset[REGISTRY_KEYS.LABELS_KEY]  # (n_obs, 1)
+        batch_idx = labelled_dataset[REGISTRY_KEYS.BATCH_KEY]
+        cont_key = REGISTRY_KEYS.CONT_COVS_KEY
+        cont_covs = labelled_dataset[cont_key] if cont_key in labelled_dataset.keys() else None
+
+        cat_key = REGISTRY_KEYS.CAT_COVS_KEY
+        cat_covs = labelled_dataset[cat_key] if cat_key in labelled_dataset.keys() else None
+        # NOTE: prior to v1.1, this method returned probabilities per label by
+        # default, see #2301 for more details
+        logits = self.classify(
+            **data_inputs, batch_index=batch_idx, cat_covs=cat_covs, cont_covs=cont_covs
+        )  # (n_obs, n_labels)
+        ce_loss = F.cross_entropy(
+            logits,
+            y.view(-1).long(),
+        )
+        return ce_loss, y, logits
+
+    def on_load(self, model: BaseModelClass, **kwargs):
+        manager = model.get_anndata_manager(model.adata, required=True)
+        source_version = manager._source_registry[_constants._SCVI_VERSION_KEY]
+        version_split = source_version.split(".")
+
+        if int(version_split[0]) >= 1 and int(version_split[1]) >= 1:
+            return
+
+        # need this if <1.1 model is resaved with >=1.1 as the new registry is
+        # updated on setup
+        manager.registry[_constants._SCVI_VERSION_KEY] = source_version
+
+        # pre 1.1 logits fix
+        model_kwargs = model.init_params_.get("model_kwargs", {})
+        cls_params = model_kwargs.get("classifier_parameters", {})
+        user_logits = cls_params.get("logits", False)
+
+        if not user_logits:
+            self.classifier.logits = False
+            self.classifier.classifier.append(torch.nn.Softmax(dim=-1))

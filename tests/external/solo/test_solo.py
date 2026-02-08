@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 
@@ -52,7 +54,7 @@ def test_solo_multiple_batch():
     solo.predict()
 
 
-def test_solo_scvi_labels():
+def test_solo_scvi_labels(save_path):
     n_latent = 5
     adata = synthetic_iid()
     SCVI.setup_anndata(adata, labels_key="labels")
@@ -64,11 +66,18 @@ def test_solo_scvi_labels():
     assert "validation_loss" in solo.history.keys()
     solo.predict()
 
+    dir_path = os.path.join(save_path, "saved_model/")
+    solo.save(dir_path, overwrite=True, save_anndata=True)
+
+    adata2 = synthetic_iid()
+    solo_loaded_model = SOLO.load(dir_path)
+    solo_loaded_model.predict(adata2)
+
 
 def test_solo_from_scvi_errors():
     adata = synthetic_iid()
     adata.obs["continuous_covariate"] = np.random.normal(size=(adata.n_obs, 1))
-    adata.obs["categorical_covariate"] = np.random.choice(["a", "b", "c"], size=(adata.n_obs, 1))
+    adata.obs["categorical_covariate"] = np.random.choice(["a", "b", "c"], size=(adata.n_obs,))
 
     # no batch key, restrict_to_batch
     SCVI.setup_anndata(adata, labels_key="labels")

@@ -31,7 +31,8 @@ from scvi.model._utils import (
 from scvi.model.base import BaseModelClass
 from scvi.model.base._de_core import _de_core
 from scvi.train import TrainingPlan, TrainRunner
-from scvi.utils import setup_anndata_dsp
+from scvi.train._config import merge_kwargs
+from scvi.utils import setup_anndata_dsp, track
 from scvi.utils._docstrings import devices_dsp
 
 from ._contrastive_data_splitting import ContrastiveDataSplitter
@@ -53,7 +54,7 @@ class ContrastiveVI(BaseModelClass):
     ----------
     adata
         AnnData object that has been registered via
-        :meth:`~scvi.model.ContrastiveVI.setup_anndata`.
+        :meth:`~scvi.external.ContrastiveVI.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_background_latent
@@ -175,7 +176,7 @@ class ContrastiveVI(BaseModelClass):
             See :class:`~scvi.train.Trainer` for further options.
         datasplitter_kwargs
             Additional keyword arguments passed into
-            :class:`~scvi.dataloaders.ContrastiveDataSplitter`.
+            :class:`~scvi.external.contrastivevi.ContrastiveDataSplitter`.
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
@@ -185,7 +186,7 @@ class ContrastiveVI(BaseModelClass):
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
 
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         data_splitter = self._data_splitter_cls(
@@ -194,7 +195,7 @@ class ContrastiveVI(BaseModelClass):
             target_indices=target_indices,
             train_size=train_size,
             validation_size=validation_size,
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
             shuffle_set_split=shuffle_set_split,
             distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
             load_sparse_tensor=load_sparse_tensor,
@@ -332,6 +333,7 @@ class ContrastiveVI(BaseModelClass):
         batch_size: int | None = None,
         return_mean: bool = True,
         return_numpy: bool | None = None,
+        silent: bool = True,
     ) -> dict[str, np.ndarray | pd.DataFrame]:
         """Returns the normalized (decoded) gene expression.
 
@@ -366,6 +368,7 @@ class ContrastiveVI(BaseModelClass):
             Return a `numpy.ndarray` instead of a `pandas.DataFrame`.
             DataFrame includes gene names as columns. If either `n_samples=1` or
             `return_mean=True`, defaults to `False`. Otherwise, it defaults to `True`.
+        %(de_silent)s
 
         Returns
         -------
@@ -419,7 +422,7 @@ class ContrastiveVI(BaseModelClass):
             batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
             background_per_batch_exprs = []
             salient_per_batch_exprs = []
-            for batch in transform_batch:
+            for batch in track(transform_batch, disable=silent):
                 if batch is not None:
                     batch_index = torch.ones_like(batch_index) * batch
                 inference_outputs = self.module._generic_inference(

@@ -1,9 +1,10 @@
 from torch import nn
 
+from scvi.module.base import SupervisedModuleClass
 from scvi.nn import FCLayers
 
 
-class Classifier(nn.Module):
+class Classifier(nn.Module, SupervisedModuleClass):
     """Basic fully-connected NN classifier.
 
     Parameters

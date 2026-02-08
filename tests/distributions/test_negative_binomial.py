@@ -49,9 +49,9 @@ def test_zinb_distribution():
         ZeroInflatedNegativeBinomial(
             mu=-mu, theta=theta, zi_logits=pi, scale=scales, validate_args=True
         )
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="The value argument must be within the support"):
         dist1.log_prob(-x)  # ensures neg values raise warning
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="The value argument must be within the support"):
         dist2.log_prob(0.5 * x)  # ensures float values raise warning
 
     # test with no scale
@@ -62,7 +62,7 @@ def test_zinb_distribution():
     assert dist1.log_prob(x).shape == size
     assert dist2.log_prob(x).shape == size
 
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="The value argument must be within the support"):
         dist1.log_prob(-x)
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning, match="The value argument must be within the support"):
         dist2.log_prob(0.5 * x)
