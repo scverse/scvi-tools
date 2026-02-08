@@ -9,8 +9,8 @@ from scvi.external import RESOLVI
 def adata():
     adata = synthetic_iid(
         generate_coordinates=True,
-        n_regions=0,
-        n_proteins=0,
+        n_regions=5,
+        n_proteins=10,
     )
     adata.obsm["X_spatial"] = adata.obsm["coordinates"]
     adata.obs["cell_area"] = np.random.gamma(2.0, 1.0, size=adata.n_obs)
@@ -28,6 +28,7 @@ def test_resolvi_train(adata):
         max_epochs=2,
     )
 
+
 def test_resolvi_train_size_factor(adata):
     RESOLVI.setup_anndata(adata, batch_key="batch", size_factor_key="cell_area")
     model = RESOLVI(adata, size_scaling=True)
@@ -41,6 +42,7 @@ def test_resolvi_train_size_factor(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_save_load(adata):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
@@ -60,6 +62,7 @@ def test_resolvi_save_load(adata):
     model.load_query_data(reference_model="test_resolvi", adata=adata)
 
 
+@pytest.mark.optional
 def test_resolvi_downstream(adata):
     RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
     model = RESOLVI(adata)
@@ -89,6 +92,7 @@ def test_resolvi_downstream(adata):
     model_query.train(
         max_epochs=2,
     )
+
 
 def test_resolvi_downstream_size_scaling(adata):
     RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
@@ -121,6 +125,7 @@ def test_resolvi_downstream_size_scaling(adata):
     )
 
 
+@pytest.mark.optional
 def test_resolvi_semisupervised(adata):
     RESOLVI.setup_anndata(adata, labels_key="labels")
     model = RESOLVI(adata, semisupervised=True)
@@ -165,3 +170,13 @@ def test_resolvi_scarches(adata):
         query_adata, num_samples=3, soft=False
     )
     query_adata.obsm["X_resolVI"] = query_resolvi.get_latent_representation(query_adata)
+
+
+@pytest.mark.parametrize("weights", ["uniform", "importance"])
+@pytest.mark.parametrize("n_samples", [1, 3])
+@pytest.mark.parametrize("run_IS_DE", [False, True])
+def test_resolvi_differential_expression_IS(adata, weights: str, n_samples: int, run_IS_DE: bool):
+    RESOLVI.setup_anndata(adata)
+    model = RESOLVI(adata)
+    model.train(max_epochs=1)
+    model.differential_expression(groupby="labels", run_IS_DE=run_IS_DE, n_samples=n_samples)

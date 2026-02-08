@@ -21,7 +21,7 @@ def _load_retina(save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
-            url="https://figshare.com/ndownloader/files/51086201",
+            url="https://exampledata.scverse.org/scvi-tools/retina.h5ad",
             known_hash="5363642ff02647d6868494b962ec962a5d2e3d90703415e245e7c1727c66cf21",
             fname="retina.h5ad",
             path=save_path,
@@ -42,7 +42,7 @@ def _load_prefrontalcortex_starmap(save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
-            url="https://figshare.com/ndownloader/files/51086180",
+            url="https://exampledata.scverse.org/scvi-tools/mpfc-starmap.h5ad",
             known_hash="c583eaef3835960405c6f1124f5fda36da80db3f940b76c9b2432a8d2e0b80ce",
             fname="mpfc-starmap.h5ad",
             path=save_path,
@@ -59,7 +59,7 @@ def _load_frontalcortex_dropseq(save_path: str = "data/") -> AnnData:
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
-            url="https://figshare.com/ndownloader/files/51086207",
+            url="https://exampledata.scverse.org/scvi-tools/fc-dropseq.h5ad",
             known_hash="934a7179624a4c7c7dec1d5d53de5367fcd0054e5f19b7e245ecf2ecc88c188c",
             fname="fc-dropseq.h5ad",
             path=save_path,
@@ -89,18 +89,18 @@ def _load_annotation_simulation(name: str, save_path: str = "data/") -> AnnData:
     import pooch
 
     if name == "1":
-        fileid = "51086192"
+        fileid = "simulation_1"
         known_hash = "5d604adce93b3034885646605c2e9a72f5ccf8163caffb2930485f93a9fcb3a3"
     elif name == "2":
-        fileid = "51086195"
+        fileid = "simulation_2"
         known_hash = "fdc2fb7c78e4c2a32877eb22aaed7cc627e22b256f122be670188c1069f741fa"
     else:
-        fileid = "51086189"
+        fileid = "simulation_3"
         known_hash = "58c11e8c4134175c3f525f0d823a12420493cdf545f3904e0f09bec479c31e55"
     save_path = os.path.abspath(save_path)
     adata = read_h5ad(
         pooch.retrieve(
-            url="https://figshare.com/ndownloader/files/" + fileid,
+            url="https://exampledata.scverse.org/scvi-tools/" + fileid + ".h5ad",
             known_hash=known_hash,
             fname=f"simulation_{name}.h5ad",
             path=save_path,

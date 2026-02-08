@@ -37,23 +37,62 @@ def adata():
 
 @pytest.fixture(scope="session")
 def model(adata: AnnData):
-    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
+    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="torch")
     model = MRVI(adata)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(max_steps=1, train_size=0.5)
 
     return model
 
 
-@pytest.mark.optional
-def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
+@pytest.fixture(scope="session")
+def model2(adata: AnnData):
+    MRVI.setup_anndata(
+        adata, sample_key="sample_str", batch_key="batch", backend="torch", labels_key="labels"
+    )
+    model = MRVI(adata)
+    model.train(max_steps=1, train_size=0.5)
+
+    return model
+
+
+def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
     model.get_latent_representation(give_z=False)
     model.get_latent_representation(give_z=True)
+    model.get_normalized_expression()
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
+    model.get_normalized_expression(n_samples=1)
+    model.get_normalized_expression(n_samples=2)
+    model.get_normalized_expression(transform_batch="batch_1")
+    model.get_normalized_expression(indices=[1, 2, 3])
+    model.get_normalized_expression(indices=[1, 2, 3], transform_batch="batch_1")
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
+    model.train(1)
+
+
+def test_torchMRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
+    model2.get_local_sample_distances()
+    model2.get_local_sample_distances(normalize_distances=True)
+    model2.get_latent_representation(give_z=False)
+    model2.get_latent_representation(give_z=True)
+    model2.get_normalized_expression()
+    model2.get_normalized_expression(transform_batch="batch_1")
+    model2.get_normalized_expression(transform_batch=["batch_0", "batch_1"])
+    model2.get_normalized_expression(n_samples=1)
+    model2.get_normalized_expression(n_samples=2)
+    model2.get_normalized_expression(transform_batch="batch_1")
+    model2.get_normalized_expression(indices=[1, 2, 3])
+    model2.get_normalized_expression(indices=[1, 2, 3], transform_batch="batch_1")
+
+    model_path = os.path.join(save_path, "mrvi_model2")
+    model2.save(model_path, save_anndata=False, overwrite=True)
+    model2 = MRVI.load(model_path, adata=adata)
+    model2.train(1)
 
 
 @pytest.mark.optional
@@ -102,12 +141,64 @@ def test_mrvi(model: MRVI, adata: AnnData, save_path: str):
         ),
     ],
 )
-def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
+def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
     for de_kwarg in de_kwargs:
         model.differential_expression(**de_kwarg)
 
 
 @pytest.mark.optional
+@pytest.mark.parametrize(
+    ("setup_kwargs", "de_kwargs"),
+    [
+        (
+            {"sample_key": "sample_str", "batch_key": "batch"},
+            [
+                {
+                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
+                    "store_lfc": True,
+                    "add_batch_specific_offsets": True,
+                },
+                {
+                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
+                    "store_lfc": True,
+                    "add_batch_specific_offsets": True,
+                    "filter_inadmissible_samples": True,
+                },
+                {
+                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
+                    "store_lfc": True,
+                    "add_batch_specific_offsets": False,
+                },
+            ],
+        ),
+        (
+            {"sample_key": "sample_str", "batch_key": "dummy_batch"},
+            [
+                {
+                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
+                    "store_lfc": True,
+                },
+                {
+                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
+                    "store_lfc": True,
+                    "lambd": 1e-1,
+                },
+                {
+                    "sample_cov_keys": ["meta1_cat", "meta2", "cont_cov"],
+                    "store_lfc": True,
+                    "filter_inadmissible_samples": True,
+                },
+            ],
+        ),
+    ],
+)
+def test_torchMRVI_de_with_labels(
+    model2: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]
+):
+    for de_kwarg in de_kwargs:
+        model2.differential_expression(**de_kwarg)
+
+
 @pytest.mark.parametrize(
     "sample_key",
     ["sample", "sample_str"],
@@ -122,11 +213,28 @@ def test_mrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str,
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],
 )
-def test_mrvi_da(model, sample_key, da_kwargs):
+def test_torchMRVI_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
-@pytest.mark.optional
+@pytest.mark.parametrize(
+    "sample_key",
+    ["sample", "sample_str"],
+)
+@pytest.mark.parametrize(
+    "da_kwargs",
+    [
+        {"sample_cov_keys": ["meta1_cat"]},
+        {"sample_cov_keys": ["meta1_cat", "batch"]},
+        {"sample_cov_keys": ["meta1_cat"], "omit_original_sample": False},
+        {"sample_cov_keys": ["meta1_cat"], "compute_log_enrichment": True},
+        {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
+    ],
+)
+def test_torchMRVI_da_with_labels(model2, sample_key, da_kwargs):
+    model2.differential_abundance(**da_kwargs)
+
+
 @pytest.mark.parametrize(
     "model_kwargs",
     [
@@ -156,40 +264,42 @@ def test_mrvi_da(model, sample_key, da_kwargs):
         },
     ],
 )
-def test_mrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
+def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
+        backend="torch",
     )
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(max_steps=1, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional
-def test_mrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
+def test_torchMRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
-    model.differential_expression(sample_cov_keys=sample_cov_keys, sample_subset=sample_subset)
+    model.differential_expression(
+        sample_cov_keys=sample_cov_keys, sample_subset=sample_subset, use_vmap=False
+    )
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional
-def test_mrvi_shrink_u(adata: AnnData, save_path: str):
+def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
         batch_key="batch",
+        backend="torch",
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(max_steps=1, train_size=0.5)
     model.get_local_sample_distances()
 
     assert model.get_latent_representation().shape == (
@@ -216,15 +326,15 @@ def adata_stratifications():
     return adata
 
 
-@pytest.mark.optional
-def test_mrvi_stratifications(adata_stratifications: AnnData, save_path: str):
+def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
+        backend="torch",
     )
     model = MRVI(adata_stratifications, n_latent=10)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(max_steps=1, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"])
     cell_dists = dists["cell"]
@@ -235,6 +345,16 @@ def test_mrvi_stratifications(adata_stratifications: AnnData, save_path: str):
     ct_dists = dists["label_2"]
     assert ct_dists.shape == (2, 15, 15)
     assert np.allclose(ct_dists[0].values, ct_dists[0].values.T, atol=1e-6)
+
+    adata_stratifications_sub = adata_stratifications[
+        adata_stratifications.obs["labels"] == "label_0"
+    ]
+    sub_dists = model.get_local_sample_distances(
+        adata=adata_stratifications_sub, groupby=["labels"], batch_size=16
+    )
+    assert sub_dists["cell"].shape == (adata_stratifications_sub.shape[0], 15, 15)
+    assert sub_dists["labels"].shape == (1, 15, 15)
+    assert np.allclose(sub_dists["labels"][0].values, sub_dists["labels"][0].values.T, atol=1e-6)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)

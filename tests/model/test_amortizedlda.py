@@ -27,8 +27,14 @@ def test_lda_model_single_step_with_external_indices(n_topics: int):
     train_ind, valid_ind = train_test_split(
         adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
     )
+    mod1.train(
+        max_steps=1,
+        max_epochs=10,
+        datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
+    )
+
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     mod1.train(
         max_steps=1,
@@ -37,7 +43,7 @@ def test_lda_model_single_step_with_external_indices(n_topics: int):
             "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
         },
     )
-    assert len(mod1.history["elbo_train"]) == 1
+    assert len(mod1.history["elbo_train"]) == 2
 
 
 @pytest.mark.parametrize("n_topics", [5])

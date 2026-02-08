@@ -9,7 +9,7 @@ from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 
 class RNADeconv(BaseModuleClass):
-    """Model of scRNA-seq for deconvolution of spatial transriptomics.
+    """Model of scRNA-seq for deconvolution of spatial transcriptomics.
 
     Reimplementation of the ScModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
@@ -119,7 +119,7 @@ class RNADeconv(BaseModuleClass):
 
 
 class SpatialDeconv(BaseModuleClass):
-    """Model of single-cell RNA-sequencing data for deconvolution of spatial transriptomics.
+    """Model of single-cell RNA-sequencing data for deconvolution of spatial transcriptomics.
 
     Reimplementation of the STModel module of Stereoscope :cite:p:`Andersson20`:
     https://github.com/almaan/stereoscope/blob/master/stsc/models.py.
@@ -129,10 +129,10 @@ class SpatialDeconv(BaseModuleClass):
     n_spots
         Number of input spots
     sc_params
-        Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionnary and
+        Tuple of ndarray of shapes [(n_genes, n_labels), (n_genes)] containing the dictionary and
         log dispersion parameters
     prior_weight
-        Whether to sample the minibatch by the number of total observations or the monibatch size
+        Whether to sample the minibatch by the number of total observations or the minibatch size
     """
 
     def __init__(
@@ -195,7 +195,7 @@ class SpatialDeconv(BaseModuleClass):
         w = torch.nn.functional.softplus(self.W)  # n_genes, n_labels
         eps = torch.nn.functional.softplus(self.eta)  # n_genes
 
-        # account for gene specific bias and add noise
+        # account for gene-specific bias and add noise
         r_hat = torch.cat(
             [beta.unsqueeze(1) * w, eps.unsqueeze(1)], dim=1
         )  # n_genes, n_labels + 1
@@ -228,7 +228,7 @@ class SpatialDeconv(BaseModuleClass):
             # the correct way to reweight observations while performing stochastic optimization
             loss = n_obs * torch.mean(reconst_loss) + neg_log_likelihood_prior
         else:
-            # the original way it is done in Stereoscope; we use this option to show
+            # in the original way it is done in Stereoscope; we use this option to show
             # reproducibility of their codebase
             loss = torch.sum(reconst_loss) + neg_log_likelihood_prior
         return LossOutput(
@@ -250,14 +250,14 @@ class SpatialDeconv(BaseModuleClass):
     @torch.inference_mode()
     @auto_move_data
     def get_ct_specific_expression(self, y):
-        """Returns cell type specific gene expression at the queried spots.
+        """Returns cell-type-specific gene expression at the queried spots.
 
         Parameters
         ----------
         y
             cell types
         """
-        # cell-type specific gene expression. Conceptually of shape (minibatch, celltype, gene).
+        # cell-type-specific gene expression. Conceptually of shape (minibatch, celltype, gene).
         # But in this case, it's the same for all spots with the same cell type
         beta = torch.nn.functional.softplus(self.beta)  # n_genes
         w = torch.nn.functional.softplus(self.W)  # n_genes, n_cell_types

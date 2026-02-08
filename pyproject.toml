@@ -4,10 +4,10 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.3.3"
+version = "1.4.1"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
     {name = "The scvi-tools development team"},
@@ -23,7 +23,7 @@ classifiers = [
   "Development Status :: 4 - Beta",
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -33,92 +33,87 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata>=0.11",
+    "anndata",
     "docrep>=0.3.2",
-    "flax",
-    "jax<0.7.0",
-    "jaxlib<0.7.0",
     "lightning>=2.0",
-    "ml-collections>=0.1.1",
-    "mudata>=0.1.2",
+    "ml-collections",
+    "mudata",
     "numba>=0.60.0",
     "numpy",
-    "numpyro>=0.12.1",
     "pandas",
-    "pyro-ppl>=1.6.0",
-    "optax",
-    "rich>=12.0.0",
-    "scikit-learn>=0.21.2",
+    "pyro-ppl",
+    "rich",
+    "scanpy[skmisc]>=1.10",
+    "scikit-learn",
     "scipy",
     "sparse>=0.14.0",
-    "tensorboard>=2.0",
+    "tensorboard",
     "torch",
-    "torchmetrics>=0.11.0",
+    "torchmetrics",
     "tqdm",
-    "xarray>=2023.2.0",
+    "xarray",
 ]
 
 [project.optional-dependencies]
-tests = ["pytest", "pytest-pretty", "coverage", "selenium", "scvi-tools[optional]"]
+tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]<0.7.0"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
 metal = ["torchvision", "torchaudio", "jax-metal"]
+tpu = ["torch_xla[tpu]"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "sphinx>=4.1",
+    "sphinx<9",
     "ipython",
     "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",
     "sphinx-design",
     "sphinxext-opengraph",
     "sphinx-hoverxref",
-    "sphinxcontrib-bibtex>=1.0.0",
+    "sphinxcontrib-bibtex",
     "myst-parser",
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub]"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
 
 # scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics"]
-# scvi.hub.HubModel.pull_from_s3
-aws = ["boto3"]
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
 # scvi.hub dependencies
-hub = ["huggingface_hub", "igraph", "leidenalg", "dvc[s3]"]
+hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
 regseq = ["biopython>=1.81", "genomepy"]
-# scvi.criticism and read 10x
-scanpy = ["scanpy>=1.10", "scikit-misc"]
-# for convinient files sharing
-file_sharing = ["pooch","gdown"]
+# for files sharing or handling
+file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 # for parallelization engine
-parallel = ["dask[array]>=2023.5.1,<2024.8.0", "zarr<3.0.0"]
-# for supervised models interpretability
-interpretability = ["captum", "shap"]
+parallel = ["dask[array]", "zarr"]
+# for models interpretability
+interpretability = ["captum", "shap", "decoupler"]
+# for jax support
+jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
-dataloaders = ["lamindb[bionty]", "biomart", "cellxgene_lamin", "cellxgene-census", "tiledbsoma", "tiledb", "tiledbsoma_ml", "torchdata"]
-
+dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
+# for mlflow
+mlflow = ["mlflow","psutil","GPUtil"]
 
 optional = [
-    "scvi-tools[autotune,aws,hub,file_sharing,regseq,scanpy,parallel,interpretability]"
+    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
+    "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
+    "biomart",
     "cell2location",
     "dataloaders",
     "jupyter",
-    "leidenalg",
-    "muon",
     "seaborn",
     "matplotlib",
     "plotnine",
-    "pynndescent",
-    "igraph",
     "scrublet",
     "scvi-tools[optional]",
     "squidpy>=1.6.0",
+    "umap-learn>=0.5.0",
 ]
 
 all = ["scvi-tools[dev,docs,tutorials]"]
@@ -196,21 +191,21 @@ select = [
 ignore = [
     # allow I, O, l as variable names -> I is the identity matrix
     "E741",
-    # Missing docstring in public package
+    # Missing docstring in the public package
     "D104",
-    # Missing docstring in public module
+    # Missing docstring in the public module
     "D100",
     # Missing docstring in __init__
     "D107",
     # Errors from function calls in argument defaults. These are fine when the result is immutable.
     "B008",
-    # first line should end with a period [Bug: doesn't work with single-line docstrings]
+    # the first line should end with a period [Bug: doesn't work with single-line docstrings]
     "D400",
-    # First line should be in imperative mood; try rephrasing
+    # The first line should be in an imperative mood; try rephrasing
     "D401",
     # We want docstrings to start immediately after the opening triple quote
     "D213",
-    # Raising ValueError is sufficient in tests.
+    # Raising ValueError is enough in tests.
     "PT011",
     # We support np.random functions.
     "NPY002"

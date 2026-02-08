@@ -3,8 +3,8 @@ from scvi.utils import error_on_missing_dependencies
 error_on_missing_dependencies("huggingface_hub")
 
 
-from ._metadata import HubMetadata, HubModelCardHelper  # noqa
-from ._model import HubModel  # noqa
+from ._metadata import HubMetadata, HubModelCardHelper  # noqa: E402
+from ._model import HubModel  # noqa: E402
 
 __all__ = [
     "HubModel",

@@ -26,6 +26,7 @@ from scvi.model._utils import (
 )
 from scvi.model.base import ArchesMixin, BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.model.base._de_core import _de_core
+from scvi.train._config import merge_kwargs
 from scvi.utils import de_dsp, setup_anndata_dsp
 
 from ._module import RESOLVAE
@@ -44,7 +45,7 @@ class RESOLVI(
     PyroSviTrainMixin, PyroSampleMixin, ResolVIPredictiveMixin, BaseModelClass, ArchesMixin
 ):
     """
-    single-cell Variational Inference [Lopez18]_.
+    ResolVI addresses noise and bias in single-cell resolved spatial transcriptomics data.
 
     Parameters
     ----------
@@ -72,22 +73,22 @@ class RESOLVI(
         * ``'zinb'`` - Zero-inflated negative binomial distribution
         * ``'poisson'`` - Poisson distribution
     **model_kwargs
-        Keyword args for :class:`~scvi.external.RESOLVAE`
+        Keyword args for :class:`~scvi.external.resolvi.RESOLVAE`
 
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
     >>> scvi.external.RESOLVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.external.RESOLVI(adata)
-    >>> vae.train()
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
-    >>> adata.obsm["X_normalized_scVI"] = vae.get_normalized_expression()
+    >>> resolvi = scvi.external.RESOLVI(adata)
+    >>> resolvi.train()
+    >>> adata.obsm["X_resolVI"] = resolvi.get_latent_representation()
+    >>> adata.layers["X_normalized_resolVI"] = resolvi.get_normalized_expression()
 
     Notes
     -----
-    See further usage examples in the following tutorials:
+    See further usage examples in the following tutorial:
 
-    1. :doc:`/tutorials/notebooks/resolvi`
+    1. :doc:`/tutorials/notebooks/spatial/resolVI_tutorial`
     """
 
     _module_cls = RESOLVAE
@@ -119,9 +120,7 @@ class RESOLVI(
         results = self.compute_dataset_dependent_priors()
 
         n_cats_per_cov = (
-            self.adata_manager.get_state_registry(
-                REGISTRY_KEYS.CAT_COVS_KEY
-            ).n_cats_per_key
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
             if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
             else None
         )
@@ -138,7 +137,7 @@ class RESOLVI(
             downsample_counts_mean = None
             downsample_counts_std = 1.0
 
-        expression_anntorchdata=AnnTorchDataset(
+        expression_anntorchdata = AnnTorchDataset(
             self.adata_manager,
             getitem_tensors=["X"],
             load_sparse_tensor=True,
@@ -151,8 +150,9 @@ class RESOLVI(
             mixture_k=mixture_k,
             expression_anntorchdata=expression_anntorchdata,
             n_neighbors=self.summary_stats.n_distance_neighbor,
-            n_obs=self.summary_stats['n_ind_x'],
+            n_obs=self.summary_stats["n_ind_x"],
             n_hidden=n_hidden,
+            n_hidden_encoder=n_hidden_encoder,
             n_latent=n_latent,
             n_layers=n_layers,
             dropout_rate=dropout_rate,
@@ -243,8 +243,7 @@ class RESOLVI(
 
         optim = pyro.optim.Adam(per_param_callable)
 
-        if plan_kwargs is None:
-            plan_kwargs = {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         plan_kwargs.update(
             {
                 "optim_kwargs": {"lr": lr, "weight_decay": weight_decay, "eps": eps},
@@ -396,7 +395,7 @@ class RESOLVI(
     def compute_dataset_dependent_priors(self, n_small_genes=None):
         x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         n_small_genes = x.shape[1] // 50 if n_small_genes is None else int(n_small_genes)
-        # Computing library size over low expressed genes (expectation for background).
+        # Computing library size over low-expressed genes (expectation for the background).
         # Handles sparse and dense counts.
         smallest_means = x[:, np.array(x.sum(0)).flatten().argsort()[:n_small_genes]].mean(
             1
@@ -438,6 +437,8 @@ class RESOLVI(
         silent: bool = False,
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
+        n_samples: int = 5,
+        run_IS_DE: bool = True,
         size_scaling: bool = False,
         library_scaling: bool = False,
         **kwargs,
@@ -463,12 +464,23 @@ class RESOLVI(
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        weights
+            Precomputed weight for importance sampling. If `uniform` no importance sampling is
+            performed.
+        filter_outlier_cells
+            Whether to filter outlier cells with
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
+        n_samples
+            Number of posterior samples to use for estimation.
+        run_IS_DE
+            Wheter to run with IS get_normalized_expression
         size_scaling
             If True, will scale normalized expression by size factors (e.g. cell volume).
-            This needs to be setup in :meth:`~scvi.external.RESOLVI.setup_anndata` with `size_factor_key`. False by default.
+            This needs to be setup in :meth:`~scvi.external.RESOLVI.setup_anndata` with
+            `size_factor_key`. False by default.
         library_scaling
-            If True, will scale normalized expression to library size. This is useful for skewed gene panels if library size normalization
-            is detrimental. False by default.
+            If True, will scale normalized expression to library size. This is useful for skewed
+            gene panels if library size normalization is detrimental. False by default.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -479,9 +491,11 @@ class RESOLVI(
         adata = self._validate_anndata(adata)
 
         model_fn = partial(
-            self.get_normalized_expression_importance,
+            self.get_normalized_expression_importance
+            if run_IS_DE
+            else self.get_normalized_expression,
             return_numpy=True,
-            n_samples=5,
+            n_samples=n_samples,
             batch_size=batch_size,
             weights=weights,
             return_mean=False,
@@ -622,14 +636,14 @@ class RESOLVI(
         Parameters
         ----------
         adata
-            AnnData object that has been registered via :meth:`~scvi.external.RESOLVI.setup_anndata`
-            including `labels_key`.
+            AnnData object that has been registered via
+            :meth:`~scvi.external.RESOLVI.setup_anndata` including `labels_key`.
         indices
             Subsample AnnData to these indices.
         soft
             If True, returns per class probabilities
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         num_samples
             Samples to draw from the posterior for cell-type prediction.
         """

@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attribute
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
@@ -20,6 +20,7 @@ from scvi.train import (
     TrainRunner,
 )
 from scvi.train._callbacks import SubSampleLabels
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import devices_dsp
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ if TYPE_CHECKING:
     from torch import Tensor
 
     from scvi._types import AnnOrMuData
+    from scvi.train._config import KwargsLike
 
 
 logger = logging.getLogger(__name__)
@@ -54,8 +56,10 @@ class UnsupervisedTrainingMixin:
         batch_size: int = 128,
         early_stopping: bool = False,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
         datamodule: LightningDataModule | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -70,8 +74,8 @@ class UnsupervisedTrainingMixin:
         %(param_accelerator)s
         %(param_devices)s
         train_size
-            Float, or None. Size of training set in the range ``[0.0, 1.0]``. default is None,
-            which is practicaly 0.9 and potentially adding small last batch to validation cells.
+            Float, or None. Size of training set in the range ``[0.0, 1.0]``. The default is None,
+            which is practically 0.9 and potentially adding a small last batch to validation cells.
             Passed into :class:`~scvi.dataloaders.DataSplitter`.
             Not used if ``datamodule`` is passed in.
         validation_size
@@ -98,6 +102,9 @@ class UnsupervisedTrainingMixin:
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
             Values in this argument can be overwritten by arguments directly passed into this
             method, when appropriate. Not used if ``datamodule`` is passed in.
+        plan_config
+            Configuration object or mapping used to build :class:`~scvi.train.TrainingPlan`.
+            Values in ``plan_kwargs`` and explicit arguments take precedence.
         plan_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`. Values in
             this argument can be overwritten by arguments directly passed into this method, when
@@ -106,6 +113,9 @@ class UnsupervisedTrainingMixin:
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **kwargs
            Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -126,7 +136,7 @@ class UnsupervisedTrainingMixin:
                 self.adata_manager,
                 train_size=train_size,
                 validation_size=validation_size,
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
                 load_sparse_tensor=load_sparse_tensor,
@@ -142,7 +152,7 @@ class UnsupervisedTrainingMixin:
                 **self._module_kwargs,
             )
 
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
 
         es = "early_stopping"
@@ -156,13 +166,14 @@ class UnsupervisedTrainingMixin:
             max_epochs=max_epochs,
             accelerator=accelerator,
             devices=devices,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
 
 
 class SemisupervisedTrainingMixin:
-    """General purpose semisupervised train, predict and interoperability methods."""
+    """General purpose semisupervised train, predict, and interoperability methods."""
 
     _training_plan_cls = SemiSupervisedTrainingPlan
     _data_splitter_cls = SemiSupervisedDataSplitter
@@ -209,14 +220,14 @@ class SemisupervisedTrainingMixin:
         Parameters
         ----------
         adata
-            AnnData or MuData object that has been registered via corresponding setup
-            method in model class.
+            AnnData or MuData object that has been registered via the corresponding setup
+            method in the model class.
         indices
             Return probabilities for each class label.
         soft
-            If True, returns per class probabilities
+            If True, returns per-class probabilities
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into a model. Defaults to `scvi.settings.batch_size`.
         use_posterior_mean
             If ``True``, uses the mean of the posterior distribution to predict celltype
             labels. Otherwise, uses a sample from the posterior distribution - this
@@ -314,7 +325,7 @@ class SemisupervisedTrainingMixin:
                 attribution = ig.attribute(
                     tuple(data_inputs.values()),
                     target=hard_pred,
-                    additional_forward_args=(batch, cat_covs, cont_covs),
+                    additional_forward_args=(batch, cont_covs, cat_covs),
                     **ig_args,
                 )
                 attributions.append(torch.cat(attribution, dim=1))
@@ -358,8 +369,10 @@ class SemisupervisedTrainingMixin:
         devices: int | list[int] | str = "auto",
         adversarial_classifier: bool | None = None,
         datasplitter_kwargs: dict | None = None,
-        plan_kwargs: dict | None = None,
+        plan_config: KwargsLike | None = None,
+        plan_kwargs: KwargsLike | None = None,
         datamodule: LightningDataModule | None = None,
+        trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -372,11 +385,11 @@ class SemisupervisedTrainingMixin:
             Number of subsamples for each label class to sample per epoch. By default, there
             is no label subsampling.
         check_val_every_n_epoch
-            Frequency with which metrics are computed on the data for validation set for both
+            Frequency with which metrics are computed on the data for the validation set for both
             the unsupervised and semisupervised trainers. If you'd like a different frequency for
             the semisupervised trainer, set check_val_every_n_epoch in semisupervised_train_kwargs.
         train_size
-            Size of training set in the range [0.0, 1.0].
+            Size of the training set in the range [0.0, 1.0].
         validation_size
             Size of the test set. If `None`, defaults to 1 - `train_size`. If
             `train_size + validation_size < 1`, the remaining cells belong to a test set.
@@ -399,10 +412,17 @@ class SemisupervisedTrainingMixin:
             Keyword args for :class:`~scvi.train.SemiSupervisedTrainingPlan`. Keyword
             arguments passed to `train()` will overwrite values present in `plan_kwargs`,
             when appropriate.
+        plan_config
+            Configuration object or mapping used to build
+            :class:`~scvi.train.SemiSupervisedTrainingPlan`. Values in ``plan_kwargs`` and
+            explicit arguments take precedence.
         datamodule
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        trainer_config
+            Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
+            ``trainer_kwargs`` and explicit arguments take precedence.
         **trainer_kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -412,10 +432,10 @@ class SemisupervisedTrainingMixin:
             if adversarial_classifier is None:
                 adversarial_classifier = self._use_adversarial_classifier  # from totalvi
             update_dict = {"adversarial_classifier": adversarial_classifier}
-            if plan_kwargs is not None:
-                plan_kwargs.update(update_dict)
-            else:
-                plan_kwargs = update_dict
+            plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
+            plan_kwargs.update(update_dict)
+        else:
+            plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
 
         if max_epochs is None:
             max_epochs = get_max_epochs_heuristic(self.adata.n_obs)
@@ -425,7 +445,6 @@ class SemisupervisedTrainingMixin:
 
         logger.info(f"Training for {max_epochs} epochs.")
 
-        plan_kwargs = {} if plan_kwargs is None else plan_kwargs
         datasplitter_kwargs = datasplitter_kwargs or {}
 
         if datamodule is None:
@@ -441,7 +460,7 @@ class SemisupervisedTrainingMixin:
                 shuffle_set_split=shuffle_set_split,
                 n_samples_per_label=n_samples_per_label,
                 distributed_sampler=use_distributed_sampler(trainer_kwargs.get("strategy", None)),
-                batch_size=batch_size,
+                batch_size=batch_size or settings.batch_size,
                 **datasplitter_kwargs,
             )
         else:
@@ -463,6 +482,7 @@ class SemisupervisedTrainingMixin:
             accelerator=accelerator,
             devices=devices,
             check_val_every_n_epoch=check_val_every_n_epoch,
+            trainer_config=trainer_config,
             **trainer_kwargs,
         )
         return runner()
@@ -475,8 +495,8 @@ class SemisupervisedTrainingMixin:
         Parameters
         ----------
         adata
-            AnnData or MuData object that has been registered via corresponding setup
-            method in model class.
+            AnnData or MuData object that has been registered via the corresponding setup
+            method in the model class.
         attrs: numpy.ndarray
             Attributions matrix.
 
@@ -500,7 +520,7 @@ class SemisupervisedTrainingMixin:
         std_attrs = attrs.std(axis=0)
         idx = mean_attrs.argsort()[::-1] - 1  # their rank
 
-        # check how to populate this features table
+        # check how to populate these features' table
         # self.view_anndata_setup(adata)
         # self._model_summary_string
         # self._get_user_attributes()
@@ -574,7 +594,7 @@ class SemisupervisedTrainingMixin:
         """SHAP Operator (gives soft predictions gives data X)"""
         adata = self._validate_anndata()
 
-        # we need to adjust adata to the shap random selection ..
+        # we need to adjust adata to the shap random selection ...
         if len(X) > len(adata):
             # Repeat the data to expand to a larger size
             n_repeats = len(X) / len(adata)  # how many times you want to repeat the data

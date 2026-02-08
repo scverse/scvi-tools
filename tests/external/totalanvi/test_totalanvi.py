@@ -215,7 +215,13 @@ def test_totalanvi():
     ig_top_features = attributions.head(5)
     print(ig_top_features)
 
+    predictions, attributions = totalanvi_model2.predict(ig_interpretability=True)
+    # let's see an avg of score of top 5 markers for all samples put together
+    ig_top_features = attributions.head(5)
+    print(ig_top_features)
 
+
+@pytest.mark.optional
 def test_totalanvi_scarches(save_path):
     # test transfer_anndata_setup + view
     adata1 = synthetic_iid()

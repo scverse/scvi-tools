@@ -4,7 +4,6 @@ from collections.abc import Iterable as IterableClass
 from collections.abc import Sequence
 from typing import Literal
 
-import jax
 import numpy as np
 import scipy.sparse as sp_sparse
 import torch
@@ -17,6 +16,7 @@ from scipy.sparse import issparse
 from scvi import REGISTRY_KEYS, settings
 from scvi._types import Number
 from scvi.data import AnnDataManager
+from scvi.utils import is_package_installed
 from scvi.utils._docstrings import devices_dsp
 
 logger = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ def parse_device_args(
         warnings.warn(
             "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
             "operations are supported with this backend. as a result, some models might be slower "
-            "and less accurate than usuall. Please verify your analysis!"
+            "and less accurate than usual. Please verify your analysis!"
             "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
             UserWarning,
             stacklevel=settings.warnings_stacklevel,
@@ -142,14 +142,35 @@ def parse_device_args(
 
     if devices == "auto" and _accelerator != "cpu":
         # auto device should not use multiple devices for non-cpu accelerators
-        _devices = [device_idx]
+        if _accelerator == "tpu":
+            # For TPU, device_idx from connector is a count (e.g., 1), not an index
+            # TPU device indices start from 0, so use [0] for single device
+            _devices = [0]
+            device_idx = 0
+        else:
+            _devices = [device_idx]
 
     if return_device == "torch":
         device = torch.device("cpu")
         if _accelerator != "cpu":
-            device = torch.device(f"{_accelerator}:{device_idx}")
+            if _accelerator == "tpu":
+                # TPU requires torch_xla and uses "xla" device type, not "tpu"
+                if not is_package_installed("torch_xla"):
+                    raise ImportError(
+                        "TPU support requires torch_xla. Please install it with:\n"
+                        "  pip install torch_xla[tpu] -f https://storage.googleapis.com/libtpu-releases/index.html\n"
+                        "or for Colab:\n"
+                        "  pip install torch_xla[colab] -f https://storage.googleapis.com/libtpu-releases/index.html"
+                    )
+                import torch_xla.core.xla_model as xm
+
+                device = xm.xla_device()
+            else:
+                device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
-    elif return_device == "jax":
+    elif return_device == "jax" and is_package_installed("jax"):
+        import jax
+
         device = jax.devices("cpu")[0]
         if _accelerator != "cpu":
             if _accelerator == "mps":
@@ -157,8 +178,8 @@ def parse_device_args(
             else:
                 device = jax.devices(_accelerator)[device_idx]
         return _accelerator, _devices, device
-
-    return _accelerator, _devices
+    else:
+        raise ImportError("Please install jax to use this functionality.")
 
 
 def scrna_raw_counts_properties(
@@ -246,7 +267,7 @@ def cite_seq_raw_counts_properties(
     idx2
         subset of indices describing the second population.
     use_field
-        which fields to use during DE function.
+        which fields to use during the DE function.
 
     Returns
     -------
@@ -303,6 +324,7 @@ def scatac_raw_counts_properties(
     idx1: list[int] | np.ndarray,
     idx2: list[int] | np.ndarray,
     var_idx: list[int] | np.ndarray | None = None,
+    registry_key: str = REGISTRY_KEYS.X_KEY,
 ) -> dict[str, np.ndarray]:
     """Computes and returns some statistics on the raw counts of two sub-populations.
 
@@ -316,13 +338,15 @@ def scatac_raw_counts_properties(
         subset of indices describing the second population.
     var_idx
         subset of variables to extract properties from. if None, all variables are used.
+    registry_key
+        registry_key to fetch data from. model dependent. X by default, but can be atac for multivi
 
     Returns
     -------
     type
-        Dict of ``np.ndarray`` containing, by pair (one for each sub-population).
+        Dict of ``np.ndarray`` containing, by pair (one for each subpopulation).
     """
-    data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
+    data = adata_manager.get_from_registry(registry_key)
     data1 = data[idx1]
     data2 = data[idx2]
     if var_idx is not None:
@@ -370,7 +394,7 @@ def _init_library_size(
         of library size in each batch in adata.
 
         If a certain batch is not present in the adata, the mean defaults to 0,
-        and the variance defaults to 1. These defaults are arbitrary placeholders which
+        and the variance defaults to 1. These defaults are arbitrary placeholders that
         should not be used in any downstream computation.
     """
     data = adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
@@ -381,7 +405,7 @@ def _init_library_size(
 
     for i_batch in np.unique(batch_indices):
         idx_batch = np.squeeze(batch_indices == i_batch)
-        batch_data = data[idx_batch.nonzero()[0]]  # h5ad requires integer indexing arrays.
+        batch_data = data[idx_batch.nonzero()[0]]
         sum_counts = batch_data.sum(axis=1)
         masked_log_sum = np.ma.log(sum_counts)
         if np.ma.is_masked(masked_log_sum):

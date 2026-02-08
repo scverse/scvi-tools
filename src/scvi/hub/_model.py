@@ -45,7 +45,7 @@ class HubModel:
         Either an instance of :class:`~scvi.hub.HubMetadata` that contains the required metadata
         for this model, or a path to a file on disk where this metadata can be read from.
     model_card
-        The model card for this pre-trained model. Model card is a markdown file that describes the
+        The model card for this pre-trained model. Model card is a Markdown file that describes the
         pre-trained model/data and is displayed on HuggingFace. This can be either an instance of
         :class:`~huggingface_hub.ModelCard` or an instance of :class:`~scvi.hub.HubModelCardHelper`
         that wraps the model card or a path to a file on disk where the model card can be read
@@ -137,7 +137,7 @@ class HubModel:
         """Push this model to huggingface.
 
         If the dataset is too large to upload to huggingface, this will raise an
-        exception prompting the user to upload the data elsewhere. Otherwise, the
+         exception, prompting the user to upload the data elsewhere. Otherwise, the
         data, model card, and metadata are all uploaded to the given model repo.
 
         Parameters
@@ -145,7 +145,8 @@ class HubModel:
         repo_name
             ID of the huggingface repo where this model needs to be uploaded
         repo_token
-            huggingface API token with write permissions if None uses token in HfFolder.get_token()
+            huggingface API token with write permissions. If None, uses the token from the
+            HuggingFace cache or HF_TOKEN environment variable.
         repo_create
             Whether to create the repo
         repo_create_kwargs
@@ -158,7 +159,7 @@ class HubModel:
         **kwargs
             Additional keyword arguments passed into :meth:`~huggingface_hub.HfApi.upload_file`.
         """
-        from huggingface_hub import HfApi, HfFolder, add_collection_item, create_repo
+        from huggingface_hub import HfApi, add_collection_item, create_repo
 
         self._repo_name = repo_name
 
@@ -177,7 +178,7 @@ class HubModel:
                 Please refer to scvi-tools tutorials for how to handle this case."
             )
         if repo_token is None:
-            repo_token = HfFolder.get_token()
+            repo_token = HfApi().token
         elif os.path.isfile(repo_token):
             repo_token = Path(repo_token).read_text()
         if repo_create:
@@ -245,7 +246,7 @@ class HubModel:
     ):
         """Download the given model repo from huggingface.
 
-        The model, its card, data, metadata are downloaded to a cached location on disk
+        The model, its card, data, metadata are downloaded to a cached location on the disk
         selected by huggingface and an instance of this class is created with that info
         and returned.
 
@@ -260,7 +261,7 @@ class HubModel:
             commit hash. If None, the default (latest) revision is pulled.
         pull_anndata
             Whether to pull the :class:`~anndata.AnnData` object associated with the model. If
-            ``True`` but the file does not exist, will fail silently.
+            ``True`` but the file does not exist, it will fail silently.
         kwargs
             Additional keyword arguments to pass to :meth:`~huggingface_hub.snapshot_download`.
         """
@@ -498,7 +499,7 @@ class HubModel:
         %(param_device)s
         """
         logger.info("Loading model...")
-        # get the class name for this model (e.g. TOTALVI)
+        # get the class name for this model (e.g., TOTALVI)
         model_cls_name = self.metadata.model_cls_name
         python_module = importlib.import_module(self.metadata.model_parent_module)
         model_cls = getattr(python_module, model_cls_name)
@@ -564,8 +565,8 @@ class HubModel:
 
         Notes
         -----
-        The large training data url can be a cellxgene explorer session url. However it cannot be a
-        self-hosted session. In other words, it must be from the cellxgene portal
+        The large training data url can be a cellxgene explorer session url. However, it cannot be
+        a self-hosted session. In other words, it must be from the cellxgene portal
         (https://cellxgene.cziscience.com/).
         """
         training_data_url = self.metadata.training_data_url

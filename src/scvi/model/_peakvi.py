@@ -24,6 +24,7 @@ from scvi.model._utils import (
 from scvi.model.base import UnsupervisedTrainingMixin
 from scvi.model.base._de_core import _de_core
 from scvi.module import PEAKVAE
+from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 from .base import ArchesMixin, BaseModelClass, RNASeqMixin, VAEMixin
@@ -219,10 +220,8 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             "n_steps_kl_warmup": n_steps_kl_warmup,
             "optimizer": "AdamW",
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         super().train(
             max_epochs=max_epochs,
@@ -506,8 +505,10 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         # manually change the results DataFrame to fit a PeakVI differential accessibility results
         result = pd.DataFrame(
             {
-                "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
+                "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"]
+                if mode == "change"
+                else None,
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,

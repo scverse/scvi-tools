@@ -24,7 +24,7 @@ The limitations of scVI include:
 ## Preliminaries
 
 scVI takes as input a scRNA-seq gene expression matrix $X$ with $N$ cells and $G$ genes.
-Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc, is an optional input.
+Additionally, a design matrix $S$ containing $p$ observed covariates, such as day, donor, etc., is an optional input.
 While $S$ can include both categorical covariates and continuous covariates, in the following, we assume it contains only one
 categorical covariate with $K$ categories, which represents the common case of having multiple batches of data.
 
@@ -45,7 +45,7 @@ by the following process:
  \end{align}
 ```
 
-Succintly, the gene expression for each gene depends on a latent variable $z_n$ that is cell-specific.
+Succinctly, the gene expression for each gene depends on a latent variable $z_n$ that is cell-specific.
 The prior parameters $\ell_\mu$ and $\ell_{\sigma^2}$ are computed per batch as the mean and variance of the log library size over cells.
 The expression data are generated from a count-based likelihood distribution, which here, we denote as the $\mathrm{ObservationModel}$.
 While by default the $\mathrm{ObservationModel}$ is a $\mathrm{ZeroInflatedNegativeBinomial}$ (ZINB) distribution parameterized by its mean, inverse dispersion, and non-zero-inflation probability, respectively,
@@ -74,7 +74,7 @@ This generative process is also summarized in the following graphical model:
 scVI graphical model for the ZINB likelihood model. Note that this graphical model contains more latent variables than the presentation above. Marginalization of these latent variables leads to the ZINB observation model (math shown in publication supplement).
 :::
 
-The latent variables, along with their description are summarized in the following table:
+The latent variables, along with their description, are summarized in the following table:
 
 ```{eval-rst}
 .. list-table::
@@ -94,7 +94,7 @@ The latent variables, along with their description are summarized in the followi
      - Library size for RNA. Here it is modeled as a latent variable, but the recent default for scVI is to treat library size as observed, equal to the total RNA UMI count of a cell. This can be controlled by passing ``use_observed_lib_size=False`` to :class:`~scvi.model.SCVI`. The library size can also be set manually using `size_factor_key` in :class:`~scvi.model.SCVI.setup_anndata`.
      - N/A
    * - :math:`\theta_g \in (0, \infty)`
-     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model intialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
+     - Inverse dispersion for negative binomial. This can be set to be gene/batch specific for example (and would thus be :math:`\theta_{kg}`), by passing ``dispersion="gene-batch"`` during model initialization. Note that ``px_r`` also refers to the underlying real-valued torch parameter that is then exponentiated on every forward pass of the model.
      - ``px_r``
 ```
 
@@ -116,9 +116,9 @@ Here $\eta$ is a set of parameters corresponding to inference neural networks (e
 but are described in the scVI paper. The underlying class used as the encoder for scVI is {class}`~scvi.nn.Encoder`.
 In the case of `use_observed_lib_size=True`, $q_\eta(\ell_n \mid x_n)$ can be written as a point mass on the observed library size.
 
-It it important to note that by default, scVI only
+It is important to note that by default, scVI only
 receives the expression data as input (i.e., not the observed cell-level covariates).
-Empirically, we have not seen much of a difference by having the encoder take as input the concatenation of these items (i.e., $q_\eta(z_n, \ell_n \mid x_n, s_n)$, but users can control it manually by passing
+Empirically, we have seen little of a difference by having the encoder take as input the concatenation of these items (i.e., $q_\eta(z_n, \ell_n \mid x_n, s_n)$, but users can control it manually by passing
 `encode_covariates=True` to {class}`scvi.model.SCVI`.
 
 ## Tasks
@@ -166,7 +166,7 @@ where $\ell_n'$ is by default set to 1. See the `library_size` parameter for mor
 >>> model.get_normalized_expression(n_samples=10)
 ```
 
-By default the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
+By default, the mean over these samples is returned, but users may pass `return_mean=False` to retrieve all the samples.
 
 Notably, this function also has the `transform_batch` parameter that allows counterfactual prediction of expression in an unobserved batch. See the {doc}`/user_guide/background/counterfactual_prediction` guide.
 

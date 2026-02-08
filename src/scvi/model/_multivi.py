@@ -15,14 +15,6 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-    NumericalObsField,
-    ProteinObsmField,
-)
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -31,13 +23,15 @@ from scvi.model._utils import (
 )
 from scvi.model.base import (
     ArchesMixin,
-    BaseModelClass,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
     UnsupervisedTrainingMixin,
     VAEMixin,
 )
 from scvi.model.base._de_core import _de_core
 from scvi.module import MULTIVAE
 from scvi.train import AdversarialTrainingPlan
+from scvi.train._config import merge_kwargs
 from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
@@ -52,7 +46,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
+class MULTIVI(
+    VAEMixin,
+    UnsupervisedTrainingMixin,
+    BaseMinifiedModeModelClass,
+    BaseMudataMinifiedModeModelClass,
+    ArchesMixin,
+):
     """Integration of multi-modal and single-modality data :cite:p:`AshuachGabitto21`.
 
     MultiVI is used to integrate multiomic datasets with single-modality (expression
@@ -61,8 +61,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
     Parameters
     ----------
     adata
-        AnnData/MuData object that has been registered via
-        :meth:`~scvi.model.MULTIVI.setup_anndata` or :meth:`~scvi.model.MULTIVI.setup_mudata`.
+        MuData object that has been registered via :meth:`~scvi.model.MULTIVI.setup_mudata`.
     n_genes
         The number of gene expression features (genes).
     n_regions
@@ -129,19 +128,14 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
 
     Notes (for using setup_anndata)
     -----
-    * The model assumes that the features are organized so that all expression features are
-       consecutive, followed by all accessibility features. For example, if the data has 100 genes
-       and 250 genomic regions, the model assumes that the first 100 features are genes, and the
-       next 250 are the regions.
-
-    * The main batch annotation, specified in ``setup_anndata``, should correspond to
-       the modality each cell originated from. This allows the model to focus mixing efforts, using
-       an adversarial component, on mixing the modalities. Other covariates can be specified using
-       the `categorical_covariate_keys` argument.
+    As of SCVI-Tools v1.4 there is no longer support for setup_anndata for multivi.
+    Please use setup_mudata instead.
     """
 
     _module_cls = MULTIVAE
     _training_plan_cls = AdversarialTrainingPlan
+    _LATENT_QZM_KEY = "multivi_latent_qzm"
+    _LATENT_QZV_KEY = "multivi_latent_qzv"
 
     def __init__(
         self,
@@ -321,10 +315,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             "optimizer": "AdamW",
             "scale_adversarial_loss": 1,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 
@@ -334,7 +326,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
             distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
-            batch_size=batch_size,
+            batch_size=batch_size or settings.batch_size,
             **datasplitter_kwargs,
         )
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
@@ -410,6 +402,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         indices: Sequence[int] | None = None,
         give_mean: bool = True,
         batch_size: int | None = None,
+        return_dist: bool = False,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 
@@ -426,6 +419,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             Give mean of distribution or sample from it.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        return_dist
+            If ``True``, returns the mean and variance of the latent distribution. Otherwise,
+            returns the mean of the latent distribution.
 
         Returns
         -------
@@ -453,6 +449,8 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         adata = self._validate_anndata(adata)
         scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
+        qz_means = []
+        qz_vars = []
         for tensors in scdl:
             inference_inputs = self.module._get_inference_input(tensors)
             outputs = self.module.inference(**inference_inputs)
@@ -469,8 +467,16 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 else:
                     z = qz_m
 
+            if return_dist:
+                qz_means.append(qz_m.cpu())
+                qz_vars.append(qz_v.cpu())
+                continue
+
             latent += [z.cpu()]
-        return torch.cat(latent).numpy()
+        if return_dist:
+            return torch.cat(qz_means).numpy(), torch.cat(qz_vars).numpy()
+        else:
+            return torch.cat(latent).numpy()
 
     @torch.inference_mode()
     def get_normalized_accessibility(
@@ -540,7 +546,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if region_list is None:
             region_mask = slice(None)
         else:
-            region_mask = [region in region_list for region in adata.var_names[: self.n_regions]]
+            region_mask = [
+                region in region_list
+                for region in adata[adata.mod_names[1]].var_names[: self.n_regions]
+            ]
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -586,17 +595,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
                 return pd.DataFrame.sparse.from_spmatrix(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    columns=adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask]
                     if isinstance(adata, MuData)
-                    else adata.var_names[: self.n_regions][region_mask],
+                    else adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask],
                 )
             else:
                 return pd.DataFrame(
                     imputed,
                     index=adata.obs_names[indices],
-                    columns=adata["rna"].var_names[: self.n_regions][region_mask]
+                    columns=adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask]
                     if isinstance(adata, MuData)
-                    else adata.var_names[: self.n_regions][region_mask],
+                    else adata[adata.mod_names[1]].var_names[: self.n_regions][region_mask],
                 )
 
     @torch.inference_mode()
@@ -610,7 +619,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         use_z_mean: bool = True,
         n_samples: int = 1,
         batch_size: int | None = None,
-        return_mean: bool = True,
+        return_mean: bool = False,
         return_numpy: bool = False,
         silent: bool = True,
     ) -> np.ndarray | pd.DataFrame:
@@ -669,7 +678,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if gene_list is None:
             gene_mask = slice(None)
         else:
-            all_genes = adata.var_names[: self.n_genes]
+            all_genes = adata[adata.mod_names[0]].var_names[: self.n_genes]
             gene_mask = [gene in gene_list for gene in all_genes]
 
         exprs = []
@@ -707,7 +716,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         else:
             return pd.DataFrame(
                 exprs,
-                columns=adata.var_names[: self.n_genes][gene_mask],
+                columns=adata[adata.mod_names[0]].var_names[: self.n_genes][gene_mask],
                 index=adata.obs_names[indices],
             )
 
@@ -729,6 +738,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        pseudocounts: float | None = 1e-6,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential accessibility analysis.
@@ -752,6 +762,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -783,14 +796,15 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
-        col_names = adata.var_names[: self.n_genes]
+        col_names = adata[adata.mod_names[1]].var_names[: self.n_regions]
         model_fn = partial(
             self.get_normalized_accessibility, use_z_mean=False, batch_size=batch_size
         )
 
         all_stats_fn = partial(
             scatac_raw_counts_properties,
-            var_idx=np.arange(adata.shape[1])[: self.n_genes],
+            var_idx=np.arange(adata.shape[1])[: self.n_regions],
+            registry_key=REGISTRY_KEYS.ATAC_X_KEY,
         )
 
         result = _de_core(
@@ -812,15 +826,17 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
-            pseudocounts=1e-6,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 
         # manually change the results DataFrame to fit a PeakVI differential accessibility results
         result = pd.DataFrame(
             {
-                "prob_da": result.proba_de,
-                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"],
+                "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+                "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr_target}"]
+                if mode == "change"
+                else None,
                 "bayes_factor": result.bayes_factor,
                 "effect_size": result.scale2 - result.scale1,
                 "emp_effect": result.emp_mean2 - result.emp_mean1,
@@ -851,6 +867,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         batchid2: Iterable[str] | None = None,
         fdr_target: float = 0.05,
         silent: bool = False,
+        pseudocounts: float | None = 1e-6,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -874,6 +891,9 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         %(de_batchid2)s
         %(de_fdr_target)s
         %(de_silent)s
+        pseudocounts
+            pseudocount offset used for the mode `change`.
+            When None, observations from non-expressed genes are used to estimate its value.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -884,7 +904,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         self._check_adata_modality_weights(adata)
         adata = self._validate_anndata(adata)
 
-        col_names = adata.var_names[: self.n_genes]
+        col_names = adata[adata.mod_names[0]].var_names[: self.n_genes]
         model_fn = partial(
             self.get_normalized_expression,
             batch_size=batch_size,
@@ -912,7 +932,7 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
             batch_correction=batch_correction,
             fdr=fdr_target,
             silent=silent,
-            pseudocounts=1e-6,
+            pseudocounts=pseudocounts,
             **kwargs,
         )
 
@@ -1077,38 +1097,10 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         """
         warnings.warn(
             "MULTIVI is supposed to work with MuData. the use of anndata is "
-            "deprecated and will be removed in scvi-tools 1.4. Please use setup_mudata",
+            "deprecated starting in scvi-tools 1.4. Please use setup_mudata",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
-        setup_method_args = cls._get_setup_method_args(**locals())
-        adata.obs["_indices"] = np.arange(adata.n_obs)
-        batch_field = CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key)
-        anndata_fields = [
-            LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
-            batch_field,
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, None),
-            CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            NumericalJointObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
-            NumericalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
-        ]
-        if protein_expression_obsm_key is not None:
-            anndata_fields.append(
-                ProteinObsmField(
-                    REGISTRY_KEYS.PROTEIN_EXP_KEY,
-                    protein_expression_obsm_key,
-                    use_batch_mask=True,
-                    batch_field=batch_field,
-                    colnames_uns_key=protein_names_uns_key,
-                    is_count_data=True,
-                )
-            )
-
-        adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
-        adata_manager.register_fields(adata, **kwargs)
-        cls.register_manager(adata_manager)
 
     def _check_adata_modality_weights(self, adata):
         """Checks if adata is None and weights are per cell.
@@ -1169,6 +1161,39 @@ class MULTIVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, ArchesMixin):
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
+
+        # Define canonical MULTIVI order (rna -> atac -> protein)
+        desired_order = []
+        if modalities.rna_layer is not None:
+            desired_order.append(modalities.rna_layer)
+        if modalities.atac_layer is not None:
+            desired_order.append(modalities.atac_layer)
+        if modalities.protein_layer is not None:
+            desired_order.append(modalities.protein_layer)
+
+        # Current MuData modality order
+        current_order = list(mdata.mod.keys())
+
+        # Determine if reorder is needed:
+        needs_reorder = current_order[: len(desired_order)] != desired_order
+
+        if needs_reorder:
+            from collections import OrderedDict
+
+            # Ordered modalities
+            ordered_mods = OrderedDict()
+            for k in desired_order:
+                ordered_mods[k] = mdata.mod[k]
+            for k in current_order:
+                if k not in ordered_mods:
+                    ordered_mods[k] = mdata.mod[k]
+
+            # Replace in-place
+            mdata.mod = ordered_mods
+
+            # Recompute axes / var concatenation
+            mdata.update()
+
         mdata.obs["_indices"] = np.arange(mdata.n_obs)
 
         batch_field = fields.MuDataCategoricalObsField(

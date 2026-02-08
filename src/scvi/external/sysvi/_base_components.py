@@ -41,7 +41,7 @@ class EncoderDecoder(Module):
         The number of hidden layers.
     var_mode
         How to compute variance from model outputs,
-        see :class:`~scvi.external.sysvi.VarEncoder`.
+        see :class:`~scvi.external.sysvi._base_components.VarEncoder`.
         One of the following:
         * ```'sample_feature'``` - learn variance per sample and feature.
         * ```'feature'``` - learn variance per feature, constant across samples.

@@ -2,8 +2,6 @@ import re
 
 import requests
 
-from scvi.utils import dependencies
-
 
 def validate_url(url: str, error_format: bool = False, error_response: bool = False) -> bool:
     """Validates a URL.
@@ -36,35 +34,18 @@ def validate_url(url: str, error_format: bool = False, error_response: bool = Fa
     return valid
 
 
-@dependencies("selenium")
 def validate_colab_notebook(colab_url: str) -> bool:
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
+    raw_url = colab_url.replace(
+        "https://colab.research.google.com/github/", "https://raw.githubusercontent.com/"
+    ).replace("/blob/", "/")
 
-    timeout = 15
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-
-    driver = webdriver.Chrome(options=options)
-
-    driver.get(colab_url)
-
-    # Wait for content to load
-    driver.implicitly_wait(timeout)
-
-    page_source = driver.page_source
-
-    if "Notebook not found" in page_source:
-        print(f"❌ Notebook not found: {colab_url}")
-        driver.quit()
-        return False
-    elif "scvi-tools" in page_source:
-        print(f"✅ Valid notebook: {colab_url}")
-        driver.quit()
+    r = requests.get(raw_url)
+    if r.status_code == 200:
+        print(f"✅ Notebook exists: {raw_url}")
         return True
+    elif r.status_code == 404:
+        print(f"❌ Notebook not found: {raw_url}")
+        return False
     else:
-        print(f"⚠️ Unknown state: {colab_url}")
-        driver.quit()
+        print(f"⚠️ Unexpected response {r.status_code}: {raw_url}")
         return False

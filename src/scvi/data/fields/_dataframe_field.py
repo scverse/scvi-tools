@@ -3,7 +3,7 @@ from typing import Literal
 
 import numpy as np
 import pandas as pd
-import rich
+import rich.table
 from anndata import AnnData
 from pandas.api.types import CategoricalDtype
 

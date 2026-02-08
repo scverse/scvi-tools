@@ -43,13 +43,12 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.POISSONVI.setup_anndata`.
+        AnnData object that has been registered via :meth:`~scvi.external.POISSONVI.setup_anndata`.
     n_hidden
-        Number of nodes per hidden layer. If `None`, defaults to square root
-        of number of regions.
+        Number of nodes per hidden layer.
+        If `None`, defaults to the square root of the number of regions.
     n_latent
-        Dimensionality of the latent space. If `None`, defaults to square root
-        of `n_hidden`.
+        Dimensionality of the latent space. If `None`, defaults to the square root of `n_hidden`.
     n_layers
         Number of hidden layers used for encoder and decoder NNs.
     dropout_rate
@@ -116,7 +115,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             library_log_vars=library_log_vars,
             use_batch_norm="none",
             use_layer_norm="both",
-            # to be consitent with PEAKVI architecture
             extra_encoder_kwargs={"activation_fn": torch.nn.LeakyReLU},
             extra_decoder_kwargs={"activation_fn": torch.nn.LeakyReLU},
             **model_kwargs,
@@ -169,7 +167,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             - int, then batch transform_batch is used.
         region_list
             Return frequencies of accessibility for a subset of regions.
-            This can save memory when working with large datasets and few regions are
+            This can save memory when working with large datasets, and few regions are
             of interest.
         library_size
             Scale the accessibility frequencies to a common library size.
@@ -177,7 +175,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             magnitude. If set to `"latent"`, use the latent library size.
         normalize_regions
             Whether to reintroduce region factors to scale the normalized accessibility. This makes
-            the estimates closer to the input, but removes the region-level bias correction. False
+            the estimates closer to the input but removes the region-level bias correction. False
             by default.
         n_samples
             Number of posterior samples to use for estimation.
@@ -186,7 +184,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model. Defaults to `scvi.settings.batch_size`.
         return_mean
             Whether to return the mean of the samples.
         return_numpy
@@ -195,7 +193,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             defaults to `False`. Otherwise, it defaults to `True`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
 
         Returns
         -------
@@ -203,7 +201,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         this method returns a 3d tensor of shape (n_samples, n_cells, n_regions).
         If `n_samples` is provided and `return_mean` is True, it returns a 2d tensor
         of shape (n_cells, n_regions).
-        In this case, return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
+        In this case, the return type is :class:`~pandas.DataFrame` unless `return_numpy` is True.
         Otherwise, the method expects `n_samples_overall` to be provided and returns a 2d tensor
         of shape (n_samples_overall, n_regions).
         """
@@ -293,7 +291,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         %(de_fdr_target)s
         %(de_silent)s
         two_sided
-            Whether to perform a two-sided test, or a one-sided test.
+            Whether to perform a two-sided test or a one-sided test.
         weights
             Weights to use for sampling. If `None`, defaults to `"uniform"`.
         filter_outlier_cells
@@ -301,7 +299,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`.
         importance_weighting_kwargs
             Keyword arguments passed into
-            :meth:`~scvi.model.base.RNASeqMixin._get_importance_weights`.
+            :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -347,12 +345,12 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         if two_sided:
 
             def m1_domain_fn(samples):
-                return np.abs(samples) >= delta
+                return np.abs(samples) >= delta, np.abs(samples) < delta
 
         else:
 
             def m1_domain_fn(samples):
-                return samples >= delta
+                return samples >= delta, samples < delta
 
         result = _de_core(
             adata_manager=self.get_anndata_manager(adata, required=True),
@@ -395,8 +393,6 @@ class POISSONVI(PEAKVI, RNASeqMixin):
             f"use {self.__class__.__name__}.differential_accessibility"
         )
         raise NotImplementedError(msg)
-
-        return None
 
     @classmethod
     @setup_anndata_dsp.dedent

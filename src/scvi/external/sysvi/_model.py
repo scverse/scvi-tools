@@ -20,7 +20,14 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin, VAEMixin
+from scvi.model.base import (
+    ArchesMixin,
+    BaseModelClass,
+    RNASeqMixin,
+    UnsupervisedTrainingMixin,
+    VAEMixin,
+)
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 
 from ._module import SysVAE
@@ -28,7 +35,7 @@ from ._module import SysVAE
 logger = logging.getLogger(__name__)
 
 
-class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
+class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, ArchesMixin, BaseModelClass):
     """Integration with cVAE & optional VampPrior and latent cycle-consistency.
 
      Described in
@@ -43,7 +50,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
         The prior distribution to be used.
         You can choose between ``"standard_normal"`` and ``"vamp"``.
     n_prior_components
-        Number of prior components (i.e. modes) to use in VampPrior.
+        Number of prior components (i.e., modes) to use in VampPrior.
     pseudoinputs_data_indices
         By default, VampPrior pseudoinputs are randomly selected from data.
         Alternatively, one can specify pseudoinput indices using this parameter.
@@ -64,12 +71,24 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
         super().__init__(adata)
 
         if prior == "vamp":
+            if pseudoinputs_data_indices is not None:
+                assert pseudoinputs_data_indices.shape[0] == n_prior_components
+                assert pseudoinputs_data_indices.ndim == 1
+                if pseudoinputs_data_indices.max() >= self.summary_stats.n_cells:
+                    warnings.warn(
+                        "The maximum index in pseudoinputs_data_indices exceeds the number of "
+                        "cells. The parameter pseudoinputs_data_indices will be re-initialised. "
+                        "Note: If you are building a new model for mapping query onto a reference "
+                        "this is expected.",
+                        UserWarning,
+                        stacklevel=settings.warnings_stacklevel,
+                    )
+                    n_prior_components = pseudoinputs_data_indices.shape[0]
+                    pseudoinputs_data_indices = None
             if pseudoinputs_data_indices is None:
                 pseudoinputs_data_indices = np.random.randint(
-                    0, self.summary_stats.n_vars, n_prior_components
+                    0, self.summary_stats.n_cells, n_prior_components
                 )
-            assert pseudoinputs_data_indices.shape[0] == n_prior_components
-            assert pseudoinputs_data_indices.ndim == 1
             pseudoinput_data = next(
                 iter(
                     self._make_data_loader(
@@ -127,7 +146,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
         train_kwargs
             Training kwargs. Passed to `meth`:`scvi.model.base.BaseModelClass.train`.
         """
-        plan_kwargs = plan_kwargs or {}
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
         kl_weight_defaults = {"n_epochs_kl_warmup": 0, "n_steps_kl_warmup": 0}
         if any(v != plan_kwargs.get(k, v) for k, v in kl_weight_defaults.items()):
             warnings.warn(
@@ -143,6 +162,18 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
         train_kwargs = train_kwargs or {}
         train_kwargs["plan_kwargs"] = plan_kwargs
         super().train(**train_kwargs)
+
+    @classmethod
+    def load_query_data(cls, *args, **kwargs):
+        """Overload archesmixin to disable batch transfer."""
+        if "transfer_batch" in kwargs:
+            _ = kwargs.pop("transfer_batch")
+            warnings.warn(
+                "The setting of transfer_batch is disabled in SysVI "
+                + "and is automatically set to False.",
+                stacklevel=settings.warnings_stacklevel,
+            )
+        return super().load_query_data(*args, transfer_batch=False, **kwargs)
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -169,7 +200,7 @@ class SysVI(UnsupervisedTrainingMixin, RNASeqMixin, VAEMixin, BaseModelClass):
           This covariate is expected to correspond to stronger batch effects,
           such as between datasets from different sequencing technology or
           model systems (animal species, in-vitro models and tissue, etc.).
-        - covariate (includes both continous and categorical covariates):
+        - covariate (includes both continuous and categorical covariates):
           Additional covariates to be used only
           as a condition in cVAE, but not corrected via cycle loss.
           These covariates are expected to correspond to weaker batch effects,

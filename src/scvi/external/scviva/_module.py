@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import torch
@@ -24,8 +25,6 @@ if TYPE_CHECKING:
     from torch.distributions import Distribution
 
     from scvi._types import LossRecord
-
-import flax
 
 logger = logging.getLogger(__name__)
 
@@ -428,10 +427,10 @@ class nicheVAE(VAE):
 
         if self.dispersion == "gene-label":
             px_r = linear(
-                one_hot(y, self.n_labels), self.px_r
+                one_hot(y, self.n_labels).float(), self.px_r
             )  # px_r gets transposed - last dimension is nb genes
         elif self.dispersion == "gene-batch":
-            px_r = linear(one_hot(batch_index, self.n_batch), self.px_r)
+            px_r = linear(one_hot(batch_index, self.n_batch).float(), self.px_r)
         elif self.dispersion == "gene":
             px_r = self.px_r
 
@@ -622,7 +621,7 @@ class nicheVAE(VAE):
         )
 
 
-@flax.struct.dataclass
+@dataclass
 class NicheLossOutput(LossOutput):
     """Modify loss output to record niche losses."""
 

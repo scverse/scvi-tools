@@ -41,7 +41,7 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
     n_layers
         Number of hidden layers used for encoder and decoder NNs
     n_continuous_cov
-        Number of continuous covarites
+        Number of continuous covariates
     n_cats_per_cov
         Number of categories for each extra categorical covariate
     dropout_rate
@@ -82,12 +82,12 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         Array of proteins by batches, the prior initialization for the protein background scale
         (log scale)
     use_size_factor_key
-        Use size_factor AnnDataField defined by the user as scaling factor in mean of conditional
+        Use size_factor AnnDataField defined by the user as a scaling factor in mean of conditional
         distribution. Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
-        Use observed library size for RNA as scaling factor in mean of conditional distribution
+        Use observed library size for RNA as a scaling factor in mean of conditional distribution
     extra_payload_autotune
-        If ``True``, will return extra matrices in the loss output to be used during autotune
+        If ``True``, returns extra matrices in the loss output to be used during autotune
     library_log_means
         1 x n_batch array of means of the log library sizes. Parameterizes prior on library size if
         not using observed library size.
@@ -102,6 +102,9 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         Extra keyword arguments passed into :class:`~scvi.nn.EncoderTOTALVI`.
     extra_decoder_kwargs
         Extra keyword arguments passed into :class:`~scvi.nn.DecoderTOTALVI`.
+    linear_classifier
+        If ``True``, uses a single linear layer for classification instead of a
+        multi-layer perceptron.
     """
 
     def __init__(
@@ -316,29 +319,12 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         tensors,
         inference_outputs,
         generative_outputs,
-        pro_recons_weight=1.0,  # double check these defaults
+        pro_recons_weight=1.0,
         kl_weight=1.0,
         labelled_tensors=None,
         classification_ratio=None,
     ) -> tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
-        """Returns the reconstruction loss and the Kullback divergences.
-
-        Parameters
-        ----------
-        x
-            tensor of values with shape ``(batch_size, n_input_genes)``
-        y
-            tensor of values with shape ``(batch_size, n_input_proteins)``
-        batch_index
-            array that indicates which batch the cells belong to with shape ``batch_size``
-        label
-            tensor of cell-types labels with shape (batch_size, n_labels)
-
-        Returns
-        -------
-        type
-            the reconstruction loss and the Kullback divergences
-        """
+        """Returns the reconstruction loss and the Kullback divergences"""
         qz1 = inference_outputs["qz"]
         z1 = inference_outputs["z"]
         ql = inference_outputs["ql"]

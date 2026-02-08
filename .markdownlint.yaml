@@ -17,5 +17,5 @@ MD013:
 
 # MD024/no-duplicate-heading
 MD024:
-  # Allow when nested under different parents e.g. CHANGELOG.md
+  # Allow when nested under different parents e.g., CHANGELOG.md
   siblings_only: true

@@ -134,7 +134,7 @@ def test_scanvi():
     m = SCANVI(a)
     m.train(1)
 
-    # test mix of labeled and unlabeled data
+    # test a mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = synthetic_iid()
     SCANVI.setup_anndata(
@@ -201,8 +201,13 @@ def test_scanvi_with_external_indices():
     train_ind, valid_ind = train_test_split(
         adata.obs.batch.index.astype(int), test_size=0.6, stratify=adata.obs.batch
     )
+    model.train(
+        1,
+        check_val_every_n_epoch=1,
+        datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
+    )
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     model.train(
         1,
@@ -245,7 +250,7 @@ def test_scanvi_with_external_indices():
     m = SCANVI(a)
     m.train(1)
 
-    # test mix of labeled and unlabeled data
+    # test a mix of labeled and unlabeled data
     unknown_label = "label_0"
     a = synthetic_iid()
     SCANVI.setup_anndata(
@@ -480,7 +485,7 @@ def test_scanvi_online_update(save_path):
     adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
     SCANVI.load_query_data(adata2, dir_path, freeze_batchnorm_encoder=True)
 
-    # ref has fully-observed labels
+    # ref has fully observed labels
     n_latent = 5
     adata1 = synthetic_iid()
     new_labels = adata1.obs.labels.to_numpy()
@@ -512,7 +517,7 @@ def test_scanvi_online_update(save_path):
     class_ref_weight = (
         model.module.classifier.classifier[0].fc_layers[0][0].weight.detach().cpu().numpy()
     )
-    # weight decay makes difference
+    # weight decay makes a difference
     np.testing.assert_allclose(class_query_weight, class_ref_weight, atol=1e-07)
 
     # test classifier unfrozen
@@ -636,7 +641,7 @@ def test_scanvi_scarches_from_scvi(save_path):
     adata4.var_names = new_var_names
 
     SCANVI.prepare_query_anndata(adata4, dir_path)
-    # should be padded 0s
+    # should be padded 0's
     assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
     np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
     SCANVI_query3 = SCANVI.load_query_data(adata4, dir_path)
@@ -662,11 +667,11 @@ def test_scanvi_interpretability_ig(unlabeled_cat: str):
         continuous_covariate_keys=["cont1", "cont2"],
         categorical_covariate_keys=["cat1", "cat2"],
     )
-    model = SCANVI(adata, n_latent=10)
+    model = SCANVI(adata, n_latent=10, encode_covariates=True)
     model.train(1, train_size=0.5, check_val_every_n_epoch=1)
 
     # get the IG for all data
-    predictions, attributions = model.predict(ig_interpretability=True)  # orignal predictions
+    predictions, attributions = model.predict(ig_interpretability=True)  # original predictions
     # let's see an avg of score of top 5 genes for all samples put together
     ig_top_features = attributions.head(5)
     print(ig_top_features)
@@ -682,6 +687,7 @@ def test_scanvi_interpretability_ig(unlabeled_cat: str):
     print(ig_top_features_3_samples)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize("unlabeled_cat", ["label_0"])
 def test_scanvi_interpretability_shap(unlabeled_cat: str):
     adata = synthetic_iid(batch_size=50)
@@ -708,7 +714,7 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     adata2.obs["cat2"] = np.random.randint(0, 5, size=(adata2.shape[0],))
 
     # now run shap values and compare to previous results
-    # (here, the more labels the more time it will take to run)
+    # (here, the more labels, the more time it will take to run)
     shap_values = model.shap_predict(shap_args={"nsamples": 100})
     # select the label we want to understand (usually the '1' class)
     shap_top_features = model.get_ranked_features(attrs=shap_values[:, :, 1]).head(5)
@@ -724,3 +730,16 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     # # select the label we want to understand (usually the '1' class)
     shap_top_features_test = model.get_ranked_features(attrs=shap_values_test[:, :, 1]).head(5)
     print(shap_top_features_test)
+
+
+@pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-cell"])
+def test_scanvi_dispersion(dispersion: str):
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        unlabeled_category="label_0",
+    )
+    model = SCANVI(adata, dispersion=dispersion)
+    model.train(1)

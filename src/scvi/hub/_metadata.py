@@ -163,7 +163,7 @@ class HubModelCardHelper:
     that is consistent with most other `scvi-tools` hub models. You can think of this as a
     template. The actual template string used can be found in ``scvi.template``. The resulting
     huggingface :class:`~huggingface_hub.ModelCard` can be accessed via the
-    :meth:`~scvi.hub.HubModelCardHelper.model_card` property.
+    :meth:`~scvi.hub.HubModel.model_card` property.
     """
 
     license_info: str
