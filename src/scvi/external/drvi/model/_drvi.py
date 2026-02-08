@@ -59,7 +59,8 @@ class DRVI(
         Prior model type.
     categorical_embedding_dims
         Dictionary mapping categorical covariate names to their embedding dimensions.
-        Used only if `covariate_modeling_strategy` passed to DRVIModule is based on embedding (not onehot encoding).
+        Used only if `covariate_modeling_strategy` passed to DRVIModule is based on
+        embedding (not onehot encoding).
         Keys should match the covariate names used in :meth:`~drvi.model.DRVI.setup_anndata`.
         If not provided, default embedding dimension of 10 is used for all covariates.
     **model_kwargs
@@ -157,7 +158,8 @@ class DRVI(
         n_cats_per_cov
             Number of categories per categorical covariate. This includes the batch covariate.
         categorical_embedding_dims
-            Dictionary mapping covariate names to their embedding dimensions. This includes the batch covariate.
+            Dictionary mapping covariate names to their embedding dimensions.
+            This includes the batch covariate.
 
         Returns
         -------
@@ -187,7 +189,10 @@ class DRVI(
     def _update_source_registry_for_existing_model(
         source_registry: dict[str, Any],
     ) -> dict[str, Any]:
-        """Update the source registry for an existing model to the latest version if any updates are needed."""
+        """Update the source registry for an existing model to the latest version.
+
+        Updates are applied if needed.
+        """
         from packaging.version import Version
 
         source_registry_drvi_version = Version(

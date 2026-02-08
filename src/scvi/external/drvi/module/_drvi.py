@@ -10,7 +10,6 @@ from scvi import REGISTRY_KEYS
 from scvi.external.drvi.module._constants import MODULE_KEYS
 from scvi.external.drvi.nn import DecoderDRVI, Encoder
 from scvi.external.drvi.nn_modules.embedding import MultiEmbedding
-from scvi.external.drvi.nn_modules.layer.factory import LayerFactory
 from scvi.external.drvi.nn_modules.noise_model import (
     LogNegativeBinomialNoiseModel,
     NegativeBinomialNoiseModel,
@@ -23,6 +22,8 @@ from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
     from typing import Any, Literal
+
+    from scvi.external.drvi.nn_modules.layer.factory import LayerFactory
 
     TensorDict = dict[str, torch.Tensor]
 
@@ -46,12 +47,15 @@ class DRVIModule(BaseModuleClass):
         - "split" : Split the latent space
         - "power" : Transform the latent space to n_split vectors of size n_latent
         - "power@Z" : Transform the latent space to n_split vectors of size n_latent Z
-        - "split_map" : Split the latent space then map each to latent space using unique transformations
-        - "split_map@Z" : Split the latent space then map each to vector of size Z using unique transformations
+        - "split_map" : Split the latent space then map each to latent space using
+          unique transformations
+        - "split_map@Z" : Split the latent space then map each to vector of size Z
+          using unique transformations
         - "split_diag" : Simple diagonal splitting
     decoder_reuse_weights
         Where to reuse the weights of the decoder layers when using splitting.
-        Possible values are 'everywhere', 'last', 'intermediate', 'nowhere', 'not_first'. Defaults to "everywhere".
+        Possible values are 'everywhere', 'last', 'intermediate', 'nowhere',
+        'not_first'. Defaults to "everywhere".
     encoder_dims
         Number of nodes in hidden layers of the encoder.
     decoder_dims
@@ -604,7 +608,8 @@ class DRVIModule(BaseModuleClass):
             Dictionary containing generative model outputs.
         """
         # Parameter transform_batch is not used!
-        # But, we keep it here since _rna_mixin.py checks module.generative to include this as a parameter!
+        # But, we keep it here since _rna_mixin.py checks module.generative
+        # to include this as a parameter!
 
         if self.shared_covariate_emb is not None:
             cat_covs = self.shared_covariate_emb(cat_covs.int())

@@ -12,13 +12,15 @@ from torch.nn import functional as F
 from scvi.external.drvi.nn_modules.embedding import MultiEmbedding
 from scvi.external.drvi.nn_modules.freezable import FreezableBatchNorm1d, FreezableLayerNorm
 from scvi.external.drvi.nn_modules.gradients import GradientScaler
-from scvi.external.drvi.nn_modules.layer.factory import FCLayerFactory, LayerFactory
+from scvi.external.drvi.nn_modules.layer.factory import FCLayerFactory
 from scvi.external.drvi.nn_modules.layer.linear_layer import StackedLinearLayer
-from scvi.external.drvi.nn_modules.noise_model import NoiseModel
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
     from typing import Any, Literal
+
+    from scvi.external.drvi.nn_modules.layer.factory import LayerFactory
+    from scvi.external.drvi.nn_modules.noise_model import NoiseModel
 
 
 def _identity(x: torch.Tensor) -> torch.Tensor:
@@ -42,7 +44,8 @@ class FCLayers(nn.Module):
         The size of split if input is a 3d tensor otherwise 1.
         This parameter is required to handle batch normalization.
     reuse_weights
-        Whether to reuse weights when having multiple splits (defined per layer). None if no reuse / split.
+        Whether to reuse weights when having multiple splits (defined per layer).
+        None if no reuse / split.
     use_batch_norm
         Whether to have `BatchNorm` layers or not.
     affine_batch_norm
@@ -262,7 +265,8 @@ class FCLayers(nn.Module):
                                 [w_size[0], w_size[1] - sum_n_cats_per_cov], device=weight.device
                             )
                         ]
-                    # Iterate over the categories and Freeze old caterogies and make new ones trainable
+                    # Iterate over the categories and Freeze old categories
+                    # and make new ones trainable
                     for n_cat_new, n_cat_old in zip(
                         n_cats_per_cov, previous_n_cats_per_cov, strict=False
                     ):
@@ -291,7 +295,8 @@ class FCLayers(nn.Module):
                                 device=weight.device,
                             )
                         ]
-                    # Iterate over the categories and Freeze old caterogies and make new ones trainable
+                    # Iterate over the categories and Freeze old categories
+                    # and make new ones trainable
                     for n_cat_new, n_cat_old in zip(
                         n_cats_per_cov, previous_n_cats_per_cov, strict=False
                     ):

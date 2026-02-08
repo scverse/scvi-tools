@@ -4,14 +4,12 @@ import logging
 from typing import TYPE_CHECKING
 
 import torch
-from lightning import LightningDataModule
 from torch import nn
 
 from scvi import REGISTRY_KEYS
 from scvi.data._constants import _MODEL_NAME_KEY, _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.external.drvi.nn import FCLayers
 from scvi.model._utils import parse_device_args
-from scvi.model.base import BaseModelClass
 from scvi.model.base._archesmixin import (
     ArchesMixin,
     _get_loaded_data,
@@ -23,6 +21,9 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from anndata import AnnData
+    from lightning import LightningDataModule
+
+    from scvi.model.base import BaseModelClass
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,8 @@ class DRVIArchesMixin(ArchesMixin):
             validate_single_device=True,
         )
 
-        # We limit to [:3] as from scvi version 1.1.5 additional output (pyro_param_store) is returned
+        # We limit to [:3] as from scvi version 1.1.5 additional output
+        # (pyro_param_store) is returned
         attr_dict, var_names, load_state_dict = _get_loaded_data(reference_model, device=device)[
             :3
         ]
@@ -110,7 +112,8 @@ class DRVIArchesMixin(ArchesMixin):
 
             if _SETUP_ARGS_KEY not in registry:
                 raise ValueError(
-                    "Saved model does not contain original setup inputs. Cannot load the original setup."
+                    "Saved model does not contain original setup inputs. "
+                    "Cannot load the original setup."
                 )
 
             if registry[_SETUP_METHOD_NAME] != "setup_datamodule":

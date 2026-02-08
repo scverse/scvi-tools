@@ -482,7 +482,9 @@ class GenerativeMixin:
         deterministic: bool = True,
         **kwargs: Any,
     ) -> np.ndarray:
-        """Return the maximum effect of each split on the reconstructed expression params for all genes.
+        """Return the maximum effect of each split on reconstructed expression params.
+
+        Computes the maximum effect for all genes.
 
         This method computes the maximum contribution of each split across all
         samples in the dataset, providing a global view of split importance.
