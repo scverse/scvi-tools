@@ -1787,3 +1787,14 @@ def test_scvi_mlflow(
     mlflow_log_artifact(
         model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
     )
+
+
+def test_scvi_asymmetric():
+    adata = synthetic_iid()
+    SCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+    )
+    model = SCVI(adata, extra_encoder_kwargs={"n_layers": 4}, extra_decoder_kwargs={"n_layers": 1})
+    model.train(1)
