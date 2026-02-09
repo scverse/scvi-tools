@@ -28,6 +28,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     and improving clarity across training APIs, {pr}`3666`.
 
 #### Removed
+- Removed all Jax tests from mandatory tests and put them under a special tag, {pr}`3702`.
 
 ### 1.4.1 (2025-12-10)
 

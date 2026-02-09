@@ -9,6 +9,7 @@ from scvi.train import JaxTrainingPlan
 from scvi.utils import attrdict
 
 
+@pytest.mark.jax
 @pytest.mark.parametrize("n_latent", [5])
 def test_jax_scvi(n_latent: int):
     adata = synthetic_iid()
@@ -29,6 +30,7 @@ def test_jax_scvi(n_latent: int):
     assert z2.shape[0] == 15
 
 
+@pytest.mark.jax
 @pytest.mark.parametrize("n_latent", [5])
 @pytest.mark.parametrize("dropout_rate", [0.1])
 def test_jax_scvi_training(n_latent: int, dropout_rate: float):
@@ -57,6 +59,7 @@ def test_jax_scvi_training(n_latent: int, dropout_rate: float):
         )
 
 
+@pytest.mark.jax
 @pytest.mark.parametrize("n_latent", [5])
 def test_jax_scvi_save_load(save_path: str, n_latent: int):
     adata = synthetic_iid()
@@ -96,6 +99,7 @@ def test_jax_scvi_save_load(save_path: str, n_latent: int):
     np.testing.assert_array_equal(z1, z2)
 
 
+@pytest.mark.jax
 def test_loss_args_jax():
     """Test that self._loss_args is set correctly."""
     adata = synthetic_iid()
