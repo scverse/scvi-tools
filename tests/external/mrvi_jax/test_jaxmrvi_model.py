@@ -39,12 +39,12 @@ def adata():
 def model(adata: AnnData):
     MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="jax")
     model = MRVI(adata)
-    model.train(max_steps=1, train_size=0.5)
+    model.train(1, train_size=0.5)
 
     return model
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances(batch_size=16)
     model.get_local_sample_distances(normalize_distances=True, batch_size=16)
@@ -60,7 +60,7 @@ def test_jaxmrvi(model: MRVI, adata: AnnData, save_path: str):
     model.train(1)
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -111,7 +111,7 @@ def test_jaxmrvi_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[s
         model.differential_expression(**de_kwarg)
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 @pytest.mark.parametrize(
     "sample_key",
     ["sample", "sample_str"],
@@ -130,7 +130,7 @@ def test_jaxmrvi_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 @pytest.mark.parametrize(
     "model_kwargs",
     [
@@ -168,14 +168,14 @@ def test_jaxmrvi_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save
         backend="jax",
     )
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(2, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 def test_jaxmrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
@@ -186,7 +186,7 @@ def test_jaxmrvi_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata,
@@ -195,7 +195,7 @@ def test_jaxmrvi_shrink_u(adata: AnnData, save_path: str):
         backend="jax",
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(2, train_size=0.5)
     model.get_local_sample_distances(batch_size=16)
 
     assert model.get_latent_representation().shape == (
@@ -222,7 +222,7 @@ def adata_stratifications():
     return adata
 
 
-@pytest.mark.optional
+@pytest.mark.jax
 def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata_stratifications,
@@ -231,7 +231,7 @@ def test_jaxmrvi_stratifications(adata_stratifications: AnnData, save_path: str)
         backend="jax",
     )
     model = MRVI(adata_stratifications, n_latent=10)
-    model.train(max_steps=2, train_size=0.5)
+    model.train(2, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"], batch_size=16)
     cell_dists = dists["cell"]
