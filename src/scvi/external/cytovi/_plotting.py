@@ -129,11 +129,10 @@ def plot_histogram(
 
     if show_plot:
         plt.show()
-    else:
-        plt.close()
-
     if return_plot:
         return g
+    if not show_plot:
+        plt.close()
 
 
 @dependencies("seaborn", "matplotlib")
@@ -263,8 +262,8 @@ def plot_biaxial(
 
     if show_plot:
         plt.show()
-    else:
-        plt.close()
-
     if return_plot:
         return g
+    if not show_plot:
+        plt.close()
+
