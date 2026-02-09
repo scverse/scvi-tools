@@ -381,43 +381,45 @@ class DiagTrainingPlan(TrainingPlan):
 
             # Compute cost matrix C
             cost_fn = cost_routines[self.sinkhorn_p]
-            C_st = cost_fn(z1, z2.detach())
+            with torch.no_grad():
+                C_st = cost_fn(z1, z2)
 
-            # Compute cost scale factor
-            cost_scale = _compute_cost_scale(C_st, self.scale_cost)
-            if cost_scale <= 0:
-                cost_scale = 1.0  # Fallback for edge cases
+                # Compute cost scale factor
+                cost_scale = _compute_cost_scale(C_st, self.scale_cost)
+                if cost_scale <= 0:
+                    cost_scale = 1.0  # Fallback for edge cases
 
-            # Scale cost matrix
-            C_scaled = C_st / cost_scale
+                # Scale cost matrix
+                C_scaled = C_st / cost_scale
 
-            # Compute adaptive epsilon from scaled cost and set blur
-            if self.sinkhorn_blur is None:
-                if self.epsilon_from_cost == "std":
-                    eps = self.epsilon_scale * C_scaled.std().item()
-                elif self.epsilon_from_cost == "mean":
-                    eps = self.epsilon_scale * C_scaled.mean().item()
+                # Compute adaptive epsilon from scaled cost and set blur
+                if self.sinkhorn_blur is None:
+                    if self.epsilon_from_cost == "std":
+                        eps = self.epsilon_scale * C_scaled.std().item()
+                    elif self.epsilon_from_cost == "mean":
+                        eps = self.epsilon_scale * C_scaled.mean().item()
+                    else:
+                        raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
+
+                    eps = max(eps, 1e-8)  # Ensure positive
+
+                    # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
+                    self.current_blur = eps ** (1.0 / self.sinkhorn_p)
                 else:
-                    raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
+                    self.current_blur = self.sinkhorn_blur
 
-                eps = max(eps, 1e-8)  # Ensure positive
+                # Compute adaptive reach from blur
+                if self.sinkhorn_reach is None:
+                    self.current_reach = self.reach_scale * self.current_blur
+                else:
+                    self.current_reach = self.sinkhorn_reach
 
-                # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
-                self.current_blur = eps ** (1.0 / self.sinkhorn_p)
-            else:
-                self.current_blur = self.sinkhorn_blur
-
-            # Compute adaptive reach from blur
-            if self.sinkhorn_reach is None:
-                self.current_reach = self.reach_scale * self.current_blur
-            else:
-                self.current_reach = self.sinkhorn_reach
-
-            # Scale embeddings so geomloss sees scaled cost
-            if cost_scale != 1.0:
-                embed_scale = cost_scale ** (-1.0 / self.sinkhorn_p)
-                z1 = z1 * embed_scale
-                z2 = z2 * embed_scale
+                # Scale embeddings so geomloss sees scaled cost
+                if cost_scale != 1.0:
+                    embed_scale = cost_scale ** (-1.0 / self.sinkhorn_p)
+                    z1 = z1 * embed_scale
+                    z2 = z2 * embed_scale
+        
         else:
             # Both blur and reach are specified - use them with optional annealing
             if use_annealing:
