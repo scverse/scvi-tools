@@ -266,4 +266,3 @@ def plot_biaxial(
         return g
     if not show_plot:
         plt.close()
-
