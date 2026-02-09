@@ -1,7 +1,6 @@
 import contextlib
 import inspect
 import io
-import json
 import os
 import pickle
 import tarfile

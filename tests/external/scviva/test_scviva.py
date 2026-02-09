@@ -210,7 +210,7 @@ def test_scviva_differential(adata):
         path = tmp.name
 
     try:
-        DE_results.plot(path_to_save=path,show_plot=False)
+        DE_results.plot(path_to_save=path, show_plot=False)
         assert os.path.exists(path)
         assert os.path.getsize(path) > 0
     finally:

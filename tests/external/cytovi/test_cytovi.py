@@ -84,8 +84,9 @@ def test_cytovi_preprocess(adata, overlapping_adatas):
 
 @pytest.mark.optional
 def test_cytovi_plotting(adata):
-    cytovi.plot_biaxial(adata, layer_key=RAW_LAYER_KEY, marker_x=adata.var_names[0],
-                        show_plot=False)
+    cytovi.plot_biaxial(
+        adata, layer_key=RAW_LAYER_KEY, marker_x=adata.var_names[0], show_plot=False
+    )
     cytovi.plot_histogram(adata, layer_key=RAW_LAYER_KEY, show_plot=False)
 
 
@@ -117,7 +118,7 @@ def test_cytovi(adata):
     imp_exp = model.get_normalized_expression()
     assert imp_exp.shape == adata.shape
 
-    assert model.posterior_predictive_sample().shape == (adata.n_obs,adata.n_vars)
+    assert model.posterior_predictive_sample().shape == (adata.n_obs, adata.n_vars)
     da_res = model.differential_abundance()
     assert da_res.shape == (adata.n_obs, adata.obs[SAMPLE_KEY].nunique())
 

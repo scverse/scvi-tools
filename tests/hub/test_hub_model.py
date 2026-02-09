@@ -1,3 +1,4 @@
+import importlib
 import json
 import os
 import tempfile
@@ -6,7 +7,6 @@ from dataclasses import asdict
 import anndata
 import numpy as np
 import pytest
-import importlib
 
 import scvi
 from scvi.criticism import create_criticism_report
@@ -29,12 +29,14 @@ def prep_scvi_hub_model(save_path: str) -> HubModel:
     model.save(model_path, save_anndata=True, overwrite=True)
     create_criticism_report(model, save_folder=model_path, n_samples=2)
 
-    metadata = HubMetadata.from_dir(model_path, anndata_version=importlib.metadata.version('anndata'))
+    metadata = HubMetadata.from_dir(
+        model_path, anndata_version=importlib.metadata.version("anndata")
+    )
     desc = "scVI model trained on synthetic IID data and uploaded with the full training data."
     card = HubModelCardHelper.from_dir(
         model_path,
         license_info="cc-by-4.0",
-        anndata_version=importlib.metadata.version('anndata'),
+        anndata_version=importlib.metadata.version("anndata"),
         data_modalities=["rna"],
         data_is_annotated=False,
         description=desc,
@@ -47,11 +49,13 @@ def prep_scvi_no_anndata_hub_model(save_path: str) -> HubModel:
     model_path = os.path.join(save_path, "test_scvi_no_anndata")
     model.save(model_path, save_anndata=False, overwrite=True)
 
-    metadata = HubMetadata.from_dir(model_path, anndata_version=importlib.metadata.version('anndata'))
+    metadata = HubMetadata.from_dir(
+        model_path, anndata_version=importlib.metadata.version("anndata")
+    )
     card = HubModelCardHelper.from_dir(
         model_path,
         license_info="cc-by-4.0",
-        anndata_version=importlib.metadata.version('anndata'),
+        anndata_version=importlib.metadata.version("anndata"),
         data_modalities=["rna"],
         data_is_annotated=False,
         description="scVI model trained on synthetic IID data and uploaded with no data.",
@@ -71,12 +75,14 @@ def prep_scvi_minified_hub_model(save_path: str) -> HubModel:
     model_path = os.path.join(save_path, "test_scvi_minified")
     model.save(model_path, save_anndata=True, overwrite=True)
 
-    metadata = HubMetadata.from_dir(model_path, anndata_version=importlib.metadata.version('anndata'))
+    metadata = HubMetadata.from_dir(
+        model_path, anndata_version=importlib.metadata.version("anndata")
+    )
     desc = "scVI model trained on synthetic IID data and uploaded with the minified data."
     card = HubModelCardHelper.from_dir(
         model_path,
         license_info="cc-by-4.0",
-        anndata_version=importlib.metadata.version('anndata'),
+        anndata_version=importlib.metadata.version("anndata"),
         data_modalities=["rna"],
         data_is_annotated=False,
         description=desc,
@@ -214,12 +220,15 @@ def test_hub_model_large_training_adata(request, save_path):
     model.save(test_save_path, overwrite=True)
 
     hm = HubMetadata(
-        scvi.__version__, importlib.metadata.version('anndata'), "SCVI", training_data_url=training_data_url
+        scvi.__version__,
+        importlib.metadata.version("anndata"),
+        "SCVI",
+        training_data_url=training_data_url,
     )
     hmch = HubModelCardHelper.from_dir(
         test_save_path,
         license_info="cc-by-4.0",
-        anndata_version=importlib.metadata.version('anndata'),
+        anndata_version=importlib.metadata.version("anndata"),
         model_parent_module="other_module",
     )
 
