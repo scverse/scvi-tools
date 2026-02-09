@@ -52,9 +52,11 @@ class BayesianRegressionPyroModel(PyroModule):
         # This effectively allows these priors to move with the model's device with the
         # expense of dynamic recreation.
         self.linear.weight = PyroSample(
-            lambda prior: dist.Normal(self.zero, self.one)
-            .expand([self.out_features, self.in_features])
-            .to_event(2)
+            lambda prior: (
+                dist.Normal(self.zero, self.one)
+                .expand([self.out_features, self.in_features])
+                .to_event(2)
+            )
         )
         self.linear.bias = PyroSample(
             lambda prior: dist.Normal(self.zero, self.ten).expand([self.out_features]).to_event(1)
