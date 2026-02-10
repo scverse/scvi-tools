@@ -129,9 +129,8 @@ def test_resolvi_scarches(adata):
 
 @pytest.mark.parametrize("weights", ["uniform", "importance"])
 @pytest.mark.parametrize("n_samples", [1, 3])
-@pytest.mark.parametrize("run_IS_DE", [False, True])
-def test_resolvi_differential_expression_IS(adata, weights: str, n_samples: int, run_IS_DE: bool):
+def test_resolvi_differential_expression_IS(adata, weights: str, n_samples: int):
     RESOLVI.setup_anndata(adata)
     model = RESOLVI(adata)
     model.train(max_epochs=1)
-    model.differential_expression(groupby="labels", run_IS_DE=run_IS_DE, n_samples=n_samples)
+    model.differential_expression(groupby="labels", weights=weights, n_samples=n_samples)
