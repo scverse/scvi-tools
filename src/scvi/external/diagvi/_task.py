@@ -15,29 +15,11 @@ from scvi.external.diagvi._utils import (
 from scvi.train import TrainingPlan
 from scvi.utils import dependencies
 
-try:
-    from pykeops.torch import LazyTensor
-
-    keops_available = True
-except ImportError:
-    keops_available = False
-
 logger = logging.getLogger(__name__)
 
 
-def squared_distances(x: torch.Tensor, y: torch.Tensor, use_keops: bool = False) -> torch.Tensor:
+def squared_distances(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Compute squared Euclidean distances between point sets."""
-    if use_keops and keops_available:
-        if x.dim() == 2:
-            x_i = LazyTensor(x[:, None, :])
-            y_j = LazyTensor(y[None, :, :])
-        elif x.dim() == 3:
-            x_i = LazyTensor(x[:, :, None, :])
-            y_j = LazyTensor(y[:, None, :, :])
-        else:
-            raise ValueError(f"Incorrect number of dimensions: {x.shape}")
-        return ((x_i - y_j) ** 2).sum(-1)
-
     if x.dim() == 2:
         D_xx = (x * x).sum(-1).unsqueeze(1)
         D_xy = torch.matmul(x, y.permute(1, 0))
@@ -52,10 +34,8 @@ def squared_distances(x: torch.Tensor, y: torch.Tensor, use_keops: bool = False)
     return D_xx - 2 * D_xy + D_yy
 
 
-def distances(x: torch.Tensor, y: torch.Tensor, use_keops: bool = False) -> torch.Tensor:
+def distances(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Compute Euclidean distances between point sets."""
-    if use_keops and keops_available:
-        return squared_distances(x, y, use_keops=use_keops).sqrt()
     return torch.sqrt(torch.clamp_min(squared_distances(x, y), 1e-8))
 
 
@@ -63,30 +43,6 @@ cost_routines = {
     1: lambda x, y: distances(x, y),
     2: lambda x, y: squared_distances(x, y) / 2,
 }
-
-
-def _compute_cost_scale(
-    C: torch.Tensor,
-    method: float | Literal["mean", "max", "median", "std"] | None,
-) -> float:
-    """Compute scale factor for cost matrix (OTT-JAX style).
-
-    Returns the scale factor s such that C_scaled = C / s has unit statistic.
-    """
-    if method is None or method == 1.0:
-        return 1.0
-    if isinstance(method, (int | float)):
-        return float(method)
-    if method == "mean":
-        return C.mean().item()
-    if method == "max":
-        return C.max().item()
-    if method == "median":
-        return C.median().item()
-    if method == "std":
-        return C.std().item()
-    raise ValueError(f"Unknown scale_cost method: {method}")
-
 
 def _anneal_param(
     current_epoch: int,
@@ -145,13 +101,9 @@ class DiagTrainingPlan(TrainingPlan):
         Blur for geomloss Sinkhorn (epsilon = blur^p). If None, computed
         adaptively from cost matrix like OTT-JAX, by default None.
     epsilon_from_cost
-        Statistic of scaled cost to compute epsilon: "std" or "mean", by default "mean".
+        Statistic of cost to compute epsilon: "std" or "mean", by default "mean".
     epsilon_scale
-        Scaling factor: `epsilon = epsilon_scale * statistic(C_scaled)`, by default 0.05.
-    scale_cost
-        How to scale cost matrix. Either a float (C_scaled = C / float) or
-        one of "mean", "max", "median", "std" (C_scaled = C / statistic(C)).
-        Use None or 1.0 for no scaling. By default 1.0.
+        Scaling factor: `epsilon = epsilon_scale * statistic(C)`, by default 0.05.
     sinkhorn_reach
         Reach parameter for unbalanced OT. If None, calculate adaptive reach from blur.
     reach_scale
@@ -182,7 +134,6 @@ class DiagTrainingPlan(TrainingPlan):
         sinkhorn_blur: float | None = None,
         epsilon_from_cost: Literal["mean", "std"] = "mean",
         epsilon_scale: float = 0.05,
-        scale_cost: float | Literal["mean", "max", "median", "std"] | None = 1.0,
         sinkhorn_reach: float | None = None,
         reach_scale: float = 10.0,
         lr: float = 1e-3,
@@ -207,7 +158,6 @@ class DiagTrainingPlan(TrainingPlan):
         self.sinkhorn_reach = sinkhorn_reach
         self.epsilon_from_cost = epsilon_from_cost
         self.epsilon_scale = epsilon_scale
-        self.scale_cost = scale_cost
         self.reach_scale = reach_scale
 
         # Training parameters
@@ -379,25 +329,17 @@ class DiagTrainingPlan(TrainingPlan):
             # Adaptively compute Sinkhorn parameters via OTT-JAX style heuristics
             # Note: annealing is NOT applied when using adaptive computation
 
-            # Compute cost matrix C
             cost_fn = cost_routines[self.sinkhorn_p]
             with torch.no_grad():
-                C_st = cost_fn(z1, z2)
+                # Compute cost matrix C
+                C_st = cost_fn(z1, z2)                
 
-                # Compute cost scale factor
-                cost_scale = _compute_cost_scale(C_st, self.scale_cost)
-                if cost_scale <= 0:
-                    cost_scale = 1.0  # Fallback for edge cases
-
-                # Scale cost matrix
-                C_scaled = C_st / cost_scale
-
-                # Compute adaptive epsilon from scaled cost and set blur
+                # Compute adaptive epsilon from cost and set blur
                 if self.sinkhorn_blur is None:
                     if self.epsilon_from_cost == "std":
-                        eps = self.epsilon_scale * C_scaled.std().item()
+                        eps = self.epsilon_scale * C_st.std().item()
                     elif self.epsilon_from_cost == "mean":
-                        eps = self.epsilon_scale * C_scaled.mean().item()
+                        eps = self.epsilon_scale * C_st.mean().item()
                     else:
                         raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
 
@@ -413,12 +355,6 @@ class DiagTrainingPlan(TrainingPlan):
                     self.current_reach = self.reach_scale * self.current_blur
                 else:
                     self.current_reach = self.sinkhorn_reach
-
-                # Scale embeddings so geomloss sees scaled cost
-                if cost_scale != 1.0:
-                    embed_scale = cost_scale ** (-1.0 / self.sinkhorn_p)
-                    z1 = z1 * embed_scale
-                    z2 = z2 * embed_scale
         
         else:
             # Both blur and reach are specified - use them with optional annealing
