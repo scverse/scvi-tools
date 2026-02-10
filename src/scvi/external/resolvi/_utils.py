@@ -194,12 +194,24 @@ class ResolVIPredictiveMixin:
             args, kwargs = self.module._get_fn_args_from_batch(tensors)
             kwargs = {k: v.to(device) if v is not None else v for k, v in kwargs.items()}
             model_now = partial(self.module.model_simplified, corrected_rate=True)
-            importance_dist = infer.Importance(
-                model_now, guide=self.module.guide.guide_simplified, num_samples=10 * n_samples
-            )
-            posterior = importance_dist.run(*args, **kwargs)
-            marginal = infer.EmpiricalMarginal(posterior, sites=["mean_poisson", "px_scale"])
-            samples = torch.cat([marginal().unsqueeze(1) for i in range(n_samples)], 1)
+            if weights == "importance":
+                importance_dist = infer.Importance(
+                    model_now, guide=self.module.guide.guide_simplified, num_samples=10 * n_samples
+                )
+                posterior = importance_dist.run(*args, **kwargs)
+                marginal = infer.EmpiricalMarginal(posterior, sites=["mean_poisson", "px_scale"])
+                samples = torch.cat([marginal().unsqueeze(1) for i in range(n_samples)], 1)
+            else:
+                predictive = infer.Predictive(
+                    model_now,
+                    guide=self.module.guide.guide_simplified,
+                    num_samples=n_samples,
+                    return_sites=["mean_poisson", "px_scale"],
+                )
+                samples_dict = predictive(*args, **kwargs)
+                samples = torch.stack(
+                    [samples_dict["mean_poisson"], samples_dict["px_scale"]], dim=0
+                )
             log_weights = (
                 torch.distributions.Poisson(samples[0, ...] + 1e-3)
                 .log_prob(kwargs["x"].to(samples.device))
@@ -252,7 +264,6 @@ class ResolVIPredictiveMixin:
         return_mean: bool = True,
         return_numpy: bool | None = None,
         silent: bool = True,
-        **kwargs,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         r"""Returns the normalized (decoded) gene expression.
 
@@ -292,8 +303,6 @@ class ResolVIPredictiveMixin:
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
              to `False`. Otherwise, it defaults to `True`.
         %(de_silent)s
-        **kwargs
-            Additional keyword arguments passed
 
         Returns
         -------
