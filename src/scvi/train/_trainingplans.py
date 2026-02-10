@@ -1338,8 +1338,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         elif callable(self.module.model):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
         self.scale_elbo = scale_elbo
-        self.scale_fn = (
-            lambda obj: pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
+        self.scale_fn = lambda obj: (
+            pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
         )
         self.differentiable_loss_fn = self.loss_fn.differentiable_loss
         self.training_step_outputs = []
@@ -1469,8 +1469,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         self.optim = pyro.optim.Adam(optim_args=optim_kwargs) if optim is None else optim
         # We let SVI take care of all optimization
         self.automatic_optimization = False
-        self.block_fn = (
-            lambda obj: pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
+        self.block_fn = lambda obj: (
+            pyro.poutine.block(obj, hide=blocked) if blocked is not None else obj
         )
 
         self.svi = pyro.infer.SVI(

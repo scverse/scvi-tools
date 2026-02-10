@@ -20,6 +20,7 @@ def _get_mdata(sparse_format: str | None = None):
     return mdata
 
 
+@pytest.mark.jax
 @pytest.mark.parametrize(
     ("density_prior_key", "constrained"),
     [
@@ -51,6 +52,7 @@ def test_tangram(density_prior_key, constrained):
     model.project_genes(mdata.mod["sc"], mdata.mod["sp"], mdata.mod["sc"].obsm["mapper"])
 
 
+@pytest.mark.jax
 def test_tangram_errors():
     mdata = _get_mdata()
     Tangram.setup_mudata(
