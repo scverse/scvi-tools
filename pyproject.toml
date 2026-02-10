@@ -137,6 +137,9 @@ markers = [
     "multigpu: mark tests that are used to check multi GPU performance",
     "autotune: mark tests that are used to check ray autotune capabilities",
     "custom dataloaders: mark tests that are used to check different custom data loaders",
+    "dataloader: mark tests that are used to check data loaders",
+    "jax: mark test as jax related",
+    "mlflow: mark test for mlflow",
 ]
 
 [tool.ruff]

@@ -438,7 +438,6 @@ class RESOLVI(
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         n_samples: int = 5,
-        run_IS_DE: bool = True,
         size_scaling: bool = False,
         library_scaling: bool = False,
         **kwargs,
@@ -472,8 +471,6 @@ class RESOLVI(
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
         n_samples
             Number of posterior samples to use for estimation.
-        run_IS_DE
-            Wheter to run with IS get_normalized_expression
         size_scaling
             If True, will scale normalized expression by size factors (e.g. cell volume).
             This needs to be setup in :meth:`~scvi.external.RESOLVI.setup_anndata` with
@@ -491,9 +488,7 @@ class RESOLVI(
         adata = self._validate_anndata(adata)
 
         model_fn = partial(
-            self.get_normalized_expression_importance
-            if run_IS_DE
-            else self.get_normalized_expression,
+            self.get_normalized_expression_importance,
             return_numpy=True,
             n_samples=n_samples,
             batch_size=batch_size,
