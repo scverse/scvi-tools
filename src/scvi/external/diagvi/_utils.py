@@ -12,6 +12,7 @@ import torch.nn.functional as F
 
 from scvi.data._download import _download
 from scvi.utils import dependencies
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 if TYPE_CHECKING:
     from typing import Any, Literal
@@ -295,7 +296,6 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
     return total_loss
 
 
-
 def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     """Computes the KL divergence for graph latent variables.
 
@@ -313,3 +313,120 @@ def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
     kl_mean = kl.mean()
     return kl_mean
+
+
+def validate_marker(adata: AnnData, marker: str | list[str]):
+    """Validate that specified marker(s) exist in adata.var_names."""
+    if isinstance(marker, str):
+        marker = [marker]
+    for m in marker:
+        if m not in adata.var_names:
+            raise ValueError(f"Marker {m} not found in adata.var_names.")
+
+
+def validate_obs_keys(adata: AnnData, obs_key: str | list[str]):
+    """Validate that specified observation key(s) exist in adata.obs."""
+    if obs_key is not None:
+        if isinstance(obs_key, str):
+            obs_key = [obs_key]
+        for key in obs_key:
+            if key is not None:
+                if key not in adata.obs:
+                    raise ValueError(f"Key {key} not found in adata.obs.")
+
+
+def validate_layer_key(adata: AnnData, layer_key: str):
+    """Validate that specified layer key exists in adata.layers."""
+    if layer_key is not None:
+        if layer_key not in adata.layers:
+            raise ValueError(f"Layer key {layer_key} not found in adata.layers.")
+
+
+def apply_scaling(data, method, feature_range):
+    """Apply scaling to the data using the specified method and feature range."""
+    if method == "minmax":
+        scaler = MinMaxScaler(feature_range=feature_range)
+    elif method == "standard":
+        scaler = StandardScaler()
+    return scaler.fit_transform(data), scaler
+
+
+def subsample(
+    adata: AnnData,
+    n_obs: int = 10000,
+    random_state: int = 42,
+    replace: bool = False,
+    groupby: str = None,
+    n_obs_group: int | None = None,
+) -> AnnData | None:
+    """Subsample an AnnData object.
+    
+    This function is adapted from CytoVI's preprocessing utilities.
+
+    Parameters
+    ----------
+    adata
+        The AnnData object to downsample.
+    n_obs
+        The number of observations to downsample to. Default is 10000.
+    random_state
+        The random state to use for the downsampling. Default is 42.
+    replace
+        If True, the downsampling is applied with replacement. If False, a new AnnData
+        object is returned. Default is False.
+    groupby
+        The column name in `adata.obs` to group the observations by. Default is None.
+    n_obs_group
+        The number of observations to downsample to within each group. If not provided,
+          it is calculated as `n_obs` divided by the number of unique groups. Default is None.
+
+    Returns
+    -------
+    If `replace` is False, returns the downsampled AnnData object. Otherwise, returns None.
+
+    Raises
+    ------
+    ValueError
+        If the observations in `adata` are not unique.
+    ValueError
+        If the specified `groupby` column is not found in `adata.obs`.
+    UserWarning
+        If a group has fewer observations than `n_obs_group` and `replace` is False.
+    """
+    if len(adata.obs.index) != len(set(adata.obs.index)):
+        msg = (
+            "Observations are not unique. Cannot subsample. Call `.obs_names_make_unique` before."
+        )
+        raise ValueError(msg)
+
+    if groupby is not None:
+        if groupby not in adata.obs:
+            raise ValueError(f"Group {groupby} not found in adata.obs.")
+        group_cats = adata.obs[groupby].drop_duplicates().values
+
+        if n_obs_group is None:
+            n_obs_group = n_obs // len(group_cats)
+
+        if not replace:
+            for group in group_cats:
+                if len(adata.obs[adata.obs[groupby] == group]) < n_obs_group:
+                    msg = (
+                        f"Group {group} has fewer observations than {n_obs_group} observations."
+                        + " Taking all group observations. Set replace to True to sample with"
+                        " replacement."
+                    )
+                    logger.warning(msg)
+
+        index = adata.obs.groupby(groupby, as_index=False).apply(
+            lambda x: x.sample(n_obs_group, random_state=random_state, replace=replace)
+            if len(x) > n_obs_group
+            else x
+        )
+        index = index.reset_index()["level_1"].to_list()
+        adata_subsampled = adata[index, :].copy()
+    else:
+        adata_subsampled = adata[
+            adata.obs.sample(n_obs, random_state=random_state, replace=replace).index, :
+        ].copy()
+
+    return adata_subsampled
