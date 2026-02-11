@@ -127,10 +127,13 @@ def test_resolvi_scarches(adata):
     query_adata.obsm["X_resolVI"] = query_resolvi.get_latent_representation(query_adata)
 
 
-@pytest.mark.parametrize("weights", ["uniform", "importance"])
+@pytest.mark.parametrize("weights", ["importance", "uniform"])
 @pytest.mark.parametrize("n_samples", [1, 3])
-def test_resolvi_differential_expression_IS(adata, weights: str, n_samples: int):
+@pytest.mark.parametrize("downsample_counts", [True, False])
+def test_resolvi_differential_expression(
+    adata, weights: str, n_samples: int, downsample_counts: bool
+):
     RESOLVI.setup_anndata(adata)
-    model = RESOLVI(adata)
+    model = RESOLVI(adata, downsample_counts=downsample_counts)
     model.train(max_epochs=1)
     model.differential_expression(groupby="labels", weights=weights, n_samples=n_samples)
