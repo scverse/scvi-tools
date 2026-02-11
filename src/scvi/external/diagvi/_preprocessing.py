@@ -11,8 +11,6 @@ if TYPE_CHECKING:
     from typing import Literal
     from anndata import AnnData
 
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-
 from ._utils import apply_scaling, validate_layer_key, validate_marker
 
 logger = logging.getLogger(__name__)
@@ -68,23 +66,22 @@ def transform_arcsinh(
     raw_layer = adata.layers[raw_layer_key]
     if sp.issparse(raw_layer):
         raw_layer = raw_layer.toarray()
+        was_sparse = True
     else:
         raw_layer = raw_layer.copy()
+        was_sparse = False
 
     # Apply scaling factor and arcsinh transformation
     transformed_layer = raw_layer / np.array(list(global_dict.values()))
-    adata.layers[transformed_layer_key] = np.arcsinh(transformed_layer)
+    transformed_layer = np.arcsinh(transformed_layer)
+    
+    # Convert back to sparse if original was sparse
+    if was_sparse:
+        adata.layers[transformed_layer_key] = sp.csr_matrix(transformed_layer)
+    else:
+        adata.layers[transformed_layer_key] = transformed_layer
 
     return adata if not inplace else None
-
-
-def apply_scaling(data, method, feature_range):
-    """Utility function to apply scaling to data."""
-    if method == "minmax":
-        scaler = MinMaxScaler(feature_range=feature_range)
-    elif method == "standard":
-        scaler = StandardScaler()
-    return scaler.fit_transform(data), scaler
 
 
 def scale(
@@ -133,6 +130,10 @@ def scale(
     # Set feature range with epsilon
     feature_range = (feature_range[0] + feat_eps, feature_range[1] - feat_eps)
 
+    # Check sparsity before branching
+    was_sparse = sp.issparse(adata.layers[transformed_layer_key])
+
+
     if batch_key:
         # Scale per batch
         batches = adata.obs[batch_key].unique()
@@ -174,5 +175,9 @@ def scale(
             transformed_layer, method, feature_range
         )
         adata.layers[scaled_layer_key] = scaled_data
+
+    # Convert back to sparse if original was sparse
+    if was_sparse:
+        adata.layers[scaled_layer_key] = sp.csr_matrix(adata.layers[scaled_layer_key])
 
     return adata if not inplace else None
