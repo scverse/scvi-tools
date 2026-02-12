@@ -11,7 +11,6 @@ from torch.nn import functional as F
 
 from scvi.external.drvi.nn_modules.embedding import MultiEmbedding
 from scvi.external.drvi.nn_modules.freezable import FreezableBatchNorm1d, FreezableLayerNorm
-from scvi.external.drvi.nn_modules.gradients import GradientScaler
 from scvi.external.drvi.nn_modules.layer.factory import FCLayerFactory
 from scvi.external.drvi.nn_modules.layer.linear_layer import StackedLinearLayer
 
@@ -747,8 +746,6 @@ class DecoderDRVI(nn.Module):
         The strategy model takes to model covariates.
     categorical_covariate_dims
         Dimensions for categorical covariate embeddings.
-    last_layer_gradient_scale
-        Gradient scale for the last layer of the decoder.
     **kwargs
         Additional keyword arguments.
     """
@@ -782,7 +779,6 @@ class DecoderDRVI(nn.Module):
             "emb_shared_linear",
         ] = "one_hot",
         categorical_covariate_dims: Sequence[int] = (),
-        last_layer_gradient_scale: float = 1.0,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -830,11 +826,6 @@ class DecoderDRVI(nn.Module):
             assert reuse_weights == "nowhere"
             self.register_parameter("px_shared_decoder", None)
             inject_covariates = True
-
-        if last_layer_gradient_scale != 1.0:
-            self.last_layer_gradient_scaler = GradientScaler(last_layer_gradient_scale)
-        else:
-            self.register_parameter("last_layer_gradient_scaler", None)
 
         params_for_likelihood = self.gene_likelihood_module.parameters
         params_nets = {}
@@ -1073,8 +1064,6 @@ class DecoderDRVI(nn.Module):
         last_tensor = z
         if self.px_shared_decoder is not None:
             last_tensor = self.px_shared_decoder(last_tensor, cat_full_tensor)
-        if self.last_layer_gradient_scaler is not None:
-            last_tensor = self.last_layer_gradient_scaler(last_tensor)
 
         params, original_params = self._apply_last_layer(
             last_tensor,

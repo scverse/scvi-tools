@@ -111,8 +111,6 @@ class DRVIModule(BaseModuleClass):
         A layer Factory instance for building encoder layers.
     decoder_layer_factory
         A layer Factory instance for building decoder layers.
-    last_layer_gradient_scale
-        Gradient scale for the last layer of the decoder.
     extra_encoder_kwargs
         Extra keyword arguments passed into encoder.
     extra_decoder_kwargs
@@ -160,7 +158,6 @@ class DRVIModule(BaseModuleClass):
         mean_activation: Callable | str = "identity",
         encoder_layer_factory: LayerFactory | None = None,
         decoder_layer_factory: LayerFactory | None = None,
-        last_layer_gradient_scale: float = 1.0,
         extra_encoder_kwargs: dict[str, Any] | None = None,
         extra_decoder_kwargs: dict[str, Any] | None = None,
     ) -> None:
@@ -246,7 +243,6 @@ class DRVIModule(BaseModuleClass):
             layer_factory=decoder_layer_factory,
             covariate_modeling_strategy=covariate_modeling_strategy,
             categorical_covariate_dims=categorical_covariate_dims,
-            last_layer_gradient_scale=last_layer_gradient_scale,
             **(extra_decoder_kwargs or {}),
         )
 
