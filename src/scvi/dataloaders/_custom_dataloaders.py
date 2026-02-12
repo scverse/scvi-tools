@@ -1012,9 +1012,20 @@ class ZarrSparseDataModule(LightningDataModule):
             self.label_encoder = None
             self.n_labels = 0
 
+        # Attributes expected by the mlflow logger in _trainrunner
+        self.data_loader_kwargs = {}
+        self.train_size = 1.0
+        self.n_train = dataset.n_obs
+        self.n_val = 0
+
     # The annbatch Loader is already an iterable that yields batches
     def train_dataloader(self):
         return self.dataset
+
+    def __iter__(self):
+        """Iterate over the Loader, applying on_before_batch_transfer to each batch."""
+        for batch in self.dataset:
+            yield self.on_before_batch_transfer(batch, dataloader_idx=0)
 
     # Hook to transform annbatch LoaderOutput -> dict expected by scvi
     def on_before_batch_transfer(self, batch, dataloader_idx):
