@@ -980,57 +980,70 @@ class TileDBDataModule(LightningDataModule):
 
 class ZarrSparseDataModule(LightningDataModule):
     """
-    Minimal LightningDataModule for annbatch.ZarrSparseDataset.
+    Minimal LightningDataModule for annbatch.Loader.
 
     Parameters
     ----------
-    dataset : annbatch.ZarrSparseDataset
-        The dataset built from annbatch.create_anndata_collection.
+    dataset : annbatch.Loader
+        The Loader configured with a DatasetCollection.
     batch_size : int, optional
-        Size of mini-batches.  Note that the ZarrSparseDataset already
-        chunks data internally; setting this to ``None`` will cause the
-        DataLoader to yield each pre-chunked batch as-is.
+        Not used directly — the Loader already handles batching internally.
+    labels_key : str, optional
+        Column name in obs to use as labels. Default is ``"labels"``.
     """
 
-    def __init__(self, dataset, batch_size=None):
+    def __init__(self, dataset, batch_size=None, labels_key="labels"):
         super().__init__()
         self.dataset = dataset
-        # Use the ZarrSparseDataset batch size by default
         self.batch_size = batch_size
+        self.labels_key = labels_key
         # If labels are present, build an encoder so scvi can treat them as ints
-        if dataset._dataset_manager.labels is not None:
-            all_labels = np.concatenate(dataset._dataset_manager.labels).astype(str)
+        if (
+            dataset._obs is not None
+            and len(dataset._obs) > 0
+            and any(labels_key in obs.columns for obs in dataset._obs)
+        ):
+            all_labels = np.concatenate([obs[labels_key].values for obs in dataset._obs]).astype(
+                str
+            )
             self.label_encoder = LabelEncoder().fit(all_labels)
             self.n_labels = len(self.label_encoder.classes_)
         else:
             self.label_encoder = None
             self.n_labels = 0
 
-    # Data loader: yield the underlying batches from ZarrSparseDataset
+    # The annbatch Loader is already an iterable that yields batches
     def train_dataloader(self):
-        # Passing batch_size=None causes the DataLoader to use each element
-        # returned by the dataset as a batch
-        return DataLoader(self.dataset, batch_size=self.batch_size)
+        return self.dataset
 
-    # Hook to transform (X, labels) -> dict expected by scvi
+    # Hook to transform annbatch LoaderOutput -> dict expected by scvi
     def on_before_batch_transfer(self, batch, dataloader_idx):
-        """Convert a ZarrSparseDataset batch to the dictionary required by scvi-tools."""
-        # Unpack the tuple (X, labels) from the dataset
-        X_np, lbls = batch
+        """Convert an annbatch Loader batch to the dictionary required by scvi-tools."""
+        # annbatch Loader yields dicts with keys "X", "obs", and optionally "index"
+        X_np = batch["X"]
+        obs = batch.get("obs")
 
-        # Convert sparse batches to dense before converting to torch
-        if issparse(X_np):
-            X_np = X_np.toarray()
-
-        X_tensor = torch.as_tensor(X_np, dtype=torch.float32)
+        # Convert sparse batches to dense before converting to torch.
+        # When to_torch=True, annbatch returns torch sparse CSR tensors;
+        # otherwise it returns scipy sparse matrices.
+        if isinstance(X_np, torch.Tensor) and X_np.is_sparse_csr:
+            X_tensor = X_np.to_dense().to(dtype=torch.float32)
+        elif issparse(X_np):
+            X_tensor = torch.as_tensor(X_np.toarray(), dtype=torch.float32)
+        else:
+            X_tensor = torch.as_tensor(X_np, dtype=torch.float32)
 
         # All cells belong to a single batch (batch index 0)
         batch_tensor = torch.zeros((X_tensor.shape[0], 1), dtype=torch.long)
 
-        # Encode labels if present
+        # Extract and encode labels if present
+        lbls = None
+        if obs is not None and self.labels_key in obs.columns:
+            lbls = obs[self.labels_key].values
+
         if lbls is not None and self.label_encoder is not None:
             encoded = []
-            for v in lbls.astype(str):
+            for v in np.asarray(lbls).astype(str):
                 try:
                     encoded.append(self.label_encoder.transform([v])[0])
                 except ValueError:
@@ -1052,7 +1065,7 @@ class ZarrSparseDataModule(LightningDataModule):
     @property
     def registry(self):
         return {
-            "scvi_version": "0.0.0",  # replace with scvi.__version__ if available
+            "scvi_version": scvi.__version__,  # replace with scvi.__version__ if available
             "model_name": "SCVI",
             "setup_args": {
                 "layer": None,
@@ -1067,15 +1080,13 @@ class ZarrSparseDataModule(LightningDataModule):
                 "X": {
                     "data_registry": {"attr_name": "X", "attr_key": None},
                     "state_registry": {
-                        "n_obs": self.dataset._dataset_manager.n_obs,
-                        "n_vars": self.dataset._dataset_manager.n_var,
-                        "column_names": [
-                            f"gene_{i}" for i in range(self.dataset._dataset_manager.n_var)
-                        ],
+                        "n_obs": self.dataset.n_obs,
+                        "n_vars": self.dataset.n_var,
+                        "column_names": [f"gene_{i}" for i in range(self.dataset.n_var)],
                     },
                     "summary_stats": {
-                        "n_vars": self.dataset._dataset_manager.n_var,
-                        "n_cells": self.dataset._dataset_manager.n_obs,
+                        "n_vars": self.dataset.n_var,
+                        "n_cells": self.dataset.n_obs,
                     },
                 },
                 "batch": {
