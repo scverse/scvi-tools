@@ -1285,6 +1285,35 @@ def test_annbatch(save_path: str):
     model.train(max_epochs=1, datamodule=dm)
     model.history.keys()
 
-    # # Generate cell representations
-    # latent = model.get_latent_representation(dataloader=dm)
-    # print(latent.shape)
+    # Generate cell representations
+    latent = model.get_latent_representation(dataloader=dm)
+    print(latent.shape)
+
+    # Test with validation dataloader
+    ds_val = Loader(
+        batch_size=4096,
+        chunk_size=256,
+        preload_nchunks=32,
+        preload_to_gpu=False,
+        to_torch=True,
+    )
+    ds_val.use_collection(collection, load_adata=_load_adata)
+
+    dm_val = ZarrSparseDataModule(ds, dataset_val=ds_val)
+
+    model_val = scvi.model.SCVI(registry=dm_val.registry)
+    model_val.train(
+        max_epochs=1,
+        datamodule=dm_val,
+        check_val_every_n_epoch=1,
+        train_size=0.9,
+    )
+
+    logged_keys = model_val.history.keys()
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+    assert "elbo_validation" in logged_keys
+    assert "reconstruction_loss_validation" in logged_keys
+    assert "kl_local_validation" in logged_keys
+    assert "validation_loss" in logged_keys
