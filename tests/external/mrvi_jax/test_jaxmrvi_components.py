@@ -1,6 +1,7 @@
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+import pytest
 
 from scvi.external.mrvi_jax._components import (
     MLP,
@@ -12,6 +13,7 @@ from scvi.external.mrvi_jax._components import (
 )
 
 
+@pytest.mark.jax
 def test_jaxmrvi_dense():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
@@ -21,6 +23,7 @@ def test_jaxmrvi_dense():
     assert output.shape == (20, 10)
 
 
+@pytest.mark.jax
 def test_jaxmrvi_resnetblock():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
@@ -30,6 +33,7 @@ def test_jaxmrvi_resnetblock():
     assert output[0].shape == (20, 30)
 
 
+@pytest.mark.jax
 def test_jaxmrvi_normalnn():
     key = jax.random.PRNGKey(0)
     key, subkey = jax.random.split(key)
@@ -40,6 +44,7 @@ def test_jaxmrvi_normalnn():
     assert output[0].batch_shape == (20, 30)
 
 
+@pytest.mark.jax
 def test_jaxmrvi_mlp():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
@@ -49,6 +54,7 @@ def test_jaxmrvi_mlp():
     assert output[0].shape == (20, 30)
 
 
+@pytest.mark.jax
 def test_jaxmrvi_conditionalbatchnorm1d():
     key = jax.random.PRNGKey(0)
     x = jnp.ones((20, 10))
@@ -61,6 +67,7 @@ def test_jaxmrvi_conditionalbatchnorm1d():
     assert output[0].shape == (20, 10)
 
 
+@pytest.mark.jax
 def test_jaxmrvi_attention():
     key = jax.random.PRNGKey(0)
     q_vals = jnp.ones((30, 10))

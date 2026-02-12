@@ -39,14 +39,6 @@ def test_lamindb_dataloader_scvi_small(save_path: str, setup_lamindb_instance):
     artifacts = collection.artifacts.all()
     artifacts.df()
 
-    # large data example
-    # ln.track("d1kl7wobCO1H0005")
-    # ln.setup.init(name="lamindb_instance_name", storage=save_path) # is this need in github test
-    # ln.setup.init()
-    # collection = ln.Collection.using("laminlabs/cellxgene").get(name="covid_normal_lung")
-    # artifacts = collection.artifacts.all()
-    # artifacts.df()
-
     datamodule = MappedCollectionDataModule(
         collection,
         batch_key="batch",
