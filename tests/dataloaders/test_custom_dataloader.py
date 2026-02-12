@@ -1226,10 +1226,6 @@ def test_annbatch(save_path: str):
     adata1.write(os.path.join(save_path, "file1.h5ad"))
     adata2.write(os.path.join(save_path, "file2.h5ad"))
 
-    shared_columns = ad.experimental.read_lazy("file1.h5ad").obs.columns.intersection(
-        ad.experimental.read_lazy("file2.h5ad").obs.columns
-    )
-
     def read_lazy_x_and_obs_only(path) -> ad.AnnData:
         """Custom load function to only load raw counts from CxG data."""
         # IMPORTANT: Large data should always be loaded lazily to reduce the memory footprint
@@ -1243,7 +1239,7 @@ def test_annbatch(save_path: str):
 
         return ad.AnnData(
             X=x,
-            obs=adata_.obs.to_memory()[shared_columns],
+            obs=adata_.obs.to_memory(),
             var=var.to_memory(),
         )
 
@@ -1251,7 +1247,7 @@ def test_annbatch(save_path: str):
 
     collection.add_adatas(
         # List all the h5ad files you want to include in the collection
-        adata_paths=["file1.h5ad", "file2.h5ad"],
+        adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
         # Path to store the output collection
         shuffle=True,  # Whether to pre-shuffle the cells of the collection
         n_obs_per_dataset=2_097_152,
