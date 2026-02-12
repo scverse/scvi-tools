@@ -364,3 +364,21 @@ class TestDRVIModel:
                     decoder_reuse_weights=reuse_strategy,
                     reconstruction_strategy=reconstruction_strategy,
                 )
+
+    def test_integration_with_different_dispersion_models(self):
+        adata = self.make_test_adata()
+        for batch_key in ["batch", None]:
+            for covariate_modeling_strategy in (
+                ["one_hot", "emb", "emb_shared"] if batch_key else ["one_hot"]
+            ):
+                for gene_likelihood in ["nb", "pnb", "normal"]:
+                    for dispersion in ["gene", "gene-batch", "gene-cell"]:
+                        print(f"Testing {batch_key} {gene_likelihood} {dispersion} combination")
+                        self._general_integration_test(
+                            adata,
+                            max_epochs=1,
+                            gene_likelihood=gene_likelihood,
+                            dispersion=dispersion,
+                            covariate_modeling_strategy=covariate_modeling_strategy,
+                            data_kwargs=dict(batch_key=batch_key),  # noqa: C408
+                        )

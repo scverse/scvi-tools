@@ -787,6 +787,9 @@ class DecoderDRVI(nn.Module):
         self.n_split = n_split
         self.split_aggregation = split_aggregation
         self.split_method = split_method
+        self.n_cat_list = list(n_cat_list) if n_cat_list else []
+        self.covariate_modeling_strategy = covariate_modeling_strategy
+        self.categorical_covariate_dims = categorical_covariate_dims
 
         if self.n_split == -1 or self.n_split == 1:
             assert reuse_weights
@@ -853,8 +856,24 @@ class DecoderDRVI(nn.Module):
                 )
             elif param_info == "per_feature":
                 params_nets[param_name] = torch.nn.Parameter(torch.randn(n_output))
+            elif param_info == "batch_linear":
+                if covariate_modeling_strategy in [
+                    "one_hot",
+                    "one_hot_linear",
+                    "emb",
+                    "emb_linear",
+                ]:
+                    params_nets[param_name] = nn.Linear(self.n_cat_list[0], n_output, bias=True)
+                    nn.init.normal_(params_nets[param_name].weight, -1, 1)
+                    nn.init.zeros_(params_nets[param_name].bias)
+                elif covariate_modeling_strategy in ["emb_shared", "emb_shared_linear"]:
+                    params_nets[param_name] = nn.Linear(
+                        categorical_covariate_dims[0], n_output, bias=True
+                    )
+                else:
+                    raise NotImplementedError()
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(f"Parameter type '{param_info}' not implemented")
         self.params_nets = nn.ParameterDict(params_nets)
 
     def _initialize_splitting(self, n_input: int) -> None:
@@ -1014,8 +1033,33 @@ class DecoderDRVI(nn.Module):
                     param_value = param_value.unsqueeze(0).expand(batch_size, -1)
                 params[param_name] = param_value
                 original_params[param_name] = params[param_name]
+            elif param_info == "batch_linear":
+                if self.covariate_modeling_strategy in [
+                    "one_hot",
+                    "one_hot_linear",
+                    "emb",
+                    "emb_linear",
+                ]:
+                    batch_mapping_input = F.one_hot(
+                        cat_full_tensor[:, 0].long().squeeze(-1), self.n_cat_list[0]
+                    ).float()
+                elif self.covariate_modeling_strategy in ["emb_shared", "emb_shared_linear"]:
+                    batch_mapping_input = cat_full_tensor[:, : self.categorical_covariate_dims[0]]
+                else:
+                    raise NotImplementedError()
+                param_value = param_net(batch_mapping_input)
+
+                if reconstruction_indices is None:
+                    pass
+                elif reconstruction_indices.dim() == 1:
+                    param_value = param_value[:, reconstruction_indices]
+                else:
+                    raise NotImplementedError()
+
+                params[param_name] = param_value
+                original_params[param_name] = params[param_name]
             else:
-                raise NotImplementedError()
+                raise NotImplementedError(f"Parameter type '{param_info}' not implemented")
 
         return params, original_params
 

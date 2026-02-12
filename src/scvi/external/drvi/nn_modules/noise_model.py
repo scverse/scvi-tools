@@ -249,8 +249,9 @@ class NormalNoiseModel(NoiseModel):
         Variance modeling strategy:
         - "fixed": Use fixed variance of 1e-2
         - "fixed=value": Use fixed variance of specified value
-        - "dynamic": Learn variance per sample
-        - "feature": Learn variance per feature
+        - "gene": Learn variance per gene
+        - "gene-batch": Learn variance per gene per batch
+        - "gene-cell": Learn variance per gene per cell
     eps
         Small constant added to variance for numerical stability.
     """
@@ -273,10 +274,12 @@ class NormalNoiseModel(NoiseModel):
             var_desc = "fixed=1e-2"
         elif self.model_var.startswith("fixed="):
             var_desc = self.model_var
-        elif self.model_var == "dynamic":
-            var_desc = "no_transformation"
-        elif self.model_var == "feature":
+        elif self.model_var == "gene":
             var_desc = "per_feature"
+        elif self.model_var == "gene-batch":
+            var_desc = "batch_linear"
+        elif self.model_var == "gene-cell":
+            var_desc = "no_transformation"
         else:
             raise NotImplementedError()
         return {
@@ -435,12 +438,13 @@ class NegativeBinomialNoiseModel(NoiseModel):
 
     def __init__(
         self,
-        dispersion="feature",
+        dispersion="gene",
         mean_transformation="exp",
         library_normalization: Literal["none", "x_lib"] = "x_lib",
     ):
         super().__init__()
         assert mean_transformation in ["exp", "softmax", "softplus", "none"]
+        assert dispersion in ["gene", "gene-batch", "gene-cell"]
         self.dispersion = dispersion
         self.mean_transformation = mean_transformation
         self.library_normalization = library_normalization
@@ -457,10 +461,14 @@ class NegativeBinomialNoiseModel(NoiseModel):
         params = {
             "mean": "no_transformation",
         }
-        if self.dispersion == "feature":
+        if self.dispersion == "gene":
             params["r"] = "per_feature"
+        elif self.dispersion == "gene-batch":
+            params["r"] = "batch_linear"
+        elif self.dispersion == "gene-cell":
+            params["r"] = "no_transformation"
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Dispersion '{self.dispersion}' not implemented")
         return params
 
     def initial_transformation(self, x, x_mask=1.0):
@@ -701,8 +709,11 @@ class LogNegativeBinomialNoiseModel(NoiseModel):
 
     Parameters
     ----------
-    dispersion : {"feature"}, default="feature"
-        Dispersion parameter modeling strategy.
+    dispersion : {"gene", "gene-batch", "gene-cell"}, default="gene"
+        Dispersion parameter modeling strategy:
+        - "gene": Dispersion parameter is constant per gene across all cells
+        - "gene-batch": Dispersion can differ between different batches
+        - "gene-cell": Dispersion can differ for every gene in every cell
     mean_transformation : {"none"}, default="none"
         Transformation to apply to the mean parameter.
     library_normalization : {"none", "x_lib"}, default="x_lib"
@@ -717,11 +728,12 @@ class LogNegativeBinomialNoiseModel(NoiseModel):
 
     def __init__(
         self,
-        dispersion="feature",
+        dispersion="gene",
         mean_transformation="none",
         library_normalization: Literal["none", "x_lib"] = "x_lib",
     ):
         super().__init__()
+        assert dispersion in ["gene", "gene-batch", "gene-cell"]
         self.dispersion = dispersion
         self.mean_transformation = mean_transformation
         self.library_normalization = library_normalization
@@ -738,10 +750,14 @@ class LogNegativeBinomialNoiseModel(NoiseModel):
         params = {
             "mean": "no_transformation",
         }
-        if self.dispersion == "feature":
+        if self.dispersion == "gene":
             params["r"] = "per_feature"
+        elif self.dispersion == "gene-batch":
+            params["r"] = "batch_linear"
+        elif self.dispersion == "gene-cell":
+            params["r"] = "no_transformation"
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Dispersion '{self.dispersion}' not implemented")
         return params
 
     def initial_transformation(self, x, x_mask=1.0):

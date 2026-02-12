@@ -94,10 +94,11 @@ class DRVIModule(BaseModuleClass):
         Dropout rate to apply to each of the decoder hidden layers.
     gene_likelihood
         Gene likelihood model. Options include:
-        - "normal", "normal_v", "normal_sv" : Normal distributions
         - "poisson" : Poisson distributions
         - "nb" : Negative binomial distributions
         - "pnb": Log negative binomial distributions
+        - "normal" : Normal distributions
+        - "normal_unit_var" : Normal distributions with unit variance
     prior
         Prior model.
     var_activation
@@ -150,9 +151,8 @@ class DRVIModule(BaseModuleClass):
         input_dropout_rate: float = 0.0,
         encoder_dropout_rate: float = 0.1,
         decoder_dropout_rate: float = 0.0,
-        gene_likelihood: Literal[
-            "normal", "normal_v", "normal_sv", "poisson", "nb", "pnb"
-        ] = "pnb",
+        gene_likelihood: Literal["normal", "poisson", "nb", "pnb"] = "pnb",
+        dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",
         prior: Literal["normal"] = "normal",
         var_activation: Callable | Literal["exp", "pow2", "2sig"] = "exp",
         mean_activation: Callable | str = "identity",
@@ -163,6 +163,8 @@ class DRVIModule(BaseModuleClass):
     ) -> None:
         super().__init__()
         self.n_latent = n_latent
+        self.encoder_dims = encoder_dims
+        self.decoder_dims = decoder_dims
         if n_split_latent is None or n_split_latent == -1:
             n_split_latent = n_latent
         self.n_split_latent = n_split_latent
@@ -173,7 +175,9 @@ class DRVIModule(BaseModuleClass):
         self.encode_covariates = encode_covariates
         self.deeply_inject_covariates = deeply_inject_covariates
 
-        self.gene_likelihood_module = self._construct_gene_likelihood_module(gene_likelihood)
+        self.gene_likelihood_module = self._construct_gene_likelihood_module(
+            gene_likelihood, dispersion
+        )
         self.fill_in_the_blanks_ratio = fill_in_the_blanks_ratio
         self.reconstruction_strategy = reconstruction_strategy
 
@@ -257,13 +261,15 @@ class DRVIModule(BaseModuleClass):
     def fully_deterministic(self, value: bool) -> None:
         self.z_encoder.fully_deterministic = value
 
-    def _construct_gene_likelihood_module(self, gene_likelihood: str) -> Any:
+    def _construct_gene_likelihood_module(self, gene_likelihood: str, dispersion: str) -> Any:
         """Construct the gene likelihood module based on the specified type.
 
         Parameters
         ----------
         gene_likelihood
             Type of gene likelihood model to construct.
+        dispersion
+            Dispersion parameter modeling strategy. Only used for relevant likelihoods.
 
         Returns
         -------
@@ -275,21 +281,19 @@ class DRVIModule(BaseModuleClass):
         NotImplementedError
             If the gene likelihood type is not supported.
         """
-        if gene_likelihood == "normal":
+        if gene_likelihood == "normal_unit_var":
             return NormalNoiseModel(model_var="fixed=1")
-        elif gene_likelihood == "normal_v":
-            return NormalNoiseModel(model_var="dynamic")
-        elif gene_likelihood == "normal_sv":
-            return NormalNoiseModel(model_var="feature")
+        elif gene_likelihood == "normal":
+            return NormalNoiseModel(model_var=dispersion)
         elif gene_likelihood == "poisson":
             return PoissonNoiseModel(mean_transformation="softmax", library_normalization="none")
         elif gene_likelihood in ["nb"]:
             return NegativeBinomialNoiseModel(
-                dispersion="feature", mean_transformation="softmax", library_normalization="none"
+                dispersion=dispersion, mean_transformation="softmax", library_normalization="none"
             )
         elif gene_likelihood in ["pnb"]:
             return LogNegativeBinomialNoiseModel(
-                dispersion="feature", mean_transformation="softmax", library_normalization="none"
+                dispersion=dispersion, mean_transformation="softmax", library_normalization="none"
             )
         else:
             raise NotImplementedError()
