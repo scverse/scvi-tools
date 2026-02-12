@@ -990,13 +990,18 @@ class ZarrSparseDataModule(LightningDataModule):
         Not used directly — the Loader already handles batching internally.
     labels_key : str, optional
         Column name in obs to use as labels. Default is ``"labels"``.
+    dataset_val : annbatch.Loader, optional
+        Optional validation Loader. If provided, ``val_dataloader`` will
+        return this loader and ``train_size`` / ``n_val`` will be set
+        accordingly.
     """
 
-    def __init__(self, dataset, batch_size=None, labels_key="labels"):
+    def __init__(self, dataset, batch_size=None, labels_key="labels", dataset_val=None):
         super().__init__()
         self.dataset = dataset
         self.batch_size = batch_size
         self.labels_key = labels_key
+        self._validset = dataset_val
         # If labels are present, build an encoder so scvi can treat them as ints
         if (
             dataset._obs is not None
@@ -1014,13 +1019,35 @@ class ZarrSparseDataModule(LightningDataModule):
 
         # Attributes expected by the mlflow logger in _trainrunner
         self.data_loader_kwargs = {}
-        self.train_size = 1.0
+        if self._validset is not None:
+            self.train_size = dataset.n_obs / (dataset.n_obs + self._validset.n_obs)
+            self.n_val = self._validset.n_obs
+        else:
+            self.train_size = 1.0
+            self.n_val = 0
         self.n_train = dataset.n_obs
-        self.n_val = 0
 
-    # The annbatch Loader is already an iterable that yields batches
+    # The annbatch Loader is already an iterable that yields batches.
+    # We wrap it to hide __len__ (which returns n_obs, not n_batches)
+    # because Lightning uses len(dataloader) to compute val_check_batch;
+    # a misleading length prevents validation from ever triggering.
+    class _IterableLoaderWrapper:
+        """Thin wrapper that exposes only __iter__, hiding __len__."""
+
+        def __init__(self, loader):
+            self._loader = loader
+
+        def __iter__(self):
+            return iter(self._loader)
+
     def train_dataloader(self):
-        return self.dataset
+        return self._IterableLoaderWrapper(self.dataset)
+
+    def val_dataloader(self):
+        if self._validset is not None:
+            return self._IterableLoaderWrapper(self._validset)
+        else:
+            pass
 
     def __iter__(self):
         """Iterate over the Loader, applying on_before_batch_transfer to each batch."""
