@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import torch
 from lightning.pytorch import LightningDataModule
+from scipy.sparse import issparse
 from sklearn.preprocessing import LabelEncoder
 from torch.utils.data import DataLoader
 
@@ -975,3 +976,155 @@ class TileDBDataModule(LightningDataModule):
 
         def __len__(self):
             return len(self.dataloader)
+
+
+class ZarrSparseDataModule(LightningDataModule):
+    """
+    Minimal LightningDataModule for annbatch.ZarrSparseDataset.
+
+    Parameters
+    ----------
+    dataset : annbatch.ZarrSparseDataset
+        The dataset built from annbatch.create_anndata_collection.
+    batch_size : int, optional
+        Size of mini-batches.  Note that the ZarrSparseDataset already
+        chunks data internally; setting this to ``None`` will cause the
+        DataLoader to yield each pre-chunked batch as-is.
+    """
+
+    def __init__(self, dataset, batch_size=None):
+        super().__init__()
+        self.dataset = dataset
+        # Use the ZarrSparseDataset batch size by default
+        self.batch_size = batch_size
+        # If labels are present, build an encoder so scvi can treat them as ints
+        if dataset._dataset_manager.labels is not None:
+            all_labels = np.concatenate(dataset._dataset_manager.labels).astype(str)
+            self.label_encoder = LabelEncoder().fit(all_labels)
+            self.n_labels = len(self.label_encoder.classes_)
+        else:
+            self.label_encoder = None
+            self.n_labels = 0
+
+    # Data loader: yield the underlying batches from ZarrSparseDataset
+    def train_dataloader(self):
+        # Passing batch_size=None causes the DataLoader to use each element
+        # returned by the dataset as a batch
+        return DataLoader(self.dataset, batch_size=self.batch_size)
+
+    # Hook to transform (X, labels) -> dict expected by scvi
+    def on_before_batch_transfer(self, batch, dataloader_idx):
+        """Convert a ZarrSparseDataset batch to the dictionary required by scvi-tools."""
+        # Unpack the tuple (X, labels) from the dataset
+        X_np, lbls = batch
+
+        # Convert sparse batches to dense before converting to torch
+        if issparse(X_np):
+            X_np = X_np.toarray()
+
+        X_tensor = torch.as_tensor(X_np, dtype=torch.float32)
+
+        # All cells belong to a single batch (batch index 0)
+        batch_tensor = torch.zeros((X_tensor.shape[0], 1), dtype=torch.long)
+
+        # Encode labels if present
+        if lbls is not None and self.label_encoder is not None:
+            encoded = []
+            for v in lbls.astype(str):
+                try:
+                    encoded.append(self.label_encoder.transform([v])[0])
+                except ValueError:
+                    encoded.append(self.n_labels)  # unknown label -> unlabeled_category
+            labels_tensor = torch.tensor(encoded, dtype=torch.long).unsqueeze(1)
+        else:
+            labels_tensor = torch.zeros((X_tensor.shape[0], 1), dtype=torch.long)
+
+        return {
+            "X": X_tensor,
+            "batch": batch_tensor,
+            "labels": labels_tensor,
+            "extra_categorical_covs": None,
+            "extra_continuous_covs": None,
+            "sample": None,
+        }
+
+    # Required by scvi-tools to register field metadata
+    @property
+    def registry(self):
+        return {
+            "scvi_version": "0.0.0",  # replace with scvi.__version__ if available
+            "model_name": "SCVI",
+            "setup_args": {
+                "layer": None,
+                "batch_key": None,
+                "labels_key": "labels",
+                "size_factor_key": None,
+                "categorical_covariate_keys": None,
+                "continuous_covariate_keys": None,
+                "samples_key": None,
+            },
+            "field_registries": {
+                "X": {
+                    "data_registry": {"attr_name": "X", "attr_key": None},
+                    "state_registry": {
+                        "n_obs": self.dataset._dataset_manager.n_obs,
+                        "n_vars": self.dataset._dataset_manager.n_var,
+                        "column_names": [
+                            f"gene_{i}" for i in range(self.dataset._dataset_manager.n_var)
+                        ],
+                    },
+                    "summary_stats": {
+                        "n_vars": self.dataset._dataset_manager.n_var,
+                        "n_cells": self.dataset._dataset_manager.n_obs,
+                    },
+                },
+                "batch": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
+                    "state_registry": {
+                        "categorical_mapping": ["0"],  # single batch
+                        "original_key": None,
+                    },
+                    "summary_stats": {"n_batch": 1},
+                },
+                "labels": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
+                    "state_registry": {
+                        "categorical_mapping": (
+                            list(self.label_encoder.classes_) + ["Unknown"]
+                            if self.label_encoder is not None
+                            else ["Unknown"]
+                        ),
+                        "original_key": "labels",
+                        "unlabeled_category": "Unknown",
+                    },
+                    "summary_stats": {"n_labels": self.n_labels},
+                },
+                "ind_x": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_indices"},
+                    "state_registry": {},
+                    "summary_stats": {},
+                },
+                "sample": {
+                    "data_registry": {"attr_name": "obs", "attr_key": "_scvi_sample"},
+                    "state_registry": {},
+                    "n_obs_per_sample": {"n_obs_per_sample": torch.tensor([])},
+                    "summary_stats": {"n_sample": 0},
+                },
+                "size_factor": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {},
+                },
+                "extra_categorical_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_categorical_covs": 0},
+                },
+                "extra_continuous_covs": {
+                    "data_registry": {},
+                    "state_registry": {},
+                    "summary_stats": {"n_extra_continuous_covs": 0},
+                },
+            },
+            "setup_method_name": "setup_datamodule",
+        }

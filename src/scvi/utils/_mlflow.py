@@ -42,6 +42,7 @@ def mlflow_log_table(
 ) -> None:
     import mlflow
 
+    data["table_index"] = data.index
     file_size_mb = sys.getsizeof(data) / (1024 * 1024)
     if file_size_mb <= max_size_mb:
         mlflow.log_table(data, artifact_file=artifact_file, run_id=run_id)
