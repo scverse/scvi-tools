@@ -1207,9 +1207,15 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
 
 @pytest.mark.dataloader
 def test_annbatch(save_path: str):
-    from annbatch import create_anndata_collection
+    import anndata as ad
+    import zarr
+    from annbatch import DatasetCollection, Loader
     from scipy.sparse import csr_matrix
 
+    # Using zarrs is necessary for local filesystem performance.
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    # create and save adata on disk
     adata1 = scvi.data.synthetic_iid(batch_size=20000)
     adata1.X = csr_matrix(adata1.X)
 
@@ -1220,42 +1226,59 @@ def test_annbatch(save_path: str):
     adata1.write(os.path.join(save_path, "file1.h5ad"))
     adata2.write(os.path.join(save_path, "file2.h5ad"))
 
-    create_anndata_collection(
-        adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
-        output_path=".",  # a directory containing `dataset_{i}.zarr`
-        shuffle=True,  # shuffling is needed if you want to use chunked access
+    shared_columns = ad.experimental.read_lazy("file1.h5ad").obs.columns.intersection(
+        ad.experimental.read_lazy("file2.h5ad").obs.columns
     )
 
-    from annbatch import ZarrSparseDataset
+    def read_lazy_x_and_obs_only(path) -> ad.AnnData:
+        """Custom load function to only load raw counts from CxG data."""
+        # IMPORTANT: Large data should always be loaded lazily to reduce the memory footprint
+        adata_ = ad.experimental.read_lazy(path)
+        if adata_.raw is not None:
+            x = adata_.raw.X
+            var = adata_.raw.var
+        else:
+            x = adata_.X
+            var = adata_.var
 
-    ds = ZarrSparseDataset(
+        return ad.AnnData(
+            X=x,
+            obs=adata_.obs.to_memory()[shared_columns],
+            var=var.to_memory(),
+        )
+
+    collection = DatasetCollection(zarr.open("annbatch_collection", mode="w"))
+
+    collection.add_adatas(
+        # List all the h5ad files you want to include in the collection
+        adata_paths=["file1.h5ad", "file2.h5ad"],
+        # Path to store the output collection
+        shuffle=True,  # Whether to pre-shuffle the cells of the collection
+        n_obs_per_dataset=2_097_152,
+        # Number of cells per dataset shard, this number is much higher than available
+        # in these datasets but is generally a good target
+        var_subset=None,  # Optionally subset the collection to a specific gene space
+        load_adata=read_lazy_x_and_obs_only,
+    )
+
+    def _load_adata(g: zarr.Group) -> ad.AnnData:
+        return ad.AnnData(
+            X=ad.io.sparse_dataset(g["X"]),
+            obs=ad.experimental.read_lazy(g).obs[["batch", "labels"]].to_memory(),
+        )
+
+    ds = Loader(
         batch_size=4096,  # Total number of obs per yielded batch
         chunk_size=256,
         # Number of obs to load from disk contiguously - default settings should work well
         preload_nchunks=32,
         # Number of chunks to preload + shuffle - default settings should work well
         preload_to_gpu=False,
-        # If True, preloaded chunks are moved to GPU memory via `cupy`,
-        # which can put more pressure on GPU memory but will accelerate loading ~20%
-        to_torch=False,
+        to_torch=True,
     )
-    from pathlib import Path
 
-    COLLECTION_PATH = Path(".")
-    import anndata as ad
-    import zarr
-
-    # Add dataset that should be used for training
-    ds.add_anndatas(
-        [
-            ad.AnnData(
-                X=ad.io.sparse_dataset(zarr.open(p)["X"]),
-                obs=ad.io.read_elem(zarr.open(p)["obs"]),
-            )
-            for p in COLLECTION_PATH.glob("*.zarr")
-        ],
-        obs_keys="labels",
-    )
+    # Add in the shuffled data that should be used for training.
+    ds.use_collection(collection, load_adata=_load_adata)
 
     # adapter = ZarrSparseDatasetAdapter(ds)
     dm = ZarrSparseDataModule(ds)
