@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
-from torch.distributions import Normal
+from torch.distributions import Normal, kl_divergence
 
 from scvi import REGISTRY_KEYS
 from scvi.external.drvi.module._constants import MODULE_KEYS
@@ -16,7 +16,6 @@ from scvi.external.drvi.nn_modules.noise_model import (
     NormalNoiseModel,
     PoissonNoiseModel,
 )
-from scvi.external.drvi.nn_modules.prior import StandardPrior
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
 if TYPE_CHECKING:
@@ -250,7 +249,7 @@ class DRVIModule(BaseModuleClass):
             **(extra_decoder_kwargs or {}),
         )
 
-        self.prior = self._construct_prior(prior)
+        self.prior = prior
         self.inspect_mode = False
 
     @property
@@ -295,24 +294,6 @@ class DRVIModule(BaseModuleClass):
             return LogNegativeBinomialNoiseModel(
                 dispersion=dispersion, mean_transformation="softmax", library_normalization="none"
             )
-        else:
-            raise NotImplementedError()
-
-    def _construct_prior(self, prior: str) -> Any:
-        """Construct the prior model based on the specified type.
-
-        Parameters
-        ----------
-        prior
-            Type of prior model to construct.
-
-        Returns
-        -------
-        object
-            Constructed prior model.
-        """
-        if prior == "normal":
-            return StandardPrior()
         else:
             raise NotImplementedError()
 
@@ -681,7 +662,12 @@ class DRVIModule(BaseModuleClass):
 
     def _get_kl_divergence_z(self, qz_m: torch.Tensor, qz_v: torch.Tensor) -> torch.Tensor:
         """Get KL divergence term for z."""
-        return self.prior.kl(Normal(qz_m, torch.sqrt(qz_v))).sum(dim=-1)
+        qz = Normal(qz_m, torch.sqrt(qz_v))
+        pz = Normal(torch.zeros_like(qz.mean), torch.ones_like(qz.mean))
+        if self.prior == "normal":
+            return kl_divergence(qz, pz).sum(dim=-1)
+        else:
+            raise NotImplementedError()
 
     def loss(
         self,
