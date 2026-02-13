@@ -295,7 +295,6 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
     return total_loss
 
 
-
 def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
     """Computes the KL divergence for graph latent variables.
 

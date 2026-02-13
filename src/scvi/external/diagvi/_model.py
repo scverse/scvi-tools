@@ -162,9 +162,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         self._model_summary_string = (
             f"DiagVI Model with the following params: input names: {self.input_names}, "
-            f"n_inputs: {n_inputs}, n_batches: {n_batches}, "
+            f"n_inputs: {n_inputs}, n_batches: {n_batches}, n_labels: {n_labels}, "
+            f"semi_supervised: {semi_supervised}, gmm_priors: {gmm_priors}, "
             f"generative distributions: {generative_distributions}, "
-            f" n_latent: {n_latent}, n_hidden: {n_hidden}, n_layers: {n_layers}."
+            f"n_latent: {n_latent}."
         )
 
         self.init_params_ = self._get_init_params(locals())
@@ -174,7 +175,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
     def train(
         self,
         max_epochs: int | None = None,
-        batch_size: int = 1024,
+        batch_size: int = 2048,
         train_size: float = 0.9,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
@@ -300,7 +301,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         likelihood: Literal["nb", "zinb", "nbmixture", "normal", "log1pnormal", "ziln", "zig"] = "nb",
         normalize_lib: bool = True,
         gmm_prior: bool = False,
-        semi_supervised: bool = False,
         n_mixture_components: int = 10,
         unlabeled_category: str = "unknown",
         **kwargs,
@@ -328,10 +328,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Whether to normalize counts with library size in the model.
         gmm_prior
             Whether to use a GMM prior for this modality.
-        semi_supervised
-            Whether to use semi-supervised classification for this modality.
         n_mixture_components
-            Number of mixture components for the GMM prior. If semi_supervised is True,
+            Number of mixture components for the GMM prior. If labels_key is provided,
             this parameter is ignored and set to the number of unique labels in labels_key.
         unlabeled_category
             Category for unlabeled cells in labels_key.
@@ -339,7 +337,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Additional keyword arguments.
         """
         # Checks for valid likelihood and data compatibility
-        continuous_likelihoods = {"ziln", "zig", "lognormal", "log1pnormal", "gamma", "normal"}
+        continuous_likelihoods = {"ziln", "zig", "log1pnormal", "normal"}
         if likelihood in continuous_likelihoods:
             # Check for negative values (invalid for most continuous likelihoods)
             data = adata.X if layer is None else adata.layers[layer]
@@ -353,20 +351,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
                     f"Likelihood '{likelihood}' requires non-negative data, "
                     f"but found minimum value {data_min}. Consider using 'normal' instead."
                 )
-            # Warn about zeros for non-zero-inflated likelihoods
-            if likelihood in {"lognormal", "gamma"}:
-                if scipy.sparse.issparse(data):
-                    has_zeros = (data.data == 0).any() or data.nnz < np.prod(data.shape)
-                else:
-                    has_zeros = (data == 0).any()
-                
-                if has_zeros:
-                    warnings.warn(
-                        f"Data contains zeros but likelihood '{likelihood}' does not model zeros. "
-                        f"Consider using '{{'ziln' if likelihood == 'lognormal' else 'zig'}}' instead.",
-                        UserWarning,
-                        stacklevel=settings.warnings_stacklevel,
-                    )
 
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
@@ -376,11 +360,24 @@ class DIAGVI(BaseModelClass, VAEMixin):
         adata.uns["diagvi_likelihood"] = likelihood
         adata.uns["diagvi_normalize_lib"] = normalize_lib
         adata.uns["diagvi_gmm_prior"] = gmm_prior
-        adata.uns["diagvi_semi_supervised"] = semi_supervised
 
-        # If semi-supervised, set n_mixture_components to number of unique labels
-        if semi_supervised and labels_key is not None:
-            n_mixture_components = adata.obs[labels_key].nunique()
+        # If labels_key is provided, set semi_supervised to True 
+        # and n_mixture_components to number of unique labels
+        if labels_key is not None:
+            semi_supervised = True
+            actual_n_components = adata.obs[labels_key].nunique()
+            if n_mixture_components != 10 and n_mixture_components != actual_n_components:
+                warnings.warn(
+                    f"n_mixture_components={n_mixture_components} is ignored; "
+                    f"using {actual_n_components} labels from labels_key='{labels_key}' "
+                    f"as n_mixture_components instead.",
+                    UserWarning,
+                    stacklevel=settings.warnings_stacklevel,
+                )
+            n_mixture_components = actual_n_components
+        else:
+            semi_supervised = False
+        adata.uns["diagvi_semi_supervised"] = semi_supervised
         adata.uns["diagvi_n_mixture_components"] = n_mixture_components
 
         setup_method_args = cls._get_setup_method_args(**locals())
@@ -412,7 +409,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         likelihood: dict[str, Literal["nb", "zinb", "nbmixture", "normal"]] | str = "nb",
         normalize_lib: dict[str, bool] | bool = True,
         gmm_prior: dict[str, bool] | bool = False,
-        semi_supervised: dict[str, bool] | bool = False,
         n_mixture_components: dict[str, int] | int = 10,
         unlabeled_category: dict[str, str] | str = "unknown",
         **kwargs,
@@ -439,11 +435,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Whether to normalize counts with library size in the model for each modality.
         gmm_prior
             Whether to use GMM prior for each modality. Default is False.
-        semi_supervised
-            Whether to use semi-supervised learning for each modality.
-            Default is False.
         n_mixture_components
-            Number of GMM mixture components for each modality. Default is 10.
+            Number of mixture components for the GMM prior for each modality. If labels_key
+            is provided, this parameter is ignored and set to the number of unique labels
+            in labels_key.
         unlabeled_category
             Category name for unlabeled cells. Default is 'unknown'.
         **kwargs
@@ -458,9 +453,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
             likelihood_mod = likelihood[mod_key] if isinstance(likelihood, dict) else likelihood
             normalize_lib_mod = normalize_lib[mod_key] if isinstance(normalize_lib, dict) else normalize_lib
             gmm_prior_mod = gmm_prior[mod_key] if isinstance(gmm_prior, dict) else gmm_prior
-            semi_supervised_mod = (
-                semi_supervised[mod_key] if isinstance(semi_supervised, dict) else semi_supervised
-            )
             n_mixture_components_mod = (
                 n_mixture_components[mod_key]
                 if isinstance(n_mixture_components, dict)
@@ -480,7 +472,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 likelihood=likelihood_mod,
                 normalize_lib=normalize_lib_mod,
                 gmm_prior=gmm_prior_mod,
-                semi_supervised=semi_supervised_mod,
                 n_mixture_components=n_mixture_components_mod,
                 unlabeled_category=unlabeled_category_mod,
                 **kwargs,
@@ -514,7 +505,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         Returns
         -------
         A PyTorch Geometric Data object representing the guidance graph,
-        including node features, edge indices, edge weights, edge signs,
         including node features, edge indices, edge weights, edge signs,
         and modality-specific feature indices.
 
@@ -751,7 +741,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         source_name: str,
         source_adata: AnnData | None = None,
         deterministic: bool = True,
-        batch_size: int = 1024,
+        batch_size: int = 2048,
         target_batch: int | str | np.ndarray | None = None,
         target_libsize: float | np.ndarray | None = None,
     ) -> np.ndarray:

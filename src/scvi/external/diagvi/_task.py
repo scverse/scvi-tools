@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
+import logging
 
 from scvi import REGISTRY_KEYS
 from scvi.external.diagvi._utils import (
@@ -12,6 +15,34 @@ from scvi.external.diagvi._utils import (
 from scvi.train import TrainingPlan
 from scvi.utils import dependencies
 
+logger = logging.getLogger(__name__)
+
+
+def squared_distances(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Compute squared Euclidean distances between point sets."""
+    if x.dim() == 2:
+        D_xx = (x * x).sum(-1).unsqueeze(1)
+        D_xy = torch.matmul(x, y.permute(1, 0))
+        D_yy = (y * y).sum(-1).unsqueeze(0)
+    elif x.dim() == 3:
+        D_xx = (x * x).sum(-1).unsqueeze(2)
+        D_xy = torch.matmul(x, y.permute(0, 2, 1))
+        D_yy = (y * y).sum(-1).unsqueeze(1)
+    else:
+        raise ValueError(f"Incorrect number of dimensions: {x.shape}")
+
+    return D_xx - 2 * D_xy + D_yy
+
+
+def distances(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    """Compute Euclidean distances between point sets."""
+    return torch.sqrt(torch.clamp_min(squared_distances(x, y), 1e-8))
+
+
+cost_routines = {
+    1: lambda x, y: distances(x, y),
+    2: lambda x, y: squared_distances(x, y) / 2,
+}
 
 def _anneal_param(
     current_epoch: int,
@@ -67,9 +98,16 @@ class DiagTrainingPlan(TrainingPlan):
     sinkhorn_p
         Order of the Wasserstein distance (p-norm).
     sinkhorn_blur
-        Blur parameter for Sinkhorn algorithm.
+        Blur for geomloss Sinkhorn (epsilon = blur^p). If None, computed
+        adaptively from cost matrix like OTT-JAX, by default None.
+    epsilon_from_cost
+        Statistic of cost to compute epsilon: "std" or "mean".
+    epsilon_scale
+        Scaling factor: `epsilon = epsilon_scale * statistic(C)`.
     sinkhorn_reach
-        Reach parameter for unbalanced optimal transport.
+        Reach parameter for unbalanced OT. If None, calculate adaptive reach from blur.
+    reach_scale
+        Scaling factor for adaptive reach: `reach = reach_scale * blur`.
     lr
         Learning rate.
     loss_annealing
@@ -89,14 +127,17 @@ class DiagTrainingPlan(TrainingPlan):
         module: torch.nn.Module,
         lam_graph: float = 1.0,
         lam_kl: float = 1.0,
-        lam_data: float = 1.0,
+        lam_data: float = 0.1,
         lam_sinkhorn: float = 1.0,
-        lam_class: float = 100.0,
+        lam_class: float = 1.0,
         sinkhorn_p: int = 2,
-        sinkhorn_blur: float = 1.0,
-        sinkhorn_reach: float = 1.0,
+        sinkhorn_blur: float | None = None,
+        epsilon_from_cost: Literal["mean", "std"] = "mean",
+        epsilon_scale: float = 0.5,
+        sinkhorn_reach: float | None = None,
+        reach_scale: float = 3.0,
         lr: float = 1e-3,
-        loss_annealing: bool = True,
+        loss_annealing: bool = False,
         log_train: bool = True,
         log_val: bool = False,
         *args,
@@ -115,6 +156,9 @@ class DiagTrainingPlan(TrainingPlan):
         self.sinkhorn_p = sinkhorn_p
         self.sinkhorn_blur = sinkhorn_blur
         self.sinkhorn_reach = sinkhorn_reach
+        self.epsilon_from_cost = epsilon_from_cost
+        self.epsilon_scale = epsilon_scale
+        self.reach_scale = reach_scale
 
         # Training parameters
         self.lr = lr
@@ -123,8 +167,12 @@ class DiagTrainingPlan(TrainingPlan):
         self.log_val = log_val
 
         # Initial values for annealing (10x larger for smoother optimization start)
-        self.init_blur = 10 * self.sinkhorn_blur
-        self.init_reach = 10 * self.sinkhorn_reach
+        self.init_blur = 10 * self.sinkhorn_blur if self.sinkhorn_blur is not None else None
+        self.init_reach = 10 * self.sinkhorn_reach if self.sinkhorn_reach is not None else None
+
+        # Current sinkhorn parameters
+        self.current_blur = self.sinkhorn_blur
+        self.current_reach = self.sinkhorn_reach
 
     def _compute_modality_losses(
         self, batch: dict[str, dict[str, torch.Tensor]], log_prefix: str = ""
@@ -156,8 +204,6 @@ class DiagTrainingPlan(TrainingPlan):
             self.loss_kwargs.update(
                 {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
             )
-            inference_kwargs = {"mode": name}
-            generative_kwargs = {"mode": name}
 
             # Calculate reconstruction, KL, and classification losses
             _, _, loss_output = self.forward(
@@ -254,6 +300,9 @@ class DiagTrainingPlan(TrainingPlan):
         use_annealing: bool = False
     ) -> torch.Tensor:
         """Compute Sinkhorn (Unbalanced Optimal Transport) loss between latent spaces.
+
+        Sinkhorn parameters (blur and reach) can be adaptively computed from the cost matrix
+        using OTT-JAX style heuristics or set to fixed values with optional annealing.
         
         Parameters
         ----------
@@ -262,7 +311,8 @@ class DiagTrainingPlan(TrainingPlan):
         z2
             Latent representations from modality 2, shape (n_cells, n_latent).
         use_annealing
-            Whether to use annealed Sinkhorn parameters.
+            Whether to use annealed Sinkhorn parameters. Only applied when both
+            sinkhorn_blur and sinkhorn_reach are explicitly specified.
 
         Returns
         -------
@@ -270,18 +320,56 @@ class DiagTrainingPlan(TrainingPlan):
         """
         import geomloss
 
-        if use_annealing and self.loss_annealing:
-            max_epochs = self.trainer.max_epochs
-            blur = _anneal_param(
-                self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur
-            )
-            reach = _anneal_param(
-                self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach
-            )
+        # Check if adaptive computation is needed
+        needs_adaptive = self.sinkhorn_blur is None or self.sinkhorn_reach is None
+
+        if needs_adaptive:
+            # TODO: think about how to handle the cost matrix for large batches
+            # Adaptively compute Sinkhorn parameters via OTT-JAX style heuristics
+            # Note: annealing is NOT applied when using adaptive computation
+
+            cost_fn = cost_routines[self.sinkhorn_p]
+            with torch.no_grad():
+                # Compute cost matrix C
+                C_st = cost_fn(z1, z2)                
+
+            # Compute adaptive epsilon from cost and set blur
+            if self.sinkhorn_blur is None:
+                if self.epsilon_from_cost == "std":
+                    eps = self.epsilon_scale * C_st.std().item()
+                elif self.epsilon_from_cost == "mean":
+                    eps = self.epsilon_scale * C_st.mean().item()
+                else:
+                    raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
+
+                eps = max(eps, 1e-8)  # Ensure positive
+
+                # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
+                self.current_blur = eps ** (1.0 / self.sinkhorn_p)
+            else:
+                self.current_blur = self.sinkhorn_blur
+
+            # Compute adaptive reach from blur
+            if self.sinkhorn_reach is None:
+                self.current_reach = self.reach_scale * self.current_blur
+            else:
+                self.current_reach = self.sinkhorn_reach
+        
         else:
-            blur = self.sinkhorn_blur
-            reach = self.sinkhorn_reach
-        sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=blur, reach=reach)
+            # Both blur and reach are specified - use them with optional annealing
+            if use_annealing:
+                max_epochs = self.trainer.max_epochs
+                self.current_blur = _anneal_param(
+                    self.current_epoch, max_epochs, self.init_blur, self.sinkhorn_blur
+                )
+                self.current_reach = _anneal_param(
+                    self.current_epoch, max_epochs, self.init_reach, self.sinkhorn_reach
+                )
+            else:
+                self.current_blur = self.sinkhorn_blur
+                self.current_reach = self.sinkhorn_reach
+
+        sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=self.current_blur, reach=self.current_reach)
         return sinkhorn(z1, z2)
 
     def _compute_total_loss(
@@ -373,9 +461,15 @@ class DiagTrainingPlan(TrainingPlan):
             batch_size=total_batch_size,
         )
 
-        return {"loss": total_loss}
+        # Return embeddings along with loss for callbacks (detached to avoid graph issues)
+        embeddings = {
+            name: out["z"].detach()
+            for name, out in zip(batch.keys(), loss_outputs, strict=False)
+        }
 
-    def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> None:
+        return {"loss": total_loss, "embeddings": embeddings}
+
+    def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]):
         """Validation step.
         
         During validation, computes and logs the losses for each modality (NLL, KL, and classification), 
