@@ -12,7 +12,6 @@ import torch.nn.functional as F
 
 from scvi.data._download import _download
 from scvi.utils import dependencies
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 if TYPE_CHECKING:
     from typing import Any, Literal
