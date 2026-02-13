@@ -16,7 +16,7 @@ class DecoderSinglePathway(nn.Module):
     """Single-pathway decoder for unimodal likelihoods.
 
     Outputs a single set of parameters (scale, r, rate, dropout).
-    Use for: nb, zinb, normal, lognormal, log1pnormal, ziln, gamma, zig.
+    Use for: nb, zinb, normal, log1pnormal, ziln, zig.
 
     Parameters
     ----------
