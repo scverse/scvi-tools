@@ -101,13 +101,13 @@ class DiagTrainingPlan(TrainingPlan):
         Blur for geomloss Sinkhorn (epsilon = blur^p). If None, computed
         adaptively from cost matrix like OTT-JAX, by default None.
     epsilon_from_cost
-        Statistic of cost to compute epsilon: "std" or "mean", by default "mean".
+        Statistic of cost to compute epsilon: "std" or "mean".
     epsilon_scale
-        Scaling factor: `epsilon = epsilon_scale * statistic(C)`, by default 0.05.
+        Scaling factor: `epsilon = epsilon_scale * statistic(C)`.
     sinkhorn_reach
         Reach parameter for unbalanced OT. If None, calculate adaptive reach from blur.
     reach_scale
-        Scaling factor for adaptive reach: `reach = reach_scale * blur`, by default 10.0.
+        Scaling factor for adaptive reach: `reach = reach_scale * blur`.
     lr
         Learning rate.
     loss_annealing
@@ -127,15 +127,15 @@ class DiagTrainingPlan(TrainingPlan):
         module: torch.nn.Module,
         lam_graph: float = 1.0,
         lam_kl: float = 1.0,
-        lam_data: float = 1.0,
+        lam_data: float = 0.1,
         lam_sinkhorn: float = 1.0,
-        lam_class: float = 100.0,
+        lam_class: float = 1.0,
         sinkhorn_p: int = 2,
         sinkhorn_blur: float | None = None,
         epsilon_from_cost: Literal["mean", "std"] = "mean",
-        epsilon_scale: float = 0.05,
+        epsilon_scale: float = 0.5,
         sinkhorn_reach: float | None = None,
-        reach_scale: float = 10.0,
+        reach_scale: float = 3.0,
         lr: float = 1e-3,
         loss_annealing: bool = False,
         log_train: bool = True,
@@ -204,8 +204,6 @@ class DiagTrainingPlan(TrainingPlan):
             self.loss_kwargs.update(
                 {"lam_kl": self.lam_kl, "lam_data": self.lam_data, "mode": name}
             )
-            inference_kwargs = {"mode": name}
-            generative_kwargs = {"mode": name}
 
             # Calculate reconstruction, KL, and classification losses
             _, _, loss_output = self.forward(
@@ -326,6 +324,7 @@ class DiagTrainingPlan(TrainingPlan):
         needs_adaptive = self.sinkhorn_blur is None or self.sinkhorn_reach is None
 
         if needs_adaptive:
+            # TODO: think about how to handle the cost matrix for large batches
             # Adaptively compute Sinkhorn parameters via OTT-JAX style heuristics
             # Note: annealing is NOT applied when using adaptive computation
 
@@ -334,27 +333,27 @@ class DiagTrainingPlan(TrainingPlan):
                 # Compute cost matrix C
                 C_st = cost_fn(z1, z2)                
 
-                # Compute adaptive epsilon from cost and set blur
-                if self.sinkhorn_blur is None:
-                    if self.epsilon_from_cost == "std":
-                        eps = self.epsilon_scale * C_st.std().item()
-                    elif self.epsilon_from_cost == "mean":
-                        eps = self.epsilon_scale * C_st.mean().item()
-                    else:
-                        raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
-
-                    eps = max(eps, 1e-8)  # Ensure positive
-
-                    # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
-                    self.current_blur = eps ** (1.0 / self.sinkhorn_p)
+            # Compute adaptive epsilon from cost and set blur
+            if self.sinkhorn_blur is None:
+                if self.epsilon_from_cost == "std":
+                    eps = self.epsilon_scale * C_st.std().item()
+                elif self.epsilon_from_cost == "mean":
+                    eps = self.epsilon_scale * C_st.mean().item()
                 else:
-                    self.current_blur = self.sinkhorn_blur
+                    raise ValueError(f"Unknown epsilon_from_cost: {self.epsilon_from_cost}")
 
-                # Compute adaptive reach from blur
-                if self.sinkhorn_reach is None:
-                    self.current_reach = self.reach_scale * self.current_blur
-                else:
-                    self.current_reach = self.sinkhorn_reach
+                eps = max(eps, 1e-8)  # Ensure positive
+
+                # Convert epsilon to blur for geomloss: epsilon = blur^p → blur = epsilon^(1/p)
+                self.current_blur = eps ** (1.0 / self.sinkhorn_p)
+            else:
+                self.current_blur = self.sinkhorn_blur
+
+            # Compute adaptive reach from blur
+            if self.sinkhorn_reach is None:
+                self.current_reach = self.reach_scale * self.current_blur
+            else:
+                self.current_reach = self.sinkhorn_reach
         
         else:
             # Both blur and reach are specified - use them with optional annealing
@@ -470,7 +469,7 @@ class DiagTrainingPlan(TrainingPlan):
 
         return {"loss": total_loss, "embeddings": embeddings}
 
-    def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> None:
+    def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]):
         """Validation step.
         
         During validation, computes and logs the losses for each modality (NLL, KL, and classification), 
