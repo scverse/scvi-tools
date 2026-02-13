@@ -13,9 +13,7 @@ from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_
 from scvi import REGISTRY_KEYS
 
 from scvi.distributions import (
-    Gamma,
     Normal,
-    LogNormal,
     Log1pNormal,
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -43,10 +41,8 @@ LIKELIHOOD_TO_DECODER = {
     "nb": DecoderSinglePathway,
     "zinb": DecoderSinglePathway,
     "normal": DecoderSinglePathway,
-    "lognormal": DecoderSinglePathway,
     "log1pnormal": DecoderSinglePathway,
     "ziln": DecoderSinglePathway,
-    "gamma": DecoderSinglePathway,
     "zig": DecoderSinglePathway,
     # Dual-pathway likelihoods (mixture distributions)
     "nbmixture": DecoderDualPathway,
@@ -54,7 +50,7 @@ LIKELIHOOD_TO_DECODER = {
 
 # Likelihoods that require softmax normalization (count data)
 NORMALIZE_LIKELIHOODS = {"nb", "zinb", "nbmixture"}
-NON_NORMALIZE_LIKELIHOODS = {"lognormal", "log1pnormal", "gamma", "ziln", "zig"}
+NON_NORMALIZE_LIKELIHOODS = {"log1pnormal", "ziln", "zig"}
 OTHER_LIKELIHOODS = {"normal"}
 
 
@@ -74,7 +70,7 @@ class DIAGVAE(BaseModuleClass):
         Number of labels/classes for each modality.
     modality_likelihoods
         Likelihood model for each modality.
-        One of: 'nb', 'zinb', 'normal', 'lognormal', 'log1pnormal', 'gamma', 'zig', 'nbmixture'.
+        One of: 'nb', 'zinb', 'normal', 'log1pnormal', 'zig', 'nbmixture'.
     normalize_lib
         Whether to normalize counts with library size in the model for each modality.
     guidance_graph
@@ -107,10 +103,10 @@ class DIAGVAE(BaseModuleClass):
         use_gmm_prior: dict[str, bool],
         semi_supervised: dict[str, bool],
         n_mixture_components: dict[str, int],
-        n_latent: int = 50,
-        n_hidden: int = 256,
-        n_layers: int = 2,
-        dropout_rate: float = 0.1,
+        n_latent: int,
+        n_hidden: int,
+        n_layers: int,
+        dropout_rate: float,
     ):
         super().__init__()
 
@@ -179,7 +175,7 @@ class DIAGVAE(BaseModuleClass):
         if likelihood_1 in OTHER_LIKELIHOODS:
             normalize_1 = normalize_lib[self.input_names[1]]
 
-        logger.info(
+        logger.debug(
             f"Decoder for '{self.input_names[0]}' (likelihood={likelihood_0}): "
             f"{decoder_class_0.__name__}, normalize={normalize_0}"
         )
@@ -189,7 +185,7 @@ class DIAGVAE(BaseModuleClass):
             normalize=normalize_0,
         )
 
-        logger.info(
+        logger.debug(
             f"Decoder for '{self.input_names[1]}' (likelihood={likelihood_1}): "
             f"{decoder_class_1.__name__}, normalize={normalize_1}"
         )
@@ -380,17 +376,8 @@ class DIAGVAE(BaseModuleClass):
                 theta1=px_r,
                 mixture_logits=px_dropout,
             )
-        elif self.modality_likelihoods[mode] == "lognormal":
-            px = LogNormal(mu=px_rate, sigma=px_r, scale=px_scale)
         elif self.modality_likelihoods[mode] == "log1pnormal":
             px = Log1pNormal(mu=px_rate, sigma=px_r, scale=px_scale)
-        elif self.modality_likelihoods[mode] == "gamma":
-            # Clamp concentration and rate to avoid lgamma numerical issues
-            # with negative values
-            px = Gamma(
-                concentration=torch.clamp(px_rate, min=EPS),
-                rate=torch.clamp(px_r, min=EPS),
-            )
         elif self.modality_likelihoods[mode] == "ziln":
             px = ZeroInflatedLogNormal(
                 mu=px_rate,
@@ -452,8 +439,8 @@ class DIAGVAE(BaseModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor],
         generative_outputs: dict[str, torch.Tensor],
-        lam_kl: torch.Tensor | float = 1.0,
-        lam_data: torch.Tensor | float = 1.0,
+        lam_kl: torch.Tensor | float,
+        lam_data: torch.Tensor | float,
         mode: str | None = None,
     ) -> LossOutput:
         """Compute the loss for a batch.
