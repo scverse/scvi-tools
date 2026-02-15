@@ -991,9 +991,6 @@ class ZarrSparseDataModule(LightningDataModule):
         Column name in obs to use as batch identity.
     label_key : str, optional
         Column name in obs to use as labels.
-    labels_key : str, optional
-        Deprecated alias for ``label_key``. If both are provided, ``label_key`` takes
-        precedence.
     sample_key : str, optional
         Column name in obs to use as sample identity.
     unlabeled_category : str, optional
@@ -1017,7 +1014,6 @@ class ZarrSparseDataModule(LightningDataModule):
         batch_size=None,
         batch_key: str | None = None,
         label_key: str | None = None,
-        labels_key: str | None = None,
         sample_key: str | None = None,
         unlabeled_category: str | None = "Unknown",
         model_name: str = "SCVI",
@@ -1033,17 +1029,6 @@ class ZarrSparseDataModule(LightningDataModule):
         self.model_name = model_name
         self.train_size = train_size
         self.unlabeled_category = unlabeled_category
-
-        # Handle deprecated labels_key alias
-        if labels_key is not None and label_key is None:
-            import warnings
-
-            warnings.warn(
-                "`labels_key` is deprecated, use `label_key` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            label_key = labels_key
 
         self._batch_key = batch_key
         self._label_key = label_key
@@ -1127,87 +1112,78 @@ class ZarrSparseDataModule(LightningDataModule):
             yield self.on_before_batch_transfer(batch, dataloader_idx=0)
 
     def on_before_batch_transfer(self, batch, dataloader_idx):
-        """Convert an annbatch Loader batch to the dictionary required by scvi-tools."""
+        """Convert an annbatch Loader batch to the dictionary required by scvi-tools.
+
+        Follows the same encoding pattern as
+        :class:`~scvi.dataloaders.TileDBDataModule` and
+        :class:`~scvi.dataloaders.MappedCollectionDataModule`.
+        """
         X_np = batch["X"]
         obs = batch.get("obs")
 
-        # Convert sparse batches to dense before converting to torch.
+        # Convert sparse batches to dense, then to float32 torch tensor.
         if isinstance(X_np, torch.Tensor) and X_np.is_sparse_csr:
-            X_tensor = X_np.to_dense().to(dtype=torch.float32)
+            x = X_np.to_dense().float()
         elif issparse(X_np):
-            X_tensor = torch.as_tensor(X_np.toarray(), dtype=torch.float32)
+            x = torch.from_numpy(X_np.toarray()).float()
+        elif isinstance(X_np, torch.Tensor):
+            x = X_np.float()
         else:
-            X_tensor = torch.as_tensor(X_np, dtype=torch.float32)
+            x = torch.from_numpy(np.asarray(X_np)).float()
 
-        n_cells = X_tensor.shape[0]
-
-        # Batch encoding
-        if (
-            self._batch_key is not None
-            and self.batch_encoder is not None
-            and obs is not None
-            and self._batch_key in obs.columns
-        ):
-            encoded = self.batch_encoder.transform(obs[self._batch_key].values.astype(str))
-            batch_tensor = torch.tensor(encoded, dtype=torch.long).unsqueeze(1)
+        # Batch encoding — matches TileDBDataModule pattern
+        if self._batch_key is not None and self.batch_encoder is not None and obs is not None:
+            batch_tensor = torch.from_numpy(
+                self.batch_encoder.transform(obs[self._batch_key].values.astype(str))
+            ).unsqueeze(1)
         else:
-            batch_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
+            batch_tensor = None
 
-        # Label encoding
-        if (
-            self._label_key is not None
-            and self.label_encoder is not None
-            and obs is not None
-            and self._label_key in obs.columns
-        ):
-            raw_labels = obs[self._label_key].values.astype(str)
-            encoded = []
-            for v in raw_labels:
-                try:
-                    encoded.append(self.label_encoder.transform([v])[0])
-                except ValueError:
-                    # Unknown label maps to the unlabeled_category index
-                    encoded.append(len(self.label_encoder.classes_))
-            labels_tensor = torch.tensor(encoded, dtype=torch.long).unsqueeze(1)
+        # Label encoding — vectorised transform matching TileDBDataModule
+        if self._label_key is not None and self.label_encoder is not None and obs is not None:
+            labels_tensor = torch.from_numpy(
+                self.label_encoder.transform(obs[self._label_key].values.astype(str))
+            ).unsqueeze(1)
         else:
-            labels_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
+            labels_tensor = torch.empty(0)
 
         # Sample encoding
-        if (
-            self._sample_key is not None
-            and self.sample_encoder is not None
-            and obs is not None
-            and self._sample_key in obs.columns
-        ):
-            encoded = self.sample_encoder.transform(obs[self._sample_key].values.astype(str))
-            sample_tensor = torch.tensor(encoded, dtype=torch.long).unsqueeze(1)
+        if self._sample_key is not None and self.sample_encoder is not None and obs is not None:
+            sample_tensor = torch.from_numpy(
+                self.sample_encoder.transform(obs[self._sample_key].values.astype(str))
+            ).unsqueeze(1)
         else:
             sample_tensor = torch.empty(0)
 
-        # Extra categorical covariates
+        # Extra categorical covariates — per-key encoding matching MappedCollectionDataModule
         if self._categorical_covariate_keys is not None and obs is not None:
-            cat_tensors = []
-            for key in self._categorical_covariate_keys:
-                if key in self.categ_cov_encoders and key in obs.columns:
-                    enc = self.categ_cov_encoders[key].transform(obs[key].values.astype(str))
-                    cat_tensors.append(torch.tensor(enc, dtype=torch.long).unsqueeze(1))
-            extra_cat_covs = torch.cat(cat_tensors, dim=1) if cat_tensors else None
+            extra_cat_covs = torch.cat(
+                [
+                    torch.from_numpy(
+                        self.categ_cov_encoders[k].transform(obs[k].values.astype(str))
+                    ).unsqueeze(1)
+                    for k in self._categorical_covariate_keys
+                    if k in self.categ_cov_encoders
+                ],
+                dim=1,
+            )
         else:
             extra_cat_covs = None
 
-        # Extra continuous covariates
+        # Extra continuous covariates — matching TileDBDataModule pattern
         if self._continuous_covariate_keys is not None and obs is not None:
-            cont_tensors = []
-            for key in self._continuous_covariate_keys:
-                if key in obs.columns:
-                    vals = obs[key].values.astype(np.float32)
-                    cont_tensors.append(torch.tensor(vals, dtype=torch.float32).unsqueeze(1))
-            extra_cont_covs = torch.cat(cont_tensors, dim=1) if cont_tensors else None
+            extra_cont_covs = torch.cat(
+                [
+                    torch.from_numpy(obs[k].values).float().unsqueeze(1)
+                    for k in self._continuous_covariate_keys
+                ],
+                dim=1,
+            )
         else:
             extra_cont_covs = None
 
         return {
-            "X": X_tensor,
+            "X": x,
             "batch": batch_tensor,
             "labels": labels_tensor,
             "extra_categorical_covs": extra_cat_covs,

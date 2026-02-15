@@ -1327,3 +1327,107 @@ def test_annbatch(save_path: str):
     inference_dl_val = dm_val.inference_dataloader()
     _ = model_val.get_elbo(dataloader=inference_dl_val)
     _ = model_val.get_latent_representation(dataloader=inference_dl_val)
+
+
+@pytest.mark.dataloader
+def test_annbatch_with_covariates(save_path: str):
+    import anndata as ad
+    import zarr
+    from annbatch import DatasetCollection, Loader
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    # Create synthetic data with categorical and continuous covariates
+    adata1 = scvi.data.synthetic_iid(batch_size=20000)
+    adata1.X = csr_matrix(adata1.X)
+    adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],)).astype(str)
+    adata1.obs["cat2"] = np.random.randint(0, 3, size=(adata1.shape[0],)).astype(str)
+    adata1.obs["cont1"] = np.random.normal(size=(adata1.shape[0],))
+    adata1.obs["cont2"] = np.random.normal(size=(adata1.shape[0],))
+
+    adata2 = scvi.data.synthetic_iid(batch_size=20000)
+    adata2.X = csr_matrix(adata2.X)
+    adata2.obs["cat1"] = np.random.randint(0, 5, size=(adata2.shape[0],)).astype(str)
+    adata2.obs["cat2"] = np.random.randint(0, 3, size=(adata2.shape[0],)).astype(str)
+    adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
+    adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
+
+    adata1.write(os.path.join(save_path, "file1.h5ad"))
+    adata2.write(os.path.join(save_path, "file2.h5ad"))
+
+    def read_lazy_x_and_obs_only(path) -> ad.AnnData:
+        adata_ = ad.experimental.read_lazy(path)
+        if adata_.raw is not None:
+            x = adata_.raw.X
+            var = adata_.raw.var
+        else:
+            x = adata_.X
+            var = adata_.var
+        return ad.AnnData(X=x, obs=adata_.obs.to_memory(), var=var.to_memory())
+
+    collection = DatasetCollection(zarr.open("annbatch_collection", mode="w"))
+    collection.add_adatas(
+        adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
+        shuffle=True,
+        n_obs_per_dataset=2_097_152,
+        var_subset=None,
+        load_adata=read_lazy_x_and_obs_only,
+    )
+
+    def _load_adata(g: zarr.Group) -> ad.AnnData:
+        return ad.AnnData(
+            X=ad.io.sparse_dataset(g["X"]),
+            obs=ad.experimental.read_lazy(g)
+            .obs[["batch", "labels", "cat1", "cat2", "cont1", "cont2"]]
+            .to_memory(),
+        )
+
+    ds = Loader(
+        batch_size=4096,
+        chunk_size=256,
+        preload_nchunks=32,
+        preload_to_gpu=False,
+        to_torch=True,
+    )
+    ds.use_collection(collection, load_adata=_load_adata)
+
+    dm = ZarrSparseDataModule(
+        ds,
+        batch_key="batch",
+        label_key="labels",
+        categorical_covariate_keys=["cat1", "cat2"],
+        continuous_covariate_keys=["cont1", "cont2"],
+    )
+
+    assert dm.n_batch == 2
+    assert dm.n_labels > 0
+    print(f"n_batch={dm.n_batch}, n_labels={dm.n_labels}")
+
+    # Verify registry covariate fields
+    reg = dm.registry
+    assert (
+        reg["field_registries"]["extra_categorical_covs"]["summary_stats"][
+            "n_extra_categorical_covs"
+        ]
+        == 2
+    )
+    assert (
+        reg["field_registries"]["extra_continuous_covs"]["summary_stats"][
+            "n_extra_continuous_covs"
+        ]
+        == 2
+    )
+
+    model = scvi.model.SCVI(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm)
+
+    logged_keys = model.history.keys()
+    assert "elbo_train" in logged_keys
+    assert "reconstruction_loss_train" in logged_keys
+    assert "kl_local_train" in logged_keys
+
+    # Test inference_dataloader
+    inference_dl = dm.inference_dataloader()
+    _ = model.get_elbo(dataloader=inference_dl)
+    _ = model.get_latent_representation(dataloader=inference_dl)
