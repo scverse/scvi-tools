@@ -222,8 +222,11 @@ class TrainRunner:
             self._run_training_core()
 
     def _update_history(self):
-        # only the global-zero process should touch model.history_
+        # only the global-zero process populates history from the logger;
+        # non-zero ranks get an empty dict so that model.history is not None
         if not self.trainer.is_global_zero:
+            if self.model.history_ is None:
+                self.model.history_ = {}
             return
 
         # model is being further trained
