@@ -1276,8 +1276,12 @@ def test_annbatch(save_path: str):
     # Add in the shuffled data that should be used for training.
     ds.use_collection(collection, load_adata=_load_adata)
 
-    # adapter = ZarrSparseDatasetAdapter(ds)
-    dm = ZarrSparseDataModule(ds)
+    dm = ZarrSparseDataModule(ds, batch_key="batch", label_key="labels")
+
+    # Verify batch and label encoding
+    assert dm.n_batch == 2, f"Expected 2 batches, got {dm.n_batch}"
+    assert dm.n_labels > 0, f"Expected labels, got {dm.n_labels}"
+    print(f"n_batch={dm.n_batch}, n_labels={dm.n_labels}, n_obs={dm.n_obs}, n_vars={dm.n_vars}")
 
     model = scvi.model.SCVI(registry=dm.registry)
 
@@ -1285,8 +1289,9 @@ def test_annbatch(save_path: str):
     model.train(max_epochs=1, datamodule=dm)
     model.history.keys()
 
-    # Generate cell representations
-    latent = model.get_latent_representation(dataloader=dm)
+    # Generate cell representations via inference_dataloader
+    inference_dl = dm.inference_dataloader()
+    latent = model.get_latent_representation(dataloader=inference_dl)
     print(latent.shape)
 
     # Test with validation dataloader
@@ -1299,7 +1304,7 @@ def test_annbatch(save_path: str):
     )
     ds_val.use_collection(collection, load_adata=_load_adata)
 
-    dm_val = ZarrSparseDataModule(ds, dataset_val=ds_val)
+    dm_val = ZarrSparseDataModule(ds, batch_key="batch", label_key="labels", dataset_val=ds_val)
 
     model_val = scvi.model.SCVI(registry=dm_val.registry)
     model_val.train(
@@ -1317,3 +1322,8 @@ def test_annbatch(save_path: str):
     assert "reconstruction_loss_validation" in logged_keys
     assert "kl_local_validation" in logged_keys
     assert "validation_loss" in logged_keys
+
+    # Test inference_dataloader on validation model
+    inference_dl_val = dm_val.inference_dataloader()
+    _ = model_val.get_elbo(dataloader=inference_dl_val)
+    _ = model_val.get_latent_representation(dataloader=inference_dl_val)
