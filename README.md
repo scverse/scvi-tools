@@ -113,7 +113,7 @@ professional services, travel, workshops, and a variety of other needs.
 </a>
 </div>
 
-Copyright (c) 2025, Yosef Lab, Weizmann Institute of Science
+Copyright (c) 2026, Yosef Lab, Weizmann Institute of Science
 
 [anndata]: https://anndata.readthedocs.io/en/latest/
 [build-badge]: https://github.com/scverse/scvi-tools/actions/workflows/build.yml/badge.svg

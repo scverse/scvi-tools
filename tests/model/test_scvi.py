@@ -1636,7 +1636,6 @@ def test_scvi_mlflow(
     mlflow_log_text(logs, "text/model_summary.txt", run_id=model.run_id)
 
     de_df = model.differential_expression(groupby="labels", mode="change")
-    de_df["gene"] = de_df.index
     mlflow_log_table(de_df.head(10), artifact_file="data/cell_type_DE.json", run_id=model.run_id)
 
     # Optional: Save minified model and log artifact (dont save adata!)
