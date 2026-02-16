@@ -979,8 +979,7 @@ class TileDBDataModule(LightningDataModule):
 
 
 class ZarrSparseDataModule(LightningDataModule):
-    """
-    Minimal LightningDataModule for annbatch.Loader.
+    """LightningDataModule for annbatch.Loader with full scvi-tools integration.
 
     Parameters
     ----------
@@ -988,42 +987,100 @@ class ZarrSparseDataModule(LightningDataModule):
         The Loader configured with a DatasetCollection.
     batch_size : int, optional
         Not used directly — the Loader already handles batching internally.
-    labels_key : str, optional
-        Column name in obs to use as labels. Default is ``"labels"``.
+    batch_key : str, optional
+        Column name in obs to use as batch identity.
+    label_key : str, optional
+        Column name in obs to use as labels.
+    sample_key : str, optional
+        Column name in obs to use as sample identity.
+    unlabeled_category : str, optional
+        Value used for unlabeled cells. Default is ``"Unknown"``.
+    model_name : str, optional
+        The scvi-tools model name. Default is ``"SCVI"``.
+    train_size : float, optional
+        Fraction of data to use for training. Default is ``1.0``.
+    categorical_covariate_keys : list of str, optional
+        Column names in obs to use as categorical covariates.
+    continuous_covariate_keys : list of str, optional
+        Column names in obs to use as continuous covariates.
     dataset_val : annbatch.Loader, optional
         Optional validation Loader. If provided, ``val_dataloader`` will
-        return this loader and ``train_size`` / ``n_val`` will be set
-        accordingly.
+        return this loader.
     """
 
-    def __init__(self, dataset, batch_size=None, labels_key="labels", dataset_val=None):
+    def __init__(
+        self,
+        dataset,
+        batch_size=None,
+        batch_key: str | None = None,
+        label_key: str | None = None,
+        sample_key: str | None = None,
+        unlabeled_category: str | None = "Unknown",
+        model_name: str = "SCVI",
+        train_size: float = 1.0,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        dataset_val=None,
+    ):
         super().__init__()
         self.dataset = dataset
         self.batch_size = batch_size
-        self.labels_key = labels_key
         self._validset = dataset_val
-        # If labels are present, build an encoder so scvi can treat them as ints
-        if (
-            dataset._obs is not None
-            and len(dataset._obs) > 0
-            and any(labels_key in obs.columns for obs in dataset._obs)
-        ):
-            all_labels = np.concatenate([obs[labels_key].values for obs in dataset._obs]).astype(
-                str
+        self.model_name = model_name
+        self.train_size = train_size
+        self.unlabeled_category = unlabeled_category
+
+        self._batch_key = batch_key
+        self._label_key = label_key
+        self._sample_key = sample_key
+        self._categorical_covariate_keys = categorical_covariate_keys
+        self._continuous_covariate_keys = continuous_covariate_keys
+
+        # Helper to check if an obs key exists across dataset._obs DataFrames
+        def _obs_has_key(key):
+            return (
+                key is not None
+                and dataset._obs is not None
+                and len(dataset._obs) > 0
+                and any(key in obs.columns for obs in dataset._obs)
             )
+
+        def _concat_obs_col(key):
+            return np.concatenate([obs[key].values for obs in dataset._obs]).astype(str)
+
+        # Build batch encoder
+        if _obs_has_key(batch_key):
+            all_batches = _concat_obs_col(batch_key)
+            self.batch_encoder = LabelEncoder().fit(all_batches)
+        else:
+            self.batch_encoder = None
+
+        # Build label encoder
+        if _obs_has_key(label_key):
+            all_labels = _concat_obs_col(label_key)
             self.label_encoder = LabelEncoder().fit(all_labels)
-            self.n_labels = len(self.label_encoder.classes_)
         else:
             self.label_encoder = None
-            self.n_labels = 0
+
+        # Build sample encoder
+        if _obs_has_key(sample_key):
+            all_samples = _concat_obs_col(sample_key)
+            self.sample_encoder = LabelEncoder().fit(all_samples)
+        else:
+            self.sample_encoder = None
+
+        # Build categorical covariate encoders
+        self.categ_cov_encoders = {}
+        if categorical_covariate_keys is not None:
+            for key in categorical_covariate_keys:
+                if _obs_has_key(key):
+                    self.categ_cov_encoders[key] = LabelEncoder().fit(_concat_obs_col(key))
 
         # Attributes expected by the mlflow logger in _trainrunner
         self.data_loader_kwargs = {}
         if self._validset is not None:
-            self.train_size = dataset.n_obs / (dataset.n_obs + self._validset.n_obs)
             self.n_val = self._validset.n_obs
         else:
-            self.train_size = 1.0
             self.n_val = 0
         self.n_train = dataset.n_obs
 
@@ -1054,97 +1111,243 @@ class ZarrSparseDataModule(LightningDataModule):
         for batch in self.dataset:
             yield self.on_before_batch_transfer(batch, dataloader_idx=0)
 
-    # Hook to transform annbatch LoaderOutput -> dict expected by scvi
     def on_before_batch_transfer(self, batch, dataloader_idx):
-        """Convert an annbatch Loader batch to the dictionary required by scvi-tools."""
-        # annbatch Loader yields dicts with keys "X", "obs", and optionally "index"
+        """Convert an annbatch Loader batch to the dictionary required by scvi-tools.
+
+        Follows the same encoding pattern as
+        :class:`~scvi.dataloaders.TileDBDataModule` and
+        :class:`~scvi.dataloaders.MappedCollectionDataModule`.
+        """
         X_np = batch["X"]
         obs = batch.get("obs")
 
-        # Convert sparse batches to dense before converting to torch.
-        # When to_torch=True, annbatch returns torch sparse CSR tensors;
-        # otherwise it returns scipy sparse matrices.
+        # Convert sparse batches to dense, then to float32 torch tensor.
         if isinstance(X_np, torch.Tensor) and X_np.is_sparse_csr:
-            X_tensor = X_np.to_dense().to(dtype=torch.float32)
+            x = X_np.to_dense().float()
         elif issparse(X_np):
-            X_tensor = torch.as_tensor(X_np.toarray(), dtype=torch.float32)
+            x = torch.from_numpy(X_np.toarray()).float()
+        elif isinstance(X_np, torch.Tensor):
+            x = X_np.float()
         else:
-            X_tensor = torch.as_tensor(X_np, dtype=torch.float32)
+            x = torch.from_numpy(np.asarray(X_np)).float()
 
-        # All cells belong to a single batch (batch index 0)
-        batch_tensor = torch.zeros((X_tensor.shape[0], 1), dtype=torch.long)
+        n_cells = x.shape[0]
 
-        # Extract and encode labels if present
-        lbls = None
-        if obs is not None and self.labels_key in obs.columns:
-            lbls = obs[self.labels_key].values
-
-        if lbls is not None and self.label_encoder is not None:
-            encoded = []
-            for v in np.asarray(lbls).astype(str):
-                try:
-                    encoded.append(self.label_encoder.transform([v])[0])
-                except ValueError:
-                    encoded.append(self.n_labels)  # unknown label -> unlabeled_category
-            labels_tensor = torch.tensor(encoded, dtype=torch.long).unsqueeze(1)
+        # Batch encoding — matches TileDBDataModule pattern
+        if self._batch_key is not None and self.batch_encoder is not None and obs is not None:
+            batch_tensor = torch.from_numpy(
+                self.batch_encoder.transform(obs[self._batch_key].values.astype(str))
+            ).unsqueeze(1)
         else:
-            labels_tensor = torch.zeros((X_tensor.shape[0], 1), dtype=torch.long)
+            batch_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
+
+        # Label encoding — vectorised transform matching TileDBDataModule
+        if self._label_key is not None and self.label_encoder is not None and obs is not None:
+            labels_tensor = torch.from_numpy(
+                self.label_encoder.transform(obs[self._label_key].values.astype(str))
+            ).unsqueeze(1)
+        else:
+            labels_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
+
+        # Sample encoding
+        if self._sample_key is not None and self.sample_encoder is not None and obs is not None:
+            sample_tensor = torch.from_numpy(
+                self.sample_encoder.transform(obs[self._sample_key].values.astype(str))
+            ).unsqueeze(1)
+        else:
+            sample_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
+
+        # Extra categorical covariates — per-key encoding matching MappedCollectionDataModule
+        if self._categorical_covariate_keys is not None and obs is not None:
+            extra_cat_covs = torch.cat(
+                [
+                    torch.from_numpy(
+                        self.categ_cov_encoders[k].transform(obs[k].values.astype(str))
+                    ).unsqueeze(1)
+                    for k in self._categorical_covariate_keys
+                    if k in self.categ_cov_encoders
+                ],
+                dim=1,
+            )
+        else:
+            extra_cat_covs = None
+
+        # Extra continuous covariates — matching TileDBDataModule pattern
+        if self._continuous_covariate_keys is not None and obs is not None:
+            extra_cont_covs = torch.cat(
+                [
+                    torch.from_numpy(obs[k].values).float().unsqueeze(1)
+                    for k in self._continuous_covariate_keys
+                ],
+                dim=1,
+            )
+        else:
+            extra_cont_covs = None
 
         return {
-            "X": X_tensor,
+            "X": x,
             "batch": batch_tensor,
             "labels": labels_tensor,
-            "extra_categorical_covs": None,
-            "extra_continuous_covs": None,
-            "sample": None,
+            "extra_categorical_covs": extra_cat_covs,
+            "extra_continuous_covs": extra_cont_covs,
+            "sample": sample_tensor,
         }
 
-    # Required by scvi-tools to register field metadata
+    # --- Properties ---
+
     @property
-    def registry(self):
+    def train_size(self) -> float:
+        """Fraction of data to use for training."""
+        return self._train_size
+
+    @train_size.setter
+    def train_size(self, value: float | None):
+        if value is not None and (value < 0.0 or value > 1.0):
+            raise ValueError("`train_size` must be between 0.0 and 1.0.")
+        self._train_size = value if value is not None else 1.0
+
+    @property
+    def unlabeled_category(self) -> str:
+        """String assigned to unlabeled cells."""
+        return self._unlabeled_category
+
+    @unlabeled_category.setter
+    def unlabeled_category(self, value: str | None):
+        if not (value is None or isinstance(value, str)):
+            raise ValueError("`unlabeled_category` must be a string or None.")
+        self._unlabeled_category = value
+
+    @property
+    def n_obs(self) -> int:
+        return self.dataset.n_obs
+
+    @property
+    def n_vars(self) -> int:
+        return self.dataset.n_var
+
+    @property
+    def n_batch(self) -> int:
+        if self.batch_encoder is not None:
+            return len(self.batch_encoder.classes_)
+        return 1
+
+    @property
+    def n_labels(self) -> int:
+        if self.label_encoder is not None:
+            return len(self.labels_mapping)
+        return 0
+
+    @property
+    def n_samples(self) -> int:
+        if self.sample_encoder is not None:
+            return len(self.samples_mapping)
+        return 0
+
+    @property
+    def batch_labels(self):
+        if self.batch_encoder is not None:
+            return self.batch_encoder.classes_
+        return np.array(["batch_0"])
+
+    @property
+    def labels_mapping(self):
+        if self.label_encoder is not None:
+            combined = np.concatenate(
+                (self.label_encoder.classes_, [self._unlabeled_category or "Unknown"])
+            )
+            unique_values, idx = np.unique(combined, return_index=True)
+            return unique_values[np.argsort(idx)].astype(object)
+        return np.array(["Unknown"], dtype=object)
+
+    @property
+    def samples_mapping(self):
+        if self.sample_encoder is not None:
+            unique_values, idx = np.unique(self.sample_encoder.classes_, return_index=True)
+            return unique_values[np.argsort(idx)].astype(object)
+        return None
+
+    @property
+    def n_obs_per_sample(self):
+        return torch.tensor([])
+
+    @property
+    def extra_categorical_covs(self) -> dict:
+        if self._categorical_covariate_keys is None:
+            return {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_categorical_covs": 0},
+            }
+        mapping = {
+            key: self.categ_cov_encoders[key].classes_
+            for key in self._categorical_covariate_keys
+            if key in self.categ_cov_encoders
+        }
         return {
-            "scvi_version": scvi.__version__,  # replace with scvi.__version__ if available
-            "model_name": "SCVI",
+            "data_registry": {"attr_key": "_scvi_extra_categorical_covs", "attr_name": "obsm"},
+            "state_registry": {
+                "field_keys": self._categorical_covariate_keys,
+                "mapping": mapping,
+                "n_cats_per_key": [len(mapping[k]) for k in mapping],
+            },
+            "summary_stats": {"n_extra_categorical_covs": len(self._categorical_covariate_keys)},
+        }
+
+    @property
+    def extra_continuous_covs(self) -> dict:
+        if self._continuous_covariate_keys is None:
+            return {
+                "data_registry": {},
+                "state_registry": {},
+                "summary_stats": {"n_extra_continuous_covs": 0},
+            }
+        return {
+            "data_registry": {"attr_key": "_scvi_extra_continuous_covs", "attr_name": "obsm"},
+            "state_registry": {"columns": np.array(self._continuous_covariate_keys, dtype=object)},
+            "summary_stats": {"n_extra_continuous_covs": len(self._continuous_covariate_keys)},
+        }
+
+    @property
+    def registry(self) -> dict:
+        return {
+            "scvi_version": scvi.__version__,
+            "model_name": self.model_name,
             "setup_args": {
                 "layer": None,
-                "batch_key": None,
-                "labels_key": "labels",
+                "batch_key": self._batch_key,
+                "labels_key": self._label_key,
+                "samples_key": self._sample_key,
                 "size_factor_key": None,
-                "categorical_covariate_keys": None,
-                "continuous_covariate_keys": None,
-                "samples_key": None,
+                "categorical_covariate_keys": self._categorical_covariate_keys,
+                "continuous_covariate_keys": self._continuous_covariate_keys,
             },
             "field_registries": {
                 "X": {
                     "data_registry": {"attr_name": "X", "attr_key": None},
                     "state_registry": {
-                        "n_obs": self.dataset.n_obs,
-                        "n_vars": self.dataset.n_var,
-                        "column_names": [f"gene_{i}" for i in range(self.dataset.n_var)],
+                        "n_obs": self.n_obs,
+                        "n_vars": self.n_vars,
+                        "column_names": [f"gene_{i}" for i in range(self.n_vars)],
                     },
                     "summary_stats": {
-                        "n_vars": self.dataset.n_var,
-                        "n_cells": self.dataset.n_obs,
+                        "n_vars": self.n_vars,
+                        "n_cells": self.n_obs,
                     },
                 },
                 "batch": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_batch"},
                     "state_registry": {
-                        "categorical_mapping": ["0"],  # single batch
-                        "original_key": None,
+                        "categorical_mapping": self.batch_labels,
+                        "original_key": self._batch_key or "batch",
                     },
-                    "summary_stats": {"n_batch": 1},
+                    "summary_stats": {"n_batch": self.n_batch},
                 },
                 "labels": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_labels"},
                     "state_registry": {
-                        "categorical_mapping": (
-                            list(self.label_encoder.classes_) + ["Unknown"]
-                            if self.label_encoder is not None
-                            else ["Unknown"]
-                        ),
-                        "original_key": "labels",
-                        "unlabeled_category": "Unknown",
+                        "categorical_mapping": self.labels_mapping,
+                        "original_key": self._label_key or "labels",
+                        "unlabeled_category": self._unlabeled_category or "Unknown",
                     },
                     "summary_stats": {"n_labels": self.n_labels},
                 },
@@ -1155,25 +1358,32 @@ class ZarrSparseDataModule(LightningDataModule):
                 },
                 "sample": {
                     "data_registry": {"attr_name": "obs", "attr_key": "_scvi_sample"},
-                    "state_registry": {},
-                    "n_obs_per_sample": {"n_obs_per_sample": torch.tensor([])},
-                    "summary_stats": {"n_sample": 0},
+                    "state_registry": {
+                        "categorical_mapping": self.samples_mapping,
+                        "original_key": self._sample_key,
+                    },
+                    "n_obs_per_sample": {"n_obs_per_sample": self.n_obs_per_sample},
+                    "summary_stats": {"n_sample": self.n_samples},
                 },
-                "size_factor": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {},
-                },
-                "extra_categorical_covs": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {"n_extra_categorical_covs": 0},
-                },
-                "extra_continuous_covs": {
-                    "data_registry": {},
-                    "state_registry": {},
-                    "summary_stats": {"n_extra_continuous_covs": 0},
-                },
+                "size_factor": {"data_registry": {}, "state_registry": {}, "summary_stats": {}},
+                "extra_categorical_covs": self.extra_categorical_covs,
+                "extra_continuous_covs": self.extra_continuous_covs,
             },
             "setup_method_name": "setup_datamodule",
         }
+
+    def inference_dataloader(self):
+        """Dataloader for inference with ``on_before_batch_transfer`` applied."""
+        dataloader = self.train_dataloader()
+        return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
+
+    class _InferenceDataloader:
+        """Wrapper to apply ``on_before_batch_transfer`` during iteration."""
+
+        def __init__(self, dataloader, transform_fn):
+            self.dataloader = dataloader
+            self.transform_fn = transform_fn
+
+        def __iter__(self):
+            for batch in self.dataloader:
+                yield self.transform_fn(batch, dataloader_idx=None)
