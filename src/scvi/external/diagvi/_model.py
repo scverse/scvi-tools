@@ -175,7 +175,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
     def train(
         self,
         max_epochs: int | None = None,
-        batch_size: int = 2048,
+        batch_size: int = 256,
         train_size: float = 0.9,
         accelerator: str = "auto",
         devices: int | list[int] | str = "auto",
