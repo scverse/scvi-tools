@@ -14,6 +14,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
 - Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
+- Add support for logging validation metrics in MultiGPU, {pr}`3712`.
 
 #### Fixed
 
