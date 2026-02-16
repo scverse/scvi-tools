@@ -147,24 +147,15 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
             mlx_dict = {k: mx.array(v) for k, v in array_dict.items()}
             outputs = self.module.inference(mlx_dict[REGISTRY_KEYS.X_KEY], n_samples=n_samples)
 
-            if give_mean and n_samples > 1:
-                z = outputs["z"].mean()
+            if give_mean:
+                z = outputs["mean"]
             else:
                 z = outputs["z"]
 
-            # Convert to NumPy array using the standard method
-            if give_mean:
-                latent.append(np.array(z[0].tolist()))
-            else:
-                latent.append(np.array(z))
+            latent.append(np.array(z))
 
-        # Concatenate all batches
-        if give_mean:
-            latent = np.concatenate(latent, axis=0)
-        else:
-            latent = np.concatenate(latent, axis=1)
-
-        return latent
+        concat_axis = 0 if (n_samples == 1 or give_mean) else 1
+        return np.concatenate(latent, axis=concat_axis)
 
     def to_device(self, device):
         """Move the model to a specific device.

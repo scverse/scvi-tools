@@ -8,6 +8,56 @@ from scvi import REGISTRY_KEYS
 from scvi.module.base import LossOutput
 
 
+def _lgamma(x: mx.array) -> mx.array:
+    """Log-gamma function via Numerical Recipes Lanczos approximation.
+
+    Compatible with MLX autograd.
+    """
+    cof = [
+        76.18009172947146,
+        -86.50532032941677,
+        24.01409824083091,
+        -1.231739572450155,
+        0.1208650973866179e-2,
+        -0.5395239384953e-5,
+    ]
+    y = x
+    tmp = x + 5.5
+    tmp = tmp - (x + 0.5) * mx.log(tmp)
+    ser = mx.ones_like(x) * 1.000000000190015
+    for j in range(6):
+        y = y + 1.0
+        ser = ser + cof[j] / y
+    return -tmp + mx.log(2.5066282746310005 * ser / x)
+
+
+def _log_nb_positive(x: mx.array, mu: mx.array, theta: mx.array, eps: float = 1e-8) -> mx.array:
+    """Log likelihood of negative binomial distribution.
+
+    Mirrors :func:`scvi.distributions.log_nb_positive` using MLX ops.
+
+    Parameters
+    ----------
+    x
+        Count data.
+    mu
+        Mean of the NB (positive support).
+    theta
+        Inverse dispersion (positive support).
+    eps
+        Numerical stability constant.
+    """
+    log_theta_mu_eps = mx.log(theta + mu + eps)
+    res = (
+        theta * (mx.log(theta + eps) - log_theta_mu_eps)
+        + x * (mx.log(mu + eps) - log_theta_mu_eps)
+        + _lgamma(x + theta)
+        - _lgamma(theta)
+        - _lgamma(x + 1)
+    )
+    return res
+
+
 class MlxDense(nn.Module):
     """MLX dense layer with PyTorch-compatible initialization."""
 
@@ -191,9 +241,11 @@ class MlxVAE(nn.Module):
         """Get input for the generative model."""
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        x = tensors[REGISTRY_KEYS.X_KEY]
         return {
             "z": z,
             "batch_index": batch_index,
+            "x": x,
         }
 
     def train(self, mode=True):
@@ -216,59 +268,49 @@ class MlxVAE(nn.Module):
         mean, var = self.encoder(x)
         stddev = mx.sqrt(mx.clip(var, 1e-8, 50.0)) + self.eps
         key = mx.random.key(random.randint(0, 2**31 - 1))
-        shape = (n_samples,) + mean.shape
-        eps = mx.random.normal(key=key, shape=shape)
+        if n_samples == 1:
+            eps = mx.random.normal(key=key, shape=mean.shape)
+        else:
+            eps = mx.random.normal(key=key, shape=(n_samples,) + mean.shape)
         z = mean + stddev * eps
-        mx.eval(z)
         return {"mean": mean, "var": var, "z": z}
 
-    def generative(self, z, batch_index) -> dict[str, Any]:
+    def generative(self, z, batch_index, x) -> dict[str, Any]:
         batch = mx.zeros((batch_index.shape[0], self.n_batch))
         rows = mx.arange(batch_index.reshape(-1).shape[0])
         batch = batch.at[rows, batch_index.reshape(-1)].add(1.0)
         rho_unnorm, disp = self.decoder(z, batch)
+        disp_ = mx.exp(disp)
         rho_unnorm = mx.clip(rho_unnorm, -50, 50)
         rho_exp = mx.exp(rho_unnorm)
         rho = rho_exp / mx.sum(rho_exp, axis=-1, keepdims=True)
-        return {"rho": rho, "disp": disp}
+        total_count = mx.sum(x, axis=-1, keepdims=True)
+        mu = total_count * rho
+        return {"mu": mu, "disp": disp_, "rho": rho}
 
     def loss(
         self, tensors, inference_outputs, generative_outputs, kl_weight: float = 1.0
     ) -> LossOutput:
         x = tensors[REGISTRY_KEYS.X_KEY]
+        mu = generative_outputs["mu"]
         disp = generative_outputs["disp"]
         mean = inference_outputs["mean"]
         var = inference_outputs["var"]
-        rho = generative_outputs["rho"]
-        total_count = mx.sum(x, axis=-1, keepdims=True)
-        mu = total_count * rho
 
-        eps = 1e-10
-        # Clip dispersion to prevent numerical instability
-        disp = mx.clip(disp, eps, 50.0)
-        # Clip mu to prevent extreme values
-        mu = mx.clip(mu, eps, 1e6)
+        eps = self.eps
 
-        log_theta_mu_eps = mx.log(disp + mu + eps)
-        log_theta_eps = mx.log(disp + eps)
-        log_mu_eps = mx.log(mu + eps)
-        log_prob = x * (log_mu_eps - log_theta_mu_eps) + disp * (log_theta_eps - log_theta_mu_eps)
+        if self.gene_likelihood == "nb":
+            log_prob = _log_nb_positive(x, mu, disp, eps=eps)
+            reconst_loss = -mx.sum(log_prob, axis=-1)
+        else:  # poisson
+            reconst_loss = -mx.sum(x * mx.log(mu + eps) - mu - _lgamma(x + 1), axis=-1)
 
-        # Clip arguments to log1p to prevent overflow
-        log_theta_mu_eps_clipped = mx.clip(log_theta_mu_eps, -50, 50)
-        log_theta_eps_clipped = mx.clip(log_theta_eps, -50, 50)
-        log_prob += mx.log1p(mx.exp(log_theta_mu_eps_clipped)) - mx.log1p(
-            mx.exp(log_theta_eps_clipped)
-        )
-
-        reconst_loss = -mx.sum(log_prob, axis=-1)
-        var = mx.clip(var, eps, 50.0)
         kl_divergence = 0.5 * mx.sum(
-            var + mx.square(mean) - 1.0 - mx.log(mx.maximum(var, eps) + eps), axis=-1
+            var + mx.square(mean) - 1.0 - mx.log(mx.maximum(var, 1e-8)), axis=-1
         )
         weighted_kl = kl_weight * kl_divergence
         loss = mx.mean(reconst_loss + weighted_kl)
-        return LossOutput(loss=-loss, reconstruction_loss=-reconst_loss, kl_local=-kl_divergence)
+        return LossOutput(loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence)
 
     def __call__(
         self, tensors: dict[str, mx.array], kl_weight: float = 1.0
