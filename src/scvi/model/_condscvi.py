@@ -23,6 +23,7 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.module import VAEC
+from scvi.train._config import merge_kwargs
 from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
@@ -400,10 +401,8 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         update_dict = {
             "lr": lr,
         }
-        if plan_kwargs is not None:
-            plan_kwargs.update(update_dict)
-        else:
-            plan_kwargs = update_dict
+        plan_kwargs = merge_kwargs(None, plan_kwargs, name="plan")
+        plan_kwargs.update(update_dict)
         super().train(
             max_epochs=max_epochs,
             accelerator=accelerator,

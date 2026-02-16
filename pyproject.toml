@@ -33,7 +33,7 @@ classifiers = [
   "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "anndata>=0.11",
+    "anndata",
     "docrep>=0.3.2",
     "lightning>=2.0",
     "ml-collections",
@@ -60,11 +60,12 @@ editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
 cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
+tpu = ["torch_xla[tpu]"]
 metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
-    "sphinx",
+    "sphinx<9",
     "ipython",
     "sphinx-book-theme>=1.0.1",
     "sphinx_copybutton",
@@ -95,7 +96,7 @@ jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow
-mlflow = ["mlflow","psutil","GPUtil"]
+mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
 optional = [
     "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
@@ -136,6 +137,9 @@ markers = [
     "multigpu: mark tests that are used to check multi GPU performance",
     "autotune: mark tests that are used to check ray autotune capabilities",
     "custom dataloaders: mark tests that are used to check different custom data loaders",
+    "dataloader: mark tests that are used to check data loaders",
+    "jax: mark test as jax related",
+    "mlflow: mark test for mlflow",
 ]
 
 [tool.ruff]
