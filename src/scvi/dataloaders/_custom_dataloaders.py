@@ -1131,13 +1131,15 @@ class ZarrSparseDataModule(LightningDataModule):
         else:
             x = torch.from_numpy(np.asarray(X_np)).float()
 
+        n_cells = x.shape[0]
+
         # Batch encoding — matches TileDBDataModule pattern
         if self._batch_key is not None and self.batch_encoder is not None and obs is not None:
             batch_tensor = torch.from_numpy(
                 self.batch_encoder.transform(obs[self._batch_key].values.astype(str))
             ).unsqueeze(1)
         else:
-            batch_tensor = None
+            batch_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
 
         # Label encoding — vectorised transform matching TileDBDataModule
         if self._label_key is not None and self.label_encoder is not None and obs is not None:
@@ -1145,7 +1147,7 @@ class ZarrSparseDataModule(LightningDataModule):
                 self.label_encoder.transform(obs[self._label_key].values.astype(str))
             ).unsqueeze(1)
         else:
-            labels_tensor = torch.empty(0)
+            labels_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
 
         # Sample encoding
         if self._sample_key is not None and self.sample_encoder is not None and obs is not None:
@@ -1153,7 +1155,7 @@ class ZarrSparseDataModule(LightningDataModule):
                 self.sample_encoder.transform(obs[self._sample_key].values.astype(str))
             ).unsqueeze(1)
         else:
-            sample_tensor = torch.empty(0)
+            sample_tensor = torch.zeros((n_cells, 1), dtype=torch.long)
 
         # Extra categorical covariates — per-key encoding matching MappedCollectionDataModule
         if self._categorical_covariate_keys is not None and obs is not None:
