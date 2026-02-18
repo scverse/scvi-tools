@@ -1667,6 +1667,9 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self.max_norm = max_norm
             self.automatic_optimization = False
             self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+            self.n_devices = 1
+            self._pmap_train_fn = None
+            self._pmap_val_fn = None
 
         def get_optimizer_creator(self) -> JaxOptimizerCreator:
             """Get the optimizer creator for the model."""
@@ -1707,6 +1710,99 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self.module.train_state = train_state
 
         @staticmethod
+        def _create_pmap_training_step():
+            """Create a pmap'd training step function for multi-GPU."""
+
+            def pmap_train(state, batch, rngs, loss_kwargs):
+                def loss_fn(params):
+                    vars_in = {"params": params, **state.state}
+                    outputs, new_model_state = state.apply_fn(
+                        vars_in,
+                        batch,
+                        rngs=rngs,
+                        mutable=list(state.state.keys()),
+                        loss_kwargs=loss_kwargs,
+                    )
+                    loss_output = outputs[2]
+                    return loss_output.loss, (loss_output, new_model_state)
+
+                (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
+                    loss_fn, has_aux=True
+                )(state.params)
+                grads = jax.lax.pmean(grads, axis_name="devices")
+                loss = jax.lax.pmean(loss, axis_name="devices")
+                new_model_state = jax.lax.pmean(new_model_state, axis_name="devices")
+                new_state = state.apply_gradients(grads=grads, state=new_model_state)
+                return new_state, loss, loss_output
+
+            return jax.pmap(pmap_train, axis_name="devices", donate_argnums=(0,))
+
+        @staticmethod
+        def _create_pmap_validation_step():
+            """Create a pmap'd validation step function for multi-GPU."""
+
+            def pmap_val(state, batch, rngs, loss_kwargs):
+                vars_in = {"params": state.params, **state.state}
+                outputs = state.apply_fn(vars_in, batch, rngs=rngs, loss_kwargs=loss_kwargs)
+                loss_output = outputs[2]
+                loss = jax.lax.pmean(loss_output.loss, axis_name="devices")
+                return loss, loss_output
+
+            return jax.pmap(pmap_val, axis_name="devices")
+
+        @staticmethod
+        def _shard_batch(batch, n_devices):
+            """Shard a batch across devices for pmap.
+
+            If the batch size is not divisible by ``n_devices``, the last sample
+            is repeated to pad the batch to a divisible size.
+            """
+            devices = jax.local_devices()[:n_devices]
+
+            def _shard(x):
+                x = np.asarray(x) if not isinstance(x, np.ndarray) else x
+                remainder = x.shape[0] % n_devices
+                if remainder != 0:
+                    pad_size = n_devices - remainder
+                    pad = np.repeat(x[-1:], pad_size, axis=0)
+                    x = np.concatenate([x, pad], axis=0)
+                chunks = np.reshape(x, (n_devices, x.shape[0] // n_devices, *x.shape[1:]))
+                return jax.device_put_sharded(list(chunks), devices)
+
+            return jax.tree_util.tree_map(_shard, batch)
+
+        @staticmethod
+        def _replicate_rngs(rngs, n_devices):
+            """Create per-device RNGs by splitting each RNG key."""
+            import jax.random as random
+
+            replicated = {}
+            for name, rng in rngs.items():
+                keys = random.split(rng, n_devices)
+                replicated[name] = jax.device_put_sharded(
+                    list(keys), jax.local_devices()[:n_devices]
+                )
+            return replicated
+
+        @staticmethod
+        def _replicate_kwargs(kwargs, n_devices):
+            """Replicate kwargs values as JAX arrays with leading device dimension."""
+            devices = jax.local_devices()[:n_devices]
+            replicated = {}
+            for k, v in kwargs.items():
+                arr = jnp.asarray(v)
+                replicated[k] = jax.device_put_sharded([arr] * n_devices, devices)
+            return replicated
+
+        @staticmethod
+        def _unshard_value(value):
+            """Take the value from the first device (for pmean'd scalars)."""
+            return jax.tree_util.tree_map(
+                lambda x: x[0] if hasattr(x, "ndim") and x.ndim > 0 else x,
+                value,
+            )
+
+        @staticmethod
         @jax.jit
         def jit_training_step(
             state: TrainStateWithState,
@@ -1737,21 +1833,37 @@ if is_package_installed("jax") and is_package_installed("optax"):
             if "kl_weight" in self.loss_kwargs:
                 self.loss_kwargs.update({"kl_weight": self.kl_weight})
             self.module.train()
-            self.module.train_state, _, loss_output = self.jit_training_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
+
+            if self.n_devices > 1:
+                if self._pmap_train_fn is None:
+                    self._pmap_train_fn = self._create_pmap_training_step()
+                sharded_batch = self._shard_batch(batch, self.n_devices)
+                rngs = self._replicate_rngs(self.module.rngs, self.n_devices)
+                rep_kwargs = self._replicate_kwargs(self.loss_kwargs, self.n_devices)
+                self.module.train_state, _, loss_output = self._pmap_train_fn(
+                    self.module.train_state,
+                    sharded_batch,
+                    rngs,
+                    rep_kwargs,
+                )
+                loss_output = self._unshard_value(loss_output)
+            else:
+                self.module.train_state, _, loss_output = self.jit_training_step(
+                    self.module.train_state,
+                    batch,
+                    self.module.rngs,
+                    loss_kwargs=self.loss_kwargs,
+                )
+
             loss_output = jax.tree_util.tree_map(
                 lambda x: torch.tensor(jax.device_get(x)),
                 loss_output,
             )
-            # TODO: Better way to get batch size
             self.log(
                 "train_loss",
                 loss_output.loss,
-                on_epoch=True,
+                on_step=self.on_step,
+                on_epoch=self.on_epoch,
                 batch_size=loss_output.n_obs_minibatch,
                 prog_bar=True,
             )
@@ -1778,12 +1890,28 @@ if is_package_installed("jax") and is_package_installed("optax"):
         def validation_step(self, batch, batch_idx):
             """Validation step for Jax."""
             self.module.eval()
-            loss_output = self.jit_validation_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
+
+            if self.n_devices > 1:
+                if self._pmap_val_fn is None:
+                    self._pmap_val_fn = self._create_pmap_validation_step()
+                sharded_batch = self._shard_batch(batch, self.n_devices)
+                rngs = self._replicate_rngs(self.module.rngs, self.n_devices)
+                rep_kwargs = self._replicate_kwargs(self.loss_kwargs, self.n_devices)
+                _, loss_output = self._pmap_val_fn(
+                    self.module.train_state,
+                    sharded_batch,
+                    rngs,
+                    rep_kwargs,
+                )
+                loss_output = self._unshard_value(loss_output)
+            else:
+                loss_output = self.jit_validation_step(
+                    self.module.train_state,
+                    batch,
+                    self.module.rngs,
+                    loss_kwargs=self.loss_kwargs,
+                )
+
             loss_output = jax.tree_util.tree_map(
                 lambda x: torch.tensor(jax.device_get(x)),
                 loss_output,
@@ -1791,7 +1919,8 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self.log(
                 "validation_loss",
                 loss_output.loss,
-                on_epoch=True,
+                on_step=self.on_step,
+                on_epoch=self.on_epoch,
                 batch_size=loss_output.n_obs_minibatch,
             )
             self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
