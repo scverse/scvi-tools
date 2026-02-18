@@ -15,6 +15,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
 - Add support for logging validation metrics in MultiGPU, {pr}`3712`.
+- Add support for covariates in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
 
 #### Fixed
 
