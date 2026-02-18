@@ -143,3 +143,25 @@ def test_mlx_scvi_poisson(n_latent: int):
     model.module.eval()
     _, _, loss_output = model.module(tensors)
     assert float(loss_output.loss) > 0, "Poisson loss should be positive"
+
+
+def test_multiple_covariates_mlxscvi():
+    """Test that mlxSCVI can handle multiple categorical and continuous covariates."""
+    from scvi.model import mlxSCVI
+
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+
+    mlxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = mlxSCVI(adata)
+    m.train(1)
+    m.get_latent_representation()
