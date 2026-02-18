@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import mlx.core as mx
+import pandas as pd
 
 from scvi.dataloaders import DataSplitter
 from scvi.model._utils import get_max_epochs_heuristic
@@ -100,6 +101,8 @@ class MlxTrainingMixin:
         self.training_plan.current_epoch = 0
         self.training_plan.current_step = 0
 
+        history = {"train_loss": [], "elbo_train": []}
+
         for epoch in range(max_epochs):
             self.training_plan.current_epoch = epoch
             epoch_loss = 0.0
@@ -120,6 +123,9 @@ class MlxTrainingMixin:
                     continue
 
             avg_loss = epoch_loss / max(n_batches, 1)  # Avoid division by zero
+            avg_loss_val = float(avg_loss)
+            history["train_loss"].append(avg_loss_val)
+            history["elbo_train"].append(avg_loss_val)
             logger.info(f"Epoch {epoch + 1}/{max_epochs}, Loss: {avg_loss:.4f}")
 
             # Validation phase
@@ -137,7 +143,12 @@ class MlxTrainingMixin:
                         continue
 
                 avg_val_loss = val_loss / max(n_val_batches, 1)  # Avoid division by zero
+                avg_val_loss_val = float(avg_val_loss)
+                history.setdefault("validation_loss", []).append(avg_val_loss_val)
+                history.setdefault("elbo_validation", []).append(avg_val_loss_val)
                 logger.info(f"Validation loss: {avg_val_loss:.4f}")
+
+        self.history_ = {k: pd.DataFrame(v) for k, v in history.items()}
 
         # Set state after training completes
         self.is_trained_ = True

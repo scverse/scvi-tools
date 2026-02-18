@@ -7,12 +7,7 @@ import jax.numpy as jnp
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import (
-    CategoricalJointObsField,
-    CategoricalObsField,
-    LayerField,
-    NumericalJointObsField,
-)
+from scvi.data.fields import CategoricalObsField, LayerField
 from scvi.module import JaxVAE
 from scvi.utils import setup_anndata_dsp
 
@@ -74,11 +69,6 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else None
-        )
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -87,8 +77,6 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             dropout_rate=dropout_rate,
             gene_likelihood=gene_likelihood,
-            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=tuple(n_cats_per_cov) if n_cats_per_cov is not None else (),
             **model_kwargs,
         )
 
@@ -102,9 +90,6 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         adata: AnnData,
         layer: str | None = None,
         batch_key: str | None = None,
-        labels_key: str | None = None,
-        categorical_covariate_keys: list[str] | None = None,
-        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """%(summary)s.
@@ -114,17 +99,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         %(param_adata)s
         %(param_layer)s
         %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
-            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
-            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)

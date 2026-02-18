@@ -116,24 +116,3 @@ def test_loss_args_jax():
     assert len(jax_tp._loss_args) == len(loss_args)
     for arg in loss_args:
         assert arg in jax_tp._loss_args
-
-
-@pytest.mark.jax
-def test_multiple_covariates_jaxscvi():
-    """Test that JaxSCVI can handle multiple categorical and continuous covariates."""
-    adata = synthetic_iid()
-    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
-    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
-    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
-
-    JaxSCVI.setup_anndata(
-        adata,
-        batch_key="batch",
-        labels_key="labels",
-        continuous_covariate_keys=["cont1", "cont2"],
-        categorical_covariate_keys=["cat1", "cat2"],
-    )
-    m = JaxSCVI(adata)
-    m.train(1)
-    m.get_latent_representation()
