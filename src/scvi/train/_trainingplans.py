@@ -1997,6 +1997,10 @@ if is_package_installed("mlx"):
             kl_weight = self.get_kl_weight()
 
             try:
+                # We need both the loss (for gradients) and the full LossOutput
+                # (for metric logging). Run forward twice: once inside value_and_grad
+                # for the scalar loss, and capture LossOutput from a second forward.
+
                 # Define loss function - using MLX style
                 def loss_fn(model, tensors, kl_weight):
                     _, _, loss_output = model(tensors, kl_weight=kl_weight)
@@ -2039,7 +2043,16 @@ if is_package_installed("mlx"):
                 # Force evaluation of parameters and optimizer state
                 mx.eval(self.module.parameters(), self.optimizer.state)
 
-                return {"loss": float(loss)}
+                # Get component metrics from a forward pass (no grad needed)
+                _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
+
+                return {
+                    "loss": loss_val,
+                    "reconstruction_loss": float(loss_output.reconstruction_loss_sum),
+                    "kl_local": float(loss_output.kl_local_sum),
+                    "kl_global": float(loss_output.kl_global_sum),
+                    "n_obs": loss_output.n_obs_minibatch,
+                }
             except Exception as e:
                 logger.error(f"Error in training step: {str(e)}")
                 raise
@@ -2075,7 +2088,13 @@ if is_package_installed("mlx"):
                 # Forward pass
                 if callable(self.module):
                     _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
-                    return {"validation_loss": float(loss_output.loss)}
+                    return {
+                        "validation_loss": float(loss_output.loss),
+                        "reconstruction_loss": float(loss_output.reconstruction_loss_sum),
+                        "kl_local": float(loss_output.kl_local_sum),
+                        "kl_global": float(loss_output.kl_global_sum),
+                        "n_obs": loss_output.n_obs_minibatch,
+                    }
                 else:
                     # Compatibility mode
                     logger.warning(
