@@ -136,4 +136,10 @@ def test_multiple_covariates_jaxscvi():
     )
     m = JaxSCVI(adata)
     m.train(1)
-    m.get_latent_representation()
+    z1 = m.get_latent_representation(give_mean=True, n_samples=1)
+    assert z1.ndim == 2
+    # n_samples > 1 triggers the 3-D z path in generative; covariates must be
+    # broadcast to match the sample dimension before concatenation.
+    z2 = m.get_latent_representation(give_mean=False, n_samples=5)
+    assert z2.ndim == 3
+    assert z2.shape[0] == 5

@@ -351,11 +351,22 @@ class JaxVAE(JaxBaseModuleClass):
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
 
+        # When n_samples > 1, z has shape (n_samples, batch, latent).
+        # cont_covs, cat_oh, and batch are 2D (batch, dim) and must be
+        # broadcast to (n_samples, batch, dim) before concatenation.
+        n_samples = z.shape[0] if z.ndim == 3 else None
+        if n_samples is not None:
+            batch = jnp.broadcast_to(batch[jnp.newaxis], (n_samples, *batch.shape))
+
         decoder_input = z
         if cont_covs is not None:
+            if n_samples is not None:
+                cont_covs = jnp.broadcast_to(cont_covs[jnp.newaxis], (n_samples, *cont_covs.shape))
             decoder_input = jnp.concatenate([decoder_input, cont_covs], axis=-1)
         cat_oh = self._encode_covariates(cat_covs)
         if cat_oh is not None:
+            if n_samples is not None:
+                cat_oh = jnp.broadcast_to(cat_oh[jnp.newaxis], (n_samples, *cat_oh.shape))
             decoder_input = jnp.concatenate([decoder_input, cat_oh], axis=-1)
         rho_unnorm, disp = self.decoder(decoder_input, batch, training=self.training)
         disp_ = jnp.exp(disp)
