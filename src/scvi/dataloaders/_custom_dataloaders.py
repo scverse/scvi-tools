@@ -577,7 +577,11 @@ class TileDBDataModule(LightningDataModule):
             self.samples = samples
             self.sample_encoder = LabelEncoder().fit(self.samples)
             self.samples_ = obs_sample_df[self.sample_colname].values
-        self.n_obs_per_sample = torch.tensor([])
+            sample_indices = self.sample_encoder.transform(self.samples_)
+            counts = np.bincount(sample_indices, minlength=len(self.sample_encoder.classes_))
+            self.n_obs_per_sample = torch.tensor(counts, dtype=torch.float32)
+        else:
+            self.n_obs_per_sample = torch.tensor([])
 
         if categorical_covariate_keys is not None:
             obs_categ_cov_df = (
@@ -1036,13 +1040,15 @@ class ZarrSparseDataModule(LightningDataModule):
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
 
-        # Helper to check if an obs key exists across dataset._obs DataFrames
+        # Helper to check if an obs key exists across dataset._obs DataFrames.
+        # Requires the key to be present in ALL shards so that _concat_obs_col
+        # never raises a KeyError on a shard that is missing the column.
         def _obs_has_key(key):
             return (
                 key is not None
                 and dataset._obs is not None
                 and len(dataset._obs) > 0
-                and any(key in obs.columns for obs in dataset._obs)
+                and all(key in obs.columns for obs in dataset._obs)
             )
 
         def _concat_obs_col(key):
@@ -1062,12 +1068,16 @@ class ZarrSparseDataModule(LightningDataModule):
         else:
             self.label_encoder = None
 
-        # Build sample encoder
+        # Build sample encoder and per-sample cell counts
         if _obs_has_key(sample_key):
             all_samples = _concat_obs_col(sample_key)
             self.sample_encoder = LabelEncoder().fit(all_samples)
+            sample_indices = self.sample_encoder.transform(all_samples)
+            counts = np.bincount(sample_indices, minlength=len(self.sample_encoder.classes_))
+            self._n_obs_per_sample = torch.tensor(counts, dtype=torch.float32)
         else:
             self.sample_encoder = None
+            self._n_obs_per_sample = torch.tensor([])
 
         # Build categorical covariate encoders
         self.categ_cov_encoders = {}
@@ -1268,7 +1278,7 @@ class ZarrSparseDataModule(LightningDataModule):
 
     @property
     def n_obs_per_sample(self):
-        return torch.tensor([])
+        return self._n_obs_per_sample
 
     @property
     def extra_categorical_covs(self) -> dict:

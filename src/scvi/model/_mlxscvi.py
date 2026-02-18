@@ -8,7 +8,12 @@ import numpy as np
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data.fields import CategoricalObsField, LayerField
+from scvi.data.fields import (
+    CategoricalJointObsField,
+    CategoricalObsField,
+    LayerField,
+    NumericalJointObsField,
+)
 from scvi.module import MlxVAE
 from scvi.utils import setup_anndata_dsp
 
@@ -59,6 +64,11 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
         super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
+        n_cats_per_cov = (
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+            else None
+        )
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
@@ -67,6 +77,8 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
             n_latent=n_latent,
             dropout_rate=dropout_rate,
             gene_likelihood=gene_likelihood,
+            n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
+            n_cats_per_cov=n_cats_per_cov,
             **model_kwargs,
         )
 
@@ -80,6 +92,9 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
         adata: AnnData,
         layer: str | None = None,
         batch_key: str | None = None,
+        labels_key: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
         """Set up AnnData object for training.
@@ -92,11 +107,20 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
             If not None, use this layer instead of X for training.
         batch_key
             If not None, use the obs column specified by this key as batch information.
+        labels_key
+            If not None, use the obs column specified by this key as labels.
+        categorical_covariate_keys
+            Keys in ``adata.obs`` for additional categorical covariates.
+        continuous_covariate_keys
+            Keys in ``adata.obs`` for additional continuous covariates.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            CategoricalObsField(REGISTRY_KEYS.LABELS_KEY, labels_key),
+            CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
+            NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
@@ -145,7 +169,14 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
         for array_dict in scdl:
             # Convert to MLX arrays
             mlx_dict = {k: mx.array(v) for k, v in array_dict.items()}
-            outputs = self.module.inference(mlx_dict[REGISTRY_KEYS.X_KEY], n_samples=n_samples)
+            cont_covs = mlx_dict.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+            cat_covs = mlx_dict.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+            outputs = self.module.inference(
+                mlx_dict[REGISTRY_KEYS.X_KEY],
+                cont_covs=cont_covs,
+                cat_covs=cat_covs,
+                n_samples=n_samples,
+            )
 
             if give_mean:
                 z = outputs["mean"]

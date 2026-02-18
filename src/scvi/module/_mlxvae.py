@@ -87,7 +87,6 @@ class MlxEncoder(nn.Module):
         self.var_layer = MlxDense(n_hidden, n_latent)
 
     def __call__(self, x):
-        x = mx.log1p(x)
         h = self.dense1(x)
         h = self.bn1(h)
         h = nn.relu(h)
@@ -106,10 +105,15 @@ class MlxDecoder(nn.Module):
     """Decoder module for MLX VAE."""
 
     def __init__(
-        self, n_input: int, n_hidden: int, n_batch: int, n_latent: int, dropout_rate: float = 0.0
+        self,
+        n_input: int,
+        n_hidden: int,
+        n_batch: int,
+        n_latent_input: int,
+        dropout_rate: float = 0.0,
     ):
         super().__init__()
-        self.dense1 = MlxDense(n_latent, n_hidden)
+        self.dense1 = MlxDense(n_latent_input, n_hidden)
         self.dense2 = MlxDense(n_batch, n_hidden)
         self.bn1 = nn.BatchNorm(n_hidden, momentum=0.9)
         self.dropout1 = nn.Dropout(dropout_rate)
@@ -149,6 +153,8 @@ class MlxVAE(nn.Module):
         n_layers: int = 1,
         gene_likelihood: str = "nb",
         eps: float = 1e-8,
+        n_continuous_cov: int = 0,
+        n_cats_per_cov: list[int] | None = None,
     ):
         super().__init__()
         self.n_input = n_input
@@ -159,8 +165,19 @@ class MlxVAE(nn.Module):
         self.n_layers = n_layers
         self.gene_likelihood = gene_likelihood
         self.eps = eps
-        self.encoder = MlxEncoder(n_input, n_latent, n_hidden, dropout_rate)
-        self.decoder = MlxDecoder(n_input, n_hidden, n_batch, n_latent, dropout_rate)
+        self.n_continuous_cov = n_continuous_cov
+        self.n_cats_per_cov = n_cats_per_cov or []
+
+        # Total size of one-hot encoded categorical covariates
+        self.n_cat_cov_total = sum(self.n_cats_per_cov)
+
+        # Encoder input: n_input + continuous covariates + one-hot categorical covariates
+        n_input_encoder = n_input + n_continuous_cov + self.n_cat_cov_total
+        self.encoder = MlxEncoder(n_input_encoder, n_latent, n_hidden, dropout_rate)
+
+        # Decoder input: n_latent + continuous covariates + one-hot categorical covariates
+        n_latent_input = n_latent + n_continuous_cov + self.n_cat_cov_total
+        self.decoder = MlxDecoder(n_input, n_hidden, n_batch, n_latent_input, dropout_rate)
 
     def state_dict(self) -> dict[str, Any]:
         """Return the model parameters as a state dictionary for saving.
@@ -231,7 +248,9 @@ class MlxVAE(nn.Module):
     def _get_inference_input(self, tensors: dict[str, mx.array]) -> dict[str, mx.array]:
         """Get input for the inference model."""
         x = tensors[REGISTRY_KEYS.X_KEY]
-        return {"x": x}
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+        return {"x": x, "cont_covs": cont_covs, "cat_covs": cat_covs}
 
     def _get_generative_input(
         self,
@@ -242,10 +261,14 @@ class MlxVAE(nn.Module):
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
         x = tensors[REGISTRY_KEYS.X_KEY]
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
         return {
             "z": z,
             "batch_index": batch_index,
             "x": x,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
         }
 
     def train(self, mode=True):
@@ -264,8 +287,34 @@ class MlxVAE(nn.Module):
                 module.eval()
         return self
 
-    def inference(self, x: mx.array, n_samples: int = 1) -> dict[str, Any]:
-        mean, var = self.encoder(x)
+    def _encode_covariates(self, cat_covs: mx.array | None) -> mx.array | None:
+        """One-hot encode categorical covariates and concatenate them."""
+        if cat_covs is None or len(self.n_cats_per_cov) == 0:
+            return None
+        one_hots = []
+        for i, n_cats in enumerate(self.n_cats_per_cov):
+            cat_col = cat_covs[:, i].astype(mx.int32)
+            oh = mx.zeros((cat_col.shape[0], n_cats))
+            rows = mx.arange(cat_col.shape[0])
+            oh = oh.at[rows, cat_col].add(1.0)
+            one_hots.append(oh)
+        return mx.concatenate(one_hots, axis=-1)
+
+    def inference(
+        self,
+        x: mx.array,
+        cont_covs: mx.array | None = None,
+        cat_covs: mx.array | None = None,
+        n_samples: int = 1,
+    ) -> dict[str, Any]:
+        encoder_input = mx.log1p(x)
+        if cont_covs is not None:
+            encoder_input = mx.concatenate([encoder_input, cont_covs], axis=-1)
+        cat_oh = self._encode_covariates(cat_covs)
+        if cat_oh is not None:
+            encoder_input = mx.concatenate([encoder_input, cat_oh], axis=-1)
+
+        mean, var = self.encoder(encoder_input)
         stddev = mx.sqrt(mx.clip(var, 1e-8, 50.0)) + self.eps
         key = mx.random.key(random.randint(0, 2**31 - 1))
         if n_samples == 1:
@@ -275,11 +324,26 @@ class MlxVAE(nn.Module):
         z = mean + stddev * eps
         return {"mean": mean, "var": var, "z": z}
 
-    def generative(self, z, batch_index, x) -> dict[str, Any]:
+    def generative(
+        self,
+        z,
+        batch_index,
+        x,
+        cont_covs: mx.array | None = None,
+        cat_covs: mx.array | None = None,
+    ) -> dict[str, Any]:
         batch = mx.zeros((batch_index.shape[0], self.n_batch))
         rows = mx.arange(batch_index.reshape(-1).shape[0])
         batch = batch.at[rows, batch_index.reshape(-1)].add(1.0)
-        rho_unnorm, disp = self.decoder(z, batch)
+
+        decoder_input = z
+        if cont_covs is not None:
+            decoder_input = mx.concatenate([decoder_input, cont_covs], axis=-1)
+        cat_oh = self._encode_covariates(cat_covs)
+        if cat_oh is not None:
+            decoder_input = mx.concatenate([decoder_input, cat_oh], axis=-1)
+
+        rho_unnorm, disp = self.decoder(decoder_input, batch)
         disp_ = mx.exp(disp)
         rho_unnorm = mx.clip(rho_unnorm, -50, 50)
         rho_exp = mx.exp(rho_unnorm)
