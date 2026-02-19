@@ -100,6 +100,81 @@ def test_jax_scvi_save_load(save_path: str, n_latent: int):
 
 
 @pytest.mark.jax
+def test_jax_scvi_history():
+    """Test that JaxSCVI logs unsuffixed history keys."""
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(adata, batch_key="batch")
+    model = JaxSCVI(adata, n_latent=5)
+    model.train(2, train_size=0.5, check_val_every_n_epoch=1)
+
+    assert "train_loss" in model.history, (
+        f"Expected 'train_loss' in history, got keys: {list(model.history.keys())}"
+    )
+    assert "train_loss_epoch" not in model.history
+    assert "validation_loss" in model.history
+    assert "elbo_train" in model.history
+
+
+@pytest.mark.multigpu
+@pytest.mark.jax
+def test_jax_scvi_multigpu():
+    """Test JaxSCVI with multiple GPUs using pmap."""
+    import jax
+
+    n_devices = jax.local_device_count()
+    assert n_devices > 1, f"Need >1 device for multi-GPU test, got {n_devices}"
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(adata, batch_key="batch")
+
+    model = JaxSCVI(adata, n_latent=5)
+    model.train(
+        2,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        batch_size=128,
+        accelerator="gpu",
+        devices="auto",
+    )
+
+    assert model.is_trained
+    assert "train_loss" in model.history
+    assert "validation_loss" in model.history
+
+    z = model.get_latent_representation()
+    assert z.shape == (adata.n_obs, 5)
+
+
+@pytest.mark.multigpu
+@pytest.mark.jax
+def test_jax_scvi_single_gpu_explicit():
+    """Test JaxSCVI with devices=1 on a multi-GPU machine uses single-GPU path."""
+    import jax
+
+    n_devices = jax.local_device_count()
+    assert n_devices > 1, f"Need >1 device for this test, got {n_devices}"
+
+    adata = synthetic_iid()
+    JaxSCVI.setup_anndata(adata, batch_key="batch")
+
+    model = JaxSCVI(adata, n_latent=5)
+    model.train(
+        2,
+        train_size=0.5,
+        check_val_every_n_epoch=1,
+        batch_size=128,
+        accelerator="gpu",
+        devices=1,
+    )
+
+    # Should have used single-device path (no pmap)
+    assert model.training_plan.n_devices == 1
+    assert model.is_trained
+    z = model.get_latent_representation()
+    assert z.shape == (adata.n_obs, 5)
+
+
+@pytest.mark.jax
 def test_loss_args_jax():
     """Test that self._loss_args is set correctly."""
     adata = synthetic_iid()
@@ -116,3 +191,30 @@ def test_loss_args_jax():
     assert len(jax_tp._loss_args) == len(loss_args)
     for arg in loss_args:
         assert arg in jax_tp._loss_args
+
+
+@pytest.mark.jax
+def test_multiple_covariates_jaxscvi():
+    """Test that JaxSCVI can handle multiple categorical and continuous covariates."""
+    adata = synthetic_iid()
+    adata.obs["cont1"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cont2"] = np.random.normal(size=(adata.shape[0],))
+    adata.obs["cat1"] = np.random.randint(0, 5, size=(adata.shape[0],))
+    adata.obs["cat2"] = np.random.randint(0, 5, size=(adata.shape[0],))
+
+    JaxSCVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        labels_key="labels",
+        continuous_covariate_keys=["cont1", "cont2"],
+        categorical_covariate_keys=["cat1", "cat2"],
+    )
+    m = JaxSCVI(adata)
+    m.train(1)
+    z1 = m.get_latent_representation(give_mean=True, n_samples=1)
+    assert z1.ndim == 2
+    # n_samples > 1 triggers the 3-D z path in generative; covariates must be
+    # broadcast to match the sample dimension before concatenation.
+    z2 = m.get_latent_representation(give_mean=False, n_samples=5)
+    assert z2.ndim == 3
+    assert z2.shape[0] == 5
