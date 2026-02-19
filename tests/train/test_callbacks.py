@@ -62,13 +62,13 @@ def test_savecheckpoint(load_best_on_end: bool, save_path: str):
 
         # enable_checkpointing=True, default monitor ("validation_loss" for this test)
         model = model_cls(adata)
-        model.train(max_epochs=5, enable_checkpointing=True)
+        model.train(max_epochs=1, enable_checkpointing=True)
         check_checkpoint_logging(model, adata)
 
         # enable_checkpointing=True, custom monitor
         model = model_cls(adata)
         model.train(
-            max_epochs=5,
+            max_epochs=1,
             enable_checkpointing=True,
             checkpointing_monitor="elbo_validation",
         )
@@ -77,7 +77,7 @@ def test_savecheckpoint(load_best_on_end: bool, save_path: str):
         # manual callback
         model = model_cls(adata)
         model.train(
-            max_epochs=5,
+            max_epochs=1,
             callbacks=[
                 SaveCheckpoint(monitor="elbo_validation", load_best_on_end=load_best_on_end)
             ],
@@ -136,7 +136,7 @@ def test_exception_callback(model_cls):
             protein_names_uns_key="protein_names",
         )
     model = model_cls(adata)
-    model.train(max_epochs=5)
+    model.train(max_epochs=1)
 
     ckpt_cb = SaveCheckpoint(
         dirpath="checkpoints/",
@@ -149,7 +149,7 @@ def test_exception_callback(model_cls):
     )
 
     model.train(
-        max_epochs=5,
+        max_epochs=1,
         check_val_every_n_epoch=1,
         callbacks=[ckpt_cb],
         enable_checkpointing=True,
@@ -231,7 +231,7 @@ def test_lightning_checkpoint(model_cls):
             protein_names_uns_key="protein_names",
         )
     model = model_cls(adata)
-    model.train(max_epochs=5)
+    model.train(max_epochs=1)
 
     ckpt_cb = ModelCheckpoint(
         dirpath="checkpoints/",

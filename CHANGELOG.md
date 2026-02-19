@@ -13,19 +13,31 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add {meth}`~scvi.model.base.VAEMixin.differential_abundance`
     and {meth}`~scvi.model.base.VAEMixin.get_aggregated_posterior`
     functions to {class}`scvi.model.base.VAEMixin`, {pr}`3618`
+- Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
+    {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
+- Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+- Add support for Pandas3, {pr}`3638`.
+- Add support for running scVI-Tools on TPU, {pr}`3690`.
+- Add support for logging validation metrics in MultiGPU, {pr}`3712`.
+- Add Support for MLX usage in Mac with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
+- Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
 
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
-- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+- Fix Integrated Gradients gets cont and categ covs in the reverse order, {pr}`3660`.
+- Fix minified adata load into non-minified model, {pr}`3691`.
 
 #### Changed
 
 - Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
 - Change explicit training configuration objects for scvi-tools, reducing reliance on loose kwargs
     and improving clarity across training APIs, {pr}`3666`.
+- Change the default backend of {class}`scvi.external.MRVI` to torch instead of jax, {pr}`3717`.
 
 #### Removed
+
+- Removed all Jax tests from mandatory tests and put them under a special tag, {pr}`3703`.
 
 ### 1.4.1 (2025-12-10)
 

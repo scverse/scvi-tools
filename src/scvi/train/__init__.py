@@ -15,6 +15,7 @@ from ._config import (
     SemiSupervisedTrainingPlanConfig,
     TrainerConfig,
     TrainingPlanConfig,
+    merge_kwargs,
 )
 from ._constants import METRIC_KEYS
 from ._trainer import Trainer
@@ -30,6 +31,7 @@ from ._trainingplans import (
 from ._trainrunner import TrainRunner
 
 __all__ = [
+    "merge_kwargs",
     "TrainingPlan",
     "TrainingPlanConfig",
     "Trainer",
@@ -70,4 +72,9 @@ def __getattr__(name: str):
         from ._trainingplans import JaxTrainingPlan as _JaxTrainingPlan
 
         return _JaxTrainingPlan
+    if name == "MlxTrainingPlan":
+        error_on_missing_dependencies("mlx")
+        from ._trainingplans import MlxTrainingPlan as _MlxTrainingPlan
+
+        return _MlxTrainingPlan
     raise AttributeError(f"module {__name__!r} has no attribute {name}")

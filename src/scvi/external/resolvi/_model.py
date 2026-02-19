@@ -430,6 +430,7 @@ class RESOLVI(
         silent: bool = False,
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
+        n_samples: int = 5,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -455,9 +456,13 @@ class RESOLVI(
         %(de_fdr_target)s
         %(de_silent)s
         weights
+            Precomputed weight for importance sampling. If `uniform` no importance sampling is
+            performed.
         filter_outlier_cells
             Whether to filter outlier cells with
-            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells`
+            :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
+        n_samples
+            Number of posterior samples to use for estimation.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -468,9 +473,11 @@ class RESOLVI(
         adata = self._validate_anndata(adata)
 
         model_fn = partial(
-            self.get_normalized_expression_importance,
+            self.get_normalized_expression_importance
+            if weights == "importance"
+            else self.get_normalized_expression,
             return_numpy=True,
-            n_samples=5,
+            n_samples=n_samples,
             batch_size=batch_size,
             weights=weights,
             return_mean=False,

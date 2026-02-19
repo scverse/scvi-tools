@@ -809,7 +809,7 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
         from numpyro.distributions import (
             Categorical,
             MixtureSameFamily,
-            Normal,
+            MultivariateNormal,
         )
 
         self._check_if_trained(warn=False)
@@ -835,9 +835,12 @@ class JaxMRVI(JaxTrainingMixin, BaseModelClass):
 
         qu_loc = jnp.concatenate(qu_locs, axis=0)  # n_cells x n_latent_u
         qu_scale = jnp.concatenate(qu_scales, axis=0)  # n_cells x n_latent_u
+        # Use MultivariateNormal with diagonal covariance instead of Normal.to_event(1)
+        # because numpyro MixtureSameFamily requires ParameterFreeConstraint support
+        scale_tril = jax.vmap(jnp.diag)(qu_scale)
         return MixtureSameFamily(
             Categorical(probs=jnp.ones(qu_loc.shape[0]) / qu_loc.shape[0]),
-            (Normal(qu_loc, qu_scale).to_event(1)),
+            MultivariateNormal(qu_loc, scale_tril=scale_tril),
         )
 
     def differential_abundance(
