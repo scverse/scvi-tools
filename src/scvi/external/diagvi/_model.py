@@ -738,51 +738,51 @@ class DIAGVI(BaseModelClass, VAEMixin):
     @torch.inference_mode()
     def get_imputed_values(
         self,
-        source_name: str,
-        source_adata: AnnData | None = None,
+        query_name: str,
+        query_adata: AnnData | None = None,
         deterministic: bool = True,
         batch_size: int = 2048,
-        target_batch: int | str | np.ndarray | None = None,
-        target_libsize: float | np.ndarray | None = None,
+        reference_batch: int | str | np.ndarray | None = None,
+        reference_libsize: float | np.ndarray | None = None,
     ) -> np.ndarray:
-        """Return imputed values for a given source modality.
+        """Return imputed values for a given query modality.
 
         Parameters
         ----------
-        source_name
-            Name of the source modality.
-        source_adata
-            AnnData object for the source modality. If None, uses the registered AnnData.
+        query_name
+            Name of the query modality.
+        query_adata
+            AnnData object for the query modality. If None, uses the registered AnnData.
         batch_size
             Minibatch size for data loading.
-        target_batch
-            Target batch index or array for imputation.
-        target_libsize
-            Target library size(s) for imputation.
+        reference_batch
+            Reference batch index or array for imputation.
+        reference_libsize
+            Reference library size(s) for imputation.
 
         Returns
         -------
         Imputed values.
         """
-        # Choose source adata according to mode
-        if source_name not in self.adatas:
-            raise ValueError(f"`source_name` must be one of {list(self.adatas.keys())}!")
-        if source_adata is None:
-            source_adata = self.adatas[source_name]
+        # Choose query adata according to mode
+        if query_name not in self.adatas:
+            raise ValueError(f"`query_name` must be one of {list(self.adatas.keys())}!")
+        if query_adata is None:
+            query_adata = self.adatas[query_name]
         
         # Get batch categories for this modality
-        batch_manager = self.adata_managers[source_name]
+        batch_manager = self.adata_managers[query_name]
         batch_categories = batch_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).get(
             "categorical_mapping", None
         )
 
         self.module.eval()
-        dl = self._make_data_loader(source_adata, batch_size=batch_size)
+        dl = self._make_data_loader(query_adata, batch_size=batch_size)
         reconstructed_values = []
         for tensor in dl:
             inference_output = self.module.inference(
                 **self.module._get_inference_input(tensor),
-                mode=source_name,
+                mode=query_name,
                 deterministic=deterministic,
             )
             # Use the feature embedding of the other modality for reconstruction
@@ -793,17 +793,17 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 inference_output,
             )
 
-            # Handle target batch
+            # Handle reference batch
             batch_size_ = generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0]
-            if target_batch is not None:
-                b = np.asarray(target_batch)
+            if reference_batch is not None:
+                b = np.asarray(reference_batch)
                 if b.size == 1:
                     b = np.full(batch_size_, b.item())
                 elif b.size != batch_size_:  # raise error if wrong size
-                    raise ValueError("`target_batch` must have the same size as adata!")
+                    raise ValueError("`reference_batch` must have the same size as adata!")
                 if batch_categories is not None and not np.issubdtype(b.dtype, np.integer):
                     b = np.array([np.where(batch_categories == lbl)[0][0] for lbl in b])
-            # Use batch index zero if no target batch is provided
+            # Use batch index zero if no reference batch is provided
             else:
                 b = np.zeros(batch_size_, dtype=int)
             b = np.asarray(b, dtype=int).reshape(-1, 1)
@@ -813,20 +813,20 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
             )
             
-            # Handle target libsize
-            if target_libsize is not None:
-                l = target_libsize
+            # Handle reference libsize
+            if reference_libsize is not None:
+                l = reference_libsize
                 if not isinstance(l, np.ndarray):
                     l = np.asarray(l)
                 l = l.squeeze()
                 if l.ndim == 0:
                     l = l[np.newaxis]
                 elif l.ndim > 1:
-                    raise ValueError("`target_libsize` cannot be >1 dimensional")
+                    raise ValueError("`reference_libsize` cannot be >1 dimensional")
                 if l.size == 1:
                     l = np.repeat(l, batch_size_)
                 if l.size != batch_size_:
-                    raise ValueError("`target_libsize` must have the same size as the batch!")
+                    raise ValueError("`reference_libsize` must have the same size as the batch!")
                 l = l.reshape((-1, 1))
                 generative_input[MODULE_KEYS.LIBRARY_KEY] = torch.tensor(
                     l,
@@ -834,13 +834,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
                     device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
                 )
             
-            # Determine target modality
-            target_names = [m for m in self.input_names if m != source_name]
-            if len(target_names) != 1:
+            # Determine reference modality
+            reference_names = [m for m in self.input_names if m != query_name]
+            if len(reference_names) != 1:
                 raise ValueError("There must be exactly two modalities defined.")
-            target_name = target_names[0]
+            reference_name = reference_names[0]
             
-            generative_output = self.module.generative(**generative_input, mode=target_name)
+            generative_output = self.module.generative(**generative_input, mode=reference_name)
             # Use distribution mean for correct expected value across all likelihoods
             px_dist = generative_output[MODULE_KEYS.PX_KEY]
             reconstructed_values.append(px_dist.mean.cpu().detach())

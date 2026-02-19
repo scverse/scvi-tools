@@ -125,7 +125,7 @@ class DiagTrainingPlan(TrainingPlan):
     def __init__(
         self,
         module: torch.nn.Module,
-        lam_graph: float = 1.0,
+        lam_graph: float = 15.0,
         lam_kl: float = 1.0,
         lam_data: float = 0.1,
         lam_sinkhorn: float = 1.0,
