@@ -60,8 +60,8 @@ editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
 cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
-metal = ["torchvision", "torchaudio", "jax-metal"]
 tpu = ["torch_xla[tpu]"]
+metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205

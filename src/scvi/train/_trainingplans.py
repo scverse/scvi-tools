@@ -1779,6 +1779,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
             replicated = {}
             for name, rng in rngs.items():
                 keys = random.split(rng, n_devices)
+                # Place each key on the corresponding device for pmap
                 replicated[name] = jax.device_put_sharded(
                     list(keys), jax.local_devices()[:n_devices]
                 )
@@ -1859,6 +1860,7 @@ if is_package_installed("jax") and is_package_installed("optax"):
                 lambda x: torch.tensor(jax.device_get(x)),
                 loss_output,
             )
+            # TODO: Better way to get batch size
             self.log(
                 "train_loss",
                 loss_output.loss,
