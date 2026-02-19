@@ -149,6 +149,12 @@ class TrainRunner:
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
+            # Clean up XLA/TPU memory if using TPU
+            if self.accelerator == "tpu" and is_package_installed("torch_xla"):
+                import torch_xla.core.xla_model as xm
+
+                xm.mark_step()  # Ensure all operations are completed
+
             raise
         self._update_history()
 
@@ -216,8 +222,11 @@ class TrainRunner:
             self._run_training_core()
 
     def _update_history(self):
-        # only the global-zero process should touch model.history_
+        # only the global-zero process populates history from the logger;
+        # non-zero ranks get an empty dict so that model.history is not None
         if not self.trainer.is_global_zero:
+            if self.model.history_ is None:
+                self.model.history_ = {}
             return
 
         # model is being further trained

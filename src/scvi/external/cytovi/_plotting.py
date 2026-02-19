@@ -20,6 +20,7 @@ def plot_histogram(
     col_wrap: int = None,
     tight_layout: bool = True,
     save: bool | str = None,
+    show_plot: bool = True,
     return_plot: bool = False,
     kde_kwargs: dict = None,
     **kwargs,
@@ -51,6 +52,8 @@ def plot_histogram(
     save
         If ``True``, save as ``"marker_histogram.png"``; if a string is provided,
         use it as the filename. Default: False.
+    show_plot
+        Whether to show the plot. Default: True.
     return_plot
         If ``True``, return the ``seaborn.FacetGrid`` object. Default: False.
     kde_kwargs
@@ -68,6 +71,7 @@ def plot_histogram(
     >>> cytovi.plot_histogram(adata, marker=["CD3", "CD4"], groupby="condition")
     >>> cytovi.plot_histogram(adata, marker="all", groupby="batch")
     """
+    import matplotlib.pyplot as plt
     import seaborn as sns
 
     if kde_kwargs is None:
@@ -123,8 +127,12 @@ def plot_histogram(
             save = "marker_histogram.png"
         g.savefig(save)
 
+    if show_plot:
+        plt.show()
     if return_plot:
         return g
+    if not show_plot:
+        plt.close()
 
 
 @dependencies("seaborn", "matplotlib")
@@ -139,6 +147,8 @@ def plot_biaxial(
     n_obs: int = 10000,
     sample_color_groups: bool = False,
     save: bool | str = None,
+    show_plot: bool = True,
+    return_plot: bool = False,
     kde: bool = True,
     kde_kwargs: dict = None,
     scatter_kwargs: dict = None,
@@ -171,6 +181,10 @@ def plot_biaxial(
     save
         If ``True``, save as ``"marker_biaxial.png"``;
         if a string is provided, use it as the filename. Default: False.
+    return_plot
+        If ``True``, return the ``seaborn.FacetGrid`` object. Default: False.
+    show_plot
+        Whether to show the plot. Default: True.
     kde
         Whether to overlay KDE density contours. Default: True.
     kde_kwargs
@@ -182,7 +196,7 @@ def plot_biaxial(
 
     Returns
     -------
-    No return value; the figure is displayed and optionally saved.
+    If ``return_plot`` is ``True``, returns the ``seaborn.FacetGrid``; otherwise, nothing.
 
     Examples
     --------
@@ -246,4 +260,9 @@ def plot_biaxial(
             save = "marker_histogram.png"
         g.savefig(save)
 
-    plt.show()
+    if show_plot:
+        plt.show()
+    if return_plot:
+        return g
+    if not show_plot:
+        plt.close()

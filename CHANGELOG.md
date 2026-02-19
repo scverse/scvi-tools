@@ -9,14 +9,19 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
+- Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
+    {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
+- Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
+- Add support for running scVI-Tools on TPU, {pr}`3690`.
+- Add support for logging validation metrics in MultiGPU, {pr}`3712`.
 
 #### Fixed
 
 - Fix checkpointing for {class}`scvi.model.TOTALVI`, {pr}`3651`.
-- Fix Integrated Gradients gets cont and categ covs in the the reverse order, {pr}`3660`.
+- Fix Integrated Gradients gets cont and categ covs in the reverse order, {pr}`3660`.
+- Fix minified adata load into non-minified model, {pr}`3691`.
 
 #### Changed
 
@@ -25,6 +30,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     and improving clarity across training APIs, {pr}`3666`.
 
 #### Removed
+
+- Removed all Jax tests from mandatory tests and put them under a special tag, {pr}`3703`.
 
 ### 1.4.1 (2025-12-10)
 

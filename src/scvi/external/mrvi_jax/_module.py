@@ -523,9 +523,11 @@ class JaxMRVAE(JaxBaseModuleClass):
                 10.0 * jax.nn.one_hot(label_index, self.n_labels) if self.n_labels >= 2 else 0.0
             )
             cats = dist.Categorical(logits=self.u_prior_logits + offset)
-            normal_dists = dist.Normal(self.u_prior_means, jnp.exp(self.u_prior_scales)).to_event(
-                1
-            )
+            # Use MultivariateNormal with diagonal covariance instead of Normal.to_event(1)
+            # because numpyro MixtureSameFamily requires ParameterFreeConstraint support
+            scales = jnp.exp(self.u_prior_scales)
+            scale_tril = jax.vmap(jnp.diag)(scales)
+            normal_dists = dist.MultivariateNormal(self.u_prior_means, scale_tril=scale_tril)
             pu = dist.MixtureSameFamily(cats, normal_dists)
         else:
             pu = dist.Normal(0, jnp.exp(self.u_prior_scale))

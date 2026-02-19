@@ -853,7 +853,8 @@ class RESOLVAEGuide(PyroModule):
             downsample_counts = (
                 int(
                     LogNormal(
-                        float(self.downsample_counts_mean), float(self.downsample_counts_std)
+                        torch.tensor(float(self.downsample_counts_mean)),
+                        torch.tensor(float(self.downsample_counts_std)),
                     ).sample()
                 )
                 + 10
