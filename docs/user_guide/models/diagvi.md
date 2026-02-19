@@ -1,108 +1,141 @@
 # DiagVI
 
-**DiagVI** (Diagonal Multi-Modal Integration Variational Inference; Python class {class}`~scvi.external.DIAGVI`) is a deep generative model for diagonal integration of unpaired multi-modal single-cell data using prior biological knowledge encoded as a guidance graph.
+**DiagVI** (Diagonal multi-modal integration Variational Inference; Python class {class}`~scvi.external.DIAGVI`) is a deep generative model for diagonal integration of unpaired multi-modal single-cell data using prior biological knowledge encoded as a guidance graph.
 
-DiagVI is inspired by the GLUE [^ref1] architecture, which uses modality-specific variational autoencoders (VAEs) to project heterogeneous data types into a shared latent space. In contrast to GLUE’s adversarial alignment strategy, DiagVI aligns modalities using Unbalanced Optimal Transport (UOT) via the Sinkhorn divergence, explicitly accounting for differences in cell-type composition across modalities. This design makes DiagVI particularly well suited for settings with modality-specific or rare cell populations, such as the integration of spatial proteomics and scRNA-seq data.
+DiagVI is inspired by the GLUE [^ref1] architecture, which uses modality-specific variational autoencoders (VAEs) to project heterogeneous data types into a shared latent space. In contrast to GLUE’s adversarial alignment strategy, DiagVI aligns modalities using Unbalanced Optimal Transport (UOT) via the Sinkhorn divergence, explicitly accounting for differences in cell-type composition across modalities.
 
 The advantages of DiagVI are:
 
 -   Flexible two-modality integration of various data types (e.g., scRNA-seq, spatial transcriptomics, spatial proteomics).
--   Modality specific generative likelihoods tailored to data properties.
 -   Full feature utilization: all features (not only overlapping ones) contribute to model training via the guidance graph and modality-specific VAEs.
-- Biologically informed alignment using prior feature correspondences via the guidance graph.
-- Robust integration of modality-specific or rare cell populations via UOT.
--   Optional Gaussian mixture prior and semi-supervised learning with cell-type labels.
+-   Biologically informed alignment using prior feature correspondences via the guidance graph.
+-   Robust integration of modality-specific or rare cell populations via UOT.
+-   Scalable to very large datasets (>1 million cells). 
 
 The limitations of DiagVI include:
 
 -   Currently supports integration of two modalities only.
 -   Requires prior information on cross-modal feature correspondences (explicitly or implicitly).
-- Effectively requires a GPU for fast inference.
-- Requires careful tuning of loss weights (for more information, see [Hyperparameter Selection](#hyperparameter-selection)). 
+-   Effectively requires a GPU for fast inference.
+-   Requires tuning of loss weights for optimal performance (for more information, see [Hyperparameter Selection](#hyperparameter-selection)). 
 
 ```{topic} Tutorials:
- Tutorial placeholder
+
+-   {doc}`/tutorials/notebooks/multimodal/DiagVI_tutorial`
+-   {doc}`/tutorials/notebooks/multimodal/DiagVI_spatial_proteomics`
 ```
 
+
 ## Preliminaries
-<span style="color:blue"> Question: SHould we change nomenclature in the plate model (adopts scvi-style) or in the text? </span>
 
-DiagVI takes as input expression matrices $X_1 \in \mathbb{R}^{N_1 \times \mathcal{V}_1}$ and $X_2 \in \mathbb{R}^{N_2 \times \mathcal{V}_2}$ from two unpaired modalities with independent feature sets $\mathcal{V}_1, \mathcal{V}_2$ and observations $N_1, N_2$.
+DiagVI takes as input expression matrices $X_1 \in \mathbb{R}^{N \times G}$ and $X_2 \in \mathbb{R}^{M \times P}$ from two unpaired modalities with independent feature sets $G, P$ and observations $N, M$.
 
-For **count data** such as scRNA-seq data DiagVI expects a raw count expression matrix $X \in \mathbb{R}^{N \times \mathcal{V}}$, where rows correspond to individual cells and columns correspond to features (e.g., genes).
+For **count data** such as scRNA-seq data DiagVI expects a raw count expression matrix, where rows correspond to individual cells and columns correspond to features (e.g., genes).
 
-For **continuous data** such as antibody-based single-cell proteomics data, DiagVI expects a transformed (and optionally scaled) protein expression matrix $X \in \mathbb{R}^{N \times \mathcal{V}}$, where rows correspond to individual cells and each column is a feature (e.g., a marker protein).
+For **continuous data** such as antibody-based single-cell proteomics data DiagVI expects a transformed (and optionally scaled) protein expression matrix, where rows correspond to individual cells and each column is a feature (e.g., a marker protein).
 Input data should be preprocessed using transformations such as arcsinh or log1p, optionally followed by feature-wise scaling (e.g., z-score, min–max, or rank scaling). We recommend arcsinh transformation followed by feature-wise min–max scaling.
 
 Optional: For both count and continuous data, DiagVI can additionally incorporate:
-- an experimental covariate such as batch annotation or confounding variables such as donor sex.
-- cell label annotations that weakly inform the prior of the latent space and guide a classifier in semi-supervised training.
+-   Experimental covariates such as batch annotation or confounding variables such as donor sex for one or both modalites. For simplicity, we will describe the case of one-hot encoded batch identifiers $s_n, s_m \in \{1,...,S\}$.
+-   Cell label annotations that weakly inform the prior of the latent space and guide a classifier in semi-supervised training for one or both modalities. We assume one-hot encoded label identifiers $y_n, y_m \in\{1,...,Y\}$.
 
 Currently supported modalities include:
-- scRNA-seq
-- Spatial transcriptomics
-- Spatial proteomics (e.g., CITE-seq, any other antibody-based single cell measurement of protein expression)
-- Other count or continuous measurements
+-   scRNA-seq
+-   Spatial transcriptomics
+-   Spatial proteomics (e.g., CITE-seq, any other antibody-based single cell measurement of protein expression)
+-   Other count or continuous measurements
+
 
 ## Model components
-<span style="color:red"> TODO: references </span>
-
-<span style="color:blue"> Question: When do we use references, when links? </span>
 
 DiagVI consists of several components which together define the overall training objective (see [Training Objective](#training-objective)).
 
 ### Modality-specific variational autoencoders
-<span style="color:blue"> I think we should shorten this (not so important for model usage)? </span>
 
-DiagVI integrates two unpaired modalities by projecting their expression matrices $X_1 \in \mathbb{R}^{N_1 \times \mathcal{V}_1}$ and $X_2 \in \mathbb{R}^{N_2 \times \mathcal{V}_2}$ into a shared latent space in which each cell is represented by a cell latent variable $\mathbf{z}$. The main assumption thereby is that the observed data from both modalities originates from a common, shared cell state based on which integration can be performed. The modality specific differences between the datasets are assumed to result from the different ways of measuring this common cell state. 
-
-To find this shared state, the observed data from each modality is modeled using an independently parametrized VAE. The dimensionality of the embedding that is generated by this process is identical for both modalities. In this way, the observed data from both modalities is projected into a common low-dimensional space.
+DiagVI integrates two unpaired modalities by projecting their expression matrices $X_1 \in \mathbb{R}^{N \times G}$ and $X_2 \in \mathbb{R}^{M \times P}$ into a shared latent space in which each cell is represented by a cell latent variable $z$. To find this shared state, the observed data from each modality is modeled using an independently parametrized VAE. The dimensionality of the embedding that is generated by this process is identical for both modalities. In this way, the observed data from both modalities is projected into a common low-dimensional space.
 
 ### Guidance graph
-Projecting cells into a common low-dimensional space alone does not result in a semantically consistent embeddings in which identical cell types are assigned to the same region across both modalities. The reason for this is that the modality-specific VAEs are trained and parametrized independently. To ensure biological consistency in the latent space, a guidance graph establishes a kogical associations between the two modalities.
 
-Feature correspondences are encoded in the guidance graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$, where $\mathcal{V} = \mathcal{V}_1 \cup \mathcal{V}_2$.
+Projecting cells into a common low-dimensional space alone does not result in a semantically consistent embeddings in which identical cell types are assigned to the same region across both modalities. To ensure biological consistency in the latent space, a guidance graph establishes a logical associations between the two modalities.
+
+Feature correspondences are encoded in the guidance graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$, where $\mathcal{V} = G \cup P$.
 Each edge $\mathcal{E} = \{(i,j)\mid i,j \in \mathcal{V}\}$ is associated with
-- a weight $w_{ij} \in (0, 1]$ reflecting the confidence of the link
-- a sign $s_{ij} \in [-1, 1]$ specifying whether the interaction is associative ($s_{ij} = 1$) or repressive ($s_{ij} = -1$)
 
-The graph loss encourages the inner product between embeddings $v_i$ and $v_j$ of linked features to be large and positive for $s_{ij} > 0$ and large and negative for $s_{ij} < 0$, with strength modulated by edge weights.
+-   a weight $w_{ij} \in (0, 1]$ reflecting the confidence of the link
+-   a sign $\sigma_{ij} \in [-1, 1]$ specifying whether the interaction is associative ($\sigma_{ij} = 1$) or repressive ($\sigma_{ij} = -1$)
+
+The graph loss encourages the inner product between embeddings $v_i$ and $v_j$ of linked features to be large and positive for $\sigma_{ij} > 0$ and large and negative for $\sigma_{ij} < 0$, with strength modulated by edge weights.
 
 ### Unbalanced optimal transport
-To ensure robust alignment of cells from different modalities within a shared latent space, DiagVI leverages unbalanced optimal transport (UOT). Specifically, it minimizes the de-biased Sinkhorn divergence between latent distributions using the GeomLoss library [^ref2].
-Two key parameters determine the behavior of the Sinkhorn divergence:
-- `blur` - the entropic regularization strength, which controls the smoothness of the transport plan,
-- `reach` - the marginal relaxation parameter, which penalizes deviations from strict mass conservation.
 
-Although the user has the flexibility to manually specify these parameters, DiagVI uses by default the heuristic strategy introduced in [ott-jax](https://ott-jax.readthedocs.io/).
-Here, `blur` is dynamically calculated at each optmization step from the cost matrix and `reach` is subsequently derived as a function of `blur`.
+To ensure robust alignment of cells from different modalities within the shared latent space, DiagVI leverages unbalanced optimal transport (UOT). Specifically, it minimizes the de-biased Sinkhorn divergence between latent distributions using the [GeomLoss](https://www.kernel-operations.io/geomloss/#) library [^ref2].
 
 ### Classifier
-Inspired by {class}`~scvi.external.RESOLVI` [^ref3], a simple cell type classifier predicting label $y$ from cell latent vector $z$ is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
+
+Inspired by {class}`~scvi.external.RESOLVI` [^ref3], a simple cell type classifier predicting labels $y$ from cell latent vector $z$ is integrated into the model in semi-supervised setting. This classifier is trained jointly with the generative model.
+
 
 ## Descriptive model
-DiagVI assumes that observations from each modality are generated from a shared 
-$m$-dimensional latent space. 
-For cell $n$ and feature $i$, the observed data $\mathbf{x}_{ni}$ is modelled as a function of the cell latent variable $\mathbf{z}_n \in \mathbb{R}^{m}$ and the feature latent variable  $\mathbf{v}_i \in \mathbb{R}^{m}$.
 
-The prior on the feature (graph) latent is set to a standard normal distribution.
+DiagVI assumes that observations from each modality are generated from a shared $d$-dimensional latent space. For cell $n$ and feature $g$, the observed data $x_{ng}$ is modelled as a function of the cell latent variable $z_n \in \mathbb{R}^{d}$, the feature latent variable  $v_g \in \mathbb{R}^{d}$, and its associated batch $s_n$.
+
+The prior on the feature (graph) latent variable is set to a standard normal distribution.
 $$
-    p(\boldsymbol{V}) \sim \prod_{i\in \mathcal{V}} N(\mathbf{v}_i;0,\boldsymbol{I_m})
-
+v_g \sim \mathcal{N}(0, 1)
 $$
 
-The prior on the cell latent variable can be either a standard Gaussian (default) or a Gaussian mixture with $L$ components.
+The prior on the cell latent variable can be either a standard normal distribution (default) or a Gaussian mixture with $L$ components.
+
 $$
-\mathbf{z}_{n} \sim
+z_n \sim
 \begin{cases}
 \mathcal{N}(0, 1), \\
 \sum_{l=1}^L \pi_{l} \, \mathcal{N}(\mu_{l}, \sigma_{l}^2)
 \end{cases}
 $$
-If cell-type labels are provided, a Gaussian mixture prior is used with one component per cell type. A modality-specific [classifier](#classifier) predicting labels from 
-$\mathbf{z}$ is trained jointly. This strategy is adopted from {class}`~scvi.external.RESOLVI` [^ref3].
+
+If cell type labels are provided and a Gaussian mixture prior is used, the number of components $L$ is set to the number of unique cell types.
 
 ## Generative process
+
+The form of the generative model depends on whether the observed data consist of discrete counts or continuous measurements. In both cases, the specific form of the data likelihood varies with the distribution that is used to model the observed data in each modality. Regardless of this choice, the product $z_n v_g$ between the cell and feature latent embeddings is used to parametrize the distribution mean.
+
+For count-based modalities, DiagVI generates denoised and normalized expression proportions $\rho_{ng} $ as follows:
+
+$$
+\rho_{ng} = \mathrm{softmax}\left(\alpha_{ng} \odot \left(z_n v_g \right) + \beta_{ng} \right)
+$$
+
+The distribution mean $\mu_{ng}$ is then generated using the original library size $l_n$:
+
+$$
+\mu_{ng} = \rho_{ng} l_n
+$$
+
+When modeling the observed count data with a negative binomial distribution
+
+For continuous modalities, DiagVI generates denoised and normalized values without enforcing simplex constraints:
+$$
+
+\rho_{ng} = \alpha_{ng} \odot \left(z_n v_g \right) + \beta_{ng}
+$$
+
+In this case, no library size normalization is applied during reconstruction.
+
+In both settings, $\boldsymbol{\alpha}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ and $\boldsymbol{\beta}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ are feature specific scaling and bias parameters, respectively. When a batch covariate is provided, DiagVI learns batch-specific versions of these parameters to account for batch effects within each modality.
+
+<span style="color:red">TODO: should we change the direction of the arrows from feature embeddings to observed data?</span>
+
+:::{figure} figures/diagvi_graphical_model.svg
+:align: center
+:alt: DiagVI graphical model
+:class: img-fluid
+
+DiagVI graphical model. Shaded nodes represent observed data, unshaded nodes represent latent variables. In the semi-supervised setting (not depicted here), the latent embeddings $z$ further depend on the cell-type label for the respective modality.
+:::
+
+## Generative process
+
 The form of the generative model depends on whether the observed data consist of discrete counts or continuous measurements. In both cases, generation is conditioned on the cell latent variable $\mathbf{z}_n$ and feature embeddings $\mathbf{V}$.
 
 For count-based modalities, DiagVI generates denoised and normalized expression proportions $\rho_n $ as follows:
@@ -118,6 +151,8 @@ $$
 In this case, no library size normalization is applied during reconstruction.
 
 In both settings, $\boldsymbol{\alpha}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ and $\boldsymbol{\beta}_n \in \mathbb{R}_+^{\mid \mathcal{V} \mid}$ are feature specific scaling and bias parameters, respectively. When a batch covariate is provided, DiagVI learns batch-specific versions of these parameters to account for batch effects within each modality.
+
+<span style="color:red">TODO: should we change the direction of the arrows from feature embeddings to observed data?</span>
 
 :::{figure} figures/diagvi_graphical_model.svg
 :align: center
@@ -173,7 +208,8 @@ DiagVI supports the following likelihood functions:
      - Sparse positive continuous data
 ```
 
-### Latent variables
+
+## Latent variables
 
 <span style="color:blue"> Question: I removed library size because we never model it and always use the observed one </span>
 
@@ -200,23 +236,39 @@ The exact set of variables instantiated during training depends on the chosen li
      - ``px_r``
 ```
 
+
 ## Inference
 
 DiagVI uses variational inference (see {doc}`/user_guide/background/variational_inference`) to learn model parameters and approximate posterior distributions.
 
+
 ## Training objective
 
 DiagVI is trained by minimizing a weighted sum of loss terms corresponding to the [Model Components](#model-components) introduced above:
-- Modality-specific VAEs: The data reconstruction loss (`lam_data`) measures how well each modality-specific decoder reconstructs the observed data, while the KL divergence (`lam_kl`) regularizes the cell latent variables by encouraging adherence to the prior.
-- Guidance graph: The Gaph reconstruction loss (`lam_graph`) enforces biological consistency between feature embeddings using the guidance graph.
-- UOT: The UOT alignment loss (`lam_sinkhorn`) aligns cell distributions across modalities using unbalanced optimal transport.
-- Classifier: The classification loss (`lam_class`, optional) enables supervised or semi-supervised training via cell-type labels.
+
+-   Modality-specific VAEs: The data reconstruction loss (`lam_data`) measures how well each modality-specific decoder reconstructs the observed data, while the KL divergence (`lam_kl`) regularizes the cell latent variables by encouraging adherence to the prior.
+-   Guidance graph: The Gaph reconstruction loss (`lam_graph`) enforces biological consistency between feature embeddings using the guidance graph.
+-   UOT: The UOT alignment loss (`lam_sinkhorn`) aligns cell distributions across modalities using unbalanced optimal transport.
+-   Classifier: The classification loss (`lam_class`, optional) enables supervised or semi-supervised training via cell-type labels.
 
 The `lam_*` parameters control the relative importance of within-modality reconstruction (`lam_data`, `lam_kl`), cross-modality alignment (`lam_graph`, `lam_sinkhorn`), and optional supervision (`lam_class`). DiagVI uses sensible defaults for all of these values, but they may require further tuning depending on the type of data integrated (see [Hyperparameter Selection](#hyperparameter-selection)).
 
+
 ## Practical guidance
-### Hyperparameter Selection
+
+### Hyperparameter selection
+
 <span style="color:red"> TODO: Provide some recommendations for parameter selection. </span>
+
+#### Sinkhorn parameters
+
+Two key parameters determine the behavior of the Sinkhorn divergence:
+
+-   `blur` - the entropic regularization strength, which controls the smoothness of the transport plan,
+-   `reach` - the marginal relaxation parameter, which penalizes deviations from strict mass conservation.
+
+Although the user has the flexibility to manually specify these parameters, DiagVI uses by default the heuristic strategy introduced in [ott-jax](https://ott-jax.readthedocs.io/).
+Here, `blur` is dynamically calculated at each optmization step from the cost matrix and `reach` is subsequently derived as a function of `blur`.
 
 
 ## Tasks
@@ -224,6 +276,7 @@ The `lam_*` parameters control the relative importance of within-modality recons
 Here we provide an overview of the main tasks that DiagVI can perform. See {class}`~scvi.external.DIAGVI` for the full API reference.
 
 ### Dimensionality reduction
+
 ```python
 >>> latents = model.get_latent_representation()
 >>> adata_rna.obsm["X_diagvi"] = latents["rna"]
@@ -262,6 +315,7 @@ You can also specify target batch and library size for counterfactual prediction
 ...     target_libsize=10000,
 ... )
 ```
+
 
 ## References
 
