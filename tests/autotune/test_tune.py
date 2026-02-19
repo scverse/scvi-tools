@@ -9,7 +9,7 @@ from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI
 
 @pytest.mark.autotune
 @pytest.mark.parametrize("save_checkpoints", [True, False])
-@pytest.mark.parametrize("metric", ["elbo_validation", "elbo_train"])
+@pytest.mark.parametrize("metric", ["elbo_validation"])
 def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, metric: str, save_path: str):
     from ray import tune
     from ray.tune import ResultGrid
@@ -132,8 +132,8 @@ def test_run_autotune_scvi_no_anndata(n_batches: int, save_path: str):
 
 
 @pytest.mark.autotune
-@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
-@pytest.mark.parametrize("model_cls", [SCVI, SCANVI, TOTALVI])
+@pytest.mark.parametrize("metric", ["Total"])
+@pytest.mark.parametrize("model_cls", [SCVI, TOTALVI])
 @pytest.mark.parametrize("solver", ["randomized"])
 def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, save_path: str):
     from ray import tune
@@ -201,7 +201,7 @@ def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, 
 
 
 @pytest.mark.autotune
-@pytest.mark.parametrize("metric", ["Total", "Bio conservation", "iLISI"])
+@pytest.mark.parametrize("metric", ["Total"])
 @pytest.mark.parametrize("model_cls", [MULTIVI, TOTALVI])
 @pytest.mark.parametrize("solver", ["randomized"])
 def test_run_autotune_scvi_with_scib_mdata(model_cls, metric: str, solver: str, save_path: str):

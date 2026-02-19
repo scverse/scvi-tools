@@ -9,7 +9,6 @@ from scvi.external import TOTALANVI
 from scvi.model import TOTALVI
 
 
-@pytest.mark.optional
 def test_totalanvi():
     # test transfer_anndata_setup + view
     adata = synthetic_iid()
@@ -212,6 +211,11 @@ def test_totalanvi():
     totalanvi_model.get_normalized_expression(adata2)
 
     predictions, attributions = totalanvi_model.predict(ig_interpretability=True)
+    # let's see an avg of score of top 5 markers for all samples put together
+    ig_top_features = attributions.head(5)
+    print(ig_top_features)
+
+    predictions, attributions = totalanvi_model2.predict(ig_interpretability=True)
     # let's see an avg of score of top 5 markers for all samples put together
     ig_top_features = attributions.head(5)
     print(ig_top_features)
