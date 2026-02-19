@@ -287,6 +287,14 @@ class JaxModuleInit(Callback):
         state, params = flax.core.pop(module_init, "params")
         pl_module.set_train_state(params, state)
 
+        # Multi-GPU: replicate train state across devices
+        n_devices = getattr(pl_module, "n_devices", 1)
+        if n_devices > 1:
+            from flax.jax_utils import replicate
+
+            log.info(f"JAX multi-GPU: replicating state across {n_devices} devices.")
+            pl_module.module.train_state = replicate(pl_module.module.train_state)
+
 
 class ScibCallback(Callback):
     """A callback to initialize the Scib-Metrics autotune module."""
