@@ -8,13 +8,11 @@ def compute_foscttm(
     downsample: bool = False,
     n_obs: int = 10000,
 ) -> dict[str, float]:
-    """Compute FOSCTTM (Fraction of Samples Closer Than True Match) 
-    on latent embeddings.
+    """Compute FOSCTTM (Fraction of Samples Closer Than True Match) metric.
 
-    For paired multi-modal data, measures how well the model aligns
-    corresponding cells in the latent space. Lower values are better
-    (0 = perfect alignment). Assumes cells are aligned: mod1 cell i 
-    corresponds to mod2 cell i.
+    For paired multi-modal data, measures how well the model aligns corresponding
+    cells in the latent space. Lower values are better (0 = perfect alignment).
+    Assumes cells are aligned: mod1 cell i corresponds to mod2 cell i.
 
     Parameters
     ----------
@@ -61,9 +59,11 @@ def compute_foscttm(
     # Aggregate metrics
     mean_mod1_to_mod2 = foscttm_mod1_to_mod2.mean()
     mean_mod2_to_mod1 = foscttm_mod2_to_mod1.mean()
+
+    mod1_name, mod2_name = list(latents.keys())
     foscttm_metrics = {
-        f"foscttm/{list(latents.keys())[0]}_to_{list(latents.keys())[1]}": float(mean_mod1_to_mod2),
-        f"foscttm/{list(latents.keys())[1]}_to_{list(latents.keys())[0]}": float(mean_mod2_to_mod1),
+        f"foscttm/{mod1_name}_to_{mod2_name}": float(mean_mod1_to_mod2),
+        f"foscttm/{mod2_name}_to_{mod1_name}": float(mean_mod2_to_mod1),
         "foscttm/mean": float((mean_mod1_to_mod2 + mean_mod2_to_mod1) / 2),
     }
 

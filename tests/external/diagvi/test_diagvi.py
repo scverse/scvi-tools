@@ -7,7 +7,6 @@ from mudata import MuData
 
 from scvi.external.diagvi import DIAGVI
 
-
 # =============================================================================
 # Constants and fixtures
 # =============================================================================
@@ -115,11 +114,8 @@ def test_diagvi_loss(adata_seq, adata_spatial):
         mode="diss",
     )
     loss = model.module.loss(
-        tensors,
-        inference_outputs,
-        generative_outputs,
-        lam_kl=1.0, lam_data=0.1,
-        mode="diss")
+        tensors, inference_outputs, generative_outputs, lam_kl=1.0, lam_data=0.1, mode="diss"
+    )
     assert loss.loss is not None
     assert loss.reconstruction_loss is not None
     assert loss.kl_local is not None
@@ -261,9 +257,9 @@ def test_get_imputed_values_combined_batch_and_libsize(trained_model):
 @pytest.mark.parametrize(
     ("error_case", "error_kwargs"),
     [
-        ("wrong_size_batch", {"reference_batch": np.array([0, 1, 0])}),  # Wrong size
-        ("wrong_size_libsize", {"reference_libsize": np.array([100.0, 200.0, 300.0])}),  # Wrong size
-        ("2d_libsize", {"reference_libsize": np.array([[100.0], [200.0], [300.0]])}),  # 2D array
+        ("wrong_size_batch", {"reference_batch": np.array([0, 1, 0])}),
+        ("wrong_size_libsize", {"reference_libsize": np.array([100.0, 200.0, 300.0])}),
+        ("2d_libsize", {"reference_libsize": np.array([[100.0], [200.0], [300.0]])}),
     ],
 )
 def test_get_imputed_values_errors(trained_model, error_case, error_kwargs):
@@ -493,9 +489,7 @@ def test_diagvi_semi_supervised_one_modality(adata_seq_with_labels, adata_spatia
         gmm_prior=True,
     )
     # No labels_key means no semi-supervised mode
-    DIAGVI.setup_anndata(
-        adata_spatial, batch_key="batch", likelihood="nb", gmm_prior=False
-    )
+    DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb", gmm_prior=False)
 
     model = DIAGVI({"diss": adata_seq_with_labels, "spatial": adata_spatial})
 
@@ -527,7 +521,7 @@ def test_semi_supervised_auto_enabled_with_labels_key(adata_seq_with_labels):
         labels_key="cell_type",
         likelihood="nb",
     )
-    
+
     assert adata_seq_with_labels.uns["diagvi_semi_supervised"] is True
     # n_mixture_components should equal number of unique labels
     expected_n_labels = adata_seq_with_labels.obs["cell_type"].nunique()
@@ -542,7 +536,7 @@ def test_semi_supervised_auto_disabled_without_labels_key(adata_seq):
         likelihood="nb",
         n_mixture_components=15,
     )
-    
+
     assert adata_seq.uns["diagvi_semi_supervised"] is False
     # n_mixture_components should be the user-specified value
     assert adata_seq.uns["diagvi_n_mixture_components"] == 15
@@ -551,7 +545,7 @@ def test_semi_supervised_auto_disabled_without_labels_key(adata_seq):
 def test_n_mixture_components_ignored_with_labels_key_warning(adata_seq_with_labels):
     """Test that warning is raised when n_mixture_components differs from label count."""
     expected_n_labels = adata_seq_with_labels.obs["cell_type"].nunique()
-    
+
     with pytest.warns(UserWarning, match="n_mixture_components=99 is ignored"):
         DIAGVI.setup_anndata(
             adata_seq_with_labels,
@@ -560,7 +554,7 @@ def test_n_mixture_components_ignored_with_labels_key_warning(adata_seq_with_lab
             likelihood="nb",
             n_mixture_components=99,  # This should be ignored
         )
-    
+
     # Should use label count, not user-specified value
     assert adata_seq_with_labels.uns["diagvi_n_mixture_components"] == expected_n_labels
 
@@ -568,9 +562,10 @@ def test_n_mixture_components_ignored_with_labels_key_warning(adata_seq_with_lab
 def test_n_mixture_components_no_warning_when_matching(adata_seq_with_labels):
     """Test that no warning when n_mixture_components matches label count."""
     expected_n_labels = adata_seq_with_labels.obs["cell_type"].nunique()
-    
+
     # Should not warn if the values match
     import warnings as warn_module
+
     with warn_module.catch_warnings():
         warn_module.simplefilter("error")  # Turn warnings into errors
         DIAGVI.setup_anndata(
@@ -585,6 +580,7 @@ def test_n_mixture_components_no_warning_when_matching(adata_seq_with_labels):
 def test_n_mixture_components_no_warning_when_default(adata_seq_with_labels):
     """Test that no warning when n_mixture_components is default value (10)."""
     import warnings as warn_module
+
     with warn_module.catch_warnings():
         warn_module.simplefilter("error")  # Turn warnings into errors
         DIAGVI.setup_anndata(
@@ -898,14 +894,14 @@ def test_diagvi_count_likelihoods(adata_seq, adata_spatial, likelihood):
     """Test DIAGVI with different count-based likelihoods."""
     DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood=likelihood)
     DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood=likelihood)
-    
+
     model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
     model.train(max_epochs=1, batch_size=16)
-    
+
     assert model.is_trained_ is True
     assert model.module.modality_likelihoods["diss"] == likelihood
     assert model.module.modality_likelihoods["spatial"] == likelihood
-    
+
     # Test latent representation
     latents = model.get_latent_representation()
     assert latents["diss"].shape[0] == adata_seq.shape[0]
@@ -916,13 +912,13 @@ def test_diagvi_continuous_likelihoods(adata_continuous, adata_continuous_spatia
     """Test DIAGVI with different continuous likelihoods."""
     DIAGVI.setup_anndata(adata_continuous, batch_key="batch", likelihood=likelihood)
     DIAGVI.setup_anndata(adata_continuous_spatial, batch_key="batch", likelihood=likelihood)
-    
+
     model = DIAGVI({"diss": adata_continuous, "spatial": adata_continuous_spatial})
     model.train(max_epochs=1, batch_size=16)
-    
+
     assert model.is_trained_ is True
     assert model.module.modality_likelihoods["diss"] == likelihood
-    
+
     # Verify decoder normalization is disabled for continuous data
     assert model.module.decoder_0.normalize is False
     assert model.module.decoder_1.normalize is False
@@ -936,10 +932,10 @@ def test_diagvi_normal_likelihood(adata_continuous, adata_continuous_spatial):
     DIAGVI.setup_anndata(
         adata_continuous_spatial, batch_key="batch", likelihood="normal", normalize_lib=False
     )
-    
+
     model = DIAGVI({"diss": adata_continuous, "spatial": adata_continuous_spatial})
     model.train(max_epochs=1, batch_size=16)
-    
+
     assert model.is_trained_ is True
 
 
@@ -947,14 +943,15 @@ def test_diagvi_nbmixture_likelihood(adata_seq, adata_spatial):
     """Test DIAGVI with nbmixture likelihood (protein-like data)."""
     DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nbmixture")
     DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nbmixture")
-    
+
     model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
-    
+
     # Check dual-pathway decoder is used
     from scvi.external.diagvi._base_components import DecoderDualPathway
+
     assert isinstance(model.module.decoder_0, DecoderDualPathway)
     assert isinstance(model.module.decoder_1, DecoderDualPathway)
-    
+
     model.train(max_epochs=1, batch_size=16)
     assert model.is_trained_ is True
 
@@ -963,13 +960,13 @@ def test_diagvi_mixed_likelihoods(adata_seq, adata_continuous_spatial):
     """Test DIAGVI with different likelihoods per modality."""
     DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
     DIAGVI.setup_anndata(adata_continuous_spatial, batch_key="batch", likelihood="log1pnormal")
-    
+
     model = DIAGVI({"diss": adata_seq, "spatial": adata_continuous_spatial})
-    
+
     # Check different decoder configurations
     assert model.module.decoder_0.normalize is True  # nb uses softmax
     assert model.module.decoder_1.normalize is False  # log1pnormal does not
-    
+
     model.train(max_epochs=1, batch_size=16)
     assert model.is_trained_ is True
 
@@ -982,9 +979,9 @@ def test_diagvi_mixed_likelihoods(adata_seq, adata_continuous_spatial):
 def test_posterior_predictive_sample_single(trained_model):
     """Test posterior_predictive_sample with n_samples=1."""
     model, adata_seq, adata_spatial = trained_model
-    
+
     samples = model.posterior_predictive_sample(n_samples=1)
-    
+
     assert "diss" in samples
     assert "spatial" in samples
     assert samples["diss"].shape == (N_OBS_SEQ, N_VARS)
@@ -995,9 +992,9 @@ def test_posterior_predictive_sample_multiple(trained_model):
     """Test posterior_predictive_sample with n_samples>1."""
     model, adata_seq, adata_spatial = trained_model
     n_samples = 5
-    
+
     samples = model.posterior_predictive_sample(n_samples=n_samples)
-    
+
     assert samples["diss"].shape == (N_OBS_SEQ, N_VARS, n_samples)
     assert samples["spatial"].shape == (N_OBS_SPATIAL, N_VARS, n_samples)
 
@@ -1005,14 +1002,14 @@ def test_posterior_predictive_sample_multiple(trained_model):
 def test_posterior_predictive_sample_with_indices(trained_model):
     """Test posterior_predictive_sample with subset of indices."""
     model, adata_seq, adata_spatial = trained_model
-    
+
     indices = {
         "diss": list(range(10)),
         "spatial": list(range(20)),
     }
-    
+
     samples = model.posterior_predictive_sample(indices=indices, n_samples=1)
-    
+
     assert samples["diss"].shape == (10, N_VARS)
     assert samples["spatial"].shape == (20, N_VARS)
 
@@ -1020,10 +1017,10 @@ def test_posterior_predictive_sample_with_indices(trained_model):
 def test_posterior_predictive_sample_invalid_modality(trained_model):
     """Test that invalid modality names raise ValueError."""
     model, adata_seq, adata_spatial = trained_model
-    
+
     # Create fake adatas dict with invalid key
     invalid_adatas = {"invalid_modality": adata_seq}
-    
+
     with pytest.raises(ValueError, match="Invalid modality names"):
         model.posterior_predictive_sample(adatas=invalid_adatas)
 
@@ -1038,7 +1035,7 @@ def test_diagvi_adaptive_sinkhorn(adata_seq, adata_spatial):
     DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
     DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb")
     model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
-    
+
     # Train with adaptive parameters (default: blur=None, reach=None)
     model.train(
         max_epochs=2,
@@ -1050,7 +1047,7 @@ def test_diagvi_adaptive_sinkhorn(adata_seq, adata_spatial):
             "epsilon_scale": 0.5,
         },
     )
-    
+
     assert model.is_trained_ is True
 
 
@@ -1060,7 +1057,7 @@ def test_diagvi_adaptive_epsilon_methods(adata_seq, adata_spatial, epsilon_from_
     DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
     DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb")
     model = DIAGVI({"diss": adata_seq, "spatial": adata_spatial})
-    
+
     model.train(
         max_epochs=1,
         batch_size=16,
@@ -1069,7 +1066,7 @@ def test_diagvi_adaptive_epsilon_methods(adata_seq, adata_spatial, epsilon_from_
             "epsilon_from_cost": epsilon_from_cost,
         },
     )
-    
+
     assert model.is_trained_ is True
 
 
@@ -1081,25 +1078,25 @@ def test_diagvi_adaptive_epsilon_methods(adata_seq, adata_spatial, epsilon_from_
 def test_get_imputed_values_deterministic(trained_model):
     """Test get_imputed_values with deterministic=True vs False."""
     model, adata_seq, adata_spatial = trained_model
-    
+
     # Deterministic should give same result on repeated calls
     imputed_det1 = model.get_imputed_values(query_name="spatial", deterministic=True)
     imputed_det2 = model.get_imputed_values(query_name="spatial", deterministic=True)
-    
+
     np.testing.assert_array_equal(imputed_det1, imputed_det2)
 
 
 def test_get_latent_deterministic_mode(trained_model):
     """Test inference with deterministic mode."""
     model, adata_seq, adata_spatial = trained_model
-    
+
     device = next(model.module.parameters()).device
     x = torch.tensor(adata_seq.X, dtype=torch.float32, device=device)
-    
+
     # Deterministic inference should use mean instead of sampling
     outputs_det = model.module.inference(x, mode="diss", deterministic=True)
     outputs_det2 = model.module.inference(x, mode="diss", deterministic=True)
-    
+
     # Results should be identical
     torch.testing.assert_close(outputs_det["z"], outputs_det2["z"])
 
@@ -1125,17 +1122,17 @@ def test_semi_supervised_both_modalities(adata_seq_with_labels, adata_spatial_wi
         likelihood="nb",
         gmm_prior=True,
     )
-    
+
     model = DIAGVI({"diss": adata_seq_with_labels, "spatial": adata_spatial_with_labels})
-    
+
     # Both modalities should have classifiers
     assert model.module.classifier_0 is not None
     assert model.module.classifier_1 is not None
-    
+
     # Both should use GMM prior
     assert model.module.use_gmm_prior["diss"] is True
     assert model.module.use_gmm_prior["spatial"] is True
-    
+
     model.train(max_epochs=1, batch_size=16)
     assert model.is_trained_ is True
 
@@ -1149,23 +1146,25 @@ def test_diagvi_with_precomputed_guidance_graph(adata_seq, adata_spatial):
     """Test DIAGVI initialization with a pre-computed guidance graph."""
     DIAGVI.setup_anndata(adata_seq, batch_key="batch", likelihood="nb")
     DIAGVI.setup_anndata(adata_spatial, batch_key="batch", likelihood="nb")
-    
+
     # Create a custom guidance graph
-    mapping_df = pd.DataFrame({
-        "diss": ["gene0", "gene1", "gene2"],
-        "spatial": ["gene0", "gene1", "gene2"],
-    })
+    mapping_df = pd.DataFrame(
+        {
+            "diss": ["gene0", "gene1", "gene2"],
+            "spatial": ["gene0", "gene1", "gene2"],
+        }
+    )
     custom_graph = DIAGVI.construct_custom_guidance_graph(
         input_dict={"diss": adata_seq, "spatial": adata_spatial},
         mapping_df=mapping_df,
     )
-    
+
     # Initialize model with pre-computed graph
     model = DIAGVI(
         {"diss": adata_seq, "spatial": adata_spatial},
         guidance_graph=custom_graph,
     )
-    
+
     assert model.guidance_graph is custom_graph
     model.train(max_epochs=1, batch_size=16)
     assert model.is_trained_ is True
@@ -1179,7 +1178,7 @@ def test_diagvi_with_precomputed_guidance_graph(adata_seq, adata_spatial):
 def test_get_imputed_values_invalid_query_name(trained_model):
     """Test that invalid query_name raises ValueError."""
     model, adata_seq, adata_spatial = trained_model
-    
+
     with pytest.raises(ValueError, match="must be one of"):
         model.get_imputed_values(query_name="invalid_modality")
 
@@ -1192,20 +1191,21 @@ def test_setup_anndata_negative_data_continuous_likelihood():
         X=X.astype(np.float32),
         obs={"batch": pd.Categorical(np.random.choice(["batch1", "batch2"], size=50))},
     )
-    
+
     with pytest.raises(ValueError, match="requires non-negative data"):
         DIAGVI.setup_anndata(adata, batch_key="batch", likelihood="log1pnormal")
 
 
 def test_guidance_graph_consistency_check_fails():
     """Test that inconsistent guidance graph raises ValueError."""
-    from scvi.external.diagvi._utils import _check_guidance_graph_consistency
     from torch_geometric.data import Data
-    
+
+    from scvi.external.diagvi._utils import _check_guidance_graph_consistency
+
     # Create adatas
     adata1 = AnnData(X=np.random.poisson(1.0, size=(50, 20)))
     adata2 = AnnData(X=np.random.poisson(1.0, size=(40, 15)))
-    
+
     # Create graph with wrong number of nodes
     wrong_graph = Data(
         x=torch.eye(10),  # Wrong: should be 20+15=35
@@ -1213,19 +1213,20 @@ def test_guidance_graph_consistency_check_fails():
         edge_weight=torch.ones(2),
         edge_sign=torch.ones(2),
     )
-    
+
     with pytest.raises(ValueError, match="node count"):
         _check_guidance_graph_consistency(wrong_graph, {"mod1": adata1, "mod2": adata2})
 
 
 def test_guidance_graph_missing_self_loops():
     """Test that graph without self-loops raises ValueError."""
-    from scvi.external.diagvi._utils import _check_guidance_graph_consistency
     from torch_geometric.data import Data
-    
+
+    from scvi.external.diagvi._utils import _check_guidance_graph_consistency
+
     adata1 = AnnData(X=np.random.poisson(1.0, size=(50, 5)))
     adata2 = AnnData(X=np.random.poisson(1.0, size=(40, 5)))
-    
+
     # Graph with no self-loops
     no_selfloop_graph = Data(
         x=torch.eye(10),
@@ -1233,7 +1234,7 @@ def test_guidance_graph_missing_self_loops():
         edge_weight=torch.ones(2),
         edge_sign=torch.ones(2),
     )
-    
+
     with pytest.raises(ValueError, match="self-loops"):
         _check_guidance_graph_consistency(no_selfloop_graph, {"mod1": adata1, "mod2": adata2})
 
@@ -1246,26 +1247,26 @@ def test_guidance_graph_missing_self_loops():
 def test_decoder_single_pathway_outputs():
     """Test DecoderSinglePathway output shapes."""
     from scvi.external.diagvi._base_components import DecoderSinglePathway
-    
+
     n_output = 50
     n_batches = 2
     n_latent = 10
     batch_size = 32
-    
+
     decoder = DecoderSinglePathway(n_output=n_output, n_batches=n_batches, normalize=True)
-    
+
     u = torch.randn(batch_size, n_latent)
     l = torch.randn(batch_size, 1)
     batch_index = torch.randint(0, n_batches, (batch_size,))
     v = torch.randn(n_output, n_latent)
-    
+
     px_scale, px_r, px_rate, px_dropout = decoder(u, l, batch_index, v)
-    
+
     assert px_scale.shape == (batch_size, n_output)
     assert px_r.shape == (batch_size, n_output)
     assert px_rate.shape == (batch_size, n_output)
     assert px_dropout.shape == (n_output,)
-    
+
     # Check softmax normalization (sums to 1)
     torch.testing.assert_close(px_scale.sum(dim=1), torch.ones(batch_size), atol=1e-5, rtol=1e-5)
 
@@ -1273,25 +1274,27 @@ def test_decoder_single_pathway_outputs():
 def test_decoder_dual_pathway_outputs():
     """Test DecoderDualPathway output shapes."""
     from scvi.external.diagvi._base_components import DecoderDualPathway
-    
+
     n_output = 50
     n_batches = 2
     n_latent = 10
     batch_size = 32
-    
+
     decoder = DecoderDualPathway(n_output=n_output, n_batches=n_batches, normalize=True)
-    
+
     u = torch.randn(batch_size, n_latent)
     l = torch.randn(batch_size, 1)
     batch_index = torch.randint(0, n_batches, (batch_size,))
     v = torch.randn(n_output, n_latent)
-    
+
     scales, px_r, rates, mixture_logits = decoder(u, l, batch_index, v)
-    
+
     # Dual pathway returns tuples
-    assert isinstance(scales, tuple) and len(scales) == 2
-    assert isinstance(rates, tuple) and len(rates) == 2
-    
+    assert isinstance(scales, tuple)
+    assert len(scales) == 2
+    assert isinstance(rates, tuple)
+    assert len(rates) == 2
+
     assert scales[0].shape == (batch_size, n_output)
     assert scales[1].shape == (batch_size, n_output)
     assert rates[0].shape == (batch_size, n_output)
@@ -1303,17 +1306,17 @@ def test_decoder_dual_pathway_outputs():
 def test_graph_encoder_outputs():
     """Test GraphEncoder output shapes."""
     from scvi.external.diagvi._base_components import GraphEncoder
-    
+
     n_nodes = 100
     n_latent = 50
-    
+
     encoder = GraphEncoder(vnum=n_nodes, out_features=n_latent)
-    
+
     # Create simple edge index with self-loops
     edge_index = torch.stack([torch.arange(n_nodes), torch.arange(n_nodes)])
-    
+
     z, mu, logvar = encoder(edge_index)
-    
+
     assert z.shape == (n_nodes, n_latent)
     assert mu.shape == (n_nodes, n_latent)
     assert logvar.shape == (n_nodes, n_latent)
@@ -1322,14 +1325,14 @@ def test_graph_encoder_outputs():
 def test_decoder_batch_index_out_of_bounds():
     """Test that out-of-bounds batch index raises IndexError."""
     from scvi.external.diagvi._base_components import DecoderSinglePathway
-    
+
     decoder = DecoderSinglePathway(n_output=50, n_batches=2, normalize=True)
-    
+
     u = torch.randn(10, 10)
     l = torch.randn(10, 1)
     v = torch.randn(50, 10)
     invalid_batch = torch.tensor([0, 1, 2, 3, 0, 1, 2, 3, 0, 1])  # 2 and 3 are out of bounds
-    
+
     with pytest.raises(IndexError, match="out of bounds"):
         decoder(u, l, invalid_batch, v)
 
@@ -1342,12 +1345,12 @@ def test_decoder_batch_index_out_of_bounds():
 def test_construct_guidance_graph_auto():
     """Test automatic guidance graph construction with shared features."""
     from scvi.external.diagvi._utils import _construct_guidance_graph
-    
+
     # Create adatas with overlapping features
     shared_genes = [f"shared_gene{i}" for i in range(10)]
     unique_genes1 = [f"unique1_gene{i}" for i in range(5)]
     unique_genes2 = [f"unique2_gene{i}" for i in range(5)]
-    
+
     adata1 = AnnData(
         X=np.random.poisson(1.0, size=(50, 15)),
         var=pd.DataFrame(index=shared_genes + unique_genes1),
@@ -1356,12 +1359,12 @@ def test_construct_guidance_graph_auto():
         X=np.random.poisson(1.0, size=(40, 15)),
         var=pd.DataFrame(index=shared_genes + unique_genes2),
     )
-    
+
     graph = _construct_guidance_graph({"mod1": adata1, "mod2": adata2}, mapping_df=None)
-    
+
     # Should have 15+15=30 nodes
     assert graph.num_nodes == 30
-    
+
     # Edges: 10 shared * 2 (bidirectional) + 30 self-loops = 50
     assert graph.edge_index.shape[1] == 50
 
@@ -1369,7 +1372,7 @@ def test_construct_guidance_graph_auto():
 def test_construct_guidance_graph_no_overlap_error():
     """Test that no overlapping features raises ValueError."""
     from scvi.external.diagvi._utils import _construct_guidance_graph
-    
+
     adata1 = AnnData(
         X=np.random.poisson(1.0, size=(50, 5)),
         var=pd.DataFrame(index=[f"gene1_{i}" for i in range(5)]),
@@ -1378,7 +1381,7 @@ def test_construct_guidance_graph_no_overlap_error():
         X=np.random.poisson(1.0, size=(40, 5)),
         var=pd.DataFrame(index=[f"gene2_{i}" for i in range(5)]),  # No overlap
     )
-    
+
     with pytest.raises(ValueError, match="No overlapping features"):
         _construct_guidance_graph({"mod1": adata1, "mod2": adata2}, mapping_df=None)
 
@@ -1386,20 +1389,20 @@ def test_construct_guidance_graph_no_overlap_error():
 def test_kl_divergence_graph():
     """Test KL divergence computation for graph latent variables."""
     from scvi.external.diagvi._utils import kl_divergence_graph
-    
+
     n_nodes = 100
     n_latent = 50
-    
+
     # Standard normal: mu=0, logvar=0 -> KL should be 0
     mu_zero = torch.zeros(n_nodes, n_latent)
     logvar_zero = torch.zeros(n_nodes, n_latent)
-    
+
     kl_zero = kl_divergence_graph(mu_zero, logvar_zero)
     assert kl_zero.item() < 1e-5, f"KL for standard normal should be ~0, got {kl_zero.item()}"
-    
+
     # Non-zero mu and logvar should give positive KL
     mu_nonzero = torch.randn(n_nodes, n_latent)
     logvar_nonzero = torch.randn(n_nodes, n_latent)
-    
+
     kl_nonzero = kl_divergence_graph(mu_nonzero, logvar_nonzero)
     assert kl_nonzero.item() > 0, "KL should be positive for non-standard distribution"
