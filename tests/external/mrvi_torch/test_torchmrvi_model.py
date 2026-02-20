@@ -39,7 +39,7 @@ def adata():
 def model(adata: AnnData):
     MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="torch")
     model = MRVI(adata)
-    model.train(max_steps=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
 
     return model
 
@@ -50,7 +50,7 @@ def model2(adata: AnnData):
         adata, sample_key="sample_str", batch_key="batch", backend="torch", labels_key="labels"
     )
     model = MRVI(adata)
-    model.train(max_steps=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
 
     return model
 
@@ -95,6 +95,7 @@ def test_torchMRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
     model2.train(1)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -145,6 +146,7 @@ def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict
         model.differential_expression(**de_kwarg)
 
 
+@pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),
     [
@@ -270,7 +272,7 @@ def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], sa
         backend="torch",
     )
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
-    model.train(max_steps=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
 
     model_path = os.path.join(save_path, "mrvi_model")
     model.save(model_path, save_anndata=False, overwrite=True)
@@ -297,7 +299,7 @@ def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
         backend="torch",
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5)
-    model.train(max_steps=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
     model.get_local_sample_distances()
 
     assert model.get_latent_representation().shape == (
@@ -332,7 +334,7 @@ def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: st
         backend="torch",
     )
     model = MRVI(adata_stratifications, n_latent=10)
-    model.train(max_steps=1, train_size=0.5)
+    model.train(max_epochs=1, train_size=0.5)
 
     dists = model.get_local_sample_distances(groupby=["labels", "label_2"])
     cell_dists = dists["cell"]

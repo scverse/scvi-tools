@@ -87,7 +87,7 @@ class MRVI(BaseMinifiedModeModelClass):
         sample_key: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
-        backend: Backend = "jax",
+        backend: Backend = "torch",
         **kwargs,
     ):
         """%(summary)s.

@@ -340,9 +340,11 @@ def subsample(
                     warnings.warn(msg, UserWarning, stacklevel=settings.warnings_stacklevel)
 
         index = adata.obs.groupby(groupby, as_index=False).apply(
-            lambda x: x.sample(n_obs_group, random_state=random_state, replace=replace)
-            if len(x) > n_obs_group
-            else x
+            lambda x: (
+                x.sample(n_obs_group, random_state=random_state, replace=replace)
+                if len(x) > n_obs_group
+                else x
+            )
         )
         index = index.reset_index()["level_1"].to_list()
         adata_subsampled = adata[index, :].copy()

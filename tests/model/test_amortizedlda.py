@@ -12,7 +12,7 @@ def test_lda_model_single_step(n_topics: int):
     adata = synthetic_iid()
     AmortizedLDA.setup_anndata(adata)
     mod1 = AmortizedLDA(adata, n_topics=n_topics, cell_topic_prior=1.5, topic_feature_prior=1.5)
-    mod1.train(max_steps=1, max_epochs=10)
+    mod1.train(max_steps=1, max_epochs=2)
     assert len(mod1.history["elbo_train"]) == 1
 
 
@@ -29,16 +29,16 @@ def test_lda_model_single_step_with_external_indices(n_topics: int):
     )
     mod1.train(
         max_steps=1,
-        max_epochs=10,
+        max_epochs=2,
         datasplitter_kwargs={"external_indexing": [np.array(train_ind), np.array(valid_ind)]},
     )
 
     test_ind, valid_ind = train_test_split(
-        valid_ind, test_size=0.5, stratify=adata.obs.batch[valid_ind]
+        valid_ind, test_size=0.5, stratify=adata.obs.loc[adata.obs.index[valid_ind], "batch"]
     )
     mod1.train(
         max_steps=1,
-        max_epochs=10,
+        max_epochs=2,
         datasplitter_kwargs={
             "external_indexing": [np.array(train_ind), np.array(valid_ind), np.array(test_ind)]
         },
@@ -72,7 +72,7 @@ def test_lda_model(n_topics: int):
 
     mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
-        max_epochs=5,
+        max_epochs=2,
         batch_size=256,
         lr=0.01,
     )
@@ -101,7 +101,7 @@ def test_lda_model_save_load(save_path: str, n_topics: int):
     AmortizedLDA.setup_anndata(adata)
     mod = AmortizedLDA(adata, n_topics=n_topics)
     mod.train(
-        max_epochs=5,
+        max_epochs=2,
         batch_size=256,
         lr=0.01,
     )

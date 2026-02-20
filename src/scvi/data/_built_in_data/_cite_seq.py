@@ -127,7 +127,7 @@ def _load_pbmc_seurat_v4_cite_seq(
     aggregate_proteins: bool = True,
     mask_protein_batches: int = 0,
 ):
-    url = "https://ndownloader.figshare.com/files/27458840"
+    url = "https://exampledata.scverse.org/scvi-tools/pbmc_seurat_v4.h5ad"
     save_fn = "pbmc_seurat_v4.h5ad"
     _download(url, save_path, save_fn)
     adata = anndata.read_h5ad(os.path.join(save_path, save_fn))
