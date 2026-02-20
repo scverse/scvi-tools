@@ -14,9 +14,10 @@ from scvi.data._download import _download
 from scvi.utils import dependencies
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Literal
 
     import pandas as pd
+    import numpy as np
     from anndata import AnnData
     from torch_geometric.data import Data
 
@@ -50,9 +51,8 @@ def _construct_guidance_graph(
 
     Returns
     -------
-    Data
-        PyTorch Geometric Data object with node features, edge indices,
-        edge weights, edge signs, and modality index tensors.
+    PyTorch Geometric Data object with node features, edge indices,
+    edge weights, edge signs, and modality index tensors.
 
     Raises
     ------
@@ -191,24 +191,27 @@ def _load_saved_diagvi_files(
     prefix: str | None = None,
     map_location: Literal["cpu", "cuda"] | None = None,
     backup_url: str | None = None,
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, AnnData | None]]:
-    """Load saved DIAGVI model files from disk.
+) -> tuple[dict, dict[str, np.ndarray], dict, dict[str, AnnData | None]]:
+    """Loads saved DiagVI model and AnnData files from a directory.
 
     Parameters
     ----------
     dir_path
-        Directory path containing saved model files.
+        Directory path where the model and AnnData files are stored.
     prefix
-        Optional prefix for file names.
+        Optional prefix for the file names.
     map_location
-        Device to map loaded tensors to ('cpu' or 'cuda').
+        Device mapping for loading the model.
     backup_url
-        Optional URL to download model from if not found locally.
-
+        Optional URL to download the model file if not found locally.
+    
     Returns
     -------
-    tuple
-        Tuple containing (attr_dict, var_names, model_state_dict, adatas).
+    A tuple containing:
+    - attr_dict: Dictionary of model attributes.
+    - var_names: Dictionary of variable names for each modality.
+    - model_state_dict: State dictionary of the model.
+    - adatas: Dictionary of AnnData objects for each modality.
 
     Raises
     ------
@@ -266,8 +269,7 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
 
     Returns
     -------
-    torch.Tensor
-        Scalar tensor containing the graph reconstruction loss.
+    Scalar tensor containing the graph reconstruction loss.
     """
     import torch_geometric
 
@@ -293,49 +295,19 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
     return total_loss
 
 
-def compute_sinkhorn_lam(
-    lam_sinkhorn: float, epoch_current: int, epoch_sinkhorn: int | None
-) -> float:
-    """Compute Sinkhorn loss weight with optional warmup.
-
-    Linearly increases the Sinkhorn loss weight from 0 to lam_sinkhorn
-    over the first epoch_sinkhorn epochs.
-
-    Parameters
-    ----------
-    lam_sinkhorn
-        Target Sinkhorn loss weight.
-    epoch_current
-        Current training epoch.
-    epoch_sinkhorn
-        Number of warmup epochs. If None or 0, no warmup is applied.
-
-    Returns
-    -------
-    float
-        Current Sinkhorn loss weight.
-    """
-    lam_sinkhorn_curr = lam_sinkhorn
-    if epoch_sinkhorn:
-        if epoch_current < epoch_sinkhorn:
-            lam_sinkhorn_curr = (epoch_current / epoch_sinkhorn) * lam_sinkhorn
-    return lam_sinkhorn_curr
-
-
 def kl_divergence_graph(mu: torch.Tensor, logvar: torch.Tensor) -> torch.Tensor:
-    """Compute KL divergence between latent distribution and standard normal.
+    """Computes the KL divergence for graph latent variables.
 
     Parameters
     ----------
     mu
-        Mean of the latent distribution, shape (n_features, latent_dim).
+        Mean tensor of the latent variables.
     logvar
-        Log variance of the latent distribution, shape (n_features, latent_dim).
+        Log-variance tensor of the latent variables.
 
     Returns
     -------
-    torch.Tensor
-        Scalar tensor containing the mean KL divergence.
+    The mean KL divergence as a tensor.
     """
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1)
     kl_mean = kl.mean()

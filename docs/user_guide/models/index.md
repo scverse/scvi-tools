@@ -10,6 +10,7 @@ contrastivevi
 cytovi
 decipher
 destvi
+diagvi
 gimvi
 linearscvi
 methylanvi
