@@ -6,7 +6,12 @@ import torch
 import torch.nn.functional as F
 from torch.distributions import Gamma as GammaTorch
 from torch.distributions import constraints
-from torch.distributions.utils import broadcast_all, lazy_property, logits_to_probs, probs_to_logits
+from torch.distributions.utils import (
+    broadcast_all,
+    lazy_property,
+    logits_to_probs,
+    probs_to_logits,
+)
 
 from scvi import settings
 

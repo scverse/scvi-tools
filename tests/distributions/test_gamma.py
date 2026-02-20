@@ -1,4 +1,3 @@
-import pytest
 import torch
 
 from scvi.distributions import Gamma, ZeroInflatedGamma
