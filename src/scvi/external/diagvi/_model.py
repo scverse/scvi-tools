@@ -175,6 +175,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
     def train(
         self,
         max_epochs: int | None = None,
+        lr: float = 1e-3,
         batch_size: int = 256,
         train_size: float = 0.9,
         accelerator: str = "auto",
@@ -190,6 +191,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
         ----------
         max_epochs
             Maximum number of training epochs. If None, a heuristic is used.
+        lr
+            Learning rate for optimization.
+        batch_size
+            Minibatch size for training.
         %(param_accelerator)s
         %(param_devices)s
         train_size
@@ -270,6 +275,8 @@ class DIAGVI(BaseModelClass, VAEMixin):
         
         # Initialize and run training plan
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
+        update_dict = {"lr": lr}
+        plan_kwargs.update(update_dict)
         self._training_plan = self._training_plan_cls(
             self.module,
             **plan_kwargs,
@@ -354,8 +361,11 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         if scipy.sparse.issparse(adata.X) and not isinstance(adata.X, scipy.sparse.csr_matrix):
             adata.X = adata.X.tocsr()
-        if layer in adata.layers and not isinstance(adata.layers[layer], scipy.sparse.csr_matrix):
-            adata.layers[layer] = adata.layers[layer].tocsr()
+        if layer is not None:
+            if layer not in adata.layers:
+                raise ValueError(f"Layer '{layer}' not found in adata.layers.")
+            if scipy.sparse.issparse(adata.layers[layer]) and not isinstance(adata.layers[layer], scipy.sparse.csr_matrix):
+                adata.layers[layer] = adata.layers[layer].tocsr()
         
         adata.uns["diagvi_likelihood"] = likelihood
         adata.uns["diagvi_normalize_lib"] = normalize_lib
