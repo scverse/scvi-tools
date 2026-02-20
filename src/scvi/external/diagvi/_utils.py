@@ -14,7 +14,7 @@ from scvi.data._download import _download
 from scvi.utils import dependencies
 
 if TYPE_CHECKING:
-    from typing import Any, Literal
+    from typing import Literal
 
     import pandas as pd
     import numpy as np
