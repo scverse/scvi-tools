@@ -2,21 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
-import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical, Independent, MixtureSameFamily, kl_divergence
 
 from scvi import REGISTRY_KEYS
-
 from scvi.distributions import (
-    Normal,
     Log1pNormal,
     NegativeBinomial,
     NegativeBinomialMixture,
+    Normal,
     ZeroInflatedGamma,
     ZeroInflatedLogNormal,
     ZeroInflatedNegativeBinomial,
@@ -80,7 +79,7 @@ class DIAGVAE(BaseModuleClass):
     semi_supervised
         Whether to use semi-supervised classification for each modality.
     n_mixture_components
-        Number of mixture components for the GMM prior for each modality. If semi_supervised 
+        Number of mixture components for the GMM prior for each modality. If semi_supervised
         is True, this parameter is ignored and set to the number of unique labels in labels_key.
     n_latent
         Dimensionality of the latent space.
@@ -279,7 +278,7 @@ class DIAGVAE(BaseModuleClass):
         graph = self.guidance_graph
         device = x.device
         graph = graph.to(device)
-        
+
         # Graph inference
         v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
 
@@ -348,7 +347,7 @@ class DIAGVAE(BaseModuleClass):
             px_scale, px_r, px_rate, px_dropout = self.decoder_0(z, library, batch_index, v)
         elif mode == self.input_names[1]:
             px_scale, px_r, px_rate, px_dropout = self.decoder_1(z, library, batch_index, v)
-        
+
         # Adjust parameters based on likelihood (count vs continuous)
         if self.modality_likelihoods[mode] in NORMALIZE_LIKELIHOODS:
             px_r = px_r.exp()
@@ -409,14 +408,14 @@ class DIAGVAE(BaseModuleClass):
                 # Vectorized one-hot encoding
                 n_labels = self.n_labels[mode]
                 y_flat = y.ravel().to(z.device)
-                 
+
                 # Clamp invalid labels to 0 (will be zeroed out below)
                 valid_mask = (y_flat >= 0) & (y_flat < n_labels)
                 y_clamped = y_flat.clamp(0, n_labels - 1).long()
-                 
+
                 # One-hot encode on device
                 logits_input = F.one_hot(y_clamped, num_classes=n_labels).float()
-                 
+
                 # Zero out rows for invalid labels (unlabeled cells)
                 logits_input = logits_input * valid_mask.unsqueeze(-1).float()
                 logits = logits + 100 * logits_input
@@ -427,7 +426,7 @@ class DIAGVAE(BaseModuleClass):
             pz = MixtureSameFamily(cats, normal_dists)
         else:
             pz = Normal(torch.zeros_like(z), torch.ones_like(z))
-        
+
         return {
             MODULE_KEYS.PX_KEY: px,
             MODULE_KEYS.PZ_KEY: pz,
@@ -444,7 +443,7 @@ class DIAGVAE(BaseModuleClass):
         mode: str | None = None,
     ) -> LossOutput:
         """Compute the loss for a batch.
-        
+
         Parameters
         ----------
         tensors
@@ -471,7 +470,7 @@ class DIAGVAE(BaseModuleClass):
         # Data nll calculation (reconstruction loss)
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
         reconstruction_loss_norm = torch.mean(reconst_loss)
-        
+
         # KL divergence calculation
         if self.use_gmm_prior[mode]:
             kl_div = inference_outputs[MODULE_KEYS.QZ_KEY].log_prob(inference_outputs["z"]).sum(
@@ -482,7 +481,7 @@ class DIAGVAE(BaseModuleClass):
                 inference_outputs[MODULE_KEYS.QZ_KEY], generative_outputs[MODULE_KEYS.PZ_KEY]
             ).sum(dim=-1)
         kl_local_norm = torch.sum(kl_div) / (n_obs * n_var)
-        
+
         # Total loss
         loss = lam_data * reconstruction_loss_norm + lam_kl * kl_local_norm
 

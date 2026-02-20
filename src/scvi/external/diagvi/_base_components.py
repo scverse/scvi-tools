@@ -149,7 +149,12 @@ class DecoderDualPathway(nn.Module):
         l: torch.Tensor,
         batch_index: torch.Tensor,
         v: torch.Tensor,
-    ) -> tuple[tuple[torch.Tensor, torch.Tensor], torch.Tensor, tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    ) -> tuple[
+        tuple[torch.Tensor, torch.Tensor],
+        torch.Tensor,
+        tuple[torch.Tensor, torch.Tensor],
+        torch.Tensor,
+    ]:
         """Forward pass through the decoder.
 
         Parameters
@@ -171,7 +176,8 @@ class DecoderDualPathway(nn.Module):
             - px_r: Overdispersion parameter, shape (n_cells, n_features).
             - rates: Tuple of (foreground, background) rate parameters (mean).
               Each has shape (n_cells, n_features).
-            - mixture_logits: Logits for mixture component probabilities, shape (n_cells, n_features).
+            - mixture_logits: Logits for mixture component probabilities,
+              shape (n_cells, n_features).
         """
         # Check batch index dimension
         if batch_index.dim() > 1:
@@ -246,7 +252,8 @@ class GraphEncoder(nn.Module):
         Returns
         -------
         tuple of 3 :class:`torch.Tensor`
-            - z: Sampled latent representation from the normal distribution, shape (n_nodes, out_features).
+            - z: Sampled latent representation from the normal distribution,
+              shape (n_nodes, out_features).
             - mu: Mean of the latent distribution, shape (n_nodes, out_features).
             - logvar: Log variance of the latent distribution, shape (n_nodes, out_features).
         """

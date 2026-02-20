@@ -10,14 +10,14 @@ The advantages of DiagVI are:
 -   Full feature utilization: all features (not only overlapping ones) contribute to model training via the guidance graph and modality-specific VAEs.
 -   Biologically informed alignment using prior feature correspondences via the guidance graph.
 -   Robust integration of modality-specific or rare cell populations via UOT.
--   Scalable to very large datasets (>1 million cells). 
+-   Scalable to very large datasets (>1 million cells).
 
 The limitations of DiagVI include:
 
 -   Currently supports integration of two modalities only.
 -   Requires prior information on cross-modal feature correspondences (explicitly or implicitly).
 -   Effectively requires a GPU for fast inference.
--   Requires tuning of loss weights for optimal performance (for more information, see [Hyperparameter Selection](#hyperparameter-selection)). 
+-   Requires tuning of loss weights for optimal performance (for more information, see [Hyperparameter Selection](#hyperparameter-selection)).
 
 ```{topic} Tutorials:
 
@@ -181,7 +181,7 @@ DiagVI supports the following likelihood functions:
 
    * - Likelihood
      - Distribution
-     - modality type 
+     - modality type
    * - ``nb``
      - Negative Binomial
      - scRNA-seq
@@ -277,14 +277,14 @@ Here we provide an overview of the main tasks that DiagVI can perform. See {clas
 
 ### Dimensionality reduction
 
-```python
+```
 >>> latents = model.get_latent_representation()
 >>> adata_rna.obsm["X_diagvi"] = latents["rna"]
 >>> adata_protein.obsm["X_diagvi"] = latents["protein"]
 ```
 Aligned representations can be used jointly for downstream analysis:
 
-```python
+```
 >>> import scanpy as sc
 >>> # Use RNA latent for clustering
 >>> sc.pp.neighbors(adata_rna, use_rep="X_diagvi")
@@ -296,7 +296,7 @@ Aligned representations can be used jointly for downstream analysis:
 
 DiagVI can impute features from one modality to another using {func}`~scvi.external.DIAGVI.get_imputed_values`.
 
-```python
+```
 >>> # Impute protein expression from RNA data
 >>> imputed_protein = model.get_imputed_values(
 ...     source_name="rna",
@@ -307,7 +307,7 @@ DiagVI can impute features from one modality to another using {func}`~scvi.exter
 
 You can also specify target batch and library size for counterfactual predictions:
 
-```python
+```
 >>> # Impute with specific target batch
 >>> imputed = model.get_imputed_values(
 ...     source_name="rna",

@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Literal
+import logging
+from typing import TYPE_CHECKING
 
 import torch
-import logging
 
 from scvi import REGISTRY_KEYS
 from scvi.external.diagvi._utils import (
@@ -14,6 +14,9 @@ from scvi.external.diagvi._utils import (
 )
 from scvi.train import TrainingPlan
 from scvi.utils import dependencies
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,7 @@ cost_routines = {
     1: lambda x, y: distances(x, y),
     2: lambda x, y: squared_distances(x, y) / 2,
 }
+
 
 def _anneal_param(
     current_epoch: int,
@@ -255,10 +259,10 @@ class DiagTrainingPlan(TrainingPlan):
         loss_output: dict,
         feature_embeddings: torch.Tensor,
         log: bool = False,
-        batch_size: int = 0
+        batch_size: int = 0,
     ) -> torch.Tensor:
         """Compute graph reconstruction and KL loss.
-        
+
         Parameters
         ----------
         loss_output
@@ -294,16 +298,13 @@ class DiagTrainingPlan(TrainingPlan):
 
     @dependencies("geomloss")
     def _compute_sinkhorn_loss(
-        self,
-        z1: torch.Tensor,
-        z2: torch.Tensor,
-        use_annealing: bool = False
+        self, z1: torch.Tensor, z2: torch.Tensor, use_annealing: bool = False
     ) -> torch.Tensor:
         """Compute Sinkhorn (Unbalanced Optimal Transport) loss between latent spaces.
 
         Sinkhorn parameters (blur and reach) can be adaptively computed from the cost matrix
         using OTT-JAX style heuristics or set to fixed values with optional annealing.
-        
+
         Parameters
         ----------
         z1
@@ -331,7 +332,7 @@ class DiagTrainingPlan(TrainingPlan):
             cost_fn = cost_routines[self.sinkhorn_p]
             with torch.no_grad():
                 # Compute cost matrix C
-                C_st = cost_fn(z1, z2)                
+                C_st = cost_fn(z1, z2)
 
             # Compute adaptive epsilon from cost and set blur
             if self.sinkhorn_blur is None:
@@ -354,7 +355,7 @@ class DiagTrainingPlan(TrainingPlan):
                 self.current_reach = self.reach_scale * self.current_blur
             else:
                 self.current_reach = self.sinkhorn_reach
-        
+
         else:
             # Both blur and reach are specified - use them with optional annealing
             if use_annealing:
@@ -369,7 +370,12 @@ class DiagTrainingPlan(TrainingPlan):
                 self.current_blur = self.sinkhorn_blur
                 self.current_reach = self.sinkhorn_reach
 
-        sinkhorn = geomloss.SamplesLoss(loss="sinkhorn", p=self.sinkhorn_p, blur=self.current_blur, reach=self.current_reach)
+        sinkhorn = geomloss.SamplesLoss(
+            loss="sinkhorn",
+            p=self.sinkhorn_p,
+            blur=self.current_blur,
+            reach=self.current_reach,
+        )
         return sinkhorn(z1, z2)
 
     def _compute_total_loss(
@@ -381,7 +387,7 @@ class DiagTrainingPlan(TrainingPlan):
         log: bool = False,
     ) -> torch.Tensor:
         """Compute total loss combining all components.
-        
+
         Parameters
         ----------
         loss_outputs
@@ -431,8 +437,8 @@ class DiagTrainingPlan(TrainingPlan):
 
     def training_step(self, batch: dict[str, dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
         """Training step.
-        
-        During training, computes the losses for each modality (NLL, KL, and classification), 
+
+        During training, computes the losses for each modality (NLL, KL, and classification),
         the graph loss, the Sinkhorn loss between modalities, and combines them into a total loss.
 
         Parameters
@@ -449,7 +455,11 @@ class DiagTrainingPlan(TrainingPlan):
         )
 
         total_loss = self._compute_total_loss(
-            loss_outputs, loss_output, total_batch_size, use_annealing=self.loss_annealing, log=self.log_train
+            loss_outputs,
+            loss_output,
+            total_batch_size,
+            use_annealing=self.loss_annealing,
+            log=self.log_train,
         )
 
         self.log(
@@ -463,17 +473,17 @@ class DiagTrainingPlan(TrainingPlan):
 
         # Return embeddings along with loss for callbacks (detached to avoid graph issues)
         embeddings = {
-            name: out["z"].detach()
-            for name, out in zip(batch.keys(), loss_outputs, strict=False)
+            name: out["z"].detach() for name, out in zip(batch.keys(), loss_outputs, strict=False)
         }
 
         return {"loss": total_loss, "embeddings": embeddings}
 
     def validation_step(self, batch: dict[str, dict[str, torch.Tensor]]):
         """Validation step.
-        
-        During validation, computes and logs the losses for each modality (NLL, KL, and classification), 
-        the graph loss, and the Sinkhorn loss between modalities, and combines them into a total loss.
+
+        During validation, computes and logs the losses for each modality (NLL, KL, and
+        classification), the graph loss, and the Sinkhorn loss between modalities, and
+        combines them into a total loss.
 
         Parameters
         ----------

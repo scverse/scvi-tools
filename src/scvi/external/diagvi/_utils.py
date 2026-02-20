@@ -16,8 +16,8 @@ from scvi.utils import dependencies
 if TYPE_CHECKING:
     from typing import Literal
 
-    import pandas as pd
     import numpy as np
+    import pandas as pd
     from anndata import AnnData
     from torch_geometric.data import Data
 
@@ -204,7 +204,7 @@ def _load_saved_diagvi_files(
         Device mapping for loading the model.
     backup_url
         Optional URL to download the model file if not found locally.
-    
+
     Returns
     -------
     A tuple containing:

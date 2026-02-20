@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 import warnings
-from collections.abc import Sequence
 from itertools import cycle
 from typing import TYPE_CHECKING, Literal
 
@@ -36,6 +35,7 @@ from ._module import DIAGVAE
 from ._task import DiagTrainingPlan
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from typing import Literal
 
     import pandas as pd
@@ -116,7 +116,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         for adm in self.adata_managers.values():
             self._register_manager_for_instance(adm)
             self.registries_.append(adm.registry)
-        
+
         sum_stats = {name: adm.summary_stats for name, adm in self.adata_managers.items()}
         self.summary_stats = sum_stats
         n_inputs = {name: s["n_vars"] for name, s in sum_stats.items()}
@@ -218,7 +218,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             )
             max_epochs = get_max_epochs_heuristic(min_obs)
             logger.info(f"max_epochs was approximated to {max_epochs}")
-        
+
         accelerator, devices, device = parse_device_args(
             accelerator=accelerator,
             devices=devices,
@@ -269,10 +269,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
             self.train_indices_.append(ds.train_idx)
             self.test_indices_.append(ds.test_idx)
             self.validation_indices_.append(ds.val_idx)
-        
+
         train_dl = TrainDL(train_dls)
         val_dl = TrainDL(val_dls)
-        
+
         # Initialize and run training plan
         plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else {}
         update_dict = {"lr": lr}
@@ -287,12 +287,12 @@ class DIAGVI(BaseModelClass, VAEMixin):
             self.trainer.fit(
                 self._training_plan, train_dataloaders=train_dl, val_dataloaders=val_dl
             )
-        
+
         try:
             self.history_ = self.trainer.logger.history
         except AttributeError:
             self.history_ = None
-        
+
         self.module.eval()
         self.to_device(device)
         self.is_trained_ = True
@@ -305,7 +305,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         layer: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
-        likelihood: Literal["nb", "zinb", "nbmixture", "normal", "log1pnormal", "ziln", "zig"] = "nb",
+        likelihood: Literal[
+            "nb", "zinb", "nbmixture", "normal", "log1pnormal", "ziln", "zig"
+        ] = "nb",
         normalize_lib: bool = True,
         gmm_prior: bool = False,
         n_mixture_components: int = 10,
@@ -352,7 +354,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 data_min = data.min()
             else:
                 data_min = np.min(data)
-            
+
             if data_min < 0 and likelihood not in {"normal"}:
                 raise ValueError(
                     f"Likelihood '{likelihood}' requires non-negative data, "
@@ -364,14 +366,17 @@ class DIAGVI(BaseModelClass, VAEMixin):
         if layer is not None:
             if layer not in adata.layers:
                 raise ValueError(f"Layer '{layer}' not found in adata.layers.")
-            if scipy.sparse.issparse(adata.layers[layer]) and not isinstance(adata.layers[layer], scipy.sparse.csr_matrix):
-                adata.layers[layer] = adata.layers[layer].tocsr()
-        
+            layer_data = adata.layers[layer]
+            if scipy.sparse.issparse(layer_data) and not isinstance(
+                layer_data, scipy.sparse.csr_matrix
+            ):
+                adata.layers[layer] = layer_data.tocsr()
+
         adata.uns["diagvi_likelihood"] = likelihood
         adata.uns["diagvi_normalize_lib"] = normalize_lib
         adata.uns["diagvi_gmm_prior"] = gmm_prior
 
-        # If labels_key is provided, set semi_supervised to True 
+        # If labels_key is provided, set semi_supervised to True
         # and n_mixture_components to number of unique labels
         if labels_key is not None:
             semi_supervised = True
@@ -397,7 +402,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             label_field = LabelsWithUnlabeledObsField(
                 REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
             )
-        
+
         is_count_data = likelihood in {"nb", "zinb", "nbmixture"}
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=is_count_data),
@@ -461,7 +466,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
             labels_key_mod = labels_key[mod_key] if isinstance(labels_key, dict) else labels_key
             layer_mod = layer[mod_key] if isinstance(layer, dict) else layer
             likelihood_mod = likelihood[mod_key] if isinstance(likelihood, dict) else likelihood
-            normalize_lib_mod = normalize_lib[mod_key] if isinstance(normalize_lib, dict) else normalize_lib
+            normalize_lib_mod = (
+                normalize_lib[mod_key] if isinstance(normalize_lib, dict) else normalize_lib
+            )
             gmm_prior_mod = gmm_prior[mod_key] if isinstance(gmm_prior, dict) else gmm_prior
             n_mixture_components_mod = (
                 n_mixture_components[mod_key]
@@ -493,7 +500,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         input_dict: dict[str, AnnData],
         mapping_df: pd.DataFrame,
         weight: float = 1.0,
-        sign: float = 1.0
+        sign: float = 1.0,
     ) -> Data:
         """Constructs a custom guidance graph defined by the mapping_df.
 
@@ -638,7 +645,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         else:
             input_names = self.input_names
             adata_list = adatas
-        
+
         scdls = self._make_scvi_dls(adata_list, batch_size=batch_size)
         self.module.eval()
 
@@ -655,7 +662,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 )
             latent = torch.cat(latent).numpy()
             latents[input_name] = latent
-        
+
         return latents
 
     @torch.inference_mode()
@@ -695,7 +702,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             adatas = self.adatas
 
         if indices is None:
-            indices = {name: None for name in adatas.keys()}
+            indices = dict.fromkeys(adatas.keys())
 
         # Validate that all provided modalities are valid
         if not set(adatas.keys()).issubset(set(self.input_names)):
@@ -779,7 +786,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             raise ValueError(f"`query_name` must be one of {list(self.adatas.keys())}!")
         if query_adata is None:
             query_adata = self.adatas[query_name]
-        
+
         # Get batch categories for this modality
         batch_manager = self.adata_managers[query_name]
         batch_categories = batch_manager.get_state_registry(REGISTRY_KEYS.BATCH_KEY).get(
@@ -797,7 +804,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
             )
             # Use the feature embedding of the other modality for reconstruction
             inference_output["v"] = inference_output["v_other"]
-            
+
             generative_input = self.module._get_generative_input(
                 tensor,
                 inference_output,
@@ -822,7 +829,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 dtype=torch.long,
                 device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
             )
-            
+
             # Handle reference libsize
             if reference_libsize is not None:
                 l = reference_libsize
@@ -843,18 +850,18 @@ class DIAGVI(BaseModelClass, VAEMixin):
                     dtype=generative_input[MODULE_KEYS.LIBRARY_KEY].dtype,
                     device=generative_input[MODULE_KEYS.LIBRARY_KEY].device,
                 )
-            
+
             # Determine reference modality
             reference_names = [m for m in self.input_names if m != query_name]
             if len(reference_names) != 1:
                 raise ValueError("There must be exactly two modalities defined.")
             reference_name = reference_names[0]
-            
+
             generative_output = self.module.generative(**generative_input, mode=reference_name)
             # Use distribution mean for correct expected value across all likelihoods
             px_dist = generative_output[MODULE_KEYS.PX_KEY]
             reconstructed_values.append(px_dist.mean.cpu().detach())
-        
+
         reconstructed_value = torch.cat(reconstructed_values).numpy()
         return reconstructed_value
 
@@ -1034,7 +1041,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
 
 class TrainDL(DataLoader):
-    """DataLoader that creates batch structure for training process by combining multiple data loaders.
+    """DataLoader that creates batch structure for training by combining multiple data loaders.
 
     The data loaders for each modality are zipped together, and smaller datasets are cycled
     to match the size of the largest dataset. Each yielded batch is a dictionary mapping
@@ -1052,14 +1059,10 @@ class TrainDL(DataLoader):
         self.data_loader_list = list(data_loader_dict.values())
 
         # Identify the largest dataset
-        self.largest_train_dl_idx = np.argmax(
-            [len(dl.indices) for dl in self.data_loader_list]
-        )
+        self.largest_train_dl_idx = np.argmax([len(dl.indices) for dl in self.data_loader_list])
 
         # DataLoader corresponding to the largest dataset
-        self.largest_dl = self.data_loader_list[
-            self.largest_train_dl_idx
-        ]
+        self.largest_dl = self.data_loader_list[self.largest_train_dl_idx]
 
         super().__init__(
             self.largest_dl,
