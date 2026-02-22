@@ -6,7 +6,6 @@
 notebooks/spatial/resolVI_tutorial
 notebooks/spatial/scVIVA_tutorial
 notebooks/spatial/DestVI_tutorial
-notebooks/spatial/DiagVI_tutorial
 notebooks/spatial/gimvi_tutorial
 notebooks/spatial/tangram_scvi_tools
 notebooks/spatial/stereoscope_heart_LV_tutorial
@@ -32,13 +31,6 @@ Stratify spatial transcriptomics data into niche-aware cell states with scVIVA
 :tags: Deconvolution, Modality-imputation, Differential-comparison
 
 Perform multi-resolution analysis on spatial transcriptomics data with DestVI
-```
-
-```{customcard}
-:path: notebooks/spatial/DiagVI_tutorial
-:tags: Analysis, Integration, Modality-imputation, Differential-comparison
-
-Perform integration of spatial and dissociated single-cell multi omics dsata with DiagVI
 ```
 
 ```{customcard}
