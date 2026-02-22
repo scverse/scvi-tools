@@ -21,7 +21,7 @@ jobs:
       (
         contains(github.event.pull_request.labels.*.name, 'cuda tests') ||
         contains(github.event.pull_request.labels.*.name, 'all tests') ||
-        contains(github.event_name, 'schedule') ||
+        (contains(github.event_name, 'schedule') && github.repository == 'scverse/scvi-tools') ||
         contains(github.event_name, 'workflow_dispatch')
       )
 
