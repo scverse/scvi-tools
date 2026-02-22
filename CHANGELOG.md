@@ -11,6 +11,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
+- Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
 - Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
@@ -39,7 +40,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Add {class}`scvi.external.DIAGVI` for integrating spatial and dissociated single-cell datasets {pr}`3575`.
 - Add MLFlow support, {pr}`3573`.
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
