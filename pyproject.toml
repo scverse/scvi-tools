@@ -59,7 +59,7 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]","mlx[cuda]"]
 tpu = ["torch_xla[tpu]"]
 metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
