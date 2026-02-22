@@ -2099,6 +2099,11 @@ if is_package_installed("mlx"):
 
             return kl_weight
 
+        def _loss_fn(self, model, tensors, kl_weight):
+            """Loss function returning scalar loss and auxiliary LossOutput."""
+            _, _, loss_output = model(tensors, kl_weight=kl_weight)
+            return loss_output.loss, loss_output
+
         def train_step(self, batch_dict):
             """Execute a single training step.
 
@@ -2110,13 +2115,16 @@ if is_package_installed("mlx"):
             Returns
             -------
             dict
-                Dictionary containing loss values.
+                Dictionary containing loss and component metric arrays (not
+                yet evaluated — call ``mx.eval`` on the returned arrays to
+                materialise them on the GPU).
             """
-            # Set module to training mode
-            if hasattr(self.module, "train"):
-                self.module.train(True)
-            else:
-                self._set_module_training(True)
+            # Set module to training mode on first step only
+            if self.current_step <= 1:
+                if hasattr(self.module, "train"):
+                    self.module.train(True)
+                else:
+                    self._set_module_training(True)
 
             # Convert batch data to MLX arrays
             mlx_batch = {
@@ -2126,66 +2134,35 @@ if is_package_installed("mlx"):
             # Compute KL weight
             kl_weight = self.get_kl_weight()
 
-            try:
-                # We need both the loss (for gradients) and the full LossOutput
-                # (for metric logging). Run forward twice: once inside value_and_grad
-                # for the scalar loss, and capture LossOutput from a second forward.
+            # Single forward+backward: value_and_grad with aux returns
+            # (loss, aux), grads — we get LossOutput in one pass
+            loss_and_grad_fn = nn.value_and_grad(self.module, self._loss_fn)
+            (loss, loss_output), grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
 
-                # Define loss function - using MLX style
-                def loss_fn(model, tensors, kl_weight):
-                    _, _, loss_output = model(tensors, kl_weight=kl_weight)
-                    return loss_output.loss
+            # Global-norm gradient clipping (vectorised, no per-tensor loops)
+            grads, _ = optim.clip_grad_norm(grads, max_norm=5.0)
 
-                # Compute loss and gradients using mlx.nn.value_and_grad
-                loss_and_grad_fn = nn.value_and_grad(self.module, loss_fn)
-                # Fixed call method, explicitly pass self.module
-                loss, grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
+            # Update parameters
+            self.optimizer.update(self.module, grads)
 
-                # Check for NaN or Inf in loss
-                loss_val = float(loss)
-                if not mx.isfinite(loss).item() or mx.isnan(loss).item():
-                    logger.warning(f"NaN or Inf detected in loss: {loss_val}, skipping update")
-                    return {"loss": loss_val}
+            # Single mx.eval at the end — materialises the whole lazy graph
+            # (parameters, optimizer state, and the metrics we want to read)
+            mx.eval(
+                self.module.parameters(),
+                self.optimizer.state,
+                loss,
+                loss_output.reconstruction_loss_sum,
+                loss_output.kl_local_sum,
+                loss_output.kl_global_sum,
+            )
 
-                # Clip gradients to prevent explosion
-                max_grad_norm = 5.0
-
-                def clip_grads(grads):
-                    if isinstance(grads, dict):
-                        return {k: clip_grads(v) for k, v in grads.items()}
-                    elif isinstance(grads, (list, tuple)):
-                        return type(grads)(clip_grads(g) for g in grads)
-                    elif isinstance(grads, mx.array):
-                        # Clip individual gradient
-                        grad_norm = mx.sqrt(mx.sum(mx.square(grads)))
-                        return mx.where(
-                            grad_norm > max_grad_norm,
-                            grads * (max_grad_norm / (grad_norm + 1e-8)),
-                            grads,
-                        )
-                    else:
-                        return grads
-
-                grads = clip_grads(grads)
-                # Update module parameters directly using optimizer
-                self.optimizer.update(self.module, grads)
-
-                # Force evaluation of parameters and optimizer state
-                mx.eval(self.module.parameters(), self.optimizer.state)
-
-                # Get component metrics from a forward pass (no grad needed)
-                _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
-
-                return {
-                    "loss": loss_val,
-                    "reconstruction_loss": float(loss_output.reconstruction_loss_sum),
-                    "kl_local": float(loss_output.kl_local_sum),
-                    "kl_global": float(loss_output.kl_global_sum),
-                    "n_obs": loss_output.n_obs_minibatch,
-                }
-            except Exception as e:
-                logger.error(f"Error in training step: {str(e)}")
-                raise
+            return {
+                "loss": loss.item(),
+                "reconstruction_loss": loss_output.reconstruction_loss_sum.item(),
+                "kl_local": loss_output.kl_local_sum.item(),
+                "kl_global": loss_output.kl_global_sum.item(),
+                "n_obs": loss_output.n_obs_minibatch,
+            }
 
         def validate_step(self, batch_dict):
             """Execute a validation step.
@@ -2200,7 +2177,7 @@ if is_package_installed("mlx"):
             dict
                 Dictionary containing validation loss values.
             """
-            # Set module to evaluation mode
+            # Set module to evaluation mode on first call
             if hasattr(self.module, "eval"):
                 self.module.eval()
             else:
@@ -2211,26 +2188,22 @@ if is_package_installed("mlx"):
                 k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
             }
 
-            # Compute KL weight (same as during training for consistency)
             kl_weight = self.get_kl_weight()
 
-            try:
-                # Forward pass
-                if callable(self.module):
-                    _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
-                    return {
-                        "validation_loss": float(loss_output.loss),
-                        "reconstruction_loss": float(loss_output.reconstruction_loss_sum),
-                        "kl_local": float(loss_output.kl_local_sum),
-                        "kl_global": float(loss_output.kl_global_sum),
-                        "n_obs": loss_output.n_obs_minibatch,
-                    }
-                else:
-                    # Compatibility mode
-                    logger.warning(
-                        "Module does not have standard __call__ method, using compatibility mode"
-                    )
-                    return {"validation_loss": 0.0}
-            except Exception as e:
-                logger.error(f"Error in validation step: {str(e)}")
-                raise
+            _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
+
+            # Single eval for all metrics
+            mx.eval(
+                loss_output.loss,
+                loss_output.reconstruction_loss_sum,
+                loss_output.kl_local_sum,
+                loss_output.kl_global_sum,
+            )
+
+            return {
+                "validation_loss": loss_output.loss.item(),
+                "reconstruction_loss": loss_output.reconstruction_loss_sum.item(),
+                "kl_local": loss_output.kl_local_sum.item(),
+                "kl_global": loss_output.kl_global_sum.item(),
+                "n_obs": loss_output.n_obs_minibatch,
+            }
