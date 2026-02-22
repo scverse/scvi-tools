@@ -59,7 +59,7 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]","mlx[cuda]"]
 tpu = ["torch_xla[tpu]"]
 metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
@@ -97,9 +97,11 @@ jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
+# for mlx support
+mlx = ["mlx"]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
+    "scvi-tools[autotune,mlflow,hub,jax,mlx,file_sharing,regseq,parallel,interpretability]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [

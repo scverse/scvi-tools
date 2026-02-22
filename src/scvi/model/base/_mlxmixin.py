@@ -191,9 +191,9 @@ class MlxTrainingMixin:
                     epoch_kl_global += output.get("kl_global", 0.0)
                     epoch_n_obs += output.get("n_obs", 0)
                     n_batches += 1
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     logger.error(f"Error processing training batch: {str(e)}")
-                    continue
+                    raise
 
             avg_loss = epoch_loss / max(n_batches, 1)
             avg_loss_val = float(avg_loss)
@@ -223,9 +223,9 @@ class MlxTrainingMixin:
                         val_kl_global += output.get("kl_global", 0.0)
                         val_n_obs += output.get("n_obs", 0)
                         n_val_batches += 1
-                    except Exception as e:  # noqa: BLE001
+                    except Exception as e:
                         logger.error(f"Error processing validation batch: {str(e)}")
-                        continue
+                        raise
 
                 avg_val_loss = val_loss / max(n_val_batches, 1)
                 avg_val_loss_val = float(avg_val_loss)
