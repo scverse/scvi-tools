@@ -22,7 +22,7 @@ jobs:
         contains(github.event_name, 'schedule') ||
         contains(github.event_name, 'workflow_dispatch') ||
         contains(github.event_name, 'push')
-      )
+      ) && github.repository == 'scverse/scvi-tools'
 
     runs-on: ${{ matrix.os }}
 
