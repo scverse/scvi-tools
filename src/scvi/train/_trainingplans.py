@@ -2119,12 +2119,11 @@ if is_package_installed("mlx"):
                 yet evaluated — call ``mx.eval`` on the returned arrays to
                 materialise them on the GPU).
             """
-            # Set module to training mode on first step only
-            if self.current_step <= 1:
-                if hasattr(self.module, "train"):
-                    self.module.train(True)
-                else:
-                    self._set_module_training(True)
+            # Ensure module is in training mode (validate_step switches to eval)
+            if hasattr(self.module, "train"):
+                self.module.train(True)
+            else:
+                self._set_module_training(True)
 
             # Convert batch data to MLX arrays
             mlx_batch = {
