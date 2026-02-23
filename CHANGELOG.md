@@ -21,6 +21,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for logging validation metrics in MultiGPU, {pr}`3712`.
 - Add Support for MLX usage in Mac with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
 - Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
+- Add support for size_factor in {class}`scvi.external.RESOLVI`, {pr}`3701`.
 
 #### Fixed
 
