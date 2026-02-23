@@ -9,6 +9,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {meth}`~scvi.model.base.VAEMixin.differential_abundance`
+    and {meth}`~scvi.model.base.VAEMixin.get_aggregated_posterior`
+    functions to {class}`scvi.model.base.VAEMixin`, {pr}`3618`
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
