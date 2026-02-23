@@ -10,10 +10,13 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Added
 
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
-    {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3679`.
+    {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
 - Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
+- Add support for logging validation metrics in MultiGPU, {pr}`3712`.
+- Add Support for MLX usage in Mac with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
+- Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
 
 #### Fixed
 
@@ -26,6 +29,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
 - Change explicit training configuration objects for scvi-tools, reducing reliance on loose kwargs
     and improving clarity across training APIs, {pr}`3666`.
+- Change the default backend of {class}`scvi.external.MRVI` to torch instead of jax, {pr}`3717`.
 
 #### Removed
 

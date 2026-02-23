@@ -488,7 +488,9 @@ class RESOLVI(
         adata = self._validate_anndata(adata)
 
         model_fn = partial(
-            self.get_normalized_expression_importance,
+            self.get_normalized_expression_importance
+            if weights == "importance"
+            else self.get_normalized_expression,
             return_numpy=True,
             n_samples=n_samples,
             batch_size=batch_size,

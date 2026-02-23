@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import jax.numpy as jnp
+import mlx.core as mx
+import numpy as np
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
@@ -13,30 +14,30 @@ from scvi.data.fields import (
     LayerField,
     NumericalJointObsField,
 )
-from scvi.module import JaxVAE
+from scvi.module import MlxVAE
 from scvi.utils import setup_anndata_dsp
 
-from .base import BaseModelClass, JaxTrainingMixin
+from .base import BaseModelClass, MlxTrainingMixin
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from typing import Literal
 
-    import numpy as np
     from anndata import AnnData
 
 logger = logging.getLogger(__name__)
 
 
-class JaxSCVI(JaxTrainingMixin, BaseModelClass):
-    """single-cell Variational Inference :cite:p:`Lopez18`, but with JAX.
+class mlxSCVI(MlxTrainingMixin, BaseModelClass):
+    """Single-cell variational inference model using the MLX framework.
 
-    This implementation is in a very experimental state. API is completely subject to change.
+    This implementation leverages the features of the MLX framework to provide optimized
+    performance on Apple Silicon chips.
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :meth:`~scvi.model.JaxSCVI.setup_anndata`.
+        AnnData object registered via mlxSCVI.setup_anndata().
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -45,22 +46,11 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         Dropout rate for neural networks.
     gene_likelihood
         One of:
-
-        * ``'nb'`` - Negative binomial distribution
-        * ``'poisson'`` - Poisson distribution
-    **model_kwargs
-        Keyword args for :class:`~scvi.module.JaxVAE`
-
-    Examples
-    --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> scvi.model.JaxSCVI.setup_anndata(adata, batch_key="batch")
-    >>> vae = scvi.model.JaxSCVI(adata)
-    >>> vae.train()
-    >>> adata.obsm["X_scVI"] = vae.get_latent_representation()
+        * 'nb' - Negative binomial distribution
+        * 'poisson' - Poisson distribution
     """
 
-    _module_cls = JaxVAE
+    _module_cls = MlxVAE
 
     def __init__(
         self,
@@ -88,7 +78,7 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             dropout_rate=dropout_rate,
             gene_likelihood=gene_likelihood,
             n_continuous_cov=self.summary_stats.get("n_extra_continuous_covs", 0),
-            n_cats_per_cov=tuple(n_cats_per_cov) if n_cats_per_cov is not None else (),
+            n_cats_per_cov=n_cats_per_cov,
             **model_kwargs,
         )
 
@@ -107,16 +97,22 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         continuous_covariate_keys: list[str] | None = None,
         **kwargs,
     ):
-        """%(summary)s.
+        """Set up AnnData object for training.
 
         Parameters
         ----------
-        %(param_adata)s
-        %(param_layer)s
-        %(param_batch_key)s
-        %(param_labels_key)s
-        %(param_cat_cov_keys)s
-        %(param_cont_cov_keys)s
+        adata
+            AnnData object.
+        layer
+            If not None, use this layer instead of X for training.
+        batch_key
+            If not None, use the obs column specified by this key as batch information.
+        labels_key
+            If not None, use the obs column specified by this key as labels.
+        categorical_covariate_keys
+            Keys in ``adata.obs`` for additional categorical covariates.
+        continuous_covariate_keys
+            Keys in ``adata.obs`` for additional continuous covariates.
         """
         setup_method_args = cls._get_setup_method_args(**locals())
         anndata_fields = [
@@ -138,23 +134,21 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         n_samples: int = 1,
         batch_size: int | None = None,
     ) -> np.ndarray:
-        r"""Return the latent representation for each cell.
-
-        This is denoted as :math:`z_n` in our manuscripts.
+        """Get the latent representation for each cell.
 
         Parameters
         ----------
         adata
-            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
-            AnnData object used to initialize the model.
+            AnnData object with the same structure as the initial AnnData object.
+            If None, defaults to the AnnData object used when initializing the model.
         indices
-            Indices of cells in adata to use. If `None`, all cells are used.
+            Indices of cells to use from adata. If None, all cells are used.
         give_mean
             Whether to return the mean of the posterior distribution or a sample.
         n_samples
             Number of samples to use for computing the latent representation.
         batch_size
-            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+            Minibatch size for data loading into the model.
 
         Returns
         -------
@@ -168,25 +162,54 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
             adata=adata, indices=indices, batch_size=batch_size, iter_ndarray=True
         )
 
-        jit_inference_fn = self.module.get_jit_inference_fn(
-            inference_kwargs={"n_samples": n_samples}
-        )
+        # Set to evaluation mode
+        self.module.eval()
+
         latent = []
         for array_dict in scdl:
-            out = jit_inference_fn(self.module.rngs, array_dict)
-            if give_mean:
-                z = out["qz"].mean
-            else:
-                z = out["z"]
-            latent.append(z)
-        concat_axis = 0 if ((n_samples == 1) or give_mean) else 1
-        latent = jnp.concatenate(latent, axis=concat_axis)
+            # Convert to MLX arrays
+            mlx_dict = {k: mx.array(v) for k, v in array_dict.items()}
+            cont_covs = mlx_dict.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+            cat_covs = mlx_dict.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
+            outputs = self.module.inference(
+                mlx_dict[REGISTRY_KEYS.X_KEY],
+                cont_covs=cont_covs,
+                cat_covs=cat_covs,
+                n_samples=n_samples,
+            )
 
-        return self.module.as_numpy_array(latent)
+            if give_mean:
+                z = outputs["mean"]
+            else:
+                z = outputs["z"]
+
+            latent.append(np.array(z))
+
+        concat_axis = 0 if (n_samples == 1 or give_mean) else 1
+        return np.concatenate(latent, axis=concat_axis)
 
     def to_device(self, device):
+        """Move the model to a specific device.
+
+        MLX automatically handles device placement, so this is a no-op.
+
+        Parameters
+        ----------
+        device
+            Target device.
+        """
+        logger.info("MLX automatically handles device placement, ignoring to_device call")
         pass
 
     @property
     def device(self):
-        return self.module.device
+        """Get the current device.
+
+        MLX automatically handles device placement.
+
+        Returns
+        -------
+        str
+            Device identifier.
+        """
+        return "mlx"

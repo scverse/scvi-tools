@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from mudata import MuData
-from scipy.sparse import issparse
+from scipy.sparse import csr_matrix, issparse
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import (
     average_precision_score,
@@ -323,7 +323,7 @@ class PosteriorPredictiveCheck:
             )
         # run DE with the raw counts
         adata_de = AnnData(
-            X=self.raw_counts.to_scipy_sparse().tocsr().copy(),
+            X=csr_matrix(self.raw_counts.to_scipy_sparse()).copy(),
             obs=self.adata.obs,
             var=self.adata.var,
         )
@@ -359,7 +359,7 @@ class PosteriorPredictiveCheck:
                 # overwrite X with the posterior predictive sample
                 # This allows us to save all the DE results in the same adata object
                 one_sample_data = (
-                    one_sample.data.to_scipy_sparse().tocsr()
+                    csr_matrix(one_sample.data.to_scipy_sparse())
                     if isinstance(one_sample.data, SparseArray)
                     else one_sample
                 )

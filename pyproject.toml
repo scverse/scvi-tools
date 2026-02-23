@@ -60,8 +60,8 @@ editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
 cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
-metal = ["torchvision", "torchaudio", "jax-metal"]
 tpu = ["torch_xla[tpu]"]
+metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -96,7 +96,7 @@ jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow
-mlflow = ["mlflow","psutil","GPUtil"]
+mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
 optional = [
     "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
