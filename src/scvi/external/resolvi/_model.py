@@ -17,6 +17,7 @@ from scvi.data.fields import (
     CategoricalObsField,
     LabelsWithUnlabeledObsField,
     LayerField,
+    NumericalObsField,
     ObsmField,
 )
 from scvi.dataloaders import AnnTorchDataset
@@ -274,6 +275,7 @@ class RESOLVI(
         layer: str | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
+        size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         prepare_data: bool | None = True,
         prepare_data_kwargs: dict = None,
@@ -288,6 +290,10 @@ class RESOLVI(
         %(param_layer)s
         %(param_batch_key)s
         %(param_labels_key)s
+        size_factor_key
+            Key in ``adata.obs`` corresponding to pre-computed size factors.
+            This is the physical size of a cell (e.g. cell volume) and will be used to replace the
+            library size if size_scaling is True.
         %(param_cat_cov_keys)s
         prepare_data
             If True, prepares AnnData for training. Computes spatial neighbors and distances.
@@ -328,6 +334,7 @@ class RESOLVI(
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
+            NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             ObsmField("index_neighbor", "index_neighbor"),
             ObsmField("distance_neighbor", "distance_neighbor"),
             CategoricalObsField(REGISTRY_KEYS.INDICES_KEY, "_indices"),
@@ -431,6 +438,8 @@ class RESOLVI(
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         n_samples: int = 5,
+        size_scaling: bool = False,
+        library_scaling: bool = False,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -463,6 +472,13 @@ class RESOLVI(
             :meth:`~scvi.model.base.DifferentialComputation.filter_outlier_cells
         n_samples
             Number of posterior samples to use for estimation.
+        size_scaling
+            If True, will scale normalized expression by size factors (e.g. cell volume).
+            This needs to be setup in :meth:`~scvi.external.RESOLVI.setup_anndata` with
+            `size_factor_key`. False by default.
+        library_scaling
+            If True, will scale normalized expression to library size. This is useful for skewed
+            gene panels if library size normalization is detrimental. False by default.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -481,6 +497,8 @@ class RESOLVI(
             batch_size=batch_size,
             weights=weights,
             return_mean=False,
+            size_scaling=size_scaling,
+            library_scaling=library_scaling,
         )
 
         representation_fn = self.get_latent_representation if filter_outlier_cells else None
