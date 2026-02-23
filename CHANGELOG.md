@@ -9,7 +9,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Added dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
 - Add {meth}`~scvi.model.base.VAEMixin.differential_abundance`
     and {meth}`~scvi.model.base.VAEMixin.get_aggregated_posterior`
     functions to {class}`scvi.model.base.VAEMixin`, {pr}`3618`

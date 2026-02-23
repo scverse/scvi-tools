@@ -10,7 +10,7 @@ from mudata import MuData
 
 from scvi.data import synthetic_iid
 from scvi.external import SCVIVA
-from scvi.model import SCANVI, SCVI, TOTALVI
+from scvi.model import SCANVI, SCVI, TOTALVI, AmortizedLDA
 
 if TYPE_CHECKING:
     from anndata import AnnData
@@ -153,3 +153,13 @@ def test_differential_abundance(model: VAEMixin, adata: AnnData, mdata: MuData, 
         adata_subset = adata[subset_indices, :].copy()
         model.differential_abundance(adata_subset, **da_kwargs)
         assert isinstance(adata_subset.obsm["da_log_probs"], pd.DataFrame)
+
+
+def test_differential_abundance_not_implemented(adata):
+    AmortizedLDA.setup_anndata(adata)
+    model = AmortizedLDA(adata, n_topics=5)
+    model.train(max_epochs=1)
+    with pytest.raises(
+        NotImplementedError, match="differential_abundance is not implemented for AmortizedLDA"
+    ):
+        model.differential_abundance(adata)
