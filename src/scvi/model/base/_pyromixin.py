@@ -487,7 +487,7 @@ class PyroSampleMixin:
         return_samples
             Return all generated posterior samples.
         summary_frequency
-            Compute summary_fun after summary_frequency batches. Reduces memory footprint.
+            Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         sample_kwargs
             Keyword arguments for :meth:`~scvi.model.base.PyroSampleMixin._get_posterior_samples`.
 
@@ -667,7 +667,7 @@ class PyroSampleMixin:
             Return all generated posterior samples in addition to sample mean, 5th/95th quantile
             and SD?
         summary_frequency
-            Compute summary_fun after summary_frequency batches. Reduces memory footprint.
+            Compute summary_fn after summary_frequency batches. Reduces memory footprint.
         summary_fun
             a dict in the form {"means": np.mean, "std": np.std} which specifies posterior
             distribution summaries to compute and which names to use. See below for default

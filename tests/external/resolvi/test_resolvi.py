@@ -14,6 +14,7 @@ def adata():
     )
     adata.obsm["X_spatial"] = adata.obsm["coordinates"]
     adata.obs["cell_area"] = np.random.gamma(2.0, 1.0, size=adata.n_obs)
+    print(adata)
     return adata
 
 

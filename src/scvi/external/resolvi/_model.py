@@ -454,6 +454,7 @@ class RESOLVI(
         %(de_group2)s
         %(de_idx1)s
         %(de_idx2)s
+        %(de_subset_idx)s
         %(de_mode)s
         %(de_delta)s
         %(de_batch_size)s
@@ -633,8 +634,7 @@ class RESOLVI(
         Parameters
         ----------
         adata
-            AnnData object that has been registered via
-            :meth:`~scvi.external.RESOLVI.setup_anndata` including `labels_key`.
+            AnnData object that has been registered via :meth:`~scvi.model.SCANVI.setup_anndata`.
         indices
             Subsample AnnData to these indices.
         soft

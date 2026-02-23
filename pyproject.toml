@@ -92,7 +92,7 @@ parallel = ["dask[array]", "zarr"]
 # for models interpretability
 interpretability = ["captum", "shap", "decoupler"]
 # for jax support
-jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
+jax = ["jax", "jaxlib", "optax", "numpyro", "flax","uvloop; platform_system != 'Windows'"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow

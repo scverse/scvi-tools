@@ -122,7 +122,7 @@ class RESOLVAEModel(PyroModule):
         n_batch: int = 0,
         n_hidden: int = 32,
         n_latent: int = 10,
-        mixture_k: int = 30,
+        mixture_k: int = 100,
         n_layers: int = 2,
         n_cats_per_cov: Iterable[int] | None = None,
         n_labels: Iterable[int] | None = None,
@@ -199,6 +199,7 @@ class RESOLVAEModel(PyroModule):
             ),
         )
         self.register_buffer("prior_proportions_rate", torch.tensor([prior_proportions_rate]))
+
         use_batch_norm_decoder = use_batch_norm == "decoder" or use_batch_norm == "both"
         use_layer_norm_decoder = use_layer_norm == "decoder" or use_layer_norm == "both"
 
@@ -808,6 +809,7 @@ class RESOLVAEGuide(PyroModule):
         Whether to use layer norm in layers
     use_size_factor_key
         Use size_factor AnnDataField defined by the user as scaling factor.
+        Takes priority over `use_observed_lib_size`.
     use_observed_lib_size
         Use observed library size for RNA as scaling factor in mean of conditional distribution
     median_distance:
