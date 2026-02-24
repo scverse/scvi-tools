@@ -46,10 +46,18 @@ More importantly, this guide explains the function of the parameters of the `dif
 
 ```
 
-## Notations and model assumptions (placeholder from DE page)
+## Notations and model assumptions
 
-## Approximating population-specific normalized expression levels (placeholder from DE page)
+While different scvi-tools models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n represents cell $n$'s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized, expression levels.
 
-## Detecting biologically relevant features (placeholder from DE page)
+## Defining the density of a given sample
 
-## Providing easy-to-interpret predictions (placeholder from DE page)
+
+
+## Quantifying the probability that a given cell belongs a given sample
+
+## Aggregating posteriors to identify relatively overabundant cell states in a given group of samples
+
+## Interpreting results
+
+## Sources
