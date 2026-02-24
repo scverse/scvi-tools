@@ -347,46 +347,91 @@ Here we provide an overview of some of the tasks that DiagVI can perform. Please
 
 ### Dimensionality reduction
 
+DiagVI provides aligned low-dimensional representations for each modality. By default, the mean of the approximate posterior $q_\eta(\mathbf{z}_n \mid x_n)$ is returned.
+
+Latent representations can be obtained using:
+
 ```
 >>> latents = model.get_latent_representation()
->>> adata_rna.obsm["X_diagvi"] = latents["rna"]
->>> adata_protein.obsm["X_diagvi"] = latents["protein"]
+>>> adata_mod1.obsm["X_diagvi"] = latents["mod1"]
+>>> adata_mod2.obsm["X_diagvi"] = latents["mod2"]
 ```
-Aligned representations can be used jointly for downstream analysis:
+
+The aligned representations can be used for downstream analyses either within each modality or jointly across modalities.
+
+For example, within-modality visualization:
 
 ```
 >>> import scanpy as sc
->>> # Use RNA latent for clustering
->>> sc.pp.neighbors(adata_rna, use_rep="X_diagvi")
->>> sc.tl.umap(adata_rna)
->>> sc.tl.leiden(adata_rna)
+>>> sc.pp.neighbors(adata_mod1, use_rep="X_diagvi")
+>>> sc.tl.umap(adata_mod1)
+```
+
+For joint analysis across modalities:
+
+```
+>>> adata_combined = sc.concat(
+...     [adata_mod1, adata_mod2],
+...     axis=0,
+...     join="inner",
+...     label="modality",
+...     keys=["mod1", "mod2"],
+... )
+>>> sc.pp.neighbors(adata_combined, use_rep="X_diagvi")
+>>> sc.tl.umap(adata_combined)
 ```
 
 ### Cross-modal feature imputation
 
-DiagVI can impute features from one modality to another using {func}`~scvi.external.DIAGVI.get_imputed_values`.
+DiagVI can impute features from one modality into another using {func}`~scvi.external.DIAGVI.get_imputed_values`.
+
+For example, to impute protein expression for RNA cells:
 
 ```
->>> # Impute protein expression from RNA data
 >>> imputed_protein = model.get_imputed_values(
-...     source_name="rna",
-...     source_adata=adata_rna,
+...     query_name="rna",
+...     query_adata=adata_rna,
 ... )
 >>> adata_rna.obsm["imputed_protein"] = imputed_protein
 ```
 
-You can also specify target batch and library size for counterfactual predictions:
+It is also possible to perform counterfactual predictions by specifying a reference batch or reference library size (see also {doc}`/user_guide/background/counterfactual_prediction`):
 
 ```
->>> # Impute with specific target batch
->>> imputed = model.get_imputed_values(
-...     source_name="rna",
-...     target_batch="batch_1",
-...     target_libsize=10000,
+>>> imputed_rna = model.get_imputed_values(
+...     query_name="protein",
+...     reference_batch="batch_1",
+...     reference_libsize=10000,
 ... )
+>>> adata_protein.obsm["imputed_rna"] = imputed_rna
 ```
+
+This allows imputation under specified sequencing depth or batch conditions.
 
 ### Cell label transfer
+
+Aligned latent representations can be used for cross-modal cell label transfer.
+
+For example, when integrating scRNA-seq reference data with spatial proteomics data, cell-type labels can be transferred from the RNA reference to the spatial data. This can be done using external tools such as [`CellMapper`](https://cellmapper.readthedocs.io/en/latest/), a toolkit for cross-modal cell mapping and evaluation:
+
+```
+>>> latents = model.get_latent_representation()
+>>> adata_rna.obsm["X_diagvi"] = latents["rna"]
+>>> adata_protein.obsm["X_diagvi"] = latents["protein"]
+>>>
+>>> import CellMapper
+>>> cmap = CellMapper(query=adata_protein, reference=adata_rna)
+>>> cmap.compute_neighbors(use_rep="X_diagvi")
+>>> cmap.compute_mapping_matrix()
+>>> cmap.map_obs("cell_type_labels")
+>>> cmap.evaluate_label_transfer(label_key="cell_type_labels")
+```
+
+Because DiagVI produces a shared latent space, any downstream method that operates on low-dimensional embeddings (e.g., kNN mapping, clustering, classification) can be applied directly.
+
+### Data simulation
+
+Data can be generated from the model using the posterior predictive distribution in {func}`~scvi.external.DIAGVI.posterior_predictive_sample`. This is equivalent to feeding a cell through the model, sampling from the posterior distributions of the latent variables, retrieving the likelihood parameters, and finally, sampling from this distribution.
 
 
 ## References
