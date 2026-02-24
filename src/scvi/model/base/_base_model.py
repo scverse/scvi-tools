@@ -1278,6 +1278,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
+    def differential_abundance(self, *args, **kwargs):
+        msg = f"differential_abundance is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
 
 class BaseMinifiedModeModelClass(BaseModelClass):
     """Abstract base class for scvi-tools models that can handle minified data."""
