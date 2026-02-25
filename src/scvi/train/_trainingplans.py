@@ -1318,6 +1318,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         n_steps_kl_warmup: int | None = None,
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 1e-6,
     ):
         super().__init__()
         self.module = pyro_module
@@ -1338,6 +1340,9 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         elif callable(self.module.model):
             self.use_kl_weight = "kl_weight" in signature(self.module.model).parameters
         self.scale_elbo = scale_elbo
+        self.max_kl_weight = max_kl_weight
+        self.min_kl_weight = min_kl_weight
+
         self.scale_fn = lambda obj: (
             pyro.poutine.scale(obj, self.scale_elbo) if self.scale_elbo != 1 else obj
         )
@@ -1391,7 +1396,8 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
             self.global_step,
             self.n_epochs_kl_warmup,
             self.n_steps_kl_warmup,
-            min_kl_weight=1e-3,
+            self.max_kl_weight,
+            self.min_kl_weight,
         )
 
     @property
@@ -1443,6 +1449,10 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
     blocked
         A list of Pyro parameters to block during training.
         If `None`, defaults to train all parameters.
+    min_kl_weight
+        Minimum KL weight during warmup. Defaults to `1e-6`.
+    max_kl_weight
+        Maximum KL weight during warmup. Defaults to `1.0`.
     """
 
     def __init__(
@@ -1455,6 +1465,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
         n_epochs_kl_warmup: int | None = 400,
         scale_elbo: float = 1.0,
         blocked: list | None = None,
+        max_kl_weight: float = 1.0,
+        min_kl_weight: float = 1e-6,
     ):
         super().__init__(
             pyro_module=pyro_module,
@@ -1462,6 +1474,8 @@ class PyroTrainingPlan(LowLevelPyroTrainingPlan):
             n_epochs_kl_warmup=n_epochs_kl_warmup,
             n_steps_kl_warmup=n_steps_kl_warmup,
             scale_elbo=scale_elbo,
+            max_kl_weight=max_kl_weight,
+            min_kl_weight=min_kl_weight,
         )
         optim_kwargs = optim_kwargs if isinstance(optim_kwargs, dict) else {}
         if "lr" not in optim_kwargs.keys():
@@ -1667,6 +1681,9 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self.max_norm = max_norm
             self.automatic_optimization = False
             self._dummy_param = torch.nn.Parameter(torch.Tensor([0.0]))
+            self.n_devices = 1
+            self._pmap_train_fn = None
+            self._pmap_val_fn = None
 
         def get_optimizer_creator(self) -> JaxOptimizerCreator:
             """Get the optimizer creator for the model."""
@@ -1707,6 +1724,100 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self.module.train_state = train_state
 
         @staticmethod
+        def _create_pmap_training_step():
+            """Create a pmap'd training step function for multi-GPU."""
+
+            def pmap_train(state, batch, rngs, loss_kwargs):
+                def loss_fn(params):
+                    vars_in = {"params": params, **state.state}
+                    outputs, new_model_state = state.apply_fn(
+                        vars_in,
+                        batch,
+                        rngs=rngs,
+                        mutable=list(state.state.keys()),
+                        loss_kwargs=loss_kwargs,
+                    )
+                    loss_output = outputs[2]
+                    return loss_output.loss, (loss_output, new_model_state)
+
+                (loss, (loss_output, new_model_state)), grads = jax.value_and_grad(
+                    loss_fn, has_aux=True
+                )(state.params)
+                grads = jax.lax.pmean(grads, axis_name="devices")
+                loss = jax.lax.pmean(loss, axis_name="devices")
+                new_model_state = jax.lax.pmean(new_model_state, axis_name="devices")
+                new_state = state.apply_gradients(grads=grads, state=new_model_state)
+                return new_state, loss, loss_output
+
+            return jax.pmap(pmap_train, axis_name="devices", donate_argnums=(0,))
+
+        @staticmethod
+        def _create_pmap_validation_step():
+            """Create a pmap'd validation step function for multi-GPU."""
+
+            def pmap_val(state, batch, rngs, loss_kwargs):
+                vars_in = {"params": state.params, **state.state}
+                outputs = state.apply_fn(vars_in, batch, rngs=rngs, loss_kwargs=loss_kwargs)
+                loss_output = outputs[2]
+                loss = jax.lax.pmean(loss_output.loss, axis_name="devices")
+                return loss, loss_output
+
+            return jax.pmap(pmap_val, axis_name="devices")
+
+        @staticmethod
+        def _shard_batch(batch, n_devices):
+            """Shard a batch across devices for pmap.
+
+            If the batch size is not divisible by ``n_devices``, the last sample
+            is repeated to pad the batch to a divisible size.
+            """
+            devices = jax.local_devices()[:n_devices]
+
+            def _shard(x):
+                x = np.asarray(x) if not isinstance(x, np.ndarray) else x
+                remainder = x.shape[0] % n_devices
+                if remainder != 0:
+                    pad_size = n_devices - remainder
+                    pad = np.repeat(x[-1:], pad_size, axis=0)
+                    x = np.concatenate([x, pad], axis=0)
+                chunks = np.reshape(x, (n_devices, x.shape[0] // n_devices, *x.shape[1:]))
+                return jax.device_put_sharded(list(chunks), devices)
+
+            return jax.tree_util.tree_map(_shard, batch)
+
+        @staticmethod
+        def _replicate_rngs(rngs, n_devices):
+            """Create per-device RNGs by splitting each RNG key."""
+            import jax.random as random
+
+            replicated = {}
+            for name, rng in rngs.items():
+                keys = random.split(rng, n_devices)
+                # Place each key on the corresponding device for pmap
+                replicated[name] = jax.device_put_sharded(
+                    list(keys), jax.local_devices()[:n_devices]
+                )
+            return replicated
+
+        @staticmethod
+        def _replicate_kwargs(kwargs, n_devices):
+            """Replicate kwargs values as JAX arrays with leading device dimension."""
+            devices = jax.local_devices()[:n_devices]
+            replicated = {}
+            for k, v in kwargs.items():
+                arr = jnp.asarray(v)
+                replicated[k] = jax.device_put_sharded([arr] * n_devices, devices)
+            return replicated
+
+        @staticmethod
+        def _unshard_value(value):
+            """Take the value from the first device (for pmean'd scalars)."""
+            return jax.tree_util.tree_map(
+                lambda x: x[0] if hasattr(x, "ndim") and x.ndim > 0 else x,
+                value,
+            )
+
+        @staticmethod
         @jax.jit
         def jit_training_step(
             state: TrainStateWithState,
@@ -1737,21 +1848,37 @@ if is_package_installed("jax") and is_package_installed("optax"):
             if "kl_weight" in self.loss_kwargs:
                 self.loss_kwargs.update({"kl_weight": self.kl_weight})
             self.module.train()
-            self.module.train_state, _, loss_output = self.jit_training_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
+
+            if self.n_devices > 1:
+                if self._pmap_train_fn is None:
+                    self._pmap_train_fn = self._create_pmap_training_step()
+                sharded_batch = self._shard_batch(batch, self.n_devices)
+                rngs = self._replicate_rngs(self.module.rngs, self.n_devices)
+                rep_kwargs = self._replicate_kwargs(self.loss_kwargs, self.n_devices)
+                self.module.train_state, _, loss_output = self._pmap_train_fn(
+                    self.module.train_state,
+                    sharded_batch,
+                    rngs,
+                    rep_kwargs,
+                )
+                loss_output = self._unshard_value(loss_output)
+            else:
+                self.module.train_state, _, loss_output = self.jit_training_step(
+                    self.module.train_state,
+                    batch,
+                    self.module.rngs,
+                    loss_kwargs=self.loss_kwargs,
+                )
+
             loss_output = jax.tree_util.tree_map(
                 lambda x: torch.tensor(jax.device_get(x)),
                 loss_output,
             )
-            # TODO: Better way to get batch size
             self.log(
                 "train_loss",
                 loss_output.loss,
-                on_epoch=True,
+                on_step=self.on_step,
+                on_epoch=self.on_epoch,
                 batch_size=loss_output.n_obs_minibatch,
                 prog_bar=True,
             )
@@ -1778,12 +1905,28 @@ if is_package_installed("jax") and is_package_installed("optax"):
         def validation_step(self, batch, batch_idx):
             """Validation step for Jax."""
             self.module.eval()
-            loss_output = self.jit_validation_step(
-                self.module.train_state,
-                batch,
-                self.module.rngs,
-                loss_kwargs=self.loss_kwargs,
-            )
+
+            if self.n_devices > 1:
+                if self._pmap_val_fn is None:
+                    self._pmap_val_fn = self._create_pmap_validation_step()
+                sharded_batch = self._shard_batch(batch, self.n_devices)
+                rngs = self._replicate_rngs(self.module.rngs, self.n_devices)
+                rep_kwargs = self._replicate_kwargs(self.loss_kwargs, self.n_devices)
+                _, loss_output = self._pmap_val_fn(
+                    self.module.train_state,
+                    sharded_batch,
+                    rngs,
+                    rep_kwargs,
+                )
+                loss_output = self._unshard_value(loss_output)
+            else:
+                loss_output = self.jit_validation_step(
+                    self.module.train_state,
+                    batch,
+                    self.module.rngs,
+                    loss_kwargs=self.loss_kwargs,
+                )
+
             loss_output = jax.tree_util.tree_map(
                 lambda x: torch.tensor(jax.device_get(x)),
                 loss_output,
@@ -1791,7 +1934,8 @@ if is_package_installed("jax") and is_package_installed("optax"):
             self.log(
                 "validation_loss",
                 loss_output.loss,
-                on_epoch=True,
+                on_step=self.on_step,
+                on_epoch=self.on_epoch,
                 batch_size=loss_output.n_obs_minibatch,
             )
             self.compute_and_log_metrics(loss_output, self.val_metrics, "validation")
@@ -1821,3 +1965,286 @@ if is_package_installed("jax") and is_package_installed("optax"):
 
         def forward(self, *args, **kwargs):
             pass
+
+
+if is_package_installed("mlx"):
+    import logging
+
+    import mlx.core as mx
+    import mlx.nn as nn
+    import mlx.optimizers as optim
+
+    logger = logging.getLogger(__name__)
+
+    class MlxTrainingPlan(TrainingPlan):
+        """Training plan for MLX modules.
+
+        This training plan handles the optimization process for MLX models,
+        including forward passes, loss computation, and parameter updates.
+
+        Parameters
+        ----------
+        module
+            MLX module instance.
+        lr
+            Learning rate.
+        weight_decay
+            Weight decay coefficient.
+        n_epochs_kl_warmup
+            Number of epochs over which to scale KL weight from min_kl_weight to max_kl_weight.
+        n_steps_kl_warmup
+            Number of steps over which to scale KL weight from min_kl_weight to max_kl_weight.
+        max_kl_weight
+            Maximum scaling factor for KL divergence during training.
+        min_kl_weight
+            Minimum scaling factor for KL divergence during training.
+        **loss_kwargs
+            Additional keyword arguments passed to the model's loss method.
+        """
+
+        def __init__(
+            self,
+            module,
+            lr: float = 1e-3,
+            weight_decay: float = 1e-6,
+            n_epochs_kl_warmup: int | None = 400,
+            n_steps_kl_warmup: int | None = None,
+            max_kl_weight: float = 1.0,
+            min_kl_weight: float = 0.0,
+            eps: float = 1e-8,
+            kl_weight: float = 1.0,
+            **loss_kwargs,
+        ):
+            # Create MLX optimizer (AdamW includes weight decay)
+            self.optimizer = optim.AdamW(
+                learning_rate=lr,
+                weight_decay=weight_decay,
+                eps=eps,
+                betas=[0.9, 0.999],
+                bias_correction=True,
+            )
+            self.kl_weight = kl_weight
+            super().__init__(
+                module=module,
+                lr=lr,
+                weight_decay=weight_decay,
+                eps=eps,
+                optimizer=self.optimizer,
+                n_steps_kl_warmup=n_steps_kl_warmup,
+                n_epochs_kl_warmup=n_epochs_kl_warmup,
+                max_kl_weight=max_kl_weight,
+                min_kl_weight=min_kl_weight,
+                **loss_kwargs,
+            )
+            self.module = module
+            self.lr = lr
+            self.weight_decay = weight_decay
+            self.n_epochs_kl_warmup = n_epochs_kl_warmup
+            self.n_steps_kl_warmup = n_steps_kl_warmup
+            self.loss_kwargs = loss_kwargs
+            self.max_kl_weight = max_kl_weight
+            self.min_kl_weight = min_kl_weight
+
+            # Initialize step and epoch counters
+            self.current_step = 0
+            self.current_epoch = 0
+
+        @property
+        def current_epoch(self) -> int:
+            return self._current_epoch
+
+        @current_epoch.setter
+        def current_epoch(self, value: int) -> None:
+            self._current_epoch = value
+
+        @property
+        def kl_weight(self) -> float:
+            return self._kl_weight
+
+        @kl_weight.setter
+        def kl_weight(self, value: float) -> None:
+            self._kl_weight = value
+
+        def _set_module_training(self, is_training):
+            """Set the training state of the module.
+
+            Used when standard train() and eval() methods are not available.
+
+            Parameters
+            ----------
+            is_training : bool
+                Whether the module is in training mode.
+            """
+            # Try different possible attributes to be compatible
+            # with different module implementations
+            if callable(self.module._is_training):
+                self.module._is_training = is_training
+            elif hasattr(self.module, "_training"):
+                self.module._training = is_training
+            else:
+                logger.warning(
+                    "Unable to set module training state, may affect training performance"
+                )
+
+        def get_kl_weight(self) -> float:
+            """Compute the KL weight for the current step or epoch.
+
+            Returns
+            -------
+            float
+                Current KL weight value.
+            """
+            if self.n_steps_kl_warmup is not None:
+                kl_weight = min(
+                    self.max_kl_weight,
+                    self.min_kl_weight
+                    + (self.max_kl_weight - self.min_kl_weight)
+                    * (self.current_step / max(1, self.n_steps_kl_warmup)),
+                )
+            elif self.n_epochs_kl_warmup is not None:
+                kl_weight = min(
+                    self.max_kl_weight,
+                    self.min_kl_weight
+                    + (self.max_kl_weight - self.min_kl_weight)
+                    * (self.current_epoch / max(1, self.n_epochs_kl_warmup)),
+                )
+            else:
+                kl_weight = self.max_kl_weight
+
+            return kl_weight
+
+        def train_step(self, batch_dict):
+            """Execute a single training step.
+
+            Parameters
+            ----------
+            batch_dict
+                Dictionary containing batch data.
+
+            Returns
+            -------
+            dict
+                Dictionary containing loss values.
+            """
+            # Set module to training mode
+            if hasattr(self.module, "train"):
+                self.module.train(True)
+            else:
+                self._set_module_training(True)
+
+            # Convert batch data to MLX arrays
+            mlx_batch = {
+                k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
+            }
+
+            # Compute KL weight
+            kl_weight = self.get_kl_weight()
+
+            try:
+                # We need both the loss (for gradients) and the full LossOutput
+                # (for metric logging). Run forward twice: once inside value_and_grad
+                # for the scalar loss, and capture LossOutput from a second forward.
+
+                # Define loss function - using MLX style
+                def loss_fn(model, tensors, kl_weight):
+                    _, _, loss_output = model(tensors, kl_weight=kl_weight)
+                    return loss_output.loss
+
+                # Compute loss and gradients using mlx.nn.value_and_grad
+                loss_and_grad_fn = nn.value_and_grad(self.module, loss_fn)
+                # Fixed call method, explicitly pass self.module
+                loss, grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
+
+                # Check for NaN or Inf in loss
+                loss_val = float(loss)
+                if not mx.isfinite(loss).item() or mx.isnan(loss).item():
+                    logger.warning(f"NaN or Inf detected in loss: {loss_val}, skipping update")
+                    return {"loss": loss_val}
+
+                # Clip gradients to prevent explosion
+                max_grad_norm = 5.0
+
+                def clip_grads(grads):
+                    if isinstance(grads, dict):
+                        return {k: clip_grads(v) for k, v in grads.items()}
+                    elif isinstance(grads, (list, tuple)):
+                        return type(grads)(clip_grads(g) for g in grads)
+                    elif isinstance(grads, mx.array):
+                        # Clip individual gradient
+                        grad_norm = mx.sqrt(mx.sum(mx.square(grads)))
+                        return mx.where(
+                            grad_norm > max_grad_norm,
+                            grads * (max_grad_norm / (grad_norm + 1e-8)),
+                            grads,
+                        )
+                    else:
+                        return grads
+
+                grads = clip_grads(grads)
+                # Update module parameters directly using optimizer
+                self.optimizer.update(self.module, grads)
+
+                # Force evaluation of parameters and optimizer state
+                mx.eval(self.module.parameters(), self.optimizer.state)
+
+                # Get component metrics from a forward pass (no grad needed)
+                _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
+
+                return {
+                    "loss": loss_val,
+                    "reconstruction_loss": float(loss_output.reconstruction_loss_sum),
+                    "kl_local": float(loss_output.kl_local_sum),
+                    "kl_global": float(loss_output.kl_global_sum),
+                    "n_obs": loss_output.n_obs_minibatch,
+                }
+            except Exception as e:
+                logger.error(f"Error in training step: {str(e)}")
+                raise
+
+        def validate_step(self, batch_dict):
+            """Execute a validation step.
+
+            Parameters
+            ----------
+            batch_dict
+                Dictionary containing batch data.
+
+            Returns
+            -------
+            dict
+                Dictionary containing validation loss values.
+            """
+            # Set module to evaluation mode
+            if hasattr(self.module, "eval"):
+                self.module.eval()
+            else:
+                self._set_module_training(False)
+
+            # Convert batch data to MLX arrays
+            mlx_batch = {
+                k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
+            }
+
+            # Compute KL weight (same as during training for consistency)
+            kl_weight = self.get_kl_weight()
+
+            try:
+                # Forward pass
+                if callable(self.module):
+                    _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
+                    return {
+                        "validation_loss": float(loss_output.loss),
+                        "reconstruction_loss": float(loss_output.reconstruction_loss_sum),
+                        "kl_local": float(loss_output.kl_local_sum),
+                        "kl_global": float(loss_output.kl_global_sum),
+                        "n_obs": loss_output.n_obs_minibatch,
+                    }
+                else:
+                    # Compatibility mode
+                    logger.warning(
+                        "Module does not have standard __call__ method, using compatibility mode"
+                    )
+                    return {"validation_loss": 0.0}
+            except Exception as e:
+                logger.error(f"Error in validation step: {str(e)}")
+                raise

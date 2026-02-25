@@ -60,8 +60,8 @@ editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
 cuda = ["torchvision", "torchaudio", "jax[cuda12]"]
-metal = ["torchvision", "torchaudio", "jax-metal"]
 tpu = ["torch_xla[tpu]"]
+metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -236,6 +236,13 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.uv]
+# uvloop does not support Windows; override the transitive dependency
+# pulled in via flax -> orbax-checkpoint -> uvloop
+override-dependencies = [
+    "uvloop ; sys_platform != 'win32'",
+]
 
 [tool.jupytext]
 formats = "ipynb,md"
