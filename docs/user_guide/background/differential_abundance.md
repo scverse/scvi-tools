@@ -48,16 +48,26 @@ More importantly, this guide explains the function of the parameters of the `dif
 
 ## Notations and model assumptions
 
-While different scvi-tools models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n represents cell $n$'s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized, expression levels.
-
-## Defining the density of a given sample
-
-
+While different `scvi-tools` models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n$ represents cell $n$'s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized, expression levels.
 
 ## Quantifying the probability that a given cell belongs a given sample
 
+The first step to identifying abundant cell states in a given group of samples consists of, for each cell $n$ in a given sample $s$, using the model's variational approximation to the posterior distribution for $n$ over the $z$ space, $q(z|x_n)$. Aggregating these posteriors over all cells in $s$ results in the following aggregated posterior distribution:
+
+```{math}
+:nowrap: true
+
+\begin{align}
+   q_s(z) := \frac{1}{n_s}\sum_{n:s_n = s}q(z|x_n)
+\end{align}
+
+```
+where $n_s$ is the number of cells in $s$. By evaluating this density function at the $z$ space representation of cell $n$, $q_s(z_n)$, we obtain the probability that cell $n$ belongs to sample $s$. In `scvi-tools`, the differential abundance method results in a $log$ probabilities matrix containing the $logs$ of these probabilities between each cell and sample.
+
 ## Aggregating posteriors to identify relatively overabundant cell states in a given group of samples
 
-## Interpreting results
+Next, we can quantify the density of any set of samples $A$ in the $z$ space as $q_A(z) := \frac{1}{|A|} \sum_{s \in A}q_s(z)$. Now, by evaluating this density function at the $z$ space representation of a given cell $n$, we obtain the probability that cell $n$ belongs to the group of samples, $A$. In practice this is useful because we can use covariates such as sex, or patient condition, to group the samples. By assigning groups this way, we identify cell states that are relatively overabundant in certain covariate groups, such as diseased individuals or females.
 
 ## Sources
+https://docs.scvi-tools.org/en/1.4.1/user_guide/models/mrvi.html
+https://docs.scvi-tools.org/en/1.4.1/user_guide/models/cytovi.html
