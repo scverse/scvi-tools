@@ -228,14 +228,19 @@ class DiagTrainingPlan(TrainingPlan):
                     on_step=True,
                 )
 
-            # Only training step
-            if log_prefix == "train_":
+            # Validation and training step
+            if log_prefix in {"train_", "val_"}:
                 reconstruction_loss = torch.mean(
                     loss_output.reconstruction_loss["reconstruction_loss"]
                 )
-                self.log(f"nll_{name}", reconstruction_loss, batch_size=batch_size, on_epoch=True)
                 self.log(
-                    f"kl_{name}",
+                    f"{log_prefix}nll_{name}",
+                    reconstruction_loss,
+                    batch_size=batch_size,
+                    on_epoch=True,
+                )
+                self.log(
+                    f"{log_prefix}kl_{name}",
                     loss_output.kl_local["kl_local"],
                     batch_size=batch_size,
                     on_epoch=True,
