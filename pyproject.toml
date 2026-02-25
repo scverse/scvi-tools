@@ -237,6 +237,13 @@ skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
 
+[tool.uv]
+# uvloop does not support Windows; override the transitive dependency
+# pulled in via flax -> orbax-checkpoint -> uvloop
+override-dependencies = [
+    "uvloop ; sys_platform != 'win32'",
+]
+
 [tool.jupytext]
 formats = "ipynb,md"
 
