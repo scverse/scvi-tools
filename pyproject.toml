@@ -94,7 +94,7 @@ interpretability = ["captum", "shap", "decoupler"]
 # for jax support
 jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
-dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]","cupy"]
+dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata","annbatch[zarrs]"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
