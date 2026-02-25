@@ -9,6 +9,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {meth}`~scvi.model.base.VAEMixin.differential_abundance`
+    and {meth}`~scvi.model.base.VAEMixin.get_aggregated_posterior`
+    functions to {class}`scvi.model.base.VAEMixin`, {pr}`3618`
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
@@ -17,6 +20,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for logging validation metrics in MultiGPU, {pr}`3712`.
 - Add Support for MLX usage in Mac with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
 - Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
+- Add support for size_factor in {class}`scvi.external.RESOLVI`, {pr}`3701`.
 
 #### Fixed
 
