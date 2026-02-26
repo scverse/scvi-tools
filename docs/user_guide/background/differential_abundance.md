@@ -40,7 +40,7 @@ More importantly, this guide explains the function of the parameters of the `dif
       -
       -
     * - dof
-      - Degrees of freedom for the Student's t-distribution components for aggregated posterior. If ``None``, components are Normal. Using a Student's t-distribution instead of a Normal distribution to estimate posteriors can improve later analysis by creating a smoother distribution for samples containing few cells (in this case our estimated posterior comes from aggregating across fewer cells, so the estimate might be more innacurate, particularly between cells).
+      - Degrees of freedom for the Student's t-distribution components of the aggregated posterior for each sample. If ``None``, components are Normal. Using a Student's t-distribution instead of a Normal distribution for the posteriors can improve later analysis by improving stability and creating a smoother distribution for samples containing few cells (with few cells there are fewer components in aggregated posterior, so the heavier tails of a Student's t-distribution smoothes the space between those fewer components).
       -
       -
 
@@ -48,7 +48,7 @@ More importantly, this guide explains the function of the parameters of the `dif
 
 ## Notations and model assumptions
 
-While different `scvi-tools` models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n$ represents cell $n$'s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized, expression levels.
+While different `scvi-tools` models may consider different modalities (gene expression, protein expression, multimodal, etc.), they share similar properties, namely some low-dimensional representation of each cell. In particular, we consider a deep generative model where a latent variable with prior $z_n$ represents cell $n$'s identity. In turn, a neural network $f^h_\theta$ maps this low-dimensional representation to normalized expression levels.
 
 ## Quantifying the probability that a given cell belongs a given sample
 
