@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import mlx.core as mx
 import numpy as np
 
 from scvi import REGISTRY_KEYS
@@ -164,6 +163,8 @@ class mlxSCVI(MlxTrainingMixin, BaseModelClass):
 
         # Set to evaluation mode
         self.module.eval()
+
+        import mlx.core as mx
 
         latent = []
         for array_dict in scdl:

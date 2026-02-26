@@ -34,6 +34,7 @@ import scvi
    model.MULTIVI
    model.AmortizedLDA
    model.JaxSCVI
+   model.mlxSCVI
 ```
 
 ```{eval-rst}
