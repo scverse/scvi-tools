@@ -69,5 +69,5 @@ where $n_s$ is the number of cells in $s$. By evaluating this density function a
 Next, we can quantify the density of any set of samples $A$ in the $z$ space as $q_A(z) := \frac{1}{|A|} \sum_{s \in A}q_s(z)$. Now, by evaluating this density function at the $z$ space representation of a given cell $n$, we obtain the probability that cell $n$ belongs to the group of samples, $A$. In practice this is useful because we can use covariates such as sex, or patient condition, to group the samples. By assigning groups this way, we identify cell states that are relatively overabundant in certain covariate groups, such as diseased individuals or females.
 
 ## Sources
-https://docs.scvi-tools.org/en/1.4.1/user_guide/models/mrvi.html
-https://docs.scvi-tools.org/en/1.4.1/user_guide/models/cytovi.html
+{doc}`/user_guide/models/mrvi`
+{doc}`/user_guide/models/cytovi`
