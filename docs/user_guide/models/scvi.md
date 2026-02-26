@@ -180,6 +180,17 @@ Data can be generated from the model using the posterior predictive distribution
 This is equivalent to feeding a cell through the model, sampling from the posterior
 distributions of the latent variables, retrieving the likelihood parameters (of $p(x \mid z, s)$), and finally, sampling from this distribution.
 
+## Alternative backends and platforms
+
+The standard {class}`~scvi.model.SCVI` class uses PyTorch as its computational backend.
+For users who prefer a different framework or are running on hardware where another backend offers better performance, two experimental alternatives are available:
+
+- **JAX** – {class}`~scvi.model.JaxSCVI` is a JAX-based implementation of scVI. It can be substantially faster than the PyTorch implementation on CPUs (e.g., comparable to PyTorch on a GPU on a multi-core machine) and works on any platform supported by JAX.
+- **MLX (Apple Silicon)** – {class}`~scvi.model.mlxSCVI` is an MLX-based implementation optimized for Apple Silicon (M-series) chips via the [MLX](https://ml-explore.github.io/mlx/) framework. It is only available on macOS with Apple Silicon.
+
+Both alternatives expose the same high-level API (e.g., `setup_anndata`, `train`, `get_latent_representation`, `save`, `load`) as {class}`~scvi.model.SCVI`, though they may have reduced feature sets compared to the full PyTorch implementation.
+Saved models are not interchangeable across backends — a model saved with one class cannot be loaded by another.
+
 [^ref1]:
     Romain Lopez, Jeffrey Regier, Michael Cole, Michael I. Jordan, Nir Yosef (2018),
     _Deep generative modeling for single-cell transcriptomics_,

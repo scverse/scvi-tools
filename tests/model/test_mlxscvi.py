@@ -1,4 +1,5 @@
 import sys
+import tempfile
 
 import numpy as np
 import pytest
@@ -59,9 +60,25 @@ def test_mlx_scvi_save_load(n_latent: int, save_path: str):
     model = mlxSCVI(adata, n_latent=n_latent)
     model.train(2, train_size=0.5, check_val_every_n_epoch=1)
     z1 = model.get_latent_representation(adata)
-    model.save(save_path, overwrite=True, save_anndata=True)
+
+    # Verify trained weights are MLX arrays with expected shapes.
+    # MlxDense stores weight as (in_features, out_features).
+    import mlx.core as mx
+
+    enc_w = model.module.encoder.dense1.weight
+    assert isinstance(enc_w, mx.array), "Encoder weights should be MLX arrays after training"
+    assert enc_w.shape == (adata.n_vars, 128), (
+        f"Encoder dense1 weight: expected ({adata.n_vars}, 128), got {enc_w.shape}"
+    )
+    dec_w = model.module.decoder.dense1.weight
+    assert isinstance(dec_w, mx.array), "Decoder weights should be MLX arrays after training"
+    assert dec_w.shape == (n_latent, 128), (
+        f"Decoder dense1 weight: expected ({n_latent}, 128), got {dec_w.shape}"
+    )
+
+    model.save(save_path, overwrite=True, save_anndata=True, prefix="mlx_")
     model.view_setup_args(save_path)
-    model = mlxSCVI.load(save_path)
+    model = mlxSCVI.load(save_path, prefix="mlx_")
     model.get_latent_representation()
 
     # Load with mismatched genes.
@@ -69,15 +86,15 @@ def test_mlx_scvi_save_load(n_latent: int, save_path: str):
         n_genes=200,
     )
     with pytest.raises(ValueError):
-        mlxSCVI.load(save_path, adata=tmp_adata)
+        mlxSCVI.load(save_path, adata=tmp_adata, prefix="mlx_")
 
     # Load with different batches.
     tmp_adata = synthetic_iid()
     tmp_adata.obs["batch"] = tmp_adata.obs["batch"].cat.rename_categories(["batch_2", "batch_3"])
     with pytest.raises(ValueError):
-        mlxSCVI.load(save_path, adata=tmp_adata)
+        mlxSCVI.load(save_path, adata=tmp_adata, prefix="mlx_")
 
-    model = mlxSCVI.load(save_path, adata=adata)
+    model = mlxSCVI.load(save_path, adata=adata, prefix="mlx_")
     assert "batch" in model.adata_manager.data_registry
     assert model.adata_manager.data_registry.batch == attrdict(
         {"attr_name": "obs", "attr_key": "_scvi_batch"}
@@ -86,6 +103,46 @@ def test_mlx_scvi_save_load(n_latent: int, save_path: str):
 
     z2 = model.get_latent_representation()
     np.testing.assert_array_equal(z1, z2)
+
+    # After loading, weights must still be MLX arrays (not plain lists or tensors).
+    loaded_enc_w = model.module.encoder.dense1.weight
+    assert isinstance(loaded_enc_w, mx.array), (
+        "Encoder weights should remain MLX arrays after save/load"
+    )
+    loaded_dec_w = model.module.decoder.dense1.weight
+    assert isinstance(loaded_dec_w, mx.array), (
+        "Decoder weights should remain MLX arrays after save/load"
+    )
+
+    # Trying to load an mlxSCVI-saved model using the plain SCVI class must fail.
+    from scvi.model import SCVI
+
+    with pytest.raises(ValueError):
+        SCVI.load(save_path, adata=adata, prefix="mlx_")
+
+    # Trying to load a plain SCVI model using mlxSCVI must also fail.
+    scvi_adata = synthetic_iid()
+    SCVI.setup_anndata(scvi_adata, batch_key="batch")
+    scvi_model = SCVI(scvi_adata, n_latent=n_latent)
+    scvi_model.train(2, train_size=0.5)
+    with tempfile.TemporaryDirectory() as scvi_tmp_path:
+        scvi_model.save(scvi_tmp_path, overwrite=True)
+        with pytest.raises(ValueError):
+            mlxSCVI.load(scvi_tmp_path, adata=scvi_adata)
+
+    # Now load new data/model with the old model and make training step
+    adata_new = synthetic_iid()
+    mlxSCVI.setup_anndata(
+        adata_new,
+        batch_key="batch",
+    )
+    model_new = mlxSCVI.load(save_path, adata=adata_new, prefix="mlx_")
+    assert "batch" in model_new.adata_manager.data_registry
+    assert model_new.adata_manager.data_registry.batch == attrdict(
+        {"attr_name": "obs", "attr_key": "_scvi_batch"}
+    )
+    assert model_new.is_trained is True
+    model_new.train(2, train_size=0.5, check_val_every_n_epoch=1)
 
 
 @pytest.mark.parametrize("n_latent", [5])
