@@ -77,7 +77,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax,mlx]"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
@@ -99,7 +99,7 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
+    "scvi-tools[autotune,mlflow,hub,jax,mlx,file_sharing,regseq,parallel,interpretability]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
