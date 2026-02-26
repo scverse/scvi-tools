@@ -202,11 +202,11 @@ class PosteriorPredictiveCheck:
             # we use a trick to compute the std to speed it up: std = E[X^2] - E[X]^2
             # a square followed by a sqrt is ok here because
             # this is counts data (no negative values)
-            self.samples_dataset = np.square(self.samples_dataset)
-            std = np.sqrt(self.samples_dataset.mean(dim=dim, skipna=False) - np.square(mean))
-            self.samples_dataset = np.sqrt(self.samples_dataset)
+            self.samples_dataset = self.samples_dataset**2
+            std = (self.samples_dataset.mean(dim=dim, skipna=False) - mean**2) ** 0.5
+            self.samples_dataset = self.samples_dataset**0.5
 
-        # now compute the CV
+            # now compute the CV
         cv = std / mean
         # It's ok to make things dense here
         cv = _make_dataset_dense(cv)
