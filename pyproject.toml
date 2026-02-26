@@ -99,8 +99,8 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,mlx,file_sharing,regseq,parallel,interpretability]",
-    "igraph","leidenalg","pynndescent",
+    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
+    "igraph","leidenalg","pynndescent","mlx"
 ]
 tutorials = [
     "biomart",
