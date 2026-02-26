@@ -48,7 +48,7 @@ def __getattr__(name: str):
         return _JaxSCVI
     if name == "mlxSCVI":
         warnings.warn(
-            "In order to use the MLX version of SCVI make sure to install scvi-tools[mlx]",
+            "In order to use the MLX version of SCVI make sure to install mlx",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )

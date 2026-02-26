@@ -59,7 +59,7 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]","cupy-cuda12x"]
+cuda = ["torchvision", "torchaudio", "jax[cuda12]","mlx[cuda]","cupy-cuda12x"]
 tpu = ["torch_xla[tpu]"]
 metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
@@ -77,7 +77,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax]","mlx"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
