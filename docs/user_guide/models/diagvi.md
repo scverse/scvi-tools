@@ -1,6 +1,6 @@
 # DiagVI
 
-**DiagVI** (Diagonal multi-modal integration Variational Inference; Python class {class}`~scvi.external.DIAGVI`) is a deep generative model for diagonal integration of unpaired multi-modal single-cell data using prior biological knowledge encoded as a guidance graph.
+**DiagVI** (Diagonal multi-modal integration Variational Inference; Python class {class}`~scvi.external.DIAGVI`) is a deep generative model for diagonal integration of unpaired multi-modal single-cell data using prior knowledge about cross-modal feature correspondences. These relationships (such as associative or repressive interactions) are encoded in a guidance graph, where edge weights can represent both positive and negative covariation between features across modalities.
 
 DiagVI is inspired by the GLUE[^ref1] architecture, which uses modality-specific variational autoencoders (VAEs) to project heterogeneous data types into a shared latent space. In contrast to GLUE’s adversarial alignment strategy, DiagVI aligns modalities using Unbalanced Optimal Transport (UOT) via the Sinkhorn divergence[^ref2], explicitly accounting for differences in cell-type composition across modalities.
 
@@ -32,20 +32,27 @@ The limitations of DiagVI include:
 
 DiagVI takes as input expression matrices $\mathbf{X}_1 \in \mathbb{R}^{N \times G}$ with $N$ cells and $G$ features and $\mathbf{X}_2 \in \mathbb{R}^{M \times P}$ with $M$ cells and $P$ features from two unpaired modalities.
 
-For **count data** such as scRNA-seq data DiagVI expects a raw count expression matrix, where rows correspond to individual cells and columns correspond to features (e.g., genes).
+For **count data**, such as scRNA-seq, DiagVI expects a raw count expression matrix, where rows correspond to individual cells and columns correspond to features (e.g., genes).
 
-For **continuous data** such as antibody-based single-cell proteomics data DiagVI expects a transformed (and optionally scaled) protein expression matrix, where rows correspond to individual cells and each column is a feature (e.g., a marker protein).
-Input data should be preprocessed using transformations such as arcsinh or log1p, optionally followed by feature-wise scaling (e.g., z-score, min–max, or rank scaling). We recommend arcsinh transformation followed by feature-wise min–max scaling.
+For **continuous data**, such as antibody-based single-cell or spatial proteomics, DiagVI expects a transformed (and optionally scaled) protein expression matrix, where rows correspond to cells and columns to features (e.g., marker proteins). Because antibody-based measurements are inherently relative, preprocessing is required. Typically, transformations such as arcsinh or log1p are applied to compress dynamic range and stabilize variance, followed by feature-wise scaling (e.g., z-score or min–max scaling) to ensure comparability across markers. This results in approximately normal-like feature distributions, which can be effectively modeled using a normal likelihood. Empirically, we found this approach performs better than modeling raw intensities (see also {class}`~scvi.external.CYTOVI` and the corresponding preprint[^ref3]).
+
+For integration with DiagVI, we recommend a simple two-step preprocessing strategy inspired by {class}`~scvi.external.CYTOVI`:
+
+1.   **Arcsinh transformation** to stabilize variance and compress dynamic range.
+2.   **Feature-wise min–max scaling** to rescale each marker to the [0, 1] range and account for differences in marker brightness.
 
 Optional: For both count and continuous data, DiagVI can additionally incorporate:
--   Experimental covariates such as batch annotation or confounding variables such as donor sex for one or both modalites. For simplicity, we will describe the case of categorical batch identifiers $s_n, s_m \in \{1,...,S\}$.
--   Cell label annotations that weakly inform the prior of the latent space and guide a classifier in semi-supervised training for one or both modalities. We assume categorical label identifiers $c_n, c_m \in\{1,...,C\}$.
+-   **Experimental covariates** such as batch annotation or **confounding variables** such as donor sex for one or both modalites. For simplicity, we will describe the case of categorical batch identifiers $s_n, s_m \in \{1,...,S\}$.
+-   **Cell label annotations** that weakly inform the prior of the latent space and guide a classifier in semi-supervised training for one or both modalities. We assume categorical label identifiers $c_n, c_m \in\{1,...,C\}$.
+
+Both optional inputs are handled independently for each modality, enabling distinct batch structures or cell type annotations per modality.
 
 Currently supported modalities include:
--   scRNA-seq
--   Spatial transcriptomics
--   Spatial proteomics (e.g., CITE-seq, any other antibody-based single cell measurement of protein expression)
--   Other count or continuous measurements
+-   **scRNA-seq**
+-   **Spatial transcriptomics**: image-based and sequencing-based, e.g., 10x Xenium, Vizgen MERSCOPE, NanoString CosMx, and 10x Visium
+-   **Spatial proteomics**: antibody-based imaging assays, e.g., PhenoCycler (formerly CODEX), 4i, Imaging Mass Cytometry, and protein add-on panels for Xenium or CosMx
+-   **Single-cell proteomics**: such as CITE-seq and other antibody-derived tag (ADT)-based assays
+-   Other count-based or continuous feature measurements
 
 ### Model components
 
@@ -57,7 +64,7 @@ DiagVI integrates two unpaired modalities by projecting their expression matrice
 
 #### Guidance graph
 
-Projecting cells into a common low-dimensional space alone does not result in semantically consistent embeddings in which identical cell types are assigned to the same region across both modalities. To ensure biological consistency in the latent space, a guidance graph establishes logical associations between the two modalities by connecting linked features.
+Projecting cells into a common low-dimensional space alone does not result in semantically consistent embeddings in which identical cell types are assigned to the same region across both modalities. To ensure biological consistency in the latent space, a guidance graph establishes logical associations between the two modalities by connecting linked features (see also GLUE[^ref1]).
 
 Feature correspondences are encoded in the guidance graph $\mathcal{G} = (\mathcal{V}, \mathcal{E})$, where $\mathcal{V} = \mathcal{V}_1 \cup \mathcal{V}_2$ with modality-specific feature sets $\mathcal{V}_1$ and $\mathcal{V}_2$, and $\mathcal{E} \subseteq \mathcal{V} \times \mathcal{V}$ denotes the set of edges. Each edge $(i,j) \in \mathcal{E}$ is associated with
 
@@ -68,16 +75,16 @@ The graph loss encourages the inner product between embeddings $\mathbf{v}_i$ an
 
 #### Unbalanced optimal transport
 
-To ensure robust alignment of cells from different modalities within the shared latent space, DiagVI leverages unbalanced optimal transport (UOT). Specifically, it minimizes the de-biased Sinkhorn divergence between latent distributions using the [GeomLoss](https://www.kernel-operations.io/geomloss/#) library[^ref3].
+To ensure robust alignment of cells from different modalities within the shared latent space, DiagVI leverages unbalanced optimal transport (UOT). Specifically, it minimizes the de-biased Sinkhorn divergence between latent distributions using the [GeomLoss](https://www.kernel-operations.io/geomloss/#) library[^ref4]. UOT relaxes the marginal constraints of classical optimal transport, allowing for unequal total mass between distributions. This enables robust integration in the presence of differing cell type proportions across modalities.
 
 #### Classifier
 
-Inspired by {class}`~scvi.external.RESOLVI`[^ref4], a simple cell type classifier predicting labels $c_n$ and $c_m$ from cell latent vectors $\mathbf{z}_n$ and $\mathbf{z}_m$, respectively, is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
+Inspired by {class}`~scvi.external.RESOLVI`[^ref5], a simple cell type classifier predicting labels $c_n$ and $c_m$ from cell latent vectors $\mathbf{z}_n$ and $\mathbf{z}_m$, respectively, is integrated into the model in the semi-supervised setting. This classifier is trained jointly with the generative model.
 
 
 ## Descriptive model
 
-DiagVI assumes that observations from each modality are generated from a shared $d$-dimensional latent space. For cell $n$ and feature $g$, the the observed data $x_{ng}$ is generated conditionally on the cell latent variable $\mathbf{z}_n \in \mathbb{R}^{d}$, the feature latent variable $\mathbf{v}_g \in \mathbb{R}^{d}$, and its associated batch $s_n$.
+DiagVI assumes that observations from each modality are generated from a shared $d$-dimensional latent space. For cell $n$ and feature $g$, the observed data $x_{ng}$ is generated conditionally on the cell latent variable $\mathbf{z}_n \in \mathbb{R}^{d}$, the feature latent variable $\mathbf{v}_g \in \mathbb{R}^{d}$, and its associated batch $s_n$.
 
 The prior on the feature latent variable is a standard multivariate normal:
 
@@ -103,10 +110,10 @@ $L$ is set to the number of unique cell types in the labeled data.
 
 ### Generative model
 
-The form of the generative model depends on whether the observed data consist of discrete counts or continuous measurements. In both cases, the specific form of the data likelihood varies with the distribution used to model the observed data in each modality.
+The generative model follows the formulations used in GLUE[^ref1], scVI[^ref6], and CytoVI[^ref3], and adapts depending on whether the observed data consist of discrete counts or continuous measurements. In both cases, the specific form of the data likelihood varies with the distribution used to model the observed data in each modality.
 
 Regardless of the data type and likelihood choice, the inner product between cell and feature
-latent embeddings parametrizes the decoder:
+latent embeddings parametrizes the decoder together with batch-specific versions of scaling ($\alpha_{s_n,g}$) and bias ($\beta_{s_n,g}$) parameters:
 
 $$
 \eta_{ng} = \alpha_{s_n,g} \, \mathbf{z}_n^\top \mathbf{v}_g + \beta_{s_n,g}.
@@ -285,6 +292,16 @@ The `lam_*` parameters control the relative importance of within-modality recons
 
 ## Practical guidance
 
+### Guidance graph creation
+
+When initializing {class}`~scvi.external.DIAGVI`, three ways to specify the guidance graph are supported:
+
+1.   **Automatic construction**: If neither `guidance_graph` nor `mapping_df` are provided, DiagVI constructs a graph from overlapping feature names across modalities (e.g., shared gene symbols).
+
+2.   **Custom mapping via DataFrame**: Pass a `pandas.DataFrame` to `mapping_df` in which each column corresponds to a modality name (matching the keys in `input_dict`) and each row specifies a feature pair. This is useful when feature naming conventions differ between modalities (e.g., genes vs. proteins). You can also use {func}`~scvi.external.DIAGVI.construct_custom_guidance_graph` to create a graph with custom edge weights and signs.
+
+3.   **Explicit graph specification**: For full control, pass a pre-constructed `torch_geometric.data.Data` object directly to `guidance_graph`. The graph must include node features, edge indices, edge weights, edge signs, and modality-specific feature index tensors..
+
 ### Loss weights
 
 DiagVI provides default values for all loss weights that have been tested across multiple datasets and integration tasks. However, depending on the modalities and the integration setting, tuning some of these weights can improve performance.
@@ -312,15 +329,7 @@ Here, the modalities are already structurally similar, so stronger supervision c
 
 As a general rule, we recommend `lam_sinkhorn` and `lam_class` values between 1 and 100, which work well in most settings.
 
-The default loss weight values are:
-
--   `lam_data` = 0.1
--   `lam_kl` = 1.0
--   `lam_graph` = 15.0
--   `lam_sinkhorn` = 85.0
--   `lam_class` = 5.0
-
-These defaults place relatively strong emphasis on cross-modality alignment and are therefore well suited for integrating heterogeneous modalities. For more similar modalities, we recommend reducing `lam_sinkhorn` (e.g., 5-20) and increasing `lam_class` (e.g., 60-80), depending on label availability and desired separation.
+The default loss weight values place relatively strong emphasis on cross-modality alignment and are therefore well suited for integrating heterogeneous modalities. For more similar modalities, we recommend reducing `lam_sinkhorn` (e.g., 5-20) and increasing `lam_class` (e.g., 60-80), depending on label availability and desired separation.
 
 In practice, small grid searches over `lam_sinkhorn` and `lam_class` are often sufficient to find well-performing settings.
 
@@ -329,8 +338,8 @@ In practice, small grid searches over `lam_sinkhorn` and `lam_class` are often s
 Three parameters determine the behavior of the Sinkhorn divergence used for cross-modality alignment:
 
 -   `p`: order of the ground cost (Wasserstein-p distance). The default is p = 2, corresponding to a squared Euclidean ground cost.
--   `blur`: controls the strength of entropic regularization and therefore the smoothness of the transport plan.
--   `reach`: controls the marginal relaxation parameter in unbalanced optimal transport, penalizing deviations from strict mass conservation.
+-   `blur`: controls the strength of entropic regularization and therefore the smoothness of the transport plan. Larger values increase regularization, resulting in smoother and more diffuse transport plans.
+-   `reach`: controls the marginal relaxation parameter in unbalanced optimal transport, penalizing deviations from strict mass conservation. Larger values enforce stricter marginal constraints, while smaller values allow greater mass variation between the matched distributions.
 
 Although these parameters can be specified manually, we generally **do not recommend modifying them**.
 
@@ -420,11 +429,9 @@ For example, when integrating scRNA-seq reference data with spatial proteomics d
 >>> adata_protein.obsm["X_diagvi"] = latents["protein"]
 >>>
 >>> import CellMapper
->>> cmap = CellMapper(query=adata_protein, reference=adata_rna)
->>> cmap.compute_neighbors(use_rep="X_diagvi")
->>> cmap.compute_mapping_matrix()
->>> cmap.map_obs("cell_type_labels")
->>> cmap.evaluate_label_transfer(label_key="cell_type_labels")
+>>> cmap = CellMapper(adata_protein, adata_rna)
+>>> cmap.map("cell_type_labels", use_rep="X_diagvi")
+>>> cmap.evaluate_label_transfer("cell_type_labels")
 ```
 
 Because DiagVI produces a shared latent space, any downstream method that operates on low-dimensional embeddings (e.g., kNN mapping, clustering, classification) can be applied directly.
@@ -447,11 +454,21 @@ Data can be generated from the model using the posterior predictive distribution
     [arXiv](https://arxiv.org/abs/1910.12958).
 
 [^ref3]:
+    Ingelfinger, Florian; Levy, Nathan; Ergen, Can; Bakulin, Artemy; Becker, Alexander; Boyeau, Pierre; Kim, Martin; Ditz, Diana; Dirks, Jan; Maaskola, Jonas; Wertheimer, Tobias; Zeiser, Robert; Widmer, Corinne C.; Amit, Ido; Yosef, Nir (2025),
+    _CytoVI: Deep generative modeling of antibody-based single cell technologies_,
+    [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.09.07.674699v1).
+
+[^ref4]:
     Feydy, Jean; Séjourné, Thibault; Vialard, François‑Xavier; Amari, Shun‑ichi; Trouvé, Alain; Peyré, Gabriel (2019)
     _Interpolating between Optimal Transport and MMD using Sinkhorn Divergences_
     [The 22nd International Conference on Artificial Intelligence and Statistics](https://arxiv.org/abs/1810.08278).
 
-[^ref4]:
-    Adam Gayoso\*, Zoë Steier\*, Romain Lopez, Jeffrey Regier, Kristopher L Nazor, Aaron Streets, Nir Yosef (2021),
-    _Joint probabilistic modeling of single-cell multi-omic data with totalVI_,
-    [Nature Methods](https://www.nature.com/articles/s41592-020-01050-x).
+[^ref5]:
+    Ergen, Can; Yosef, Nir (2025),
+    _ResolVI - addressing noise and bias in spatial transcriptomics_,
+    [bioRxiv](https://www.biorxiv.org/content/10.1101/2025.01.20.634005v1).
+
+[^ref6]:
+    Lopez, Romain; Regier, Jeffrey; Cole, Michael B.; Jordan, Michael I., Yosef, Nir (2018),
+    _Deep generative modeling for single-cell transcriptomics_,
+    [Nature Methods](https://www.nature.com/articles/s41592-018-0229-2).
