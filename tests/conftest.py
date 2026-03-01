@@ -1,6 +1,7 @@
 import shutil
 
 import pytest
+from distutils.dir_util import copy_tree
 
 import scvi
 from tests.data.utils import generic_setup_adata_manager
@@ -190,7 +191,7 @@ def save_path(tmp_path_factory):
     """Docstring for save_path."""
     dir = tmp_path_factory.mktemp("temp_data", numbered=False)
     path = str(dir)
-    shutil.copytree("tests/test_data", path, dirs_exist_ok=True)
+    copy_tree("tests/test_data", path)
     yield path + "/"
     shutil.rmtree(str(tmp_path_factory.getbasetemp()), ignore_errors=True)
 
