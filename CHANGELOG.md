@@ -13,7 +13,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Changed
 
-- Update {meth}`scvi.hub` models, {pr}`3733`.
+- Update SCVI-Tools Hub models, {pr}`3733`.
 
 #### Removed
 
