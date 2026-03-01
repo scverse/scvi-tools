@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import traceback
 
-import mlx.core as mx
 import pandas as pd
 
 from scvi import settings
@@ -152,6 +151,8 @@ class MlxTrainingMixin:
         data_splitter
             Initialized DataSplitter with train/val dataloaders.
         """
+        import mlx.core as mx
+
         # Get data loaders
         train_dl = data_splitter.train_dataloader()
         val_dl = data_splitter.val_dataloader()

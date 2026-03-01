@@ -4,7 +4,7 @@ requires = ["hatchling"]
 
 [project]
 name = "scvi-tools"
-version = "1.4.1"
+version = "1.4.2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -77,7 +77,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax]","mlx"]
 
 # scvi.autotune
 autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
@@ -238,6 +238,13 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.uv]
+# uvloop does not support Windows; override the transitive dependency
+# pulled in via flax -> orbax-checkpoint -> uvloop
+override-dependencies = [
+    "uvloop ; sys_platform != 'win32'",
+]
 
 [tool.jupytext]
 formats = "ipynb,md"
