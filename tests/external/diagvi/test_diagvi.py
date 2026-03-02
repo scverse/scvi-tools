@@ -68,12 +68,85 @@ def test_diagvi_training(adata_seq, adata_spatial):
     assert model.is_trained_ is True
 
 
+def test_diagvi_train_with_modality_specific_splits(adata_seq, adata_spatial):
+    """Test training with modality-specific external_indexing."""
+    from sklearn.model_selection import train_test_split
+
+    model = make_model(adata_seq, adata_spatial)
+
+    # Create modality-specific splits
+    train_diss, temp_diss = train_test_split(np.arange(N_OBS_SEQ), test_size=0.3, random_state=42)
+    val_diss, test_diss = train_test_split(temp_diss, test_size=0.5, random_state=42)
+
+    train_spatial, temp_spatial = train_test_split(
+        np.arange(N_OBS_SPATIAL), test_size=0.4, random_state=42
+    )
+    val_spatial, test_spatial = train_test_split(temp_spatial, test_size=0.5, random_state=42)
+
+    # Train with modality-specific splits
+    model.train(
+        max_epochs=1,
+        batch_size=16,
+        datasplitter_kwargs={
+            "diss": {"external_indexing": [train_diss, val_diss, test_diss]},
+            "spatial": {"external_indexing": [train_spatial, val_spatial, test_spatial]},
+        },
+    )
+
+    assert model.is_trained_ is True
+
+    # Check that splits were stored correctly
+    assert len(model.train_indices_[0]) == len(train_diss)
+    assert len(model.validation_indices_[0]) == len(val_diss)
+    assert len(model.test_indices_[0]) == len(test_diss)
+
+    assert len(model.train_indices_[1]) == len(train_spatial)
+    assert len(model.validation_indices_[1]) == len(val_spatial)
+    assert len(model.test_indices_[1]) == len(test_spatial)
+
+    # Test that we can use these indices with get_latent_representation
+    test_latents = model.get_latent_representation(
+        indices={
+            "diss": model.test_indices_[0],
+            "spatial": model.test_indices_[1],
+        }
+    )
+    assert test_latents["diss"].shape[0] == len(test_diss)
+    assert test_latents["spatial"].shape[0] == len(test_spatial)
+
+
 def test_diagvi_latent_representation(adata_seq, adata_spatial):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     latents = model.get_latent_representation()
     assert latents["diss"].shape[0] == adata_seq.shape[0]
     assert latents["spatial"].shape[0] == adata_spatial.shape[0]
+
+
+def test_diagvi_latent_representation_with_indices(trained_model):
+    """Test get_latent_representation with subset of indices."""
+    model, adata_seq, adata_spatial = trained_model
+
+    indices = {
+        "diss": list(range(20)),
+        "spatial": list(range(15)),
+    }
+
+    latents = model.get_latent_representation(indices=indices)
+
+    assert latents["diss"].shape == (20, model.module.n_latent)
+    assert latents["spatial"].shape == (15, model.module.n_latent)
+
+    # Test with validation indices from training
+    if hasattr(model, "validation_indices_") and len(model.validation_indices_) > 0:
+        val_latents = model.get_latent_representation(
+            indices={
+                "diss": model.validation_indices_[0],
+                "spatial": model.validation_indices_[1],
+            }
+        )
+        assert val_latents["diss"].shape[0] == len(model.validation_indices_[0])
+        assert val_latents["spatial"].shape[0] == len(model.validation_indices_[1])
 
 
 def test_diagvi_generative_model(adata_seq, adata_spatial):
@@ -252,6 +325,26 @@ def test_get_imputed_values_combined_batch_and_libsize(trained_model):
     )
     assert isinstance(imputed3, np.ndarray)
     assert imputed3.shape == (N_OBS_SPATIAL, N_VARS)
+
+
+def test_get_imputed_values_with_indices(trained_model):
+    """Test get_imputed_values with subset of indices."""
+    model, adata_seq, adata_spatial = trained_model
+
+    # Test with small subset of indices
+    indices = list(range(10))
+    imputed = model.get_imputed_values(query_name="spatial", indices=indices)
+
+    assert isinstance(imputed, np.ndarray)
+    assert imputed.shape == (10, N_VARS)
+
+    # Test with validation indices from training
+    if hasattr(model, "validation_indices_") and len(model.validation_indices_) > 0:
+        val_imputed = model.get_imputed_values(
+            query_name="spatial", indices=model.validation_indices_[1]
+        )
+        assert val_imputed.shape[0] == len(model.validation_indices_[1])
+        assert val_imputed.shape[1] == N_VARS
 
 
 @pytest.mark.parametrize(

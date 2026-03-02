@@ -42,7 +42,6 @@ if TYPE_CHECKING:
     from anndata import AnnData
     from torch_geometric.data import Data
 
-    from scvi.dataloaders import AnnDataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -203,6 +202,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Whether to shuffle data before splitting into train/validation.
         datasplitter_kwargs
             Additional keyword arguments for the DataSplitter and DataLoaders.
+            Can be either:
+            - A dict of shared kwargs applied to all modalities
+            - A nested dict mapping modality names to their specific kwargs,
+              e.g., ``{"rna": {"external_indexing": [train, val, test]}, "protein": {...}}``
         plan_kwargs
             Additional keyword arguments for the training plan.
         **kwargs
@@ -252,7 +255,18 @@ class DIAGVI(BaseModelClass, VAEMixin):
         self.train_indices_, self.test_indices_, self.validation_indices_ = [], [], []
         train_dls, test_dls, val_dls = {}, {}, {}
         datasplitter_kwargs = datasplitter_kwargs if isinstance(datasplitter_kwargs, dict) else {}
+
+        # Support modality-specific datasplitter_kwargs
+        # If keys match modality names, treat as modality-specific config
+        is_modality_specific = any(key in self.input_names for key in datasplitter_kwargs.keys())
+
         for name, adm in self.adata_managers.items():
+            # Get modality-specific kwargs if provided, otherwise use shared kwargs
+            if is_modality_specific:
+                modality_kwargs = datasplitter_kwargs.get(name, {})
+            else:
+                modality_kwargs = datasplitter_kwargs
+
             ds = self._data_splitter_cls(
                 adm,
                 train_size=train_size,
@@ -260,7 +274,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
                 batch_size=batch_size,
                 shuffle_set_split=shuffle_set_split,
                 distributed_sampler=use_distributed_sampler(kwargs.get("strategy", None)),
-                **datasplitter_kwargs,
+                **modality_kwargs,
             )
             ds.setup()
             train_dls[name] = ds.train_dataloader()
@@ -595,33 +609,11 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         return guidance_graph
 
-    def _make_scvi_dls(
-        self, adatas: list[AnnData] = None, batch_size: int = 1024
-    ) -> list[AnnDataLoader]:
-        """Create AnnDataLoaders for each modality.
-
-        Parameters
-        ----------
-        adatas
-            List of AnnData objects. If None, uses self.adatas.
-        batch_size
-            Minibatch size for data loading.
-
-        Returns
-        -------
-        List of data loaders, one per modality.
-        """
-        if adatas is None:
-            adatas = self.adatas
-        post_list = [self._make_data_loader(ad, batch_size=batch_size) for ad in adatas]
-        for i, dl in enumerate(post_list):
-            dl.mode = i
-        return post_list
-
     @torch.inference_mode()
     def get_latent_representation(
         self,
         adatas: dict[str, AnnData] | list[AnnData] | None = None,
+        indices: dict[str, Sequence[int]] | None = None,
         batch_size: int = 1024,
     ) -> dict[str, np.ndarray]:
         """Return the latent space embedding for each dataset.
@@ -630,6 +622,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         ----------
         adatas
             Modalities to compute embeddings for. If None, uses all modalities.
+        indices
+            Dictionary mapping modality names to indices of cells to use.
+            If ``None``, all cells are used for each modality.
         batch_size
             Minibatch size for data loading.
 
@@ -646,11 +641,19 @@ class DIAGVI(BaseModelClass, VAEMixin):
             input_names = self.input_names
             adata_list = adatas
 
-        scdls = self._make_scvi_dls(adata_list, batch_size=batch_size)
+        if indices is None:
+            indices = dict.fromkeys(input_names)
+
         self.module.eval()
 
         latents = {}
-        for input_name, scdl in zip(input_names, scdls, strict=False):
+        for input_name, adata in zip(input_names, adata_list, strict=False):
+            mode_indices = indices.get(input_name)
+            scdl = self._make_data_loader(
+                adata,
+                indices=mode_indices,
+                batch_size=batch_size,
+            )
             latent = []
             for tensors in scdl:
                 latent.append(
@@ -757,6 +760,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         self,
         query_name: str,
         query_adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
         deterministic: bool = True,
         batch_size: int = 2048,
         reference_batch: int | str | np.ndarray | None = None,
@@ -770,6 +774,10 @@ class DIAGVI(BaseModelClass, VAEMixin):
             Name of the query modality.
         query_adata
             AnnData object for the query modality. If None, uses the registered AnnData.
+        indices
+            Indices of cells to use. If ``None``, all cells are used.
+        deterministic
+            Whether to use deterministic inference (posterior mean).
         batch_size
             Minibatch size for data loading.
         reference_batch
@@ -794,7 +802,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         )
 
         self.module.eval()
-        dl = self._make_data_loader(query_adata, batch_size=batch_size)
+        dl = self._make_data_loader(query_adata, indices=indices, batch_size=batch_size)
         reconstructed_values = []
         for tensor in dl:
             inference_output = self.module.inference(
