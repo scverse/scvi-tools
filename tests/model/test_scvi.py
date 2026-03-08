@@ -616,7 +616,7 @@ def test_new_setup_compat():
 @pytest.mark.internet
 def test_backwards_compatible_loading(save_path):
     def download_080_models(save_path):
-        file_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models.tar.gz"
+        file_path = "https://exampledata.scverse.org/scvi-tools/testing_models.tar.gz"
         save_fn = "testing_models.tar.gz"
         _download(file_path, save_path, save_fn)
         saved_file_path = os.path.join(save_path, save_fn)
@@ -638,7 +638,7 @@ def test_backwards_compatible_loading(save_path):
 
 @pytest.mark.internet
 def test_backup_url(save_path):
-    backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
+    backup_path = "https://exampledata.scverse.org/scvi-tools/testing_models_0150"
     a = synthetic_iid()
     a.obs["cat1"] = np.random.randint(0, 5, size=(a.shape[0],))
     a.obs["cat2"] = np.random.randint(0, 5, size=(a.shape[0],))

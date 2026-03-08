@@ -12,7 +12,7 @@ def _load_purified_pbmc_dataset(
     save_path: str = "data/",
     subset_datasets: list[str] = None,
 ) -> anndata.AnnData:
-    url = "https://github.com/YosefLab/scVI-data/raw/master/PurifiedPBMCDataset.h5ad"
+    url = "https://exampledata.scverse.org/scvi-tools/PurifiedPBMCDataset.h5ad"
     save_fn = "PurifiedPBMCDataset.h5ad"
     _download(url, save_path, save_fn)
     path_to_file = os.path.join(save_path, save_fn)
@@ -48,8 +48,8 @@ def _load_pbmc_dataset(
     remove_extracted_data: bool = True,
 ) -> anndata.AnnData:
     urls = [
-        "https://github.com/YosefLab/scVI-data/raw/master/gene_info.csv",
-        "https://github.com/YosefLab/scVI-data/raw/master/pbmc_metadata.pickle",
+        "https://exampledata.scverse.org/scvi-tools/gene_info.csv",
+        "https://exampledata.scverse.org/scvi-tools/pbmc_metadata.pickle",
     ]
     save_fns = ["gene_info_pbmc.csv", "pbmc_metadata.pickle"]
 
