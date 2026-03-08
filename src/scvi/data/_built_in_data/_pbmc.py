@@ -48,8 +48,8 @@ def _load_pbmc_dataset(
     remove_extracted_data: bool = True,
 ) -> anndata.AnnData:
     urls = [
-        "https://exampledata.scverse.org/scvi-tools/gene_info.csv",
-        "https://exampledata.scverse.org/scvi-tools/pbmc_metadata.pickle",
+        "https://github.com/YosefLab/scVI-data/raw/master/gene_info.csv",
+        "https://github.com/YosefLab/scVI-data/raw/master/pbmc_metadata.pickle",
     ]
     save_fns = ["gene_info_pbmc.csv", "pbmc_metadata.pickle"]
 

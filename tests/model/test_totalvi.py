@@ -121,7 +121,7 @@ def test_saving_and_loading(save_path):
 
 @pytest.mark.internet
 def test_backup_url(save_path):
-    backup_path = "https://exampledata.scverse.org/scvi-tools/testing_models_0150"
+    backup_path = "https://github.com/yoseflab/scVI-data/raw/master/testing_models_0150"
     a = synthetic_iid()
     a.obs["cat1"] = np.random.randint(0, 5, size=(a.shape[0],))
     a.obs["cat2"] = np.random.randint(0, 5, size=(a.shape[0],))
