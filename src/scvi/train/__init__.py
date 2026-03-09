@@ -9,6 +9,7 @@ from ._config import (
     AdversarialTrainingPlanConfig,
     ClassifierTrainingPlanConfig,
     JaxTrainingPlanConfig,
+    KwargsConfig,
     LowLevelPyroTrainingPlanConfig,
     PyroTrainingPlanConfig,
     SemiSupervisedAdversarialTrainingPlanConfig,
@@ -54,6 +55,7 @@ __all__ = [
     "ScibCallback",
     "METRIC_KEYS",
     "JaxTrainingPlanConfig",
+    "KwargsConfig",
 ]
 
 
