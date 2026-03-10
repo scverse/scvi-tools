@@ -1048,6 +1048,126 @@ class DIAGVI(BaseModelClass, VAEMixin):
         return model
 
 
+    @torch.inference_mode()
+    def predict_celltype(
+        self,
+        labeled_modality: str,
+        target_modality: str | None = None,
+        target_adata: AnnData | None = None,
+        indices: Sequence[int] | None = None,
+        batch_size: int = 2084,
+        deterministic: bool = True,
+    ) -> dict[str, np.ndarray]:
+        """Predict cell type labels using a trained classifier.
+
+        Parameters
+        ----------
+        labeled_modality
+            Name of the modality for which the classifier was trained. A classifier
+            must have been trained for this modality (i.e., labels_key must have been
+            provided during setup_anndata for this modality).
+        target_modality
+            Name of the modality to predict cell types for. If None, defaults to the
+            other modality (not labeled_modality) for cross-modal label transfer.
+        target_adata
+            AnnData object for the target modality. If None, uses the registered AnnData.
+        indices
+            Indices of cells to predict. If ``None``, all cells are used.
+        batch_size
+            Minibatch size for data loading.
+
+        Returns
+        -------
+        Dictionary with keys:
+            - "predictions": Array of predicted label categories (strings)
+            - "probabilities": Array of class probabilities (n_cells, n_classes)
+            - "confidence": Array of maximum probability for each cell
+
+        Raises
+        ------
+        ValueError
+            If labeled_modality is not a valid modality name.
+            If target_modality is not a valid modality name.
+            If no classifier was trained for the labeled modality.
+        """
+        # Validate labeled modality
+        if labeled_modality not in self.input_names:
+            raise ValueError(
+                f"labeled_modality must be one of {self.input_names}!"
+            )
+
+        # Default to the other modality for cross-modal transfer
+        if target_modality is None:
+            target_modality = (
+                self.input_names[1]
+                if labeled_modality == self.input_names[0]
+                else self.input_names[0]
+            )
+
+        # Validate target modality
+        if target_modality not in self.input_names:
+            raise ValueError(
+                f"Invalid target_modality: '{target_modality}'. "
+                f"Must be one of {self.input_names}."
+            )
+
+        # Get the classifier for the labeled modality
+        if labeled_modality == self.input_names[0]:
+            classifier = self.module.classifier_0
+        else:
+            classifier = self.module.classifier_1
+
+        # Check if classifier exists
+        if classifier is None:
+            raise ValueError(
+                f"No classifier was trained for modality '{labeled_modality}'. "
+                f"To use this function, you must provide a labels_key when calling "
+                f"setup_anndata for the labeled modality."
+            )
+
+        # Get target adata
+        if target_adata is None:
+            target_adata = self.adatas[target_modality]
+
+        # Get label categories from the labeled modality's adata manager
+        label_registry = self.adata_managers[labeled_modality].get_state_registry(
+            REGISTRY_KEYS.LABELS_KEY
+        )
+        label_categories = label_registry.get("categorical_mapping", None)
+
+        # Get latent representations for target modality
+        self.module.eval()
+
+        dl = self._make_data_loader(
+            target_adata,
+            indices=indices,
+            batch_size=batch_size,
+        )
+
+        all_logits = []
+        for tensors in dl:
+            z = self.module.inference(
+                **self.module._get_inference_input(tensors),
+                mode=target_modality,
+                deterministic=deterministic,
+            )["z"]
+            logits = classifier(z)
+            all_logits.append(logits.cpu())
+
+        # Concatenate all logits and compute predictions
+        all_logits = torch.cat(all_logits, dim=0)
+        probabilities = torch.nn.functional.softmax(all_logits, dim=-1).numpy()
+        predicted_indices = torch.argmax(all_logits, dim=1).numpy()
+        confidence = probabilities.max(axis=1)
+        predictions = label_categories[predicted_indices]
+
+        return {
+            "predictions": predictions,
+            "probabilities": probabilities,
+            "confidence": confidence,
+        }
+
+
 class TrainDL(DataLoader):
     """DataLoader that creates batch structure for training by combining multiple data loaders.
 

@@ -1499,3 +1499,123 @@ def test_kl_divergence_graph():
 
     kl_nonzero = kl_divergence_graph(mu_nonzero, logvar_nonzero)
     assert kl_nonzero.item() > 0, "KL should be positive for non-standard distribution"
+
+
+# =============================================================================
+# Tests for predict_celltype
+# =============================================================================
+
+
+@pytest.fixture(scope="module")
+def trained_semi_supervised_model(adata_seq_with_labels, adata_spatial_with_labels):
+    """Module-scoped trained model with classifier for predict_celltype tests."""
+    DIAGVI.setup_anndata(
+        adata_seq_with_labels,
+        batch_key="batch",
+        labels_key="cell_type",
+        likelihood="nb",
+        gmm_prior=True,
+    )
+    DIAGVI.setup_anndata(
+        adata_spatial_with_labels,
+        batch_key="batch",
+        likelihood="nb",
+        gmm_prior=False,
+    )
+    model = DIAGVI({"diss": adata_seq_with_labels, "spatial": adata_spatial_with_labels})
+    model.train(max_epochs=2, batch_size=16)
+    return model, adata_seq_with_labels, adata_spatial_with_labels
+
+
+def test_predict_celltype_cross_modal_default(trained_semi_supervised_model):
+    """Test predict_celltype defaults to transferring to the other modality."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    # When source_modality="diss", target should default to "spatial"
+    results = model.predict_celltype(labeled_modality="diss")
+
+    assert "predictions" in results
+    assert "probabilities" in results
+    assert "confidence" in results
+
+    # Should have predictions for spatial modality (N_OBS_SPATIAL cells)
+    assert len(results["predictions"]) == N_OBS_SPATIAL
+    assert results["probabilities"].shape[0] == N_OBS_SPATIAL
+    # N_LABELS + 1 because LabelsWithUnlabeledObsField adds "unknown" category
+    assert results["probabilities"].shape[1] == N_LABELS + 1
+    assert len(results["confidence"]) == N_OBS_SPATIAL
+
+
+def test_predict_celltype_explicit_target(trained_semi_supervised_model):
+    """Test predict_celltype with explicitly specified target_modality."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    # Explicitly specify target as same modality (self-prediction)
+    results = model.predict_celltype(labeled_modality="diss", target_modality="diss")
+
+    assert len(results["predictions"]) == N_OBS_SEQ
+    assert results["probabilities"].shape[0] == N_OBS_SEQ
+
+
+def test_predict_celltype_with_indices(trained_semi_supervised_model):
+    """Test predict_celltype with subset of indices."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    indices = list(range(20))
+    results = model.predict_celltype(labeled_modality="diss", indices=indices)
+
+    assert len(results["predictions"]) == 20
+    assert results["probabilities"].shape[0] == 20
+    assert len(results["confidence"]) == 20
+
+
+def test_predict_celltype_predictions_are_valid_labels(trained_semi_supervised_model):
+    """Test that predictions are valid label categories."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    results = model.predict_celltype(labeled_modality="diss")
+
+    # All predictions should be valid cell type labels
+    valid_labels = set(adata_seq.obs["cell_type"].cat.categories)
+    for pred in results["predictions"]:
+        assert pred in valid_labels
+
+
+def test_predict_celltype_confidence_bounds(trained_semi_supervised_model):
+    """Test that confidence values are valid probabilities."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    results = model.predict_celltype(labeled_modality="diss")
+
+    # Confidence should be between 0 and 1
+    assert np.all(results["confidence"] >= 0)
+    assert np.all(results["confidence"] <= 1)
+
+    # Probabilities should sum to 1
+    prob_sums = results["probabilities"].sum(axis=1)
+    np.testing.assert_array_almost_equal(prob_sums, np.ones(N_OBS_SPATIAL), decimal=5)
+
+
+def test_predict_celltype_invalid_source_modality(trained_semi_supervised_model):
+    """Test that invalid labeled_modality raises ValueError."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    with pytest.raises(ValueError, match="must be one of"):
+        model.predict_celltype(labeled_modality="invalid_modality")
+
+
+def test_predict_celltype_invalid_target_modality(trained_semi_supervised_model):
+    """Test that invalid target_modality raises ValueError."""
+    model, adata_seq, adata_spatial = trained_semi_supervised_model
+
+    with pytest.raises(ValueError, match="Invalid target_modality"):
+        model.predict_celltype(labeled_modality="diss", target_modality="invalid_modality")
+
+
+def test_predict_celltype_no_classifier_error(trained_model):
+    """Test that predict_celltype raises error when no classifier was trained."""
+    model, adata_seq, adata_spatial = trained_model
+
+    # This model was trained without labels_key, so no classifier exists
+    with pytest.raises(ValueError, match="No classifier was trained"):
+        model.predict_celltype(labeled_modality="diss")
