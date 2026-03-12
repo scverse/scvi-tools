@@ -9,6 +9,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add low-count model family under {mod}`scvi.external.low_count_models`, including
+    {class}`~scvi.external.JointEmbeddingSCVI`, {class}`~scvi.external.NonZeroSCVI`,
+    {class}`~scvi.external.ThinnedSCVI`, and {class}`~scvi.external.DeterministicThinnedSCVI`,
+    based on "Improving SCVI for low-count cells through self-supervised augmentation"
+    (Svensson, 2026). {class}`~scvi.external.JointEmbeddingSCVI` is the primary model,
+    which uses binomial thinning and a cross-correlation objective (CCO) loss to produce
+    library-size-invariant embeddings for low-UMI cells. The remaining three models are
+    ablations used in the paper.
+
 #### Fixed
 
 #### Changed
