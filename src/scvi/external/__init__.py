@@ -7,6 +7,7 @@ from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI
 from .decipher import Decipher
+from .drvi import DRVI
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
@@ -27,6 +28,7 @@ __all__ = [
     "SOLO",
     "GIMVI",
     "Decipher",
+    "DRVI",
     "RNAStereoscope",
     "SpatialStereoscope",
     "CellAssign",
