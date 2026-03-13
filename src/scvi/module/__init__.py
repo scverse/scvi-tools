@@ -47,7 +47,7 @@ def __getattr__(name: str):
         return _JaxVAE
     if name == "MlxVAE":
         warnings.warn(
-            "In order to use the MlxVAE make sure to install scvi-tools[mlx]",
+            "In order to use the MlxVAE make sure to install mlx",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
