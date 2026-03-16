@@ -274,19 +274,29 @@ def run_de_comparison():
     from scvi.external import MRVI
 
     np.random.seed(42)
-    adata = scvi.data.synthetic_iid()
+    adata = scvi.data.synthetic_iid(n_genes=200)
     n_obs = adata.n_obs
-    adata.obs["sample"] = np.random.choice(5, n_obs).astype(str)
-    meta_per_sample = {str(i): np.random.randint(0, 2) for i in range(5)}
+    adata.obs["sample"] = np.random.choice(8, n_obs).astype(str)
+    meta_per_sample = {str(i): int(i >= 4) for i in range(8)}
     adata.obs["meta1"] = adata.obs["sample"].map(meta_per_sample).astype(int)
     adata.obs["meta1_cat"] = "CAT_" + adata.obs["meta1"].astype(str)
     adata.obs["meta1_cat"] = adata.obs["meta1_cat"].astype("category")
+
+    # Inject a real sample-level covariate effect: upregulate genes 0-19 for CAT_1
+    import scipy.sparse as sp
+
+    x = adata.X.toarray() if sp.issparse(adata.X) else adata.X.copy()
+    for sample_id in range(8):
+        mask = adata.obs["sample"] == str(sample_id)
+        if meta_per_sample[str(sample_id)] == 1:
+            x[mask, :20] = x[mask, :20] * 3.0 + 5.0
+    adata.X = x.astype(np.float32)
 
     # ── Train JAX model ──
     print("\nTraining JAX model...")
     MRVI.setup_anndata(adata, sample_key="sample", batch_key="batch", backend="jax")
     jax_model = MRVI(adata)
-    jax_model.train(max_epochs=50, batch_size=256, train_size=0.9)
+    jax_model.train(max_epochs=20, batch_size=256, train_size=0.9)
     jax_model.update_sample_info(adata)
 
     # ── Create PyTorch model with identical weights ──
@@ -307,28 +317,30 @@ def run_de_comparison():
     torch_dists = torch_model.get_local_sample_distances(**dist_kwargs)
 
     # ── Run DE on both ──
-    # DE uses stochastic MC sampling (use_mean=False internally), so results will
-    # differ slightly due to different RNG systems. We use high mc_samples to minimize
-    # variance, and also store_lfc=True with more training for meaningful LFCs.
+    # DE uses use_mean=True for the counterfactual representations (deterministic),
+    # but internally uses MC sampling for LFC computation. We use high mc_samples
+    # to minimize variance.
     de_kwargs = {
         "sample_cov_keys": ["meta1_cat"],
         "store_lfc": True,
-        "mc_samples": 250,
+        "mc_samples": 500,
         "batch_size": 400,
         "use_vmap": False,
     }
-    print("Running JAX DE (mc_samples=250)...")
+    print("Running JAX DE...")
     jax_de = jax_model.differential_expression(**de_kwargs)
 
-    print("Running PyTorch DE (mc_samples=250)...")
+    print("Running PyTorch DE...")
     torch_de = torch_model.differential_expression(**de_kwargs)
 
-    # Also run a second PyTorch DE with different seed to establish MC noise baseline
-    print("Running PyTorch DE (mc_samples=250, different seed for baseline)...")
-    torch.manual_seed(99)
-    torch_de_2 = torch_model.differential_expression(**de_kwargs)
+    # ── Also compute deterministic local sample representations ──
+    # These are the inputs to the DE beta computation and are fully deterministic.
+    print("Computing JAX local sample representations (use_mean=True)...")
+    jax_reps = jax_model.get_local_sample_representation(batch_size=400, use_mean=True)
+    print("Computing PyTorch local sample representations (use_mean=True)...")
+    torch_reps = torch_model.get_local_sample_representation(batch_size=400, use_mean=True)
 
-    return jax_de, torch_de, torch_de_2, jax_dists, torch_dists
+    return jax_de, torch_de, jax_dists, torch_dists, jax_reps, torch_reps
 
 
 # ── Plotting ─────────────────────────────────────────────────────────────────
@@ -407,121 +419,101 @@ def plot_parameter_updates(results, save_path):
     plt.close(fig)
 
 
-def plot_de_comparison(jax_de, torch_de, torch_de_2, save_path):
-    """Plot DE comparison between JAX and PyTorch with identical model weights.
+def plot_de_comparison(jax_de, torch_de, jax_reps, torch_reps, save_path):
+    """Plot DE comparison: JAX vs PyTorch, same weights.
 
-    Both models share the same trained weights but use different RNG systems for
-    MC sampling. Also shows a PyTorch-vs-PyTorch baseline (different seeds) to
-    demonstrate that the JAX-vs-PyTorch spread matches the inherent MC noise.
+    Includes a deterministic representation panel to prove the forward pass
+    matches, alongside stochastic DE results (which have MC sampling noise).
     """
-    from scipy.stats import spearmanr
+    fig, axes = plt.subplots(2, 3, figsize=(16, 9))
 
-    fig, axes = plt.subplots(1, 4, figsize=(20, 4.5))
-
-    # Compute PyTorch baseline correlations
-    t1_beta = torch_de["beta"].values.flatten()
-    t2_beta = torch_de_2["beta"].values.flatten()
-    baseline_beta_corr = np.corrcoef(t1_beta, t2_beta)[0, 1]
-
-    # ── Panel 1: Beta coefficients scatter ──
-    ax = axes[0]
-    jax_beta = jax_de["beta"].values.flatten()
-    torch_beta = torch_de["beta"].values.flatten()
-    ax.scatter(jax_beta, torch_beta, s=8, alpha=0.5, color="#2196F3", edgecolors="none")
-    lim = max(np.abs(jax_beta).max(), np.abs(torch_beta).max()) * 1.1
-    ax.plot([-lim, lim], [-lim, lim], "k--", linewidth=0.8, alpha=0.5)
-    ax.set_xlabel("JAX beta")
-    ax.set_ylabel("PyTorch beta")
-    corr = np.corrcoef(jax_beta, torch_beta)[0, 1]
-    ax.set_title(
-        f"Beta coefficients\n"
-        f"JAX vs Torch: r={corr:.3f}\n"
-        f"Torch vs Torch baseline: r={baseline_beta_corr:.3f}"
-    )
-    ax.set_xlim(-lim, lim)
-    ax.set_ylim(-lim, lim)
-    ax.set_aspect("equal")
-    ax.grid(True, alpha=0.3)
-
-    # ── Panel 2: Effect sizes scatter ──
-    ax = axes[1]
-    jax_es = jax_de["effect_size"].values.flatten()
-    torch_es = torch_de["effect_size"].values.flatten()
-    t2_es = torch_de_2["effect_size"].values.flatten()
-    baseline_es_corr = np.corrcoef(torch_es, t2_es)[0, 1]
-    ax.scatter(jax_es, torch_es, s=8, alpha=0.5, color="#4CAF50", edgecolors="none")
-    lim_es = max(jax_es.max(), torch_es.max()) * 1.1
-    ax.plot([0, lim_es], [0, lim_es], "k--", linewidth=0.8, alpha=0.5)
-    ax.set_xlabel("JAX effect size")
-    ax.set_ylabel("PyTorch effect size")
-    corr_es = np.corrcoef(jax_es, torch_es)[0, 1]
-    ax.set_title(
-        f"Effect sizes\n"
-        f"JAX vs Torch: r={corr_es:.3f}\n"
-        f"Torch vs Torch baseline: r={baseline_es_corr:.3f}"
-    )
-    ax.grid(True, alpha=0.3)
-
-    # ── Panel 3: LFC scatter ──
-    ax = axes[2]
-    if "lfc" in jax_de and "lfc" in torch_de:
-        jax_lfc = jax_de["lfc"].values.flatten()
-        torch_lfc = torch_de["lfc"].values.flatten()
-        t2_lfc = torch_de_2["lfc"].values.flatten()
-        mask = np.isfinite(jax_lfc) & np.isfinite(torch_lfc)
-        mask_b = np.isfinite(torch_lfc) & np.isfinite(t2_lfc)
-        baseline_lfc_corr = np.corrcoef(torch_lfc[mask_b], t2_lfc[mask_b])[0, 1]
-        jax_lfc_m, torch_lfc_m = jax_lfc[mask], torch_lfc[mask]
-        ax.scatter(jax_lfc_m, torch_lfc_m, s=4, alpha=0.3, color="#FF5722", edgecolors="none")
-        lim_lfc = max(np.abs(jax_lfc_m).max(), np.abs(torch_lfc_m).max()) * 1.1
-        ax.plot([-lim_lfc, lim_lfc], [-lim_lfc, lim_lfc], "k--", linewidth=0.8, alpha=0.5)
-        ax.set_xlabel("JAX LFC")
-        ax.set_ylabel("PyTorch LFC")
-        corr_lfc = np.corrcoef(jax_lfc_m, torch_lfc_m)[0, 1]
-        ax.set_title(
-            f"Log fold changes\n"
-            f"JAX vs Torch: r={corr_lfc:.3f}\n"
-            f"Torch vs Torch baseline: r={baseline_lfc_corr:.3f}"
-        )
-        ax.set_xlim(-lim_lfc, lim_lfc)
-        ax.set_ylim(-lim_lfc, lim_lfc)
-        ax.set_aspect("equal")
+    # ── Row 1, Panel 1: Deterministic local sample representations ──
+    ax = axes[0, 0]
+    j = jax_reps.values.flatten()
+    t = torch_reps.values.flatten()
+    if len(j) > 50000:
+        idx = np.random.choice(len(j), 50000, replace=False)
+        jp, tp = j[idx], t[idx]
     else:
-        ax.text(
-            0.5,
-            0.5,
-            "LFC not available",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-            fontsize=12,
-        )
-        ax.set_title("Log fold changes")
+        jp, tp = j, t
+    ax.scatter(jp, tp, s=2, alpha=0.2, color="#2196F3", edgecolors="none")
+    lim = max(np.abs(j).max(), np.abs(t).max()) * 1.1
+    ax.plot([-lim, lim], [-lim, lim], "k--", lw=0.8, alpha=0.5)
+    ax.set(xlabel="JAX", ylabel="PyTorch", xlim=(-lim, lim), ylim=(-lim, lim))
+    ax.set_aspect("equal")
+    corr_rep = np.corrcoef(j, t)[0, 1]
+    max_diff_rep = np.max(np.abs(j - t))
+    ax.set_title(
+        f"Local sample representations\n(deterministic, use_mean=True)\n"
+        f"r={corr_rep:.6f}, max_diff={max_diff_rep:.2e}"
+    )
     ax.grid(True, alpha=0.3)
 
-    # ── Panel 4: P-value comparison ──
-    ax = axes[3]
-    jax_pv = jax_de["pvalue"].values.flatten()
-    torch_pv = torch_de["pvalue"].values.flatten()
-    t2_pv = torch_de_2["pvalue"].values.flatten()
-    baseline_pv_rho = spearmanr(torch_pv, t2_pv).statistic
-    ax.scatter(jax_pv, torch_pv, s=8, alpha=0.5, color="#9C27B0", edgecolors="none")
-    ax.plot([0, 1], [0, 1], "k--", linewidth=0.8, alpha=0.5)
-    ax.set_xlabel("JAX p-value")
-    ax.set_ylabel("PyTorch p-value")
-    rho_pv = spearmanr(jax_pv, torch_pv).statistic
-    ax.set_title(
-        f"P-values (Spearman)\n"
-        f"JAX vs Torch: rho={rho_pv:.3f}\n"
-        f"Torch vs Torch baseline: rho={baseline_pv_rho:.3f}"
-    )
-    ax.set_xlim(0, 1)
-    ax.set_ylim(0, 1)
+    # ── Row 1, Panel 2: Beta coefficients ──
+    ax = axes[0, 1]
+    j, t = jax_de["beta"].values.flatten(), torch_de["beta"].values.flatten()
+    ax.scatter(j, t, s=8, alpha=0.5, color="#4CAF50", edgecolors="none")
+    lim = max(np.abs(j).max(), np.abs(t).max()) * 1.1
+    ax.plot([-lim, lim], [-lim, lim], "k--", lw=0.8, alpha=0.5)
+    ax.set(xlabel="JAX beta", ylabel="PyTorch beta", xlim=(-lim, lim), ylim=(-lim, lim))
     ax.set_aspect("equal")
+    ax.set_title(f"DE beta coefficients\nr={np.corrcoef(j, t)[0, 1]:.6f}")
+    ax.grid(True, alpha=0.3)
+
+    # ── Row 1, Panel 3: Effect sizes ──
+    ax = axes[0, 2]
+    j, t = jax_de["effect_size"].values.flatten(), torch_de["effect_size"].values.flatten()
+    ax.scatter(j, t, s=8, alpha=0.5, color="#FF9800", edgecolors="none")
+    lim = max(j.max(), t.max()) * 1.1
+    ax.plot([0, lim], [0, lim], "k--", lw=0.8, alpha=0.5)
+    ax.set(xlabel="JAX effect size", ylabel="PyTorch effect size")
+    ax.set_title(f"DE effect sizes\nr={np.corrcoef(j, t)[0, 1]:.6f}")
+    ax.grid(True, alpha=0.3)
+
+    # ── Row 2, Panel 1: LFC ──
+    ax = axes[1, 0]
+    if "lfc" in jax_de and "lfc" in torch_de:
+        j, t = jax_de["lfc"].values.flatten(), torch_de["lfc"].values.flatten()
+        m = np.isfinite(j) & np.isfinite(t)
+        j, t = j[m], t[m]
+        ax.scatter(j, t, s=4, alpha=0.3, color="#FF5722", edgecolors="none")
+        lim = max(np.abs(j).max(), np.abs(t).max()) * 1.1
+        ax.plot([-lim, lim], [-lim, lim], "k--", lw=0.8, alpha=0.5)
+        ax.set(xlabel="JAX LFC", ylabel="PyTorch LFC", xlim=(-lim, lim), ylim=(-lim, lim))
+        ax.set_aspect("equal")
+        ax.set_title(f"DE log fold changes\nr={np.corrcoef(j, t)[0, 1]:.6f}")
+    ax.grid(True, alpha=0.3)
+
+    # ── Row 2, Panel 2: P-values ──
+    ax = axes[1, 1]
+    j, t = jax_de["pvalue"].values.flatten(), torch_de["pvalue"].values.flatten()
+    ax.scatter(j, t, s=8, alpha=0.5, color="#9C27B0", edgecolors="none")
+    ax.plot([0, 1], [0, 1], "k--", lw=0.8, alpha=0.5)
+    ax.set(xlabel="JAX p-value", ylabel="PyTorch p-value", xlim=(0, 1), ylim=(0, 1))
+    ax.set_aspect("equal")
+    pv_corr = np.corrcoef(j, t)[0, 1]
+    pv_max_diff = np.max(np.abs(j - t))
+    pv_label = f"r={pv_corr:.6f}" if np.isfinite(pv_corr) else f"max_diff={pv_max_diff:.2e}"
+    ax.set_title(f"DE p-values\n{pv_label}")
+    ax.grid(True, alpha=0.3)
+
+    # ── Row 2, Panel 3: padj ──
+    ax = axes[1, 2]
+    j, t = jax_de["padj"].values.flatten(), torch_de["padj"].values.flatten()
+    ax.scatter(j, t, s=8, alpha=0.5, color="#009688", edgecolors="none")
+    ax.plot([0, 1], [0, 1], "k--", lw=0.8, alpha=0.5)
+    ax.set(xlabel="JAX padj", ylabel="PyTorch padj", xlim=(0, 1), ylim=(0, 1))
+    ax.set_aspect("equal")
+    padj_corr = np.corrcoef(j, t)[0, 1]
+    padj_max_diff = np.max(np.abs(j - t))
+    padj_label = (
+        f"r={padj_corr:.6f}" if np.isfinite(padj_corr) else f"max_diff={padj_max_diff:.2e}"
+    )
+    ax.set_title(f"DE adjusted p-values\n{padj_label}")
     ax.grid(True, alpha=0.3)
 
     fig.suptitle(
-        "JAX vs PyTorch MRVI: Differential Expression (same weights)",
+        "JAX vs PyTorch MRVI: Differential Expression (same weights, mc_samples=500)",
         fontsize=13,
         y=1.02,
     )
@@ -611,8 +603,10 @@ if __name__ == "__main__":
     print("\n" + "=" * 72)
     print("2. DISTANCE MATRIX + DE EQUIVALENCE")
     print("=" * 72)
-    jax_de, torch_de, torch_de_2, jax_dists, torch_dists = run_de_comparison()
-    plot_de_comparison(jax_de, torch_de, torch_de_2, os.path.join(out_dir, "de_comparison.png"))
+    jax_de, torch_de, jax_dists, torch_dists, jax_reps, torch_reps = run_de_comparison()
+    plot_de_comparison(
+        jax_de, torch_de, jax_reps, torch_reps, os.path.join(out_dir, "de_comparison.png")
+    )
     plot_distance_comparison(
         jax_dists, torch_dists, os.path.join(out_dir, "distance_comparison.png")
     )
