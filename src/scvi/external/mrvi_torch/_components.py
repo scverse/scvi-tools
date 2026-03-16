@@ -81,7 +81,7 @@ class ResnetBlock(nn.Module):
         h = self.layer_norm1(h)
         h = self.internal_activation(h)
 
-        if self.n_in != self.n_hidden:
+        if self.fc_match is not None:
             h = h + self.fc_match(inputs)
         else:
             h = h + inputs

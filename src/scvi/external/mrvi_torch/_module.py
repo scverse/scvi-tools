@@ -164,7 +164,7 @@ class DecoderZXAttention(nn.Module):
                 mu = self.fc(z) + residual
         else:
             mu = self.fc(z_)
-        if self.h_activation in [nn.functional.softmax, torch.softmax]:
+        if self.h_activation in (nn.functional.softmax, torch.softmax):
             mu = self.h_activation(mu, dim=-1)
         else:
             mu = self.h_activation(mu)
@@ -279,7 +279,7 @@ class EncoderUZ(nn.Module):
         sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
 
         if has_mc_samples:
-            sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
+            sample_embed = sample_embed.unsqueeze(0).expand(u_.shape[0], -1, -1)
 
         residual = self.attention_block(query_embed=u_, kv_embed=sample_embed)
 
