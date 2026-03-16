@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 import torch
 import torch.distributions as dist
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.nn.init as init
 
 from scvi import REGISTRY_KEYS, settings
@@ -15,14 +14,9 @@ from scvi.external.mrvi_torch._components import (
     AttentionBlock,
     ConditionalNormalization,
     NormalDistOutputNN,
+    _gelu,
 )
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
-
-
-def _gelu(x: torch.Tensor) -> torch.Tensor:
-    """GELU with tanh approximation, matching JAX/Flax ``nn.gelu(approximate=True)``."""
-    return F.gelu(x, approximate="tanh")
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -232,8 +226,6 @@ class EncoderUZ(nn.Module):
         super().__init__()
         self.n_latent = n_latent
         self.n_sample = n_sample
-        # Store None if isomorphic to match JAX behavior (skip linear projection)
-        self._n_latent_u_raw = n_latent_u
         self.n_latent_u = n_latent_u if n_latent_u is not None else n_latent
         self.n_latent_sample = n_latent_sample
         self.n_channels = n_channels
@@ -268,7 +260,7 @@ class EncoderUZ(nn.Module):
         )
 
         # Only create projection layer when NOT isomorphic (matching JAX behavior)
-        if self._n_latent_u_raw is not None:
+        if n_latent_u is not None:
             self.fc = nn.Linear(self.n_latent_u, self.n_latent)
         else:
             self.fc = None
@@ -552,10 +544,10 @@ class TorchMRVAE(BaseModuleClass):
         cf_sample: torch.Tensor | None = None,
         use_mean: bool = False,
     ) -> dict[str, torch.Tensor]:
-        if type(x).__name__ != "Tensor" and x is not None:
-            x = torch.Tensor(x)
-        if type(sample_index).__name__ != "Tensor" and sample_index is not None:
-            sample_index = torch.Tensor(sample_index)
+        if not isinstance(x, torch.Tensor) and x is not None:
+            x = torch.as_tensor(x)
+        if not isinstance(sample_index, torch.Tensor) and sample_index is not None:
+            sample_index = torch.as_tensor(sample_index)
         qu = self.qu(x, sample_index, training=self.training)
         if use_mean:
             u = qu.mean
@@ -674,13 +666,13 @@ class TorchMRVAE(BaseModuleClass):
             kl_u = dist.kl_divergence(inference_outputs["qu"], generative_outputs["pu"]).sum(-1)
 
         kl_z = 0.0
-        eps = inference_outputs["z"] - inference_outputs["z_base"]
         if self.z_u_prior:
+            eps = inference_outputs["eps"]
             peps = dist.Normal(0, torch.exp(self.pz_scale))
             kl_z = -peps.log_prob(eps).sum(-1)
 
-        weighted_kl_local = kl_weight * (kl_u + kl_z)
-        loss = reconstruction_loss + weighted_kl_local
+        kl_local = kl_u + kl_z
+        loss = reconstruction_loss + kl_weight * kl_local
 
         if self.scale_observations:
             sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().to(torch.int64)
@@ -692,7 +684,7 @@ class TorchMRVAE(BaseModuleClass):
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconstruction_loss,
-            kl_local=(kl_u + kl_z),
+            kl_local=kl_local,
         )
 
     def compute_h_from_x_eps(

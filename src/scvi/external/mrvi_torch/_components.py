@@ -398,12 +398,13 @@ class AttentionBlock(nn.Module):
         # Reshape for multi-head attention:
         # (batch, outerprod_dim, n_heads * depth) → (batch, n_heads, outerprod_dim, depth)
         flat_batch = q.shape[0]
-        q = q.view(flat_batch, self.outerprod_dim, self.n_heads, self.depth_per_head)
-        q = q.transpose(1, 2)
-        k = k.view(flat_batch, self.outerprod_dim, self.n_heads, self.depth_per_head)
-        k = k.transpose(1, 2)
-        v = v.view(flat_batch, self.outerprod_dim, self.n_heads, self.depth_per_head)
-        v = v.transpose(1, 2)
+
+        def _to_heads(t):
+            return t.view(
+                flat_batch, self.outerprod_dim, self.n_heads, self.depth_per_head
+            ).transpose(1, 2)
+
+        q, k, v = _to_heads(q), _to_heads(k), _to_heads(v)
 
         # Scaled dot-product attention
         dropout_p = self.dropout_rate if self.training else 0.0

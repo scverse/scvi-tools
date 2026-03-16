@@ -447,7 +447,7 @@ class TorchMRVI(
                         sample_index=torch.as_tensor(
                             inf_inputs["sample_index"], device=self.device
                         ),
-                        cf_sample=torch.as_tensor(np.array(cf_sample), device=self.device),
+                        cf_sample=torch.tensor(cf_sample.copy(), device=self.device),
                         use_mean=True,
                     )
                 except RuntimeError as e:
@@ -469,7 +469,7 @@ class TorchMRVI(
                 sampled_zs_ = mapped_inference_fn(
                     x=torch.as_tensor(inf_inputs["x"], device=self.device),
                     sample_index=torch.as_tensor(inf_inputs["sample_index"], device=self.device),
-                    cf_sample=torch.as_tensor(np.array(cf_sample), device=self.device),
+                    cf_sample=torch.tensor(cf_sample.copy(), device=self.device),
                     use_mean=False,
                     mc_samples=mc_samples,
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
@@ -1494,7 +1494,7 @@ class TorchMRVI(
                 res = mapped_inference_fn(
                     x=torch.as_tensor(inf_inputs["x"], device=self.device),
                     sample_index=torch.as_tensor(inf_inputs["sample_index"], device=self.device),
-                    cf_sample=torch.as_tensor(np.array(cf_sample), device=self.device),
+                    cf_sample=torch.tensor(cf_sample.copy(), device=self.device),
                     Amat=Amat,
                     prefactor=prefactor,
                     n_samples_per_cell=n_samples_per_cell,
