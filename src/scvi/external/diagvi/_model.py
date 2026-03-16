@@ -781,9 +781,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
         batch_size
             Minibatch size for data loading.
         reference_batch
-            Reference batch index or array for imputation.
+            Reference batch index or array for imputation. Can be a scalar, a
+            length-1 array, or an array with length equal to the number of
+            queried cells.
         reference_libsize
-            Reference library size(s) for imputation.
+            Reference library size(s) for imputation. Can be a scalar, a
+            length-1 array, or an array with length equal to the number of
+            queried cells.
 
         Returns
         -------
@@ -803,6 +807,52 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
         self.module.eval()
         dl = self._make_data_loader(query_adata, indices=indices, batch_size=batch_size)
+
+        n_query_cells = query_adata.n_obs if indices is None else len(np.asarray(indices))
+        full_reference_batch = None
+        if reference_batch is not None:
+            full_reference_batch = np.asarray(reference_batch).squeeze()
+            if full_reference_batch.ndim == 0:
+                full_reference_batch = np.repeat(full_reference_batch[np.newaxis], n_query_cells)
+            elif full_reference_batch.ndim > 1:
+                raise ValueError("`reference_batch` cannot be >1 dimensional")
+            elif full_reference_batch.size == 1:
+                full_reference_batch = np.repeat(full_reference_batch, n_query_cells)
+            elif full_reference_batch.size != n_query_cells:
+                raise ValueError(
+                    "`reference_batch` must be scalar, length 1, or have length equal "
+                    "to the number of queried cells."
+                )
+
+            if not np.issubdtype(full_reference_batch.dtype, np.integer):
+                if batch_categories is None:
+                    raise ValueError(
+                        "`reference_batch` contains non-integer values, but no batch "
+                        "category mapping is available for this modality."
+                    )
+                full_reference_batch = np.array(
+                    [np.where(batch_categories == lbl)[0][0] for lbl in full_reference_batch]
+                )
+
+        full_reference_libsize = None
+        if reference_libsize is not None:
+            full_reference_libsize = np.asarray(reference_libsize).squeeze()
+            if full_reference_libsize.ndim == 0:
+                full_reference_libsize = np.repeat(
+                    full_reference_libsize[np.newaxis], n_query_cells
+                )
+            elif full_reference_libsize.ndim > 1:
+                raise ValueError("`reference_libsize` cannot be >1 dimensional")
+            elif full_reference_libsize.size == 1:
+                full_reference_libsize = np.repeat(full_reference_libsize, n_query_cells)
+            elif full_reference_libsize.size != n_query_cells:
+                raise ValueError(
+                    "`reference_libsize` must be scalar, length 1, or have length equal "
+                    "to the number of queried cells."
+                )
+
+        batch_offset = 0
+        lib_offset = 0
         reconstructed_values = []
         for tensor in dl:
             inference_output = self.module.inference(
@@ -820,14 +870,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
 
             # Handle reference batch
             batch_size_ = generative_input[MODULE_KEYS.LIBRARY_KEY].shape[0]
-            if reference_batch is not None:
-                b = np.asarray(reference_batch)
-                if b.size == 1:
-                    b = np.full(batch_size_, b.item())
-                elif b.size != batch_size_:  # raise error if wrong size
-                    raise ValueError("`reference_batch` must have the same size as adata!")
-                if batch_categories is not None and not np.issubdtype(b.dtype, np.integer):
-                    b = np.array([np.where(batch_categories == lbl)[0][0] for lbl in b])
+            if full_reference_batch is not None:
+                b = full_reference_batch[batch_offset : batch_offset + batch_size_]
+                if b.size != batch_size_:
+                    raise RuntimeError(
+                        "Internal error while slicing `reference_batch` by minibatch."
+                    )
+                batch_offset += batch_size_
             # Use batch index zero if no reference batch is provided
             else:
                 b = np.zeros(batch_size_, dtype=int)
@@ -839,19 +888,13 @@ class DIAGVI(BaseModelClass, VAEMixin):
             )
 
             # Handle reference libsize
-            if reference_libsize is not None:
-                l = reference_libsize
-                if not isinstance(l, np.ndarray):
-                    l = np.asarray(l)
-                l = l.squeeze()
-                if l.ndim == 0:
-                    l = l[np.newaxis]
-                elif l.ndim > 1:
-                    raise ValueError("`reference_libsize` cannot be >1 dimensional")
-                if l.size == 1:
-                    l = np.repeat(l, batch_size_)
+            if full_reference_libsize is not None:
+                l = full_reference_libsize[lib_offset : lib_offset + batch_size_]
                 if l.size != batch_size_:
-                    raise ValueError("`reference_libsize` must have the same size as the batch!")
+                    raise RuntimeError(
+                        "Internal error while slicing `reference_libsize` by minibatch."
+                    )
+                lib_offset += batch_size_
                 l = l.reshape((-1, 1))
                 generative_input[MODULE_KEYS.LIBRARY_KEY] = torch.tensor(
                     l,
@@ -1047,7 +1090,6 @@ class DIAGVI(BaseModelClass, VAEMixin):
         model.to_device(device)
         return model
 
-
     @torch.inference_mode()
     def predict_celltype(
         self,
@@ -1092,9 +1134,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         """
         # Validate labeled modality
         if labeled_modality not in self.input_names:
-            raise ValueError(
-                f"labeled_modality must be one of {self.input_names}!"
-            )
+            raise ValueError(f"labeled_modality must be one of {self.input_names}!")
 
         # Default to the other modality for cross-modal transfer
         if target_modality is None:
@@ -1107,8 +1147,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         # Validate target modality
         if target_modality not in self.input_names:
             raise ValueError(
-                f"Invalid target_modality: '{target_modality}'. "
-                f"Must be one of {self.input_names}."
+                f"Invalid target_modality: '{target_modality}'. Must be one of {self.input_names}."
             )
 
         # Get the classifier for the labeled modality
