@@ -443,9 +443,11 @@ class TorchMRVI(
             if reqs.needs_mean_representations:
                 try:
                     mean_zs_ = mapped_inference_fn(
-                        x=torch.Tensor(inf_inputs["x"]),
-                        sample_index=torch.Tensor(inf_inputs["sample_index"]),
-                        cf_sample=torch.Tensor(cf_sample),
+                        x=torch.as_tensor(inf_inputs["x"], device=self.device),
+                        sample_index=torch.as_tensor(
+                            inf_inputs["sample_index"], device=self.device
+                        ),
+                        cf_sample=torch.as_tensor(np.array(cf_sample), device=self.device),
                         use_mean=True,
                     )
                 except RuntimeError as e:
@@ -465,9 +467,9 @@ class TorchMRVI(
                 )
             if reqs.needs_sampled_representations:
                 sampled_zs_ = mapped_inference_fn(
-                    x=torch.Tensor(inf_inputs["x"]),
-                    sample_index=torch.Tensor(inf_inputs["sample_index"]),
-                    cf_sample=torch.Tensor(cf_sample),
+                    x=torch.as_tensor(inf_inputs["x"], device=self.device),
+                    sample_index=torch.as_tensor(inf_inputs["sample_index"], device=self.device),
+                    cf_sample=torch.as_tensor(np.array(cf_sample), device=self.device),
                     use_mean=False,
                     mc_samples=mc_samples,
                 )  # (n_mc_samples, n_cells, n_samples, n_latent)
@@ -1327,9 +1329,12 @@ class TorchMRVI(
             mc_samples: int,
         ):
             def inference_fn(cf):
+                # Must extract "eps" (not "z") to match JAX. Using "z" would cause
+                # eps_mean_ to include z_base, which gets double-counted in the LFC
+                # path since compute_h_from_x_eps adds its own z_base.
                 return self.module.inference(
                     x, sample_index, cf_sample=cf, mc_samples=mc_samples, use_mean=use_mean
-                )["z"]
+                )["eps"]
 
             inference_partial = partial(
                 self.module.inference,
@@ -1346,7 +1351,7 @@ class TorchMRVI(
             else:
 
                 def per_sample_inference_fn(cf_sample):
-                    return inference_partial(cf_sample=cf_sample)["z"]
+                    return inference_partial(cf_sample=cf_sample)["eps"]
 
                 eps_ = torch.stack(
                     [per_sample_inference_fn(cf_sample=cf_sample_i) for cf_sample_i in cf_sample]
@@ -1487,9 +1492,9 @@ class TorchMRVI(
 
             try:
                 res = mapped_inference_fn(
-                    x=torch.Tensor(inf_inputs["x"]),
-                    sample_index=torch.Tensor(inf_inputs["sample_index"]),
-                    cf_sample=torch.Tensor(cf_sample),
+                    x=torch.as_tensor(inf_inputs["x"], device=self.device),
+                    sample_index=torch.as_tensor(inf_inputs["sample_index"], device=self.device),
+                    cf_sample=torch.as_tensor(np.array(cf_sample), device=self.device),
                     Amat=Amat,
                     prefactor=prefactor,
                     n_samples_per_cell=n_samples_per_cell,
