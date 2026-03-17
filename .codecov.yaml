@@ -5,10 +5,78 @@ coverage:
   status:
     project:
       default:
-        target: 75%
+        target: auto
         threshold: 1%
-    patch: false
+        informational: true
+        flags:
+          - integration
+    patch:
+      default:
+        target: 85%
+        threshold: 1%
     changes: false
+
+flags:
+  integration:
+    paths:
+      - src/scvi/
+    carryforward: true
+  nonjax:
+    paths:
+      - src/scvi/
+    carryforward: true
+  cuda:
+    paths:
+      - src/scvi/
+    carryforward: true
+  multigpu:
+    paths:
+      - src/scvi/
+    carryforward: true
+  jax:
+    paths:
+      - src/scvi/
+    carryforward: true
+  optional:
+    paths:
+      - src/scvi/
+    carryforward: true
+  mlflow:
+    paths:
+      - src/scvi/
+    carryforward: true
+  autotune:
+    paths:
+      - src/scvi/
+    carryforward: true
+  internet:
+    paths:
+      - src/scvi/
+    carryforward: true
+  private:
+    paths:
+      - src/scvi/
+    carryforward: true
+  resolution:
+    paths:
+      - src/scvi/
+    carryforward: true
+  custom_dataloader:
+    paths:
+      - src/scvi/
+    carryforward: true
+  macos:
+    paths:
+      - src/scvi/
+    carryforward: true
+  mps:
+    paths:
+      - src/scvi/
+    carryforward: true
+  windows:
+    paths:
+      - src/scvi/
+    carryforward: true
 
 comment:
   layout: diff, flags, files
