@@ -20,7 +20,7 @@ flags:
   integration:
     paths:
       - src/scvi/
-    carryforward: true
+    carryforward: false
   nonjax:
     paths:
       - src/scvi/
