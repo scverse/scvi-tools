@@ -421,7 +421,17 @@ This allows imputation under specified sequencing depth or batch conditions.
 
 Aligned latent representations can be used for cross-modal cell label transfer.
 
-For example, when integrating scRNA-seq reference data with spatial proteomics data, cell-type labels can be transferred from the RNA reference to the spatial data. This can be done using external tools such as [`CellMapper`](https://cellmapper.readthedocs.io/en/latest/), a toolkit for cross-modal cell mapping and evaluation:
+For example, when integrating scRNA-seq reference data with spatial proteomics data, cell-type labels can be transferred from the RNA reference to the spatial data. This can be done either using DiagVI's built-in classifier (when cell-type labels have been provided for the reference modality during training) or with external tools such as [`CellMapper`](https://cellmapper.readthedocs.io/en/latest/), a toolkit for cross-modal cell mapping and evaluation.
+
+Using DiagVI's trained classifier, cell labels can be transferred as follows:
+
+```
+>>> preds = model.predict_celltype(labeled_modality="rna")
+>>> adata_protein.obs["celltype_pred"] = preds["predictions"]
+>>> adata_protein.obs["celltype_conf"] = preds["confidence"]
+```
+
+Alternatively, using CellMapper:
 
 ```
 >>> latents = model.get_latent_representation()
