@@ -11,6 +11,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Fixed
 
+- Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
+    {pr}`3749`.
+
 #### Changed
 
 - Update SCVI-Tools Hub models, {pr}`3733`.
