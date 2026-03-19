@@ -9,6 +9,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {class}`~scvi.dataloaders.ZarrSparseDataModule` for out-of-core dataloading via `annbatch`,
+    enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
+    with support for batch covariates, {pr}`3620`.
+
 #### Fixed
 
 #### Changed
