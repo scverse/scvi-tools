@@ -9,6 +9,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add shared memory support for DDP to deduplicate `adata.X` across ranks on the same node,
+    reducing per-rank memory, {pr}`3754`.
+
 #### Fixed
 
 - Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
