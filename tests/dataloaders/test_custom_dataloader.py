@@ -1250,7 +1250,7 @@ def test_annbatch(save_path: str):
         adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
         # Path to store the output collection
         shuffle=True,  # Whether to pre-shuffle the cells of the collection
-        n_obs_per_dataset=2_097_152,
+        dataset_size=2_097_152,
         # Number of cells per dataset shard, this number is much higher than available
         # in these datasets but is generally a good target
         var_subset=None,  # Optionally subset the collection to a specific gene space
@@ -1370,7 +1370,7 @@ def test_annbatch_with_covariates(save_path: str):
     collection.add_adatas(
         adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
         shuffle=True,
-        n_obs_per_dataset=2_097_152,
+        dataset_size=2_097_152,
         var_subset=None,
         load_adata=read_lazy_x_and_obs_only,
     )
