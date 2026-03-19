@@ -9,6 +9,10 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {class}`~scvi.dataloaders.ZarrSparseDataModule` for out-of-core dataloading via `annbatch`,
+    enabling memory-efficient training on large-scale datasets stored as sharded Zarr collections,
+    with support for batch covariates, {pr}`3620`.
+
 #### Fixed
 
 #### Changed
@@ -59,7 +63,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Add support for MuData during Ray autotune {pr}`3545`.
 - Add {meth}`~scvi.external.TorchMRVI.get_normalized_expression`
     function to {class}`scvi.external.TorchMRVI`, {pr}`3579`.
-- Add support for anndatabatch dataloading, {pr}`36XX`.
 - Add modality auto-ordering for mudata in {class}`~scvi.model.MULTIVI` {pr}`3622` and fix DE.
 
 #### Fixed
