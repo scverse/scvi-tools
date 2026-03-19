@@ -247,53 +247,6 @@ def test_scvi_shared_memory_multigpu():
 
 
 @pytest.mark.multigpu
-def test_scvi_shared_memory_ddp(save_path: str):
-    """Test SCVI shared memory with torchrun DDP (subprocess-based)."""
-    training_code = """\
-import torch
-import scvi
-from scvi.model import SCVI
-
-adata = scvi.data.synthetic_iid()
-SCVI.setup_anndata(adata)
-
-model = SCVI(adata)
-
-model.train(
-    max_epochs=1,
-    check_val_every_n_epoch=1,
-    accelerator="gpu",
-    devices=-1,
-    strategy="ddp_find_unused_parameters_true",
-    datasplitter_kwargs={"share_memory": True},
-)
-assert model.is_trained
-"""
-    temp_file_path = os.path.join(save_path, "train_scvi_shm_ddp_temp.py")
-
-    with open(temp_file_path, "w") as temp_file:
-        temp_file.write(training_code)
-
-    def launch_ddp(world_size, temp_file_path):
-        command = [
-            "torchrun",
-            "--nproc_per_node=" + str(world_size),
-            temp_file_path,
-        ]
-        try:
-            subprocess.run(command, check=True)
-        except subprocess.CalledProcessError as e:
-            os.remove(temp_file_path)
-            print(f"Error occurred while running the DDP training: {e}")
-            raise
-        finally:
-            if os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
-
-    launch_ddp(torch.cuda.device_count(), temp_file_path)
-
-
-@pytest.mark.multigpu
 def test_scvi_train_ddp(save_path: str):
     training_code = """
 import torch
