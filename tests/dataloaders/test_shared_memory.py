@@ -1,7 +1,11 @@
 """Tests for shared memory utilities."""
 
+import os
+import subprocess
+
 import numpy as np
 import pytest
+import torch
 from scipy.sparse import csr_matrix
 from scipy.sparse import random as sparse_random
 
@@ -217,3 +221,100 @@ class TestIsShareable:
                 hf.create_dataset("X", data=np.zeros((10, 5)))
             with h5py.File(f.name, "r") as hf:
                 assert not _is_shareable(hf["X"])
+
+
+def _launch_ddp_script(script_code: str, save_path: str, script_name: str):
+    """Helper to write a script and launch it with torchrun."""
+    temp_file_path = os.path.join(save_path, script_name)
+    with open(temp_file_path, "w") as f:
+        f.write(script_code)
+
+    world_size = torch.cuda.device_count()
+    command = [
+        "torchrun",
+        f"--nproc_per_node={world_size}",
+        temp_file_path,
+    ]
+    try:
+        subprocess.run(command, check=True)
+    finally:
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+
+@pytest.mark.multigpu
+def test_shared_memory_ddp_dense(save_path: str):
+    """Test shared memory with dense adata.X in DDP training."""
+    training_code = """\
+import torch
+import scvi
+from scvi.model import SCVI
+
+adata = scvi.data.synthetic_iid()
+SCVI.setup_anndata(adata)
+
+model = SCVI(adata)
+model.train(
+    max_epochs=1,
+    check_val_every_n_epoch=1,
+    accelerator="gpu",
+    devices=-1,
+    strategy="ddp_find_unused_parameters_true",
+    datasplitter_kwargs={"share_memory": True},
+)
+assert model.is_trained
+"""
+    _launch_ddp_script(training_code, save_path, "test_shm_dense_ddp.py")
+
+
+@pytest.mark.multigpu
+def test_shared_memory_ddp_sparse(save_path: str):
+    """Test shared memory with sparse CSR adata.X in DDP training."""
+    training_code = """\
+import torch
+import scipy.sparse
+import scvi
+from scvi.model import SCVI
+
+adata = scvi.data.synthetic_iid()
+# Convert X to sparse CSR
+adata.X = scipy.sparse.csr_matrix(adata.X)
+SCVI.setup_anndata(adata)
+
+model = SCVI(adata)
+model.train(
+    max_epochs=1,
+    check_val_every_n_epoch=1,
+    accelerator="gpu",
+    devices=-1,
+    strategy="ddp_find_unused_parameters_true",
+    datasplitter_kwargs={"share_memory": True},
+)
+assert model.is_trained
+"""
+    _launch_ddp_script(training_code, save_path, "test_shm_sparse_ddp.py")
+
+
+@pytest.mark.multigpu
+def test_shared_memory_ddp_disabled(save_path: str):
+    """Test that training works with share_memory=False in DDP."""
+    training_code = """\
+import torch
+import scvi
+from scvi.model import SCVI
+
+adata = scvi.data.synthetic_iid()
+SCVI.setup_anndata(adata)
+
+model = SCVI(adata)
+model.train(
+    max_epochs=1,
+    check_val_every_n_epoch=1,
+    accelerator="gpu",
+    devices=-1,
+    strategy="ddp_find_unused_parameters_true",
+    datasplitter_kwargs={"share_memory": False},
+)
+assert model.is_trained
+"""
+    _launch_ddp_script(training_code, save_path, "test_shm_disabled_ddp.py")
