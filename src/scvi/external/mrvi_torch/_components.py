@@ -7,10 +7,16 @@ if TYPE_CHECKING:
     from typing import Literal
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 from torch.distributions import Normal
 
 from scvi.module.base import auto_move_data
+
+
+def _gelu(x: torch.Tensor) -> torch.Tensor:
+    """GELU with tanh approximation, matching JAX/Flax ``nn.gelu(approximate=True)``."""
+    return F.gelu(x, approximate="tanh")
 
 
 class Dense(nn.Linear):
@@ -54,9 +60,7 @@ class ResnetBlock(nn.Module):
         self.fc1 = nn.Linear(in_features=n_in, out_features=n_hidden)
 
         # layer norm
-        self.layer_norm1 = nn.LayerNorm(n_hidden)
-
-        # internal activation
+        self.layer_norm1 = nn.LayerNorm(n_hidden, eps=1e-6)
 
         # skip connection if n_in equal to n_hidden,
         # otherwise dense layer applied before skip connection to match features
@@ -69,7 +73,7 @@ class ResnetBlock(nn.Module):
         self.fc2 = nn.Linear(in_features=n_hidden, out_features=n_out)
 
         # layer norm
-        self.layer_norm2 = nn.LayerNorm(n_out)
+        self.layer_norm2 = nn.LayerNorm(n_out, eps=1e-6)
 
     @auto_move_data
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -77,7 +81,7 @@ class ResnetBlock(nn.Module):
         h = self.layer_norm1(h)
         h = self.internal_activation(h)
 
-        if self.n_in != self.n_hidden:
+        if self.fc_match is not None:
             h = h + self.fc_match(inputs)
         else:
             h = h + inputs
@@ -113,7 +117,7 @@ class MLP(nn.Module):
         n_out: int,
         n_hidden: int = 128,
         n_layers: int = 1,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.ReLU,
+        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.relu,
     ):
         super().__init__()
         self.n_in = n_in
@@ -242,7 +246,7 @@ class ConditionalNormalization(nn.Module):
                 self.n_features, affine=False, track_running_stats=True
             )
         elif self.normalization_type == "layer":
-            self.norm_layer = nn.LayerNorm(self.n_features, elementwise_affine=False)
+            self.norm_layer = nn.LayerNorm(self.n_features, elementwise_affine=False, eps=1e-6)
         else:
             raise ValueError("`normalization_type` must be one of ['batch', 'layer'].")
 
@@ -266,7 +270,13 @@ class ConditionalNormalization(nn.Module):
 
 
 class AttentionBlock(nn.Module):
-    """Attention block consisting of multi-head self-attention and MLP.
+    """Attention block matching the JAX/Flax MultiHeadDotProductAttention architecture.
+
+    Implements the same computation as the Flax version:
+    1. Project query/kv to (outerprod_dim, 1) via DenseGeneral-equivalent
+    2. Multi-head attention with internal Q/K/V projections from dim 1
+    3. Output projection to n_channels features (NOT n_channels * n_heads)
+    4. MLP processing on flattened attention output (outerprod_dim * n_channels)
 
     Parameters
     ----------
@@ -279,7 +289,7 @@ class AttentionBlock(nn.Module):
     outerprod_dim
         Dimension of the outer product.
     n_channels
-        Number of channels.
+        Number of channels (output features from attention).
     n_heads
         Number of heads.
     dropout_rate
@@ -306,7 +316,7 @@ class AttentionBlock(nn.Module):
         n_hidden_mlp: int = 32,
         n_layers_mlp: int = 1,
         stop_gradients_mlp: bool = False,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+        activation: Callable[[torch.Tensor], torch.Tensor] = _gelu,
     ):
         super().__init__()
         self.query_dim = query_dim
@@ -321,22 +331,26 @@ class AttentionBlock(nn.Module):
         self.stop_gradients_mlp = stop_gradients_mlp
         self.activation = activation
 
+        # Projection to (outerprod_dim, 1) - matches JAX DenseGeneral((outerprod_dim, 1))
         self.query_proj = nn.Linear(in_features=query_dim, out_features=outerprod_dim, bias=False)
-        self.embed_dim_proj_query = nn.Linear(
-            in_features=1, out_features=n_channels * n_heads, bias=False
-        )
-        self.embed_dim_proj_kv = nn.Linear(
-            in_features=1, out_features=n_channels * n_heads, bias=False
-        )
         self.kv_proj = nn.Linear(in_features=kv_dim, out_features=outerprod_dim, bias=False)
-        self.attention = nn.MultiheadAttention(
-            embed_dim=n_channels * n_heads,
-            num_heads=n_heads,
-            dropout=dropout_rate,
-            batch_first=True,
-        )
+
+        # Q/K/V projections matching Flax MultiHeadDotProductAttention internal projections.
+        # In Flax: DenseGeneral((n_heads, depth_per_head), axis=-1) from input dim 1.
+        # depth_per_head = qkv_features // n_heads = (n_channels * n_heads) // n_heads = n_channels
+        self.depth_per_head = n_channels
+        qkv_dim = n_heads * self.depth_per_head  # = n_channels * n_heads
+        self.q_proj = nn.Linear(in_features=1, out_features=qkv_dim, bias=True)
+        self.k_proj = nn.Linear(in_features=1, out_features=qkv_dim, bias=True)
+        self.v_proj = nn.Linear(in_features=1, out_features=qkv_dim, bias=True)
+
+        # Output projection matching Flax MHDPA out_features=n_channels
+        # Projects from (n_heads * depth_per_head) → n_channels
+        self.out_proj = nn.Linear(in_features=qkv_dim, out_features=n_channels, bias=True)
+
+        # MLP input dimension matches JAX: outerprod_dim * n_channels (NOT * n_heads)
         self.mlp_eps = MLP(
-            n_in=self.outerprod_dim * n_channels * n_heads,
+            n_in=outerprod_dim * n_channels,
             n_out=outerprod_dim,
             n_hidden=n_hidden_mlp,
             n_layers=n_layers_mlp,
@@ -361,47 +375,58 @@ class AttentionBlock(nn.Module):
         if self.stop_gradients_mlp:
             query_embed_stop = query_embed.detach()
         else:
-            query_embed_stop = query_embed  # (batch_size, query_dim)
+            query_embed_stop = query_embed
 
-        # Below, the second projection was not needed in the original JAX code,
-        # but it is necessary in the PyTorch version to match the dimensions
-        # of the query and key-value embeddings for the attention mechanism.
-        query_for_att = self.query_proj(query_embed_stop).unsqueeze(
-            -1
-        )  # (batch_size, outerprod_dim, 1)
-        query_for_att = self.embed_dim_proj_query(
-            query_for_att
-        )  # (batch_size, outerprod_dim, n_channels * n_heads)
-        kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)  # (batch_size, outerprod_dim, 1)
-        kv_for_att = self.embed_dim_proj_kv(kv_for_att)
+        # Project to (*, outerprod_dim, 1) - matches JAX DenseGeneral((outerprod_dim, 1))
+        query_for_att = self.query_proj(query_embed_stop).unsqueeze(-1)
+        kv_for_att = self.kv_proj(kv_embed).unsqueeze(-1)
 
-        # Unlike with JAX, with torch we can only have one batch dimension,
-        # so we flatten the batch and mc samples
+        # Handle mc_samples by flattening batch dimensions for attention
         if has_mc_samples:
-            query_embed_flat_batch = torch.reshape(
-                query_embed, (query_embed.shape[0] * query_embed.shape[1], query_embed.shape[2])
-            )
-            query_for_att = torch.reshape(
-                query_for_att,
-                (query_for_att.shape[0] * query_for_att.shape[1], query_for_att.shape[2], -1),
-            )
-            kv_for_att = torch.reshape(
-                kv_for_att, (kv_for_att.shape[0] * kv_for_att.shape[1], kv_for_att.shape[2], -1)
-            )
+            mc_samples, batch_size = query_embed.shape[0], query_embed.shape[1]
+            query_embed_flat = query_embed.reshape(mc_samples * batch_size, -1)
+            query_for_att = query_for_att.reshape(mc_samples * batch_size, self.outerprod_dim, 1)
+            kv_for_att = kv_for_att.reshape(mc_samples * batch_size, self.outerprod_dim, 1)
+        else:
+            query_embed_flat = query_embed
 
-        eps = self.attention(query_for_att, kv_for_att, kv_for_att)[
-            0
-        ]  # (batch_size, outerprod_dim, n_channels * n_heads)
+        # Q/K/V projections: (batch, outerprod_dim, 1) → (batch, outerprod_dim, qkv_dim)
+        q = self.q_proj(query_for_att)
+        k = self.k_proj(kv_for_att)
+        v = self.v_proj(kv_for_att)
 
-        eps = torch.reshape(eps, (eps.shape[0], -1))
-        eps_ = self.mlp_eps(eps)
-        inputs = torch.cat(
-            [query_embed_flat_batch if has_mc_samples else query_embed, eps_], dim=-1
+        # Reshape for multi-head attention:
+        # (batch, outerprod_dim, n_heads * depth) → (batch, n_heads, outerprod_dim, depth)
+        flat_batch = q.shape[0]
+
+        def _to_heads(t):
+            return t.view(
+                flat_batch, self.outerprod_dim, self.n_heads, self.depth_per_head
+            ).transpose(1, 2)
+
+        q, k, v = _to_heads(q), _to_heads(k), _to_heads(v)
+
+        # Scaled dot-product attention
+        dropout_p = self.dropout_rate if self.training else 0.0
+        attn_out = F.scaled_dot_product_attention(q, k, v, dropout_p=dropout_p)
+        # (batch, n_heads, outerprod_dim, depth_per_head)
+
+        # Transpose back and flatten heads: → (batch, outerprod_dim, n_heads * depth_per_head)
+        attn_out = attn_out.transpose(1, 2).reshape(
+            flat_batch, self.outerprod_dim, self.n_heads * self.depth_per_head
         )
+
+        # Output projection: → (batch, outerprod_dim, n_channels)
+        eps = self.out_proj(attn_out)
+
+        # Flatten to (batch, outerprod_dim * n_channels)
+        eps = eps.reshape(flat_batch, self.outerprod_dim * self.n_channels)
+
+        eps_ = self.mlp_eps(eps)
+        inputs = torch.cat([query_embed_flat, eps_], dim=-1)
         residual = self.mlp_residual(inputs)
 
         if has_mc_samples:
-            # Reshape back to the original batch and mc samples dimensions
-            residual = torch.reshape(residual, (query_embed.shape[0], query_embed.shape[1], -1))
+            residual = residual.reshape(mc_samples, batch_size, -1)
 
         return residual

@@ -883,7 +883,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and (
             registry[_MODEL_NAME_KEY] != cls.__name__
-            and registry[_MODEL_NAME_KEY] not in allowed_classes_names_list
+            and registry[_MODEL_NAME_KEY] not in (allowed_classes_names_list or [])
         ):
             raise ValueError("It appears you are loading a model from a different class.")
 
@@ -1272,6 +1272,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
     def get_normalized_expression(self, *args, **kwargs):
         msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
+    def differential_abundance(self, *args, **kwargs):
+        msg = f"differential_abundance is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
 

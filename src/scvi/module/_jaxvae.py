@@ -169,9 +169,7 @@ class FlaxEncoder(nn.Module):
         training = nn.merge_param("training", self.training, training)
         is_eval = not training
 
-        x_ = jnp.log1p(x)
-
-        h = self.dense1(x_)
+        h = self.dense1(x)
         h = self.batchnorm1(h, use_running_average=is_eval)
         h = nn.relu(h)
         h = self.dropout1(h, deterministic=is_eval)
@@ -192,6 +190,7 @@ class FlaxDecoder(nn.Module):
     n_input: int
     dropout_rate: float
     n_hidden: int
+    n_latent_input: int = 0  # Total input dim (z + covariates); 0 means use dense1 as-is
     training: bool | None = None
 
     def setup(self):
@@ -246,36 +245,70 @@ class JaxVAE(JaxBaseModuleClass):
     gene_likelihood: str = "nb"
     eps: float = 1e-8
     training: bool = True
+    n_continuous_cov: int = 0
+    n_cats_per_cov: tuple[int, ...] = ()
 
     def setup(self):
         """Setup model."""
+        n_cat_cov_total = sum(self.n_cats_per_cov)
+        self._n_cat_cov_total = n_cat_cov_total
+
+        n_input_encoder = self.n_input + self.n_continuous_cov + n_cat_cov_total
         self.encoder = FlaxEncoder(
-            n_input=self.n_input,
+            n_input=n_input_encoder,
             n_latent=self.n_latent,
             n_hidden=self.n_hidden,
             dropout_rate=self.dropout_rate,
         )
 
+        n_latent_input = self.n_latent + self.n_continuous_cov + n_cat_cov_total
         self.decoder = FlaxDecoder(
             n_input=self.n_input,
             dropout_rate=0.0,
             n_hidden=self.n_hidden,
+            n_latent_input=n_latent_input,
         )
 
     @property
     def required_rngs(self):
         return ("params", "dropout", "z")
 
+    def _encode_covariates(self, cat_covs: jnp.ndarray | None) -> jnp.ndarray | None:
+        """One-hot encode categorical covariates and concatenate them."""
+        if cat_covs is None or len(self.n_cats_per_cov) == 0:
+            return None
+        one_hots = []
+        for i, n_cats in enumerate(self.n_cats_per_cov):
+            cat_col = cat_covs[:, i].astype(jnp.int32)
+            oh = jax.nn.one_hot(cat_col, n_cats)
+            one_hots.append(oh)
+        return jnp.concatenate(one_hots, axis=-1)
+
     def _get_inference_input(self, tensors: dict[str, jnp.ndarray]):
         """Get input for inference."""
         x = tensors[REGISTRY_KEYS.X_KEY]
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
 
-        input_dict = {"x": x}
+        input_dict = {"x": x, "cont_covs": cont_covs, "cat_covs": cat_covs}
         return input_dict
 
-    def inference(self, x: jnp.ndarray, n_samples: int = 1) -> dict:
+    def inference(
+        self,
+        x: jnp.ndarray,
+        cont_covs: jnp.ndarray | None = None,
+        cat_covs: jnp.ndarray | None = None,
+        n_samples: int = 1,
+    ) -> dict:
         """Run inference model."""
-        mean, var = self.encoder(x, training=self.training)
+        encoder_input = jnp.log1p(x)
+        if cont_covs is not None:
+            encoder_input = jnp.concatenate([encoder_input, cont_covs], axis=-1)
+        cat_oh = self._encode_covariates(cat_covs)
+        if cat_oh is not None:
+            encoder_input = jnp.concatenate([encoder_input, cat_oh], axis=-1)
+
+        mean, var = self.encoder(encoder_input, training=self.training)
         stddev = jnp.sqrt(var) + self.eps
 
         qz = dist.Normal(mean, stddev)
@@ -294,19 +327,48 @@ class JaxVAE(JaxBaseModuleClass):
         x = tensors[REGISTRY_KEYS.X_KEY]
         z = inference_outputs["z"]
         batch_index = tensors[REGISTRY_KEYS.BATCH_KEY]
+        cont_covs = tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None)
+        cat_covs = tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None)
 
         input_dict = {
             "x": x,
             "z": z,
             "batch_index": batch_index,
+            "cont_covs": cont_covs,
+            "cat_covs": cat_covs,
         }
         return input_dict
 
-    def generative(self, x, z, batch_index) -> dict:
+    def generative(
+        self,
+        x,
+        z,
+        batch_index,
+        cont_covs: jnp.ndarray | None = None,
+        cat_covs: jnp.ndarray | None = None,
+    ) -> dict:
         """Run generative model."""
         # one hot adds an extra dimension
         batch = jax.nn.one_hot(batch_index, self.n_batch).squeeze(-2)
-        rho_unnorm, disp = self.decoder(z, batch, training=self.training)
+
+        # When n_samples > 1, z has shape (n_samples, batch, latent).
+        # cont_covs, cat_oh, and batch are 2D (batch, dim) and must be
+        # broadcast to (n_samples, batch, dim) before concatenation.
+        n_samples = z.shape[0] if z.ndim == 3 else None
+        if n_samples is not None:
+            batch = jnp.broadcast_to(batch[jnp.newaxis], (n_samples, *batch.shape))
+
+        decoder_input = z
+        if cont_covs is not None:
+            if n_samples is not None:
+                cont_covs = jnp.broadcast_to(cont_covs[jnp.newaxis], (n_samples, *cont_covs.shape))
+            decoder_input = jnp.concatenate([decoder_input, cont_covs], axis=-1)
+        cat_oh = self._encode_covariates(cat_covs)
+        if cat_oh is not None:
+            if n_samples is not None:
+                cat_oh = jnp.broadcast_to(cat_oh[jnp.newaxis], (n_samples, *cat_oh.shape))
+            decoder_input = jnp.concatenate([decoder_input, cat_oh], axis=-1)
+        rho_unnorm, disp = self.decoder(decoder_input, batch, training=self.training)
         disp_ = jnp.exp(disp)
         rho = jax.nn.softmax(rho_unnorm, axis=-1)
         total_count = x.sum(-1)[:, jnp.newaxis]

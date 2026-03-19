@@ -19,7 +19,7 @@ def _load_brainlarge_dataset(
     loading_batch_size: int = 100000,
 ) -> anndata.AnnData:
     """Loads brain-large dataset."""
-    url = "http://cf.10xgenomics.com/samples/cell-exp/1.3.0/1M_neurons/1M_neurons_filtered_gene_bc_matrices_h5.h5"
+    url = "https://exampledata.scverse.org/scvi-tools/1M_neurons_filtered_gene_bc_matrices_h5.h5"
     save_fn = "brain_large.h5"
 
     _download(url, save_path, save_fn)

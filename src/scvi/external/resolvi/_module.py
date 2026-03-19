@@ -108,6 +108,8 @@ class RESOLVAEModel(PyroModule):
         Kernel size in the RBF kernel to estimate distances between cells and neighbors.
     encode_covariates:
         Whether to concatenate covariates to expression in encoder
+    size_scaling
+        Scale counts by cell size factors instead of library size.
     """
 
     def __init__(
@@ -138,6 +140,7 @@ class RESOLVAEModel(PyroModule):
         prior_proportions_rate: float = 10.0,
         median_distance: float = 1.0,
         encode_covariates: bool = False,
+        size_scaling: bool = False,
     ):
         super().__init__(_RESOLVAE_PYRO_MODULE_NAME)
         self.z_encoder = z_encoder
@@ -156,6 +159,7 @@ class RESOLVAEModel(PyroModule):
         self.semisupervised = semisupervised
         self.eps = torch.tensor(1e-6)
         self.encode_covariates = encode_covariates
+        self.size_scaling = size_scaling
 
         if self.dispersion == "gene":
             init_px_r = torch.full([n_input], 0.01)
@@ -163,7 +167,8 @@ class RESOLVAEModel(PyroModule):
             init_px_r = torch.full([n_input, n_batch], 0.01)
         else:
             raise ValueError(
-                f"dispersion must be one of ['gene', 'gene-batch'], but input was {dispersion}."
+                "dispersion must be one of ['gene', 'gene-batch', 'gene-label'], but input was "
+                "{}.format(self.dispersion)"
             )
         self.register_buffer("px_r", init_px_r)
 
@@ -232,6 +237,20 @@ class RESOLVAEModel(PyroModule):
                 use_layer_norm=True,
                 **cls_parameters,
             )
+        if self.size_scaling:
+            self.scale_encoder = Encoder(
+                n_latent,
+                1,
+                n_cat_list=[n_batch],
+                n_layers=0,
+                n_hidden=128,
+                dropout_rate=0.0,
+                inject_covariates=deeply_inject_covariates,
+                use_batch_norm=False,
+                use_layer_norm=True,
+                var_activation=torch.exp,
+                var_eps=1e-6,
+            )
 
     def _get_fn_args_from_batch(self, tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
@@ -256,6 +275,7 @@ class RESOLVAEModel(PyroModule):
             x_n = x_n.to_dense()
         x_n = x_n.reshape(x.shape[0], -1)
         library = torch.log(torch.sum(x, dim=1, keepdim=True))
+        size_factor = tensor_dict.get(REGISTRY_KEYS.SIZE_FACTOR_KEY, None)
 
         return (), {
             "x": x,
@@ -266,6 +286,7 @@ class RESOLVAEModel(PyroModule):
             "cat_covs": cat_covs,
             "x_n": x_n,
             "distances_n": distances_n,
+            "size_factor": size_factor,
         }
 
     @auto_move_data
@@ -279,6 +300,7 @@ class RESOLVAEModel(PyroModule):
         cat_covs: torch.Tensor,
         x_n: torch.Tensor,
         distances_n: torch.Tensor,
+        size_factor: torch.Tensor,
         n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
@@ -350,7 +372,9 @@ class RESOLVAEModel(PyroModule):
 
             per_neighbor_diffusion = pyro.sample(
                 "per_neighbor_diffusion",
-                Dirichlet(concentration=distances, validate_args=False),  # rounding errors
+                Dirichlet(
+                    concentration=distances, validate_args=False
+                ),  # Softmax has rounding errors
             )
             with pyro.poutine.scale(scale=5.0):
                 mixture_proportions = pyro.sample(
@@ -363,34 +387,17 @@ class RESOLVAEModel(PyroModule):
                         validate_args=False,  # Softmax has rounding errors
                     ),
                 )
-
-            true_mixture_proportion = pyro.deterministic(
-                "true_mixture_proportion", mixture_proportions[..., 0]
-            )
-
+            true, diffusion, background = mixture_proportions.split(1, dim=-1)
+            true_mixture_proportion = pyro.deterministic("true_mixture_proportion", true)
             diffusion_mixture_proportion = pyro.deterministic(
-                "diffusion_mixture_proportion", mixture_proportions[..., 1]
+                "diffusion_mixture_proportion", diffusion
             )
-
             background_mixture_proportion = pyro.deterministic(
-                "background_mixture_proportion", mixture_proportions[..., 2]
+                "background_mixture_proportion", background
             )
-
             v = pyro.deterministic(
                 "diffusion_proportion_per_neighbor",
-                per_neighbor_diffusion * diffusion_mixture_proportion.unsqueeze(-1),
-                event_dim=1,
-            )
-
-            background = pyro.deterministic(
-                "background",
-                background_mixture_proportion.unsqueeze(-1)
-                * torch.exp(library)
-                * torch.matmul(
-                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch).float(),
-                    per_gene_background,
-                ),
-                event_dim=1,
+                per_neighbor_diffusion.unsqueeze(-1) * diffusion_mixture_proportion.unsqueeze(-2),
             )
 
             if self.semisupervised:
@@ -419,6 +426,14 @@ class RESOLVAEModel(PyroModule):
             # sample from prior (value will be sampled by guide when computing the ELBO)
             with pyro.poutine.scale(scale=kl_weight):
                 z = pyro.sample("latent", pyro.distributions.MixtureSameFamily(cats, normal_dists))
+            if self.size_scaling:
+                if size_factor is not None:
+                    library = torch.log(self.scale_encoder(z, batch_index)[1] * size_factor)
+                else:
+                    raise ValueError(
+                        "size_scaling is True but no size_factor_key was provided "
+                        "in setup_anndata."
+                    )
             # get the "normalized" mean of the negative binomial
             if cat_covs is not None:
                 categorical_input = list(torch.split(cat_covs, 1, dim=1))
@@ -464,16 +479,25 @@ class RESOLVAEModel(PyroModule):
                     batch_index.repeat_interleave(self.n_neighbors).unsqueeze(1),
                     *categorical_encoder,
                 )
-
                 if z.ndim == 2:
                     zn = Normal(
                         qz_m_n.reshape(x.shape[0], self.n_neighbors, self.n_latent),
                         torch.sqrt(qz_v_n.reshape(x.shape[0], self.n_neighbors, self.n_latent)),
                     ).sample()
+                    if self.size_scaling:
+                        library_n = torch.log(
+                            self.scale_encoder(
+                                qz_m_n,
+                                batch_index.repeat_interleave(self.n_neighbors).unsqueeze(1),
+                            )[1]
+                            * size_factor.repeat_interleave(self.n_neighbors).unsqueeze(1)
+                        )
+                    else:
+                        library_n = library.repeat_interleave(self.n_neighbors).unsqueeze(1)
                     _, _, px_rate_n, _ = self.decoder(
                         self.dispersion,
                         zn.reshape([x.shape[0] * self.n_neighbors, self.n_latent]),
-                        library.repeat_interleave(self.n_neighbors).unsqueeze(1),
+                        library_n,
                         batch_index.repeat_interleave(self.n_neighbors).unsqueeze(1),
                         *categorical_input,
                     )
@@ -483,10 +507,20 @@ class RESOLVAEModel(PyroModule):
                         qz_m_n.reshape(x.shape[0], self.n_neighbors, self.n_latent),
                         torch.sqrt(qz_v_n.reshape(x.shape[0], self.n_neighbors, self.n_latent)),
                     ).sample([z.shape[0]])
+                    if self.size_scaling:
+                        library_n = torch.log(
+                            self.scale_encoder(
+                                qz_m_n,
+                                batch_index.repeat_interleave(self.n_neighbors).unsqueeze(1),
+                            )[1]
+                            * size_factor.repeat_interleave(self.n_neighbors).unsqueeze(1)
+                        )
+                    else:
+                        library_n = library.repeat_interleave(self.n_neighbors).unsqueeze(1)
                     _, _, px_rate_n, _ = self.decoder(
                         self.dispersion,
                         zn.reshape([z.shape[0], x.shape[0] * self.n_neighbors, self.n_latent]),
-                        library.repeat_interleave(self.n_neighbors).unsqueeze(1),
+                        library_n,
                         batch_index.repeat_interleave(self.n_neighbors).unsqueeze(1),
                         *categorical_input,
                     )
@@ -500,8 +534,8 @@ class RESOLVAEModel(PyroModule):
             px_rate_sum = torch.sum(
                 torch.cat(
                     [
-                        (true_mixture_proportion.unsqueeze(-1) * px_rate).unsqueeze(-2),
-                        v.unsqueeze(-1) * px_rate_n,
+                        (true_mixture_proportion * px_rate).unsqueeze(-2),
+                        v * px_rate_n,
                     ],
                     dim=-2,
                 ),
@@ -515,6 +549,16 @@ class RESOLVAEModel(PyroModule):
                     .to_event(1)
                     .rsample()
                 )
+            background = pyro.deterministic(
+                "background",
+                background_mixture_proportion
+                * torch.exp(library)
+                * torch.matmul(
+                    torch.nn.functional.one_hot(batch_index.flatten(), self.n_batch).float(),
+                    per_gene_background,
+                ),
+                event_dim=1,
+            )
 
             mean_poisson = pyro.deterministic(
                 "mean_poisson",
@@ -554,13 +598,24 @@ class RESOLVAEModel(PyroModule):
         cat_covs: torch.Tensor,
         x_n: torch.Tensor,
         distances_n: torch.Tensor,
+        size_factor: torch.Tensor,
         n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
         """Forward pass."""
         # Using condition handle for training, this is the reconstruction loss.
         pyro.condition(self.model_unconditioned, data={"obs": x})(
-            x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight
+            x,
+            ind_x,
+            library,
+            y,
+            batch_index,
+            cat_covs,
+            x_n,
+            distances_n,
+            size_factor,
+            n_obs,
+            kl_weight,
         )
 
     @auto_move_data
@@ -574,17 +629,30 @@ class RESOLVAEModel(PyroModule):
         cat_covs: torch.Tensor,
         x_n: torch.Tensor,
         distances_n: torch.Tensor,
+        size_factor: torch.Tensor,
         n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
         pyro.condition(
             self.model_unconditioned,
             data={
-                "background_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                "diffusion_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                "true_mixture_proportion": torch.ones(x.shape[0], device=x.device),
+                "background_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
+                "diffusion_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
+                "true_mixture_proportion": torch.ones([x.shape[0], 1], device=x.device),
             },
-        )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight)
+        )(
+            x,
+            ind_x,
+            library,
+            y,
+            batch_index,
+            cat_covs,
+            x_n,
+            distances_n,
+            size_factor,
+            n_obs,
+            kl_weight,
+        )
 
     @auto_move_data
     def model_residuals(
@@ -597,15 +665,28 @@ class RESOLVAEModel(PyroModule):
         cat_covs: torch.Tensor,
         x_n: torch.Tensor,
         distances_n: torch.Tensor,
+        size_factor: torch.Tensor,
         n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
         pyro.condition(
             self.model_unconditioned,
             data={
-                "true_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
+                "true_mixture_proportion": torch.zeros([x.shape[0], 1], device=x.device),
             },
-        )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight)
+        )(
+            x,
+            ind_x,
+            library,
+            y,
+            batch_index,
+            cat_covs,
+            x_n,
+            distances_n,
+            size_factor,
+            n_obs,
+            kl_weight,
+        )
 
     @auto_move_data
     def model_simplified(
@@ -618,6 +699,7 @@ class RESOLVAEModel(PyroModule):
         cat_covs: torch.Tensor,
         x_n: torch.Tensor,
         distances_n: torch.Tensor,
+        size_factor: torch.Tensor,
         n_obs: int | None = None,
         kl_weight: float = 1.0,
         corrected_rate: bool = False,
@@ -646,14 +728,40 @@ class RESOLVAEModel(PyroModule):
                 pyro.condition(
                     simplified_model,
                     data={
-                        "background_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                        "diffusion_mixture_proportion": torch.zeros(x.shape[0], device=x.device),
-                        "true_mixture_proportion": torch.ones(x.shape[0], device=x.device),
+                        "background_mixture_proportion": torch.zeros(
+                            [x.shape[0], 1], device=x.device
+                        ),
+                        "diffusion_mixture_proportion": torch.zeros(
+                            [x.shape[0], 1], device=x.device
+                        ),
+                        "true_mixture_proportion": torch.ones([x.shape[0], 1], device=x.device),
                     },
-                )(x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight)
+                )(
+                    x,
+                    ind_x,
+                    library,
+                    y,
+                    batch_index,
+                    cat_covs,
+                    x_n,
+                    distances_n,
+                    size_factor,
+                    n_obs,
+                    kl_weight,
+                )
             else:
                 simplified_model(
-                    x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight
+                    x,
+                    ind_x,
+                    library,
+                    y,
+                    batch_index,
+                    cat_covs,
+                    x_n,
+                    distances_n,
+                    size_factor,
+                    n_obs,
+                    kl_weight,
                 )
 
 
@@ -791,6 +899,7 @@ class RESOLVAEGuide(PyroModule):
         cat_covs,
         x_n,
         distances_n,
+        size_factor,
         n_obs=None,
         kl_weight=1.0,
     ):
@@ -922,6 +1031,7 @@ class RESOLVAEGuide(PyroModule):
         cat_covs: torch.Tensor,
         x_n: torch.Tensor,
         distances_n: torch.Tensor,
+        size_factor: torch.Tensor,
         n_obs: int | None = None,
         kl_weight: float = 1.0,
     ):
@@ -943,7 +1053,17 @@ class RESOLVAEGuide(PyroModule):
 
         with pyro.poutine.scale(scale=x.shape[0] / self.n_obs):
             simplified_guide(
-                x, ind_x, library, y, batch_index, cat_covs, x_n, distances_n, n_obs, kl_weight
+                x,
+                ind_x,
+                library,
+                y,
+                batch_index,
+                cat_covs,
+                x_n,
+                distances_n,
+                size_factor,
+                n_obs,
+                kl_weight,
             )
 
 
@@ -1026,6 +1146,8 @@ class RESOLVAE(PyroBaseModuleClass):
         Rate parameter for the prior proportions.
     median_distance:
         Kernel size in the RBF kernel to estimate distances between cells and neighbors.
+    size_scaling
+        Instead of using observed library size, use cell area and a cell-specific scaling factor.
     downsample_counts_mean:
         Mean of the log-normal distribution used to downsample counts.
     downsample_counts_std:
@@ -1071,7 +1193,8 @@ class RESOLVAE(PyroBaseModuleClass):
         downsample_counts_mean: float | None = None,
         downsample_counts_std: float = 1.0,
         diffusion_eps: float = 0.01,
-        latent_distribution: str | None = None,
+        latent_distribution: str | None = None,  # placeholder
+        size_scaling: bool = False,
     ):
         super().__init__()
         self.dispersion = dispersion
@@ -1155,6 +1278,7 @@ class RESOLVAE(PyroBaseModuleClass):
             background_ratio=background_ratio,
             prior_proportions_rate=prior_proportions_rate,
             median_distance=median_distance,
+            size_scaling=size_scaling,
         )
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
 
