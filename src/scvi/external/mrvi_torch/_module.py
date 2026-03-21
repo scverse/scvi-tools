@@ -453,9 +453,10 @@ class TorchMRVAE(BaseModuleClass):
         self.qz_kwargs = qz_kwargs
         self.qu_kwargs = qu_kwargs
 
-        # Register n_obs_per_sample as a buffer so it moves to GPU with the model
+        # Register n_obs_per_sample as a non-persistent buffer so it moves to GPU with the model
+        # but is excluded from state_dict to avoid key conflicts when loading via setup_datamodule
         if n_obs_per_sample is not None:
-            self.register_buffer("n_obs_per_sample", n_obs_per_sample)
+            self.register_buffer("n_obs_per_sample", n_obs_per_sample, persistent=False)
         else:
             self.n_obs_per_sample = None
 
