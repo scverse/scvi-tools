@@ -79,8 +79,8 @@ docs = [
 ]
 docsbuild = ["scvi-tools[docs,autotune,hub,jax]","mlx"]
 
-# scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
+# scvi.autotune #TODO remove ray[tune] constraint once solved
+autotune = ["hyperopt>=0.2", "ray[tune]; python_version < '3.14'", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
