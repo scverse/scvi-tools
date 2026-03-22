@@ -1967,12 +1967,17 @@ if is_package_installed("jax") and is_package_installed("optax"):
             pass
 
 
-if is_package_installed("mlx"):
-    import logging
-
+try:
     import mlx.core as mx
     import mlx.nn as nn
     import mlx.optimizers as optim
+
+    _mlx_available = True
+except (ImportError, OSError):
+    _mlx_available = False
+
+if _mlx_available:
+    import logging
 
     logger = logging.getLogger(__name__)
 
