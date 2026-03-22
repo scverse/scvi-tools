@@ -40,5 +40,5 @@ def is_package_installed(module):
     try:
         importlib.import_module(module)  # Try importing the package
         return True  # If no exception is raised, the package is installed
-    except ImportError:
+    except (ImportError, OSError):
         return False  # If ImportError is raised, the package is not installed
