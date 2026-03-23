@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-14]
-        python: ["3.11", "3.12", "3.13"]
+        python: ["3.12", "3.13", "3.14"]
 
     name: integration
 
@@ -73,3 +73,4 @@ jobs:
       - uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          flags: macos

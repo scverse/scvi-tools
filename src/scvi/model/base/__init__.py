@@ -57,7 +57,7 @@ def __getattr__(name: str):
         return _JaxTrainingMixin
     if name == "MlxTrainingMixin":
         warnings.warn(
-            "In order to use the MlxTrainingMixin make sure to install scvi-tools[mlx]",
+            "In order to use the MlxTrainingMixin make sure to install mlx",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )

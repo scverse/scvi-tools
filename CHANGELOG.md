@@ -5,7 +5,25 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.4
 
-### 1.4.2 (2025-XX-XX)
+### 1.4.3 (2026-XX-XX)
+
+#### Added
+
+- Add support for Python 3.14, {pr}`3563`.
+- Add support for Pandas3, {pr}`3638`.
+
+#### Fixed
+
+- Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
+    {pr}`3749`.
+
+#### Changed
+
+- Update SCVI-Tools Hub models, {pr}`3733`.
+
+#### Removed
+
+### 1.4.2 (2026-02-26)
 
 #### Added
 
@@ -16,10 +34,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
 - Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
-- Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
 - Add support for logging validation metrics in MultiGPU, {pr}`3712`.
-- Add Support for MLX usage in Mac with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
+- Add Support for MLX backend for Apple silicon with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
 - Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
 - Add support for size_factor in {class}`scvi.external.RESOLVI`, {pr}`3701`.
 
