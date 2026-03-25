@@ -358,7 +358,7 @@ class DIAGVAE(BaseModuleClass):
 
         # Construct the appropriate generative distribution p(x) based on likelihood
         if self.modality_likelihoods[mode] == "nb":
-            px = NegativeBinomial(px_r, logits=(px_rate + EPS).log() - px_r)
+            px = NegativeBinomial(mu=px_rate, theta=px_r)
         elif self.modality_likelihoods[mode] == "zinb":
             px = ZeroInflatedNegativeBinomial(
                 mu=px_rate,
