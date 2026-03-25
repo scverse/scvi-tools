@@ -3,7 +3,7 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid
 from scvi.model import SCVI
-from scvi.train import TrainingPlan
+from scvi.train import TrainingPlan, _trainingplans
 from scvi.train._constants import METRIC_KEYS
 from scvi.train._trainingplans import _compute_kl_weight
 
@@ -49,6 +49,35 @@ def test_compute_kl_weight_min_greater_max():
 def test_compute_kl_precedence(epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, expected):
     kl_weight = _compute_kl_weight(epoch, step, n_epochs_kl_warmup, n_steps_kl_warmup, 1.0, 0.0)
     assert kl_weight == expected
+
+
+def test_jax_import_guard_includes_flax():
+    """Regression test: the Jax import guard in _trainingplans must check for flax
+    in addition to jax and optax, because JaxBaseModuleClass is only defined when
+    flax is installed (GH-3762)."""
+    import ast
+    import inspect
+
+    source = inspect.getsource(_trainingplans)
+    tree = ast.parse(source)
+
+    # Find the top-level if-block that imports JaxBaseModuleClass
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.If):
+            continue
+        # Check if the body contains an import of JaxBaseModuleClass
+        body_source = ast.dump(node)
+        if "JaxBaseModuleClass" not in body_source:
+            continue
+        # Verify the guard condition includes "flax"
+        guard_source = ast.dump(node.test)
+        assert "flax" in guard_source, (
+            "The Jax import guard in _trainingplans.py must check for 'flax' "
+            "to match _base_module.py (see GH-3762)"
+        )
+        break
+    else:
+        pytest.skip("JaxBaseModuleClass import guard not found in _trainingplans.py")
 
 
 def test_loss_args():
