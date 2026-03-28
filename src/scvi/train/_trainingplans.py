@@ -1614,7 +1614,7 @@ class ClassifierTrainingPlan(pl.LightningModule):
         return optimizer
 
 
-if is_package_installed("jax") and is_package_installed("optax"):
+if is_package_installed("jax") and is_package_installed("optax") and is_package_installed("flax"):
     import jax
     import jax.numpy as jnp
     import optax
