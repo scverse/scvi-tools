@@ -818,7 +818,8 @@ class RNASeqMixin:
             mean_list += [px_rate.cpu().numpy()]
 
         means = np.concatenate(mean_list, axis=-2)
-        dispersions = np.concatenate(dispersion_list, axis=-2)
+        if self.module.gene_likelihood != "poisson":
+            dispersions = np.concatenate(dispersion_list, axis=-2)
 
         if give_mean and n_samples > 1:
             if self.module.gene_likelihood == "zinb":
