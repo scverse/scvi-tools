@@ -14,6 +14,7 @@ from scvi.external.mrvi_torch._components import (
     AttentionBlock,
     ConditionalNormalization,
     NormalDistOutputNN,
+    _gelu,
 )
 from scvi.module.base import BaseModuleClass, LossOutput, auto_move_data
 
@@ -85,7 +86,7 @@ class DecoderZXAttention(nn.Module):
         n_hidden: int = 32,
         n_layers: int = 1,
         low_dim_batch: bool = True,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+        activation: Callable[[torch.Tensor], torch.Tensor] = _gelu,
     ):
         super().__init__()
         self.n_in = n_in
@@ -103,8 +104,8 @@ class DecoderZXAttention(nn.Module):
         self.low_dim_batch = low_dim_batch
         self.activation = activation
 
-        self.layer_norm = nn.LayerNorm(self.n_in)
-        self.layer_norm_batch_embed = nn.LayerNorm(self.n_latent_sample)
+        self.layer_norm = nn.LayerNorm(self.n_in, eps=1e-6)
+        self.layer_norm_batch_embed = nn.LayerNorm(self.n_latent_sample, eps=1e-6)
         self.batch_embedding = nn.Embedding(self.n_batch, self.n_latent_sample)
         # Lower stddev leads to better initial loss values
         init.normal_(self.batch_embedding.weight, std=0.1)
@@ -163,7 +164,7 @@ class DecoderZXAttention(nn.Module):
                 mu = self.fc(z) + residual
         else:
             mu = self.fc(z_)
-        if self.h_activation in [nn.functional.softmax, torch.softmax]:
+        if self.h_activation in (nn.functional.softmax, torch.softmax):
             mu = self.h_activation(mu, dim=-1)
         else:
             mu = self.h_activation(mu)
@@ -220,7 +221,7 @@ class EncoderUZ(nn.Module):
         use_map: bool = True,
         n_hidden: int = 32,
         n_layers: int = 1,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+        activation: Callable[[torch.Tensor], torch.Tensor] = _gelu,
     ):
         super().__init__()
         self.n_latent = n_latent
@@ -237,11 +238,11 @@ class EncoderUZ(nn.Module):
         self.n_layers = n_layers
         self.activation = activation
 
-        self.layer_norm = nn.LayerNorm(self.n_latent_u)
+        self.layer_norm = nn.LayerNorm(self.n_latent_u, eps=1e-6)
         self.embedding = nn.Embedding(self.n_sample, self.n_latent_sample)
         # Initialize with same standard deviation as JAX version
         init.normal_(self.embedding.weight, std=0.1)
-        self.layer_norm_embed = nn.LayerNorm(self.n_latent_sample)
+        self.layer_norm_embed = nn.LayerNorm(self.n_latent_sample, eps=1e-6)
 
         n_outs = 1 if self.use_map else 2
         self.attention_block = AttentionBlock(
@@ -258,8 +259,11 @@ class EncoderUZ(nn.Module):
             activation=self.activation,
         )
 
-        if self.n_latent_u is not None:
+        # Only create projection layer when NOT isomorphic (matching JAX behavior)
+        if n_latent_u is not None:
             self.fc = nn.Linear(self.n_latent_u, self.n_latent)
+        else:
+            self.fc = None
 
     @auto_move_data
     def forward(
@@ -273,14 +277,13 @@ class EncoderUZ(nn.Module):
         u_ = self.layer_norm(u_stop)
 
         sample_embed = self.layer_norm_embed(self.embedding(sample_covariate))
-        # nn.init.normal_(self.sample_embed.weight, mean=0.0, std=0.1)
 
         if has_mc_samples:
-            sample_embed = sample_embed.repeat(u_.shape[0], 1, 1)
+            sample_embed = sample_embed.unsqueeze(0).expand(u_.shape[0], -1, -1)
 
         residual = self.attention_block(query_embed=u_, kv_embed=sample_embed)
 
-        if self.n_latent_u is not None:
+        if self.fc is not None:
             z_base = self.fc(u_stop)
             return z_base, residual
         else:
@@ -313,7 +316,7 @@ class EncoderXU(nn.Module):
         n_sample: int,
         n_hidden: int = 128,
         n_layers: int = 1,
-        activation: Callable[[torch.Tensor], torch.Tensor] = nn.functional.gelu,
+        activation: Callable[[torch.Tensor], torch.Tensor] = _gelu,
         training: bool | None = None,
     ):
         super().__init__()
@@ -419,7 +422,7 @@ class TorchMRVAE(BaseModuleClass):
         encoder_n_hidden: int = 128,
         encoder_n_layers: int = 2,
         z_u_prior: bool = True,
-        z_u_prior_scale: torch.Tensor = torch.zeros(1, dtype=torch.float32),
+        z_u_prior_scale: float = 0.0,
         u_prior_scale: float = 0.0,
         u_prior_mixture: bool = True,
         u_prior_mixture_k: int = 20,
@@ -449,7 +452,13 @@ class TorchMRVAE(BaseModuleClass):
         self.px_kwargs = px_kwargs
         self.qz_kwargs = qz_kwargs
         self.qu_kwargs = qu_kwargs
-        self.n_obs_per_sample = n_obs_per_sample
+
+        # Register n_obs_per_sample as a non-persistent buffer so it moves to GPU with the model
+        # but is excluded from state_dict to avoid key conflicts when loading via setup_datamodule
+        if n_obs_per_sample is not None:
+            self.register_buffer("n_obs_per_sample", n_obs_per_sample, persistent=False)
+        else:
+            self.n_obs_per_sample = None
 
         px_kwargs = DEFAULT_PX_KWARGS.copy()
         if self.px_kwargs is not None:
@@ -505,7 +514,11 @@ class TorchMRVAE(BaseModuleClass):
         if self.learn_z_u_prior_scale:
             self.pz_scale = nn.Parameter(torch.zeros(self.n_latent))
         else:
-            self.pz_scale = self.z_u_prior_scale
+            # Register as buffer so it moves to GPU with the model
+            self.register_buffer(
+                "pz_scale",
+                torch.full((self.n_latent,), float(self.z_u_prior_scale)),
+            )
 
         if self.u_prior_mixture:
             if self.n_labels > 1:
@@ -518,7 +531,6 @@ class TorchMRVAE(BaseModuleClass):
             self.u_prior_means = nn.Parameter(torch.randn(u_prior_mixture_k, u_dim))
             self.u_prior_scales = nn.Parameter(torch.zeros(u_prior_mixture_k, u_dim))
 
-    @torch.inference_mode()
     def _get_inference_input(self, tensors: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         x = tensors[REGISTRY_KEYS.X_KEY]
         sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY]
@@ -533,10 +545,10 @@ class TorchMRVAE(BaseModuleClass):
         cf_sample: torch.Tensor | None = None,
         use_mean: bool = False,
     ) -> dict[str, torch.Tensor]:
-        if type(x).__name__ != "Tensor" and x is not None:
-            x = torch.Tensor(x)
-        if type(sample_index).__name__ != "Tensor" and sample_index is not None:
-            sample_index = torch.Tensor(sample_index)
+        if not isinstance(x, torch.Tensor) and x is not None:
+            x = torch.as_tensor(x)
+        if not isinstance(sample_index, torch.Tensor) and sample_index is not None:
+            sample_index = torch.as_tensor(sample_index)
         qu = self.qu(x, sample_index, training=self.training)
         if use_mean:
             u = qu.mean
@@ -583,7 +595,6 @@ class TorchMRVAE(BaseModuleClass):
             "library": library,
         }
 
-    @torch.inference_mode()
     def _get_generative_input(
         self,
         tensors: dict[str, torch.Tensor],
@@ -619,13 +630,14 @@ class TorchMRVAE(BaseModuleClass):
 
         if self.u_prior_mixture:
             offset = (
-                10.0 * nn.functional.one_hot(label_index, self.n_labels).float()
+                10.0 * nn.functional.one_hot(label_index.to(torch.int64), self.n_labels).float()
                 if self.n_labels >= 2
                 else 0.0
             )
             cats = dist.Categorical(logits=self.u_prior_logits + offset)
 
-            # TODO: do I need to use the independent as in below and why? Does jax version do this?
+            # dist.Independent wraps Normal to treat last dim as event dim, matching
+            # JAX's MultivariateNormal with diagonal covariance (scale_tril=diag(scales))
             normal_dists = dist.Independent(
                 dist.Normal(self.u_prior_means, torch.exp(self.u_prior_scales)), 1
             )
@@ -655,25 +667,17 @@ class TorchMRVAE(BaseModuleClass):
             kl_u = dist.kl_divergence(inference_outputs["qu"], generative_outputs["pu"]).sum(-1)
 
         kl_z = 0.0
-        eps = inference_outputs["z"] - inference_outputs["z_base"]
-        device = self.pz_scale.device
-        eps = eps.to(device)
         if self.z_u_prior:
+            eps = inference_outputs["eps"]
             peps = dist.Normal(0, torch.exp(self.pz_scale))
             kl_z = -peps.log_prob(eps).sum(-1)
-            kl_z = kl_z.to(kl_u.device)
 
-        kl_weight = (
-            kl_weight.to(kl_u.device)
-            if isinstance(kl_weight, torch.Tensor)
-            else torch.tensor(kl_weight, device=kl_u.device)
-        )
-        weighted_kl_local = kl_weight * (kl_u + kl_z)
-        loss = reconstruction_loss + weighted_kl_local
+        kl_local = kl_u + kl_z
+        loss = reconstruction_loss + kl_weight * kl_local
 
         if self.scale_observations:
             sample_index = tensors[REGISTRY_KEYS.SAMPLE_KEY].flatten().to(torch.int64)
-            prefactors = self.n_obs_per_sample.to(self.device)[sample_index]
+            prefactors = self.n_obs_per_sample[sample_index]
             loss = loss / prefactors
 
         loss = torch.mean(loss)
@@ -681,7 +685,7 @@ class TorchMRVAE(BaseModuleClass):
         return LossOutput(
             loss=loss,
             reconstruction_loss=reconstruction_loss,
-            kl_local=(kl_u + kl_z),
+            kl_local=kl_local,
         )
 
     def compute_h_from_x_eps(
@@ -704,7 +708,7 @@ class TorchMRVAE(BaseModuleClass):
             "z": inference_outputs["z_base"] + extra_eps,
             "library": library,
             "batch_index": batch_index,
-            "label_index": torch.zeros(x.shape[0], dtype=torch.long, device=x.device),
+            "label_index": torch.zeros(x.shape[0], 1, dtype=torch.long, device=x.device),
         }
         generative_outputs = self.generative(**generative_inputs)
         return generative_outputs["h"]

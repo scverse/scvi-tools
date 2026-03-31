@@ -7,7 +7,7 @@ name = "scvi-tools"
 version = "1.4.2"
 description = "Deep probabilistic analysis of single-cell omics data."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {file = "LICENSE"}
 authors = [
     {name = "The scvi-tools development team"},
@@ -24,9 +24,9 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "Natural Language :: English",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Operating System :: MacOS :: MacOS X",
   "Operating System :: Microsoft :: Windows",
   "Operating System :: POSIX :: Linux",
@@ -79,8 +79,8 @@ docs = [
 ]
 docsbuild = ["scvi-tools[docs,autotune,hub,jax]","mlx"]
 
-# scvi.autotune
-autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
+# scvi.autotune #TODO remove ray[tune] constraint once solved
+autotune = ["hyperopt>=0.2", "ray[tune]; python_version < '3.14'", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
@@ -146,7 +146,7 @@ markers = [
 src = ["src"]
 line-length = 99
 indent-width = 4
-target-version = "py312"
+target-version = "py313"
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
