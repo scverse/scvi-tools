@@ -1968,13 +1968,7 @@ if is_package_installed("jax") and is_package_installed("optax") and is_package_
 
 
 if is_package_installed("mlx"):
-    import logging
-
-    import mlx.core as mx
-    import mlx.nn as nn
-    import mlx.optimizers as optim
-
-    logger = logging.getLogger(__name__)
+    import mlx
 
     class MlxTrainingPlan(TrainingPlan):
         """Training plan for MLX modules.
@@ -2016,7 +2010,7 @@ if is_package_installed("mlx"):
             **loss_kwargs,
         ):
             # Create MLX optimizer (AdamW includes weight decay)
-            self.optimizer = optim.AdamW(
+            self.optimizer = mlx.optimizers.AdamW(
                 learning_rate=lr,
                 weight_decay=weight_decay,
                 eps=eps,
@@ -2082,9 +2076,7 @@ if is_package_installed("mlx"):
             elif hasattr(self.module, "_training"):
                 self.module._training = is_training
             else:
-                logger.warning(
-                    "Unable to set module training state, may affect training performance"
-                )
+                Warning("Unable to set module training state, may affect training performance")
 
         def get_kl_weight(self) -> float:
             """Compute the KL weight for the current step or epoch.
@@ -2130,7 +2122,7 @@ if is_package_installed("mlx"):
             -------
             dict
                 Dictionary containing loss and component metric arrays (not
-                yet evaluated — call ``mx.eval`` on the returned arrays to
+                yet evaluated — call ``mlx.core.eval`` on the returned arrays to
                 materialise them on the GPU).
             """
             # Ensure module is in training mode (validate_step switches to eval)
@@ -2141,7 +2133,8 @@ if is_package_installed("mlx"):
 
             # Convert batch data to MLX arrays
             mlx_batch = {
-                k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
+                k: mlx.core.array(v) if isinstance(v, np.ndarray) else v
+                for k, v in batch_dict.items()
             }
 
             # Compute KL weight
@@ -2149,18 +2142,18 @@ if is_package_installed("mlx"):
 
             # Single forward+backward: value_and_grad with aux returns
             # (loss, aux), grads — we get LossOutput in one pass
-            loss_and_grad_fn = nn.value_and_grad(self.module, self._loss_fn)
+            loss_and_grad_fn = mlx.nn.value_and_grad(self.module, self._loss_fn)
             (loss, loss_output), grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
 
             # Global-norm gradient clipping (vectorised, no per-tensor loops)
-            grads, _ = optim.clip_grad_norm(grads, max_norm=5.0)
+            grads, _ = mlx.optimizers.clip_grad_norm(grads, max_norm=5.0)
 
             # Update parameters
             self.optimizer.update(self.module, grads)
 
-            # Single mx.eval at the end — materialises the whole lazy graph
+            # Single mlx.core.eval at the end — materialises the whole lazy graph
             # (parameters, optimizer state, and the metrics we want to read)
-            mx.eval(
+            mlx.core.eval(
                 self.module.parameters(),
                 self.optimizer.state,
                 loss,
@@ -2198,7 +2191,8 @@ if is_package_installed("mlx"):
 
             # Convert batch data to MLX arrays
             mlx_batch = {
-                k: mx.array(v) if isinstance(v, np.ndarray) else v for k, v in batch_dict.items()
+                k: mlx.core.array(v) if isinstance(v, np.ndarray) else v
+                for k, v in batch_dict.items()
             }
 
             kl_weight = self.get_kl_weight()
@@ -2206,7 +2200,7 @@ if is_package_installed("mlx"):
             _, _, loss_output = self.module(mlx_batch, kl_weight=kl_weight)
 
             # Single eval for all metrics
-            mx.eval(
+            mlx.core.eval(
                 loss_output.loss,
                 loss_output.reconstruction_loss_sum,
                 loss_output.kl_local_sum,
