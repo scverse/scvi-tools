@@ -15,6 +15,8 @@ from scvi.model import SCANVI, SCVI
 
 
 class TestSemiSupervisedTrainingPlan(scvi.train.SemiSupervisedTrainingPlan):
+    __test__ = False
+
     def __init__(self, *args, **kwargs):
         self.n_samples_per_label = kwargs.pop("n_samples_per_label")
         self.epoch_to_labeled_indices = {}
