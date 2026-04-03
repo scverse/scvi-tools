@@ -191,7 +191,7 @@ class DifferentialComputation:
         delta
             specific case of region inducing differential expression.
             In this case, we suppose that :math:`R \setminus [-\delta, \delta]` does not induce
-             a differential expression (LFC case). If the provided value is `None`, then a proper
+            a differential expression (LFC case). If the provided value is `None`, then a proper
             threshold is determined from the distribution of LFCs across genes.
         pseudocounts
             pseudocount offset used for the mode `change`.

@@ -100,7 +100,7 @@ class RESOLVAEModel(PyroModule):
     background_ratio:
         Prior for background_proportion
         Equals Gamma(prior_proportions_rate,
-                     prior_proportions_rate/(10*background_ratio*prior_true_amount))
+        prior_proportions_rate/(10*background_ratio*prior_true_amount))
         Default is 0.1
     prior_proportions_rate:
         Rate parameter for the prior proportions.
@@ -1140,7 +1140,7 @@ class RESOLVAE(PyroBaseModuleClass):
     background_ratio:
         Prior for background_proportion
         Equals Gamma(prior_proportions_rate,
-                     prior_proportions_rate/(10*background_ratio*prior_true_amount))
+        prior_proportions_rate/(10*background_ratio*prior_true_amount))
         Default is 0.1
     prior_proportions_rate:
         Rate parameter for the prior proportions.
