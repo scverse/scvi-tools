@@ -147,7 +147,7 @@ class ResolVIPredictiveMixin:
         return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
-             to `False`. Otherwise, it defaults to `True`.
+            to `False`. Otherwise, it defaults to `True`.
         library_scaling
             If `True`, multiplies the decoded expression by the library size.
         size_scaling
@@ -317,7 +317,7 @@ class ResolVIPredictiveMixin:
         return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
-             to `False`. Otherwise, it defaults to `True`.
+            to `False`. Otherwise, it defaults to `True`.
         %(de_silent)s
         **kwargs
             Additional keyword arguments passed
@@ -476,7 +476,7 @@ class ResolVIPredictiveMixin:
         return_numpy
             Return a :class:`~numpy.ndarray` instead of a :class:`~pandas.DataFrame`. DataFrame
             includes gene names as columns. If either `n_samples=1` or `return_mean=True`, defaults
-             to `False`. Otherwise, it defaults to `True`.
+            to `False`. Otherwise, it defaults to `True`.
         kwargs
             Additional keyword arguments that have no effect and only serve for compatibility.
 

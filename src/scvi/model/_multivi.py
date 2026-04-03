@@ -127,7 +127,7 @@ class MULTIVI(
     >>> vae.train()
 
     Notes (for using setup_anndata)
-    -----
+    ---------------------------------
     As of SCVI-Tools v1.4 there is no longer support for setup_anndata for multivi.
     Please use setup_mudata instead.
     """
@@ -771,6 +771,7 @@ class MULTIVI(
         Returns
         -------
         Differential accessibility DataFrame with the following columns:
+
         prob_da
             the probability of the region being differentially accessible
         is_da_fdr

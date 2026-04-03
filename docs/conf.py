@@ -93,7 +93,7 @@ nb_merge_streams = True
 typehints_defaults = "braces"
 autodoc_mock_imports = []
 if os.environ.get("READTHEDOCS") == "True":
-    autodoc_mock_imports += ["hyperopt", "ray", "ray.tune", "scib_metrics", "muon"]
+    autodoc_mock_imports += ["hyperopt", "ray", "ray.tune", "scib_metrics", "muon", "mlx"]
     try:
         import scvi.autotune
     except Exception:

@@ -306,6 +306,7 @@ class POISSONVI(PEAKVI, RNASeqMixin):
         Returns
         -------
         Differential accessibility DataFrame with the following columns:
+
         prob_da
             the probability of the region being differentially accessible
         is_da_fdr
