@@ -308,6 +308,7 @@ class BSSeqMixin:
         Returns
         -------
         Differential methylation DataFrame with the following columns:
+
         proba_de
             the probability of the region being differentially methylated
         is_de_fdr

@@ -102,7 +102,7 @@ class CYTOVI(
         required when analyzing overlapping panels with missing values.
     encoder_marker_list
         Optional list of markers to use for encoding. Must be a subset of backbone markers
-          if `encode_backbone_only` is True.
+        if `encode_backbone_only` is True.
     prior_mixture
         If True, uses a mixture of Gaussians as a prior in the latent space (MoG prior).
     prior_mixture_k
@@ -126,7 +126,7 @@ class CYTOVI(
     An adversarial classifier loss can be used to encourage batch-invariance in the latent space.
     If the data includes missing values, ensure that `nan_layer` is correctly registered using
     :meth:`~scvi.external.CYTOVI.setup_anndata`. This is handled automatically when using
-     scvi.external.cytovi.merge_batches().
+    scvi.external.cytovi.merge_batches().
 
     See further usage examples in the following tutorials:
 
