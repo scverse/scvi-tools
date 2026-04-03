@@ -84,7 +84,7 @@ The latent variables, along with their description, are summarized in the follow
 
 ```{eval-rst}
 .. list-table::
-   :widths: 20 90 15of ce
+   :widths: 20 90 15 45
    :header-rows: 1
 
    * - Latent variable

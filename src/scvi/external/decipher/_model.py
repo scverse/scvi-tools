@@ -292,6 +292,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         -------
         The gene patterns for the trajectory.
         Dictionary keys:
+
             - `mean`: the mean gene expression pattern
             - `q25`: the 25% quantile of the gene expression pattern
             - `q75`: the 75% quantile of the gene expression pattern
