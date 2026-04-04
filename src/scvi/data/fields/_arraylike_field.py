@@ -418,7 +418,7 @@ class CategoricalJointField(BaseJointField):
         df = getattr(adata, self.attr_name)[self.attr_key]
         for key in self.attr_keys:
             categorical_dtype = (
-                CategoricalDtype(categories=category_dict[key])
+                CategoricalDtype(categories=category_dict[key], ordered=True)
                 if category_dict is not None
                 else None
             )
