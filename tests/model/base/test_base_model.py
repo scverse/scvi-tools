@@ -8,6 +8,8 @@ from scvi.model.base import BaseModelClass
 
 
 class TestModelClass(BaseModelClass):
+    __test__ = False
+
     @classmethod
     def setup_anndata(
         cls,

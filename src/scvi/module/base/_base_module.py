@@ -368,19 +368,17 @@ class PyroBaseModuleClass(nn.Module):
         """Model annotation for minibatch training with pyro plate.
 
         A dictionary with:
+
         1. "name" - the name of observation/minibatch plate;
         2. "in" - indexes of model args to provide to encoder network when using amortised
-            inference;
-        3. "sites" - dictionary with
-            keys - names of variables that belong to the observation plate (used to recognise
-            and merge posterior samples for minibatch variables)
-            values - the dimensions in the non-plate axis of each variable (used to construct
-            output layer of encoder network when using amortised inference)
+           inference;
+        3. "sites" - dictionary with keys as names of variables that belong to the observation
+           plate and values as the dimensions in the non-plate axis of each variable.
         """
         return {"name": "", "in": [], "sites": {}}
 
     def on_load(self, model, **kwargs):
-        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """

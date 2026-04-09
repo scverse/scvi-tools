@@ -17,8 +17,13 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     which uses binomial thinning and a cross-correlation objective (CCO) loss to produce
     library-size-invariant embeddings for low-UMI cells. The remaining three models are
     ablations used in the paper.
+- Add support for Python 3.14, {pr}`3563`.
+- Add support for Pandas3, {pr}`3638`.
 
 #### Fixed
+
+- Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
+    {pr}`3749`.
 
 #### Changed
 
@@ -36,7 +41,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
-- Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
 - Add support for logging validation metrics in MultiGPU, {pr}`3712`.
 - Add Support for MLX backend for Apple silicon with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
