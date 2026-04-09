@@ -2010,7 +2010,9 @@ if is_package_installed("mlx"):
             **loss_kwargs,
         ):
             # Create MLX optimizer (AdamW includes weight decay)
-            self.optimizer = mlx.optimizers.AdamW(
+            import mlx.optimizers as optim
+
+            self.optimizer = optim.AdamW(
                 learning_rate=lr,
                 weight_decay=weight_decay,
                 eps=eps,
