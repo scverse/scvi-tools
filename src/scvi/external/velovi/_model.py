@@ -901,6 +901,15 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
     @torch.inference_mode()
     def get_rates(self):
+        """Return the learned splicing, degradation, and transcription rates.
+
+        Returns
+        -------
+        dict with keys ``"beta"`` (splicing), ``"gamma"`` (degradation),
+        ``"alpha"`` (transcription on-state), ``"alpha_1"`` (transcription off-state),
+        and ``"lambda_alpha"`` (switching rate), each as a numpy array of shape
+        ``(n_genes,)``.
+        """
         gamma, beta, alpha, alpha_1, lambda_alpha = self.module._get_rates()
 
         return {
@@ -950,6 +959,27 @@ class VELOVI(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         gene_list: Iterable[str] = None,
         n_jobs: int = -1,
     ):
+        """Compute directional uncertainty of RNA velocity.
+
+        Estimates the uncertainty of the velocity vector direction for each cell
+        by sampling from the posterior and computing pairwise cosine similarities.
+
+        Parameters
+        ----------
+        adata
+            AnnData object. If ``None``, uses the AnnData passed during model initialization.
+        n_samples
+            Number of posterior samples for estimating uncertainty.
+        gene_list
+            List of genes to use. If ``None``, uses all genes.
+        n_jobs
+            Number of parallel jobs for cosine similarity computation.
+            ``-1`` uses all available cores.
+
+        Returns
+        -------
+        Tuple of (DataFrame of directional statistics per cell, cosine similarity matrix).
+        """
         adata = self._validate_anndata(adata)
 
         logger.info("Sampling from model...")

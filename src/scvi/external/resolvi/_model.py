@@ -393,6 +393,22 @@ class RESOLVI(
         adata.obsm["distance_neighbor"] = distance_neighbor
 
     def compute_dataset_dependent_priors(self, n_small_genes=None):
+        """Compute dataset-dependent prior parameters for the ResolVI model.
+
+        Estimates background expression ratio and spatial kernel size from the data,
+        which are used as priors during training.
+
+        Parameters
+        ----------
+        n_small_genes
+            Number of low-expressed genes used to estimate the background ratio.
+            If ``None``, defaults to ``n_genes // 50``.
+
+        Returns
+        -------
+        dict with keys ``"background_ratio"``, ``"median_distance"``,
+        ``"mean_log_counts"``, and ``"std_log_counts"``.
+        """
         x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         n_small_genes = x.shape[1] // 50 if n_small_genes is None else int(n_small_genes)
         # Computing library size over low-expressed genes (expectation for the background).

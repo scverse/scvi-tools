@@ -6,6 +6,7 @@
 custom_dataloaders
 downstream_analysis_tasks
 hyper_parameters_tuning
+llm_assisted_analysis
 multi_gpu_training
 saving_and_loading_models
 scvi_criticism
