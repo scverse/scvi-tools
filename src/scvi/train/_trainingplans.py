@@ -1969,6 +1969,7 @@ if is_package_installed("jax") and is_package_installed("optax") and is_package_
 
 if is_package_installed("mlx"):
     import mlx
+    import mlx.optimizers as optim
 
     class MlxTrainingPlan(TrainingPlan):
         """Training plan for MLX modules.
@@ -2010,7 +2011,7 @@ if is_package_installed("mlx"):
             **loss_kwargs,
         ):
             # Create MLX optimizer (AdamW includes weight decay)
-            self.optimizer = mlx.optimizers.AdamW(
+            self.optimizer = optim.AdamW(
                 learning_rate=lr,
                 weight_decay=weight_decay,
                 eps=eps,
@@ -2146,7 +2147,7 @@ if is_package_installed("mlx"):
             (loss, loss_output), grads = loss_and_grad_fn(self.module, mlx_batch, kl_weight)
 
             # Global-norm gradient clipping (vectorised, no per-tensor loops)
-            grads, _ = mlx.optimizers.clip_grad_norm(grads, max_norm=5.0)
+            grads, _ = optim.clip_grad_norm(grads, max_norm=5.0)
 
             # Update parameters
             self.optimizer.update(self.module, grads)

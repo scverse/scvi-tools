@@ -226,6 +226,21 @@ class MRVI(BaseMinifiedModeModelClass):
         else:
             raise ValueError("Unknown backend . Use 'torch' or 'jax' MRVI.")
 
+    def differential_expression(self, *args, **kwargs):
+        """Perform differential expression analysis.
+
+        Delegates to the underlying :class:`~scvi.external.TorchMRVI` or
+        :class:`~scvi.external.JaxMRVI` instance returned by the constructor.
+
+        See Also
+        --------
+        :meth:`~scvi.external.TorchMRVI.differential_expression`
+        """
+        raise NotImplementedError(
+            "Call differential_expression on the TorchMRVI or JaxMRVI instance "
+            "returned by MRVI(...)."
+        )
+
 
 def peek_loaded_model_registry(dir_path, prefix):
     """Getting the loaded model registry to give better warnings for loading MRVI"""

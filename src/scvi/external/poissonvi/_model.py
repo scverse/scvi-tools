@@ -388,7 +388,12 @@ class POISSONVI(PEAKVI, RNASeqMixin):
     def differential_expression(
         self,
     ):
-        # Refer to function differential_accessibility
+        """Not implemented. Use :meth:`~scvi.external.POISSONVI.differential_accessibility` instead
+
+        Raises
+        ------
+        NotImplementedError
+        """
         msg = (
             f"differential_expression is not implemented for {self.__class__.__name__}, please "
             f"use {self.__class__.__name__}.differential_accessibility"
