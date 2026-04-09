@@ -1271,10 +1271,28 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
 
     def get_normalized_expression(self, *args, **kwargs):
+        """Not implemented for this model class.
+
+        Available in RNA models that inherit from
+        :class:`~scvi.model.base.RNASeqMixin`.
+
+        Raises
+        ------
+        NotImplementedError
+        """
         msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
     def differential_abundance(self, *args, **kwargs):
+        """Not implemented for this model class.
+
+        Available in models that inherit from
+        :class:`~scvi.model.base.VAEMixin`.
+
+        Raises
+        ------
+        NotImplementedError
+        """
         msg = f"differential_abundance is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
