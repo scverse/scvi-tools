@@ -27,22 +27,22 @@ More importantly, this guide explains the function of the parameters of the `dif
    :widths: 20 50 15 15
    :header-rows: 1
 
-    * - Parameter
-      - Description
-      - Other
-      - Other
-    * - sample_key
-      - Key for the sample covariate.
-      -
-      -
-    * - num_cells_posterior
-      - Maximum possible number of cells used to compute aggregated posterior for each sample. This should be used to avoid running out of memory if very large samples are present, as the aggregated posteriors are costly and can easily cause out of memory errors.
-      -
-      -
-    * - dof
-      - Degrees of freedom for the Student's t-distribution components of the aggregated posterior for each sample. If ``None``, components are Normal. Using a Student's t-distribution instead of a Normal distribution for the posteriors can improve later analysis by improving stability and creating a smoother distribution for samples containing few cells (with few cells there are fewer components in aggregated posterior, so the heavier tails of a Student's t-distribution smoothes the space between those fewer components).
-      -
-      -
+  * - Parameter
+    - Description
+    - Other
+    - Other
+  * - sample_key
+    - Key for the sample covariate.
+    -
+    -
+  * - num_cells_posterior
+    - Maximum possible number of cells used to compute aggregated posterior for each sample. This should be used to avoid running out of memory if very large samples are present, as the aggregated posteriors are costly and can easily cause out of memory errors.
+    -
+    -
+  * - dof
+    - Degrees of freedom for the Student's t-distribution components of the aggregated posterior for each sample. If ``None``, components are Normal. Using a Student's t-distribution instead of a Normal distribution for the posteriors can improve later analysis by improving stability and creating a smoother distribution for samples containing few cells (with few cells there are fewer components in aggregated posterior, so the heavier tails of a Student's t-distribution smoothes the space between those fewer components).
+    -
+    -
 
 ```
 
