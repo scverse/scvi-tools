@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import random
-from typing import Any
+from typing import TYPE_CHECKING
 
 import mlx.core as mx
 import mlx.nn as nn
 
 from scvi import REGISTRY_KEYS
 from scvi.module.base import LossOutput
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 def _lgamma(x: mx.array) -> mx.array:
