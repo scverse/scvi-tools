@@ -16,6 +16,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
     {pr}`3749`.
+- Fix {class}`~scvi.model.MULTIVI` modality reordering in {meth}`~scvi.model.MULTIVI.setup_mudata`
+    to avoid `AttributeError` when using mudata>=0.3, where `MuData.mod` is read-only {pr}`3776`.
 
 #### Changed
 
