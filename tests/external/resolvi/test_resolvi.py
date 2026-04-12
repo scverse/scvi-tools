@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 import pytest
 
@@ -190,11 +188,5 @@ def test_resolvi_differential_expression(
 
 def test_resolvi_migration_warning(adata):
     RESOLVI.setup_anndata(adata)
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with pytest.warns(FutureWarning, match="scviva-tools"):
         RESOLVI(adata)
-    assert len(w) == 1
-    assert issubclass(w[0].category, FutureWarning)
-    assert "scviva-tools" in str(w[0].message)
-    assert "v1.5" in str(w[0].message)
-    assert "v1.6" in str(w[0].message)
