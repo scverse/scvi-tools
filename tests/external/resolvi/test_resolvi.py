@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 import pytest
 
@@ -184,3 +186,15 @@ def test_resolvi_differential_expression(
     model = RESOLVI(adata, downsample_counts=downsample_counts)
     model.train(max_epochs=1)
     model.differential_expression(groupby="labels", weights=weights, n_samples=n_samples)
+
+
+def test_resolvi_migration_warning(adata):
+    RESOLVI.setup_anndata(adata)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        RESOLVI(adata)
+    assert len(w) == 1
+    assert issubclass(w[0].category, FutureWarning)
+    assert "scviva-tools" in str(w[0].message)
+    assert "v1.5" in str(w[0].message)
+    assert "v1.6" in str(w[0].message)
