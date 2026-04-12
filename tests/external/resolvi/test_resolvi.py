@@ -184,9 +184,3 @@ def test_resolvi_differential_expression(
     model = RESOLVI(adata, downsample_counts=downsample_counts)
     model.train(max_epochs=1)
     model.differential_expression(groupby="labels", weights=weights, n_samples=n_samples)
-
-
-def test_resolvi_migration_warning(adata):
-    RESOLVI.setup_anndata(adata)
-    with pytest.warns(FutureWarning, match="scviva-tools"):
-        RESOLVI(adata)

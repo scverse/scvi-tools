@@ -113,9 +113,9 @@ class RESOLVI(
         **model_kwargs,
     ):
         warnings.warn(
-            "RESOLVI is a spatial model that will be moved to the scvi-tools spatial "
-            "companion package `scviva-tools` starting in scvi-tools v1.5 and will no "
-            "longer be supported here. It will be removed from scvi-tools in v1.6.",
+            "RESOLVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
             FutureWarning,
             stacklevel=settings.warnings_stacklevel,
         )

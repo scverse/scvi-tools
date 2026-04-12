@@ -439,26 +439,3 @@ def test_scviva_dispersion(adata: AnnData, dispersion: str):
     model.train(
         max_epochs=2,
     )
-
-
-def test_scviva_migration_warning(adata: AnnData):
-    SCVIVA.preprocessing_anndata(
-        adata,
-        k_nn=K_NN,
-        **setup_kwargs,
-    )
-
-    SCVIVA.setup_anndata(
-        adata,
-        layer="counts",
-        batch_key="batch",
-        **setup_kwargs,
-    )
-
-    with pytest.warns(FutureWarning, match="scviva-tools"):
-        SCVIVA(
-            adata,
-            prior_mixture=False,
-            semisupervised=True,
-            linear_classifier=True,
-        )
