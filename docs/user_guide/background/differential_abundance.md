@@ -24,7 +24,7 @@ More importantly, this guide explains the function of the parameters of the `dif
 
 ```{eval-rst}
 .. list-table::
-   :widths: 20 50 15 15
+   :widths: 30 70
    :header-rows: 1
 
    * - Parameter
