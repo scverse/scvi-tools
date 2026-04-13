@@ -1179,18 +1179,14 @@ class MULTIVI(
         needs_reorder = current_order[: len(desired_order)] != desired_order
 
         if needs_reorder:
-            from collections import OrderedDict
+            # Build the desired insertion order
+            reordered_keys = desired_order + [k for k in current_order if k not in desired_order]
 
-            # Ordered modalities
-            ordered_mods = OrderedDict()
-            for k in desired_order:
-                ordered_mods[k] = mdata.mod[k]
-            for k in current_order:
-                if k not in ordered_mods:
-                    ordered_mods[k] = mdata.mod[k]
-
-            # Replace in-place
-            mdata.mod = ordered_mods
+            # mdata.mod is read-only in mudata>=0.3; manipulate the backing _mod dict
+            backing_dict = mdata._mod
+            snapshot = {k: backing_dict[k] for k in reordered_keys}
+            backing_dict.clear()
+            backing_dict.update(snapshot)
 
             # Recompute axes / var concatenation
             mdata.update()
