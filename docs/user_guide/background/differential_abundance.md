@@ -1,9 +1,5 @@
 # Differential Abundance
 
-:::{note}
-This page is under construction.
-:::
-
 ## Problem Statement
 
 Differential abundance analyses aim to detect cell states that are disproportionally abundant in a given group of samples.
