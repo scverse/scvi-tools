@@ -9,6 +9,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add shared memory support for DDP to deduplicate `adata.X` across ranks on the same node,
+    reducing per-rank memory, {pr}`3754`.
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
 
