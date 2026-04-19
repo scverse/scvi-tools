@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 import torch
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data.fields import CategoricalObsField, LayerField, NumericalObsField
 from scvi.external.stereoscope._module import RNADeconv, SpatialDeconv
@@ -57,6 +58,13 @@ class RNAStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         sc_adata: AnnData,
         **model_kwargs,
     ):
+        warnings.warn(
+            "RNAStereoscope is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__(sc_adata)
         self.n_genes = self.summary_stats.n_vars
         self.n_labels = self.summary_stats.n_labels
@@ -208,6 +216,13 @@ class SpatialStereoscope(UnsupervisedTrainingMixin, BaseModelClass):
         prior_weight: Literal["n_obs", "minibatch"] = "n_obs",
         **model_kwargs,
     ):
+        warnings.warn(
+            "SpatialStereoscope is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__(st_adata)
         self.module = SpatialDeconv(
             n_spots=st_adata.n_obs,

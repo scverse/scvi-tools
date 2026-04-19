@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ import pandas as pd
 import pyro
 from pyro.infer import Trace_ELBO
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
@@ -111,6 +112,13 @@ class RESOLVI(
         downsample_counts=True,
         **model_kwargs,
     ):
+        warnings.warn(
+            "RESOLVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         pyro.clear_param_store()
 
         super().__init__(adata)
