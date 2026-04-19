@@ -77,6 +77,8 @@ In this case we recommend installing PyTorch and JAX _before_ installing scvi-to
 Please follow the respective installation instructions for [PyTorch](https://pytorch.org/get-started/locally/) and
 [JAX](https://jax.readthedocs.io/en/latest/installation.html) compatible with your system and device type.
 
+Note: starting v1.5, Jax is no longer supported in scvi-tools.
+
 ## Optional dependencies
 
 scvi-tools is installed in its lightest form by default.
@@ -89,7 +91,6 @@ It has many optional dependencies which expand its capabilities:
 - _parallel_ - for parallelization engine
 - _interpretability_ - for supervised models interpretability
 - _dataloaders_ - for custom dataloaders use
-- _jax_ - for Jax support
 - _mlflow_ - for MLflow support
 - _tests_ - in order to be able to perform tests
 - _editing_ - for code editing
@@ -100,9 +101,6 @@ It has many optional dependencies which expand its capabilities:
 
 The easiest way to install this is with `pip`.
 To install capability X run: _pip install scvi-tools[X]_
-
-You can install several capabilities together, e.g:
-To install scvi-tools with JAX support for GPU on Ubuntu: _pip install scvi-tools[cuda,jax]_
 
 To install all tutorial dependencies:
 

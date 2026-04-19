@@ -16,7 +16,6 @@ __version__ = version(package_name)
 
 settings.verbosity = logging.INFO
 
-# Jax sets the root logger, this prevents double output.
 scvi_logger = logging.getLogger("scvi")
 scvi_logger.propagate = False
 

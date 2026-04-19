@@ -37,7 +37,7 @@ def adata():
 
 @pytest.fixture(scope="session")
 def model(adata: AnnData):
-    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", backend="torch")
+    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch")
     model = MRVI(adata)
     model.train(max_epochs=1, train_size=0.5)
 
@@ -46,9 +46,7 @@ def model(adata: AnnData):
 
 @pytest.fixture(scope="session")
 def model2(adata: AnnData):
-    MRVI.setup_anndata(
-        adata, sample_key="sample_str", batch_key="batch", backend="torch", labels_key="labels"
-    )
+    MRVI.setup_anndata(adata, sample_key="sample_str", batch_key="batch", labels_key="labels")
     model = MRVI(adata)
     model.train(max_epochs=1, train_size=0.5)
 
@@ -288,7 +286,6 @@ def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], sa
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        backend="torch",
     )
     model = MRVI(adata, n_latent=10, scale_observations=True, **model_kwargs)
     model.train(max_epochs=1, train_size=0.5)
@@ -315,7 +312,6 @@ def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
         adata,
         sample_key="sample_str",
         batch_key="batch",
-        backend="torch",
     )
     model = MRVI(adata, n_latent=10, n_latent_u=5)
     model.train(max_epochs=1, train_size=0.5)
@@ -350,7 +346,6 @@ def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: st
         adata_stratifications,
         sample_key="sample_str",
         batch_key="batch",
-        backend="torch",
     )
     model = MRVI(adata_stratifications, n_latent=10)
     model.train(max_epochs=1, train_size=0.5)

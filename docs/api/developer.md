@@ -100,7 +100,6 @@ Parameterizable probability distributions.
    distributions.NegativeBinomial
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
-   distributions.JaxNegativeBinomialMeanDisp
    distributions.BetaBinomial
 
 ```
@@ -158,8 +157,6 @@ Existing module classes with respective generative and inference procedures.
    module.VAE
    module.VAEC
    module.AmortizedLDAPyroModule
-   module.JaxVAE
-
 ```
 
 ## External module
@@ -182,12 +179,10 @@ Module classes in the external API with respective generative and inference proc
    external.contrastivevi.ContrastiveDataSplitter
    external.stereoscope.RNADeconv
    external.stereoscope.SpatialDeconv
-   external.tangram.TangramMapper
    external.scbasset.ScBassetModule
    external.contrastivevi.ContrastiveVAE
    external.velovi.VELOVAE
    external.mrvi.MRVAE
-   external.mrvi_jax.JaxMRVAE
    external.mrvi_torch.TorchMRVAE
    external.methylvi.METHYLVAE
    external.methylvi.METHYLANVAE
@@ -218,11 +213,9 @@ These classes should be used to construct module classes that define generative 
    module.base.BaseMinifiedModeModuleClass
    module.base.SupervisedModuleClass
    module.base.PyroBaseModuleClass
-   module.base.JaxBaseModuleClass
    module.base.EmbeddingModuleMixin
    module.base.LossOutput
    module.base.auto_move_data
-
 ```
 
 ## Neural networks
@@ -272,7 +265,6 @@ TrainingPlans define train/test/val optimization steps for modules.
    train.SemiSupervisedAdversarialTrainingPlan
    train.LowLevelPyroTrainingPlan
    train.PyroTrainingPlan
-   train.JaxTrainingPlan
    train.Trainer
    train.TrainingPlan
    train.TrainRunner

@@ -21,14 +21,14 @@ if TYPE_CHECKING:
     from scvi._types import AnnOrMuData
 
 
-Backend = Literal["torch", "jax", None]
+Backend = Literal["torch", None]
 
 
 class MRVI(BaseMinifiedModeModelClass):
     """
     Multi-resolution Variational Inference (MrVI).
 
-    This is a convenience wrapper that instantiates the Torch or JAX
+    This is a convenience wrapper that instantiates the Torch
     implementation based on `backend` and returns that instance.
 
     Parameters
@@ -36,7 +36,7 @@ class MRVI(BaseMinifiedModeModelClass):
     adata
         AnnData object that has been registered via the appropriate `setup_anndata`.
     backend
-        Which backend to use: "torch" or "jax".
+        Which backend to use: "torch"
     registry
         (Torch-only) Registry dict for loading from saved state.
     **model_kwargs
@@ -45,7 +45,7 @@ class MRVI(BaseMinifiedModeModelClass):
     Notes
     -----
     - When setup anndata with `backend="torch"`, this returns an instance of `TorchMRVI`.
-    - When setup anndata with `backend="jax"`, this returns an instance of `JaxMRVI`.
+    - The JAX version is deprecated starting v1.5.
     """
 
     def __new__(
@@ -58,7 +58,7 @@ class MRVI(BaseMinifiedModeModelClass):
     ):
         if backend is not None:
             warnings.warn(
-                "backend parameter is ignored from version 1.4.1",
+                "backend parameter is ignored from version 1.4.3",
                 UserWarning,
                 stacklevel=settings.warnings_stacklevel,
             )
@@ -68,15 +68,11 @@ class MRVI(BaseMinifiedModeModelClass):
             model = TorchMRVI(adata=adata, registry=registry, **model_kwargs)
             model_name = "TorchMRVI"
         except (ValueError, KeyError):
-            model_name = "JaxMRVI"
+            model_name = None
         if model_name == "TorchMRVI":
             return model
-        if model_name == "JaxMRVI":
-            from scvi.external.mrvi_jax import JaxMRVI
-
-            return JaxMRVI(adata=adata, **model_kwargs)
         else:
-            raise ValueError("Unknown backend. Use 'torch' or 'jax' MRVI.")
+            raise ValueError("Unknown backend. Use 'torch' MRVI.")
 
     @classmethod
     @setup_anndata_dsp.dedent
@@ -100,7 +96,7 @@ class MRVI(BaseMinifiedModeModelClass):
         %(param_batch_key)s
         %(param_labels_key)s
         backend
-            Which backend to use: "torch" or "jax".
+            Which backend to use: "torch".
         **kwargs
             Additional keyword arguments passed into
             :meth:`~scvi.data.AnnDataManager.register_fields`.
@@ -120,24 +116,8 @@ class MRVI(BaseMinifiedModeModelClass):
                 labels_key=labels_key,
                 **kwargs,
             )
-        elif backend == "jax":
-            from scvi.external.mrvi_jax import JaxMRVI
-
-            warnings.warn(
-                "MRVI model is being setup with JAX backend",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-            JaxMRVI.setup_anndata(
-                adata=adata,
-                layer=layer,
-                sample_key=sample_key,
-                batch_key=batch_key,
-                labels_key=labels_key,
-                **kwargs,
-            )
         else:
-            raise ValueError(f"Unknown backend '{backend}'. Use 'torch' or 'jax'.")
+            raise ValueError(f"Unknown backend '{backend}'. Use 'torch'")
 
     @classmethod
     @devices_dsp.dedent
@@ -202,43 +182,21 @@ class MRVI(BaseMinifiedModeModelClass):
                 backup_url=backup_url,
                 datamodule=datamodule,
             )
-        elif model_name == "JaxMRVI" or model_name == "MRVI":
-            from scvi.external.mrvi_jax import JaxMRVI
-
-            warnings.warn(
-                "MRVI model is being loaded with JAX backend",
-                UserWarning,
-                stacklevel=settings.warnings_stacklevel,
-            )
-
-            return JaxMRVI.load(
-                dir_path,
-                adata=adata,
-                accelerator=accelerator,
-                device=device,
-                prefix=prefix,
-                backup_url=backup_url,
-                datamodule=datamodule,
-                allowed_classes_names_list=[
-                    "MRVI"
-                ],  # allowing old JAX MRVI models to be loaded TODO: need to change in v1.5
-            )
         else:
-            raise ValueError("Unknown backend . Use 'torch' or 'jax' MRVI.")
+            raise ValueError("Unknown backend . Use 'torch' MRVI.")
 
     def differential_expression(self, *args, **kwargs):
         """Perform differential expression analysis.
 
-        Delegates to the underlying :class:`~scvi.external.TorchMRVI` or
-        :class:`~scvi.external.JaxMRVI` instance returned by the constructor.
+        Delegates to the underlying :class:`~scvi.external.TorchMRVI`
+        instance returned by the constructor.
 
         See Also
         --------
         :meth:`~scvi.external.TorchMRVI.differential_expression`
         """
         raise NotImplementedError(
-            "Call differential_expression on the TorchMRVI or JaxMRVI instance "
-            "returned by MRVI(...)."
+            "Call differential_expression on the TorchMRVI instance returned by MRVI(...)."
         )
 
 

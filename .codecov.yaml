@@ -21,10 +21,6 @@ flags:
     paths:
       - src/scvi/
     carryforward: false
-  nonjax:
-    paths:
-      - src/scvi/
-    carryforward: true
   cuda:
     paths:
       - src/scvi/

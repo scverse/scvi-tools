@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -42,9 +41,6 @@ class ScviConfig:
 
     >>> scvi.settings.num_threads = 2
 
-    To prevent Jax from preallocating GPU memory on start (default)
-
-    >>> scvi.settings.jax_preallocate_gpu_memory = False
     """
 
     def __init__(
@@ -56,7 +52,6 @@ class ScviConfig:
         logging_dir: str = "./scvi_log/",
         dl_num_workers: int = 0,
         dl_persistent_workers: bool = False,
-        jax_preallocate_gpu_memory: bool = False,
         warnings_stacklevel: int = 2,
         mlflow_set_tracking_uri: str = "",
         mlflow_set_experiment: str = "mlflow_experiment",
@@ -71,7 +66,6 @@ class ScviConfig:
         self.dl_num_workers = dl_num_workers
         self.dl_persistent_workers = dl_persistent_workers
         self._num_threads = None
-        self.jax_preallocate_gpu_memory = jax_preallocate_gpu_memory
         self.verbosity = verbosity
         self.mlflow_set_tracking_uri = mlflow_set_tracking_uri
         self.mlflow_set_experiment = mlflow_set_experiment
@@ -157,12 +151,6 @@ class ScviConfig:
         else:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
-            # Ensure deterministic CUDA operations for Jax
-            # (see https://github.com/google/jax/issues/13672)
-            if "XLA_FLAGS" not in os.environ:
-                os.environ["XLA_FLAGS"] = "--xla_gpu_deterministic_ops=true"
-            else:
-                os.environ["XLA_FLAGS"] += " --xla_gpu_deterministic_ops=true"
             seed_everything(seed)
             self._seed = seed
 
@@ -218,30 +206,6 @@ class ScviConfig:
         formatter = logging.Formatter("%(message)s")
         ch.setFormatter(formatter)
         scvi_logger.addHandler(ch)
-
-    @property
-    def jax_preallocate_gpu_memory(self):
-        """Jax GPU memory allocation settings.
-
-        If False, Jax will only preallocate GPU memory it needs.
-        If float in (0, 1), Jax will preallocate GPU memory to that
-        fraction of the GPU memory.
-        """
-        return self._jax_gpu
-
-    @jax_preallocate_gpu_memory.setter
-    def jax_preallocate_gpu_memory(self, value: float | bool):
-        # see https://jax.readthedocs.io/en/latest/gpu_memory_allocation.html#gpu-memory-allocation
-        if value is False:
-            os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
-        elif isinstance(value, float):
-            if value >= 1 or value <= 0:
-                raise ValueError("Need to use a value between 0 and 1")
-            # format is ".XX"
-            os.environ["XLA_PYTHON_CLIENT_MEM_FRACTION"] = str(value)[1:4]
-        else:
-            raise ValueError("value not understood, need bool or float in (0, 1)")
-        self._jax_gpu = value
 
     @property
     def mlflow_set_tracking_uri(self) -> str:

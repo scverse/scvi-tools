@@ -76,7 +76,7 @@ def get_max_epochs_heuristic(
 def parse_device_args(
     accelerator: str = "auto",
     devices: int | list[int] | str = "auto",
-    return_device: Literal["torch", "jax"] | None = None,
+    return_device: Literal["torch"] | None = None,
     validate_single_device: bool = False,
 ):
     """Parses device-related arguments.
@@ -88,7 +88,7 @@ def parse_device_args(
     %(param_return_device)s
     %(param_validate_single_device)s
     """
-    valid = [None, "torch", "jax"]
+    valid = [None, "torch"]
     if return_device not in valid:
         return ValueError(f"`return_device` must be one of {valid}")
 
@@ -124,7 +124,7 @@ def parse_device_args(
         )
     elif _accelerator == "mps" and accelerator != "auto":
         warnings.warn(
-            "`accelerator` has been set to `mps`. Please note that not all PyTorch/Jax "
+            "`accelerator` has been set to `mps`. Please note that not all PyTorch "
             "operations are supported with this backend. as a result, some models might be slower "
             "and less accurate than usual. Please verify your analysis!"
             "Refer to https://github.com/pytorch/pytorch/issues/77764 for more details.",
@@ -168,18 +168,8 @@ def parse_device_args(
             else:
                 device = torch.device(f"{_accelerator}:{device_idx}")
         return _accelerator, _devices, device
-    elif return_device == "jax" and is_package_installed("jax"):
-        import jax
-
-        device = jax.devices("cpu")[0]
-        if _accelerator != "cpu":
-            if _accelerator == "mps":
-                device = jax.devices("METAL")[device_idx]  # MPS-JAX
-            else:
-                device = jax.devices(_accelerator)[device_idx]
-        return _accelerator, _devices, device
     else:
-        raise ImportError("Please install jax to use this functionality.")
+        raise ImportError("Please install gpu support to use this functionality.")
 
 
 def scrna_raw_counts_properties(

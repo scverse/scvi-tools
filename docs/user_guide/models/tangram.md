@@ -1,5 +1,9 @@
 # Tangram
 
+:::{note}
+This model is deprecated starting v1.5.
+:::
+
 **Tangram** {cite:p}`Biancalani21` (Python class {class}`~scvi.external.Tangram`) maps single-cell RNA-seq data to spatial data, permitting deconvolution of cell types in spatial data like Visium.
 
 This is a reimplementation of Tangram, which can originally be found [here](https://github.com/broadinstitute/Tangram).

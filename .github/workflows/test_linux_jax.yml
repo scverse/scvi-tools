@@ -58,6 +58,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip wheel uv
           python -m uv pip install --system "scvi-tools[tests] @ ."
+          python -m uv pip install --system "jax"
+          python -m uv pip install --system "flax"
+          python -m uv pip install --system "numpyro"
+          python -m uv pip install --system "optax"
 
       - name: Run pytest
         env:

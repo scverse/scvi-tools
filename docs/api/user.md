@@ -33,7 +33,6 @@ import scvi
    model.TOTALVI
    model.MULTIVI
    model.AmortizedLDA
-   model.JaxSCVI
    model.mlxSCVI
 ```
 
@@ -55,14 +54,12 @@ import scvi
    external.SpatialStereoscope
    external.SOLO
    external.SCAR
-   external.Tangram
    external.SCBASSET
    external.ContrastiveVI
    external.POISSONVI
    external.VELOVI
    external.MRVI
    external.TorchMRVI
-   external.JaxMRVI
    external.METHYLVI
    external.METHYLANVI
    external.Decipher
@@ -145,7 +142,6 @@ Here we maintain a few package specific utilities for feature selection, etc.
    train.PyroTrainingPlanConfig
    train.LowLevelPyroTrainingPlanConfig
    train.ClassifierTrainingPlanConfig
-   train.JaxTrainingPlanConfig
    train.TrainerConfig
 ```
 
