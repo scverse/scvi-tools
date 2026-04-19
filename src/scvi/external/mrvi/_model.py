@@ -66,13 +66,9 @@ class MRVI(BaseMinifiedModeModelClass):
             raise ValueError("MRVI requires adata or registry to infer backend.")
         try:
             model = TorchMRVI(adata=adata, registry=registry, **model_kwargs)
-            model_name = "TorchMRVI"
-        except (ValueError, KeyError):
-            model_name = None
-        if model_name == "TorchMRVI":
-            return model
-        else:
-            raise ValueError("Unknown backend. Use 'torch' MRVI.")
+        except Exception:
+            raise
+        return model
 
     @classmethod
     @setup_anndata_dsp.dedent

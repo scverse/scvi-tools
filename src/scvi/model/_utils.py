@@ -90,7 +90,7 @@ def parse_device_args(
     """
     valid = [None, "torch"]
     if return_device not in valid:
-        return ValueError(f"`return_device` must be one of {valid}")
+        raise ValueError(f"`return_device` must be one of {valid}")
 
     _validate_single_device = validate_single_device and devices != "auto"
     cond1 = isinstance(devices, list) and len(devices) > 1
