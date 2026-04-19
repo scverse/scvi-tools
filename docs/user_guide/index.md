@@ -143,6 +143,9 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
    * - :doc:`/user_guide/models/multivi`
      - Integration of paired/unpaired multiome data, missing modality imputation, normalization of other cell- and sample-level confounding factors
      - :cite:p:`AshuachGabitto21`
+   * - :doc:`/user_guide/models/diagvi`
+     - Diagonal integration of unpaired multiome data, dimensionality reduction, cross-modality imputation, cell label transfer
+     - []
 
 ```
 

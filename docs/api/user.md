@@ -70,6 +70,7 @@ import scvi
    external.RESOLVI
    external.SysVI
    external.SCVIVA
+   external.DIAGVI
 ```
 
 ## Data loading
