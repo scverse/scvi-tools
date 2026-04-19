@@ -97,7 +97,7 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,file_sharing,regseq,parallel,interpretability]",
+    "scvi-tools[hub,file_sharing,regseq,parallel,interpretability]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
@@ -109,7 +109,7 @@ tutorials = [
     "matplotlib",
     "plotnine",
     "scrublet",
-    "scvi-tools[optional]",
+    "scvi-tools[optional, autotune,mlflow]",
     "squidpy>=1.6.0",
     "umap-learn>=0.5.0",
 ]
