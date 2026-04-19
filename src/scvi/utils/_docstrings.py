@@ -232,8 +232,8 @@ device
 param_return_device = """\
 return_device
     Returns the first or only device as determined by `accelerator` and `devices`.
-    Depending on the value, will either return a PyTorch device (`"torch"`), a Jax
-    device (`"jax"`), or neither (`None`)."""
+    Depending on the value, will either return a PyTorch device (`"torch"`),
+    or neither (`None`)."""
 
 param_validate_single_device = """\
 validate_single_device

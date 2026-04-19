@@ -59,9 +59,9 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]","mlx[cuda]"]
+cuda = ["torchvision", "torchaudio","mlx[cuda]"]
 tpu = ["torch_xla[tpu]"]
-metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
+metal = ["torchvision", "torchaudio","mlx-metal"]
 
 docs = [
     "docutils>=0.8,!=0.18.*,!=0.19.*", # see https://github.com/scverse/cookiecutter-scverse/pull/205
@@ -77,10 +77,10 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]","mlx"]
+docsbuild = ["scvi-tools[docs,autotune,hub]","mlx"]
 
-# scvi.autotune #TODO remove ray[tune] constraint once solved
-autotune = ["hyperopt>=0.2", "ray[tune]; python_version < '3.14'", "scib-metrics", "muon"]
+# scvi.autotune
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
@@ -91,15 +91,13 @@ file_sharing = ["pooch","gdown","readfcs","fcswrite"]
 parallel = ["dask[array]", "zarr"]
 # for models interpretability
 interpretability = ["captum", "shap", "decoupler"]
-# for jax support
-jax = ["jax", "jaxlib", "optax", "numpyro", "flax"]
 # for custom dataloders
 dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_ml", "torchdata"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability]",
+    "scvi-tools[hub,file_sharing,regseq,parallel,interpretability]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
@@ -111,7 +109,7 @@ tutorials = [
     "matplotlib",
     "plotnine",
     "scrublet",
-    "scvi-tools[optional]",
+    "scvi-tools[optional, autotune,mlflow]",
     "squidpy>=1.6.0",
     "umap-learn>=0.5.0",
 ]
@@ -138,7 +136,6 @@ markers = [
     "autotune: mark tests that are used to check ray autotune capabilities",
     "custom dataloaders: mark tests that are used to check different custom data loaders",
     "dataloader: mark tests that are used to check data loaders",
-    "jax: mark test as jax related",
     "mlflow: mark test for mlflow",
 ]
 
@@ -236,13 +233,6 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
-
-[tool.uv]
-# uvloop does not support Windows; override the transitive dependency
-# pulled in via flax -> orbax-checkpoint -> uvloop
-override-dependencies = [
-    "uvloop ; sys_platform != 'win32'",
-]
 
 [tool.jupytext]
 formats = "ipynb,md"

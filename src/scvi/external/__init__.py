@@ -44,35 +44,3 @@ __all__ = [
     "SCVIVA",
     "CYTOVI",
 ]
-
-
-def __getattr__(name: str):
-    """
-    Lazily provide object. If optional deps are missing, raise a helpful ImportError
-
-    only when object is actually requested.
-    """
-    if name == "JaxMRVI":
-        warnings.warn(
-            "In order to use the Jax version of MRVI make sure to install scvi-tools[jax]",
-            DeprecationWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from .mrvi_jax import JaxMRVI as _JaxMRVI
-
-        return _JaxMRVI
-
-    if name == "Tangram":
-        warnings.warn(
-            "In order to use the TANGRAM make sure to install scvi-tools[jax]",
-            DeprecationWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
-
-        error_on_missing_dependencies("flax", "jax", "jaxlib", "optax", "numpyro")
-        from .tangram import Tangram as _Tangram
-
-        return _Tangram
-    raise AttributeError(f"module {__name__!r} has no attribute {name}")

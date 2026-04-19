@@ -110,7 +110,8 @@ class TorchMRVI(
     Notes
     -----
     This implementation of MRVI is in PyTorch.
-    This will become the default version in v1.5 for MRVI.
+    This will become the default version in v1.4.3 for MRVI.
+    The JAX version is deprecated starting v1.5.
 
     See further usage examples in the following tutorial:
 
@@ -118,7 +119,7 @@ class TorchMRVI(
 
     See the user guide for this model:
 
-    1. :doc:`/user_guide/models/mrvi_jax`
+    1. :doc:`/user_guide/models/mrvi`
 
     See Also
     --------
@@ -131,8 +132,9 @@ class TorchMRVI(
         super().__init__(adata, registry)
 
         warnings.warn(
-            "You are using the Torch Version of MrVI, starting v1.5, This will become the "
-            "default version of MrVI instead of the Jax backend version.",
+            "You are using the Torch Version of MrVI, starting v1.4.3, "
+            "This will become the default version of MrVI instead of the Jax backend version, "
+            "which will be removed in v1.5",
             DeprecationWarning,
             stacklevel=settings.warnings_stacklevel,
         )
@@ -1700,7 +1702,7 @@ class TorchMRVI(
         --------
         >>> import scanpy as sc
         >>> from scvi.external import MRVI
-        >>> MRVI.setup_anndata(adata, sample_key="sample_id", backend="torch")
+        >>> MRVI.setup_anndata(adata, sample_key="sample_id")
         >>> model = MRVI(adata)
         >>> model.train()
         >>> # Update sample info with new covariates

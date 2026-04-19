@@ -324,35 +324,6 @@ class ClassifierTrainingPlanConfig:
 
 
 @dataclass
-class JaxTrainingPlanConfig:
-    """Config for :class:`~scvi.train.JaxTrainingPlan`."""
-
-    optimizer: Literal["Adam", "AdamW", "Custom"] = "Adam"
-    optimizer_creator: Callable[[], Any] | None = None
-    lr: float = 1e-3
-    weight_decay: float = 1e-6
-    eps: float = 0.01
-    max_norm: float | None = None
-    n_steps_kl_warmup: int | None = None
-    n_epochs_kl_warmup: int | None = 400
-    loss_kwargs: dict[str, Any] = field(default_factory=dict)
-
-    def to_kwargs(self) -> dict[str, Any]:
-        kwargs = {
-            "optimizer": self.optimizer,
-            "optimizer_creator": self.optimizer_creator,
-            "lr": self.lr,
-            "weight_decay": self.weight_decay,
-            "eps": self.eps,
-            "max_norm": self.max_norm,
-            "n_steps_kl_warmup": self.n_steps_kl_warmup,
-            "n_epochs_kl_warmup": self.n_epochs_kl_warmup,
-        }
-        kwargs.update(self.loss_kwargs)
-        return kwargs
-
-
-@dataclass
 class TrainerConfig:
     """Config for :class:`~scvi.train.Trainer`."""
 
