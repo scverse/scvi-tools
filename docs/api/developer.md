@@ -106,7 +106,6 @@ Parameterizable probability distributions.
    distributions.LogNormal
    distributions.Log1pNormal
    distributions.ZeroInflatedLogNormal
-   distributions.Gamma
    distributions.ZeroInflatedGamma
 
 ```

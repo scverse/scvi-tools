@@ -18,82 +18,7 @@ from scvi import settings
 from ._constraints import optional_constraint
 
 
-class Gamma(GammaTorch):
-    r"""Gamma distribution.
-
-    Extends PyTorch's Gamma distribution to include optional scale parameter
-    for storing normalized expression levels.
-
-    In the (`concentration`, `rate`) parameterization (shape-rate), samples are drawn
-    directly from the Gamma distribution:
-
-    .. math::
-
-        x \sim \textrm{Gamma}(\underbrace{\alpha}_{\text{concentration}},
-        \underbrace{\beta}_{\text{rate}})
-
-    The probability density function is:
-
-    .. math::
-
-        f(x; \alpha, \beta) = \frac{\beta^\alpha}{\Gamma(\alpha)} x^{\alpha-1} e^{-\beta x}
-
-    Parameters
-    ----------
-    concentration
-        Shape parameter (α > 0) of the Gamma distribution.
-    rate
-        Rate parameter (β > 0) of the Gamma distribution.
-        Note: rate = 1/scale in PyTorch's parameterization.
-    scale
-        Normalized mean expression of the distribution.
-        This optional parameter is not used in any computations but allows storing
-        normalization expression levels.
-    validate_args
-        Raise ValueError if arguments do not match constraints.
-    """
-
-    arg_constraints = {
-        "concentration": constraints.greater_than(0),
-        "rate": constraints.greater_than(0),
-    }
-    support = constraints.nonnegative
-
-    def __init__(
-        self,
-        concentration: torch.Tensor,
-        rate: torch.Tensor,
-        scale: torch.Tensor | None = None,
-        validate_args: bool = False,
-    ):
-        super().__init__(concentration=concentration, rate=rate, validate_args=validate_args)
-        self.scale = scale
-
-    def get_normalized(self, key) -> torch.Tensor:
-        """Get normalized values."""
-        if key == "concentration":
-            return self.concentration
-        elif key == "rate":
-            return self.rate
-        elif key == "scale":
-            return self.scale
-        else:
-            raise ValueError(f"normalized key {key} not recognized")
-
-    def __repr__(self) -> str:
-        param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
-        args_string = ", ".join(
-            [
-                f"{p}: "
-                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
-                for p in param_names
-                if self.__dict__[p] is not None
-            ]
-        )
-        return self.__class__.__name__ + "(" + args_string + ")"
-
-
-class ZeroInflatedGamma(Gamma):
+class ZeroInflatedGamma(GammaTorch):
     r"""Zero-inflated Gamma distribution.
 
     A mixture distribution of a point mass at zero and a Gamma distribution.
@@ -152,9 +77,9 @@ class ZeroInflatedGamma(Gamma):
         super().__init__(
             concentration=concentration,
             rate=rate,
-            scale=scale,
             validate_args=validate_args,
         )
+        self.scale = scale
         self.zi_logits, self.concentration, self.rate = broadcast_all(
             zi_logits, self.concentration, self.rate
         )
@@ -183,6 +108,17 @@ class ZeroInflatedGamma(Gamma):
     def zi_probs(self) -> torch.Tensor:
         """ZI probabilities."""
         return logits_to_probs(self.zi_logits, is_binary=True)
+
+    def get_normalized(self, key) -> torch.Tensor:
+        """Get normalized values."""
+        if key == "concentration":
+            return self.concentration
+        elif key == "rate":
+            return self.rate
+        elif key == "scale":
+            return self.scale
+        else:
+            raise ValueError(f"normalized key {key} not recognized")
 
     @torch.inference_mode()
     def sample(
@@ -242,3 +178,15 @@ class ZeroInflatedGamma(Gamma):
         res = mul_case_zero + mul_case_non_zero
 
         return res
+
+    def __repr__(self) -> str:
+        param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
+        args_string = ", ".join(
+            [
+                f"{p}: "
+                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
+                for p in param_names
+                if self.__dict__[p] is not None
+            ]
+        )
+        return self.__class__.__name__ + "(" + args_string + ")"
