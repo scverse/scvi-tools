@@ -401,12 +401,12 @@ class VAEMixin:
             indices = np.arange(adata.n_obs)
 
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        qu_loc, qu_scale = self.get_latent_representation(
+        qu_loc, qu_var = self.get_latent_representation(
             batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
         )
 
         qu_loc = torch.tensor(qu_loc, device=self.device)  # (n_cells, n_latent_u)
-        qu_scale = torch.tensor(qu_scale, device=self.device)
+        qu_scale = torch.tensor(torch.sqrt(qu_var), device=self.device)
 
         if dof is None:
             components = dist.Normal(qu_loc, qu_scale)
