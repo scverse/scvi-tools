@@ -4,8 +4,7 @@ import warnings
 
 import torch
 import torch.nn.functional as F
-from torch.distributions import Gamma as GammaTorch
-from torch.distributions import constraints
+from torch.distributions import Gamma, constraints
 from torch.distributions.utils import (
     broadcast_all,
     lazy_property,
@@ -18,7 +17,7 @@ from scvi import settings
 from ._constraints import optional_constraint
 
 
-class ZeroInflatedGamma(GammaTorch):
+class ZeroInflatedGamma(Gamma):
     r"""Zero-inflated Gamma distribution.
 
     A mixture distribution of a point mass at zero and a Gamma distribution.
