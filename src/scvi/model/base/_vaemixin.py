@@ -407,7 +407,7 @@ class VAEMixin:
 
         qu_loc = torch.tensor(qu_loc, device=self.device)  # (n_cells, n_latent_u)
         qu_var = torch.tensor(qu_var, device=self.device)
-        qu_scale = torch.tensor(torch.sqrt(qu_var))
+        qu_scale = torch.sqrt(qu_var)
 
         if dof is None:
             components = dist.Normal(qu_loc, qu_scale)
