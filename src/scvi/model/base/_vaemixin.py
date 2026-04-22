@@ -457,7 +457,7 @@ class VAEMixin:
         from tqdm import tqdm
 
         adata = self._validate_anndata(adata)
-        if not adata_sub is None:
+        if adata_sub is not None:
             adata_sub = adata
         else:
             adata_sub = self._validate_anndata(adata_sub)
@@ -488,6 +488,8 @@ class VAEMixin:
             log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
         log_probs = np.array(log_probs).T
-        log_probs_df = pd.DataFrame(data=log_probs, index=adata_sub.obs_names, columns=unique_samples)
+        log_probs_df = pd.DataFrame(
+            data=log_probs, index=adata_sub.obs_names, columns=unique_samples
+        )
 
         adata_sub.obsm["da_log_probs"] = log_probs_df
