@@ -440,8 +440,8 @@ class VAEMixin:
             Defaults to the AnnData object used to initialize the model.
         adata_sub
             The data object to compute the differential abundance for.
-            For very large datasets, this should be used to pass in a subset of the full data object.
-            The aggregated posteriors are still computed from the full data object.
+            For very large datasets, this should be used to pass in a subset of the full data
+            object. The aggregated posteriors are still computed from the full data object.
             The resulting log_probs matrix is stored in adata_sub.obsm
         sample_key
             Key for the sample covariate.
@@ -489,5 +489,4 @@ class VAEMixin:
         log_probs_df = pd.DataFrame(
             data=log_probs, index=adata_sub.obs_names, columns=unique_samples
         )
-
         adata_sub.obsm["da_log_probs"] = log_probs_df
