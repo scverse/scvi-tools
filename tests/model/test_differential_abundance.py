@@ -151,7 +151,7 @@ def test_differential_abundance(model: VAEMixin, adata: AnnData, mdata: MuData, 
 
         subset_indices = np.random.choice(adata.n_obs, adata.n_obs // 2, replace=False)
         adata_subset = adata[subset_indices, :].copy()
-        model.differential_abundance(adata_subset, **da_kwargs)
+        model.differential_abundance(adata, adata_subset, **da_kwargs)
         assert isinstance(adata_subset.obsm["da_log_probs"], pd.DataFrame)
 
 
