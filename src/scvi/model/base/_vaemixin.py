@@ -458,14 +458,11 @@ class VAEMixin:
         from tqdm import tqdm
 
         adata = self._validate_anndata(adata)
-        if adata_sub is not None:
+        if adata_sub is None:
             adata_sub = adata
         else:
             adata_sub = self._validate_anndata(adata_sub)
 
-        # In case user does not pass in a subset of model's anndata
-        if not adata_sub:
-            adata_sub = adata
         adata_dataloader = self._make_data_loader(adata=adata_sub, batch_size=batch_size)
         us = self.get_latent_representation(
             batch_size=batch_size, dataloader=adata_dataloader, give_mean=True
