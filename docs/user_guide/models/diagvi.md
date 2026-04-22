@@ -25,6 +25,14 @@ The limitations of DiagVI include:
 -   {doc}`/tutorials/notebooks/multimodal/DiagVI_spatial_proteomics`
 ```
 
+:::{note}
+DiagVI requires additional dependencies (`geomloss`, `torch_geometric`) that are not installed by default. To use DiagVI, install scvi-tools with the `diagvi` extra:
+
+```bash
+pip install scvi-tools[diagvi]
+```
+:::
+
 
 ## Preliminaries
 
