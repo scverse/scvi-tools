@@ -4,7 +4,7 @@ import warnings
 
 import torch
 import torch.nn.functional as F
-from torch.distributions import Distribution, Normal, constraints
+from torch.distributions import Distribution, LogNormal, Normal, constraints
 from torch.distributions.utils import (
     broadcast_all,
     lazy_property,
@@ -15,133 +15,6 @@ from torch.distributions.utils import (
 from scvi import settings
 
 from ._constraints import optional_constraint
-
-
-class LogNormal(Distribution):
-    r"""Log-Normal distribution.
-
-    Standard log-normal distribution where log(X) follows a Normal distribution.
-    Support is (0, ∞) - this distribution cannot model exact zeros.
-    Use Log1pNormal or ZeroInflatedLogNormal for data with zeros.
-
-    In the (`mu`, `sigma`) parameterization, samples from the log-normal are generated as
-    follows:
-
-    1. :math:`z \sim \textrm{Normal}(\mu, \sigma)`
-    2. :math:`x = \exp(z)`
-
-    The probability density function is:
-
-    .. math::
-
-        f(x; \mu, \sigma) = \frac{1}{x \sigma \sqrt{2\pi}}
-        \exp\left(-\frac{(\ln x - \mu)^2}{2\sigma^2}\right)
-
-    Parameters
-    ----------
-    mu
-        Mean of the normal distribution in log space.
-    sigma
-        Standard deviation of the normal distribution in log space.
-    scale
-        Normalized mean expression of the distribution.
-        This optional parameter is not used in any computations but allows storing
-        normalization expression levels.
-    validate_args
-        Raise ValueError if arguments do not match constraints.
-    """
-
-    arg_constraints = {
-        "mu": optional_constraint(constraints.real),
-        "sigma": optional_constraint(constraints.greater_than(0)),
-        "scale": optional_constraint(constraints.greater_than_eq(0)),
-    }
-    support = constraints.positive
-
-    def __init__(
-        self,
-        mu: torch.Tensor,
-        sigma: torch.Tensor,
-        scale: torch.Tensor | None = None,
-        validate_args: bool = False,
-    ):
-        self.mu, self.sigma = broadcast_all(mu, sigma)
-        self.scale = scale
-        super().__init__(validate_args=validate_args)
-
-    @property
-    def mean(self) -> torch.Tensor:
-        """Mean of the distribution."""
-        # E[X] = exp(μ + σ²/2)
-        return torch.exp(self.mu + 0.5 * self.sigma**2)
-
-    @property
-    def variance(self) -> torch.Tensor:
-        """Variance of the distribution."""
-        # Var[X] = (exp(σ²) - 1) * exp(2μ + σ²)
-        sigma_sq = self.sigma**2
-        return (torch.exp(sigma_sq) - 1) * torch.exp(2 * self.mu + sigma_sq)
-
-    @torch.inference_mode()
-    def sample(
-        self,
-        sample_shape: torch.Size | tuple | None = None,
-    ) -> torch.Tensor:
-        """Sample from the distribution."""
-        sample_shape = sample_shape or torch.Size()
-        # Sample from Normal in log space, then transform back
-        normal_dist = Normal(self.mu, self.sigma)
-        log_samples = normal_dist.sample(sample_shape)
-        # Transform: exp(log_samples)
-        return torch.exp(log_samples)
-
-    def log_prob(self, value: torch.Tensor) -> torch.Tensor:
-        """Log probability."""
-        if self._validate_args:
-            try:
-                self._validate_sample(value)
-            except ValueError:
-                warnings.warn(
-                    "The value argument must be within the support of the distribution",
-                    UserWarning,
-                    stacklevel=settings.warnings_stacklevel,
-                )
-
-        # Transform to log space: y = log(x)
-        y = torch.log(value)
-
-        # Log probability in transformed space
-        log_prob_normal = (
-            -0.5 * torch.log(2 * torch.tensor(torch.pi, device=value.device))
-            - torch.log(self.sigma)
-            - 0.5 * ((y - self.mu) / self.sigma) ** 2
-        )
-
-        # Jacobian correction: d/dx log(x) = 1/x
-        log_jacobian = -torch.log(value)
-
-        return log_prob_normal + log_jacobian
-
-    def get_normalized(self, key) -> torch.Tensor:
-        """Get normalized values."""
-        if key == "mu":
-            return self.mu
-        elif key == "scale":
-            return self.scale
-        else:
-            raise ValueError(f"normalized key {key} not recognized")
-
-    def __repr__(self) -> str:
-        param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
-        args_string = ", ".join(
-            [
-                f"{p}: "
-                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
-                for p in param_names
-                if self.__dict__[p] is not None
-            ]
-        )
-        return self.__class__.__name__ + "(" + args_string + ")"
 
 
 class Log1pNormal(Distribution):
@@ -277,7 +150,7 @@ class ZeroInflatedLogNormal(LogNormal):
     A mixture distribution of a point mass at zero and a log-normal distribution.
     This is a mixed distribution with discrete support at zero and continuous support over (0, ∞).
 
-    In the (`mu`, `sigma`, `zi_logits`) parameterization, samples are generated as follows:
+    In the (`mu`, `scale`, `zi_logits`) parameterization, samples are generated as follows:
 
     1. :math:`\pi = \textrm{sigmoid}(\texttt{zi\_logits})`
     2. :math:`b \sim \textrm{Bernoulli}(\pi)`
@@ -303,39 +176,35 @@ class ZeroInflatedLogNormal(LogNormal):
     ----------
     mu
         Mean of the normal distribution in log space.
-    sigma
+    scale
         Standard deviation of the normal distribution in log space.
     zi_logits
         Logits scale of zero inflation probability.
-    scale
+    normal_mu
         Normalized mean expression of the distribution.
     validate_args
         Raise ValueError if arguments do not match constraints.
     """
 
     arg_constraints = {
-        "mu": optional_constraint(constraints.real),
-        "sigma": optional_constraint(constraints.greater_than(0)),
+        "loc": optional_constraint(constraints.real),
+        "scale": optional_constraint(constraints.greater_than(0)),
         "zi_logits": optional_constraint(constraints.real),
-        "scale": optional_constraint(constraints.greater_than_eq(0)),
     }
     support = constraints.nonnegative
 
     def __init__(
         self,
         mu: torch.Tensor,
-        sigma: torch.Tensor,
+        scale: torch.Tensor,
         zi_logits: torch.Tensor,
-        scale: torch.Tensor | None = None,
+        normal_mu: torch.Tensor | None = None,
         validate_args: bool = False,
     ):
-        super().__init__(
-            mu=mu,
-            sigma=sigma,
-            scale=scale,
-            validate_args=validate_args,
-        )
-        self.zi_logits, self.mu, self.sigma = broadcast_all(zi_logits, self.mu, self.sigma)
+        mu, scale, zi_logits = broadcast_all(mu, scale, zi_logits)
+        super().__init__(loc=mu, scale=scale, validate_args=validate_args)
+        self.zi_logits = zi_logits
+        self.normal_mu = normal_mu
 
     @property
     def mean(self) -> torch.Tensor:
@@ -409,8 +278,8 @@ class ZeroInflatedLogNormal(LogNormal):
         # Log probability of log-normal component
         log_prob_normal = (
             -0.5 * torch.log(2 * torch.tensor(torch.pi, device=value.device))
-            - torch.log(self.sigma)
-            - 0.5 * ((y - self.mu) / self.sigma) ** 2
+            - torch.log(self.scale)
+            - 0.5 * ((y - self.loc) / self.scale) ** 2
         )
 
         # Jacobian correction: d/dx log(x) = 1/x
@@ -424,3 +293,24 @@ class ZeroInflatedLogNormal(LogNormal):
         res = mul_case_zero + mul_case_non_zero
 
         return res
+
+    def get_normalized(self, key) -> torch.Tensor:
+        """Get normalized values."""
+        if key == "mu":
+            return self.loc
+        elif key == "scale":
+            return self.normal_mu
+        else:
+            raise ValueError(f"normalized key {key} not recognized")
+
+    def __repr__(self) -> str:
+        param_names = [k for k, _ in self.arg_constraints.items() if k in self.__dict__]
+        args_string = ", ".join(
+            [
+                f"{p}: "
+                f"{self.__dict__[p] if self.__dict__[p].numel() == 1 else self.__dict__[p].size()}"
+                for p in param_names
+                if self.__dict__[p] is not None
+            ]
+        )
+        return self.__class__.__name__ + "(" + args_string + ")"

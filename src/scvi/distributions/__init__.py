@@ -2,7 +2,7 @@ from scvi.utils import error_on_missing_dependencies
 
 from ._beta_binomial import BetaBinomial
 from ._gamma import ZeroInflatedGamma
-from ._lognormal import Log1pNormal, LogNormal, ZeroInflatedLogNormal
+from ._lognormal import Log1pNormal, ZeroInflatedLogNormal
 from ._negative_binomial import (
     NegativeBinomial,
     NegativeBinomialMixture,
@@ -18,7 +18,6 @@ __all__ = [
     "Poisson",
     "BetaBinomial",
     "Normal",
-    "LogNormal",
     "Log1pNormal",
     "ZeroInflatedLogNormal",
     "ZeroInflatedGamma",

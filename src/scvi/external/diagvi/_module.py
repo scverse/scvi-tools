@@ -380,9 +380,9 @@ class DIAGVAE(BaseModuleClass):
         elif self.modality_likelihoods[mode] == "ziln":
             px = ZeroInflatedLogNormal(
                 mu=px_rate,
-                sigma=px_r,
+                scale=px_r,
                 zi_logits=px_dropout,
-                scale=px_scale,
+                normal_mu=px_scale,
             )
         elif self.modality_likelihoods[mode] == "zig":
             # Clamp concentration and rate to avoid lgamma numerical issues

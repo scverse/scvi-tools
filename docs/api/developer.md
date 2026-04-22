@@ -103,7 +103,6 @@ Parameterizable probability distributions.
    distributions.JaxNegativeBinomialMeanDisp
    distributions.BetaBinomial
    distributions.Normal
-   distributions.LogNormal
    distributions.Log1pNormal
    distributions.ZeroInflatedLogNormal
    distributions.ZeroInflatedGamma
