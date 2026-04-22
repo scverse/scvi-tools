@@ -1097,7 +1097,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
         target_modality: str | None = None,
         target_adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
-        batch_size: int = 2084,
+        batch_size: int = 2048,
         deterministic: bool = True,
     ) -> dict[str, np.ndarray]:
         """Predict cell type labels using a trained classifier.
