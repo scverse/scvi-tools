@@ -457,7 +457,10 @@ class VAEMixin:
         from tqdm import tqdm
 
         adata = self._validate_anndata(adata)
-        adata_sub = self._validate_anndata(adata_sub)
+        if not adata_sub is None:
+            adata_sub = adata
+        else:
+            adata_sub = self._validate_anndata(adata_sub)
 
         # In case user does not pass in a subset of model's anndata
         if not adata_sub:
