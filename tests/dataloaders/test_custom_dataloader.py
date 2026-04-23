@@ -8,7 +8,7 @@ import pytest
 
 import scvi
 from scvi.data import synthetic_iid
-from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule, ZarrSparseDataModule
+from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
 from scvi.external import MRVI
 from scvi.utils import dependencies
 
@@ -1207,104 +1207,53 @@ def test_census_custom_dataloader_scvi_with_covariates(save_path: str):
 
 @pytest.mark.dataloader
 def test_annbatch(save_path: str):
-    import anndata as ad
     import zarr
-    from annbatch import DatasetCollection, Loader
     from scipy.sparse import csr_matrix
 
-    # Using zarrs is necessary for local filesystem performance.
     zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
 
-    # create and save adata on disk
+    path1 = os.path.join(save_path, "file1.h5ad")
+    path2 = os.path.join(save_path, "file2.h5ad")
+    zarr_path = os.path.join(save_path, "annbatch_collection")
+
     adata1 = scvi.data.synthetic_iid(batch_size=20000)
     adata1.X = csr_matrix(adata1.X)
-
     adata2 = scvi.data.synthetic_iid(batch_size=20000)
     adata2.X = csr_matrix(adata2.X)
+    adata1.write(path1)
+    adata2.write(path2)
 
-    # create an AnnCollection on a subset of the data
-    adata1.write(os.path.join(save_path, "file1.h5ad"))
-    adata2.write(os.path.join(save_path, "file2.h5ad"))
-
-    def read_lazy_x_and_obs_only(path) -> ad.AnnData:
-        """Custom load function to only load raw counts from CxG data."""
-        # IMPORTANT: Large data should always be loaded lazily to reduce the memory footprint
-        adata_ = ad.experimental.read_lazy(path)
-        if adata_.raw is not None:
-            x = adata_.raw.X
-            var = adata_.raw.var
-        else:
-            x = adata_.X
-            var = adata_.var
-
-        return ad.AnnData(
-            X=x,
-            obs=adata_.obs.to_memory(),
-            var=var.to_memory(),
-        )
-
-    collection = DatasetCollection(zarr.open("annbatch_collection", mode="w"))
-
-    collection.add_adatas(
-        # List all the h5ad files you want to include in the collection
-        adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
-        # Path to store the output collection
-        shuffle=True,  # Whether to pre-shuffle the cells of the collection
+    dm = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        labels_key="labels",
+        batch_size=4096,
         dataset_size=2_097_152,
-        # Number of cells per dataset shard, this number is much higher than available
-        # in these datasets but is generally a good target
-        var_subset=None,  # Optionally subset the collection to a specific gene space
-        load_adata=read_lazy_x_and_obs_only,
     )
 
-    def _load_adata(g: zarr.Group) -> ad.AnnData:
-        return ad.AnnData(
-            X=ad.io.sparse_dataset(g["X"]),
-            obs=ad.experimental.read_lazy(g).obs[["batch", "labels"]].to_memory(),
-        )
-
-    ds = Loader(
-        batch_size=4096,  # Total number of obs per yielded batch
-        chunk_size=256,
-        # Number of obs to load from disk contiguously - default settings should work well
-        preload_nchunks=32,
-        # Number of chunks to preload + shuffle - default settings should work well
-        preload_to_gpu=False,
-        to_torch=True,
-    )
-
-    # Add in the shuffled data that should be used for training.
-    ds.use_collection(collection, load_adata=_load_adata)
-
-    dm = ZarrSparseDataModule(ds, batch_key="batch", label_key="labels")
-
-    # Verify batch and label encoding
     assert dm.n_batch == 2, f"Expected 2 batches, got {dm.n_batch}"
     assert dm.n_labels > 0, f"Expected labels, got {dm.n_labels}"
     print(f"n_batch={dm.n_batch}, n_labels={dm.n_labels}, n_obs={dm.n_obs}, n_vars={dm.n_vars}")
 
     model = scvi.model.SCVI(registry=dm.registry)
-
-    # we're only training for a few epochs to show it works
     model.train(max_epochs=1, datamodule=dm)
     model.history.keys()
 
-    # Generate cell representations via inference_dataloader
     inference_dl = dm.inference_dataloader()
     latent = model.get_latent_representation(dataloader=inference_dl)
     print(latent.shape)
 
-    # Test with validation dataloader
-    ds_val = Loader(
+    # Validation: reuse the same zarr collection (zarr_path_val == zarr_path)
+    dm_val = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        labels_key="labels",
         batch_size=4096,
-        chunk_size=256,
-        preload_nchunks=32,
-        preload_to_gpu=False,
-        to_torch=True,
+        paths_val=[path1, path2],
+        zarr_path_val=zarr_path,
     )
-    ds_val.use_collection(collection, load_adata=_load_adata)
-
-    dm_val = ZarrSparseDataModule(ds, batch_key="batch", label_key="labels", dataset_val=ds_val)
 
     model_val = scvi.model.SCVI(registry=dm_val.registry)
     model_val.train(
@@ -1323,7 +1272,6 @@ def test_annbatch(save_path: str):
     assert "kl_local_validation" in logged_keys
     assert "validation_loss" in logged_keys
 
-    # Test inference_dataloader on validation model
     inference_dl_val = dm_val.inference_dataloader()
     _ = model_val.get_elbo(dataloader=inference_dl_val)
     _ = model_val.get_latent_representation(dataloader=inference_dl_val)
@@ -1331,14 +1279,15 @@ def test_annbatch(save_path: str):
 
 @pytest.mark.dataloader
 def test_annbatch_with_covariates(save_path: str):
-    import anndata as ad
     import zarr
-    from annbatch import DatasetCollection, Loader
     from scipy.sparse import csr_matrix
 
     zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
 
-    # Create synthetic data with categorical and continuous covariates
+    path1 = os.path.join(save_path, "file1.h5ad")
+    path2 = os.path.join(save_path, "file2.h5ad")
+    zarr_path = os.path.join(save_path, "annbatch_covariates_collection")
+
     adata1 = scvi.data.synthetic_iid(batch_size=20000)
     adata1.X = csr_matrix(adata1.X)
     adata1.obs["cat1"] = np.random.randint(0, 5, size=(adata1.shape[0],)).astype(str)
@@ -1353,58 +1302,24 @@ def test_annbatch_with_covariates(save_path: str):
     adata2.obs["cont1"] = np.random.normal(size=(adata2.shape[0],))
     adata2.obs["cont2"] = np.random.normal(size=(adata2.shape[0],))
 
-    adata1.write(os.path.join(save_path, "file1.h5ad"))
-    adata2.write(os.path.join(save_path, "file2.h5ad"))
+    adata1.write(path1)
+    adata2.write(path2)
 
-    def read_lazy_x_and_obs_only(path) -> ad.AnnData:
-        adata_ = ad.experimental.read_lazy(path)
-        if adata_.raw is not None:
-            x = adata_.raw.X
-            var = adata_.raw.var
-        else:
-            x = adata_.X
-            var = adata_.var
-        return ad.AnnData(X=x, obs=adata_.obs.to_memory(), var=var.to_memory())
-
-    collection = DatasetCollection(zarr.open("annbatch_collection", mode="w"))
-    collection.add_adatas(
-        adata_paths=[os.path.join(save_path, "file1.h5ad"), os.path.join(save_path, "file2.h5ad")],
-        shuffle=True,
-        dataset_size=2_097_152,
-        var_subset=None,
-        load_adata=read_lazy_x_and_obs_only,
-    )
-
-    def _load_adata(g: zarr.Group) -> ad.AnnData:
-        return ad.AnnData(
-            X=ad.io.sparse_dataset(g["X"]),
-            obs=ad.experimental.read_lazy(g)
-            .obs[["batch", "labels", "cat1", "cat2", "cont1", "cont2"]]
-            .to_memory(),
-        )
-
-    ds = Loader(
-        batch_size=4096,
-        chunk_size=256,
-        preload_nchunks=32,
-        preload_to_gpu=False,
-        to_torch=True,
-    )
-    ds.use_collection(collection, load_adata=_load_adata)
-
-    dm = ZarrSparseDataModule(
-        ds,
+    dm = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
         batch_key="batch",
-        label_key="labels",
+        labels_key="labels",
         categorical_covariate_keys=["cat1", "cat2"],
         continuous_covariate_keys=["cont1", "cont2"],
+        batch_size=4096,
+        dataset_size=2_097_152,
     )
 
     assert dm.n_batch == 2
     assert dm.n_labels > 0
     print(f"n_batch={dm.n_batch}, n_labels={dm.n_labels}")
 
-    # Verify registry covariate fields
     reg = dm.registry
     assert (
         reg["field_registries"]["extra_categorical_covs"]["summary_stats"][
@@ -1427,7 +1342,146 @@ def test_annbatch_with_covariates(save_path: str):
     assert "reconstruction_loss_train" in logged_keys
     assert "kl_local_train" in logged_keys
 
-    # Test inference_dataloader
     inference_dl = dm.inference_dataloader()
     _ = model.get_elbo(dataloader=inference_dl)
     _ = model.get_latent_representation(dataloader=inference_dl)
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_scvi(save_path: str):
+    """Test SCVI.setup_annbatch: build-once, reuse, and basic inference."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    zarr_path = os.path.join(save_path, "annbatch_setup_scvi.zarr")
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+
+    path1 = os.path.join(save_path, "setup_file1.h5ad")
+    path2 = os.path.join(save_path, "setup_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    # --- First call: builds the zarr collection ---
+    dm = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        labels_key="labels",
+        batch_size=256,
+        dataset_size=1024,
+    )
+
+    assert dm.n_batch == 2
+    assert dm.n_vars == adata1.n_vars
+    # Registry must carry actual gene names, not generic gene_i placeholders
+    col_names = dm.registry["field_registries"]["X"]["state_registry"]["column_names"]
+    assert col_names == list(adata1.var_names), "var_names not propagated into registry"
+
+    model = scvi.model.SCVI(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm)
+    assert "elbo_train" in model.history.keys()
+
+    inference_dl = dm.inference_dataloader()
+    latent = model.get_latent_representation(dataloader=inference_dl)
+    assert latent.shape[0] == dm.n_obs
+    assert latent.shape[1] == model.module.n_latent
+
+    # --- Second call: reuses the zarr collection (rebuild=False) ---
+    dm2 = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        batch_size=256,
+    )
+    assert dm2.n_batch == 2
+    assert dm2.n_vars == adata1.n_vars
+
+    # --- Explicit rebuild ---
+    dm3 = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        batch_size=256,
+        rebuild=True,
+    )
+    model3 = scvi.model.SCVI(registry=dm3.registry)
+    model3.train(max_epochs=1, datamodule=dm3)
+    assert "elbo_train" in model3.history.keys()
+
+    # --- With validation split ---
+    zarr_path_val = os.path.join(save_path, "annbatch_setup_scvi_val.zarr")
+    dm_with_val = scvi.model.SCVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        batch_size=256,
+        paths_val=[path1, path2],
+        zarr_path_val=zarr_path_val,
+    )
+    model_val = scvi.model.SCVI(registry=dm_with_val.registry)
+    model_val.train(max_epochs=1, datamodule=dm_with_val, check_val_every_n_epoch=1)
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_scanvi(save_path: str):
+    """Test SCANVI.setup_annbatch: train, predict, and inference."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    zarr_path = os.path.join(save_path, "annbatch_scanvi.zarr")
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+
+    path1 = os.path.join(save_path, "scanvi_file1.h5ad")
+    path2 = os.path.join(save_path, "scanvi_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    dm = scvi.model.SCANVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        labels_key="labels",
+        unlabeled_category="Unknown",
+        batch_size=256,
+        dataset_size=1024,
+    )
+
+    assert dm.n_batch == 2
+    assert dm.n_labels > 0
+    assert dm.registry["model_name"] == "SCANVI"
+    assert (
+        dm.registry["field_registries"]["labels"]["state_registry"]["unlabeled_category"]
+        == "Unknown"
+    )
+
+    model = scvi.model.SCANVI(
+        adata=None,
+        registry=dm.registry,
+        encode_covariates=False,
+        datamodule=dm,
+    )
+    model.train(max_epochs=1, datamodule=dm)
+
+    logged_keys = model.history.keys()
+    assert "elbo_train" in logged_keys
+    assert "train_classification_loss" in logged_keys
+    assert "train_accuracy" in logged_keys
+
+    inference_dl = dm.inference_dataloader()
+    latent = model.get_latent_representation(dataloader=inference_dl)
+    assert latent.shape[0] == dm.n_obs
+
+    predictions = model.predict(dataloader=inference_dl, soft=False)
+    assert len(predictions) == dm.n_obs

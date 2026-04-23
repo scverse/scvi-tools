@@ -1025,6 +1025,7 @@ class ZarrSparseDataModule(LightningDataModule):
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
         dataset_val=None,
+        var_names: list[str] | None = None,
     ):
         super().__init__()
         self.dataset = dataset
@@ -1039,6 +1040,7 @@ class ZarrSparseDataModule(LightningDataModule):
         self._sample_key = sample_key
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
+        self._var_names = var_names
 
         # Helper to check if an obs key exists across dataset._obs DataFrames.
         # Requires the key to be present in ALL shards so that _concat_obs_col
@@ -1065,8 +1067,10 @@ class ZarrSparseDataModule(LightningDataModule):
         if _obs_has_key(label_key):
             all_labels = _concat_obs_col(label_key)
             self.label_encoder = LabelEncoder().fit(all_labels)
+            self.labels_ = all_labels  # required by SCANVI's _set_indices_and_labels
         else:
             self.label_encoder = None
+            self.labels_ = None
 
         # Build sample encoder and per-sample cell counts
         if _obs_has_key(sample_key):
@@ -1337,7 +1341,9 @@ class ZarrSparseDataModule(LightningDataModule):
                     "state_registry": {
                         "n_obs": self.n_obs,
                         "n_vars": self.n_vars,
-                        "column_names": [f"gene_{i}" for i in range(self.n_vars)],
+                        "column_names": list(self._var_names)
+                        if self._var_names is not None
+                        else [f"gene_{i}" for i in range(self.n_vars)],
                     },
                     "summary_stats": {
                         "n_vars": self.n_vars,

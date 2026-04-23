@@ -50,7 +50,7 @@ from scvi.model.base._save_load import (
     _validate_var_names,
 )
 from scvi.model.utils import get_minified_adata_scrna, get_minified_mudata
-from scvi.utils import attrdict, setup_anndata_dsp
+from scvi.utils import attrdict, dependencies, setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp
 
 from . import _constants
@@ -1062,6 +1062,200 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         the implementation must call :meth:`~scvi.model.base.BaseModelClass.register_manager`
         on a model-specific instance of :class:`~scvi.data.AnnDataManager`.
         """
+
+    @classmethod
+    @dependencies("annbatch", "zarr")
+    def setup_annbatch(
+        cls,
+        paths: list[str],
+        zarr_path: str,
+        batch_key: str | None = None,
+        labels_key: str | None = None,
+        unlabeled_category: str = "Unknown",
+        layer: str | None = None,
+        categorical_covariate_keys: list[str] | None = None,
+        continuous_covariate_keys: list[str] | None = None,
+        rebuild: bool = False,
+        batch_size: int = 4096,
+        chunk_size: int = 256,
+        preload_nchunks: int = 32,
+        preload_to_gpu: bool = False,
+        dataset_size: int = 2_097_152,
+        shuffle: bool = True,
+        var_subset: list[str] | None = None,
+        paths_val: list[str] | None = None,
+        zarr_path_val: str | None = None,
+    ):
+        """Set up a model from on-disk AnnData files via the annbatch streaming loader.
+
+        Builds (or reuses) a zarr-backed :class:`~annbatch.DatasetCollection` from the supplied
+        h5ad file paths, then wraps it in a
+        :class:`~scvi.dataloaders.ZarrSparseDataModule` ready for training.
+
+        Parameters
+        ----------
+        paths
+            Paths to h5ad files that make up the training dataset.
+        zarr_path
+            Directory where the zarr collection is written (or already exists).
+        batch_key
+            Column in ``obs`` to use as the batch variable.
+        labels_key
+            Column in ``obs`` to use as the cell-type / label variable.
+        unlabeled_category
+            Value used to mark unlabeled cells in ``labels_key``.  Required by semi-supervised
+            models such as SCANVI.  Defaults to ``"Unknown"``.
+        layer
+            Layer in the h5ad files to use as the count matrix.  ``None`` uses ``adata.X``
+            (falling back to ``adata.raw.X`` when a raw slot exists).
+        categorical_covariate_keys
+            Additional categorical covariate columns in ``obs``.
+        continuous_covariate_keys
+            Additional continuous covariate columns in ``obs``.
+        rebuild
+            If ``True``, always rebuild the zarr collection even if it already exists on disk.
+            If ``False`` (default), reuse an existing collection and skip the (potentially
+            expensive) ``add_adatas`` step.
+        batch_size
+            Number of cells per batch yielded by the :class:`~annbatch.Loader`.
+        chunk_size
+            Number of cells loaded from disk contiguously per read.
+        preload_nchunks
+            Number of chunks to preload and shuffle in memory.
+        preload_to_gpu
+            Whether the loader should move data to GPU before yielding.
+        dataset_size
+            Target number of cells per zarr shard written by ``add_adatas``.
+        shuffle
+            Whether to pre-shuffle cells when building the collection.
+        var_subset
+            Optional list of gene names to restrict the collection to (passed as
+            ``var_subset`` to ``add_adatas``).
+        paths_val
+            Paths to h5ad files for an optional validation dataset.
+        zarr_path_val
+            Directory for the validation zarr collection (required when ``paths_val`` is
+            given).
+
+        Returns
+        -------
+        :class:`~scvi.dataloaders.ZarrSparseDataModule`
+            A configured datamodule whose ``registry`` can be passed directly to the model
+            constructor, e.g. ``model = SCVI(registry=dm.registry)``.
+
+        Notes
+        -----
+        After training, saving and reloading the model requires reconstructing the datamodule
+        manually and passing it to :meth:`~scvi.model.base.BaseModelClass.load` via the
+        ``datamodule`` argument — the same pattern used by all custom datamodules.
+        """
+        import anndata as ad
+        import zarr
+        from annbatch import DatasetCollection, Loader
+
+        from scvi.dataloaders import ZarrSparseDataModule
+
+        obs_keys = [k for k in [batch_key, labels_key] if k is not None]
+        if categorical_covariate_keys:
+            obs_keys += list(categorical_covariate_keys)
+        if continuous_covariate_keys:
+            obs_keys += list(continuous_covariate_keys)
+
+        def _get_var_names(path: str) -> list[str]:
+            adata_ = ad.experimental.read_lazy(path)
+            if layer is None and getattr(adata_, "raw", None) is not None:
+                var = adata_.raw.var
+            else:
+                var = adata_.var
+            var_df = var.to_memory() if hasattr(var, "to_memory") else var
+            return list(var_df.index)
+
+        def _load_adata_from_path(path: str) -> ad.AnnData:
+            adata_ = ad.experimental.read_lazy(path)
+            if layer is not None:
+                x = adata_.layers[layer]
+                var = adata_.var
+            elif getattr(adata_, "raw", None) is not None:
+                x = adata_.raw.X
+                var = adata_.raw.var
+            else:
+                x = adata_.X
+                var = adata_.var
+            # Store all obs so the zarr collection can be reused with different key sets.
+            obs = adata_.obs.to_memory()
+            var_df = var.to_memory() if hasattr(var, "to_memory") else var
+            return ad.AnnData(X=x, obs=obs, var=var_df)
+
+        def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
+            x = ad.io.sparse_dataset(g["X"])
+            obs = ad.experimental.read_lazy(g).obs[obs_keys].to_memory() if obs_keys else None
+            return ad.AnnData(X=x, obs=obs)
+
+        def _build_collection(store_path: str, file_paths: list[str]) -> DatasetCollection:
+            store = zarr.open(store_path, mode="w")
+            coll = DatasetCollection(store)
+            coll.add_adatas(
+                adata_paths=file_paths,
+                shuffle=shuffle,
+                dataset_size=dataset_size,
+                var_subset=var_subset,
+                load_adata=_load_adata_from_path,
+            )
+            return coll
+
+        def _open_collection(store_path: str) -> DatasetCollection:
+            store = zarr.open(store_path, mode="r")
+            return DatasetCollection(store)
+
+        needs_build = rebuild or not os.path.exists(zarr_path)
+        collection = (
+            _build_collection(zarr_path, paths) if needs_build else _open_collection(zarr_path)
+        )
+
+        var_names = list(var_subset) if var_subset is not None else _get_var_names(paths[0])
+
+        ds = Loader(
+            batch_size=batch_size,
+            chunk_size=chunk_size,
+            preload_nchunks=preload_nchunks,
+            preload_to_gpu=preload_to_gpu,
+            to_torch=True,
+        )
+        ds.use_collection(collection, load_adata=_load_adata_from_zarr)
+
+        ds_val = None
+        if paths_val is not None:
+            if zarr_path_val is None:
+                raise ValueError("`zarr_path_val` must be provided when `paths_val` is given.")
+            if zarr_path_val == zarr_path:
+                collection_val = collection
+            else:
+                needs_val_build = rebuild or not os.path.exists(zarr_path_val)
+                collection_val = (
+                    _build_collection(zarr_path_val, paths_val)
+                    if needs_val_build
+                    else _open_collection(zarr_path_val)
+                )
+            ds_val = Loader(
+                batch_size=batch_size,
+                chunk_size=chunk_size,
+                preload_nchunks=preload_nchunks,
+                preload_to_gpu=preload_to_gpu,
+                to_torch=True,
+            )
+            ds_val.use_collection(collection_val, load_adata=_load_adata_from_zarr)
+
+        return ZarrSparseDataModule(
+            ds,
+            batch_key=batch_key,
+            label_key=labels_key,
+            unlabeled_category=unlabeled_category,
+            model_name=cls.__name__,
+            categorical_covariate_keys=categorical_covariate_keys,
+            continuous_covariate_keys=continuous_covariate_keys,
+            dataset_val=ds_val,
+            var_names=var_names,
+        )
 
     @staticmethod
     def view_setup_args(dir_path: str, prefix: str | None = None) -> None:
