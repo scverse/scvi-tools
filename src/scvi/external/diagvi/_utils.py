@@ -277,9 +277,7 @@ def compute_graph_loss(graph: Data, feature_embeddings: torch.Tensor) -> torch.T
     edge_index = graph.edge_index
     edge_index_neg = torch_geometric.utils.structured_negative_sampling(edge_index)
 
-    pos_i = edge_index_neg[0].cpu().numpy()
-    pos_j = edge_index_neg[1].cpu().numpy()
-    neg_j = edge_index_neg[2].cpu().numpy()
+    pos_i, pos_j, neg_j = edge_index_neg[0], edge_index_neg[1], edge_index_neg[2]
 
     vi = feature_embeddings[pos_i]
     vj = feature_embeddings[pos_j]

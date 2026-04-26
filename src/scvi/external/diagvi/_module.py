@@ -253,11 +253,32 @@ class DIAGVAE(BaseModuleClass):
             "v": inference_outputs["v"],
         }
 
+    def encode_graph(
+        self, device: torch.device
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Run the graph encoder, moving the guidance graph to device on first call.
+
+        Parameters
+        ----------
+        device
+            Target device.
+
+        Returns
+        -------
+        Tuple of (v_all, mu_all, logvar_all) graph embeddings.
+        """
+        if self.guidance_graph.edge_index.device != device:
+            self.guidance_graph = self.guidance_graph.to(device)
+        return self.graph_encoder(self.guidance_graph.edge_index)
+
     @auto_move_data
     def inference(
         self,
         x: torch.Tensor,
         mode: str | None = None,
+        v_all: torch.Tensor | None = None,
+        mu_all: torch.Tensor | None = None,
+        logvar_all: torch.Tensor | None = None,
         deterministic: bool = False,
     ) -> dict[str, torch.Tensor]:
         """Run the inference (encoder and graph) step for a given modality.
@@ -268,6 +289,14 @@ class DIAGVAE(BaseModuleClass):
             Input data tensor.
         mode
             Name of the modality.
+        v_all
+            Pre-computed graph node embeddings. If None, computed from graph encoder.
+        mu_all
+            Pre-computed graph encoder means. Required when v_all is provided.
+        logvar_all
+            Pre-computed graph encoder log-variances. Required when v_all is provided.
+        deterministic
+            Whether to use the mean instead of a sample.
 
         Returns
         -------
@@ -275,16 +304,14 @@ class DIAGVAE(BaseModuleClass):
         graph embeddings.
         """
         library = torch.log(x.sum(1)).unsqueeze(1)
-        graph = self.guidance_graph
-        device = x.device
-        graph = graph.to(device)
 
-        # Graph inference
-        v_all, mu_all, logvar_all = self.graph_encoder(graph.edge_index)
+        if v_all is None:
+            v_all, mu_all, logvar_all = self.encode_graph(x.device)
 
         if deterministic:
             v_all = mu_all
 
+        graph = self.guidance_graph
         v = v_all[getattr(graph, f"{mode}_indices")]
         other_mode = [m for m in self.input_names if m != mode][0]
         v_other_mod = v_all[getattr(graph, f"{other_mode}_indices")]

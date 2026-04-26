@@ -201,6 +201,10 @@ class DiagTrainingPlan(TrainingPlan):
         """
         loss_outputs = []
 
+        # Compute graph encoding once — identical for all modalities
+        first_x = next(iter(batch.values()))[REGISTRY_KEYS.X_KEY]
+        v_all, mu_all, logvar_all = self.module.encode_graph(first_x.device)
+
         for name, tensors in batch.items():
             batch_size = tensors[REGISTRY_KEYS.X_KEY].shape[0]
 
@@ -213,7 +217,12 @@ class DiagTrainingPlan(TrainingPlan):
             _, _, loss_output = self.forward(
                 tensors,
                 loss_kwargs=self.loss_kwargs,
-                inference_kwargs={"mode": name},
+                inference_kwargs={
+                    "mode": name,
+                    "v_all": v_all,
+                    "mu_all": mu_all,
+                    "logvar_all": logvar_all,
+                },
                 generative_kwargs={"mode": name},
             )
 
