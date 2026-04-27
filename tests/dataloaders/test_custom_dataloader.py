@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pprint import pprint
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -9,8 +10,11 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
-from scvi.external import MRVI
+from scvi.external import MRVI, RESOLVI
 from scvi.utils import dependencies
+
+if TYPE_CHECKING:
+    import anndata as ad
 
 
 @pytest.fixture(scope="module")
@@ -1214,7 +1218,7 @@ def test_annbatch(save_path: str):
 
     path1 = os.path.join(save_path, "file1.h5ad")
     path2 = os.path.join(save_path, "file2.h5ad")
-    zarr_path = os.path.join(save_path, "annbatch_collection")
+    collection_path = os.path.join(save_path, "annbatch_collection")
 
     adata1 = scvi.data.synthetic_iid(batch_size=20000)
     adata1.X = csr_matrix(adata1.X)
@@ -1224,8 +1228,8 @@ def test_annbatch(save_path: str):
     adata2.write(path2)
 
     dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         labels_key="labels",
         batch_size=4096,
@@ -1244,15 +1248,15 @@ def test_annbatch(save_path: str):
     latent = model.get_latent_representation(dataloader=inference_dl)
     print(latent.shape)
 
-    # Validation: reuse the same zarr collection (zarr_path_val == zarr_path)
+    # Validation: reuse the same zarr collection (collection_path_val == collection_path)
     dm_val = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         labels_key="labels",
         batch_size=4096,
         paths_val=[path1, path2],
-        zarr_path_val=zarr_path,
+        collection_path_val=collection_path,
     )
 
     model_val = scvi.model.SCVI(registry=dm_val.registry)
@@ -1286,7 +1290,7 @@ def test_annbatch_with_covariates(save_path: str):
 
     path1 = os.path.join(save_path, "file1.h5ad")
     path2 = os.path.join(save_path, "file2.h5ad")
-    zarr_path = os.path.join(save_path, "annbatch_covariates_collection")
+    collection_path = os.path.join(save_path, "annbatch_covariates_collection")
 
     adata1 = scvi.data.synthetic_iid(batch_size=20000)
     adata1.X = csr_matrix(adata1.X)
@@ -1306,8 +1310,8 @@ def test_annbatch_with_covariates(save_path: str):
     adata2.write(path2)
 
     dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         labels_key="labels",
         categorical_covariate_keys=["cat1", "cat2"],
@@ -1355,7 +1359,7 @@ def test_annbatch_setup_scvi(save_path: str):
 
     zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
 
-    zarr_path = os.path.join(save_path, "annbatch_setup_scvi.zarr")
+    collection_path = os.path.join(save_path, "annbatch_setup_scvi.zarr")
 
     adata1 = scvi.data.synthetic_iid(batch_size=500)
     adata1.X = csr_matrix(adata1.X)
@@ -1369,8 +1373,8 @@ def test_annbatch_setup_scvi(save_path: str):
 
     # --- First call: builds the zarr collection ---
     dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         labels_key="labels",
         batch_size=256,
@@ -1392,20 +1396,19 @@ def test_annbatch_setup_scvi(save_path: str):
     assert latent.shape[0] == dm.n_obs
     assert latent.shape[1] == model.module.n_latent
 
-    # --- Second call: reuses the zarr collection (rebuild=False) ---
+    # --- Second call: reuses existing collection without re-specifying paths ---
     dm2 = scvi.model.SCVI.setup_annbatch(
-        paths=[path1, path2],
-        zarr_path=zarr_path,
+        collection_path=collection_path,
         batch_key="batch",
         batch_size=256,
     )
     assert dm2.n_batch == 2
     assert dm2.n_vars == adata1.n_vars
 
-    # --- Explicit rebuild ---
+    # --- Third call: explicit rebuild (paths required) ---
     dm3 = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         batch_size=256,
         rebuild=True,
@@ -1414,15 +1417,39 @@ def test_annbatch_setup_scvi(save_path: str):
     model3.train(max_epochs=1, datamodule=dm3)
     assert "elbo_train" in model3.history.keys()
 
+    # --- With layer: save counts to a layer and load via layer= ---
+    collection_layer_path = os.path.join(save_path, "annbatch_setup_scvi_layer.zarr")
+    adata1_layer = adata1.copy()
+    adata2_layer = adata2.copy()
+    adata1_layer.layers["counts"] = adata1_layer.X.copy()
+    adata2_layer.layers["counts"] = adata2_layer.X.copy()
+    path1_layer = os.path.join(save_path, "setup_layer_file1.h5ad")
+    path2_layer = os.path.join(save_path, "setup_layer_file2.h5ad")
+    adata1_layer.write(path1_layer)
+    adata2_layer.write(path2_layer)
+
+    dm_layer = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_layer_path,
+        paths=[path1_layer, path2_layer],
+        batch_key="batch",
+        layer="counts",
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm_layer.n_vars == adata1.n_vars
+    model_layer = scvi.model.SCVI(registry=dm_layer.registry)
+    model_layer.train(max_epochs=1, datamodule=dm_layer)
+    assert "elbo_train" in model_layer.history.keys()
+
     # --- With validation split ---
-    zarr_path_val = os.path.join(save_path, "annbatch_setup_scvi_val.zarr")
+    collection_path_val = os.path.join(save_path, "annbatch_setup_scvi_val.zarr")
     dm_with_val = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         batch_size=256,
         paths_val=[path1, path2],
-        zarr_path_val=zarr_path_val,
+        collection_path_val=collection_path_val,
     )
     model_val = scvi.model.SCVI(registry=dm_with_val.registry)
     model_val.train(max_epochs=1, datamodule=dm_with_val, check_val_every_n_epoch=1)
@@ -1436,7 +1463,7 @@ def test_annbatch_setup_scanvi(save_path: str):
 
     zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
 
-    zarr_path = os.path.join(save_path, "annbatch_scanvi.zarr")
+    collection_path = os.path.join(save_path, "annbatch_scanvi.zarr")
 
     adata1 = scvi.data.synthetic_iid(batch_size=500)
     adata1.X = csr_matrix(adata1.X)
@@ -1449,8 +1476,8 @@ def test_annbatch_setup_scanvi(save_path: str):
     adata2.write(path2)
 
     dm = scvi.model.SCANVI.setup_annbatch(
+        collection_path=collection_path,
         paths=[path1, path2],
-        zarr_path=zarr_path,
         batch_key="batch",
         labels_key="labels",
         unlabeled_category="Unknown",
@@ -1485,3 +1512,52 @@ def test_annbatch_setup_scanvi(save_path: str):
 
     predictions = model.predict(dataloader=inference_dl, soft=False)
     assert len(predictions) == dm.n_obs
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_resolvi(save_path):
+    """Test RESOLVI.setup_annbatch: full streaming path — no setup_anndata needed."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    path1 = os.path.join(save_path, "resolvi_file1.h5ad")
+    path2 = os.path.join(save_path, "resolvi_file2.h5ad")
+    zarr_path = os.path.join(save_path, "annbatch_resolvi.zarr")
+
+    def _make_resolvi_adata(batch_size: int) -> ad.AnnData:
+        adata = synthetic_iid(
+            generate_coordinates=True, n_regions=5, n_proteins=10, batch_size=batch_size
+        )
+        adata.X = csr_matrix(adata.X)
+        adata.obsm["X_spatial"] = adata.obsm["coordinates"]
+        adata.obs["cell_area"] = np.random.gamma(2.0, 1.0, size=adata.n_obs)
+        return adata
+
+    adata1 = _make_resolvi_adata(batch_size=200)
+    adata2 = _make_resolvi_adata(batch_size=200)
+    adata1.write(path1)
+    adata2.write(path2)
+
+    dm = RESOLVI.setup_annbatch(
+        paths=[path1, path2],
+        zarr_path=zarr_path,
+        batch_key="batch",
+        labels_key="labels",
+        batch_size=256,
+        dataset_size=1024,
+    )
+
+    assert dm.n_batch >= 1
+    assert dm.registry["model_name"] == "RESOLVI"
+    assert (
+        "n_distance_neighbor" in dm.registry["field_registries"]["index_neighbor"]["summary_stats"]
+    )
+
+    model = RESOLVI(registry=dm.registry, datamodule=dm)
+    model.train(max_epochs=1, datamodule=dm)
+
+    inference_dl = dm.inference_dataloader()
+    latent = model.get_latent_representation(dataloader=inference_dl)
+    assert latent.shape == (dm.n_obs, model.module.n_latent)

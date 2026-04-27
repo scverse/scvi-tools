@@ -982,7 +982,7 @@ class TileDBDataModule(LightningDataModule):
             return len(self.dataloader)
 
 
-class ZarrSparseDataModule(LightningDataModule):
+class AnnbatchDataModule(LightningDataModule):
     """LightningDataModule for annbatch.Loader with full scvi-tools integration.
 
     Parameters
@@ -1135,11 +1135,19 @@ class ZarrSparseDataModule(LightningDataModule):
         X_np = batch["X"]
         obs = batch.get("obs")
 
-        # Convert sparse batches to dense, then to float32 torch tensor.
+        # Convert sparse batches to dense float32 torch tensor.
         if isinstance(X_np, torch.Tensor) and X_np.is_sparse_csr:
             x = X_np.to_dense().float()
         elif issparse(X_np):
-            x = torch.from_numpy(X_np.toarray()).float()
+            # scipy sparse → torch sparse CSR → dense
+            # Avoids allocating a full dense numpy array as intermediate.
+            X_csr = X_np.tocsr()
+            x = torch.sparse_csr_tensor(
+                torch.from_numpy(X_csr.indptr.astype(np.int64)),
+                torch.from_numpy(X_csr.indices.astype(np.int64)),
+                torch.from_numpy(X_csr.data.astype(np.float32)),
+                size=X_csr.shape,
+            ).to_dense()
         elif isinstance(X_np, torch.Tensor):
             x = X_np.float()
         else:
@@ -1403,3 +1411,7 @@ class ZarrSparseDataModule(LightningDataModule):
         def __iter__(self):
             for batch in self.dataloader:
                 yield self.transform_fn(batch, dataloader_idx=None)
+
+
+# Backward-compatibility alias
+ZarrSparseDataModule = AnnbatchDataModule

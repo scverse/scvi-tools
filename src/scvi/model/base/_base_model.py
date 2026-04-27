@@ -1067,8 +1067,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     @dependencies("annbatch", "zarr")
     def setup_annbatch(
         cls,
-        paths: list[str],
-        zarr_path: str,
+        collection_path: str,
+        paths: list[str] | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
         unlabeled_category: str = "Unknown",
@@ -1081,23 +1081,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         preload_nchunks: int = 32,
         preload_to_gpu: bool = False,
         dataset_size: int = 2_097_152,
-        shuffle: bool = True,
+        shuffle: bool = False,
         var_subset: list[str] | None = None,
         paths_val: list[str] | None = None,
-        zarr_path_val: str | None = None,
+        collection_path_val: str | None = None,
     ):
         """Set up a model from on-disk AnnData files via the annbatch streaming loader.
 
         Builds (or reuses) a zarr-backed :class:`~annbatch.DatasetCollection` from the supplied
         h5ad file paths, then wraps it in a
-        :class:`~scvi.dataloaders.ZarrSparseDataModule` ready for training.
+        :class:`~scvi.dataloaders.AnnbatchDataModule` ready for training.
 
         Parameters
         ----------
-        paths
-            Paths to h5ad files that make up the training dataset.
-        zarr_path
+        collection_path
             Directory where the zarr collection is written (or already exists).
+        paths
+            Paths to h5ad files that make up the training dataset.  If ``None``, an existing
+            collection at ``collection_path`` is opened without rebuilding — useful when the
+            zarr store was created by a previous call.  Must be provided when the store does
+            not exist yet.
         batch_key
             Column in ``obs`` to use as the batch variable.
         labels_key
@@ -1133,13 +1136,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ``var_subset`` to ``add_adatas``).
         paths_val
             Paths to h5ad files for an optional validation dataset.
-        zarr_path_val
+        collection_path_val
             Directory for the validation zarr collection (required when ``paths_val`` is
             given).
 
         Returns
         -------
-        :class:`~scvi.dataloaders.ZarrSparseDataModule`
+        :class:`~scvi.dataloaders.AnnbatchDataModule`
             A configured datamodule whose ``registry`` can be passed directly to the model
             constructor, e.g. ``model = SCVI(registry=dm.registry)``.
 
@@ -1153,7 +1156,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         import zarr
         from annbatch import DatasetCollection, Loader
 
-        from scvi.dataloaders import ZarrSparseDataModule
+        from scvi.dataloaders import AnnbatchDataModule
 
         obs_keys = [k for k in [batch_key, labels_key] if k is not None]
         if categorical_covariate_keys:
@@ -1161,7 +1164,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         if continuous_covariate_keys:
             obs_keys += list(continuous_covariate_keys)
 
-        def _get_var_names(path: str) -> list[str]:
+        def _get_var_names_from_path(path: str) -> list[str]:
             adata_ = ad.experimental.read_lazy(path)
             if layer is None and getattr(adata_, "raw", None) is not None:
                 var = adata_.raw.var
@@ -1169,6 +1172,24 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 var = adata_.var
             var_df = var.to_memory() if hasattr(var, "to_memory") else var
             return list(var_df.index)
+
+        def _get_var_names_from_collection(store_path: str) -> list[str]:
+            store = zarr.open(store_path, mode="r")
+            # annbatch stores datasets as numbered groups inside the store
+            for key in store.keys():
+                grp = store[key]
+                if "var" in grp:
+                    var_grp = ad.experimental.read_lazy(grp)
+                    var_df = (
+                        var_grp.var.to_memory()
+                        if hasattr(var_grp.var, "to_memory")
+                        else var_grp.var
+                    )
+                    return list(var_df.index)
+            raise ValueError(
+                f"Could not read var names from existing collection at '{store_path}'. "
+                "The store may be empty or malformed."
+            )
 
         def _load_adata_from_path(path: str) -> ad.AnnData:
             adata_ = ad.experimental.read_lazy(path)
@@ -1207,12 +1228,39 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             store = zarr.open(store_path, mode="r")
             return DatasetCollection(store)
 
-        needs_build = rebuild or not os.path.exists(zarr_path)
-        collection = (
-            _build_collection(zarr_path, paths) if needs_build else _open_collection(zarr_path)
-        )
+        collection_exists = os.path.exists(collection_path)
+        if rebuild and paths is None:
+            raise ValueError("`paths` must be provided when `rebuild=True`.")
+        if not collection_exists and paths is None:
+            raise ValueError(
+                f"No existing collection found at '{collection_path}'. "
+                "Provide `paths` to build one."
+            )
 
-        var_names = list(var_subset) if var_subset is not None else _get_var_names(paths[0])
+        needs_build = rebuild or not collection_exists
+        if needs_build:
+            collection = _build_collection(collection_path, paths)
+        else:
+            collection = _open_collection(collection_path)
+            if collection.is_empty:
+                if paths is None:
+                    raise ValueError(
+                        f"Existing zarr store at '{collection_path}' appears incomplete and "
+                        "`paths` was not provided to rebuild it."
+                    )
+                warnings.warn(
+                    f"Existing zarr store at '{collection_path}' appears incomplete "
+                    "(missing annbatch encoding marker). Rebuilding from scratch.",
+                    stacklevel=2,
+                )
+                collection = _build_collection(collection_path, paths)
+
+        if var_subset is not None:
+            var_names = list(var_subset)
+        elif paths is not None:
+            var_names = _get_var_names_from_path(paths[0])
+        else:
+            var_names = _get_var_names_from_collection(collection_path)
 
         ds = Loader(
             batch_size=batch_size,
@@ -1225,17 +1273,26 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         ds_val = None
         if paths_val is not None:
-            if zarr_path_val is None:
-                raise ValueError("`zarr_path_val` must be provided when `paths_val` is given.")
-            if zarr_path_val == zarr_path:
+            if collection_path_val is None:
+                raise ValueError(
+                    "`collection_path_val` must be provided when `paths_val` is given."
+                )
+            if collection_path_val == collection_path:
                 collection_val = collection
             else:
-                needs_val_build = rebuild or not os.path.exists(zarr_path_val)
+                needs_val_build = rebuild or not os.path.exists(collection_path_val)
                 collection_val = (
-                    _build_collection(zarr_path_val, paths_val)
+                    _build_collection(collection_path_val, paths_val)
                     if needs_val_build
-                    else _open_collection(zarr_path_val)
+                    else _open_collection(collection_path_val)
                 )
+                if not needs_val_build and collection_val.is_empty:
+                    warnings.warn(
+                        f"Existing zarr store at '{collection_path_val}' appears incomplete "
+                        "(missing annbatch encoding marker). Rebuilding from scratch.",
+                        stacklevel=2,
+                    )
+                    collection_val = _build_collection(collection_path_val, paths_val)
             ds_val = Loader(
                 batch_size=batch_size,
                 chunk_size=chunk_size,
@@ -1245,7 +1302,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
             ds_val.use_collection(collection_val, load_adata=_load_adata_from_zarr)
 
-        return ZarrSparseDataModule(
+        return AnnbatchDataModule(
             ds,
             batch_key=batch_key,
             label_key=labels_key,
