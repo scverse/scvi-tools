@@ -1411,7 +1411,3 @@ class AnnbatchDataModule(LightningDataModule):
         def __iter__(self):
             for batch in self.dataloader:
                 yield self.transform_fn(batch, dataloader_idx=None)
-
-
-# Backward-compatibility alias
-ZarrSparseDataModule = AnnbatchDataModule

@@ -8,7 +8,6 @@ from ._custom_dataloaders import (
     AnnbatchDataModule,
     MappedCollectionDataModule,
     TileDBDataModule,
-    ZarrSparseDataModule,
 )
 from ._data_splitting import (
     DataSplitter,
@@ -31,5 +30,4 @@ __all__ = [
     "AnnbatchDataModule",
     "MappedCollectionDataModule",
     "TileDBDataModule",
-    "ZarrSparseDataModule",
 ]

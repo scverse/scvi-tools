@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -10,7 +9,7 @@ import pandas as pd
 import pyro
 from pyro.infer import Trace_ELBO
 
-from scvi import REGISTRY_KEYS, settings
+from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
@@ -27,7 +26,6 @@ from scvi.model._utils import (
 )
 from scvi.model.base import ArchesMixin, BaseModelClass, PyroSampleMixin, PyroSviTrainMixin
 from scvi.model.base._de_core import _de_core
-from scvi.model.base._pyromixin import PyroJitGuideWarmup
 from scvi.train._config import merge_kwargs
 from scvi.utils import de_dsp, setup_anndata_dsp
 
@@ -98,7 +96,7 @@ class RESOLVI(
 
     def __init__(
         self,
-        adata: AnnData | None = None,
+        adata: AnnData,
         n_hidden: int = 32,
         n_hidden_encoder: int = 128,
         n_latent: int = 10,
@@ -111,50 +109,21 @@ class RESOLVI(
         semisupervised=False,
         mixture_k=50,
         downsample_counts=True,
-        registry: dict | None = None,
-        datamodule=None,
         **model_kwargs,
     ):
-        warnings.warn(
-            "RESOLVI is a spatial transcriptomics model that will be moved to the "
-            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
-            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
-            FutureWarning,
-            stacklevel=settings.warnings_stacklevel,
-        )
         pyro.clear_param_store()
 
-        super().__init__(adata, registry=registry)
-
+        super().__init__(adata)
         if semisupervised:
-            if self._adata_manager is not None:
-                self._set_indices_and_labels()
-            else:
-                self._set_indices_and_labels_from_datamodule(datamodule)
+            self._set_indices_and_labels()
 
-        if self._adata_manager is not None:
-            # Standard adata path
-            results = self.compute_dataset_dependent_priors()
-            expression_anntorchdata = AnnTorchDataset(
-                self.adata_manager,
-                getitem_tensors=["X"],
-                load_sparse_tensor=True,
-            )
-            n_cats_per_cov = (
-                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-                else None
-            )
-            n_obs = self.summary_stats["n_ind_x"]
-        else:
-            # Datamodule path (setup_annbatch): priors and expression data are pre-computed
-            results = datamodule.precomputed_priors
-            expression_anntorchdata = datamodule.expression_anntorchdata
-            extra_cat = self.registry_["field_registries"].get("extra_categorical_covs", {})
-            state = extra_cat.get("state_registry", {})
-            n_cats_per_cov = state.get("n_cats_per_key", None) if state else None
-            n_obs = self.summary_stats["n_ind_x"]
+        results = self.compute_dataset_dependent_priors()
 
+        n_cats_per_cov = (
+            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+            else None
+        )
         n_labels = self.summary_stats.n_labels - 1
 
         if background_ratio is None:
@@ -168,6 +137,11 @@ class RESOLVI(
             downsample_counts_mean = None
             downsample_counts_std = 1.0
 
+        expression_anntorchdata = AnnTorchDataset(
+            self.adata_manager,
+            getitem_tensors=["X"],
+            load_sparse_tensor=True,
+        )
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
             n_batch=self.summary_stats.n_batch,
@@ -176,7 +150,7 @@ class RESOLVI(
             mixture_k=mixture_k,
             expression_anntorchdata=expression_anntorchdata,
             n_neighbors=self.summary_stats.n_distance_neighbor,
-            n_obs=n_obs,
+            n_obs=self.summary_stats["n_ind_x"],
             n_hidden=n_hidden,
             n_hidden_encoder=n_hidden_encoder,
             n_latent=n_latent,
@@ -212,7 +186,6 @@ class RESOLVI(
         n_epochs_kl_warmup: int | None = 20,
         plan_kwargs: dict | None = None,
         expose_params: list = (),
-        datamodule=None,
         **kwargs,
     ):
         """
@@ -246,11 +219,6 @@ class RESOLVI(
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
         expose_params
             List of parameters to train if running model in Arches mode.
-        datamodule
-            A :class:`~lightning.pytorch.core.LightningDataModule` (e.g.
-            :class:`~scvi.external.resolvi.RESOLVISparseDataModule`) to use in place of the
-            default AnnData-backed data splitter. Required when the model was initialised via
-            :meth:`~scvi.external.RESOLVI.setup_annbatch`.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -290,27 +258,6 @@ class RESOLVI(
                 ),
             }
         )
-
-        if datamodule is not None:
-            # PyroSviTrainMixin.train doesn't support datamodule; drive the runner directly.
-            # Pass a pre-processed dataloader to PyroJitGuideWarmup so it gets tensors,
-            # not the raw {"X": tensor, "obs": DataFrame} format from the Loader.
-            from scvi.train import TrainRunner
-
-            training_plan = self._training_plan_cls(self.module, **plan_kwargs)
-            if "callbacks" not in kwargs:
-                kwargs["callbacks"] = []
-            kwargs["callbacks"].append(
-                PyroJitGuideWarmup(dataloader=datamodule.inference_dataloader())
-            )
-            runner = TrainRunner(
-                self,
-                training_plan=training_plan,
-                data_splitter=datamodule,
-                max_epochs=max_epochs,
-                **kwargs,
-            )
-            return runner()
 
         super().train(
             max_epochs=max_epochs,
@@ -743,207 +690,6 @@ class RESOLVI(
                 index=adata.obs_names[indices],
             )
             return predictions
-
-    @classmethod
-    def setup_annbatch(
-        cls,
-        paths: list[str],
-        zarr_path: str,
-        batch_key: str | None = None,
-        labels_key: str | None = None,
-        unlabeled_category: str = "unknown",
-        layer: str | None = None,
-        categorical_covariate_keys: list[str] | None = None,
-        n_neighbors: int = 10,
-        spatial_rep: str = "X_spatial",
-        rebuild: bool = False,
-        batch_size: int = 4096,
-        chunk_size: int = 256,
-        preload_nchunks: int = 32,
-        preload_to_gpu: bool = False,
-        dataset_size: int = 2_097_152,
-        shuffle: bool = True,
-        var_subset: list[str] | None = None,
-        **kwargs,
-    ):
-        """Set up a RESOLVI model from on-disk h5ad files via the annbatch streaming loader.
-
-        Unlike the base ``setup_annbatch``, RESOLVI:
-
-        * Loads **all** files into memory to compute spatial neighbours with global indices.
-        * Stores flat ``obs`` columns for the neighbour index / distance arrays so they
-          survive streaming and can be reconstructed per-batch.
-        * Pre-loads the full expression matrix (required: RESOLVI looks up neighbour
-          expressions by global index during every forward pass).
-        * Returns a :class:`~scvi.external.resolvi.RESOLVISparseDataModule` whose
-          ``registry`` includes the RESOLVI-specific summary statistics.
-
-        Parameters
-        ----------
-        paths
-            Paths to h5ad files.  Each file must contain ``obsm["X_spatial"]`` (or the
-            key given by ``spatial_rep``) and raw count data.
-        zarr_path
-            Path where the prepared AnnData (with flattened neighbour obs columns) is
-            written as a zarr store.  Reused on subsequent calls when ``rebuild=False``.
-        batch_key
-            Obs column used as the batch variable.
-        labels_key
-            Obs column used as cell-type labels.
-        unlabeled_category
-            Value marking unlabeled cells in ``labels_key``.
-        layer
-            Layer to use as count matrix (``None`` → ``adata.X``).
-        categorical_covariate_keys
-            Additional categorical obs columns.
-        n_neighbors
-            Number of spatial neighbours to compute per cell.
-        spatial_rep
-            Key in ``obsm`` that holds the 2-D spatial coordinates.
-        rebuild
-            Force rewrite of the zarr store even if it already exists.
-        batch_size, chunk_size, preload_nchunks, preload_to_gpu, dataset_size, shuffle
-            Annbatch ``Loader`` parameters.
-        var_subset
-            Optional list of gene names to restrict the model to.
-        """
-        import anndata as ad
-        import numpy as np
-        import torch
-        from annbatch import Loader
-        from scipy.sparse import issparse
-
-        from ._datamodule import RESOLVISparseDataModule
-
-        # ---- 1. Load and concatenate all files -----------------------------------
-        adatas = [ad.read_h5ad(p) for p in paths]
-        adata = ad.concat(adatas, join="inner") if len(adatas) > 1 else adatas[0].copy()
-
-        if var_subset is not None:
-            adata = adata[:, var_subset]
-
-        x_check = adata.layers[layer] if layer is not None else adata.X
-        assert np.min(np.asarray(x_check.sum(axis=1))) > 0, (
-            "Please filter cells with less than 5 counts prior to running resolVI."
-        )
-
-        # ---- 2. Compute spatial neighbours (global indices across full dataset) --
-        cls._prepare_data(
-            adata, batch_key=batch_key, spatial_rep=spatial_rep, n_neighbors=n_neighbors
-        )
-
-        # ---- 3. Build obs columns needed for streaming --------------------------
-        # Global integer index per cell — used as ind_x in Pyro plate subsampling
-        adata.obs["_global_index"] = np.arange(adata.n_obs, dtype=np.int64)
-
-        # Unique cell ID string (mirrors setup_anndata behaviour)
-        if batch_key is not None and batch_key in adata.obs.columns:
-            adata.obs["_indices"] = (
-                adata.obs[batch_key].astype(str) + "_" + adata.obs_names.astype(str)
-            )
-        else:
-            adata.obs["_indices"] = adata.obs_names.astype(str)
-        adata.obs["_indices"] = adata.obs["_indices"].astype("category")
-
-        n_neigh = adata.obsm["index_neighbor"].shape[1]
-
-        # Flatten obsm arrays into obs columns so the Loader streams them per batch
-        for k in range(n_neigh):
-            adata.obs[f"_index_neighbor_{k}"] = adata.obsm["index_neighbor"][:, k].astype(np.int64)
-            adata.obs[f"_distance_neighbor_{k}"] = adata.obsm["distance_neighbor"][:, k].astype(
-                np.float32
-            )
-
-        # ---- 4. Pre-load full X for neighbour expression lookup -----------------
-        x_all = adata.layers[layer] if layer is not None else adata.X
-        x_all_np = x_all.toarray() if issparse(x_all) else np.asarray(x_all)
-        x_all_tensor = torch.from_numpy(x_all_np).float()
-
-        # ---- 5. Pre-compute dataset-dependent priors ----------------------------
-        n_small_genes = max(1, x_all_np.shape[1] // 50)
-        lib_sizes = x_all_np.mean(1)
-        lib_sizes = np.where(lib_sizes == 0, 1e-8, lib_sizes)
-        smallest_means = x_all_np[:, x_all_np.sum(0).argsort()[:n_small_genes]].mean(1) / lib_sizes
-        background_ratio = float(np.mean(smallest_means))
-        dist_arr = adata.obsm["distance_neighbor"]
-        k5 = min(5, n_neigh - 1)
-        median_distance = float(np.median(np.partition(dist_arr, k5)[:, k5]))
-        log_lib = np.log1p(x_all_np.sum(1))
-        mean_log_counts = float(np.median(log_lib))
-        std_log_counts = float(np.std(log_lib))
-
-        # ---- 6. Write prepared adata to zarr and create streaming Loader ---------
-        # annbatch's Loader.add_adata requires zarr.Array or CSRDataset as X;
-        # write the full prepared obs (flat neighbour cols) to zarr, then load back.
-        # Use the standard zarr pipeline so writing works even if zarrs is configured
-        # globally (zarrs only supports zarr v3, while anndata currently writes v2).
-        import os
-
-        import zarr as _zarr
-
-        _STANDARD_PIPELINE = "zarr.core.codec_pipeline.BatchedCodecPipeline"
-
-        x_for_zarr = adata.layers[layer] if layer is not None else adata.X
-        # Always rebuild: we already have all data in memory (required for neighbour
-        # computation), so the zarr is just a scratch buffer for the Loader. There is
-        # no benefit to reusing a stale or differently-formatted store.
-        with _zarr.config.set({"codec_pipeline.path": _STANDARD_PIPELINE}):
-            import shutil
-
-            if os.path.exists(zarr_path):
-                shutil.rmtree(zarr_path)
-            adata_for_zarr = ad.AnnData(X=x_for_zarr, obs=adata.obs, var=adata.var)
-            adata_for_zarr.write_zarr(zarr_path)
-            z = _zarr.open(zarr_path, mode="r")
-            x_zarr = ad.io.sparse_dataset(z["X"])
-        adata_zarr = ad.AnnData(X=x_zarr, obs=adata.obs)
-
-        ds = Loader(
-            batch_size=batch_size,
-            chunk_size=chunk_size,
-            preload_nchunks=preload_nchunks,
-            preload_to_gpu=preload_to_gpu,
-            to_torch=True,
-        )
-        ds.add_adata(adata_zarr)
-
-        # ---- 7. Return RESOLVI-specific datamodule ------------------------------
-        return RESOLVISparseDataModule(
-            ds,
-            x_all=x_all_tensor,
-            n_neigh=n_neigh,
-            precomputed_priors={
-                "background_ratio": background_ratio,
-                "median_distance": median_distance,
-                "mean_log_counts": mean_log_counts,
-                "std_log_counts": std_log_counts,
-            },
-            batch_key=batch_key,
-            label_key=labels_key,
-            unlabeled_category=unlabeled_category,
-            model_name="RESOLVI",
-            categorical_covariate_keys=categorical_covariate_keys,
-            var_names=list(adata.var_names),
-        )
-
-    def _set_indices_and_labels_from_datamodule(self, datamodule):
-        """Set label indices from the registry and datamodule (for the adata=None path)."""
-        labels_state_registry = self.registry_["field_registries"]["labels"]["state_registry"]
-        self.original_label_key = labels_state_registry.get("original_key", "labels")
-        self.unlabeled_category_ = labels_state_registry.get("unlabeled_category", "Unknown")
-        self._label_mapping = labels_state_registry.get("categorical_mapping", np.array([]))
-
-        labels = (
-            datamodule.labels_
-            if datamodule is not None
-            and hasattr(datamodule, "labels_")
-            and datamodule.labels_ is not None
-            else np.array([])
-        )
-
-        self._unlabeled_indices = np.argwhere(labels == self.unlabeled_category_).ravel()
-        self._labeled_indices = np.argwhere(labels != self.unlabeled_category_).ravel()
-        self._code_to_label = dict(enumerate(self._label_mapping))
 
     def _set_indices_and_labels(self):
         """Set indices for labeled and unlabeled cells."""

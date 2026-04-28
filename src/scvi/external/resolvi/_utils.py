@@ -28,7 +28,6 @@ class ResolVIPredictiveMixin:
         mc_samples: int = 1,  # consistency, noqa, pylint: disable=unused-argument
         batch_size: int | None = None,
         return_dist: bool = False,
-        dataloader=None,
     ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
         """
         Return the latent representation for each cell.
@@ -51,20 +50,13 @@ class ResolVIPredictiveMixin:
         return_dist
             Return the distribution parameters of the latent variables rather than their sampled
             values. If `True`, ignores `give_mean` and `mc_samples`.
-        dataloader
-            Pre-built dataloader to use instead of constructing one from ``adata``.  Pass
-            ``datamodule.inference_dataloader()`` when the model was trained via
-            ``setup_annbatch`` (i.e. without an in-memory AnnData).
 
         Returns
         -------
         Low-dimensional representation for each cell or a tuple containing its mean and variance.
         """
-        if dataloader is not None:
-            scdl = dataloader
-        else:
-            adata = self._validate_anndata(adata)
-            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent = []
         latent_qzm = []
         latent_qzv = []
