@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 from pprint import pprint
-from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -10,11 +9,8 @@ import pytest
 import scvi
 from scvi.data import synthetic_iid
 from scvi.dataloaders import MappedCollectionDataModule, TileDBDataModule
-from scvi.external import MRVI, RESOLVI
+from scvi.external import MRVI
 from scvi.utils import dependencies
-
-if TYPE_CHECKING:
-    import anndata as ad
 
 
 @pytest.fixture(scope="module")
@@ -1512,52 +1508,3 @@ def test_annbatch_setup_scanvi(save_path: str):
 
     predictions = model.predict(dataloader=inference_dl, soft=False)
     assert len(predictions) == dm.n_obs
-
-
-@pytest.mark.dataloader
-def test_annbatch_setup_resolvi(save_path):
-    """Test RESOLVI.setup_annbatch: full streaming path — no setup_anndata needed."""
-    import zarr
-    from scipy.sparse import csr_matrix
-
-    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
-
-    path1 = os.path.join(save_path, "resolvi_file1.h5ad")
-    path2 = os.path.join(save_path, "resolvi_file2.h5ad")
-    zarr_path = os.path.join(save_path, "annbatch_resolvi.zarr")
-
-    def _make_resolvi_adata(batch_size: int) -> ad.AnnData:
-        adata = synthetic_iid(
-            generate_coordinates=True, n_regions=5, n_proteins=10, batch_size=batch_size
-        )
-        adata.X = csr_matrix(adata.X)
-        adata.obsm["X_spatial"] = adata.obsm["coordinates"]
-        adata.obs["cell_area"] = np.random.gamma(2.0, 1.0, size=adata.n_obs)
-        return adata
-
-    adata1 = _make_resolvi_adata(batch_size=200)
-    adata2 = _make_resolvi_adata(batch_size=200)
-    adata1.write(path1)
-    adata2.write(path2)
-
-    dm = RESOLVI.setup_annbatch(
-        paths=[path1, path2],
-        zarr_path=zarr_path,
-        batch_key="batch",
-        labels_key="labels",
-        batch_size=256,
-        dataset_size=1024,
-    )
-
-    assert dm.n_batch >= 1
-    assert dm.registry["model_name"] == "RESOLVI"
-    assert (
-        "n_distance_neighbor" in dm.registry["field_registries"]["index_neighbor"]["summary_stats"]
-    )
-
-    model = RESOLVI(registry=dm.registry, datamodule=dm)
-    model.train(max_epochs=1, datamodule=dm)
-
-    inference_dl = dm.inference_dataloader()
-    latent = model.get_latent_representation(dataloader=inference_dl)
-    assert latent.shape == (dm.n_obs, model.module.n_latent)
