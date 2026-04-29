@@ -209,13 +209,60 @@ def test_diagvi_get_imputed_values(adata_seq, adata_spatial):
     assert imputed2.shape[1] == adata_spatial.shape[1]
 
 
-def test_diagvi_save_and_load(adata_seq, adata_spatial, tmp_path):
+def test_diagvi_save_and_load_no_anndata(adata_seq, adata_spatial, tmp_path):
+    model = make_model(adata_seq, adata_spatial)
+    model.train(max_epochs=1, batch_size=16)
+    save_path = tmp_path / "diagvi_test_model.pt"
+    model.save(save_path, save_anndata=False)
+
+    # Load the model — adatas required when save_anndata=False
+    loaded_model = DIAGVI.load(save_path, adatas={"diss": adata_seq, "spatial": adata_spatial})
+
+    # compare state dicts
+    model_state = model.module.state_dict()
+    loaded_state = loaded_model.module.state_dict()
+    for key in model_state:
+        assert key in loaded_state
+        assert torch.allclose(model_state[key], loaded_state[key], atol=1e-6), f"Mismatch in {key}"
+
+    # compare output equivalence
+    latents = loaded_model.get_latent_representation()
+    assert latents["diss"].shape[0] == adata_seq.shape[0]
+    assert latents["spatial"].shape[0] == adata_spatial.shape[0]
+
+    # Load with different adatas — same var_names/structure but fresh counts
+    new_adata_seq = AnnData(
+        X=np.random.poisson(2.0, size=(N_OBS_SEQ, N_VARS)).astype(np.float32),
+        obs={"batch": pd.Categorical(np.random.choice(["batch1", "batch2"], size=N_OBS_SEQ))},
+        var=adata_seq.var.copy(),
+    )
+    new_adata_spatial = AnnData(
+        X=np.random.poisson(2.0, size=(N_OBS_SPATIAL, N_VARS)).astype(np.float32),
+        obs={"batch": pd.Categorical(np.random.choice(["batch1", "batch2"], size=N_OBS_SPATIAL))},
+        var=adata_spatial.var.copy(),
+    )
+    loaded_model_new = DIAGVI.load(
+        save_path, adatas={"diss": new_adata_seq, "spatial": new_adata_spatial}
+    )
+
+    # weights identical — only data differs
+    loaded_state_new = loaded_model_new.module.state_dict()
+    for key in model_state:
+        assert torch.allclose(model_state[key], loaded_state_new[key], atol=1e-6)
+
+    # latents have correct shape for new cell counts
+    latents_new = loaded_model_new.get_latent_representation()
+    assert latents_new["diss"].shape == (N_OBS_SEQ, model.module.n_latent)
+    assert latents_new["spatial"].shape == (N_OBS_SPATIAL, model.module.n_latent)
+
+
+def test_diagvi_save_and_load_with_anndata(adata_seq, adata_spatial, tmp_path):
     model = make_model(adata_seq, adata_spatial)
     model.train(max_epochs=1, batch_size=16)
     save_path = tmp_path / "diagvi_test_model.pt"
     model.save(save_path, save_anndata=True)
 
-    # Load the model
+    # Load the model — adatas required when save_anndata=False
     loaded_model = DIAGVI.load(save_path)
 
     # compare state dicts

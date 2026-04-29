@@ -241,6 +241,9 @@ def _load_saved_diagvi_files(
             var_names[name] = adatas[name].var_names
         else:
             adatas[name] = None
+            key = f"var_names_{name}"
+            if key in model:
+                var_names[name] = model[key]
 
     model_state_dict = model["model_state_dict"]
     attr_dict = model["attr_dict"]

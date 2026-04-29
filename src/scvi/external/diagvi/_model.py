@@ -991,6 +991,7 @@ class DIAGVI(BaseModelClass, VAEMixin):
     def load(
         cls,
         dir_path: str,
+        adatas: dict[str, AnnData] | None = None,
         accelerator: str = "auto",
         device: int | str = "auto",
         prefix: str | None = None,
@@ -1002,6 +1003,9 @@ class DIAGVI(BaseModelClass, VAEMixin):
         ----------
         dir_path
             Directory path where the model was saved.
+        adatas
+            Dictionary mapping modality names to AnnData objects. Required when
+            the model was saved with ``save_anndata=False``.
         %(param_accelerator)s
         %(param_device)s
         prefix
@@ -1028,13 +1032,28 @@ class DIAGVI(BaseModelClass, VAEMixin):
             attr_dict,
             var_names_dict,
             model_state_dict,
-            adatas,
+            loaded_adatas,
         ) = _load_saved_diagvi_files(
             dir_path,
             prefix=prefix,
             map_location=device,
             backup_url=backup_url,
         )
+
+        if adatas is not None:
+            for name, adata in adatas.items():
+                loaded_adatas[name] = adata
+                var_names_dict[name] = adata.var_names
+
+        missing = [name for name, adata in loaded_adatas.items() if adata is None]
+        if missing:
+            raise ValueError(
+                f"AnnData objects for modalities {missing} were not saved with the model. "
+                f"Pass them via the `adatas` parameter: "
+                f"DIAGVI.load(dir_path, adatas={{...}})."
+            )
+
+        adatas = loaded_adatas
 
         for mod in adatas.keys():
             saved_var_names = var_names_dict[mod]

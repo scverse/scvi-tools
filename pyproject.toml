@@ -77,7 +77,7 @@ docs = [
     "myst-nb",
     "sphinx-autodoc-typehints",
 ]
-docsbuild = ["scvi-tools[docs,autotune,hub,jax]","mlx"]
+docsbuild = ["scvi-tools[docs,autotune,hub,jax,diagvi]","mlx"]
 
 # scvi.autotune #TODO remove ray[tune] constraint once solved
 autotune = ["hyperopt>=0.2", "ray[tune]; python_version < '3.14'", "scib-metrics", "muon"]
