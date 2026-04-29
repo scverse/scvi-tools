@@ -171,6 +171,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         n_epochs_kl_warmup: int | None = 50,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
+        datamodule=None,
         **kwargs,
     ):
         """Trains the model using amortized variational inference.
@@ -217,6 +218,9 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         plan_kwargs
             Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
             `train()` will overwrite values present in `plan_kwargs`, when appropriate.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`.
         **kwargs
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
@@ -245,6 +249,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             plan_kwargs=plan_kwargs,
             check_val_every_n_epoch=check_val_every_n_epoch,
             batch_size=batch_size,
+            datamodule=datamodule,
             **kwargs,
         )
 

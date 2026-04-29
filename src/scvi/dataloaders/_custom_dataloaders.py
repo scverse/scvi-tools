@@ -1117,8 +1117,7 @@ class AnnbatchDataModule(LightningDataModule):
     def val_dataloader(self):
         if self._validset is not None:
             return self._IterableLoaderWrapper(self._validset)
-        else:
-            pass
+        return []
 
     def __iter__(self):
         """Iterate over the Loader, applying on_before_batch_transfer to each batch."""
@@ -1181,39 +1180,49 @@ class AnnbatchDataModule(LightningDataModule):
 
         # Extra categorical covariates — per-key encoding matching MappedCollectionDataModule
         if self._categorical_covariate_keys is not None and obs is not None:
-            extra_cat_covs = torch.cat(
-                [
-                    torch.from_numpy(
-                        self.categ_cov_encoders[k].transform(obs[k].values.astype(str))
-                    ).unsqueeze(1)
-                    for k in self._categorical_covariate_keys
-                    if k in self.categ_cov_encoders
-                ],
-                dim=1,
-            )
+            extra_cat_parts = [
+                torch.from_numpy(
+                    self.categ_cov_encoders[k].transform(obs[k].values.astype(str))
+                ).unsqueeze(1)
+                for k in self._categorical_covariate_keys
+                if k in self.categ_cov_encoders
+            ]
+            extra_cat_covs = torch.cat(extra_cat_parts, dim=1) if extra_cat_parts else None
         else:
             extra_cat_covs = None
 
         # Extra continuous covariates — matching TileDBDataModule pattern
         if self._continuous_covariate_keys is not None and obs is not None:
-            extra_cont_covs = torch.cat(
-                [
-                    torch.from_numpy(obs[k].values).float().unsqueeze(1)
-                    for k in self._continuous_covariate_keys
-                ],
-                dim=1,
-            )
+            extra_cont_parts = [
+                torch.from_numpy(obs[k].values).float().unsqueeze(1)
+                for k in self._continuous_covariate_keys
+                if k in obs
+            ]
+            extra_cont_covs = torch.cat(extra_cont_parts, dim=1) if extra_cont_parts else None
         else:
             extra_cont_covs = None
 
-        return {
+        library_size = x.sum(dim=1, keepdim=True).clamp_min(1e-8)
+        size_factor = library_size / library_size.mean().clamp_min(1e-8)
+
+        tensors = {
             "X": x,
             "batch": batch_tensor,
             "labels": labels_tensor,
-            "extra_categorical_covs": extra_cat_covs,
-            "extra_continuous_covs": extra_cont_covs,
-            "sample": sample_tensor,
         }
+
+        if self.model_name == "SCANVI":
+            tensors["extra_categorical_covs"] = extra_cat_covs
+            tensors["extra_continuous_covs"] = extra_cont_covs
+        elif extra_cat_covs is not None:
+            tensors["extra_categorical_covs"] = extra_cat_covs
+
+        if self.model_name != "SCANVI" and extra_cont_covs is not None:
+            tensors["extra_continuous_covs"] = extra_cont_covs
+
+        tensors["sample"] = sample_tensor
+        tensors["size_factor"] = size_factor
+        return tensors
 
     # --- Properties ---
 

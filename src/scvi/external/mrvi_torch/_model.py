@@ -224,6 +224,7 @@ class TorchMRVI(
         batch_size: int = 128,
         early_stopping: bool = False,
         plan_kwargs: dict | None = None,
+        datamodule=None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -248,6 +249,9 @@ class TorchMRVI(
             See :class:`~scvi.train.Trainer` for further options.
         plan_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.TrainingPlan`.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`.
         **trainer_kwargs
             Additional keyword arguments passed into :class:`~scvi.train.Trainer`.
         """
@@ -261,6 +265,7 @@ class TorchMRVI(
             "validation_size": validation_size,
             "batch_size": batch_size,
             "early_stopping": early_stopping,
+            "datamodule": datamodule,
             **trainer_kwargs,
         }
         train_kwargs = dict(deepcopy(DEFAULT_TRAIN_KWARGS), **train_kwargs)

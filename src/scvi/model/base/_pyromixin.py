@@ -51,7 +51,16 @@ class PyroJitGuideWarmup(Callback):
         else:
             dl = self.dataloader
         for tensors in dl:
-            tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
+            has_non_tensor_values = any(
+                value is not None and not hasattr(value, "to") for value in tensors.values()
+            )
+            if (
+                self.dataloader is None
+                and has_non_tensor_values
+                and hasattr(trainer.datamodule, "on_before_batch_transfer")
+            ):
+                tensors = trainer.datamodule.on_before_batch_transfer(tensors, dataloader_idx=0)
+            tens = {k: t.to(pl_module.device) for k, t in tensors.items() if t is not None}
             args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
             pyro_guide(*args, **kwargs)
             break
@@ -77,7 +86,7 @@ class PyroModelGuideWarmup(Callback):
             pyro_guide = pl_module.module.guide
             dl = self.dataloader
             for tensors in dl:
-                tens = {k: t.to(pl_module.device) for k, t in tensors.items()}
+                tens = {k: t.to(pl_module.device) for k, t in tensors.items() if t is not None}
                 args, kwargs = pl_module.module._get_fn_args_from_batch(tens)
                 pyro_guide(*args, **kwargs)
                 break
@@ -109,6 +118,7 @@ class PyroSviTrainMixin:
         datasplitter_kwargs: dict | None = None,
         plan_config: KwargsLike | None = None,
         plan_kwargs: KwargsLike | None = None,
+        datamodule=None,
         trainer_config: KwargsLike | None = None,
         **trainer_kwargs,
     ):
@@ -150,6 +160,10 @@ class PyroSviTrainMixin:
             Configuration object or mapping used to build
             :class:`~scvi.train.PyroTrainingPlan`. Values in ``plan_kwargs`` and explicit arguments
             take precedence.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
+            be passed in if the model was not initialized with :class:`~anndata.AnnData`.
         trainer_config
             Configuration object or mapping used to build :class:`~scvi.train.Trainer`. Values in
             ``trainer_kwargs`` and explicit arguments take precedence.
@@ -157,7 +171,15 @@ class PyroSviTrainMixin:
             Other keyword args for :class:`~scvi.train.Trainer`.
         """
         if max_epochs is None:
-            max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
+            if datamodule is None:
+                max_epochs = get_max_epochs_heuristic(self.adata.n_obs, epochs_cap=1000)
+            elif hasattr(datamodule, "n_obs"):
+                max_epochs = get_max_epochs_heuristic(datamodule.n_obs, epochs_cap=1000)
+            else:
+                raise ValueError(
+                    "If `datamodule` does not have `n_obs` attribute, `max_epochs` must be "
+                    "passed in."
+                )
 
         plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         if lr is not None and "optim" not in plan_kwargs.keys():
@@ -165,26 +187,29 @@ class PyroSviTrainMixin:
 
         datasplitter_kwargs = datasplitter_kwargs or {}
 
-        if batch_size is None:
-            # use data splitter which moves data to GPU once
-            data_splitter = DeviceBackedDataSplitter(
-                self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                batch_size=batch_size,
-                accelerator=accelerator,
-                device=device,
-                **datasplitter_kwargs,
-            )
+        if datamodule is None:
+            if batch_size is None:
+                # use data splitter which moves data to GPU once
+                data_splitter = DeviceBackedDataSplitter(
+                    self.adata_manager,
+                    train_size=train_size,
+                    validation_size=validation_size,
+                    batch_size=batch_size,
+                    accelerator=accelerator,
+                    device=device,
+                    **datasplitter_kwargs,
+                )
+            else:
+                data_splitter = self._data_splitter_cls(
+                    self.adata_manager,
+                    train_size=train_size,
+                    validation_size=validation_size,
+                    shuffle_set_split=shuffle_set_split,
+                    batch_size=batch_size or settings.batch_size,
+                    **datasplitter_kwargs,
+                )
         else:
-            data_splitter = self._data_splitter_cls(
-                self.adata_manager,
-                train_size=train_size,
-                validation_size=validation_size,
-                shuffle_set_split=shuffle_set_split,
-                batch_size=batch_size or settings.batch_size,
-                **datasplitter_kwargs,
-            )
+            data_splitter = datamodule
 
         if training_plan is None:
             training_plan = self._training_plan_cls(self.module, **plan_kwargs)

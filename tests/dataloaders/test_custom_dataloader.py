@@ -1846,7 +1846,7 @@ def test_annbatch_setup_peakvi(save_path: str):
     assert dm.n_batch == 2
 
     model = scvi.model.PEAKVI(registry=dm.registry)
-    model.train(max_epochs=1, datamodule=dm)
+    model.train(max_epochs=1, datamodule=dm, early_stopping=False)
     assert "elbo_train" in model.history
 
 

@@ -91,6 +91,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         training_plan: PyroTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
+        datamodule=None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -125,6 +126,9 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword arguments for :class:`~scvi.train.PyroTrainingPlan`.
+        datamodule
+            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
+            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`.
         **trainer_kwargs
             Additional keyword arguments passed to :class:`~scvi.train.Trainer`.
         """
@@ -145,6 +149,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             plan_kwargs=plan_kwargs,
             training_plan=training_plan,
             datasplitter_kwargs=datasplitter_kwargs,
+            datamodule=datamodule,
             **trainer_kwargs,
         )
 
