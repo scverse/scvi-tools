@@ -1579,3 +1579,35 @@ def test_annbatch_setup_linear_scvi(save_path: str):
     latent = model.get_latent_representation(dataloader=inference_dl)
     assert latent.shape[0] == dm.n_obs
     assert latent.shape[1] == model.n_latent
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_autozi(save_path: str):
+    """Test AUTOZI.setup_annbatch: build, train."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+    path1 = os.path.join(save_path, "autozi_file1.h5ad")
+    path2 = os.path.join(save_path, "autozi_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    collection_path = os.path.join(save_path, "autozi.zarr")
+    dm = scvi.model.AUTOZI.setup_annbatch(
+        collection_path=collection_path,
+        paths=[path1, path2],
+        batch_key="batch",
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm.n_batch == 2
+
+    model = scvi.model.AUTOZI(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm)
+    assert "elbo_train" in model.history

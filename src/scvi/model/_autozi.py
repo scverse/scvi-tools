@@ -104,7 +104,8 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -118,11 +119,15 @@ class AUTOZI(VAEMixin, UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
         use_observed_lib_size: bool = True,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
         self.use_observed_lib_size = use_observed_lib_size
         n_batch = self.summary_stats.n_batch
-        library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+        if adata is not None:
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+        else:
+            library_log_means = np.zeros((1, n_batch))
+            library_log_vars = np.ones((1, n_batch))
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
