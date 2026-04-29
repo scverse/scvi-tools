@@ -1848,3 +1848,56 @@ def test_annbatch_setup_peakvi(save_path: str):
     model = scvi.model.PEAKVI(registry=dm.registry)
     model.train(max_epochs=1, datamodule=dm)
     assert "elbo_train" in model.history
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_cellassign(save_path: str):
+    """Test CellAssign.setup_annbatch: build, train with marker genes."""
+    import numpy as np
+    import pandas as pd
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+    path1 = os.path.join(save_path, "cellassign_file1.h5ad")
+    path2 = os.path.join(save_path, "cellassign_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    # Simple binary marker matrix: 2 cell types, first 5 genes mark type A, next 5 mark type B
+    n_genes = adata1.n_vars
+    marker_data = np.zeros((n_genes, 2), dtype=np.float32)
+    marker_data[:5, 0] = 1  # type A
+    marker_data[5:10, 1] = 1  # type B
+    cell_type_markers = pd.DataFrame(
+        marker_data,
+        index=adata1.var_names,
+        columns=["type_A", "type_B"],
+    )
+
+    collection_path = os.path.join(save_path, "cellassign.zarr")
+    dm, col_means, basis_means = scvi.external.CellAssign.setup_annbatch(
+        collection_path=collection_path,
+        paths=[path1, path2],
+        batch_key="batch",
+        cell_type_markers=cell_type_markers,
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm.n_batch == 2
+    assert col_means.shape[0] == n_genes
+    assert basis_means.shape[0] > 1
+
+    model = scvi.external.CellAssign(
+        registry=dm.registry,
+        cell_type_markers=cell_type_markers,
+        col_means=col_means,
+        basis_means=basis_means,
+    )
+    model.train(max_epochs=1, datamodule=dm)
+    assert "elbo_train" in model.history
