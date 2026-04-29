@@ -1739,3 +1739,40 @@ def test_annbatch_setup_sysvi(save_path: str):
     model = scvi.external.SysVI(registry=dm.registry, prior="standard_normal")
     model.train(max_epochs=1, datamodule=dm)
     assert "elbo_train" in model.history
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_scar(save_path: str):
+    """Test SCAR.setup_annbatch: build, train with provided ambient_profile."""
+    import numpy as np
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+    path1 = os.path.join(save_path, "scar_file1.h5ad")
+    path2 = os.path.join(save_path, "scar_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    collection_path = os.path.join(save_path, "scar.zarr")
+    dm = scvi.external.SCAR.setup_annbatch(
+        collection_path=collection_path,
+        paths=[path1, path2],
+        batch_key="batch",
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm.n_batch == 2
+
+    # Provide ambient_profile as uniform prior (1/n_genes per gene)
+    n_genes = adata1.n_vars
+    ambient_profile = np.full((1, n_genes), 1.0 / n_genes, dtype=np.float32)
+
+    model = scvi.external.SCAR(registry=dm.registry, ambient_profile=ambient_profile)
+    model.train(max_epochs=1, datamodule=dm)
+    assert "elbo_train" in model.history
