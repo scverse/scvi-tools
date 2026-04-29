@@ -90,7 +90,8 @@ class LinearSCVI(
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int = 128,
         n_latent: int = 10,
         n_layers: int = 1,
@@ -101,7 +102,7 @@ class LinearSCVI(
         latent_distribution: Literal["normal", "ln"] = "normal",
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
         n_batch = self.summary_stats.n_batch
         library_log_means, library_log_vars = None, None
@@ -109,7 +110,16 @@ class LinearSCVI(
             self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
             and not use_observed_lib_size
         ):
-            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
+            if adata is not None:
+                library_log_means, library_log_vars = _init_library_size(
+                    self.adata_manager, n_batch
+                )
+            else:
+                # Registry path: use neutral priors (mean=0, var=1 per batch)
+                import numpy as np
+
+                library_log_means = np.zeros((1, n_batch))
+                library_log_vars = np.ones((1, n_batch))
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,
