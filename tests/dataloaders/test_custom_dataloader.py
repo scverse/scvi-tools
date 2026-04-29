@@ -1508,3 +1508,36 @@ def test_annbatch_setup_scanvi(save_path: str):
 
     predictions = model.predict(dataloader=inference_dl, soft=False)
     assert len(predictions) == dm.n_obs
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_base_sample_key(save_path: str):
+    """Base setup_annbatch must forward sample_key to AnnbatchDataModule."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata1.obs["sample"] = "sample_A"
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+    adata2.obs["sample"] = "sample_B"
+
+    path1 = os.path.join(save_path, "base_sample_file1.h5ad")
+    path2 = os.path.join(save_path, "base_sample_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    collection_path = os.path.join(save_path, "base_sample.zarr")
+    dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
+        paths=[path1, path2],
+        batch_key="batch",
+        sample_key="sample",
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm.n_samples == 2
+    assert dm.registry["field_registries"]["sample"]["summary_stats"]["n_sample"] == 2

@@ -1071,6 +1071,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         paths: list[str] | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
+        sample_key: str | None = None,
         unlabeled_category: str = "Unknown",
         layer: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
@@ -1105,6 +1106,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             Column in ``obs`` to use as the batch variable.
         labels_key
             Column in ``obs`` to use as the cell-type / label variable.
+        sample_key
+            Column in ``obs`` to use as the sample variable. Used by models like MrVI.
         unlabeled_category
             Value used to mark unlabeled cells in ``labels_key``.  Required by semi-supervised
             models such as SCANVI.  Defaults to ``"Unknown"``.
@@ -1158,7 +1161,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         from scvi.dataloaders import AnnbatchDataModule
 
-        obs_keys = [k for k in [batch_key, labels_key] if k is not None]
+        obs_keys = [k for k in [batch_key, labels_key, sample_key] if k is not None]
         if categorical_covariate_keys:
             obs_keys += list(categorical_covariate_keys)
         if continuous_covariate_keys:
@@ -1306,6 +1309,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             ds,
             batch_key=batch_key,
             label_key=labels_key,
+            sample_key=sample_key,
             unlabeled_category=unlabeled_category,
             model_name=cls.__name__,
             categorical_covariate_keys=categorical_covariate_keys,

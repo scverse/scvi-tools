@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import h5py
 import numpy as np
 import pandas as pd
-from anndata.abc import CSCDataset, CSRDataset
+from anndata.experimental import CSCDataset, CSRDataset
 from scipy.sparse import issparse
 from torch.utils.data import Dataset
 

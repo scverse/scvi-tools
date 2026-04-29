@@ -10,8 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp_sparse
 from anndata import AnnData
-from anndata.abc import CSCDataset, CSRDataset
-from anndata.io import read_elem
+from anndata.experimental import CSCDataset, CSRDataset, read_elem
 from mudata import MuData
 from torch import as_tensor, sparse_csc_tensor, sparse_csr_tensor
 
