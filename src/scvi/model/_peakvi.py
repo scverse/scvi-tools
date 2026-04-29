@@ -90,7 +90,8 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_hidden: int | None = None,
         n_latent: int | None = None,
         n_layers_encoder: int = 2,
@@ -105,13 +106,20 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         encode_covariates: bool = False,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
-        n_cats_per_cov = (
-            self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
-            if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
-            else []
-        )
+        if adata is not None:
+            n_cats_per_cov = (
+                self.adata_manager.get_state_registry(REGISTRY_KEYS.CAT_COVS_KEY).n_cats_per_key
+                if REGISTRY_KEYS.CAT_COVS_KEY in self.adata_manager.data_registry
+                else []
+            )
+        else:
+            cat_cov_sr = self.registry["field_registries"]["extra_categorical_covs"][
+                "state_registry"
+            ]
+            n_cats_per_cov = list(cat_cov_sr["n_cats_per_key"]) if cat_cov_sr else []
+
         self.get_normalized_function_name = "get_normalized_accessibility"
 
         self.module = self._module_cls(
