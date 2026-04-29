@@ -61,7 +61,8 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnData | None = None,
+        registry: dict | None = None,
         n_topics: int = 20,
         n_hidden: int = 128,
         cell_topic_prior: float | Sequence[float] | None = None,
@@ -70,7 +71,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
 
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
         n_input = self.summary_stats.n_vars
 

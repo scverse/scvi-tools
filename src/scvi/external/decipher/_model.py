@@ -41,10 +41,10 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
     _module_cls = DecipherPyroModule
     _training_plan_cls = DecipherTrainingPlan
 
-    def __init__(self, adata: AnnData, **kwargs):
+    def __init__(self, adata: AnnData | None = None, registry: dict | None = None, **kwargs):
         pyro.clear_param_store()
 
-        super().__init__(adata)
+        super().__init__(adata, registry)
 
         dim_genes = self.summary_stats.n_vars
 

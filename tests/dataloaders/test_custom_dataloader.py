@@ -1645,3 +1645,65 @@ def test_annbatch_setup_condscvi(save_path: str):
     model = scvi.model.CondSCVI(registry=dm.registry)
     model.train(max_epochs=1, datamodule=dm)
     assert "elbo_train" in model.history
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_decipher(save_path: str):
+    """Test Decipher.setup_annbatch: build, train."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+    path1 = os.path.join(save_path, "decipher_file1.h5ad")
+    path2 = os.path.join(save_path, "decipher_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    collection_path = os.path.join(save_path, "decipher.zarr")
+    dm = scvi.external.Decipher.setup_annbatch(
+        collection_path=collection_path,
+        paths=[path1, path2],
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm.n_vars == adata1.n_vars
+
+    model = scvi.external.Decipher(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm)
+    assert "elbo_train" in model.history
+
+
+@pytest.mark.dataloader
+def test_annbatch_setup_amortizedlda(save_path: str):
+    """Test AmortizedLDA.setup_annbatch: build, train."""
+    import zarr
+    from scipy.sparse import csr_matrix
+
+    zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+    adata1 = scvi.data.synthetic_iid(batch_size=500)
+    adata1.X = csr_matrix(adata1.X)
+    adata2 = scvi.data.synthetic_iid(batch_size=500)
+    adata2.X = csr_matrix(adata2.X)
+    path1 = os.path.join(save_path, "lda_file1.h5ad")
+    path2 = os.path.join(save_path, "lda_file2.h5ad")
+    adata1.write(path1)
+    adata2.write(path2)
+
+    collection_path = os.path.join(save_path, "lda.zarr")
+    dm = scvi.model.AmortizedLDA.setup_annbatch(
+        collection_path=collection_path,
+        paths=[path1, path2],
+        batch_size=256,
+        dataset_size=1024,
+    )
+    assert dm.n_vars == adata1.n_vars
+
+    model = scvi.model.AmortizedLDA(registry=dm.registry, n_topics=5)
+    model.train(max_epochs=1, datamodule=dm)
+    assert "elbo_train" in model.history
