@@ -1168,13 +1168,24 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             obs_keys += list(continuous_covariate_keys)
 
         def _get_var_names_from_path(path: str) -> list[str]:
-            adata_ = ad.experimental.read_lazy(path)
-            if layer is None and getattr(adata_, "raw", None) is not None:
-                var = adata_.raw.var
-            else:
-                var = adata_.var
-            var_df = var.to_memory() if hasattr(var, "to_memory") else var
-            return list(var_df.index)
+            import h5py
+
+            with h5py.File(path, "r") as f:
+                if layer is None and "raw" in f and "var" in f["raw"]:
+                    var_grp = f["raw/var"]
+                else:
+                    var_grp = f["var"]
+                if "_index" in var_grp:
+                    idx_key = var_grp.attrs.get("_index", "_index")
+                else:
+                    idx_key = var_grp.attrs.get("_index", None)
+                if idx_key and idx_key in var_grp:
+                    return list(var_grp[idx_key].asstr()[:])
+                # fallback: try common index column names
+                for col in ("_index", "index", "gene_ids", "gene_names"):
+                    if col in var_grp:
+                        return list(var_grp[col].asstr()[:])
+                raise ValueError(f"Cannot find var index in {path}")
 
         def _get_var_names_from_collection(store_path: str) -> list[str]:
             store = zarr.open(store_path, mode="r")
