@@ -152,11 +152,9 @@ class LinearSCVI(
 
         """
         cols = [f"Z_{i}" for i in range(self.n_latent)]
-        if self.adata is not None:
-            var_names = self.adata.var_names
-        else:
-            var_names = self.registry["field_registries"]["X"]["state_registry"]["column_names"]
-        loadings = pd.DataFrame(self.module.get_loadings(), index=var_names, columns=cols)
+        loadings = pd.DataFrame(
+            self.module.get_loadings(), index=self.get_var_names(), columns=cols
+        )
 
         return loadings
 

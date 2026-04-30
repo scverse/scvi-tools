@@ -1152,18 +1152,6 @@ class AnnbatchDataModule(LightningDataModule):
         self._shuffle_train = self.shuffle or shuffle_set_split
 
     # The annbatch Loader is already an iterable that yields batches.
-    # We wrap it to hide __len__ (which returns n_obs, not n_batches)
-    # because Lightning uses len(dataloader) to compute val_check_batch;
-    # a misleading length prevents validation from ever triggering.
-    class _IterableLoaderWrapper:
-        """Thin wrapper that exposes only __iter__, hiding __len__."""
-
-        def __init__(self, loader):
-            self._loader = loader
-
-        def __iter__(self):
-            return iter(self._loader)
-
     def _loader_with_mask(self, mask: slice, *, shuffle: bool):
         import copy
 
@@ -1182,16 +1170,14 @@ class AnnbatchDataModule(LightningDataModule):
 
     def train_dataloader(self):
         if self._validset is None and self._train_mask is not None:
-            loader = self._loader_with_mask(self._train_mask, shuffle=self._shuffle_train)
-            return self._IterableLoaderWrapper(loader)
-        return self._IterableLoaderWrapper(self.dataset)
+            return self._loader_with_mask(self._train_mask, shuffle=self._shuffle_train)
+        return self.dataset
 
     def val_dataloader(self):
         if self._validset is not None:
-            return self._IterableLoaderWrapper(self._validset)
+            return self._validset
         if self._val_mask is not None:
-            loader = self._loader_with_mask(self._val_mask, shuffle=False)
-            return self._IterableLoaderWrapper(loader)
+            return self._loader_with_mask(self._val_mask, shuffle=False)
         return []
 
     def __iter__(self):
@@ -1482,8 +1468,7 @@ class AnnbatchDataModule(LightningDataModule):
 
     def inference_dataloader(self):
         """Dataloader for inference with ``on_before_batch_transfer`` applied."""
-        dataloader = self._IterableLoaderWrapper(self.dataset)
-        return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
+        return self._InferenceDataloader(self.dataset, self.on_before_batch_transfer)
 
     class _InferenceDataloader:
         """Wrapper to apply ``on_before_batch_transfer`` during iteration."""

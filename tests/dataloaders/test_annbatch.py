@@ -48,6 +48,21 @@ def _assert_validation_split(model, dm):
     assert any("validation" in key for key in model.history.keys())
 
 
+def _assert_save_load(model, model_cls, save_path, model_name, dm):
+    """Save annbatch-trained model and reload it, verifying inference works."""
+    save_dir = os.path.join(save_path, f"saved_{model_name}")
+    # save_anndata=True is a no-op for annbatch models (self.adata is None)
+    model.save(save_dir, overwrite=True, datamodule=dm)
+
+    model_loaded = model_cls.load(save_dir, adata=False)
+    assert model_loaded.is_trained_
+
+    if hasattr(model_loaded, "get_latent_representation"):
+        inference_dl = dm.inference_dataloader()
+        latent = model_loaded.get_latent_representation(dataloader=inference_dl)
+        assert latent.shape[0] == dm.n_obs
+
+
 # ---------------------------------------------------------------------------
 # Generic annbatch / SCVI
 # ---------------------------------------------------------------------------
@@ -81,6 +96,8 @@ def test_annbatch(save_path: str):
     latent = model.get_latent_representation(dataloader=inference_dl)
     assert latent.shape == (dm.n_obs, model.module.n_latent)
     _ = model.get_elbo(dataloader=inference_dl)
+
+    _assert_save_load(model, scvi.model.SCVI, save_path, "annbatch_basic", dm)
 
 
 @pytest.mark.dataloader
@@ -140,6 +157,8 @@ def test_annbatch_with_covariates(save_path: str):
     inference_dl = dm.inference_dataloader()
     _ = model.get_elbo(dataloader=inference_dl)
     _ = model.get_latent_representation(dataloader=inference_dl)
+
+    _assert_save_load(model, scvi.model.SCVI, save_path, "annbatch_cov", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +244,8 @@ def test_annbatch_setup_scvi(save_path: str):
     model_layer.train(max_epochs=1, datamodule=dm_layer)
     assert "elbo_train" in model_layer.history
 
+    _assert_save_load(model, scvi.model.SCVI, save_path, "setup_scvi", dm)
+
 
 # ---------------------------------------------------------------------------
 # SCANVI
@@ -277,6 +298,8 @@ def test_annbatch_setup_scanvi(save_path: str):
     soft_preds = model.predict(dataloader=inference_dl, soft=True)
     assert soft_preds.shape[0] == dm.n_obs
     assert soft_preds.shape[1] == dm.n_labels
+
+    _assert_save_load(model, scvi.model.SCANVI, save_path, "setup_scanvi", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -348,6 +371,8 @@ def test_annbatch_setup_linear_scvi(save_path: str):
     reconstruction = model.get_reconstruction_error(dataloader=inference_dl)
     assert isinstance(reconstruction, dict)
 
+    _assert_save_load(model, scvi.model.LinearSCVI, save_path, "setup_linear_scvi", dm)
+
 
 # ---------------------------------------------------------------------------
 # AUTOZI
@@ -386,6 +411,8 @@ def test_annbatch_setup_autozi(save_path: str):
     alphas_betas = model.get_alphas_betas()
     assert "alpha_posterior" in alphas_betas
     assert "beta_posterior" in alphas_betas
+
+    _assert_save_load(model, scvi.model.AUTOZI, save_path, "setup_autozi", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -426,6 +453,8 @@ def test_annbatch_setup_condscvi(save_path: str):
     reconstruction = model.get_reconstruction_error(dataloader=inference_dl)
     assert isinstance(reconstruction, dict)
 
+    _assert_save_load(model, scvi.model.CondSCVI, save_path, "setup_condscvi", dm)
+
 
 # ---------------------------------------------------------------------------
 # Decipher
@@ -461,6 +490,8 @@ def test_annbatch_setup_decipher(save_path: str):
     # z representation (gene expression space)
     z_latent = model.get_latent_representation(dataloader=inference_dl, give_z=True)
     assert z_latent.shape == (dm.n_obs, model.module.dim_z)
+
+    _assert_save_load(model, scvi.external.Decipher, save_path, "setup_decipher", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -506,6 +537,8 @@ def test_annbatch_setup_amortizedlda(save_path: str):
     assert isinstance(perplexity, float)
     assert perplexity > 0
 
+    _assert_save_load(model, scvi.model.AmortizedLDA, save_path, "setup_lda", dm)
+
 
 # ---------------------------------------------------------------------------
 # SysVI
@@ -539,6 +572,8 @@ def test_annbatch_setup_sysvi(save_path: str):
 
     norm_expr = model.get_normalized_expression(dataloader=inference_dl, library_size="latent")
     assert norm_expr.shape == (dm.n_obs, dm.n_vars)
+
+    _assert_save_load(model, scvi.external.SysVI, save_path, "setup_sysvi", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -582,6 +617,8 @@ def test_annbatch_setup_scar(save_path: str):
 
     marginal_ll = model.get_marginal_ll(dataloader=inference_dl, n_mc_samples=3)
     assert isinstance(marginal_ll, float)
+
+    _assert_save_load(model, scvi.external.SCAR, save_path, "setup_scar", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -627,6 +664,8 @@ def test_annbatch_setup_mrvi(save_path: str):
 
     norm_expr = model.get_normalized_expression(dataloader=inference_dl)
     assert norm_expr.shape[0] == dm.n_obs
+
+    _assert_save_load(model, scvi.external.TorchMRVI, save_path, "setup_mrvi", dm)
 
 
 # ---------------------------------------------------------------------------
@@ -682,6 +721,8 @@ def test_annbatch_setup_peakvi(save_path: str):
     region_factors = model.get_region_factors()
     assert len(region_factors) == dm.n_vars
 
+    _assert_save_load(model, scvi.model.PEAKVI, save_path, "setup_peakvi", dm)
+
 
 # ---------------------------------------------------------------------------
 # CellAssign
@@ -730,3 +771,5 @@ def test_annbatch_setup_cellassign(save_path: str):
     predictions = model.predict(dataloader=inference_dl)
     assert predictions.shape[0] == dm.n_obs
     assert predictions.shape[1] == 2  # type_A, type_B
+
+    _assert_save_load(model, scvi.external.CellAssign, save_path, "setup_cellassign", dm)
