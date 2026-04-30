@@ -803,7 +803,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     "n_sample": datamodule.n_samples,
                     "n_vars": datamodule.n_vars,
                     "batch_labels": datamodule.batch_labels,
-                    "label_keys": datamodule.label_keys,
+                    "label_keys": getattr(datamodule, "label_keys", None),
                 }
             )
             if "datamodule" in user_attributes["init_params_"]["non_kwargs"]:
@@ -918,16 +918,28 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
 
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
         if method_name == "setup_datamodule":
-            attr_dict["n_input"] = attr_dict["n_vars"]
-            attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
-            attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
-            module_exp_params = inspect.signature(model._module_cls).parameters.keys()
-            common_keys1 = list(attr_dict.keys() & module_exp_params)
-            common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
-            common_items1 = {key: attr_dict[key] for key in common_keys1}
-            common_items2 = {key: model.init_params_["non_kwargs"][key] for key in common_keys2}
-            module = model._module_cls(**common_items1, **common_items2)
-            model.module = module
+            if datamodule is not None:
+                # Full module recreation using datamodule-provided shapes.
+                attr_dict["n_input"] = attr_dict["n_vars"]
+                attr_dict["n_continuous_cov"] = attr_dict["n_extra_continuous_covs"]
+                attr_dict["n_cats_per_cov"] = cls._get_decoder_cat_cov_shape(model.module)
+                module_exp_params = inspect.signature(model._module_cls).parameters.keys()
+                common_keys1 = list(attr_dict.keys() & module_exp_params)
+                common_keys2 = model.init_params_["non_kwargs"].keys() & module_exp_params
+                common_items1 = {key: attr_dict[key] for key in common_keys1}
+                common_items2 = {
+                    key: model.init_params_["non_kwargs"][key] for key in common_keys2
+                }
+                if hasattr(model.module, "library_log_means"):
+                    common_items1["library_log_means"] = (
+                        model.module.library_log_means.cpu().numpy()
+                    )
+                if hasattr(model.module, "library_log_vars"):
+                    common_items1["library_log_vars"] = model.module.library_log_vars.cpu().numpy()
+                module = model._module_cls(**common_items1, **common_items2)
+                model.module = module
+            # else: _initialize_model already built the module correctly from registry;
+            # skip recreation to avoid losing params not in the module's explicit signature.
         else:
             model.module.on_load(model, pyro_param_store=pyro_param_store)
         model.module.load_state_dict(model_state_dict)

@@ -203,12 +203,22 @@ class SemisupervisedTrainingMixin:
         self.unlabeled_category_ = labels_state_registry.unlabeled_category
 
         if datamodule is None:
-            self.labels_ = get_anndata_attribute(
-                self.adata,
-                self.adata_manager.data_registry.labels.attr_name,
-                self.original_label_key,
-                mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
-            ).ravel()
+            if self.adata is None:
+                # Load path with no adata — use categorical_mapping without the unlabeled
+                # category so n_labels is computed the same way as during training
+                # (where actual cell labels never contain the unlabeled_category value).
+                cat_mapping = labels_state_registry.categorical_mapping
+                unlabeled = labels_state_registry.unlabeled_category
+                if unlabeled is not None:
+                    cat_mapping = cat_mapping[cat_mapping != unlabeled]
+                self.labels_ = cat_mapping
+            else:
+                self.labels_ = get_anndata_attribute(
+                    self.adata,
+                    self.adata_manager.data_registry.labels.attr_name,
+                    self.original_label_key,
+                    mod_key=getattr(self.adata_manager.data_registry.labels, "mod_key", None),
+                ).ravel()
         else:
             if datamodule.registry["setup_method_name"] == "setup_datamodule":
                 self.labels_ = datamodule.labels_.ravel()
