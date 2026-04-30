@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from math import ceil, floor
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -1026,10 +1027,14 @@ class AnnbatchDataModule(LightningDataModule):
         continuous_covariate_keys: list[str] | None = None,
         dataset_val=None,
         var_names: list[str] | None = None,
+        chunk_size: int = 256,
+        preload_nchunks: int = 32,
+        preload_to_gpu: bool = False,
+        shuffle: bool = False,
     ):
         super().__init__()
         self.dataset = dataset
-        self.batch_size = batch_size
+        self.batch_size = batch_size or dataset._batch_sampler.batch_size
         self._validset = dataset_val
         self.model_name = model_name
         self.train_size = train_size
@@ -1041,6 +1046,16 @@ class AnnbatchDataModule(LightningDataModule):
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
         self._var_names = var_names
+        self.chunk_size = chunk_size
+        self.preload_nchunks = preload_nchunks
+        self.preload_to_gpu = preload_to_gpu
+        self.shuffle = shuffle
+        self._shuffle_train = shuffle
+        self.train_idx = np.arange(dataset.n_obs)
+        self.val_idx = np.array([], dtype=int)
+        self.test_idx = np.array([], dtype=int)
+        self._train_mask = slice(0, dataset.n_obs)
+        self._val_mask = None
 
         # Helper to check if an obs key exists across dataset._obs DataFrames.
         # Requires the key to be present in ALL shards so that _concat_obs_col
@@ -1098,6 +1113,44 @@ class AnnbatchDataModule(LightningDataModule):
             self.n_val = 0
         self.n_train = dataset.n_obs
 
+    def set_split(
+        self,
+        train_size: float | None = None,
+        validation_size: float | None = None,
+        shuffle_set_split: bool = True,
+    ):
+        """Configure disjoint train/validation ranges over the same annbatch collection."""
+        if train_size is None and validation_size is None:
+            return
+        if self._validset is not None:
+            return
+        if train_size is None:
+            train_size = 1.0 - validation_size
+        if train_size <= 0.0 or train_size > 1.0:
+            raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
+        if validation_size is not None and (validation_size < 0.0 or validation_size >= 1.0):
+            raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
+        if validation_size is not None and train_size + validation_size > 1.0:
+            raise ValueError("train_size + validation_size must be between 0 and 1")
+
+        n_obs = self.dataset.n_obs
+        self.train_size = train_size
+        n_train = ceil(train_size * n_obs)
+        n_val = n_obs - n_train if validation_size is None else floor(validation_size * n_obs)
+        if n_train == 0:
+            raise ValueError("The resulting train set is empty.")
+
+        train_stop = n_train
+        val_stop = train_stop + n_val
+        self.train_idx = np.arange(0, train_stop)
+        self.val_idx = np.arange(train_stop, val_stop)
+        self.test_idx = np.arange(val_stop, n_obs)
+        self.n_train = len(self.train_idx)
+        self.n_val = len(self.val_idx)
+        self._train_mask = slice(0, train_stop)
+        self._val_mask = slice(train_stop, val_stop) if n_val > 0 else None
+        self._shuffle_train = self.shuffle or shuffle_set_split
+
     # The annbatch Loader is already an iterable that yields batches.
     # We wrap it to hide __len__ (which returns n_obs, not n_batches)
     # because Lightning uses len(dataloader) to compute val_check_batch;
@@ -1111,12 +1164,34 @@ class AnnbatchDataModule(LightningDataModule):
         def __iter__(self):
             return iter(self._loader)
 
+    def _loader_with_mask(self, mask: slice, *, shuffle: bool):
+        import copy
+
+        from annbatch.samplers import RandomSampler, SequentialSampler
+
+        sampler_cls = RandomSampler if shuffle else SequentialSampler
+        sampler = sampler_cls(
+            chunk_size=self.chunk_size,
+            preload_nchunks=self.preload_nchunks,
+            batch_size=self.batch_size,
+            mask=mask,
+        )
+        loader = copy.copy(self.dataset)
+        loader._batch_sampler = sampler
+        return loader
+
     def train_dataloader(self):
+        if self._validset is None and self._train_mask is not None:
+            loader = self._loader_with_mask(self._train_mask, shuffle=self._shuffle_train)
+            return self._IterableLoaderWrapper(loader)
         return self._IterableLoaderWrapper(self.dataset)
 
     def val_dataloader(self):
         if self._validset is not None:
             return self._IterableLoaderWrapper(self._validset)
+        if self._val_mask is not None:
+            loader = self._loader_with_mask(self._val_mask, shuffle=False)
+            return self._IterableLoaderWrapper(loader)
         return []
 
     def __iter__(self):
@@ -1407,7 +1482,7 @@ class AnnbatchDataModule(LightningDataModule):
 
     def inference_dataloader(self):
         """Dataloader for inference with ``on_before_batch_transfer`` applied."""
-        dataloader = self.train_dataloader()
+        dataloader = self._IterableLoaderWrapper(self.dataset)
         return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
 
     class _InferenceDataloader:

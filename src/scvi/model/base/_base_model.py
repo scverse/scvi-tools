@@ -1206,20 +1206,23 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
 
         def _load_adata_from_path(path: str) -> ad.AnnData:
-            adata_ = ad.experimental.read_lazy(path)
+            import h5py
+
+            # Use h5py directly to avoid ad.experimental.read_lazy, which creates dask arrays for
+            # ALL elements including uns — breaking on zero-shape datasets.
+            f = h5py.File(path, "r")
             if layer is not None:
-                x = adata_.layers[layer]
-                var = adata_.var
-            elif getattr(adata_, "raw", None) is not None:
-                x = adata_.raw.X
-                var = adata_.raw.var
+                x = ad.experimental.read_elem_lazy(f[f"layers/{layer}"])
+                var = ad.io.read_elem(f["var"])
+            elif "raw" in f and "X" in f["raw"]:
+                x = ad.experimental.read_elem_lazy(f["raw/X"])
+                var = ad.io.read_elem(f["raw/var"])
             else:
-                x = adata_.X
-                var = adata_.var
+                x = ad.experimental.read_elem_lazy(f["X"])
+                var = ad.io.read_elem(f["var"])
             # Store all obs so the zarr collection can be reused with different key sets.
-            obs = adata_.obs.to_memory()
-            var_df = var.to_memory() if hasattr(var, "to_memory") else var
-            return ad.AnnData(X=x, obs=obs, var=var_df)
+            obs = ad.io.read_elem(f["obs"])
+            return ad.AnnData(X=x, obs=obs, var=var)
 
         def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
             x = ad.io.sparse_dataset(g["X"])
@@ -1276,6 +1279,17 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             var_names = _get_var_names_from_collection(collection_path)
 
+        from importlib.util import find_spec
+
+        if preload_to_gpu and find_spec("cupy") is None:
+            warnings.warn(
+                "`preload_to_gpu=True` requires cupy, which is not installed. "
+                "Falling back to `preload_to_gpu=False`.",
+                UserWarning,
+                stacklevel=2,
+            )
+            preload_to_gpu = False
+
         ds = Loader(
             batch_size=batch_size,
             chunk_size=chunk_size,
@@ -1323,10 +1337,15 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             sample_key=sample_key,
             unlabeled_category=unlabeled_category,
             model_name=cls.__name__,
+            batch_size=batch_size,
             categorical_covariate_keys=categorical_covariate_keys,
             continuous_covariate_keys=continuous_covariate_keys,
             dataset_val=ds_val,
             var_names=var_names,
+            chunk_size=chunk_size,
+            preload_nchunks=preload_nchunks,
+            preload_to_gpu=preload_to_gpu,
+            shuffle=shuffle,
         )
 
     @staticmethod

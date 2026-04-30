@@ -8,6 +8,7 @@ from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.data.fields import LayerField
 from scvi.model.base import BaseModelClass, PyroSviTrainMixin
 from scvi.train import PyroTrainingPlan
@@ -159,6 +160,7 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
         give_z: bool = False,
+        dataloader=None,
     ) -> np.ndarray:
         """Get the latent representation of the data.
 
@@ -173,11 +175,17 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         give_z
             Whether to return the intermediate latent space z or the top-level
             latent space v.
+        dataloader
+            An iterator over minibatches of data. If provided, ``adata``, ``indices``, and
+            ``batch_size`` are ignored.
         """
         self._check_if_trained(warn=False)
-        adata = self._validate_anndata(adata)
-
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        _validate_adata_dataloader_input(self, adata, dataloader)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        else:
+            scdl = dataloader
         latent_locs = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]

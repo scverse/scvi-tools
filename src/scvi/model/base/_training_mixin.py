@@ -36,6 +36,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _set_datamodule_split(
+    datamodule,
+    train_size: float | None,
+    validation_size: float | None,
+    shuffle_set_split: bool,
+) -> None:
+    """Forward split settings to custom datamodules that implement splitting."""
+    if datamodule is not None and hasattr(datamodule, "set_split"):
+        datamodule.set_split(
+            train_size=train_size,
+            validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
+        )
+
+
 class UnsupervisedTrainingMixin:
     """General purpose unsupervised train method."""
 
@@ -142,15 +157,17 @@ class UnsupervisedTrainingMixin:
                 load_sparse_tensor=load_sparse_tensor,
                 **datasplitter_kwargs,
             )
-        elif self.module is None:
-            self.module = self._module_cls(
-                datamodule.n_vars,
-                n_batch=datamodule.n_batch,
-                n_labels=getattr(datamodule, "n_labels", 1),
-                n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
-                n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
-                **self._module_kwargs,
-            )
+        else:
+            _set_datamodule_split(datamodule, train_size, validation_size, shuffle_set_split)
+            if self.module is None:
+                self.module = self._module_cls(
+                    datamodule.n_vars,
+                    n_batch=datamodule.n_batch,
+                    n_labels=getattr(datamodule, "n_labels", 1),
+                    n_continuous_cov=getattr(datamodule, "n_continuous_cov", 0),
+                    n_cats_per_cov=getattr(datamodule, "n_cats_per_cov", None),
+                    **self._module_kwargs,
+                )
 
         plan_kwargs = merge_kwargs(plan_config, plan_kwargs, name="plan")
         training_plan = self._training_plan_cls(self.module, **plan_kwargs)
@@ -345,10 +362,11 @@ class SemisupervisedTrainingMixin:
                     return np.array(predictions)
             else:
                 n_labels = len(pred[0])
+                index = None if dataloader is not None else adata.obs_names[indices]
                 pred = pd.DataFrame(
                     y_pred,
                     columns=self._label_mapping[:n_labels],
-                    index=adata.obs_names[indices],
+                    index=index,
                 )
                 if ig_interpretability:
                     return pred, attributions
@@ -464,6 +482,7 @@ class SemisupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         else:
+            _set_datamodule_split(datamodule, train_size, validation_size, shuffle_set_split)
             Warning("Warning: SCANVI sampler is not available with custom dataloader")
             sampler_callback = []
 

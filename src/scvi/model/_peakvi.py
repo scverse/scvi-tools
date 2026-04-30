@@ -11,6 +11,7 @@ from scipy.sparse import csr_matrix, vstack
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -308,6 +309,7 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         normalize_regions: bool = False,
         batch_size: int = 128,
         return_numpy: bool = False,
+        dataloader=None,
     ) -> pd.DataFrame | np.ndarray | csr_matrix:
         """Impute the full accessibility matrix.
 
@@ -354,20 +356,30 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             `threshold` is given, return :class:`~scipy.sparse.csr_matrix`. If `False`, return
             :class:`~pandas.DataFrame`. DataFrame includes regions names as columns.
         """
-        adata = self._validate_anndata(adata)
-        adata_manager = self.get_anndata_manager(adata, required=True)
-        if indices is None:
-            indices = np.arange(adata.n_obs)
-        if n_samples_overall is not None:
-            indices = np.random.choice(indices, n_samples_overall)
-        post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
-
-        if region_list is None:
-            region_mask = slice(None)
+        _validate_adata_dataloader_input(self, adata, dataloader)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            adata_manager = self.get_anndata_manager(adata, required=True)
+            if indices is None:
+                indices = np.arange(adata.n_obs)
+            if n_samples_overall is not None:
+                indices = np.random.choice(indices, n_samples_overall)
+            post = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+            transform_batch = _get_batch_code_from_category(adata_manager, transform_batch)
+            if region_list is None:
+                region_mask = slice(None)
+            else:
+                all_regions = adata.var_names
+                region_mask = [region in region_list for region in all_regions]
         else:
-            all_regions = adata.var_names
-            region_mask = [region in region_list for region in all_regions]
+            post = dataloader
+            transform_batch = [None]
+            all_regions = np.asarray(self.get_var_names())
+            region_mask = (
+                slice(None)
+                if region_list is None
+                else [region in region_list for region in all_regions]
+            )
 
         if threshold is not None and (threshold < 0 or threshold > 1):
             raise ValueError("the provided threshold must be between 0 and 1")
@@ -403,17 +415,21 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
         if return_numpy:
             return imputed
         elif threshold:
-            return pd.DataFrame.sparse.from_spmatrix(
-                imputed,
-                index=adata.obs_names[indices],
-                columns=adata.var_names[region_mask],
-            )
+            if adata is not None:
+                obs_idx = adata.obs_names[indices]
+                col_idx = adata.var_names[region_mask]
+            else:
+                obs_idx = None
+                col_idx = np.asarray(self.get_var_names())[region_mask]
+            return pd.DataFrame.sparse.from_spmatrix(imputed, index=obs_idx, columns=col_idx)
         else:
-            return pd.DataFrame(
-                imputed,
-                index=adata.obs_names[indices],
-                columns=adata.var_names[region_mask],
-            )
+            if adata is not None:
+                obs_idx = adata.obs_names[indices]
+                col_idx = adata.var_names[region_mask]
+            else:
+                obs_idx = None
+                col_idx = np.asarray(self.get_var_names())[region_mask]
+            return pd.DataFrame(imputed, index=obs_idx, columns=col_idx)
 
     @de_dsp.dedent
     def differential_accessibility(

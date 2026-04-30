@@ -21,6 +21,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.external.cellassign._module import CellAssignModule
 from scvi.model._utils import get_max_epochs_heuristic
 from scvi.model.base import BaseModelClass, RNASeqMixin, UnsupervisedTrainingMixin
+from scvi.model.base._training_mixin import _set_datamodule_split
 from scvi.train import LoudEarlyStopping, TrainingPlan, TrainRunner
 from scvi.train._config import merge_kwargs
 from scvi.utils import dependencies, setup_anndata_dsp
@@ -144,10 +145,13 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
         self.init_params_ = self._get_init_params(locals())
 
     @torch.inference_mode()
-    def predict(self) -> pd.DataFrame:
+    def predict(self, dataloader=None) -> pd.DataFrame:
         """Predict soft cell type assignment probability for each cell."""
-        adata = self._validate_anndata(None)
-        scdl = self._make_data_loader(adata=adata)
+        if dataloader is None:
+            adata = self._validate_anndata(None)
+            scdl = self._make_data_loader(adata=adata)
+        else:
+            scdl = dataloader
         predictions = []
         for tensors in scdl:
             generative_inputs = self.module._get_generative_input(tensors, None)
@@ -226,6 +230,7 @@ class CellAssign(UnsupervisedTrainingMixin, RNASeqMixin, BaseModelClass):
 
         if datamodule is not None:
             # Annbatch streaming path: use datamodule directly
+            _set_datamodule_split(datamodule, train_size, validation_size, shuffle_set_split)
             if max_epochs is None:
                 max_epochs = get_max_epochs_heuristic(datamodule.n_obs)
             training_plan = TrainingPlan(self.module, **plan_kwargs)

@@ -28,6 +28,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _set_datamodule_split(
+    datamodule,
+    train_size: float | None,
+    validation_size: float | None,
+    shuffle_set_split: bool,
+) -> None:
+    """Forward split settings to custom datamodules that implement splitting."""
+    if datamodule is not None and hasattr(datamodule, "set_split"):
+        datamodule.set_split(
+            train_size=train_size,
+            validation_size=validation_size,
+            shuffle_set_split=shuffle_set_split,
+        )
+
+
 class PyroJitGuideWarmup(Callback):
     """A callback to warmup a Pyro guide.
 
@@ -210,6 +225,7 @@ class PyroSviTrainMixin:
                 )
         else:
             data_splitter = datamodule
+            _set_datamodule_split(data_splitter, train_size, validation_size, shuffle_set_split)
 
         if training_plan is None:
             training_plan = self._training_plan_cls(self.module, **plan_kwargs)
