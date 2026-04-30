@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import pytest
 from scipy.sparse import csr_matrix
 
 import scvi
@@ -52,6 +53,7 @@ def _assert_validation_split(model, dm):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch(save_path: str):
     """Basic SCVI annbatch: build, train, infer, validate."""
     _zarr()
@@ -81,6 +83,7 @@ def test_annbatch(save_path: str):
     _ = model.get_elbo(dataloader=inference_dl)
 
 
+@pytest.mark.dataloader
 def test_annbatch_with_covariates(save_path: str):
     """SCVI annbatch with categorical and continuous covariates."""
     _zarr()
@@ -144,6 +147,7 @@ def test_annbatch_with_covariates(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_scvi(save_path: str):
     """SCVI.setup_annbatch: build-once, reuse, rebuild, layer, validation."""
     _zarr()
@@ -227,6 +231,7 @@ def test_annbatch_setup_scvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_scanvi(save_path: str):
     """SCANVI.setup_annbatch: train, latent, predict."""
     _zarr()
@@ -279,6 +284,7 @@ def test_annbatch_setup_scanvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_base_sample_key(save_path: str):
     """Base setup_annbatch must forward sample_key to AnnbatchDataModule."""
     _zarr()
@@ -308,6 +314,7 @@ def test_annbatch_setup_base_sample_key(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_linear_scvi(save_path: str):
     """LinearSCVI.setup_annbatch: build, train, latent, loadings."""
     _zarr()
@@ -347,6 +354,7 @@ def test_annbatch_setup_linear_scvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_autozi(save_path: str):
     """AUTOZI.setup_annbatch: build, train, elbo, reconstruction, alphas_betas."""
     _zarr()
@@ -385,6 +393,7 @@ def test_annbatch_setup_autozi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_condscvi(save_path: str):
     """CondSCVI.setup_annbatch: build, train, latent, elbo, reconstruction."""
     _zarr()
@@ -423,6 +432,7 @@ def test_annbatch_setup_condscvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_decipher(save_path: str):
     """Decipher.setup_annbatch: build, train, v-latent, z-latent."""
     _zarr()
@@ -458,6 +468,7 @@ def test_annbatch_setup_decipher(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_amortizedlda(save_path: str):
     """AmortizedLDA.setup_annbatch: build, train, feature_by_topic, latent, elbo, perplexity."""
     _zarr()
@@ -501,6 +512,7 @@ def test_annbatch_setup_amortizedlda(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_sysvi(save_path: str):
     """SysVI.setup_annbatch: build, train, latent, normalized_expression."""
     _zarr()
@@ -534,6 +546,7 @@ def test_annbatch_setup_sysvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_scar(save_path: str):
     """SCAR.setup_annbatch: build, train, elbo, latent, reconstruction, marginal_ll."""
     _zarr()
@@ -576,6 +589,7 @@ def test_annbatch_setup_scar(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_mrvi(save_path: str):
     """TorchMRVI.setup_annbatch: build, train, latent, normalized_expression."""
     _zarr()
@@ -620,6 +634,7 @@ def test_annbatch_setup_mrvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_peakvi(save_path: str):
     """PEAKVI.setup_annbatch: build, train, latent, accessibility, region_factors."""
     _zarr()
@@ -673,6 +688,7 @@ def test_annbatch_setup_peakvi(save_path: str):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.dataloader
 def test_annbatch_setup_cellassign(save_path: str):
     """CellAssign.setup_annbatch: build, train, predict."""
     _zarr()
