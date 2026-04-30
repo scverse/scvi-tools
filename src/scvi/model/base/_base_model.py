@@ -1089,7 +1089,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
     @dependencies("annbatch", "zarr")
     def setup_annbatch(
         cls,
-        collection_path: str,
+        collection_path: str | None = None,
         paths: list[str] | None = None,
         batch_key: str | None = None,
         labels_key: str | None = None,
@@ -1106,8 +1106,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         dataset_size: int = 2_097_152,
         shuffle: bool = False,
         var_subset: list[str] | None = None,
-        paths_val: list[str] | None = None,
-        collection_path_val: str | None = None,
     ):
         """Set up a model from on-disk AnnData files via the annbatch streaming loader.
 
@@ -1118,7 +1116,9 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         Parameters
         ----------
         collection_path
-            Directory where the zarr collection is written (or already exists).
+            Directory where the zarr collection is written (or already exists).  If ``None``
+            (default), a path is auto-generated as ``"./{ModelName}_annbatch.zarr"`` in the
+            current working directory.
         paths
             Paths to h5ad files that make up the training dataset.  If ``None``, an existing
             collection at ``collection_path`` is opened without rebuilding — useful when the
@@ -1159,11 +1159,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         var_subset
             Optional list of gene names to restrict the collection to (passed as
             ``var_subset`` to ``add_adatas``).
-        paths_val
-            Paths to h5ad files for an optional validation dataset.
-        collection_path_val
-            Directory for the validation zarr collection (required when ``paths_val`` is
-            given).
 
         Returns
         -------
@@ -1182,6 +1177,13 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         from annbatch import DatasetCollection, Loader
 
         from scvi.dataloaders import AnnbatchDataModule
+
+        # Configure zarrs codec pipeline (ships with annbatch[zarrs] extra).
+        zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+        # Default collection paths derived from the model class name.
+        if collection_path is None:
+            collection_path = f"./{cls.__name__.lower()}_annbatch.zarr"
 
         obs_keys = [k for k in [batch_key, labels_key, sample_key] if k is not None]
         if categorical_covariate_keys:
@@ -1321,37 +1323,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         )
         ds.use_collection(collection, load_adata=_load_adata_from_zarr)
 
-        ds_val = None
-        if paths_val is not None:
-            if collection_path_val is None:
-                raise ValueError(
-                    "`collection_path_val` must be provided when `paths_val` is given."
-                )
-            if collection_path_val == collection_path:
-                collection_val = collection
-            else:
-                needs_val_build = rebuild or not os.path.exists(collection_path_val)
-                collection_val = (
-                    _build_collection(collection_path_val, paths_val)
-                    if needs_val_build
-                    else _open_collection(collection_path_val)
-                )
-                if not needs_val_build and collection_val.is_empty:
-                    warnings.warn(
-                        f"Existing zarr store at '{collection_path_val}' appears incomplete "
-                        "(missing annbatch encoding marker). Rebuilding from scratch.",
-                        stacklevel=2,
-                    )
-                    collection_val = _build_collection(collection_path_val, paths_val)
-            ds_val = Loader(
-                batch_size=batch_size,
-                chunk_size=chunk_size,
-                preload_nchunks=preload_nchunks,
-                preload_to_gpu=preload_to_gpu,
-                to_torch=True,
-            )
-            ds_val.use_collection(collection_val, load_adata=_load_adata_from_zarr)
-
         return AnnbatchDataModule(
             ds,
             batch_key=batch_key,
@@ -1362,7 +1333,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             batch_size=batch_size,
             categorical_covariate_keys=categorical_covariate_keys,
             continuous_covariate_keys=continuous_covariate_keys,
-            dataset_val=ds_val,
             var_names=var_names,
             chunk_size=chunk_size,
             preload_nchunks=preload_nchunks,

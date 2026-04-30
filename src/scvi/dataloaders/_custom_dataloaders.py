@@ -1008,9 +1008,6 @@ class AnnbatchDataModule(LightningDataModule):
         Column names in obs to use as categorical covariates.
     continuous_covariate_keys : list of str, optional
         Column names in obs to use as continuous covariates.
-    dataset_val : annbatch.Loader, optional
-        Optional validation Loader. If provided, ``val_dataloader`` will
-        return this loader.
     """
 
     def __init__(
@@ -1025,7 +1022,6 @@ class AnnbatchDataModule(LightningDataModule):
         train_size: float = 1.0,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
-        dataset_val=None,
         var_names: list[str] | None = None,
         chunk_size: int = 256,
         preload_nchunks: int = 32,
@@ -1035,7 +1031,6 @@ class AnnbatchDataModule(LightningDataModule):
         super().__init__()
         self.dataset = dataset
         self.batch_size = batch_size or dataset._batch_sampler.batch_size
-        self._validset = dataset_val
         self.model_name = model_name
         self.train_size = train_size
         self.unlabeled_category = unlabeled_category
@@ -1107,10 +1102,7 @@ class AnnbatchDataModule(LightningDataModule):
 
         # Attributes expected by the mlflow logger in _trainrunner
         self.data_loader_kwargs = {}
-        if self._validset is not None:
-            self.n_val = self._validset.n_obs
-        else:
-            self.n_val = 0
+        self.n_val = 0
         self.n_train = dataset.n_obs
 
     def set_split(
@@ -1121,8 +1113,6 @@ class AnnbatchDataModule(LightningDataModule):
     ):
         """Configure disjoint train/validation ranges over the same annbatch collection."""
         if train_size is None and validation_size is None:
-            return
-        if self._validset is not None:
             return
         if train_size is None:
             train_size = 1.0 - validation_size
@@ -1169,13 +1159,11 @@ class AnnbatchDataModule(LightningDataModule):
         return loader
 
     def train_dataloader(self):
-        if self._validset is None and self._train_mask is not None:
+        if self._train_mask is not None:
             return self._loader_with_mask(self._train_mask, shuffle=self._shuffle_train)
         return self.dataset
 
     def val_dataloader(self):
-        if self._validset is not None:
-            return self._validset
         if self._val_mask is not None:
             return self._loader_with_mask(self._val_mask, shuffle=False)
         return []
