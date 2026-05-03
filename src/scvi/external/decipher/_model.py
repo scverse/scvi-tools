@@ -8,7 +8,6 @@ from anndata import AnnData
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.data.fields import LayerField
 from scvi.model.base import BaseModelClass, PyroSviTrainMixin
 from scvi.train import PyroTrainingPlan
@@ -42,10 +41,10 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
     _module_cls = DecipherPyroModule
     _training_plan_cls = DecipherTrainingPlan
 
-    def __init__(self, adata: AnnData | None = None, registry: dict | None = None, **kwargs):
+    def __init__(self, adata: AnnData, **kwargs):
         pyro.clear_param_store()
 
-        super().__init__(adata, registry)
+        super().__init__(adata)
 
         dim_genes = self.summary_stats.n_vars
 
@@ -92,7 +91,6 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         training_plan: PyroTrainingPlan | None = None,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
-        datamodule=None,
         **trainer_kwargs,
     ):
         """Train the model.
@@ -127,9 +125,6 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
             Keyword arguments for :class:`~scvi.train.PyroTrainingPlan`.
-        datamodule
-            ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
-            for training in place of the default :class:`~scvi.dataloaders.DataSplitter`.
         **trainer_kwargs
             Additional keyword arguments passed to :class:`~scvi.train.Trainer`.
         """
@@ -150,7 +145,6 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
             plan_kwargs=plan_kwargs,
             training_plan=training_plan,
             datasplitter_kwargs=datasplitter_kwargs,
-            datamodule=datamodule,
             **trainer_kwargs,
         )
 
@@ -160,7 +154,6 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
         give_z: bool = False,
-        dataloader=None,
     ) -> np.ndarray:
         """Get the latent representation of the data.
 
@@ -175,17 +168,11 @@ class Decipher(PyroSviTrainMixin, BaseModelClass):
         give_z
             Whether to return the intermediate latent space z or the top-level
             latent space v.
-        dataloader
-            An iterator over minibatches of data. If provided, ``adata``, ``indices``, and
-            ``batch_size`` are ignored.
         """
         self._check_if_trained(warn=False)
-        _validate_adata_dataloader_input(self, adata, dataloader)
-        if dataloader is None:
-            adata = self._validate_anndata(adata)
-            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        else:
-            scdl = dataloader
+        adata = self._validate_anndata(adata)
+
+        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
         latent_locs = []
         for tensors in scdl:
             x = tensors[REGISTRY_KEYS.X_KEY]

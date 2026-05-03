@@ -1348,7 +1348,6 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         )
         self.differentiable_loss_fn = self.loss_fn.differentiable_loss
         self.training_step_outputs = []
-        self.validation_step_outputs = []
 
     def training_step(self, batch, batch_idx):
         """Training step for Pyro training."""
@@ -1380,35 +1379,6 @@ class LowLevelPyroTrainingPlan(pl.LightningModule):
         elbo /= n
         self.log("elbo_train", elbo, prog_bar=True)
         self.training_step_outputs.clear()
-
-    def validation_step(self, batch, batch_idx):
-        """Validation step for Pyro training."""
-        args, kwargs = self.module._get_fn_args_from_batch(batch)
-        if self.use_kl_weight:
-            kwargs.update({"kl_weight": self.kl_weight})
-        loss = self.differentiable_loss_fn(
-            self.scale_fn(self.module.model),
-            self.scale_fn(self.module.guide),
-            *args,
-            **kwargs,
-        )
-        self.log("validation_loss", loss)
-        self.validation_step_outputs.append({"loss": loss})
-        return {"loss": loss}
-
-    def on_validation_epoch_end(self):
-        """Validation epoch end for Pyro training."""
-        outputs = self.validation_step_outputs
-        if not outputs:
-            return
-        elbo = 0
-        n = 0
-        for out in outputs:
-            elbo += out["loss"]
-            n += 1
-        elbo /= n
-        self.log("elbo_validation", elbo, prog_bar=True)
-        self.validation_step_outputs.clear()
 
     def configure_optimizers(self):
         """Configure optimizers for the model."""

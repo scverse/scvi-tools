@@ -11,7 +11,6 @@ import torch
 
 from scvi._constants import REGISTRY_KEYS
 from scvi.data import AnnDataManager
-from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.data.fields import LayerField
 from scvi.module import AmortizedLDAPyroModule
 from scvi.utils import setup_anndata_dsp
@@ -62,8 +61,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
     def __init__(
         self,
-        adata: AnnData | None = None,
-        registry: dict | None = None,
+        adata: AnnData,
         n_topics: int = 20,
         n_hidden: int = 128,
         cell_topic_prior: float | Sequence[float] | None = None,
@@ -72,7 +70,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         # in case any other model was created before that shares the same parameter names.
         pyro.clear_param_store()
 
-        super().__init__(adata, registry)
+        super().__init__(adata)
 
         n_input = self.summary_stats.n_vars
 
@@ -155,7 +153,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         return pd.DataFrame(
             data=topic_by_feature.numpy().T,
-            index=self.get_var_names(),
+            index=self.adata.var_names,
             columns=[f"topic_{i}" for i in range(topic_by_feature.shape[0])],
         )
 
@@ -165,7 +163,6 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
         n_samples: int = 5000,
-        dataloader: collections.abc.Iterator[dict[str, torch.Tensor | None]] | None = None,
     ) -> pd.DataFrame:
         """Converts a count matrix to an inferred topic distribution.
 
@@ -180,9 +177,6 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
         n_samples
             Number of samples to take for the Monte-Carlo estimate of the mean.
-        dataloader
-            An iterator over minibatches of data. If provided, ``adata``, ``indices``, and
-            ``batch_size`` are ignored.
 
         Returns
         -------
@@ -190,14 +184,9 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         of the topic distribution for each observation.
         """
         self._check_if_trained(warn=False)
-        _validate_adata_dataloader_input(self, adata, dataloader)
-        if dataloader is None:
-            adata = self._validate_anndata(adata)
-            dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-            index = adata.obs_names if indices is None else adata.obs_names[indices]
-        else:
-            dl = dataloader
-            index = None
+        adata = self._validate_anndata(adata)
+
+        dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         transformed_xs = []
         for tensors in dl:
@@ -207,7 +196,7 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
 
         return pd.DataFrame(
             data=transformed_x,
-            index=index,
+            index=adata.obs_names,
             columns=[f"topic_{i}" for i in range(transformed_x.shape[1])],
         )
 
@@ -216,7 +205,6 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: collections.abc.Iterator[dict[str, torch.Tensor | None]] | None = None,
     ) -> float:
         """Return the ELBO for the data.
 
@@ -232,28 +220,21 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        dataloader
-            An iterator over minibatches of data. If provided, ``adata``, ``indices``, and
-            ``batch_size`` are ignored.
 
         Returns
         -------
         The positive ELBO.
         """
         self._check_if_trained(warn=False)
-        _validate_adata_dataloader_input(self, adata, dataloader)
-        if dataloader is None:
-            adata = self._validate_anndata(adata)
-            dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        else:
-            dl = dataloader
-        n_obs = len(dl.indices) if hasattr(dl, "indices") else self.summary_stats.n_cells
+        adata = self._validate_anndata(adata)
+
+        dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
 
         elbos = []
         for tensors in dl:
             x = tensors[REGISTRY_KEYS.X_KEY]
             library = x.sum(dim=1)
-            elbos.append(self.module.get_elbo(x, library, n_obs))
+            elbos.append(self.module.get_elbo(x, library, len(dl.indices)))
         return np.mean(elbos)
 
     def get_perplexity(
@@ -261,7 +242,6 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
         adata: AnnData | None = None,
         indices: Sequence[int] | None = None,
         batch_size: int | None = None,
-        dataloader: collections.abc.Iterator[dict[str, torch.Tensor | None]] | None = None,
     ) -> float:
         """Computes approximate perplexity for `adata`.
 
@@ -276,29 +256,17 @@ class AmortizedLDA(PyroSviTrainMixin, BaseModelClass):
             Indices of cells in adata to use. If `None`, all cells are used.
         batch_size
             Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
-        dataloader
-            An iterator over minibatches of data. If provided, ``adata``, ``indices``, and
-            ``batch_size`` are ignored.
 
         Returns
         -------
         Perplexity.
         """
         self._check_if_trained(warn=False)
-        _validate_adata_dataloader_input(self, adata, dataloader)
-        if dataloader is None:
-            adata = self._validate_anndata(adata)
-            dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        else:
-            dl = dataloader
-        n_obs = len(dl.indices) if hasattr(dl, "indices") else self.summary_stats.n_cells
+        adata = self._validate_anndata(adata)
 
-        total_counts = 0
-        elbos = []
-        for tensors in dl:
-            x = tensors[REGISTRY_KEYS.X_KEY]
-            library = x.sum(dim=1)
-            total_counts += x.sum().item()
-            elbos.append(self.module.get_elbo(x, library, n_obs))
+        dl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        total_counts = sum(tensors[REGISTRY_KEYS.X_KEY].sum().item() for tensors in dl)
 
-        return np.exp(-np.mean(elbos) / total_counts)
+        return np.exp(
+            -self.get_elbo(adata=adata, indices=indices, batch_size=batch_size) / total_counts
+        )

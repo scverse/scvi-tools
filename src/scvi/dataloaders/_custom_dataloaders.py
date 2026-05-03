@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from math import ceil, floor
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -1025,7 +1024,7 @@ class AnnbatchDataModule(LightningDataModule):
         var_names: list[str] | None = None,
         chunk_size: int = 256,
         preload_nchunks: int = 32,
-        preload_to_gpu: bool = False,
+        preload_to_gpu: bool = True,
         shuffle: bool = False,
     ):
         super().__init__()
@@ -1110,36 +1109,56 @@ class AnnbatchDataModule(LightningDataModule):
         train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
+        batch_size: int | None = None,
     ):
         """Configure disjoint train/validation ranges over the same annbatch collection."""
+        self.set_batch_size(batch_size)
         if train_size is None and validation_size is None:
             return
+        train_size_is_none = train_size is None
         if train_size is None:
             train_size = 1.0 - validation_size
-        if train_size <= 0.0 or train_size > 1.0:
-            raise ValueError("Invalid train_size. Must be: 0 < train_size <= 1")
-        if validation_size is not None and (validation_size < 0.0 or validation_size >= 1.0):
-            raise ValueError("Invalid validation_size. Must be 0 <= validation_size < 1")
-        if validation_size is not None and train_size + validation_size > 1.0:
-            raise ValueError("train_size + validation_size must be between 0 and 1")
+
+        from scvi.dataloaders._data_splitting import validate_data_split
 
         n_obs = self.dataset.n_obs
         self.train_size = train_size
-        n_train = ceil(train_size * n_obs)
-        n_val = n_obs - n_train if validation_size is None else floor(validation_size * n_obs)
-        if n_train == 0:
-            raise ValueError("The resulting train set is empty.")
+        n_train, n_val = validate_data_split(
+            n_obs,
+            train_size,
+            validation_size,
+            batch_size=self.batch_size,
+            train_size_is_none=train_size_is_none,
+        )
 
-        train_stop = n_train
-        val_stop = train_stop + n_val
-        self.train_idx = np.arange(0, train_stop)
-        self.val_idx = np.arange(train_stop, val_stop)
-        self.test_idx = np.arange(val_stop, n_obs)
+        val_stop = n_val
+        train_stop = val_stop + n_train
+        self.val_idx = np.arange(0, val_stop)
+        self.train_idx = np.arange(val_stop, train_stop)
+        self.test_idx = np.arange(train_stop, n_obs)
         self.n_train = len(self.train_idx)
         self.n_val = len(self.val_idx)
-        self._train_mask = slice(0, train_stop)
-        self._val_mask = slice(train_stop, val_stop) if n_val > 0 else None
+        self._train_mask = slice(val_stop, train_stop)
+        self._val_mask = slice(0, val_stop) if n_val > 0 else None
         self._shuffle_train = self.shuffle or shuffle_set_split
+
+    def set_batch_size(self, batch_size: int | None = None) -> None:
+        """Update the annbatch sampler batch size used for train and validation."""
+        if batch_size is None:
+            return
+        preload_size = self.chunk_size * self.preload_nchunks
+        if batch_size > preload_size:
+            raise ValueError(
+                "`batch_size` cannot exceed `chunk_size * preload_nchunks` for annbatch. "
+                f"Got batch_size={batch_size}, chunk_size={self.chunk_size}, and "
+                f"preload_nchunks={self.preload_nchunks}."
+            )
+        if preload_size % batch_size != 0:
+            raise ValueError(
+                "`chunk_size * preload_nchunks` must be divisible by `batch_size` for annbatch. "
+                f"Got {preload_size} % {batch_size} = {preload_size % batch_size}."
+            )
+        self.batch_size = batch_size
 
     # The annbatch Loader is already an iterable that yields batches.
     def _loader_with_mask(self, mask: slice, *, shuffle: bool):

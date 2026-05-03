@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 
 import numpy as np
-import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix
 
@@ -71,17 +70,12 @@ def _assert_save_load(model, model_cls, save_path, model_name, dm):
 @pytest.mark.dataloader
 def test_annbatch(save_path: str):
     """Basic SCVI annbatch: build, train, infer, validate."""
-    _zarr()
     paths, ref = _synthetic_files(save_path, "annbatch_basic", batch_size=20000)
-    collection_path = os.path.join(save_path, "annbatch_collection")
 
     dm = scvi.model.SCVI.setup_annbatch(
-        collection_path=collection_path,
         paths=paths,
         batch_key="batch",
         labels_key="labels",
-        batch_size=4096,
-        dataset_size=2_097_152,
     )
 
     assert dm.n_batch == 2
@@ -206,6 +200,7 @@ def test_annbatch_setup_scvi(save_path: str):
         collection_path=collection_path,
         batch_key="batch",
         batch_size=256,
+        rebuild=False,
     )
     assert dm2.n_batch == 2
     assert dm2.n_vars == ref.n_vars
@@ -457,90 +452,6 @@ def test_annbatch_setup_condscvi(save_path: str):
 
 
 # ---------------------------------------------------------------------------
-# Decipher
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.dataloader
-def test_annbatch_setup_decipher(save_path: str):
-    """Decipher.setup_annbatch: build, train, v-latent, z-latent."""
-    _zarr()
-    paths, ref = _synthetic_files(save_path, "decipher", batch_size=500)
-    collection_path = os.path.join(save_path, "decipher.zarr")
-
-    dm = scvi.external.Decipher.setup_annbatch(
-        collection_path=collection_path,
-        paths=paths,
-        batch_size=256,
-        dataset_size=1024,
-    )
-    assert dm.n_vars == ref.n_vars
-
-    model = scvi.external.Decipher(registry=dm.registry)
-    model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
-    assert "elbo_train" in model.history
-    _assert_validation_split(model, dm)
-
-    inference_dl = dm.inference_dataloader()
-
-    # v representation (trajectory space)
-    v_latent = model.get_latent_representation(dataloader=inference_dl, give_z=False)
-    assert v_latent.shape == (dm.n_obs, model.module.dim_v)
-
-    # z representation (gene expression space)
-    z_latent = model.get_latent_representation(dataloader=inference_dl, give_z=True)
-    assert z_latent.shape == (dm.n_obs, model.module.dim_z)
-
-    _assert_save_load(model, scvi.external.Decipher, save_path, "setup_decipher", dm)
-
-
-# ---------------------------------------------------------------------------
-# AmortizedLDA
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.dataloader
-def test_annbatch_setup_amortizedlda(save_path: str):
-    """AmortizedLDA.setup_annbatch: build, train, feature_by_topic, latent, elbo, perplexity."""
-    _zarr()
-    paths, ref = _synthetic_files(save_path, "lda", batch_size=500)
-    collection_path = os.path.join(save_path, "lda.zarr")
-
-    dm = scvi.model.AmortizedLDA.setup_annbatch(
-        collection_path=collection_path,
-        paths=paths,
-        batch_size=256,
-        dataset_size=1024,
-    )
-    assert dm.n_vars == ref.n_vars
-
-    n_topics = 5
-    model = scvi.model.AmortizedLDA(registry=dm.registry, n_topics=n_topics)
-    model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
-    assert "elbo_train" in model.history
-    _assert_validation_split(model, dm)
-
-    # Topic-feature matrix — no adata needed
-    feature_by_topic = model.get_feature_by_topic()
-    assert feature_by_topic.shape == (dm.n_vars, n_topics)
-    assert np.allclose(feature_by_topic.values.sum(axis=0), 1.0, atol=1e-4)
-
-    inference_dl = dm.inference_dataloader()
-    topic_dist = model.get_latent_representation(dataloader=inference_dl)
-    assert topic_dist.shape == (dm.n_obs, n_topics)
-    assert np.all(topic_dist >= 0)
-
-    elbo = model.get_elbo(dataloader=inference_dl)
-    assert isinstance(float(elbo), float)
-
-    perplexity = model.get_perplexity(dataloader=inference_dl)
-    assert isinstance(perplexity, float)
-    assert perplexity > 0
-
-    _assert_save_load(model, scvi.model.AmortizedLDA, save_path, "setup_lda", dm)
-
-
-# ---------------------------------------------------------------------------
 # SysVI
 # ---------------------------------------------------------------------------
 
@@ -722,54 +633,3 @@ def test_annbatch_setup_peakvi(save_path: str):
     assert len(region_factors) == dm.n_vars
 
     _assert_save_load(model, scvi.model.PEAKVI, save_path, "setup_peakvi", dm)
-
-
-# ---------------------------------------------------------------------------
-# CellAssign
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.dataloader
-def test_annbatch_setup_cellassign(save_path: str):
-    """CellAssign.setup_annbatch: build, train, predict."""
-    _zarr()
-    paths, ref = _synthetic_files(save_path, "cellassign", batch_size=500)
-    n_genes = ref.n_vars
-
-    marker_data = np.zeros((n_genes, 2), dtype=np.float32)
-    marker_data[:5, 0] = 1
-    marker_data[5:10, 1] = 1
-    cell_type_markers = pd.DataFrame(
-        marker_data,
-        index=ref.var_names,
-        columns=["type_A", "type_B"],
-    )
-
-    collection_path = os.path.join(save_path, "cellassign.zarr")
-    dm, col_means, basis_means = scvi.external.CellAssign.setup_annbatch(
-        collection_path=collection_path,
-        paths=paths,
-        batch_key="batch",
-        cell_type_markers=cell_type_markers,
-        batch_size=256,
-        dataset_size=1024,
-    )
-    assert dm.n_batch == 2
-    assert col_means.shape[0] == n_genes
-    assert basis_means.shape[0] > 1
-
-    model = scvi.external.CellAssign(
-        registry=dm.registry,
-        cell_type_markers=cell_type_markers,
-        col_means=col_means,
-        basis_means=basis_means,
-    )
-    model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
-    _assert_validation_split(model, dm)
-
-    inference_dl = dm.inference_dataloader()
-    predictions = model.predict(dataloader=inference_dl)
-    assert predictions.shape[0] == dm.n_obs
-    assert predictions.shape[1] == 2  # type_A, type_B
-
-    _assert_save_load(model, scvi.external.CellAssign, save_path, "setup_cellassign", dm)

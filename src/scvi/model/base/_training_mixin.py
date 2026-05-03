@@ -41,13 +41,17 @@ def _set_datamodule_split(
     train_size: float | None,
     validation_size: float | None,
     shuffle_set_split: bool,
+    batch_size: int | None = None,
 ) -> None:
     """Forward split settings to custom datamodules that implement splitting."""
+    if datamodule is not None and hasattr(datamodule, "set_batch_size"):
+        datamodule.set_batch_size(batch_size)
     if datamodule is not None and hasattr(datamodule, "set_split"):
         datamodule.set_split(
             train_size=train_size,
             validation_size=validation_size,
             shuffle_set_split=shuffle_set_split,
+            batch_size=batch_size,
         )
 
 
@@ -158,7 +162,13 @@ class UnsupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         else:
-            _set_datamodule_split(datamodule, train_size, validation_size, shuffle_set_split)
+            _set_datamodule_split(
+                datamodule,
+                train_size,
+                validation_size,
+                shuffle_set_split,
+                batch_size=batch_size if batch_size != 128 else None,
+            )
             if self.module is None:
                 self.module = self._module_cls(
                     datamodule.n_vars,
@@ -492,7 +502,13 @@ class SemisupervisedTrainingMixin:
                 **datasplitter_kwargs,
             )
         else:
-            _set_datamodule_split(datamodule, train_size, validation_size, shuffle_set_split)
+            _set_datamodule_split(
+                datamodule,
+                train_size,
+                validation_size,
+                shuffle_set_split,
+                batch_size=batch_size if batch_size != 128 else None,
+            )
             Warning("Warning: SCANVI sampler is not available with custom dataloader")
             sampler_callback = []
 
