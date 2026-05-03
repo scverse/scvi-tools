@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
     from anndata import AnnData
+    from lightning import LightningDataModule
     from torch import Tensor
     from torch.distributions import Distribution
 
@@ -425,6 +426,7 @@ class VAEMixin:
         batch_size: int = 128,
         num_cells_posterior: int | None = None,
         dof: float | None = None,
+        datamodule: LightningDataModule | None = None,
     ):
         """Compute the differential abundance between samples.
 
@@ -445,12 +447,17 @@ class VAEMixin:
         dof
             Degrees of freedom for the Student's t-distribution components for aggregated
             posterior. If ``None``, components are Normal.
+        datamodule
+            AnnBatch datamodule to materialize when the model was initialized without AnnData.
         """
         import numpy as np
         import pandas as pd
         from tqdm import tqdm
 
-        adata = self._validate_anndata(adata)
+        if adata is None and self.adata is None:
+            adata = self._materialize_anndata_from_datamodule(datamodule)
+        else:
+            adata = self._validate_anndata(adata)
 
         # In case user passes in a subset of model's anndata
         adata_dataloader = self._make_data_loader(adata=adata, batch_size=batch_size)

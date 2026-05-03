@@ -149,6 +149,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self.test_indices_ = None
         self.validation_indices_ = None
         self.history_ = None
+        self._datamodule = None
         self.get_normalized_function_name_ = "get_normalized_expression"
         self.run_name_ = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
         self.run_id_ = ""
@@ -579,6 +580,39 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             raise ValueError("Model need to be initialized with AnnData to transfer fields.")
 
+    def _materialize_anndata_from_datamodule(
+        self,
+        datamodule: LightningDataModule | None = None,
+    ) -> AnnData:
+        """Attach an AnnData view from a setup_datamodule object for AnnData-only APIs."""
+        datamodule = datamodule or getattr(self, "_datamodule", None)
+        if datamodule is None or not hasattr(datamodule, "to_anndata"):
+            raise ValueError(
+                "This model has no AnnData attached. Pass `adata` or train/load with an "
+                "annbatch datamodule that can be materialized."
+            )
+
+        adata = datamodule.to_anndata()
+        setup_args = {
+            "layer": None,
+            "batch_key": getattr(datamodule, "_batch_key", None),
+            "labels_key": getattr(datamodule, "_label_key", None),
+            "size_factor_key": None,
+            "categorical_covariate_keys": getattr(datamodule, "_categorical_covariate_keys", None),
+            "continuous_covariate_keys": getattr(datamodule, "_continuous_covariate_keys", None),
+        }
+        setup_params = inspect.signature(self.__class__.setup_anndata).parameters
+        setup_args = {key: value for key, value in setup_args.items() if key in setup_params}
+        self.__class__.setup_anndata(adata, **setup_args)
+
+        adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
+        self._adata = adata
+        self._adata_manager = adata_manager
+        self._register_manager_for_instance(adata_manager)
+        self.registry_ = adata_manager.registry
+        self.summary_stats = adata_manager.summary_stats
+        return adata
+
     def _check_if_trained(self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE):
         """Check if the model is trained.
 
@@ -914,6 +948,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 )
 
         model = _initialize_model(cls, adata, registry, attr_dict, datamodule)
+        if datamodule is not None:
+            model._datamodule = datamodule
         pyro_param_store = model_state_dict.pop("pyro_param_store", None)
 
         method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")

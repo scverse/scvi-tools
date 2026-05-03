@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
+    from lightning import LightningDataModule
     from torch import Tensor
 
     from scvi._types import Number
@@ -375,6 +376,7 @@ class RNASeqMixin:
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         importance_weighting_kwargs: dict | None = None,
+        datamodule: LightningDataModule | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -406,6 +408,8 @@ class RNASeqMixin:
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
+        datamodule
+            AnnBatch datamodule to materialize when the model was initialized without AnnData.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -413,7 +417,10 @@ class RNASeqMixin:
         -------
         Differential expression DataFrame.
         """
-        adata = self._validate_anndata(adata)
+        if adata is None and self.adata is None:
+            adata = self._materialize_anndata_from_datamodule(datamodule)
+        else:
+            adata = self._validate_anndata(adata)
         col_names = adata.var_names
         importance_weighting_kwargs = importance_weighting_kwargs or {}
         model_fn = partial(

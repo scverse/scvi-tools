@@ -1473,6 +1473,64 @@ class AnnbatchDataModule(LightningDataModule):
             "setup_method_name": "setup_datamodule",
         }
 
+    def to_anndata(self):
+        """Materialize the annbatch collection as AnnData for AnnData-only downstream APIs."""
+        if hasattr(self, "_materialized_adata"):
+            return self._materialized_adata
+
+        import anndata as ad
+        import pandas as pd
+        from scipy import sparse
+
+        def _to_x_matrix(x):
+            if isinstance(x, torch.Tensor):
+                x = x.detach().cpu()
+                if x.is_sparse_csr:
+                    x = x.to_sparse_csr()
+                    return sparse.csr_matrix(
+                        (
+                            x.values().numpy(),
+                            x.col_indices().numpy(),
+                            x.crow_indices().numpy(),
+                        ),
+                        shape=x.shape,
+                    )
+                if x.is_sparse:
+                    x = x.to_dense()
+                return x.numpy()
+            if issparse(x):
+                return x.tocsr()
+            return np.asarray(x)
+
+        x_parts = []
+        obs_parts = []
+        for batch in self.dataset:
+            x_parts.append(_to_x_matrix(batch["X"]))
+            obs = batch.get("obs")
+            if obs is not None:
+                obs_parts.append(obs.copy())
+
+        if any(issparse(x) for x in x_parts):
+            x = sparse.vstack([sparse.csr_matrix(part) for part in x_parts], format="csr")
+        else:
+            x = np.concatenate(x_parts, axis=0)
+
+        if obs_parts:
+            obs = pd.concat(obs_parts, axis=0)
+        else:
+            obs = pd.DataFrame(index=[str(i) for i in range(x.shape[0])])
+
+        var_names = (
+            list(self._var_names)
+            if self._var_names is not None
+            else [f"gene_{i}" for i in range(self.n_vars)]
+        )
+        var = pd.DataFrame(index=pd.Index(var_names, dtype="str"))
+        adata = ad.AnnData(X=x, obs=obs, var=var)
+        adata.obs_names_make_unique()
+        self._materialized_adata = adata
+        return adata
+
     def inference_dataloader(self):
         """Dataloader for inference with ``on_before_batch_transfer`` applied."""
         return self._InferenceDataloader(self.dataset, self.on_before_batch_transfer)

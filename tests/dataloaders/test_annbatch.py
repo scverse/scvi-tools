@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 import numpy as np
+import pandas as pd
 import pytest
 from scipy.sparse import csr_matrix
 
@@ -153,6 +154,63 @@ def test_annbatch_with_covariates(save_path: str):
     _ = model.get_latent_representation(dataloader=inference_dl)
 
     _assert_save_load(model, scvi.model.SCVI, save_path, "annbatch_cov", dm)
+
+
+@pytest.mark.dataloader
+def test_annbatch_scvi_downstream_tasks(save_path: str):
+    """SCVI annbatch supports DE and differential abundance after training."""
+    _zarr()
+    paths = []
+    for i in range(2):
+        adata = scvi.data.synthetic_iid(batch_size=500, n_genes=20)
+        adata.X = csr_matrix(adata.X)
+        adata.obs["sample"] = np.where(np.arange(adata.n_obs) % 2 == 0, "sample_0", "sample_1")
+        p = os.path.join(save_path, f"annbatch_downstream_{i + 1}.h5ad")
+        adata.write(p)
+        paths.append(p)
+
+    dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=os.path.join(save_path, "annbatch_downstream_collection"),
+        paths=paths,
+        batch_key="batch",
+        labels_key="labels",
+        sample_key="sample",
+        batch_size=256,
+        dataset_size=1024,
+    )
+
+    model = scvi.model.SCVI(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
+    _assert_validation_split(model, dm)
+
+    de = model.differential_expression(
+        groupby="labels",
+        group1="label_1",
+        pseudocounts=1e-4,
+        n_samples_overall=50,
+        silent=True,
+    )
+    assert not de.empty
+    assert {"bayes_factor", "group1", "group2"}.issubset(de.columns)
+
+    de_importance = model.differential_expression(
+        groupby="labels",
+        group1="label_1",
+        weights="importance",
+        n_samples_overall=50,
+        silent=True,
+    )
+    assert not de_importance.empty
+
+    model.differential_abundance(
+        sample_key="sample",
+        batch_size=256,
+        num_cells_posterior=50,
+        dof=3,
+    )
+    da = model.adata.obsm["da_log_probs"]
+    assert isinstance(da, pd.DataFrame)
+    assert da.shape == (dm.n_obs, model.adata.obs["sample"].nunique())
 
 
 # ---------------------------------------------------------------------------

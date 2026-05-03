@@ -169,6 +169,7 @@ class UnsupervisedTrainingMixin:
                 shuffle_set_split,
                 batch_size=batch_size if batch_size != 128 else None,
             )
+            self._datamodule = datamodule
             if self.module is None:
                 self.module = self._module_cls(
                     datamodule.n_vars,
@@ -509,6 +510,7 @@ class SemisupervisedTrainingMixin:
                 shuffle_set_split,
                 batch_size=batch_size if batch_size != 128 else None,
             )
+            self._datamodule = datamodule
             Warning("Warning: SCANVI sampler is not available with custom dataloader")
             sampler_callback = []
 
