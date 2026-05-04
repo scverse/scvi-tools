@@ -15,7 +15,7 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._utils import _get_adata_minify_type
+from scvi.data._utils import _get_adata_minify_type, _validate_adata_dataloader_input
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -37,10 +37,11 @@ from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
     from typing import Literal
 
     from anndata import AnnData
+    from torch import Tensor
 
     from scvi._types import AnnOrMuData, Number
 
@@ -405,6 +406,7 @@ class MULTIVI(
         give_mean: bool = True,
         batch_size: int | None = None,
         return_dist: bool = False,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 
@@ -424,6 +426,9 @@ class MULTIVI(
         return_dist
             If ``True``, returns the mean and variance of the latent distribution. Otherwise,
             returns the mean of the latent distribution.
+        dataloader
+            An iterator over minibatches of data on which to compute the representation. If
+            ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------
@@ -432,6 +437,7 @@ class MULTIVI(
         """
         if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
         self._check_adata_modality_weights(adata)
         keys = {"z": "z", "qz_m": "qz_m", "qz_v": "qz_v"}
         if self.fully_paired and modality != "joint":
@@ -448,8 +454,11 @@ class MULTIVI(
                     "modality must be 'joint', 'expression', 'accessibility', or 'protein'."
                 )
 
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        else:
+            scdl = dataloader
         latent = []
         qz_means = []
         qz_vars = []

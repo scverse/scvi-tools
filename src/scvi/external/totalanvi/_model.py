@@ -105,7 +105,11 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         linear_classifier: bool = False,
         **model_kwargs,
     ):
-        super().__init__(adata)
+        super().__init__(
+            adata,
+            empirical_protein_background_prior=empirical_protein_background_prior,
+            override_missing_proteins=override_missing_proteins,
+        )
         self._set_indices_and_labels()
         self.protein_state_registry = self.adata_manager.get_state_registry(
             REGISTRY_KEYS.PROTEIN_EXP_KEY
