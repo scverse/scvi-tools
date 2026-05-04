@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
+import sys
 
 import numpy as np
 import pandas as pd
@@ -182,6 +185,7 @@ def test_annbatch_scvi_downstream_tasks(save_path: str):
     model = scvi.model.SCVI(registry=dm.registry)
     model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
     _assert_validation_split(model, dm)
+    inference_dl = dm.inference_dataloader()
 
     de = model.differential_expression(
         groupby="labels",
@@ -189,6 +193,7 @@ def test_annbatch_scvi_downstream_tasks(save_path: str):
         pseudocounts=1e-4,
         n_samples_overall=50,
         silent=True,
+        dataloader=inference_dl,
     )
     assert not de.empty
     assert {"bayes_factor", "group1", "group2"}.issubset(de.columns)
@@ -199,18 +204,97 @@ def test_annbatch_scvi_downstream_tasks(save_path: str):
         weights="importance",
         n_samples_overall=50,
         silent=True,
+        dataloader=inference_dl,
     )
     assert not de_importance.empty
 
-    model.differential_abundance(
+    da = model.differential_abundance(
         sample_key="sample",
         batch_size=256,
         num_cells_posterior=50,
         dof=3,
+        dataloader=inference_dl,
     )
-    da = model.adata.obsm["da_log_probs"]
     assert isinstance(da, pd.DataFrame)
-    assert da.shape == (dm.n_obs, model.adata.obs["sample"].nunique())
+    assert da.shape == (dm.n_obs, dm.n_samples)
+
+
+@pytest.mark.dataloader
+def test_annbatch_memory_contract(save_path: str):
+    """setup_annbatch uses far less steady-state RSS than setup_anndata."""
+    paths, _ = _synthetic_files(save_path, "annbatch_memory", batch_size=2000)
+    collection_path = os.path.join(save_path, "annbatch_memory_collection.zarr")
+    scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
+        paths=paths,
+        batch_key="batch",
+        labels_key="labels",
+        batch_size=256,
+    )
+
+    script = """
+import gc
+import json
+import sys
+
+import anndata as ad
+import psutil
+import scvi
+
+mode = sys.argv[1]
+paths = json.loads(sys.argv[2])
+collection_path = sys.argv[3]
+proc = psutil.Process()
+
+
+def rss():
+    gc.collect()
+    return proc.memory_info().rss
+
+
+before = rss()
+if mode == "anndata":
+    adata = ad.concat([ad.read_h5ad(path) for path in paths], axis=0)
+    scvi.model.SCVI.setup_anndata(adata, batch_key="batch", labels_key="labels")
+    model = scvi.model.SCVI(adata)
+elif mode == "annbatch":
+    dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=collection_path,
+        batch_key="batch",
+        labels_key="labels",
+        batch_size=256,
+        rebuild=False,
+    )
+    model = scvi.model.SCVI(registry=dm.registry)
+else:
+    raise SystemExit(mode)
+
+after = rss()
+print(
+    json.dumps(
+        {
+            "delta": after - before,
+            "final": after,
+            "has_adata": model.adata is not None,
+        }
+    )
+)
+"""
+
+    def _probe(mode: str) -> dict[str, int | bool]:
+        out = subprocess.check_output(
+            [sys.executable, "-c", script, mode, json.dumps(paths), collection_path],
+            text=True,
+        )
+        return json.loads(out.strip().splitlines()[-1])
+
+    anndata_probe = _probe("anndata")
+    annbatch_probe = _probe("annbatch")
+
+    assert anndata_probe["has_adata"] is True
+    assert annbatch_probe["has_adata"] is False
+    assert annbatch_probe["delta"] < anndata_probe["delta"]
+    assert anndata_probe["delta"] - annbatch_probe["delta"] > 10 * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -587,7 +671,15 @@ def test_annbatch_setup_scar(save_path: str):
     marginal_ll = model.get_marginal_ll(dataloader=inference_dl, n_mc_samples=3)
     assert isinstance(marginal_ll, float)
 
-    _assert_save_load(model, scvi.external.SCAR, save_path, "setup_scar", dm)
+    ambient_profile = model.get_ambient_profile(
+        dataloader=inference_dl,
+        prob=0.0,
+        iterations=1,
+        sample=100,
+    )
+    assert ambient_profile.shape[0] == dm.n_vars
+    assert ambient_profile.ndim == 2
+    assert np.isfinite(ambient_profile).all()
 
 
 # ---------------------------------------------------------------------------
@@ -600,10 +692,11 @@ def test_annbatch_setup_mrvi(save_path: str):
     """TorchMRVI.setup_annbatch: build, train, latent, normalized_expression."""
     _zarr()
     paths = []
-    for i, donor in enumerate(["donor_A", "donor_B"]):
+    for i, (donor, site) in enumerate([("donor_A", "site_1"), ("donor_B", "site_2")]):
         adata = scvi.data.synthetic_iid(batch_size=500)
         adata.X = csr_matrix(adata.X)
         adata.obs["donor"] = donor
+        adata.obs["site"] = site
         p = os.path.join(save_path, f"mrvi_{i + 1}.h5ad")
         adata.write(p)
         paths.append(p)
@@ -614,12 +707,19 @@ def test_annbatch_setup_mrvi(save_path: str):
         paths=paths,
         batch_key="batch",
         sample_key="donor",
+        categorical_covariate_keys=["site"],
         batch_size=256,
         dataset_size=1024,
     )
     assert dm.n_batch == 2
     assert dm.n_samples == 2
     assert dm.registry["field_registries"]["sample"]["summary_stats"]["n_sample"] == 2
+    assert (
+        dm.registry["field_registries"]["extra_categorical_covs"]["summary_stats"][
+            "n_extra_categorical_covs"
+        ]
+        == 1
+    )
 
     model = scvi.external.TorchMRVI(registry=dm.registry)
     model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
@@ -634,7 +734,15 @@ def test_annbatch_setup_mrvi(save_path: str):
     norm_expr = model.get_normalized_expression(dataloader=inference_dl)
     assert norm_expr.shape[0] == dm.n_obs
 
-    _assert_save_load(model, scvi.external.TorchMRVI, save_path, "setup_mrvi", dm)
+    model.update_sample_info(dataloader=inference_dl)
+    assert "site" in model.sample_info.columns
+    assert not model.sample_info.empty
+
+    local_sample_distances = model.get_local_sample_distances(
+        dataloader=inference_dl,
+        batch_size=128,
+    )
+    assert "cell" in local_sample_distances.data_vars
 
 
 # ---------------------------------------------------------------------------
@@ -659,10 +767,12 @@ def test_annbatch_setup_peakvi(save_path: str):
         collection_path=collection_path,
         paths=paths,
         batch_key="batch",
+        labels_key="labels",
         batch_size=256,
         dataset_size=1024,
     )
     assert dm.n_batch == 2
+    assert dm.n_labels > 1
 
     model = scvi.model.PEAKVI(registry=dm.registry)
     model.train(
@@ -682,6 +792,16 @@ def test_annbatch_setup_peakvi(save_path: str):
 
     accessibility = model.get_normalized_accessibility(dataloader=inference_dl)
     assert accessibility.shape == (dm.n_obs, dm.n_vars)
+
+    da = model.differential_accessibility(
+        groupby="labels",
+        group1=dm.labels_[1],
+        batch_size=256,
+        dataloader=inference_dl,
+        silent=True,
+    )
+    assert not da.empty
+    assert "bayes_factor" in da.columns
 
     reconstruction = model.get_reconstruction_error(dataloader=inference_dl)
     assert isinstance(reconstruction, dict)

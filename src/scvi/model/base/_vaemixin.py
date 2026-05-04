@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
     from anndata import AnnData
-    from lightning import LightningDataModule
     from torch import Tensor
     from torch.distributions import Distribution
 
@@ -426,7 +425,7 @@ class VAEMixin:
         batch_size: int = 128,
         num_cells_posterior: int | None = None,
         dof: float | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ):
         """Compute the differential abundance between samples.
 
@@ -447,17 +446,49 @@ class VAEMixin:
         dof
             Degrees of freedom for the Student's t-distribution components for aggregated
             posterior. If ``None``, components are Normal.
-        datamodule
-            AnnBatch datamodule to materialize when the model was initialized without AnnData.
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
         """
         import numpy as np
         import pandas as pd
         from tqdm import tqdm
 
         if adata is None and self.adata is None:
-            adata = self._materialize_anndata_from_datamodule(datamodule)
-        else:
-            adata = self._validate_anndata(adata)
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+            obs = self._collect_obs_from_dataloader(dataloader)
+            if sample_key is None:
+                raise ValueError("`sample_key` must be provided when using a dataloader.")
+
+            us = self.get_latent_representation(dataloader=dataloader, batch_size=batch_size)
+            unique_samples = obs[sample_key].unique()
+            log_probs = []
+            for sample_name in tqdm(unique_samples):
+                indices = np.where(obs[sample_key] == sample_name)[0]
+                if num_cells_posterior is not None and num_cells_posterior < indices.shape[0]:
+                    indices = np.random.choice(indices, num_cells_posterior, replace=False)
+                sample_u = us[indices]
+                mean = torch.tensor(sample_u.mean(axis=0), device=self.device, dtype=torch.float32)
+                scale = torch.tensor(
+                    sample_u.std(axis=0) + 1e-3,
+                    device=self.device,
+                    dtype=torch.float32,
+                )
+                ap = torch.distributions.Independent(torch.distributions.Normal(mean, scale), 1)
+                log_probs.append(
+                    ap.log_prob(torch.tensor(us, device=self.device)).detach().cpu().numpy()
+                )
+
+            log_probs = np.array(log_probs).T
+            log_probs_df = pd.DataFrame(
+                data=log_probs,
+                index=np.arange(us.shape[0]),
+                columns=unique_samples,
+            )
+            self._da_log_probs = log_probs_df
+            return log_probs_df
+
+        adata = self._validate_anndata(adata)
 
         # In case user passes in a subset of model's anndata
         adata_dataloader = self._make_data_loader(adata=adata, batch_size=batch_size)

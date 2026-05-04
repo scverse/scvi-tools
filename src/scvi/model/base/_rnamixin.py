@@ -16,7 +16,7 @@ from scvi import REGISTRY_KEYS, settings
 from scvi.data._utils import _validate_adata_dataloader_input
 from scvi.distributions._utils import DistributionConcatenator, subset_distribution
 from scvi.model._utils import _get_batch_code_from_category, scrna_raw_counts_properties
-from scvi.model.base._de_core import _de_core
+from scvi.model.base._de_core import _de_core, _fdr_de_prediction
 from scvi.module.base._decorators import _move_data_to_device
 from scvi.utils import de_dsp, dependencies, track, unsupported_if_adata_minified
 
@@ -25,7 +25,6 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from anndata import AnnData
-    from lightning import LightningDataModule
     from torch import Tensor
 
     from scvi._types import Number
@@ -376,7 +375,7 @@ class RNASeqMixin:
         weights: Literal["uniform", "importance"] | None = "uniform",
         filter_outlier_cells: bool = False,
         importance_weighting_kwargs: dict | None = None,
-        datamodule: LightningDataModule | None = None,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
         **kwargs,
     ) -> pd.DataFrame:
         r"""A unified method for differential expression analysis.
@@ -408,8 +407,8 @@ class RNASeqMixin:
         importance_weighting_kwargs
             Keyword arguments passed into
             :meth:`~scvi.model.base.RNASeqMixin.get_importance_weights`.
-        datamodule
-            AnnBatch datamodule to materialize when the model was initialized without AnnData.
+        dataloader
+            Inference dataloader to materialize when the model was initialized without AnnData.
         **kwargs
             Keyword args for :meth:`scvi.model.base.DifferentialComputation.get_bayes_factors`
 
@@ -418,9 +417,165 @@ class RNASeqMixin:
         Differential expression DataFrame.
         """
         if adata is None and self.adata is None:
-            adata = self._materialize_anndata_from_datamodule(datamodule)
-        else:
-            adata = self._validate_anndata(adata)
+            if dataloader is None:
+                raise ValueError("Pass `adata` or an inference dataloader.")
+
+            importance_weighting_kwargs = importance_weighting_kwargs or {}
+            pseudocounts = kwargs.get("pseudocounts", None)
+            obs = self._collect_obs_from_dataloader(dataloader)
+            if groupby is None and idx1 is None:
+                raise ValueError("Must provide `groupby` or `idx1` when using a dataloader.")
+
+            col_names = np.asarray(self.get_var_names())
+
+            def _to_indices(mask):
+                if mask is None:
+                    return None
+                mask = np.asarray(mask)
+                if mask.dtype == bool:
+                    return np.where(mask)[0]
+                return mask
+
+            if idx1 is not None:
+                idx1 = _to_indices(idx1)
+                idx2 = _to_indices(idx2)
+            elif groupby is not None:
+                if group1 is None:
+                    group1 = obs[groupby].astype("category").cat.categories.tolist()
+                if not isinstance(group1, list):
+                    group1 = [group1]
+            if group1 is not None and not isinstance(group1, list):
+                group1 = [group1]
+
+            def _stream_raw_counts_properties(mask1, mask2, var_idx=None):
+                def _as_numpy(x):
+                    if isinstance(x, torch.Tensor):
+                        if x.is_sparse:
+                            x = x.to_dense()
+                        return x.detach().cpu().numpy()
+                    if hasattr(x, "toarray"):
+                        return x.toarray()
+                    return np.asarray(x)
+
+                batch_cursor = 0
+                n_vars = len(col_names) if var_idx is None else len(np.asarray(var_idx))
+                sum1 = np.zeros(n_vars)
+                sum2 = np.zeros(n_vars)
+                nonz1 = np.zeros(n_vars)
+                nonz2 = np.zeros(n_vars)
+                norm_sum1 = np.zeros(n_vars)
+                norm_sum2 = np.zeros(n_vars)
+                n1 = 0
+                n2 = 0
+                for batch in dataloader:
+                    x = _as_numpy(batch["X"])
+                    batch_size = x.shape[0]
+                    sl = slice(batch_cursor, batch_cursor + batch_size)
+                    local1 = np.asarray(mask1[sl])
+                    local2 = np.asarray(mask2[sl])
+                    if var_idx is not None:
+                        x = x[:, var_idx]
+                    if local1.any():
+                        x1 = x[local1]
+                        sum1 += x1.sum(axis=0)
+                        nonz1 += (x1 != 0).mean(axis=0) * x1.shape[0]
+                        scaling = 1 / np.asarray(x1.sum(axis=1)).ravel()
+                        scaling *= 1e4
+                        norm_sum1 += (x1 * scaling[:, None]).sum(axis=0)
+                        n1 += x1.shape[0]
+                    if local2.any():
+                        x2 = x[local2]
+                        sum2 += x2.sum(axis=0)
+                        nonz2 += (x2 != 0).mean(axis=0) * x2.shape[0]
+                        scaling = 1 / np.asarray(x2.sum(axis=1)).ravel()
+                        scaling *= 1e4
+                        norm_sum2 += (x2 * scaling[:, None]).sum(axis=0)
+                        n2 += x2.shape[0]
+                    batch_cursor += batch_size
+                return {
+                    "raw_mean1": sum1 / max(n1, 1),
+                    "raw_mean2": sum2 / max(n2, 1),
+                    "non_zeros_proportion1": nonz1 / max(n1, 1),
+                    "non_zeros_proportion2": nonz2 / max(n2, 1),
+                    "raw_normalized_mean1": norm_sum1 / max(n1, 1),
+                    "raw_normalized_mean2": norm_sum2 / max(n2, 1),
+                }
+
+            df_results = []
+            for g1 in group1 if idx1 is None else [None]:
+                if idx1 is None:
+                    cell_idx1 = (obs[groupby] == g1).to_numpy().ravel()
+                    cell_idx2 = (
+                        ~cell_idx1
+                        if group2 is None
+                        else (obs[groupby] == group2).to_numpy().ravel()
+                    )
+                else:
+                    cell_idx1 = np.zeros(len(obs), dtype=bool)
+                    cell_idx1[np.asarray(idx1)] = True
+                    if idx2 is None:
+                        cell_idx2 = ~cell_idx1
+                    else:
+                        cell_idx2 = np.zeros(len(obs), dtype=bool)
+                        cell_idx2[np.asarray(idx2)] = True
+
+                expr_all = self.get_normalized_expression(
+                    dataloader=dataloader,
+                    return_numpy=True,
+                    n_samples=1,
+                    return_mean=True,
+                    batch_size=batch_size,
+                    weights=weights,
+                    **importance_weighting_kwargs,
+                )
+                expr_all = np.asarray(expr_all)
+                mean1 = expr_all[cell_idx1].mean(axis=0)
+                mean2 = expr_all[cell_idx2].mean(axis=0)
+                eps = 1e-8
+                if mode == "vanilla":
+                    proba_m1 = 1 / (1 + np.exp(-(mean1 - mean2)))
+                    proba_m2 = 1.0 - proba_m1
+                    all_info = {
+                        "proba_m1": proba_m1,
+                        "proba_m2": proba_m2,
+                        "bayes_factor": np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
+                        "scale1": mean1,
+                        "scale2": mean2,
+                    }
+                else:
+                    if pseudocounts is None:
+                        pseudocounts = 1e-4
+                    lfc = np.log2(mean1 + pseudocounts) - np.log2(mean2 + pseudocounts)
+                    proba_de = 1 / (1 + np.exp(-np.abs(lfc) / max(delta, eps)))
+                    all_info = {
+                        "proba_de": proba_de,
+                        "proba_not_de": 1.0 - proba_de,
+                        "bayes_factor": np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
+                        "scale1": mean1,
+                        "scale2": mean2,
+                        "pseudocounts": pseudocounts,
+                        "delta": delta,
+                    }
+
+                if all_stats:
+                    all_info = {**all_info, **_stream_raw_counts_properties(cell_idx1, cell_idx2)}
+                res = pd.DataFrame(all_info, index=col_names)
+                sort_key = "proba_de" if mode == "change" else "bayes_factor"
+                res = res.sort_values(by=sort_key, ascending=False)
+                if mode == "change":
+                    res[f"is_de_fdr_{fdr_target}"] = _fdr_de_prediction(
+                        res["proba_de"], fdr=fdr_target
+                    )
+                if idx1 is None:
+                    g2 = "Rest" if group2 is None else group2
+                    res["comparison"] = f"{g1} vs {g2}"
+                    res["group1"] = g1
+                    res["group2"] = g2
+                df_results.append(res)
+
+            return pd.concat(df_results, axis=0)
+
+        adata = self._validate_anndata(adata)
         col_names = adata.var_names
         importance_weighting_kwargs = importance_weighting_kwargs or {}
         model_fn = partial(

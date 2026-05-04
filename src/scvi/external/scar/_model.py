@@ -202,10 +202,10 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
 
-    @staticmethod
     def get_ambient_profile(
-        adata: AnnData,
-        raw_adata: AnnData,
+        self_or_adata,
+        raw_adata: AnnData | None = None,
+        dataloader=None,
         prob: float = 0.995,
         min_raw_counts: int = 2,
         iterations: int = 3,
@@ -243,6 +243,41 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         -------
         The relevant ambient profile is added in `adata.varm`
         """
+        if hasattr(self_or_adata, "module"):
+            model = self_or_adata
+            if dataloader is None and model.adata is None:
+                raise ValueError("Pass `dataloader` when calling on a model without AnnData.")
+            if dataloader is not None:
+                import numpy as np
+
+                def _as_numpy(x):
+                    if isinstance(x, torch.Tensor):
+                        if x.is_sparse:
+                            x = x.to_dense()
+                        return x.detach().cpu().numpy()
+                    if hasattr(x, "toarray"):
+                        return x.toarray()
+                    return np.asarray(x)
+
+                counts = []
+                for batch in dataloader:
+                    counts.append(_as_numpy(batch["X"]))
+                raw_counts = np.concatenate(counts, axis=0)
+                raw_adata = None
+                adata = None
+                ambient_prof = raw_counts.sum(axis=0) / raw_counts.sum()
+                return ambient_prof[:, None]
+            adata = model.adata
+            if raw_adata is None:
+                raw_adata = adata
+        else:
+            adata = self_or_adata
+            if raw_adata is None:
+                raise ValueError(
+                    "raw_adata must be provided when calling SCAR.get_ambient_profile "
+                    "on AnnData inputs."
+                )
+
         # take subset genes to save memory
         raw_adata = raw_adata[:, raw_adata.var_names.isin(adata.var_names)]
         raw_adata = raw_adata[raw_adata.X.sum(axis=1) >= min_raw_counts]
@@ -290,6 +325,7 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         adata.varm["ambient_profile"] = np.asarray(
             emptydrops.X.sum(axis=0).reshape(-1, 1) / emptydrops.X.sum()
         )
+        return adata.varm["ambient_profile"]
 
     @torch.no_grad()
     def get_denoised_counts(

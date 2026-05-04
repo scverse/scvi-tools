@@ -554,6 +554,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                         "Cannot setup the provided AnnData."
                     )
                 method_name = registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+                if method_name == "setup_datamodule":
+                    method_name = "setup_anndata"
                 getattr(cls, method_name)(
                     adata, source_registry=registry, **registry[_SETUP_ARGS_KEY]
                 )
@@ -580,38 +582,96 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             raise ValueError("Model need to be initialized with AnnData to transfer fields.")
 
-    def _materialize_anndata_from_datamodule(
-        self,
-        datamodule: LightningDataModule | None = None,
-    ) -> AnnData:
-        """Attach an AnnData view from a setup_datamodule object for AnnData-only APIs."""
-        datamodule = datamodule or getattr(self, "_datamodule", None)
-        if datamodule is None or not hasattr(datamodule, "to_anndata"):
+    def _get_inference_dataloader_base(self, dataloader):
+        """Return the underlying torch DataLoader for a custom inference loader."""
+        loader = getattr(dataloader, "dataloader", dataloader)
+        if loader is None:
             raise ValueError(
-                "This model has no AnnData attached. Pass `adata` or train/load with an "
-                "annbatch datamodule that can be materialized."
+                "This model has no AnnData attached. Pass `adata` or an inference dataloader."
             )
+        return loader
 
-        adata = datamodule.to_anndata()
-        setup_args = {
-            "layer": None,
-            "batch_key": getattr(datamodule, "_batch_key", None),
-            "labels_key": getattr(datamodule, "_label_key", None),
-            "size_factor_key": None,
-            "categorical_covariate_keys": getattr(datamodule, "_categorical_covariate_keys", None),
-            "continuous_covariate_keys": getattr(datamodule, "_continuous_covariate_keys", None),
-        }
-        setup_params = inspect.signature(self.__class__.setup_anndata).parameters
-        setup_args = {key: value for key, value in setup_args.items() if key in setup_params}
-        self.__class__.setup_anndata(adata, **setup_args)
+    def _subset_inference_dataloader(self, dataloader, indices):
+        """Create a subset inference dataloader without materializing AnnData."""
+        if dataloader is None:
+            raise ValueError("`dataloader` is required.")
+        if indices is None:
+            return dataloader
 
-        adata_manager = self._get_most_recent_anndata_manager(adata, required=True)
-        self._adata = adata
-        self._adata_manager = adata_manager
-        self._register_manager_for_instance(adata_manager)
-        self.registry_ = adata_manager.registry
-        self.summary_stats = adata_manager.summary_stats
-        return adata
+        loader = self._get_inference_dataloader_base(dataloader)
+        dataset = loader.dataset
+        subset = dataset[indices]
+        subset_loader = torch.utils.data.DataLoader(
+            subset,
+            batch_size=loader.batch_size,
+            shuffle=False,
+            num_workers=loader.num_workers,
+            worker_init_fn=loader.worker_init_fn,
+            drop_last=getattr(loader, "drop_last", False),
+            pin_memory=getattr(loader, "pin_memory", False),
+            collate_fn=getattr(loader, "collate_fn", None),
+        )
+        transform_fn = getattr(dataloader, "transform_fn", None)
+        if transform_fn is not None:
+            return type(dataloader)(subset_loader, transform_fn)
+        return subset_loader
+
+    def _collect_obs_from_dataloader(self, dataloader) -> pd.DataFrame:
+        """Collect decoded obs annotations from an inference dataloader."""
+        if dataloader is None:
+            raise ValueError("`dataloader` is required.")
+
+        import pandas as pd
+
+        registry = self.registry.get("field_registries", {})
+
+        def _to_numpy(value):
+            if isinstance(value, torch.Tensor):
+                return value.detach().cpu().numpy()
+            return np.asarray(value)
+
+        def _decode_categorical(values, mapping):
+            values = np.asarray(values).ravel().astype(int)
+            if mapping is None:
+                return values.astype(str)
+            mapping = np.asarray(mapping, dtype=object)
+            if mapping.ndim == 0:
+                return values.astype(str)
+            return mapping[values]
+
+        obs_rows = []
+        for batch in dataloader:
+            obs = {}
+            if "batch" in batch and "batch" in registry:
+                mapping = registry["batch"]["state_registry"].get("categorical_mapping")
+                original_key = registry["batch"]["state_registry"].get("original_key", "batch")
+                obs[original_key] = _decode_categorical(batch["batch"], mapping)
+            if "labels" in batch and "labels" in registry:
+                mapping = registry["labels"]["state_registry"].get("categorical_mapping")
+                original_key = registry["labels"]["state_registry"].get("original_key", "labels")
+                obs[original_key] = _decode_categorical(batch["labels"], mapping)
+            if "sample" in batch and "sample" in registry:
+                mapping = registry["sample"]["state_registry"].get("categorical_mapping")
+                original_key = registry["sample"]["state_registry"].get("original_key", "sample")
+                obs[original_key] = _decode_categorical(batch["sample"], mapping)
+            if "extra_categorical_covs" in batch and "extra_categorical_covs" in registry:
+                field_keys = registry["extra_categorical_covs"]["state_registry"].get(
+                    "field_keys", []
+                )
+                mapping = registry["extra_categorical_covs"]["state_registry"].get("mapping", {})
+                values = _to_numpy(batch["extra_categorical_covs"])
+                for i, field_key in enumerate(field_keys):
+                    obs[field_key] = _decode_categorical(values[:, i], mapping[field_key])
+            if "extra_continuous_covs" in batch and "extra_continuous_covs" in registry:
+                field_keys = registry["extra_continuous_covs"]["state_registry"].get("columns", [])
+                values = _to_numpy(batch["extra_continuous_covs"])
+                for i, field_key in enumerate(field_keys):
+                    obs[field_key] = values[:, i]
+            if "size_factor" in batch:
+                obs["size_factor"] = _to_numpy(batch["size_factor"]).ravel()
+            obs_rows.append(pd.DataFrame(obs))
+
+        return pd.concat(obs_rows, axis=0).reset_index(drop=True)
 
     def _check_if_trained(self, warn: bool = True, message: str = _UNTRAINED_WARNING_MESSAGE):
         """Check if the model is trained.
@@ -1285,7 +1345,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             return ad.AnnData(X=x, obs=obs, var=var)
 
         def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
-            x = ad.io.sparse_dataset(g["X"])
+            x = ad.io.sparse_dataset(g["X"])  # TODO: should it be read_elem or sparse_dataset?
             obs = ad.experimental.read_lazy(g).obs[obs_keys].to_memory() if obs_keys else None
             return ad.AnnData(X=x, obs=obs)
 
