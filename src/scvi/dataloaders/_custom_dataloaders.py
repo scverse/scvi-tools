@@ -318,7 +318,7 @@ class MappedCollectionDataModule(LightningDataModule):
                 "layer": None,
                 "batch_key": self._batch_key,
                 "labels_key": self._label_key,
-                "samples_key": self._sample_key,
+                "sample_key": self._sample_key,
                 "size_factor_key": None,
                 "categorical_covariate_keys": self._categorical_covariate_keys,
                 "continuous_covariate_keys": self._continuous_covariate_keys,
@@ -1026,6 +1026,7 @@ class AnnbatchDataModule(LightningDataModule):
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
         var_names: list[str] | None = None,
+        layer: str | None = None,
         chunk_size: int = 256,
         preload_nchunks: int = 32,
         preload_to_gpu: bool = True,
@@ -1044,6 +1045,7 @@ class AnnbatchDataModule(LightningDataModule):
         self._categorical_covariate_keys = categorical_covariate_keys
         self._continuous_covariate_keys = continuous_covariate_keys
         self._var_names = var_names
+        self._layer = layer
         self.chunk_size = chunk_size
         self.preload_nchunks = preload_nchunks
         self.preload_to_gpu = preload_to_gpu
@@ -1416,10 +1418,10 @@ class AnnbatchDataModule(LightningDataModule):
             "scvi_version": scvi.__version__,
             "model_name": self.model_name,
             "setup_args": {
-                "layer": None,
+                "layer": self._layer,
                 "batch_key": self._batch_key,
                 "labels_key": self._label_key,
-                "samples_key": self._sample_key,
+                "sample_key": self._sample_key,
                 "size_factor_key": None,
                 "categorical_covariate_keys": self._categorical_covariate_keys,
                 "continuous_covariate_keys": self._continuous_covariate_keys,

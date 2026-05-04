@@ -248,7 +248,6 @@ class SCAR(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             if dataloader is None and model.adata is None:
                 raise ValueError("Pass `dataloader` when calling on a model without AnnData.")
             if dataloader is not None:
-                import numpy as np
 
                 def _as_numpy(x):
                     if isinstance(x, torch.Tensor):

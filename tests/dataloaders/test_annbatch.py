@@ -422,8 +422,9 @@ def test_annbatch_setup_scanvi(save_path: str):
 
     keys = model.history.keys()
     assert "elbo_train" in keys
-    assert "train_classification_loss" in keys
-    assert "train_accuracy" in keys
+    for mode in ("train", "validation"):
+        for metric in ("classification_loss", "calibration_error", "accuracy"):
+            assert f"{mode}_{metric}" in keys
 
     inference_dl = dm.inference_dataloader()
     latent = model.get_latent_representation(dataloader=inference_dl)
@@ -509,6 +510,36 @@ def test_annbatch_setup_linear_scvi(save_path: str):
     assert isinstance(reconstruction, dict)
 
     _assert_save_load(model, scvi.model.LinearSCVI, save_path, "setup_linear_scvi", dm)
+
+
+@pytest.mark.dataloader
+@pytest.mark.parametrize("model_cls", [scvi.model.LinearSCVI, scvi.external.ContrastiveVI])
+def test_annbatch_setup_dense_layer(save_path: str, model_cls):
+    """setup_annbatch reads dense h5ad layers from the zarr collection."""
+    _zarr()
+    paths = []
+    for i in range(2):
+        adata = scvi.data.synthetic_iid(batch_size=20, n_genes=10)
+        dense_counts = np.asarray(adata.X, dtype=np.float32)
+        adata.X = dense_counts
+        adata.layers["counts"] = dense_counts.copy()
+        p = os.path.join(save_path, f"{model_cls.__name__.lower()}_dense_{i + 1}.h5ad")
+        adata.write(p)
+        paths.append(p)
+
+    dm = model_cls.setup_annbatch(
+        collection_path=os.path.join(save_path, f"{model_cls.__name__.lower()}_dense.zarr"),
+        paths=paths,
+        layer="counts",
+        batch_size=16,
+        chunk_size=8,
+        preload_nchunks=2,
+        dataset_size=1024,
+    )
+
+    assert dm.registry["setup_args"]["layer"] == "counts"
+    batch = next(iter(dm.inference_dataloader()))
+    assert batch["X"].shape == (16, dm.n_vars)
 
 
 # ---------------------------------------------------------------------------
@@ -692,11 +723,17 @@ def test_annbatch_setup_mrvi(save_path: str):
     """TorchMRVI.setup_annbatch: build, train, latent, normalized_expression."""
     _zarr()
     paths = []
-    for i, (donor, site) in enumerate([("donor_A", "site_1"), ("donor_B", "site_2")]):
-        adata = scvi.data.synthetic_iid(batch_size=500)
+    donors_sites = [
+        ("donor_A", "site_1"),
+        ("donor_B", "site_1"),
+        ("donor_C", "site_2"),
+        ("donor_D", "site_2"),
+    ]
+    for i, (donor, site) in enumerate(donors_sites):
+        adata = scvi.data.synthetic_iid(batch_size=250)
         adata.X = csr_matrix(adata.X)
         adata.obs["donor"] = donor
-        adata.obs["site"] = site
+        adata.obs["site"] = pd.Categorical([site] * adata.n_obs, categories=["site_1", "site_2"])
         p = os.path.join(save_path, f"mrvi_{i + 1}.h5ad")
         adata.write(p)
         paths.append(p)
@@ -712,8 +749,8 @@ def test_annbatch_setup_mrvi(save_path: str):
         dataset_size=1024,
     )
     assert dm.n_batch == 2
-    assert dm.n_samples == 2
-    assert dm.registry["field_registries"]["sample"]["summary_stats"]["n_sample"] == 2
+    assert dm.n_samples == 4
+    assert dm.registry["field_registries"]["sample"]["summary_stats"]["n_sample"] == 4
     assert (
         dm.registry["field_registries"]["extra_categorical_covs"]["summary_stats"][
             "n_extra_categorical_covs"

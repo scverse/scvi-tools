@@ -1345,7 +1345,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             return ad.AnnData(X=x, obs=obs, var=var)
 
         def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
-            x = ad.io.sparse_dataset(g["X"])  # TODO: should it be read_elem or sparse_dataset?
+            x_elem = g["X"]
+            x = ad.io.sparse_dataset(x_elem) if isinstance(x_elem, zarr.Group) else x_elem
             obs = ad.experimental.read_lazy(g).obs[obs_keys].to_memory() if obs_keys else None
             return ad.AnnData(X=x, obs=obs)
 
@@ -1430,6 +1431,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             categorical_covariate_keys=categorical_covariate_keys,
             continuous_covariate_keys=continuous_covariate_keys,
             var_names=var_names,
+            layer=layer,
             chunk_size=chunk_size,
             preload_nchunks=preload_nchunks,
             preload_to_gpu=preload_to_gpu,
