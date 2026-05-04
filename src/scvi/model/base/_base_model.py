@@ -645,15 +645,18 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             if "batch" in batch and "batch" in registry:
                 mapping = registry["batch"]["state_registry"].get("categorical_mapping")
                 original_key = registry["batch"]["state_registry"].get("original_key", "batch")
-                obs[original_key] = _decode_categorical(batch["batch"], mapping)
+                if original_key is not None and batch["batch"] is not None:
+                    obs[original_key] = _decode_categorical(batch["batch"], mapping)
             if "labels" in batch and "labels" in registry:
                 mapping = registry["labels"]["state_registry"].get("categorical_mapping")
                 original_key = registry["labels"]["state_registry"].get("original_key", "labels")
-                obs[original_key] = _decode_categorical(batch["labels"], mapping)
+                if original_key is not None and batch["labels"] is not None:
+                    obs[original_key] = _decode_categorical(batch["labels"], mapping)
             if "sample" in batch and "sample" in registry:
                 mapping = registry["sample"]["state_registry"].get("categorical_mapping")
                 original_key = registry["sample"]["state_registry"].get("original_key", "sample")
-                obs[original_key] = _decode_categorical(batch["sample"], mapping)
+                if original_key is not None and batch["sample"] is not None:
+                    obs[original_key] = _decode_categorical(batch["sample"], mapping)
             if "extra_categorical_covs" in batch and "extra_categorical_covs" in registry:
                 field_keys = registry["extra_categorical_covs"]["state_registry"].get(
                     "field_keys", []
