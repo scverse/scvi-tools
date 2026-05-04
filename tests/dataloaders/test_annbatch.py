@@ -584,47 +584,6 @@ def test_annbatch_setup_autozi(save_path: str):
 
 
 # ---------------------------------------------------------------------------
-# CondSCVI
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.dataloader
-def test_annbatch_setup_condscvi(save_path: str):
-    """CondSCVI.setup_annbatch: build, train, latent, elbo, reconstruction."""
-    _zarr()
-    paths, _ = _synthetic_files(save_path, "condscvi", batch_size=500)
-    collection_path = os.path.join(save_path, "condscvi.zarr")
-
-    dm = scvi.model.CondSCVI.setup_annbatch(
-        collection_path=collection_path,
-        paths=paths,
-        batch_key="batch",
-        labels_key="labels",
-        batch_size=256,
-        dataset_size=1024,
-    )
-    assert dm.n_batch == 2
-    assert dm.n_labels > 0
-
-    model = scvi.model.CondSCVI(registry=dm.registry)
-    model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
-    assert "elbo_train" in model.history
-    _assert_validation_split(model, dm)
-
-    inference_dl = dm.inference_dataloader()
-    latent = model.get_latent_representation(dataloader=inference_dl)
-    assert latent.shape[0] == dm.n_obs
-
-    elbo = model.get_elbo(dataloader=inference_dl)
-    assert isinstance(float(elbo), float)
-
-    reconstruction = model.get_reconstruction_error(dataloader=inference_dl)
-    assert isinstance(reconstruction, dict)
-
-    _assert_save_load(model, scvi.model.CondSCVI, save_path, "setup_condscvi", dm)
-
-
-# ---------------------------------------------------------------------------
 # SysVI
 # ---------------------------------------------------------------------------
 

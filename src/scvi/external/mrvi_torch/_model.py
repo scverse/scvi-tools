@@ -276,6 +276,11 @@ class TorchMRVI(
 
         super().train(**train_kwargs)
 
+        if datamodule is not None and not hasattr(self, "sample_info"):
+            inference_dataloader = getattr(datamodule, "inference_dataloader", None)
+            if inference_dataloader is not None:
+                self.update_sample_info(dataloader=inference_dataloader())
+
     @torch.inference_mode()
     def get_latent_representation(
         self,

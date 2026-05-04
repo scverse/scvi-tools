@@ -77,8 +77,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
 
     def __init__(
         self,
-        adata: AnnData | None = None,
-        registry: dict | None = None,
+        adata: AnnData,
         n_hidden: int = 128,
         n_latent: int = 5,
         n_layers: int = 2,
@@ -86,7 +85,7 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
         dropout_rate: float = 0.05,
         **module_kwargs,
     ):
-        super().__init__(adata, registry)
+        super().__init__(adata)
 
         n_batch = self.summary_stats.n_batch
         n_labels = self.summary_stats.n_labels
@@ -95,25 +94,17 @@ class CondSCVI(RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, BaseModelClass)
             self.n_fine_labels = self.summary_stats.n_fine_labels
         else:
             self.n_fine_labels = None
-
-        if adata is not None:
-            self._set_indices_and_labels(adata)
-            if weight_obs:
-                ct_counts = np.unique(
-                    self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
-                    return_counts=True,
-                )[1]
-                ct_prop = ct_counts / np.sum(ct_counts)
-                ct_prop[ct_prop < 0.05] = 0.05
-                ct_prop = ct_prop / np.sum(ct_prop)
-                ct_weight = 1.0 / ct_prop
-                module_kwargs.update({"ct_weight": ct_weight})
-        else:
-            # Registry path: read label info from registry instead of adata_manager
-            labels_sr = self.registry["field_registries"]["labels"]["state_registry"]
-            self.original_label_key = labels_sr["original_key"]
-            self._label_mapping = labels_sr["categorical_mapping"]
-            self._code_to_label = dict(enumerate(self._label_mapping))
+        self._set_indices_and_labels(adata)
+        if weight_obs:
+            ct_counts = np.unique(
+                self.get_from_registry(adata, REGISTRY_KEYS.LABELS_KEY),
+                return_counts=True,
+            )[1]
+            ct_prop = ct_counts / np.sum(ct_counts)
+            ct_prop[ct_prop < 0.05] = 0.05
+            ct_prop = ct_prop / np.sum(ct_prop)
+            ct_weight = 1.0 / ct_prop
+            module_kwargs.update({"ct_weight": ct_weight})
 
         self.module = self._module_cls(
             n_input=self.summary_stats.n_vars,

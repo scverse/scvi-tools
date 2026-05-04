@@ -44,6 +44,8 @@ def _set_datamodule_split(
     batch_size: int | None = None,
 ) -> None:
     """Forward split settings to custom datamodules that implement splitting."""
+    if train_size is None and validation_size is None:
+        train_size = 0.9
     if datamodule is not None and hasattr(datamodule, "set_batch_size"):
         datamodule.set_batch_size(batch_size)
     if datamodule is not None and hasattr(datamodule, "set_split"):
