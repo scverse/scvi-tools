@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import pytest
+from mudata import MuData
 
 from scvi.data import synthetic_iid
 from scvi.external import TOTALANVI
@@ -351,3 +352,104 @@ def test_totalanvi_scarches_from_totalvi(save_path):
     adata5 = TOTALANVI.prepare_query_anndata(adata4, dir_path, inplace=False)
     TOTALANVI_query4 = TOTALANVI.load_query_data(adata5, dir_path)
     TOTALANVI_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+
+def _totalanvi_mudata(batch_size: int = 10, n_genes: int = 20, n_proteins: int = 5):
+    adata = synthetic_iid(
+        batch_size=batch_size,
+        n_genes=n_genes,
+        n_proteins=n_proteins,
+        n_regions=0,
+    )
+    labels = np.resize(["label_0", "label_1", "label_2"], adata.n_obs)
+    adata.obs["labels"] = pd.Categorical(labels)
+
+    protein_adata = synthetic_iid(
+        batch_size=batch_size,
+        n_genes=n_proteins,
+        n_proteins=n_proteins,
+        n_regions=0,
+    )
+    protein_adata.var_names = protein_adata.uns["protein_names"]
+    return MuData({"rna": adata, "protein": protein_adata})
+
+
+def test_totalanvi_mudata():
+    mdata = _totalanvi_mudata()
+    TOTALANVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        labels_key="labels",
+        unlabeled_category="label_0",
+        modalities={
+            "rna_layer": "rna",
+            "batch_key": "rna",
+            "labels_key": "rna",
+            "protein_layer": "protein",
+        },
+    )
+
+    n_obs = mdata.n_obs
+    n_genes = mdata.mod["rna"].n_vars
+    n_proteins = mdata.mod["protein"].n_vars
+    n_latent = 5
+
+    model = TOTALANVI(mdata, n_latent=n_latent, empirical_protein_background_prior=False)
+    assert len(model._labeled_indices) == sum(mdata.mod["rna"].obs["labels"] != "label_0")
+    assert len(model._unlabeled_indices) == sum(mdata.mod["rna"].obs["labels"] == "label_0")
+    assert model.modalities == {"rna_layer": "rna", "protein_layer": "protein"}
+
+    model.train(1, train_size=0.5, check_val_every_n_epoch=1, batch_size=64)
+    assert model.is_trained is True
+    z = model.get_latent_representation()
+    assert z.shape == (n_obs, n_latent)
+    predictions = model.predict(indices=[1, 2, 3])
+    assert len(predictions) == 3
+
+    post_pred = model.posterior_predictive_sample(n_samples=1)
+    assert post_pred["rna"].shape == (n_obs, n_genes)
+    assert post_pred["protein"].shape == (n_obs, n_proteins)
+
+    mdata2 = _totalanvi_mudata()
+    predictions = model.predict(mdata2, indices=[1, 2, 3])
+    assert len(predictions) == 3
+    norm_exp = model.get_normalized_expression(mdata2, indices=[1, 2, 3])
+    assert norm_exp[0].shape == (3, n_genes)
+    assert norm_exp[1].shape == (3, n_proteins)
+
+
+def test_totalanvi_from_totalvi_model_mudata():
+    mdata = synthetic_iid(
+        batch_size=10,
+        n_genes=20,
+        n_proteins=5,
+        n_regions=0,
+        return_mudata=True,
+    )
+    labels = np.resize(["label_0", "label_1", "label_2"], mdata.n_obs)
+    mdata.obs["labels"] = pd.Categorical(labels)
+
+    TOTALVI.setup_mudata(
+        mdata,
+        batch_key="batch",
+        modalities={"rna_layer": "rna", "protein_layer": "protein_expression"},
+    )
+    model_totalvi = TOTALVI(mdata, n_latent=5, empirical_protein_background_prior=False)
+    model_totalvi.train(1, train_size=0.5, check_val_every_n_epoch=1, batch_size=64)
+
+    totalanvi_model = TOTALANVI.from_totalvi_model(
+        model_totalvi,
+        unlabeled_category="label_0",
+        labels_key="labels",
+        adata=mdata,
+        empirical_protein_background_prior=False,
+    )
+
+    assert isinstance(totalanvi_model.adata, MuData)
+    assert totalanvi_model.modalities == {
+        "rna_layer": "rna",
+        "protein_layer": "protein_expression",
+    }
+    assert len(totalanvi_model._unlabeled_indices) == sum(mdata.obs["labels"] == "label_0")
+    predictions = totalanvi_model.predict(indices=[1, 2, 3])
+    assert len(predictions) == 3

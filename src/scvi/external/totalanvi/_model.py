@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._constants import _SETUP_ARGS_KEY
+from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
 from scvi.model import TOTALVI
 from scvi.model._utils import _init_library_size
 from scvi.model.base import SemisupervisedTrainingMixin
@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
     from anndata import AnnData
     from mudata import MuData
+
+    from scvi._types import AnnOrMuData
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +93,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
 
     def __init__(
         self,
-        adata: AnnData,
+        adata: AnnOrMuData,
         n_latent: int = 20,
         gene_dispersion: Literal["gene", "gene-batch", "gene-label", "gene-cell"] = "gene",
         protein_dispersion: Literal["protein", "protein-batch", "protein-label"] = "protein",
@@ -195,6 +197,14 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         self.semisupervised_history_ = None
 
         self.init_params_ = self._get_init_params(locals())
+        if self.registry_["setup_method_name"] == "setup_mudata":
+            original_dict = self.registry_["setup_args"]["modalities"]
+            self.modalities = {
+                "rna_layer": original_dict.get("rna_layer"),
+                "protein_layer": original_dict.get("protein_layer"),
+            }
+        else:
+            self.modalities = None
         self.was_pretrained = False
         self.n_labels = n_labels
 
@@ -204,7 +214,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         totalvi_model: TOTALVI,
         unlabeled_category: str,
         labels_key: str | None = None,
-        adata: AnnData | None = None,
+        adata: AnnOrMuData | None = None,
         **totalanvi_kwargs,
     ):
         """Initialize totalVI model with weights from pretrained :class:`~scvi.model.TOTALVI` model
@@ -220,8 +230,9 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
-            AnnData object that has been registered via
-            :meth:`~scvi.external.TOTALANVI.setup_anndata`.
+            AnnData or MuData object that has been registered via
+            :meth:`~scvi.external.TOTALANVI.setup_anndata` or
+            :meth:`~scvi.external.TOTALANVI.setup_mudata`.
         totalanvi_kwargs
             kwargs for totalANVI model
         """
@@ -247,13 +258,16 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         else:
             totalvi_model._validate_anndata(adata)
 
-        totalvi_setup_args = deepcopy(totalvi_model.adata_manager.registry[_SETUP_ARGS_KEY])
+        totalvi_registry = totalvi_model.adata_manager.registry
+        totalvi_setup_args = deepcopy(totalvi_registry[_SETUP_ARGS_KEY])
         if labels_key is None:
             raise ValueError(
                 "A `labels_key` is necessary as the TOTALVI model was initialized without one."
             )
         totalvi_setup_args.update({"labels_key": labels_key})
-        cls.setup_anndata(
+        setup_method_name = totalvi_registry.get(_SETUP_METHOD_NAME, "setup_anndata")
+        setup_method = getattr(cls, setup_method_name)
+        setup_method(
             adata,
             unlabeled_category=unlabeled_category,
             **totalvi_setup_args,
@@ -360,6 +374,8 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         size_factor_key: str | None = None,
         categorical_covariate_keys: list[str] | None = None,
         continuous_covariate_keys: list[str] | None = None,
+        labels_key: str | None = None,
+        unlabeled_category: str | None = None,
         modalities: dict[str, str] | None = None,
         **kwargs,
     ):
@@ -378,15 +394,20 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         %(param_size_factor_key)s
         %(param_cat_cov_keys)s
         %(param_cont_cov_keys)s
+        %(param_labels_key)s
+        %(param_unlabeled_category)s
         %(param_modalities)s
 
         Examples
         --------
         >>> mdata = muon.read_10x_h5("pbmc_10k_protein_v3_filtered_feature_bc_matrix.h5")
-        >>> scvi.external.model.TOTALANVI.setup_mudata(
-                mdata, modalities={"rna_layer": "rna": "protein_layer": "prot"}
-            )
-        >>> vae = scvi.external.model.TOTALANVI(mdata)
+        >>> scvi.external.TOTALANVI.setup_mudata(
+        ...     mdata,
+        ...     labels_key="labels",
+        ...     unlabeled_category="Unknown",
+        ...     modalities={"rna_layer": "rna", "protein_layer": "prot"},
+        ... )
+        >>> vae = scvi.external.TOTALANVI(mdata)
         """
         setup_method_args = cls._get_setup_method_args(**locals())
 
@@ -414,11 +435,12 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
                 is_count_data=True,
                 mod_required=True,
             ),
-            fields.MuDataCategoricalObsField(
+            fields.MuDataLabelsWithUnlabeledObsField(
                 REGISTRY_KEYS.LABELS_KEY,
-                None,
-                mod_key=None,
-            ),  # Default labels field for compatibility with TOTALVAE
+                labels_key,
+                unlabeled_category,
+                mod_key=modalities.labels_key,
+            ),
             fields.MuDataCategoricalObsField(
                 REGISTRY_KEYS.BATCH_KEY,
                 batch_key,
