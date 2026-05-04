@@ -12,6 +12,13 @@ from scvi.model import MULTIVI, TOTALVI
 OBSERVED_LIB_SIZE = "observed_lib_size"
 
 
+def move_labels_to_rna_obs(mdata):
+    labels = mdata.obs["labels"].copy()
+    mdata["rna"].obs["labels"] = labels
+    del mdata.obs["labels"]
+    return labels
+
+
 def prep_model(cls=TOTALVI, use_size_factor=False):
     # create a synthetic dataset
     adata = synthetic_iid()
@@ -134,6 +141,7 @@ def prep_model_mudata(cls=TOTALVI, use_size_factor=False, layer=None):
     elif cls == TOTALANVI:
         mdata = MuData({"rna": mdata["rna"], "protein_expression": mdata["protein_expression"]})
         mdata.obs = mdata_before_setup.obs
+        move_labels_to_rna_obs(mdata)
         cls.setup_mudata(
             mdata,
             labels_key="labels",
@@ -370,6 +378,29 @@ def test_totalanvi_with_saved_minified_adata_loads_minified(save_path):
 
     assert loaded_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
     assert loaded_model.module.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+
+
+def test_totalanvi_from_minified_totalvi_mudata_infers_labels_modality():
+    model, mdata, _, _ = prep_model_mudata(cls=TOTALVI, use_size_factor=True)
+    labels = move_labels_to_rna_obs(mdata)
+
+    qzm, qzv = model.get_latent_representation(give_mean=False, return_dist=True)
+    model.adata.obsm["X_latent_qzm"] = qzm
+    model.adata.obsm["X_latent_qzv"] = qzv
+    model.minify_mudata()
+    model.adata["rna"].obs["labels"] = labels
+    if "labels" in model.adata.obs:
+        del model.adata.obs["labels"]
+
+    totalanvi_model = TOTALANVI.from_totalvi_model(
+        model,
+        unlabeled_category="label_0",
+        labels_key="labels",
+        empirical_protein_background_prior=False,
+    )
+
+    assert totalanvi_model.minified_data_type == ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+    assert len(totalanvi_model._unlabeled_indices) == sum(labels == "label_0")
 
 
 @pytest.mark.parametrize("cls", [TOTALVI, TOTALANVI, MULTIVI])

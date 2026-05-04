@@ -229,9 +229,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         totalvi_model
             Pretrained totalvi model
         labels_key
-            key in `adata.obs` for label information. Label categories can not be different if
-            labels_key was used to setup the TOTALVI model. If None, uses the `labels_key` used to
-            setup the TOTALVI model. If that was None, and error is raised.
+            key in `adata.obs` or a MuData modality's `.obs` for label information. Label
+            categories can not be different if labels_key was used to setup the TOTALVI model.
+            If None, uses the `labels_key` used to setup the TOTALVI model. If that was None,
+            and error is raised.
         unlabeled_category
             Value used for unlabeled cells in `labels_key` used to setup AnnData with scvi.
         adata
@@ -418,10 +419,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         ... )
         >>> vae = scvi.external.TOTALANVI(mdata)
         """
-        setup_method_args = cls._get_setup_method_args(**locals())
-
         if modalities is None:
             raise ValueError("Modalities cannot be None.")
+        modalities = cls._infer_labels_modality(mdata, labels_key, modalities)
+        setup_method_args = cls._get_setup_method_args(**locals())
         modalities = cls._create_modalities_attr_dict(modalities, setup_method_args)
 
         if panel_key is not None:
@@ -499,3 +500,37 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)
+
+    @staticmethod
+    def _infer_labels_modality(
+        mdata: MuData,
+        labels_key: str | None,
+        modalities: dict[str, str],
+    ) -> dict[str, str]:
+        if labels_key is None:
+            return modalities
+
+        labels_mod_key = modalities.get("labels_key")
+        if labels_mod_key is not None:
+            if labels_key in mdata.obs and labels_key not in mdata[labels_mod_key].obs:
+                mdata[labels_mod_key].obs[labels_key] = mdata.obs[labels_key].copy()
+            return modalities
+
+        if labels_key in mdata.obs:
+            return modalities
+
+        candidate_mods = []
+        for modality_arg in ("rna_layer", "batch_key", "protein_layer"):
+            mod_key = modalities.get(modality_arg)
+            if mod_key is not None and mod_key not in candidate_mods:
+                candidate_mods.append(mod_key)
+        for mod_key in mdata.mod.keys():
+            if mod_key not in candidate_mods:
+                candidate_mods.append(mod_key)
+
+        for mod_key in candidate_mods:
+            if labels_key in mdata[mod_key].obs:
+                mdata.obs[labels_key] = mdata[mod_key].obs[labels_key].copy()
+                return {**modalities, "labels_key": mod_key}
+
+        return modalities
