@@ -7,7 +7,8 @@ from typing import TYPE_CHECKING
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
-from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME
+from scvi.data._constants import _SETUP_ARGS_KEY, _SETUP_METHOD_NAME, ADATA_MINIFY_TYPE
+from scvi.data._utils import _get_adata_minify_type
 from scvi.model import TOTALVI
 from scvi.model._utils import _init_library_size
 from scvi.model.base import SemisupervisedTrainingMixin
@@ -132,7 +133,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
             if empirical_protein_background_prior is not None
             else (self.summary_stats.n_proteins > 10)
         )
-        if emp_prior:
+        if emp_prior and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR:
             prior_mean, prior_scale = self._get_totalvi_protein_priors(adata)
         else:
             prior_mean, prior_scale = None, None
@@ -161,7 +162,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
 
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
-        if not use_size_factor_key:
+        if (
+            not use_size_factor_key
+            and self.minified_data_type != ADATA_MINIFY_TYPE.LATENT_POSTERIOR
+        ):
             library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         self.module = self._module_cls(
@@ -187,6 +191,7 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
             linear_classifier=linear_classifier,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"TotalANVI Model with the following params: \nunlabeled_category: "
             f"{self.unlabeled_category_}, n_latent:{n_latent}, gene_dispersion: {gene_dispersion},"
@@ -358,6 +363,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
         if panel_key is not None:
             anndata_fields.insert(0, fields.CategoricalObsField("panel", panel_key))
 
+        adata_minify_type = _get_adata_minify_type(adata)
+        if adata_minify_type is not None:
+            anndata_fields += cls._get_fields_for_adata_minification(adata_minify_type)
+
         adata_manager = AnnDataManager(fields=anndata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(adata, **kwargs)
         cls.register_manager(adata_manager)
@@ -482,6 +491,10 @@ class TOTALANVI(SemisupervisedTrainingMixin, TOTALVI):
                     mod_key=modalities.batch_key,
                 ),
             )
+
+        mdata_minify_type = _get_adata_minify_type(mdata)
+        if mdata_minify_type is not None:
+            mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
 
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)

@@ -11,7 +11,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
-- Add MuData support to {class}`scvi.external.TOTALANVI` {pr}`37XX`.
+- Add MuData support to {class}`scvi.external.TOTALANVI` {pr}`3797`.
 
 #### Fixed
 
