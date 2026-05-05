@@ -45,6 +45,12 @@ def pytest_addoption(parser):
         help="Run tests that are optional.",
     )
     parser.addoption(
+        "--benchmark",
+        action="store_true",
+        default=False,
+        help="Run tests that are benchmarks.",
+    )
+    parser.addoption(
         "--jax",
         action="store_true",
         default=False,
@@ -79,14 +85,31 @@ def pytest_addoption(parser):
 def pytest_configure(config):
     """Docstring for pytest_configure."""
     config.addinivalue_line("markers", "optional: mark test as optional.")
+    config.addinivalue_line("markers", "benchmark: mark test for benchmark.")
+    config.addinivalue_line("markers", "internet: mark test as internet tests.")
+    config.addinivalue_line("markers", "private: mark test as private tests.")
+    config.addinivalue_line("markers", "multigpu: mark test as multigpu tests.")
+    config.addinivalue_line("markers", "autotune: mark test as autotune tests.")
+    config.addinivalue_line("markers", "custom dataloaders: mark test as custom dataloaders test.")
+    config.addinivalue_line("markers", "dataloader: mark test as dataloader tests.")
+    config.addinivalue_line("markers", "jax: mark test as jax tests.")
+    config.addinivalue_line("markers", "mlflow: mark test as mlflow tests.")
+    config.addinivalue_line("markers", "diagvi: mark test as diagvi tests.")
 
 
 def pytest_collection_modifyitems(config, items):
     """Docstring for pytest_collection_modifyitems."""
+    run_benchmark = config.getoption("--benchmark")
+
+    def benchmark_selected(item):
+        return run_benchmark and ("benchmark" in item.keywords)
+
     run_internet = config.getoption("--internet-tests")
     skip_internet = pytest.mark.skip(reason="need --internet-tests option to run")
     skip_non_internet = pytest.mark.skip(reason="test not having a pytest.mark.internet decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.internet` get skipped unless
         # `--internet-tests` passed
         if not run_internet and ("internet" in item.keywords):
@@ -103,6 +126,8 @@ def pytest_collection_modifyitems(config, items):
         reason="test not having a pytest.mark.dataloader decorator"
     )
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.dataloader` get skipped unless
         # `--custom-dataloader-tests` passed
         if not run_custom_dataloader and ("dataloader" in item.keywords):
@@ -116,6 +141,8 @@ def pytest_collection_modifyitems(config, items):
     skip_optional = pytest.mark.skip(reason="need --optional option to run")
     skip_non_optional = pytest.mark.skip(reason="test not having a pytest.mark.optional decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.optional` get skipped unless
         # `--optional` passed
         if not run_optional and ("optional" in item.keywords):
@@ -128,6 +155,8 @@ def pytest_collection_modifyitems(config, items):
     skip_jax = pytest.mark.skip(reason="need --jax option to run")
     skip_non_jax = pytest.mark.skip(reason="test not having a pytest.mark.jax decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.jax` get skipped unless
         # `--jax` passed
         if not run_jax and ("jax" in item.keywords):
@@ -140,6 +169,8 @@ def pytest_collection_modifyitems(config, items):
     skip_private = pytest.mark.skip(reason="need --private option to run")
     skip_non_private = pytest.mark.skip(reason="test not having a pytest.mark.private decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.private` get skipped unless
         # `--private` passed
         if not run_private and ("private" in item.keywords):
@@ -152,6 +183,8 @@ def pytest_collection_modifyitems(config, items):
     skip_multigpu = pytest.mark.skip(reason="need --multigpu-tests option to run")
     skip_non_multigpu = pytest.mark.skip(reason="test not having a pytest.mark.multigpu decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.multigpu` get skipped unless
         # `--multigpu-tests` passed
         if not run_multigpu and ("multigpu" in item.keywords):
@@ -164,6 +197,8 @@ def pytest_collection_modifyitems(config, items):
     skip_autotune = pytest.mark.skip(reason="need --autotune-tests option to run")
     skip_non_autotune = pytest.mark.skip(reason="test not having a pytest.mark.autotune decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.autotune` get skipped unless
         # `--autotune-tests` passed
         if not run_autotune and ("autotune" in item.keywords):
@@ -176,6 +211,8 @@ def pytest_collection_modifyitems(config, items):
     skip_mlflow = pytest.mark.skip(reason="need --mlflow-tests option to run")
     skip_non_mlflow = pytest.mark.skip(reason="test not having a pytest.mark.mlflow decorator")
     for item in items:
+        if benchmark_selected(item):
+            continue
         # All tests marked with `pytest.mark.mlflow` get skipped unless
         # `--mlflow-tests` passed
         if not run_mlflow and ("mlflow" in item.keywords):
@@ -183,6 +220,19 @@ def pytest_collection_modifyitems(config, items):
         # Skip all tests not marked with `pytest.mark.mlflow` if `--mlflow-tests` passed
         elif run_mlflow and ("mlflow" not in item.keywords):
             item.add_marker(skip_non_mlflow)
+
+    skip_benchmark = pytest.mark.skip(reason="need --benchmark option to run")
+    skip_non_benchmark = pytest.mark.skip(
+        reason="test not having a pytest.mark.benchmark decorator"
+    )
+    for item in items:
+        # All tests marked with `pytest.mark.benchmark` get skipped unless
+        # `--benchmark` passed
+        if not run_benchmark and ("benchmark" in item.keywords):
+            item.add_marker(skip_benchmark)
+        # Skip all tests not marked with `pytest.mark.benchmark` if `--benchmark` passed
+        elif run_benchmark and ("benchmark" not in item.keywords):
+            item.add_marker(skip_non_benchmark)
 
 
 @pytest.fixture(scope="session")

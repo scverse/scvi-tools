@@ -352,6 +352,7 @@ def _init_torch_module(jax_params):
 # ── tests ────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.benchmark
 @pytest.mark.jax
 def test_forward_pass_equivalence():
     """Init JAX, transfer weights to PyTorch, compare all inference/generative/loss outputs."""
@@ -440,6 +441,7 @@ def test_forward_pass_equivalence():
     _compare("total_loss", jax_loss.loss, torch_loss.loss, ATOL_ATTN)
 
 
+@pytest.mark.benchmark
 @pytest.mark.jax
 def test_gradient_equivalence():
     """Compare jax.grad vs loss.backward() for all parameters."""

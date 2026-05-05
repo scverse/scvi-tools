@@ -21,7 +21,7 @@ from scvi.data.fields import (
     NumericalObsField,
     ObsmField,
 )
-from scvi.dataloaders import AnnTorchDataset
+from scvi.dataloaders import AnnTorchDataset, GraphDataSplitter
 from scvi.model._utils import (
     scrna_raw_counts_properties,
 )
@@ -93,6 +93,7 @@ class RESOLVI(
     """
 
     _module_cls = RESOLVAE
+    _data_splitter_cls = GraphDataSplitter
     _block_parameters = []
 
     def __init__(

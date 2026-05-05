@@ -261,12 +261,19 @@ class RESOLVAEModel(PyroModule):
         cat_covs = tensor_dict[cat_key] if cat_key in tensor_dict.keys() else None
 
         ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].long().ravel()
-        distances_n = tensor_dict["distance_neighbor"]
-        ind_neighbors = tensor_dict["index_neighbor"].long()
-
-        x_n = self.expression_anntorchdata[ind_neighbors.cpu().numpy().flatten(), :]["X"]
-        if isinstance(x_n, np.ndarray):
-            x_n = torch.from_numpy(x_n)
+        if "x_n" in tensor_dict:
+            x_n = tensor_dict["x_n"]
+            distances_n = (
+                tensor_dict["distances_n"]
+                if "distances_n" in tensor_dict
+                else tensor_dict["distance_neighbor"]
+            )
+        else:
+            distances_n = tensor_dict["distance_neighbor"]
+            ind_neighbors = tensor_dict["index_neighbor"].long()
+            x_n = self.expression_anntorchdata[ind_neighbors.cpu().numpy().flatten(), :]["X"]
+            if isinstance(x_n, np.ndarray):
+                x_n = torch.from_numpy(x_n)
         x_n = x_n.to(x.device)
 
         if x.layout is torch.sparse_csr or x.layout is torch.sparse_csc:

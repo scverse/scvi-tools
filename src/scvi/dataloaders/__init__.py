@@ -10,6 +10,7 @@ from ._data_splitting import (
     DeviceBackedDataSplitter,
     SemiSupervisedDataSplitter,
 )
+from ._graph_dataloader import GraphDataLoader, GraphDataSplitter
 from ._samplers import BatchDistributedSampler
 from ._semi_dataloader import SemiSupervisedDataLoader
 
@@ -19,10 +20,12 @@ __all__ = [
     "CollectionAdapter",
     "ConcatDataLoader",
     "DeviceBackedDataSplitter",
-    "SemiSupervisedDataLoader",
     "DataSplitter",
-    "SemiSupervisedDataSplitter",
+    "GraphDataLoader",
+    "GraphDataSplitter",
     "BatchDistributedSampler",
     "MappedCollectionDataModule",
+    "SemiSupervisedDataLoader",
+    "SemiSupervisedDataSplitter",
     "TileDBDataModule",
 ]
