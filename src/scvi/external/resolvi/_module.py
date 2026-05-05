@@ -160,6 +160,9 @@ class RESOLVAEModel(PyroModule):
         self.eps = torch.tensor(1e-6)
         self.encode_covariates = encode_covariates
         self.size_scaling = size_scaling
+        self._use_neighbor_expression_cache = False
+        self._neighbor_expression_cache = None
+        self._neighbor_expression_cache_max_bytes = None
 
         if self.dispersion == "gene":
             init_px_r = torch.full([n_input], 0.01)
@@ -252,6 +255,57 @@ class RESOLVAEModel(PyroModule):
                 var_eps=1e-6,
             )
 
+    def _estimate_neighbor_expression_cache_bytes(self) -> int:
+        """Estimate dense expression cache size in bytes."""
+        float32_size = torch.tensor([], dtype=torch.float32).element_size()
+        return len(self.expression_anntorchdata) * self.n_input * float32_size
+
+    def configure_neighbor_expression_cache(
+        self,
+        cache: bool | str = "auto",
+        max_bytes: int | None = 1_000_000_000,
+    ) -> bool:
+        """Enable a dense expression cache used for device-side neighbor gathers."""
+        if cache == "auto":
+            estimated_bytes = self._estimate_neighbor_expression_cache_bytes()
+            enabled = max_bytes is None or estimated_bytes <= max_bytes
+        elif isinstance(cache, bool):
+            enabled = cache
+        else:
+            raise ValueError("`cache` must be a bool or 'auto'.")
+
+        self._use_neighbor_expression_cache = enabled
+        self._neighbor_expression_cache_max_bytes = max_bytes
+        if not enabled:
+            self.clear_neighbor_expression_cache()
+        return enabled
+
+    def clear_neighbor_expression_cache(self) -> None:
+        """Drop the dense neighbor expression cache."""
+        self._neighbor_expression_cache = None
+
+    def _get_neighbor_expression_from_cache(
+        self,
+        ind_neighbors: torch.Tensor,
+        x: torch.Tensor,
+    ) -> torch.Tensor:
+        """Gather flattened neighbor expression rows from the dense cache."""
+        dtype = x.dtype if x.is_floating_point() else torch.float32
+        cache = self._neighbor_expression_cache
+        if cache is None or cache.device != x.device or cache.dtype != dtype:
+            full_x = self.expression_anntorchdata[np.arange(len(self.expression_anntorchdata))][
+                REGISTRY_KEYS.X_KEY
+            ]
+            if isinstance(full_x, np.ndarray):
+                full_x = torch.from_numpy(full_x)
+            if full_x.layout is torch.sparse_csr or full_x.layout is torch.sparse_csc:
+                full_x = full_x.to_dense()
+            self._neighbor_expression_cache = full_x.to(device=x.device, dtype=dtype)
+            cache = self._neighbor_expression_cache
+
+        flat_neighbors = ind_neighbors.reshape(-1).to(device=cache.device, dtype=torch.long)
+        return cache.index_select(0, flat_neighbors)
+
     def _get_fn_args_from_batch(self, tensor_dict: dict[str, torch.Tensor]) -> Iterable | dict:
         x = tensor_dict[REGISTRY_KEYS.X_KEY]
         y = tensor_dict[REGISTRY_KEYS.LABELS_KEY].long().ravel()
@@ -261,7 +315,15 @@ class RESOLVAEModel(PyroModule):
         cat_covs = tensor_dict[cat_key] if cat_key in tensor_dict.keys() else None
 
         ind_x = tensor_dict[REGISTRY_KEYS.INDICES_KEY].long().ravel()
-        if "x_n" in tensor_dict:
+        if self._use_neighbor_expression_cache and "index_neighbor" in tensor_dict:
+            distances_n = (
+                tensor_dict["distances_n"]
+                if "distances_n" in tensor_dict
+                else tensor_dict["distance_neighbor"]
+            )
+            ind_neighbors = tensor_dict["index_neighbor"].long()
+            x_n = self._get_neighbor_expression_from_cache(ind_neighbors, x)
+        elif "x_n" in tensor_dict:
             x_n = tensor_dict["x_n"]
             distances_n = (
                 tensor_dict["distances_n"]
@@ -1288,6 +1350,18 @@ class RESOLVAE(PyroBaseModuleClass):
             size_scaling=size_scaling,
         )
         self._get_fn_args_from_batch = self._model._get_fn_args_from_batch
+
+    def configure_neighbor_expression_cache(
+        self,
+        cache: bool | str = "auto",
+        max_bytes: int | None = 1_000_000_000,
+    ) -> bool:
+        """Configure RESOLVI model-side neighbor expression caching."""
+        return self._model.configure_neighbor_expression_cache(cache=cache, max_bytes=max_bytes)
+
+    def clear_neighbor_expression_cache(self) -> None:
+        """Drop the RESOLVI model-side neighbor expression cache."""
+        self._model.clear_neighbor_expression_cache()
 
     @property
     def model(self):

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import torch
+from torch.utils.data import default_convert
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnTorchDataset
@@ -16,13 +17,74 @@ if TYPE_CHECKING:
     from scvi.data import AnnDataManager
 
 
-def _to_dense_tensor(array: np.ndarray | torch.Tensor) -> torch.Tensor:
-    """Convert AnnTorchDataset output to a dense torch tensor."""
+def _as_torch_tensor(array: np.ndarray | torch.Tensor) -> torch.Tensor:
+    """Convert AnnTorchDataset output to a torch tensor without changing sparse layout."""
     if isinstance(array, np.ndarray):
         return torch.from_numpy(array)
-    if array.layout is torch.sparse_csr or array.layout is torch.sparse_csc:
-        return array.to_dense()
     return array
+
+
+class _GraphBatchConverter:
+    """Convert an AnnTorchDataset batch into a PyG Data object."""
+
+    def __init__(
+        self,
+        full_adata_manager: AnnDataManager,
+        neighbor_indices_key: str,
+        edge_obsm_keys: list[str],
+        load_sparse_neighbor_tensor: bool,
+        load_neighbor_expression: bool,
+    ):
+        self.neighbor_indices_key = neighbor_indices_key
+        self.edge_obsm_keys = edge_obsm_keys
+        self.load_neighbor_expression = load_neighbor_expression
+        if load_neighbor_expression:
+            self._full_dataset = AnnTorchDataset(
+                full_adata_manager,
+                getitem_tensors=[REGISTRY_KEYS.X_KEY],
+                load_sparse_tensor=load_sparse_neighbor_tensor,
+            )
+
+    def __call__(self, batch: dict[str, np.ndarray | torch.Tensor]):
+        try:
+            from torch_geometric.data import Data
+        except ImportError as error:
+            raise ImportError(
+                "torch_geometric is required for GraphDataLoader. "
+                "Install it with: pip install torch_geometric"
+            ) from error
+
+        batch = default_convert(batch)
+        ind_neighbors = batch[self.neighbor_indices_key].long()
+        n_obs, n_neighbors = ind_neighbors.shape
+
+        x = _as_torch_tensor(batch[REGISTRY_KEYS.X_KEY])
+
+        center_idx = torch.arange(n_obs, dtype=torch.long).repeat_interleave(n_neighbors)
+        neighbor_idx = torch.arange(n_obs * n_neighbors, dtype=torch.long)
+        edge_index = torch.stack([center_idx, neighbor_idx], dim=0)
+
+        edge_attrs = []
+        for key in self.edge_obsm_keys:
+            vals = batch[key].float()
+            edge_attrs.append(vals.reshape(n_obs * n_neighbors, -1))
+        edge_attr = torch.cat(edge_attrs, dim=1) if edge_attrs else None
+
+        data_kwargs = dict(batch)
+        data_kwargs.update(
+            {
+                "x": x,
+                "edge_index": edge_index,
+                "edge_attr": edge_attr,
+                "distances_n": batch.get("distance_neighbor"),
+            }
+        )
+        if self.load_neighbor_expression:
+            flat_neighbors = ind_neighbors.cpu().numpy().ravel()
+            data_kwargs["x_n"] = _as_torch_tensor(
+                self._full_dataset[flat_neighbors][REGISTRY_KEYS.X_KEY]
+            )
+        return Data(**data_kwargs)
 
 
 class GraphDataLoader(AnnDataLoader):
@@ -46,6 +108,12 @@ class GraphDataLoader(AnnDataLoader):
     edge_obsm_keys
         Registry keys to flatten and concatenate into ``edge_attr``. Each key must have shape
         ``[N, K]`` or ``[N, K, D]``. Defaults to ``["distance_neighbor"]``.
+    load_sparse_neighbor_tensor
+        If ``True``, loads sparse neighbor expression as sparse torch tensors. This avoids
+        densifying neighbor expression on the CPU before device transfer.
+    load_neighbor_expression
+        If ``False``, omits ``x_n`` and leaves neighbor expression gathering to the model. This is
+        useful when a model keeps a device-resident expression cache.
     **kwargs
         Forwarded to :class:`~scvi.dataloaders.AnnDataLoader`.
     """
@@ -57,68 +125,50 @@ class GraphDataLoader(AnnDataLoader):
         indices: list[int] | list[bool] | None = None,
         neighbor_indices_key: str = "index_neighbor",
         edge_obsm_keys: list[str] | None = None,
+        load_sparse_neighbor_tensor: bool = True,
+        load_neighbor_expression: bool = True,
         **kwargs,
     ):
-        load_sparse_tensor = kwargs.get("load_sparse_tensor", False)
+        if "collate_fn" in kwargs:
+            raise ValueError("GraphDataLoader uses its own collate_fn to build graph batches.")
+        if kwargs.pop("iter_ndarray", False):
+            raise ValueError("GraphDataLoader does not support `iter_ndarray=True`.")
+
         super().__init__(adata_manager, indices=indices, **kwargs)
         self.neighbor_indices_key = neighbor_indices_key
         self.edge_obsm_keys = (
             list(edge_obsm_keys) if edge_obsm_keys is not None else ["distance_neighbor"]
         )
-        self._full_dataset = AnnTorchDataset(
+        self.load_sparse_neighbor_tensor = load_sparse_neighbor_tensor
+        self.load_neighbor_expression = load_neighbor_expression
+        self._graph_batch_converter = _GraphBatchConverter(
             full_adata_manager,
-            getitem_tensors=[REGISTRY_KEYS.X_KEY],
-            load_sparse_tensor=load_sparse_tensor,
+            neighbor_indices_key=self.neighbor_indices_key,
+            edge_obsm_keys=self.edge_obsm_keys,
+            load_sparse_neighbor_tensor=load_sparse_neighbor_tensor,
+            load_neighbor_expression=load_neighbor_expression,
         )
-
-    def __iter__(self):
-        try:
-            from torch_geometric.data import Data
-        except ImportError as error:
-            raise ImportError(
-                "torch_geometric is required for GraphDataLoader. "
-                "Install it with: pip install torch_geometric"
-            ) from error
-
-        for batch in super().__iter__():
-            ind_neighbors = batch[self.neighbor_indices_key].long()
-            n_obs, n_neighbors = ind_neighbors.shape
-            flat_neighbors = ind_neighbors.cpu().numpy().ravel()
-
-            x = _to_dense_tensor(batch[REGISTRY_KEYS.X_KEY])
-            x_n = _to_dense_tensor(self._full_dataset[flat_neighbors][REGISTRY_KEYS.X_KEY])
-
-            center_idx = torch.arange(n_obs, dtype=torch.long).repeat_interleave(n_neighbors)
-            neighbor_idx = torch.arange(n_obs * n_neighbors, dtype=torch.long)
-            edge_index = torch.stack([center_idx, neighbor_idx], dim=0)
-
-            edge_attrs = []
-            for key in self.edge_obsm_keys:
-                vals = batch[key].float()
-                edge_attrs.append(vals.reshape(n_obs * n_neighbors, -1))
-            edge_attr = torch.cat(edge_attrs, dim=1) if edge_attrs else None
-
-            data_kwargs = dict(batch)
-            data_kwargs.update(
-                {
-                    "x": x,
-                    "x_n": x_n,
-                    "edge_index": edge_index,
-                    "edge_attr": edge_attr,
-                    "distances_n": batch.get("distance_neighbor"),
-                }
-            )
-            yield Data(**data_kwargs)
+        self.collate_fn = self._graph_batch_converter
 
 
 class GraphDataSplitter(DataSplitter):
-    """DataSplitter that creates :class:`GraphDataLoader` instances."""
+    """DataSplitter that creates :class:`GraphDataLoader` instances.
+
+    Parameters
+    ----------
+    load_sparse_neighbor_tensor
+        Forwarded to :class:`GraphDataLoader`.
+    load_neighbor_expression
+        Forwarded to :class:`GraphDataLoader`.
+    """
 
     def __init__(
         self,
         adata_manager: AnnDataManager,
         neighbor_indices_key: str = "index_neighbor",
         edge_obsm_keys: list[str] | None = None,
+        load_sparse_neighbor_tensor: bool = True,
+        load_neighbor_expression: bool = True,
         **kwargs,
     ):
         super().__init__(adata_manager, **kwargs)
@@ -126,6 +176,8 @@ class GraphDataSplitter(DataSplitter):
         self.edge_obsm_keys = (
             list(edge_obsm_keys) if edge_obsm_keys is not None else ["distance_neighbor"]
         )
+        self.load_sparse_neighbor_tensor = load_sparse_neighbor_tensor
+        self.load_neighbor_expression = load_neighbor_expression
 
     def _make_graph_dataloader(
         self,
@@ -143,6 +195,8 @@ class GraphDataSplitter(DataSplitter):
             pin_memory=self.pin_memory,
             neighbor_indices_key=self.neighbor_indices_key,
             edge_obsm_keys=self.edge_obsm_keys,
+            load_sparse_neighbor_tensor=self.load_sparse_neighbor_tensor,
+            load_neighbor_expression=self.load_neighbor_expression,
             **self.data_loader_kwargs,
         )
 

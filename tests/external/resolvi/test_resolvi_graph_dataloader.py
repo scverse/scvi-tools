@@ -5,6 +5,7 @@ import warnings
 
 import numpy as np
 import pytest
+import scipy.sparse as sp
 import torch
 
 from scvi.data import synthetic_iid
@@ -14,10 +15,26 @@ from scvi.external import RESOLVI
 @pytest.fixture
 def adata():
     adata = synthetic_iid(generate_coordinates=True, n_regions=5, n_proteins=10)
-    adata.obsm["X_spatial"] = adata.obsm["coordinates"]
     adata.obs["cell_area"] = np.random.default_rng(0).gamma(2.0, 1.0, size=adata.n_obs)
-    RESOLVI.setup_anndata(adata)
+    _setup_resolvi(RESOLVI, adata)
     return adata
+
+
+def _add_ring_neighbors(adata, n_neighbors: int = 10):
+    adata.obsm["X_spatial"] = adata.obsm["coordinates"]
+    n_obs = adata.n_obs
+    adata.obsm["index_neighbor"] = (
+        np.arange(n_obs)[:, None] + np.arange(1, n_neighbors + 1)[None, :]
+    ) % n_obs
+    adata.obsm["distance_neighbor"] = np.tile(
+        np.arange(1, n_neighbors + 1, dtype=np.float32),
+        (n_obs, 1),
+    )
+
+
+def _setup_resolvi(cls, adata, **kwargs):
+    _add_ring_neighbors(adata)
+    cls.setup_anndata(adata, prepare_data=False, **kwargs)
 
 
 def _resolvi_graph_cls():
@@ -76,19 +93,99 @@ def test_resolvi_get_fn_args_prefers_graph_batch_x_n(adata):
     torch.testing.assert_close(kwargs["distances_n"], batch.distances_n)
 
 
+def test_resolvi_get_fn_args_accepts_sparse_graph_batch_x_n():
+    """Sparse GraphDataLoader neighbor tensors should be densified inside RESOLVI."""
+    from scvi.dataloaders import GraphDataLoader
+
+    adata = synthetic_iid(generate_coordinates=True, n_regions=5, n_proteins=10)
+    adata.X = sp.csr_matrix(adata.X)
+    adata.obs["cell_area"] = np.random.default_rng(0).gamma(2.0, 1.0, size=adata.n_obs)
+    _setup_resolvi(RESOLVI, adata)
+
+    adata_manager = RESOLVI._get_most_recent_anndata_manager(adata, required=True)
+    model = RESOLVI(adata)
+    batch = next(
+        iter(
+            GraphDataLoader(
+                adata_manager,
+                full_adata_manager=adata_manager,
+                batch_size=8,
+                shuffle=False,
+            )
+        )
+    )
+
+    assert batch.x_n.layout is torch.sparse_csr
+    _, kwargs = model.module._get_fn_args_from_batch(batch)
+
+    torch.testing.assert_close(
+        kwargs["x_n"],
+        batch.x_n.to_dense().reshape(batch.x.shape[0], -1),
+    )
+
+
+def test_resolvi_get_fn_args_uses_neighbor_expression_cache_when_x_n_is_absent(adata):
+    """RESOLVI can gather neighbor expression from its cache instead of a graph batch x_n."""
+    from scvi.dataloaders import GraphDataLoader
+
+    adata_manager = RESOLVI._get_most_recent_anndata_manager(adata, required=True)
+    model = RESOLVI(adata)
+    model.module.configure_neighbor_expression_cache(cache=True)
+    batch = next(
+        iter(
+            GraphDataLoader(
+                adata_manager,
+                full_adata_manager=adata_manager,
+                batch_size=8,
+                shuffle=False,
+                load_neighbor_expression=False,
+            )
+        )
+    )
+
+    assert "x_n" not in batch
+    _, kwargs = model.module._get_fn_args_from_batch(batch)
+    assert model.module.model._neighbor_expression_cache is not None
+
+    class FailingExpressionDataset:
+        def __getitem__(self, item):
+            raise AssertionError("fallback AnnTorchDataset should not be used")
+
+    model.module.model.expression_anntorchdata = FailingExpressionDataset()
+    _, cached_kwargs = model.module._get_fn_args_from_batch(batch)
+
+    torch.testing.assert_close(cached_kwargs["x_n"], kwargs["x_n"])
+    torch.testing.assert_close(cached_kwargs["distances_n"], batch.distances_n)
+
+
 def test_resolvi_graph_path_trains(adata):
     """RESOLVI must train to completion when forced to use GraphDataLoader."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model = RESOLVIGraph(adata)
     _train_graph(model)
+    assert model.module.model._neighbor_expression_cache is not None
 
     latent = model.get_latent_representation()
     assert latent.shape == (adata.n_obs, model.module.n_latent)
 
     model = RESOLVIGraph(adata, dispersion="gene-batch")
     _train_graph(model)
+
+
+def test_resolvi_auto_neighbor_expression_cache_is_graph_splitter_scoped(adata):
+    """Auto cache is enabled for graph splitters and left off for legacy splitters."""
+    RESOLVILegacy = _resolvi_legacy_cls()
+
+    _setup_resolvi(RESOLVILegacy, adata)
+    model = RESOLVILegacy(adata)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        model.train(max_epochs=1, enable_progress_bar=False, logger=False)
+
+    assert model.module.model._use_neighbor_expression_cache is False
+    assert model.module.model._neighbor_expression_cache is None
 
 
 def test_resolvi_uses_graph_datasplitter_by_default():
@@ -102,11 +199,16 @@ def test_resolvi_graph_train_size_factor(adata):
     """GraphDataLoader path supports RESOLVI size-factor training modes."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata, batch_key="batch", size_factor_key="cell_area")
+    _setup_resolvi(
+        RESOLVIGraph,
+        adata,
+        batch_key="batch",
+        size_factor_key="cell_area",
+    )
     model = RESOLVIGraph(adata, size_scaling=True)
     _train_graph(model)
 
-    RESOLVIGraph.setup_anndata(adata, size_factor_key="cell_area")
+    _setup_resolvi(RESOLVIGraph, adata, size_factor_key="cell_area")
     model = RESOLVIGraph(adata, size_scaling=False)
     _train_graph(model)
 
@@ -116,7 +218,7 @@ def test_resolvi_graph_save_load(adata, tmp_path):
     """GraphDataLoader path preserves legacy save/load behavior."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model = RESOLVIGraph(adata)
     _train_graph(model)
     hist_elbo = model.history_["elbo_train"]
@@ -139,7 +241,7 @@ def test_resolvi_graph_downstream(adata, tmp_path):
     """GraphDataLoader path covers legacy downstream RESOLVI APIs."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata, size_factor_key="cell_area")
+    _setup_resolvi(RESOLVIGraph, adata, size_factor_key="cell_area")
     model = RESOLVIGraph(adata)
     _train_graph(model)
     latent = model.get_latent_representation()
@@ -175,7 +277,7 @@ def test_resolvi_graph_downstream_size_scaling(adata, tmp_path):
     """GraphDataLoader path covers downstream APIs with size scaling enabled."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata, size_factor_key="cell_area")
+    _setup_resolvi(RESOLVIGraph, adata, size_factor_key="cell_area")
     model = RESOLVIGraph(adata, size_scaling=True)
     _train_graph(model)
     latent = model.get_latent_representation()
@@ -212,7 +314,7 @@ def test_resolvi_graph_semisupervised(adata):
     """GraphDataLoader path supports semisupervised RESOLVI APIs."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata, labels_key="labels")
+    _setup_resolvi(RESOLVIGraph, adata, labels_key="labels")
     model = RESOLVIGraph(adata, semisupervised=True)
     _train_graph(model)
     model.differential_niche_abundance(
@@ -234,7 +336,7 @@ def test_resolvi_graph_scarches(adata):
     ref_adata = adata[adata.obs["hemisphere"] == "left"].copy()
     query_adata = adata[adata.obs["hemisphere"] == "right"].copy()
 
-    RESOLVIGraph.setup_anndata(ref_adata, labels_key="labels")
+    _setup_resolvi(RESOLVIGraph, ref_adata, labels_key="labels")
     model = RESOLVIGraph(ref_adata, semisupervised=True)
     _train_graph(model)
 
@@ -244,6 +346,7 @@ def test_resolvi_graph_scarches(adata):
 
     query_adata.obs["predicted_celltype"] = "unknown"
     query_adata.obs_names = [f"query_{i}" for i in query_adata.obs_names]
+    _add_ring_neighbors(query_adata)
 
     model.prepare_query_anndata(query_adata, reference_model=model)
     query_resolvi = model.load_query_data(query_adata, reference_model=model)
@@ -270,7 +373,7 @@ def test_resolvi_graph_differential_expression(
     """GraphDataLoader path supports RESOLVI differential expression settings."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model = RESOLVIGraph(adata, downsample_counts=downsample_counts)
     _train_graph(model, max_epochs=1)
     model.differential_expression(groupby="labels", weights=weights, n_samples=n_samples)
@@ -284,7 +387,7 @@ def test_resolvi_dataloader_speed_comparison(adata):
 
     n_epochs = 5
 
-    RESOLVILegacy.setup_anndata(adata)
+    _setup_resolvi(RESOLVILegacy, adata)
     model_ann = RESOLVILegacy(adata)
     t0 = time.perf_counter()
     with warnings.catch_warnings():
@@ -292,7 +395,7 @@ def test_resolvi_dataloader_speed_comparison(adata):
         model_ann.train(max_epochs=n_epochs)
     t_ann = time.perf_counter() - t0
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model_graph = RESOLVIGraph(adata)
     t0 = time.perf_counter()
     _train_graph(model_graph, max_epochs=n_epochs)
@@ -315,14 +418,14 @@ def test_resolvi_elbo_comparable_between_paths(adata):
 
     n_epochs = 10
 
-    RESOLVILegacy.setup_anndata(adata)
+    _setup_resolvi(RESOLVILegacy, adata)
     model_ann = RESOLVILegacy(adata)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         model_ann.train(max_epochs=n_epochs)
     elbo_ann = model_ann.history_["elbo_train"].iloc[-1].values[0]
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model_graph = RESOLVIGraph(adata)
     _train_graph(model_graph, max_epochs=n_epochs)
     elbo_graph = model_graph.history_["elbo_train"].iloc[-1].values[0]
@@ -340,7 +443,7 @@ def test_resolvi_graph_elbo_decreases(adata):
     """ELBO must decrease over training with GraphDataLoader."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model = RESOLVIGraph(adata)
     _train_graph(model, max_epochs=10)
 
@@ -355,7 +458,7 @@ def test_resolvi_latent_shape_graph_path(adata):
     """get_latent_representation() must return (n_obs, n_latent) with GraphDataLoader."""
     RESOLVIGraph = _resolvi_graph_cls()
 
-    RESOLVIGraph.setup_anndata(adata)
+    _setup_resolvi(RESOLVIGraph, adata)
     model = RESOLVIGraph(adata)
     _train_graph(model, max_epochs=3)
     latent = model.get_latent_representation()

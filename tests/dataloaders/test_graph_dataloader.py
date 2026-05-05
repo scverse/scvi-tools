@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+import scipy.sparse as sp
 import torch
 
 from scvi.data import synthetic_iid
@@ -12,7 +13,13 @@ from scvi.external import RESOLVI
 def resolvi_adata():
     adata = synthetic_iid(generate_coordinates=True, n_regions=5)
     adata.obsm["X_spatial"] = adata.obsm["coordinates"]
-    RESOLVI.setup_anndata(adata)
+    n_obs = adata.n_obs
+    n_neighbors = 10
+    adata.obsm["index_neighbor"] = (
+        np.arange(n_obs)[:, None] + np.arange(1, n_neighbors + 1)[None, :]
+    ) % n_obs
+    adata.obsm["distance_neighbor"] = np.ones((n_obs, n_neighbors), dtype=np.float32)
+    RESOLVI.setup_anndata(adata, prepare_data=False)
     return adata
 
 
@@ -103,6 +110,49 @@ def test_graph_dataloader_edge_attr_from_keys(adata_manager):
     assert batch.edge_attr.dtype == torch.float32
 
 
+def test_graph_dataloader_preserves_sparse_neighbor_expression_by_default():
+    """Sparse neighbor expression should not be densified in the dataloader."""
+    from scvi.dataloaders import GraphDataLoader
+
+    adata = synthetic_iid(generate_coordinates=True, n_regions=5)
+    adata.X = sp.csr_matrix(adata.X)
+    n_obs = adata.n_obs
+    n_neighbors = 10
+    adata.obsm["index_neighbor"] = (
+        np.arange(n_obs)[:, None] + np.arange(1, n_neighbors + 1)[None, :]
+    ) % n_obs
+    adata.obsm["distance_neighbor"] = np.ones((n_obs, n_neighbors), dtype=np.float32)
+
+    RESOLVI.setup_anndata(adata, prepare_data=False)
+    adata_manager = RESOLVI._get_most_recent_anndata_manager(adata, required=True)
+
+    batch = next(
+        iter(
+            GraphDataLoader(
+                adata_manager,
+                full_adata_manager=adata_manager,
+                batch_size=8,
+                shuffle=False,
+            )
+        )
+    )
+
+    assert batch.x_n.layout is torch.sparse_csr
+
+    dense_batch = next(
+        iter(
+            GraphDataLoader(
+                adata_manager,
+                full_adata_manager=adata_manager,
+                batch_size=8,
+                shuffle=False,
+                load_sparse_neighbor_tensor=False,
+            )
+        )
+    )
+    assert dense_batch.x_n.layout is torch.strided
+
+
 def test_graph_dataloader_cross_split_neighbors(adata_manager):
     """Neighbor indices outside train split must resolve without error."""
     from scvi.dataloaders import GraphDataLoader
@@ -120,6 +170,47 @@ def test_graph_dataloader_cross_split_neighbors(adata_manager):
     for batch in dl:
         assert batch.x_n is not None
         break
+
+
+def test_graph_dataloader_builds_graph_batches_in_collate_fn(adata_manager):
+    """Graph batch construction should happen in the loader collate function."""
+    from torch_geometric.data import Data
+
+    from scvi.dataloaders import GraphDataLoader
+
+    dl = GraphDataLoader(
+        adata_manager,
+        full_adata_manager=adata_manager,
+        batch_size=8,
+        shuffle=False,
+    )
+    raw_batch = dl.dataset[np.arange(8)]
+    batch = dl.collate_fn(raw_batch)
+
+    assert isinstance(batch, Data)
+    assert hasattr(batch, "x_n")
+    assert hasattr(batch, "edge_index")
+
+
+def test_graph_dataloader_can_omit_neighbor_expression(adata_manager):
+    """Models with their own expression cache can request graph batches without x_n."""
+    from scvi.dataloaders import GraphDataLoader
+
+    batch = next(
+        iter(
+            GraphDataLoader(
+                adata_manager,
+                full_adata_manager=adata_manager,
+                batch_size=8,
+                shuffle=False,
+                load_neighbor_expression=False,
+            )
+        )
+    )
+
+    assert "x_n" not in batch
+    assert "index_neighbor" in batch
+    assert batch.edge_index.shape[1] == batch.index_neighbor.numel()
 
 
 def test_graph_dataloader_missing_torch_geometric(adata_manager, monkeypatch):
@@ -201,3 +292,18 @@ def test_graph_datasplitter_custom_edge_keys(adata_manager):
     splitter.setup()
 
     assert splitter.train_dataloader().edge_obsm_keys == ["distance_neighbor"]
+
+
+def test_graph_datasplitter_forwards_neighbor_expression_flag(adata_manager):
+    """load_neighbor_expression should reach split dataloaders."""
+    from scvi.dataloaders import GraphDataSplitter
+
+    splitter = GraphDataSplitter(
+        adata_manager,
+        batch_size=16,
+        train_size=0.8,
+        load_neighbor_expression=False,
+    )
+    splitter.setup()
+
+    assert splitter.train_dataloader().load_neighbor_expression is False

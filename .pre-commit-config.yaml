@@ -1,6 +1,7 @@
 fail_fast: false
 default_language_version:
   python: python3
+  node: 20.20.2
 default_stages:
   - pre-commit
   - pre-push

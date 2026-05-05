@@ -195,6 +195,8 @@ class RESOLVI(
         n_epochs_kl_warmup: int | None = 20,
         plan_kwargs: dict | None = None,
         expose_params: list = (),
+        cache_neighbor_expression: bool | Literal["auto"] = "auto",
+        neighbor_expression_cache_max_bytes: int | None = 1_000_000_000,
         **kwargs,
     ):
         """
@@ -212,6 +214,14 @@ class RESOLVI(
             List of parameters to train with `lr_extra` learning rate.
         batch_size
             Minibatch size to use during training.
+        cache_neighbor_expression
+            Whether to cache the full expression matrix densely and gather neighbor expression in
+            the RESOLVI module. ``"auto"`` enables the cache for graph dataloading only when the
+            estimated dense cache size is below ``neighbor_expression_cache_max_bytes``. Set this
+            to ``True`` to explicitly enable the cache for non-graph dataloaders.
+        neighbor_expression_cache_max_bytes
+            Maximum estimated dense expression cache size allowed in ``"auto"`` mode. Set to
+            ``None`` to disable the size guard.
         weight_decay
             weight decay regularization term for optimization
         eps
@@ -268,11 +278,24 @@ class RESOLVI(
             }
         )
 
+        datasplitter_kwargs = dict(kwargs.pop("datasplitter_kwargs", {}) or {})
+        uses_graph_splitter = issubclass(self._data_splitter_cls, GraphDataSplitter)
+        cache_request = cache_neighbor_expression
+        if cache_request == "auto" and not uses_graph_splitter:
+            cache_request = False
+        cache_enabled = self.module.configure_neighbor_expression_cache(
+            cache=cache_request,
+            max_bytes=neighbor_expression_cache_max_bytes,
+        )
+        if cache_enabled and uses_graph_splitter:
+            datasplitter_kwargs.setdefault("load_neighbor_expression", False)
+
         super().train(
             max_epochs=max_epochs,
             train_size=1.0,
             plan_kwargs=plan_kwargs,
             batch_size=batch_size,
+            datasplitter_kwargs=datasplitter_kwargs,
             **kwargs,
         )
 
