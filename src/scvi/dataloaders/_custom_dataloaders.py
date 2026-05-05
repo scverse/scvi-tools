@@ -50,8 +50,6 @@ class MappedCollectionDataModule(LightningDataModule):
         self.shuffle = shuffle
         self.unlabeled_category = unlabeled_category
         self._parallel = kwargs.pop("parallel", True)
-        self.collection = collection
-        self.collection_val = collection_val
         self.labels_ = None
         self.samples_ = None
         self._categorical_covariate_keys = categorical_covariate_keys
@@ -966,9 +964,7 @@ class TileDBDataModule(LightningDataModule):
 
     def inference_dataloader(self):
         """Dataloader for inference with `on_before_batch_transfer` applied."""
-        dataloader = (
-            self.train_dataloader()
-        )  # TODO: should it just be self.dataset or self.train_dataloader()?
+        dataloader = self.train_dataloader()
         return self._InferenceDataloader(dataloader, self.on_before_batch_transfer)
 
     class _InferenceDataloader:
@@ -1285,13 +1281,9 @@ class AnnbatchDataModule(LightningDataModule):
             "labels": labels_tensor,
         }
 
-        if self.model_name == "SCANVI":
+        if self.model_name == "SCANVI" or extra_cat_covs is not None:
             tensors["extra_categorical_covs"] = extra_cat_covs
-            tensors["extra_continuous_covs"] = extra_cont_covs
-        elif extra_cat_covs is not None:
-            tensors["extra_categorical_covs"] = extra_cat_covs
-
-        if self.model_name != "SCANVI" and extra_cont_covs is not None:
+        if self.model_name == "SCANVI" or extra_cont_covs is not None:
             tensors["extra_continuous_covs"] = extra_cont_covs
 
         tensors["sample"] = sample_tensor

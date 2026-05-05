@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import pyro
 import rich.table
 import torch
@@ -58,7 +59,6 @@ from . import _constants
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    import pandas as pd
     from lightning import LightningDataModule
 
     from scvi._types import AnnOrMuData, MinifiedDataType
@@ -582,46 +582,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         else:
             raise ValueError("Model need to be initialized with AnnData to transfer fields.")
 
-    def _get_inference_dataloader_base(self, dataloader):
-        """Return the underlying torch DataLoader for a custom inference loader."""
-        loader = getattr(dataloader, "dataloader", dataloader)
-        if loader is None:
-            raise ValueError(
-                "This model has no AnnData attached. Pass `adata` or an inference dataloader."
-            )
-        return loader
-
-    def _subset_inference_dataloader(self, dataloader, indices):
-        """Create a subset inference dataloader without materializing AnnData."""
-        if dataloader is None:
-            raise ValueError("`dataloader` is required.")
-        if indices is None:
-            return dataloader
-
-        loader = self._get_inference_dataloader_base(dataloader)
-        dataset = loader.dataset
-        subset = dataset[indices]
-        subset_loader = torch.utils.data.DataLoader(
-            subset,
-            batch_size=loader.batch_size,
-            shuffle=False,
-            num_workers=loader.num_workers,
-            worker_init_fn=loader.worker_init_fn,
-            drop_last=getattr(loader, "drop_last", False),
-            pin_memory=getattr(loader, "pin_memory", False),
-            collate_fn=getattr(loader, "collate_fn", None),
-        )
-        transform_fn = getattr(dataloader, "transform_fn", None)
-        if transform_fn is not None:
-            return type(dataloader)(subset_loader, transform_fn)
-        return subset_loader
-
     def _collect_obs_from_dataloader(self, dataloader) -> pd.DataFrame:
         """Collect decoded obs annotations from an inference dataloader."""
         if dataloader is None:
             raise ValueError("`dataloader` is required.")
-
-        import pandas as pd
 
         registry = self.registry.get("field_registries", {})
 
