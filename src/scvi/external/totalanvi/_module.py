@@ -436,9 +436,17 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
             dim=1
         )
         kl_locals["kl_divergence"] = kl_divergence
-        kl_divergence_class = kl(
-            Categorical(probs=probs),
-            Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
+        # Per scANVI design, KL(q(y|z1) || p(y)) only applies to unlabeled cells.
+        # Labeled cells are supervised by the CE classification loss instead.
+        # Applying this KL to labeled cells conflicts with CE during KL warmup,
+        # causing validation classification loss to increase as kl_weight grows.
+        unlabeled_mask = (label_index.squeeze(-1) >= self.n_labels).float()
+        kl_divergence_class = (
+            kl(
+                Categorical(probs=probs),
+                Categorical(probs=self.y_prior.repeat(probs.size(0), 1)),
+            )
+            * unlabeled_mask
         )
         kl_locals["kl_divergence_class"] = kl_divergence_class
 
