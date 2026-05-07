@@ -418,19 +418,23 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         if self.classifier.logits:
             probs = F.softmax(probs, dim=-1)
 
-        reconst_loss += loss_z1_weight + (
-            (loss_z1_unweight).view(self.n_labels, -1).t() * probs
-        ).sum(dim=1)
-
-        torch.stack(
+        # For labeled cells inject true label (one-hot); for unlabeled use classifier probs.
+        # This anchors labeled cells in the ELBO per the scANVI design.
+        supervised_probs = torch.stack(
             [
-                torch.nn.functional.one_hot(y_i, self.n_labels)
+                torch.nn.functional.one_hot(y_i, self.n_labels).float()
                 if y_i < self.n_labels
                 else probs[i, :]
                 for i, y_i in enumerate(label_index.squeeze(-1))
             ]
         )
-        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * probs).sum(dim=1)
+
+        reconst_loss += loss_z1_weight + (
+            (loss_z1_unweight).view(self.n_labels, -1).t() * supervised_probs
+        ).sum(dim=1)
+        kl_divergence = (kl_divergence_z2.view(self.n_labels, -1).t() * supervised_probs).sum(
+            dim=1
+        )
         kl_locals["kl_divergence"] = kl_divergence
         kl_divergence_class = kl(
             Categorical(probs=probs),
