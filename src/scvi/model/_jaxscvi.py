@@ -185,8 +185,10 @@ class JaxSCVI(JaxTrainingMixin, BaseModelClass):
         return self.module.as_numpy_array(latent)
 
     def to_device(self, device):
+        """Move model to device. No-op for JAX models (device placement is handled by JAX)."""
         pass
 
     @property
     def device(self):
+        """The current device that the module's params are on."""
         return self.module.device

@@ -91,6 +91,13 @@ class GIMVI(VAEMixin, RNASeqMixin, BaseModelClass):
         n_latent: int = 10,
         **model_kwargs,
     ):
+        warnings.warn(
+            "GIMVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         super().__init__()
         if adata_seq is adata_spatial:
             raise ValueError(

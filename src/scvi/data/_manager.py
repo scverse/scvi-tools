@@ -8,6 +8,7 @@ from io import StringIO
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+import rich.pretty
 import rich.table
 from mudata import MuData
 from rich.console import Console

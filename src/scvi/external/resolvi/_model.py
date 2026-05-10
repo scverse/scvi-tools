@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ import pandas as pd
 import pyro
 from pyro.infer import Trace_ELBO
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
@@ -111,6 +112,13 @@ class RESOLVI(
         downsample_counts=True,
         **model_kwargs,
     ):
+        warnings.warn(
+            "RESOLVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         pyro.clear_param_store()
 
         super().__init__(adata)
@@ -393,6 +401,22 @@ class RESOLVI(
         adata.obsm["distance_neighbor"] = distance_neighbor
 
     def compute_dataset_dependent_priors(self, n_small_genes=None):
+        """Compute dataset-dependent prior parameters for the ResolVI model.
+
+        Estimates background expression ratio and spatial kernel size from the data,
+        which are used as priors during training.
+
+        Parameters
+        ----------
+        n_small_genes
+            Number of low-expressed genes used to estimate the background ratio.
+            If ``None``, defaults to ``n_genes // 50``.
+
+        Returns
+        -------
+        dict with keys ``"background_ratio"``, ``"median_distance"``,
+        ``"mean_log_counts"``, and ``"std_log_counts"``.
+        """
         x = self.adata_manager.get_from_registry(REGISTRY_KEYS.X_KEY)
         n_small_genes = x.shape[1] // 50 if n_small_genes is None else int(n_small_genes)
         # Computing library size over low-expressed genes (expectation for the background).

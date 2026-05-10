@@ -191,7 +191,6 @@ def test_run_autotune_scvi_with_scib_adata(model_cls, metric: str, solver: str, 
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        local_mode=True,
         ignore_reinit_error=True,
         solver=solver,
     )
@@ -249,7 +248,6 @@ def test_run_autotune_scvi_with_scib_mdata(model_cls, metric: str, solver: str, 
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        local_mode=True,
         ignore_reinit_error=True,
         solver=solver,
     )
@@ -293,7 +291,6 @@ def test_run_autotune_scvi_with_scib_ext_indices(metric: str, save_path: str):
         seed=0,
         scheduler="asha",
         searcher="hyperopt",
-        local_mode=True,
         ignore_reinit_error=True,
         solver="randomized",
     )
