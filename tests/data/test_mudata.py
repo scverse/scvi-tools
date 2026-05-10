@@ -138,7 +138,9 @@ def test_save_setup_mudata(save_path):
         batch_key="batch",
     )
     temp_path = os.path.join(save_path, "test.h5mu")
-    mdata.write(temp_path)
+    from scvi.model.base._base_model import _write_adata
+
+    _write_adata(mdata, temp_path)
     mudata.read(temp_path)
 
 

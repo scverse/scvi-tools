@@ -1,5 +1,4 @@
 import importlib
-import importlib.util
 from collections.abc import Callable
 from functools import wraps
 
@@ -38,4 +37,8 @@ def dependencies(*modules) -> Callable:
 
 
 def is_package_installed(module):
-    return importlib.util.find_spec(module) is not None
+    try:
+        importlib.import_module(module)  # Try importing the package
+        return True  # If no exception is raised, the package is installed
+    except (ImportError, OSError):
+        return False  # If ImportError is raised, the package is not installed
