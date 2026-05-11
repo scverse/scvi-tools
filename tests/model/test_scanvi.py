@@ -732,6 +732,28 @@ def test_scanvi_interpretability_shap(unlabeled_cat: str):
     print(shap_top_features_test)
 
 
+def test_scanvi_use_labels_groups():
+    """use_labels_groups=True must force logits=False for grouped probabilities."""
+    adata = synthetic_iid()
+    SCANVI.setup_anndata(adata, "labels", "label_0", batch_key="batch")
+    model = SCANVI(
+        adata,
+        use_labels_groups=True,
+        labels_groups=[0, 1],
+    )
+    assert not model.module.classifier.logits, "logits must be False when use_labels_groups=True"
+
+    with torch.no_grad():
+        for classifier in (model.module.classifier, model.module.classifier_groups):
+            for param in classifier.parameters():
+                param.zero_()
+        z = torch.zeros(4, model.module.n_latent)
+        probs = model.module.classify_helper(z).detach().cpu().numpy()
+
+    assert (probs >= 0).all(), "grouped classifier outputs must be non-negative"
+    np.testing.assert_allclose(probs.sum(axis=1), 1.0, atol=1e-6)
+
+
 @pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-cell"])
 def test_scanvi_dispersion(dispersion: str):
     adata = synthetic_iid()

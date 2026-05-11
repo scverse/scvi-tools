@@ -142,6 +142,9 @@ class SCANVAE(SupervisedModuleClass, VAE):
             "logits": True,
         }
         cls_parameters.update(classifier_parameters)
+        # group normalization in classify_helper requires probabilities, not raw logits
+        if use_labels_groups:
+            cls_parameters["logits"] = False
         self.classifier = Classifier(
             n_latent,
             n_labels=n_labels,

@@ -3,6 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 
 from scvi.data import synthetic_iid
 from scvi.external import TOTALANVI
@@ -351,3 +352,27 @@ def test_totalanvi_scarches_from_totalvi(save_path):
     adata5 = TOTALANVI.prepare_query_anndata(adata4, dir_path, inplace=False)
     TOTALANVI_query4 = TOTALANVI.load_query_data(adata5, dir_path)
     TOTALANVI_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+
+def test_totalanvi_use_labels_groups():
+    """use_labels_groups=True must force logits=False for grouped probabilities."""
+    adata = synthetic_iid()
+    TOTALANVI.setup_anndata(
+        adata,
+        batch_key="batch",
+        protein_expression_obsm_key="protein_expression",
+        labels_key="labels",
+        unlabeled_category="label_0",
+    )
+    model = TOTALANVI(adata, use_labels_groups=True, labels_groups=[0, 1])
+    assert not model.module.classifier.logits, "logits must be False when use_labels_groups=True"
+
+    with torch.no_grad():
+        for classifier in (model.module.classifier, model.module.classifier_groups):
+            for param in classifier.parameters():
+                param.zero_()
+        z = torch.zeros(4, model.module.n_latent)
+        probs = model.module.classify_helper(z).detach().cpu().numpy()
+
+    assert (probs >= 0).all(), "grouped classifier outputs must be non-negative"
+    np.testing.assert_allclose(probs.sum(axis=1), 1.0, atol=1e-6)
