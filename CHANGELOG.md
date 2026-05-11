@@ -19,15 +19,15 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Fix {class}`~scvi.model.MULTIVI` modality reordering in {meth}`~scvi.model.MULTIVI.setup_mudata`
     to avoid `AttributeError` when using mudata>=0.3, where `MuData.mod` is read-only {pr}`3776`.
 - Fix DE functionality in {class}`scvi.external.SysVI` {pr}`3783`.
-- Fix grouped-label classification in {class}`scvi.model.SCANVI`,
-    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI` to normalize
-    probabilities instead of raw logits when `use_labels_groups=True`, {pr}`3805`.
 
 #### Changed
 
 - Update SCVI-Tools Hub models, {pr}`3733`.
 
 #### Removed
+
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
 
 ### 1.4.2 (2026-02-26)
 

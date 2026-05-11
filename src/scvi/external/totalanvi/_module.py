@@ -143,7 +143,6 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
         extra_decoder_kwargs: dict | None = None,
         y_prior=None,
         labels_groups: Sequence[int] = None,
-        use_labels_groups: bool = False,
         linear_classifier: bool = False,
         classifier_parameters: dict | None = None,
     ):
@@ -200,9 +199,6 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
             "logits": True,
         }
         cls_parameters.update(classifier_parameters)
-        # group normalization in classify_helper requires probabilities, not raw logits
-        if use_labels_groups:
-            cls_parameters["logits"] = False
         self.classifier = Classifier(
             n_latent,
             n_labels=n_labels,
@@ -237,30 +233,7 @@ class TOTALANVAE(SupervisedModuleClass, TOTALVAE):
             y_prior if y_prior is not None else (1 / n_labels) * torch.ones(1, n_labels),
             requires_grad=False,
         )
-        self.use_labels_groups = use_labels_groups
         self.labels_groups = np.array(labels_groups) if labels_groups is not None else None
-        if self.use_labels_groups:
-            if labels_groups is None:
-                raise ValueError("Specify label groups")
-            unique_groups = np.unique(self.labels_groups)
-            self.n_groups = len(unique_groups)
-            if not (unique_groups == np.arange(self.n_groups)).all():
-                raise ValueError()
-            self.classifier_groups = Classifier(
-                n_latent, n_hidden, self.n_groups, n_layers_encoder, dropout_rate_encoder
-            )
-            self.groups_index = torch.nn.ParameterList(
-                [
-                    torch.nn.Parameter(
-                        torch.tensor(
-                            (self.labels_groups == i).astype(np.uint8),
-                            dtype=torch.uint8,
-                        ),
-                        requires_grad=False,
-                    )
-                    for i in range(self.n_groups)
-                ]
-            )
 
     @auto_move_data
     def classify(
