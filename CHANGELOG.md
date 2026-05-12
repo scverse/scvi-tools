@@ -5,7 +5,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 ## Version 1.4
 
-### 1.4.3 (2026-XX-XX)
+### 1.4.3 (2026-05-12)
 
 #### Added
 
@@ -27,6 +27,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Update SCVI-Tools Hub models, {pr}`3733`.
 
 #### Removed
+
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
 
 ### 1.4.2 (2026-02-26)
 
