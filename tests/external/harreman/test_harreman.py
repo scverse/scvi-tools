@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from anndata import AnnData
 
-import scvi.external.harreman.tools as tl
 import scvi.external.harreman.hotspot as hs
+import scvi.external.harreman.tools as tl
 
 
 @pytest.fixture
@@ -30,23 +30,29 @@ def test_compute_knn_graph_n_neighbors(adata_spatial):
 
 
 def test_compute_knn_graph_weighted(adata_spatial):
-    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, weighted_graph=True)
+    tl.compute_knn_graph(
+        adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, weighted_graph=True
+    )
     assert "weights" in adata_spatial.obsp
     assert adata_spatial.obsp["weights"].nnz > 0
 
 
 def test_compute_knn_graph_with_sample_key(adata_spatial):
-    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, sample_key="sample")
+    tl.compute_knn_graph(
+        adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, sample_key="sample"
+    )
     assert "distances" in adata_spatial.obsp
 
 
 def test_compute_knn_graph_missing_key(adata_spatial):
     with pytest.raises(ValueError, match="not found in adata.obsm"):
-        tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="nonexistent_key", n_neighbors=5)
+        tl.compute_knn_graph(
+            adata_spatial, compute_neighbors_on_key="nonexistent_key", n_neighbors=5
+        )
 
 
 def test_compute_knn_graph_no_neighbors_raises(adata_spatial):
-    with pytest.raises(ValueError, match="Either \'n_neighbors\' or \'neighborhood_radius\'"):
+    with pytest.raises(ValueError, match="Either 'n_neighbors' or 'neighborhood_radius'"):
         tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial")
 
 

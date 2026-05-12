@@ -1,15 +1,11 @@
 import itertools
-import warnings
 import time
 from math import ceil
-from typing import List, Optional
 
 import numpy as np
 import pandas as pd
-import scanpy as sc
 import sparse
 from anndata import AnnData
-from numba import jit
 from scipy.sparse import csr_matrix, lil_matrix
 from sklearn.neighbors import NearestNeighbors, radius_neighbors_graph
 from sklearn.preprocessing import normalize
@@ -18,15 +14,15 @@ from tqdm import tqdm
 
 def compute_knn_graph(
     adata: AnnData,
-    compute_neighbors_on_key: Optional[str] = None,
-    distances_obsp_key: Optional[str] = None,
-    weighted_graph: Optional[bool] = False,
-    neighborhood_radius: Optional[int] = None,
-    n_neighbors: Optional[int] = None,
-    neighborhood_factor: Optional[int] = 3,
-    sample_key: Optional[str] = None,
-    tree = None,
-    verbose: Optional[bool] = False,
+    compute_neighbors_on_key: str | None = None,
+    distances_obsp_key: str | None = None,
+    weighted_graph: bool | None = False,
+    neighborhood_radius: int | None = None,
+    n_neighbors: int | None = None,
+    neighborhood_factor: int | None = 3,
+    sample_key: str | None = None,
+    tree=None,
+    verbose: bool | None = False,
 ):
     """Computes the spatial proximity graph.
 
@@ -53,13 +49,10 @@ def compute_knn_graph(
     verbose
         Whether to print progress and status messages.
     """
-    
     start = time.time()
-    
+
     if n_neighbors is None and neighborhood_radius is None:
-        raise ValueError(
-            "Either 'n_neighbors' or 'neighborhood_radius' needs to be provided."
-        )
+        raise ValueError("Either 'n_neighbors' or 'neighborhood_radius' needs to be provided.")
 
     if tree is not None:
         try:
@@ -70,20 +63,16 @@ def compute_knn_graph(
         except:
             raise ValueError("Can't parse supplied tree")
 
-        if len(all_leaves) != adata.shape[0] or len(
-            set(all_leaves) & set(adata.obs_names)
-        ) != len(all_leaves):
-            raise ValueError(
-                "Tree leaf labels don't match observations in supplied AnnData"
-            )
-        
+        if len(all_leaves) != adata.shape[0] or len(set(all_leaves) & set(adata.obs_names)) != len(
+            all_leaves
+        ):
+            raise ValueError("Tree leaf labels don't match observations in supplied AnnData")
+
         if weighted_graph:
             raise ValueError(
                 "When using `tree` as the metric space, `weighted_graph=True` is not supported"
             )
-        tree_neighbors_and_weights(
-            adata, tree, n_neighbors=n_neighbors
-        )
+        tree_neighbors_and_weights(adata, tree, n_neighbors=n_neighbors)
 
     if compute_neighbors_on_key is not None:
         if verbose:
@@ -108,7 +97,7 @@ def compute_knn_graph(
                 verbose,
             )
 
-    if 'distances' in adata.obsp:
+    if "distances" in adata.obsp:
         if verbose:
             print("Computing the weights...")
         compute_weights(
@@ -118,18 +107,18 @@ def compute_knn_graph(
         )
 
     if verbose:
-        print("Finished computing the KNN graph in %.3f seconds" %(time.time()-start))
+        print("Finished computing the KNN graph in %.3f seconds" % (time.time() - start))
 
     return
 
 
 def compute_neighbors(
-        adata: AnnData,
-        compute_neighbors_on_key: str = None,
-        n_neighbors: Optional[int] = None,
-        neighborhood_radius: Optional[int] = None,
-        sample_key: Optional[str] = None,
-        verbose: Optional[bool] = False,
+    adata: AnnData,
+    compute_neighbors_on_key: str = None,
+    n_neighbors: int | None = None,
+    neighborhood_radius: int | None = None,
+    sample_key: str | None = None,
+    verbose: bool | None = False,
 ) -> None:
     """
     Computes a nearest-neighbors graph on the AnnData object using either
@@ -153,10 +142,9 @@ def compute_neighbors(
     verbose : bool, optional (default: False)
         Whether to print progress and status messages.
     """
-
     if compute_neighbors_on_key not in adata.obsm:
         raise ValueError(f"{compute_neighbors_on_key} not found in adata.obsm")
-    
+
     coords = adata.obsm[compute_neighbors_on_key]
     n_cells = adata.n_obs
     distances = lil_matrix((n_cells, n_cells))
@@ -164,7 +152,7 @@ def compute_neighbors(
     if sample_key is not None:
         if verbose:
             print(f"Restricting graph within samples using '{sample_key}'...")
-        adata.uns['sample_key'] = sample_key
+        adata.uns["sample_key"] = sample_key
         samples = adata.obs[sample_key].unique()
         for sample in tqdm(samples):
             sample_mask = adata.obs[sample_key] == sample
@@ -173,40 +161,48 @@ def compute_neighbors(
             if len(sample_indices) == 0:
                 continue
             if n_neighbors is not None:
-                nn = NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='ball_tree').fit(sample_coords)
-                dist = nn.kneighbors_graph(sample_coords, mode='distance')
+                nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm="ball_tree").fit(
+                    sample_coords
+                )
+                dist = nn.kneighbors_graph(sample_coords, mode="distance")
             elif neighborhood_radius is not None:
-                dist = radius_neighbors_graph(sample_coords, radius=neighborhood_radius, mode='distance', include_self=False)
+                dist = radius_neighbors_graph(
+                    sample_coords, radius=neighborhood_radius, mode="distance", include_self=False
+                )
             else:
                 raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
             dist = dist.tocoo()
             distances[sample_indices[dist.row], sample_indices[dist.col]] = dist.data
     else:
         if n_neighbors is not None:
-            nn = NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='ball_tree').fit(coords)
-            distances = nn.kneighbors_graph(coords, mode='distance')
+            nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm="ball_tree").fit(coords)
+            distances = nn.kneighbors_graph(coords, mode="distance")
         elif neighborhood_radius is not None:
-            distances = radius_neighbors_graph(coords, radius=neighborhood_radius, mode='distance', include_self=False)
+            distances = radius_neighbors_graph(
+                coords, radius=neighborhood_radius, mode="distance", include_self=False
+            )
         else:
             raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
 
     # Deconvolution-aware neighborhood
-    if adata.uns.get('deconv_data', False):
+    if adata.uns.get("deconv_data", False):
         if verbose:
             print("Adding intra-spot connections...")
-        spot_diameter = adata.uns['spot_diameter']
-        idx = adata.obs.groupby('barcodes').indices
+        spot_diameter = adata.uns["spot_diameter"]
+        idx = adata.obs.groupby("barcodes").indices
         rows, cols = [], []
         for barcode, inds in idx.items():
             if len(inds) < 2:
                 continue
             # Efficient pairwise combinations without permutations
             inds = np.array(inds)
-            i, j = np.meshgrid(inds, inds, indexing='ij')
+            i, j = np.meshgrid(inds, inds, indexing="ij")
             mask = i != j
             rows.extend(i[mask])
             cols.extend(j[mask])
-        extra_distances = csr_matrix((np.full(len(rows), spot_diameter / 2), (rows, cols)), shape=(n_cells, n_cells))
+        extra_distances = csr_matrix(
+            (np.full(len(rows), spot_diameter / 2), (rows, cols)), shape=(n_cells, n_cells)
+        )
         distances += extra_distances
 
     adata.obsp["distances"] = distances.tocsr()
@@ -215,10 +211,10 @@ def compute_neighbors(
 
 
 def compute_neighbors_from_distances(
-        adata: AnnData,
-        distances_obsp_key: str = "distances",
-        sample_key: Optional[str] = None,
-        verbose: Optional[bool] = False,
+    adata: AnnData,
+    distances_obsp_key: str = "distances",
+    sample_key: str | None = None,
+    verbose: bool | None = False,
 ) -> None:
     """
     Builds a neighborhood graph using a precomputed distance matrix.
@@ -234,21 +230,22 @@ def compute_neighbors_from_distances(
     verbose : bool, optional (default: False)
         Whether to print progress and status messages.
     """
-    
     if distances_obsp_key not in adata.obsp:
         raise ValueError(f"{distances_obsp_key} not found in adata.obsp")
-    
+
     distances_raw = adata.obsp[distances_obsp_key]
-    distances_raw = csr_matrix(distances_raw) if isinstance(distances_raw, np.ndarray) else distances_raw
-    
+    distances_raw = (
+        csr_matrix(distances_raw) if isinstance(distances_raw, np.ndarray) else distances_raw
+    )
+
     n_cells = adata.shape[0]
     distances = lil_matrix((n_cells, n_cells))
-    
+
     # Restrict by sample
     if sample_key is not None:
         if verbose:
             print(f"Restricting graph within samples using '{sample_key}'...")
-        adata.uns['sample_key'] = sample_key
+        adata.uns["sample_key"] = sample_key
         samples = adata.obs[sample_key].unique().tolist()
         for sample in tqdm(adata.obs[sample_key].unique(), desc="Samples"):
             idx = np.where(adata.obs[sample_key] == sample)[0]
@@ -272,9 +269,9 @@ def compute_neighbors_from_distances(
 
 
 def compute_weights(
-        adata: AnnData,
-        weighted_graph: bool,
-        neighborhood_factor: int,
+    adata: AnnData,
+    weighted_graph: bool,
+    neighborhood_factor: int,
 ) -> None:
     """
     Computes weights on the neighbors based on a
@@ -287,12 +284,11 @@ def compute_weights(
     weighted_graph : bool
         Whether or not to create a weighted graph.
     neighborhood_factor : int
-        Used when creating a weighted graph.  Sets how quickly weights decay relative to the distances within the neighborhood. 
+        Used when creating a weighted graph.  Sets how quickly weights decay relative to the distances within the neighborhood.
         The weight for a cell with a distance d will decay as exp(-d^2/D) where D is the distance to the `n_neighbors`/`neighborhood_factor`-th neighbor.
     """
-    
     # Load distance matrix and remove diagonal entries
-    distances = sparse.COO.from_scipy_sparse(adata.obsp['distances'])
+    distances = sparse.COO.from_scipy_sparse(adata.obsp["distances"])
     i, j = distances.coords
     non_diag_mask = i != j
     i, j, data = i[non_diag_mask], j[non_diag_mask], distances.data[non_diag_mask]
@@ -303,7 +299,7 @@ def compute_weights(
         weights = sparse.COO(coords=[i, j], data=np.ones_like(data), shape=distances.shape)
         adata.obsp["weights"] = weights.tocsr()
         return
-    
+
     # Weighted: Gaussian kernel
     n_cells = distances.shape[0]
     row_starts = np.searchsorted(i, np.arange(n_cells), side="left")
@@ -327,14 +323,14 @@ def compute_weights(
     weights_norm = normalize(weights_csr, norm="l1", axis=1)
 
     adata.obsp["weights"] = weights_norm
-    
+
     return
 
 
 def make_weights_non_redundant(weights):
 
     w_no_redundant = weights.copy()
-    
+
     rows, cols = w_no_redundant.nonzero()
     upper_diag_mask = rows < cols
     upper_rows, upper_cols = rows[upper_diag_mask], cols[upper_diag_mask]
@@ -354,7 +350,7 @@ def tree_neighbors_and_weights(adata, tree, n_neighbors):
     Names of the leaves of the tree must match the columns in counts
 
     Parameters
-    ==========
+    ----------
     adata
         AnnData object.
     tree: ete3.TreeNode
@@ -363,7 +359,6 @@ def tree_neighbors_and_weights(adata, tree, n_neighbors):
         Number of neighbors to find
 
     """
-
     K = n_neighbors
     cell_labels = adata.obs_names
 
@@ -397,7 +392,7 @@ def _knn(leaf, K):
 
     dists = _search(leaf, None, 0)
     dists = pd.Series(dists)
-    dists = dists + np.random.rand(len(dists)) * .9  # to break ties randomly
+    dists = dists + np.random.rand(len(dists)) * 0.9  # to break ties randomly
 
     neighbors = dists.sort_values().index[0:K].tolist()
 
@@ -417,8 +412,7 @@ def _search(current_node, previous_node, distance):
 
     result = {}
     for new_node in nodes_to_search:
-
-        res = _search(new_node, current_node, distance+1)
+        res = _search(new_node, current_node, distance + 1)
         for k, v in res.items():
             result[k] = v
 

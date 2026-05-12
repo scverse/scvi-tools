@@ -1,9 +1,9 @@
-from numba import jit
-import pandas as pd
+from collections.abc import Callable
+
 import numpy as np
-from numba import njit
+import pandas as pd
 import torch
-from typing import Callable, Union
+from numba import jit, njit
 
 
 def danb_model(gene_counts, umi_counts):
@@ -14,24 +14,24 @@ def danb_model(gene_counts, umi_counts):
 
     N = gene_counts.size
 
-    min_size = 10**(-10)
+    min_size = 10 ** (-10)
 
-    mu = tj*tis/total
-    vv = (gene_counts - mu).var()*(N/(N-1))
+    mu = tj * tis / total
+    vv = (gene_counts - mu).var() * (N / (N - 1))
     # vv = ((gene_counts - mu)**2).sum()
     my_rowvar = vv
 
-    size = ((tj**2) / total) * ((tis**2).sum() / total) / ((N-1)*my_rowvar-tj)
+    size = ((tj**2) / total) * ((tis**2).sum() / total) / ((N - 1) * my_rowvar - tj)
     # size = ((tj**2) * ((tis/total)**2).sum()) / ((N-1)*my_rowvar-tj)
 
-    if size < 0:    # Can't have negative dispersion
+    if size < 0:  # Can't have negative dispersion
         size = 1e9
 
     if size < min_size and size >= 0:
         size = min_size
 
-    var = mu*(1+mu/size)
-    x2 = var+mu**2
+    var = mu * (1 + mu / size)
+    x2 = var + mu**2
 
     return mu, var, x2
 
@@ -45,32 +45,33 @@ def danb_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor, eps: float 
         umi_counts: Tensor of shape [cells], total UMI per cell.
         eps: Small constant to avoid division by zero or log(0).
 
-    Returns:
+    Returns
+    -------
         mu: Mean per gene per cell [genes, cells]
         var: Variance per gene per cell [genes, cells]
         x2: Second moment per gene per cell [genes, cells]
     """
-    tj = counts.sum(dim=1, keepdim=True)              # [genes, 1]
-    total = umi_counts.sum()                          # scalar
-    N = counts.shape[1]                               # number of cells
+    tj = counts.sum(dim=1, keepdim=True)  # [genes, 1]
+    total = umi_counts.sum()  # scalar
+    N = counts.shape[1]  # number of cells
 
-    mu = tj * umi_counts / total                      # [genes, cells]
-    diff = counts - mu                                # [genes, cells]
+    mu = tj * umi_counts / total  # [genes, cells]
+    diff = counts - mu  # [genes, cells]
 
     # Unbiased sample variance (N / (N - 1))
-    var_gene = (diff ** 2).mean(dim=1) * N / (N - 1)  # [genes]
+    var_gene = (diff**2).mean(dim=1) * N / (N - 1)  # [genes]
 
-    numerator = ((tj ** 2) / total).squeeze() * (umi_counts ** 2).sum() / total  # [genes]
-    denominator = (N - 1) * var_gene - tj.squeeze()                               # [genes]
-    size = numerator / (denominator + eps)                                       # [genes]
+    numerator = ((tj**2) / total).squeeze() * (umi_counts**2).sum() / total  # [genes]
+    denominator = (N - 1) * var_gene - tj.squeeze()  # [genes]
+    size = numerator / (denominator + eps)  # [genes]
 
     # Clamp size for numerical stability
     size = torch.where(size < 0, torch.tensor(1e9, device=size.device), size)
     size = torch.clamp(size, min=eps)
 
-    size = size.unsqueeze(1)                      # [genes, 1] for broadcasting
-    var = mu * (1 + mu / size)                    # [genes, cells]
-    x2 = var + mu**2                              # [genes, cells]
+    size = size.unsqueeze(1)  # [genes, 1] for broadcasting
+    var = mu * (1 + mu / size)  # [genes, cells]
+    x2 = var + mu**2  # [genes, cells]
 
     return mu, var, x2
 
@@ -80,34 +81,33 @@ def ct_danb_model(gene_counts, umi_counts, cell_types):
     mu_ct = np.zeros(len(cell_types))
     var_ct = np.zeros(len(cell_types))
     x2_ct = np.zeros(len(cell_types))
-    
-    min_size = 10**(-10)
-    
-    for cell_type in np.unique(cell_types):
 
+    min_size = 10 ** (-10)
+
+    for cell_type in np.unique(cell_types):
         gene_counts_ct = gene_counts[cell_types == cell_type]
         umi_counts_ct = umi_counts[cell_types == cell_type]
-    
+
         tj = gene_counts_ct.sum()
         tis = umi_counts_ct
         total = tis.sum()
 
         N = gene_counts_ct.size
-        
-        mu = tj*tis/total
-        vv = (gene_counts_ct - mu).var()*(N/(N-1)) if N>1 else (gene_counts_ct - mu).var()
+
+        mu = tj * tis / total
+        vv = (gene_counts_ct - mu).var() * (N / (N - 1)) if N > 1 else (gene_counts_ct - mu).var()
         my_rowvar = vv
 
-        size = ((tj**2) / total) * ((tis**2).sum() / total) / ((N-1)*my_rowvar-tj)
+        size = ((tj**2) / total) * ((tis**2).sum() / total) / ((N - 1) * my_rowvar - tj)
 
-        if size < 0:    # Can't have negative dispersion
+        if size < 0:  # Can't have negative dispersion
             size = 1e9
 
         if size < min_size and size >= 0:
             size = min_size
 
-        var = mu*(1+mu/size)
-        x2 = var+mu**2
+        var = mu * (1 + mu / size)
+        x2 = var + mu**2
 
         mu_ct[cell_types == cell_type] = mu
         var_ct[cell_types == cell_type] = var
@@ -127,7 +127,6 @@ def find_gene_p(num_umi, D):
 
     Performs a binary search on p in the space of log(p)
     """
-
     low = 1e-12
     high = 1
 
@@ -135,14 +134,13 @@ def find_gene_p(num_umi, D):
         return 0
 
     for ITER in range(40):
-
-        attempt = (high*low)**0.5
+        attempt = (high * low) ** 0.5
         tot = 0
 
         for i in range(len(num_umi)):
-            tot = tot + 1-(1-attempt)**num_umi[i]
+            tot = tot + 1 - (1 - attempt) ** num_umi[i]
 
-        if abs(tot-D)/D < 1e-3:
+        if abs(tot - D) / D < 1e-3:
             break
 
         if tot > D:
@@ -150,7 +148,7 @@ def find_gene_p(num_umi, D):
         else:
             low = attempt
 
-    return (high*low)**0.5
+    return (high * low) ** 0.5
 
 
 def bernoulli_model_scaled(gene_detects, umi_counts):
@@ -159,7 +157,7 @@ def bernoulli_model_scaled(gene_detects, umi_counts):
 
     gene_p = find_gene_p(umi_counts, D)
 
-    detect_p = 1-(1-gene_p)**umi_counts
+    detect_p = 1 - (1 - gene_p) ** umi_counts
 
     mu = detect_p
     var = detect_p * (1 - detect_p)
@@ -170,7 +168,7 @@ def bernoulli_model_scaled(gene_detects, umi_counts):
 
 def true_params_scaled(gene_p, umi_counts):
 
-    detect_p = 1-(1-gene_p/10000)**umi_counts
+    detect_p = 1 - (1 - gene_p / 10000) ** umi_counts
 
     mu = detect_p
     var = detect_p * (1 - detect_p)
@@ -185,12 +183,9 @@ def bernoulli_model_linear(gene_detects, umi_counts):
     umi_counts[umi_counts == 0] = 1e-10
 
     umi_count_bins, bins = pd.qcut(
-        np.log10(umi_counts), N_BIN_TARGET, labels=False, retbins=True,
-        duplicates='drop'
+        np.log10(umi_counts), N_BIN_TARGET, labels=False, retbins=True, duplicates="drop"
     )
-    bin_centers = np.array(
-        [bins[i] / 2 + bins[i + 1] / 2 for i in range(len(bins) - 1)]
-    )
+    bin_centers = np.array([bins[i] / 2 + bins[i + 1] / 2 for i in range(len(bins) - 1)])
 
     N_BIN = len(bin_centers)
 
@@ -223,7 +218,7 @@ def bernoulli_model_linear_torch(gene_detects, umi_counts, n_bins=30, eps=1e-10)
 
     # Use pd.qcut to get bin indices and edges
     bin_indices_np, bin_edges_np = pd.qcut(
-        log_umi.cpu().numpy(), q=n_bins, labels=False, retbins=True, duplicates='drop'
+        log_umi.cpu().numpy(), q=n_bins, labels=False, retbins=True, duplicates="drop"
     )
 
     dtype = gene_detects.dtype
@@ -264,31 +259,27 @@ def bernoulli_model_linear_torch(gene_detects, umi_counts, n_bins=30, eps=1e-10)
     mu = detect_p
     var = detect_p * (1 - detect_p)
     x2 = detect_p
-    
+
     return mu, var, x2
 
 
 def ct_bernoulli_model_linear(gene_detects, umi_counts, cell_types):
-    
+
     mu_ct = np.zeros(len(cell_types))
     var_ct = np.zeros(len(cell_types))
     x2_ct = np.zeros(len(cell_types))
-        
+
     for cell_type in np.unique(cell_types):
-        
         gene_detects_ct = gene_detects[cell_types == cell_type]
         umi_counts_ct = umi_counts[cell_types == cell_type]
 
         # We modify the 0 UMI counts to 1e-10 to remove the NaN values from the qcut output.
         umi_counts_ct[umi_counts_ct == 0] = 1e-10
-        
+
         umi_count_bins, bins = pd.qcut(
-            np.log10(umi_counts_ct), N_BIN_TARGET, labels=False, retbins=True,
-            duplicates='drop'
+            np.log10(umi_counts_ct), N_BIN_TARGET, labels=False, retbins=True, duplicates="drop"
         )
-        bin_centers = np.array(
-            [bins[i] / 2 + bins[i + 1] / 2 for i in range(len(bins) - 1)]
-        )
+        bin_centers = np.array([bins[i] / 2 + bins[i + 1] / 2 for i in range(len(bins) - 1)])
 
         N_BIN = len(bin_centers)
 
@@ -306,7 +297,7 @@ def ct_bernoulli_model_linear(gene_detects, umi_counts, cell_types):
         mu = detect_p
         var = detect_p * (1 - detect_p)
         x2 = detect_p
-        
+
         mu_ct[cell_types == cell_type] = mu
         var_ct[cell_types == cell_type] = var
         x2_ct[cell_types == cell_type] = x2
@@ -344,21 +335,18 @@ def bin_gene_detection(gene_detects, umi_count_bins, N_BIN):
     # Need to account for 100% detects
     #    Add 1 to denominator
 
-    return (bin_detects+1) / (bin_totals+2)
+    return (bin_detects + 1) / (bin_totals + 2)
 
 
 def normal_model(gene_counts, umi_counts):
-
     """
     Simplest Model - just assumes expression data is normal
     UMI counts are regressed out
     """
-
     X = np.vstack((np.ones(len(umi_counts)), umi_counts)).T
     y = gene_counts.reshape((-1, 1))
 
     if umi_counts.var() == 0:
-
         mu = gene_counts.mean()
         var = gene_counts.var()
         mu = np.repeat(mu, len(umi_counts))
@@ -390,7 +378,8 @@ def normal_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor, eps: floa
         umi_counts: Tensor of shape [cells], total UMI per cell.
         eps: Small constant to avoid instability in matrix inversion.
 
-    Returns:
+    Returns
+    -------
         mu: Tensor of shape [genes, cells], predicted mean per gene per cell.
         var: Tensor of shape [genes, cells], constant variance per gene.
         x2: Tensor of shape [genes, cells], mu^2 + var.
@@ -399,25 +388,25 @@ def normal_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor, eps: floa
     genes, cells = counts.shape
 
     # Design matrix X: [cells, 2]
-    ones = torch.ones_like(umi_counts).unsqueeze(1)          # [cells, 1]
-    umi = umi_counts.unsqueeze(1)                            # [cells, 1]
-    X = torch.cat([ones, umi], dim=1)                        # [cells, 2]
+    ones = torch.ones_like(umi_counts).unsqueeze(1)  # [cells, 1]
+    umi = umi_counts.unsqueeze(1)  # [cells, 1]
+    X = torch.cat([ones, umi], dim=1)  # [cells, 2]
 
-    XT = X.T                                                 # [2, cells]
-    XT_X = XT @ X                                            # [2, 2]
+    XT = X.T  # [2, cells]
+    XT_X = XT @ X  # [2, 2]
     try:
         XT_X_inv = torch.inverse(XT_X + eps * torch.eye(2, device=device))  # [2, 2]
     except RuntimeError:
         raise ValueError("Design matrix is singular. Consider regularizing or filtering.")
 
     # Center y (counts) to [cells, genes] for regression, then transpose
-    Y = counts.T                                             # [cells, genes]
-    B = XT_X_inv @ (XT @ Y)                                  # [2, genes]
+    Y = counts.T  # [cells, genes]
+    B = XT_X_inv @ (XT @ Y)  # [2, genes]
 
-    mu = (X @ B).T                                           # [genes, cells]
-    var = ((counts - mu) ** 2).mean(dim=1, keepdim=True)     # [genes, 1]
-    var = var.expand_as(mu)                                  # [genes, cells]
-    x2 = mu**2 + var                                          # [genes, cells]
+    mu = (X @ B).T  # [genes, cells]
+    var = ((counts - mu) ** 2).mean(dim=1, keepdim=True)  # [genes, 1]
+    var = var.expand_as(mu)  # [genes, cells]
+    x2 = mu**2 + var  # [genes, cells]
 
     return mu, var, x2
 
@@ -441,7 +430,8 @@ def none_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor):
         counts: Tensor of shape [genes, cells], ignored here.
         umi_counts: Tensor of shape [cells], ignored here.
 
-    Returns:
+    Returns
+    -------
         mu: Tensor of zeros [genes, cells]
         var: Tensor of ones [genes, cells]
         x2: Tensor of ones [genes, cells]
@@ -460,8 +450,8 @@ def apply_model_per_cell_type(
     model_fn: Callable,
     counts: torch.Tensor,
     umi_counts: torch.Tensor,
-    cell_types: Union[list, torch.Tensor],
-    **kwargs
+    cell_types: list | torch.Tensor,
+    **kwargs,
 ):
     """
     Applies a model function to each cell type separately.
@@ -473,7 +463,8 @@ def apply_model_per_cell_type(
         cell_types: list or tensor of cell type labels, length = cells
         kwargs: other model-specific arguments
 
-    Returns:
+    Returns
+    -------
         mu, var, x2: [genes, cells] tensors, concatenated across all cell types
     """
     device = counts.device
@@ -488,7 +479,6 @@ def apply_model_per_cell_type(
     cell_index = np.arange(cells)
 
     for ct in unique_types:
-        
         idx_array = cell_index[cell_types.values == ct]
         idx = torch.tensor(idx_array, device=device)
 
@@ -502,4 +492,3 @@ def apply_model_per_cell_type(
         x2_all[:, idx] = x2
 
     return mu_all, var_all, x2_all
-

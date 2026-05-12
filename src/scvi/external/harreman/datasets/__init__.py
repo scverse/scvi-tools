@@ -1,1 +1,1 @@
-from .datasets import load_visium_mouse_colon_dataset, load_slide_seq_human_lung_dataset
+from .datasets import load_slide_seq_human_lung_dataset, load_visium_mouse_colon_dataset

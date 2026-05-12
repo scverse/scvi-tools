@@ -1,5 +1,7 @@
-from typing import Literal, Optional, Union
 import time
+from importlib.resources import files
+from typing import Literal
+
 import numpy as np
 import pandas as pd
 import torch
@@ -8,15 +10,14 @@ from numba import jit, njit
 from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
-from importlib.resources import files
 
-from . import models
 from ..preprocessing.anndata import counts_from_anndata
 from ..tools.knn import make_weights_non_redundant
+from . import models
 
 
 def load_metabolic_genes(
-    species: Optional[Union[Literal["mouse"], Literal["human"]]] = None,
+    species: Literal["mouse"] | Literal["human"] | None = None,
 ):
     """
     Load the list of metabolic genes for a given species.
@@ -30,34 +31,33 @@ def load_metabolic_genes(
     -------
     List of metabolic genes.
     """
-    
     metabolic_genes_path = (
-        files("scvi.external.harreman") 
-        / "data" 
-        / "metabolic_genes" 
+        files("scvi.external.harreman")
+        / "data"
+        / "metabolic_genes"
         / f"{species}_metabolic_genes.csv"
     )
 
-    metabolic_genes = pd.read_csv(metabolic_genes_path, index_col=0)['0'].tolist()
+    metabolic_genes = pd.read_csv(metabolic_genes_path, index_col=0)["0"].tolist()
 
     return metabolic_genes
 
 
 def compute_local_autocorrelation(
     adata: AnnData,
-    layer_key: Optional[Union[Literal["use_raw"], str]] = None,
-    database_varm_key: Optional[str] = None,
-    model: Optional[str] = None,
-    genes: Optional[list] = None,
-    use_metabolic_genes: Optional[bool] = False,
-    species: Optional[Union[Literal["mouse"], Literal["human"]]] = "mouse",
-    umi_counts_obs_key: Optional[str] = None,
-    permutation_test: Optional[bool] = False,
-    M: Optional[int] = 1000,
-    seed: Optional[int] = 42,
-    check_analytic_null: Optional[bool] = False,
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    verbose: Optional[bool] = False,
+    layer_key: Literal["use_raw"] | str | None = None,
+    database_varm_key: str | None = None,
+    model: str | None = None,
+    genes: list | None = None,
+    use_metabolic_genes: bool | None = False,
+    species: Literal["mouse"] | Literal["human"] | None = "mouse",
+    umi_counts_obs_key: str | None = None,
+    permutation_test: bool | None = False,
+    M: int | None = 1000,
+    seed: int | None = 42,
+    check_analytic_null: bool | None = False,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    verbose: bool | None = False,
 ):
     """
     Computes gene-level spatial autocorrelation statistics using spatial weights and centered gene expression values.
@@ -98,17 +98,16 @@ def compute_local_autocorrelation(
     None
         The results are stored in `adata.uns["gene_autocorrelation_results"]` as a DataFrame.
     """
-
     start = time.time()
     if verbose:
         print("Computing local autocorrelation...")
 
-    adata.uns['layer_key'] = layer_key
-    adata.uns['model'] = model
-    adata.uns['species'] = species
-    
-    sample_specific = 'sample_key' in adata.uns
-    
+    adata.uns["layer_key"] = layer_key
+    adata.uns["model"] = model
+    adata.uns["species"] = species
+
+    sample_specific = "sample_key" in adata.uns
+
     # Gene selection
     if use_metabolic_genes and genes is None:
         genes = pd.Index(load_metabolic_genes(species)).intersection(adata.var_names)
@@ -120,13 +119,13 @@ def compute_local_autocorrelation(
         genes = adata.raw.var.index if layer_key == "use_raw" else adata.var_names
     else:
         genes = pd.Index(genes)
-    
+
     # Load counts
     counts = counts_from_anndata(adata[:, genes], layer_key, dense=True)
 
     # Gene filtering
     if sample_specific:
-        sample_key = adata.uns['sample_key']
+        sample_key = adata.uns["sample_key"]
         sample_arr = adata.obs[sample_key].to_numpy()
         mask = np.zeros(counts.shape[0], dtype=bool)
         for sample in np.unique(sample_arr):
@@ -139,8 +138,12 @@ def compute_local_autocorrelation(
     genes = genes[~mask]
 
     # UMI counts
-    num_umi = counts.sum(axis=0) if umi_counts_obs_key is None else np.asarray(adata.obs[umi_counts_obs_key])
-    adata.uns['umi_counts'] = num_umi
+    num_umi = (
+        counts.sum(axis=0)
+        if umi_counts_obs_key is None
+        else np.asarray(adata.obs[umi_counts_obs_key])
+    )
+    adata.uns["umi_counts"] = num_umi
 
     # Convert to tensors
     num_umi = torch.tensor(adata.uns["umi_counts"], dtype=torch.float64, device=device)
@@ -149,28 +152,29 @@ def compute_local_autocorrelation(
     # Center values
     counts = standardize_counts(adata, counts, model, num_umi, sample_specific)
 
-    adata.var['local_autocorrelation'] = False
-    adata.var.loc[genes, 'local_autocorrelation'] = True
-    
+    adata.var["local_autocorrelation"] = False
+    adata.var.loc[genes, "local_autocorrelation"] = True
+
     # Compute weights
     weights = make_weights_non_redundant(adata.obsp["weights"]).tocoo()
-    Wtot2 = torch.tensor((weights.data ** 2).sum(), device=device)
+    Wtot2 = torch.tensor((weights.data**2).sum(), device=device)
     weights = torch.sparse_coo_tensor(
         torch.tensor(np.vstack((weights.row, weights.col)), dtype=torch.long, device=device),
         torch.tensor(weights.data, dtype=torch.float64, device=device),
-        torch.Size(weights.shape), 
-        device=device)
-    
+        torch.Size(weights.shape),
+        device=device,
+    )
+
     # Compute node degree
     row_degrees = torch.sparse.sum(weights, dim=1).to_dense()
     col_degrees = torch.sparse.sum(weights, dim=0).to_dense()
     D = row_degrees + col_degrees
-    
+
     # Autocorrelation
     WXt = torch.sparse.mm(weights, counts.T)
     G = (counts.T * WXt).sum(dim=0)
-    G_max = 0.5 * torch.sum((counts ** 2) * D[None, :], dim=1)
-    
+    G_max = 0.5 * torch.sum((counts**2) * D[None, :], dim=1)
+
     # Results
     results = compute_gene_autocorrelation_results(
         counts=counts,
@@ -190,10 +194,12 @@ def compute_local_autocorrelation(
     # Save results
     if isinstance(results, tuple):
         results_df, zs_perm, pvals_perm = results
-        adata.uns['analytic_null_ac_zs_perm'] = zs_perm
-        adata.uns['analytic_null_ac_pvals_perm'] = pvals_perm
+        adata.uns["analytic_null_ac_zs_perm"] = zs_perm
+        adata.uns["analytic_null_ac_pvals_perm"] = pvals_perm
         if verbose:
-            print("Analytic null results are stored in adata.uns with the following keys: ['analytic_null_ac_zs_perm', 'analytic_null_ac_pvals_perm']")
+            print(
+                "Analytic null results are stored in adata.uns with the following keys: ['analytic_null_ac_zs_perm', 'analytic_null_ac_pvals_perm']"
+            )
     else:
         results_df = results
 
@@ -204,15 +210,28 @@ def compute_local_autocorrelation(
         cols += ["Perm_Pval", "Perm_FDR"]
     adata.uns["gene_autocorrelation_results"] = results_df[cols]
     if verbose:
-        print("Local autocorrelation results are stored in adata.uns['gene_autocorrelation_results']")
+        print(
+            "Local autocorrelation results are stored in adata.uns['gene_autocorrelation_results']"
+        )
 
-        print("Finished computing local autocorrelation in %.3f seconds" %(time.time()-start))
+        print("Finished computing local autocorrelation in %.3f seconds" % (time.time() - start))
 
     return
 
 
 def compute_gene_autocorrelation_results(
-    counts, weights, G, G_max, Wtot2, genes, D, M, permutation_test, seed, check_analytic_null, device
+    counts,
+    weights,
+    G,
+    G_max,
+    Wtot2,
+    genes,
+    D,
+    M,
+    permutation_test,
+    seed,
+    check_analytic_null,
+    device,
 ):
     # Compute core stats
     stats = compute_autocor_Z_scores_torch(G, G_max, Wtot2)
@@ -270,7 +289,7 @@ def local_cov_weights(x, weights_data, weights_coords):
 
     for i in range(len(x)):
         mask_i = weights_coords[0] == i
-        indices_i = weights_coords[:,mask_i][1]
+        indices_i = weights_coords[:, mask_i][1]
         values_i = weights_data[mask_i]
         for k in range(len(indices_i)):
             j = indices_i[k]
@@ -338,11 +357,11 @@ def center_values(vals, mu, var):
     out = np.zeros_like(vals)
 
     for i in range(len(vals)):
-        std = var[i]**0.5
+        std = var[i] ** 0.5
         if std == 0:
             out[i] = 0
         else:
-            out[i] = (vals[i] - mu[i])/std
+            out[i] = (vals[i] - mu[i]) / std
 
     return out
 
@@ -355,7 +374,6 @@ def center_values_total(vals, num_umi, model):
     are re-implemented using numba instead as it's difficult to control
     the number of threads in numpy after it's imported
     """
-
     if model == "bernoulli":
         vals = (vals > 0).astype("double")
         mu, var, x2 = models.bernoulli_model(vals, num_umi)
@@ -378,30 +396,31 @@ def center_counts_torch(counts, num_umi, model):
     counts: Tensor [genes, cells]
     num_umi: Tensor [cells]
     model: 'bernoulli', 'danb', 'normal', or 'none'
-    
-    Returns:
+
+    Returns
+    -------
         Centered counts: Tensor [genes, cells]
     """
     # Binarize if using Bernoulli
-    if model == 'bernoulli':
+    if model == "bernoulli":
         counts = (counts > 0).double()
         mu, var, _ = models.bernoulli_model_torch(counts, num_umi)
-    elif model == 'danb':
+    elif model == "danb":
         mu, var, _ = models.danb_model_torch(counts, num_umi)
-    elif model == 'normal':
+    elif model == "normal":
         mu, var, _ = models.normal_model_torch(counts, num_umi)
-    elif model == 'none':
+    elif model == "none":
         mu, var, _ = models.none_model_torch(counts, num_umi)
     else:
         raise ValueError(f"Unsupported model type: {model}")
-    
+
     # Avoid division by zero
     std = torch.sqrt(var)
     std[std == 0] = 1.0
 
     centered = (counts - mu) / std
     centered[centered == 0] = 0  # Optional: to match old behavior
-    
+
     return centered
 
 
@@ -428,7 +447,7 @@ def compute_autocor_Z_scores_torch(G, G_max, Wtot2):
     Returns a dict with tensors: G, G_max, EG, stdG, Z, C
     """
     EG = 0.0
-    stdG = (Wtot2 - EG**2)**0.5
+    stdG = (Wtot2 - EG**2) ** 0.5
 
     Z = (G - EG) / stdG  # (genes,)
     C = (G - EG) / G_max  # (genes,)
@@ -447,52 +466,55 @@ def compute_autocor_Z_scores_torch(G, G_max, Wtot2):
 
 
 def standardize_counts(adata, counts, model, num_umi, sample_specific):
-    
+
     if sample_specific:
-        sample_key = adata.uns['sample_key']
+        sample_key = adata.uns["sample_key"]
         for sample in adata.obs[sample_key].unique():
             subset = np.where(adata.obs[sample_key] == sample)[0]
             counts[:, subset] = center_counts_torch(counts[:, subset], num_umi[subset], model)
     else:
         counts = center_counts_torch(counts, num_umi, model)
-    
+
     return counts
 
 
 def compute_communication_autocorrelation(adata, spatial_coords_obsm_key):
     """Computes Geary's C for numerical data."""
-    
     metab_scores_df = adata.obsm["metabolite_scores"]
     gene_pair_scores_df = adata.obsm["gene_pair_scores"]
 
     # Compute autocorrelation on the metabolite scores
-    
+
     metab_adata = AnnData(metab_scores_df)
     metab_adata.obsm[spatial_coords_obsm_key] = adata.obsm[spatial_coords_obsm_key]
 
-    metab_adata.obsm['neighbors_sort'] = adata.obsm['neighbors_sort']
-    metab_adata.obsp['weights'] = adata.obsp['weights']
+    metab_adata.obsm["neighbors_sort"] = adata.obsm["neighbors_sort"]
+    metab_adata.obsp["weights"] = adata.obsp["weights"]
 
     compute_local_autocorrelation(
         metab_adata,
-        model = 'none',
-        jobs = 1,
+        model="none",
+        jobs=1,
     )
 
-    adata.uns['metabolite_autocorrelation_results'] = metab_adata.uns['gene_autocorrelation_results']
+    adata.uns["metabolite_autocorrelation_results"] = metab_adata.uns[
+        "gene_autocorrelation_results"
+    ]
 
     # Compute autocorrelation on the gene pair scores
-    
+
     gene_pair_adata = AnnData(gene_pair_scores_df)
     gene_pair_adata.obsm[spatial_coords_obsm_key] = adata.obsm[spatial_coords_obsm_key]
 
-    gene_pair_adata.obsm['neighbors_sort'] = adata.obsm['neighbors_sort']
-    gene_pair_adata.obsp['weights'] = adata.obsp['weights']
+    gene_pair_adata.obsm["neighbors_sort"] = adata.obsm["neighbors_sort"]
+    gene_pair_adata.obsp["weights"] = adata.obsp["weights"]
 
     compute_local_autocorrelation(
         gene_pair_adata,
-        model = 'none',
-        jobs = 1,
+        model="none",
+        jobs=1,
     )
 
-    adata.uns['gene_pair_autocorrelation_results'] = gene_pair_adata.uns['gene_autocorrelation_results']
+    adata.uns["gene_pair_autocorrelation_results"] = gene_pair_adata.uns[
+        "gene_autocorrelation_results"
+    ]

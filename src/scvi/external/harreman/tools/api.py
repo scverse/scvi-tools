@@ -1,10 +1,6 @@
-from functools import partial
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import anndata
-import numpy as np
-import pandas as pd
-
 from visionpy import data_accessor, hotspot_acc, vision_acc
 
 from ..preprocessing.anndata import setup_anndata
@@ -17,33 +13,30 @@ from .knn import (
     compute_neighbors,
     compute_neighbors_from_distances,
     compute_weights,
-    filter_distances,
-    get_indexes,
-    object_scalar,
 )
-from .local_autocorrelation import compute_local_autocorrelation, compute_local_autocorrelation_fast
+from .local_autocorrelation import compute_local_autocorrelation_fast
 from .local_correlation import compute_local_correlation_fast
 from .modules import calculate_module_scores, compute_modules
 from .signature import compute_signatures_anndata
 
 
 def start_vision(
-    adata: Union[str, anndata.AnnData],
-    norm_data_key: Optional[Union[Literal["use_raw"], str]] = None,
-    compute_neighbors_on_key: Optional[str] = None,
-    distances_obsp_key: Optional[str] = None,
-    signature_varm_key: Optional[str] = None,
-    signature_names_uns_key: Optional[str] = None,
-    weighted_graph: Optional[bool] = False,
-    neighborhood_radius: Optional[int] = None,
-    n_neighbors: Optional[int] = None,
-    neighborhood_factor: Optional[int] = 3,
-    sample_key: Optional[str] = None,
-    obs_df_scores: Optional[bool] = False,
-    one_vs_all_obs_cols: Optional[bool] = False,
-    one_vs_all_signatures: Optional[bool] = False,
-    gene_score_per_signature: Optional[bool] = False,
-    scores_only: Optional[bool] = False,
+    adata: str | anndata.AnnData,
+    norm_data_key: Literal["use_raw"] | str | None = None,
+    compute_neighbors_on_key: str | None = None,
+    distances_obsp_key: str | None = None,
+    signature_varm_key: str | None = None,
+    signature_names_uns_key: str | None = None,
+    weighted_graph: bool | None = False,
+    neighborhood_radius: int | None = None,
+    n_neighbors: int | None = None,
+    neighborhood_factor: int | None = 3,
+    sample_key: str | None = None,
+    obs_df_scores: bool | None = False,
+    one_vs_all_obs_cols: bool | None = False,
+    one_vs_all_signatures: bool | None = False,
+    gene_score_per_signature: bool | None = False,
+    scores_only: bool | None = False,
 ):
     """Start VISION.
 
@@ -85,7 +78,6 @@ def start_vision(
         adata = anndata.read(str)
 
     if scores_only is False:
-
         # compute neighbors and weights
         if compute_neighbors_on_key is not None:
             print("Computing the neighborhood graph...")
@@ -106,7 +98,7 @@ def start_vision(
                     sample_key,
                 )
 
-        if 'weights' not in adata.obsp and 'distances' in adata.obsp:
+        if "weights" not in adata.obsp and "distances" in adata.obsp:
             print("Computing the weights...")
             compute_weights(
                 adata,
@@ -152,22 +144,22 @@ def start_vision(
 
 
 def start_hotspot(
-    adata: Union[str, anndata.AnnData],
-    norm_data_key: Optional[Union[Literal["use_raw"], str]] = None,
-    layer_key: Optional[Union[Literal["use_raw"], str]] = None,
-    model: Optional[str] = None,
-    compute_neighbors_on_key: Optional[str] = None,
-    distances_obsp_key: Optional[str] = None,
-    signature_varm_key: Optional[str] = None,
-    weighted_graph: Optional[bool] = True,
-    neighborhood_radius: Optional[int] = None,
-    n_neighbors: Optional[int] = None,
-    neighborhood_factor: Optional[int] = 3,
-    sample_key: Optional[str] = None,
-    min_gene_threshold: Optional[int] = 15,
-    core_only: Optional[bool] = False,
-    fdr_threshold: Optional[float] = 0.05,
-    jobs: Optional[int] = None,
+    adata: str | anndata.AnnData,
+    norm_data_key: Literal["use_raw"] | str | None = None,
+    layer_key: Literal["use_raw"] | str | None = None,
+    model: str | None = None,
+    compute_neighbors_on_key: str | None = None,
+    distances_obsp_key: str | None = None,
+    signature_varm_key: str | None = None,
+    weighted_graph: bool | None = True,
+    neighborhood_radius: int | None = None,
+    n_neighbors: int | None = None,
+    neighborhood_factor: int | None = 3,
+    sample_key: str | None = None,
+    min_gene_threshold: int | None = 15,
+    core_only: bool | None = False,
+    fdr_threshold: float | None = 0.05,
+    jobs: int | None = None,
 ):
     """Start Hotspot.
 
@@ -240,7 +232,7 @@ def start_hotspot(
     # ind = pd.concat(ind, axis=1).T
     # ind.index = adata.obs.index
 
-    if 'weights' not in adata.obsp and 'distances' in adata.obsp:
+    if "weights" not in adata.obsp and "distances" in adata.obsp:
         print("Computing the weights...")
         compute_weights(
             adata,
@@ -274,8 +266,12 @@ def start_hotspot(
     )
 
     # Select the genes with significant autocorrelation
-    gene_autocorrelation_results = adata.uns['gene_autocorrelation_results']
-    genes = gene_autocorrelation_results.loc[gene_autocorrelation_results.FDR < 0.05].sort_values('Z', ascending=False).index
+    gene_autocorrelation_results = adata.uns["gene_autocorrelation_results"]
+    genes = (
+        gene_autocorrelation_results.loc[gene_autocorrelation_results.FDR < 0.05]
+        .sort_values("Z", ascending=False)
+        .index
+    )
 
     # compute local correlation
     print("Computing local correlation...")
@@ -310,35 +306,35 @@ def start_hotspot(
         adata.obsm["signature_modules_overlap"] = compute_signatures_anndata(
             adata,
             norm_data_key,
-            signature_varm_key='signatures_overlap',
+            signature_varm_key="signatures_overlap",
             signature_names_uns_key=None,
         )
 
 
 def start_CCC_analysis(
-    adata: Union[str, anndata.AnnData],
-    layer_key: Optional[Union[Literal["use_raw"], str]] = None,
-    model: Optional[str] = None,
-    compute_neighbors_on_key: Optional[str] = None,
-    distances_obsp_key: Optional[str] = None,
-    deconv_data: Optional[bool] = False,
-    cell_type_list: Optional[list] = None,
-    cell_type_key: Optional[str] = None,
-    cell_type_pairs: Optional[list] = None,
-    database_varm_key: Optional[str] = None,
-    weighted_graph: Optional[bool] = True,
-    neighborhood_radius: Optional[int] = None,
-    n_neighbors: Optional[int] = None,
-    neighborhood_factor: Optional[int] = 3,
-    spot_diameter: Optional[int] = None,
-    sample_key: Optional[str] = None,
-    autocorrelation_filt: Optional[bool] = False,
-    expression_filt: Optional[bool] = False,
-    de_filt: Optional[bool] = False,
-    test: Optional[str] = None,
-    jobs: Optional[int] = None,
-    run_CCC_pipeline: Optional[bool] = True,
-    return_all_adatas: Optional[bool] = False,
+    adata: str | anndata.AnnData,
+    layer_key: Literal["use_raw"] | str | None = None,
+    model: str | None = None,
+    compute_neighbors_on_key: str | None = None,
+    distances_obsp_key: str | None = None,
+    deconv_data: bool | None = False,
+    cell_type_list: list | None = None,
+    cell_type_key: str | None = None,
+    cell_type_pairs: list | None = None,
+    database_varm_key: str | None = None,
+    weighted_graph: bool | None = True,
+    neighborhood_radius: int | None = None,
+    n_neighbors: int | None = None,
+    neighborhood_factor: int | None = 3,
+    spot_diameter: int | None = None,
+    sample_key: str | None = None,
+    autocorrelation_filt: bool | None = False,
+    expression_filt: bool | None = False,
+    de_filt: bool | None = False,
+    test: str | None = None,
+    jobs: int | None = None,
+    run_CCC_pipeline: bool | None = True,
+    return_all_adatas: bool | None = False,
 ):
     """Start the CCC analysis.
 
@@ -408,8 +404,8 @@ def start_CCC_analysis(
             cell_type_key,
             database_varm_key,
             sample_key,
-            )
-        layer_key=None
+        )
+        layer_key = None
 
     # compute neighbors and weights
     if compute_neighbors_on_key is not None:
@@ -434,7 +430,7 @@ def start_CCC_analysis(
                 deconv_data=deconv_data,
             )
 
-    if 'weights' not in adata.obsp and 'distances' in adata.obsp:
+    if "weights" not in adata.obsp and "distances" in adata.obsp:
         print("Computing the weights...")
         compute_weights(
             adata,
@@ -465,10 +461,10 @@ def start_CCC_analysis(
     data_accessor.jobs = jobs
 
     if run_CCC_pipeline is True:
-        print('Running the cell-cell communication pipeline...')
+        print("Running the cell-cell communication pipeline...")
 
         # compute gene local autocorrelation
-        if ('gene_autocorrelation_results' not in adata.uns) and (autocorrelation_filt is True):
+        if ("gene_autocorrelation_results" not in adata.uns) and (autocorrelation_filt is True):
             compute_local_autocorrelation_fast(
                 adata,
                 layer_key,
@@ -488,11 +484,11 @@ def start_CCC_analysis(
             autocorrelation_filt,
             expression_filt,
             de_filt,
-            cell_type_pairs
+            cell_type_pairs,
         )
 
         # compute cell-cell communication (assess if it would be better to call these functions from the jupyter notebook)
-        if test == 'parametric':
+        if test == "parametric":
             compute_cell_communication_p_fast(
                 adata,
                 layer_key,
@@ -501,7 +497,7 @@ def start_CCC_analysis(
                 cell_type_key,
                 cell_type_list,
             )
-        elif test == 'non-parametric':
+        elif test == "non-parametric":
             compute_cell_communication_np_fast(
                 adata,
                 layer_key,
@@ -509,7 +505,9 @@ def start_CCC_analysis(
                 cell_type_key,
             )
         else:
-            raise Exception(f"Invalid cell-cell communication test: {test}. It should be either 'parametric' or 'non-parametric'")
+            raise Exception(
+                f"Invalid cell-cell communication test: {test}. It should be either 'parametric' or 'non-parametric'"
+            )
 
         if deconv_data is True:
             old_adata.uns["cell_communication_df"] = adata.uns["cell_communication_df"]
@@ -520,9 +518,9 @@ def start_CCC_analysis(
             old_adata.uns["cell_type_pairs"] = adata.uns["cell_type_pairs"]
             old_adata.uns["cell_type_list"] = adata.uns["cell_type_list"]
             old_adata.uns["genes"] = adata.uns["genes"]
-            if test == 'parametric':
-                old_adata.uns['lc_zs_3d'] = adata.uns['lc_zs_3d']
-            old_adata.uns['lcs_3d'] = adata.uns['lcs_3d']
+            if test == "parametric":
+                old_adata.uns["lc_zs_3d"] = adata.uns["lc_zs_3d"]
+            old_adata.uns["lcs_3d"] = adata.uns["lcs_3d"]
 
             if return_all_adatas:
                 return [old_adata, adata]
