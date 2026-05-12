@@ -1,6 +1,8 @@
 FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
 FROM python:3.12 AS base
 
+ENV LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/nvidia/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+
 RUN pip install --no-cache-dir uv
 
 RUN uv pip install --system --no-cache torch torchvision torchaudio
