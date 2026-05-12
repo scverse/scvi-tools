@@ -11,6 +11,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
+- Add graph-aware dataloading support for {class}`scvi.external.RESOLVI` with `torch_geometric` {pr}`37XX`.
 
 #### Fixed
 
