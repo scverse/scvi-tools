@@ -532,6 +532,8 @@ class SemisupervisedTrainingMixin:
             modality = np.array([])
             for mod in mod_list:
                 for layer in adata[mod].layers:
+                    if layer is None:
+                        continue
                     tmp_mod = mod + "_" + layer
                     features_list = np.concatenate(
                         (
