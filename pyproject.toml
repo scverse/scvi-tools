@@ -121,7 +121,6 @@ all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/scvi']
-include = ['src/scvi/external/harreman/data/**']
 
 [tool.coverage.run]
 source = ["scvi"]
