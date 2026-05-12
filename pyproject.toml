@@ -55,7 +55,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-harreman = ["seaborn", "mplscience", "plotnine"]
+harreman = ["seaborn", "mplscience", "plotnine", "pooch"]
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]

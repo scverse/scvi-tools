@@ -1,5 +1,6 @@
 import time
-from importlib.resources import files
+import os
+import pooch
 from typing import Literal
 
 import numpy as np
@@ -31,11 +32,12 @@ def load_metabolic_genes(
     -------
     List of metabolic genes.
     """
-    metabolic_genes_path = (
-        files("scvi.external.harreman")
-        / "data"
-        / "metabolic_genes"
-        / f"{species}_metabolic_genes.csv"
+    metabolic_genes_path = pooch.retrieve(
+        url=f"https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/metabolic_genes/{species}_metabolic_genes.csv",
+        known_hash=None,
+        fname=f"{species}_metabolic_genes.csv",
+        path=pooch.os_cache("scvi_harreman"),
+        progressbar=False,
     )
 
     metabolic_genes = pd.read_csv(metabolic_genes_path, index_col=0)["0"].tolist()
