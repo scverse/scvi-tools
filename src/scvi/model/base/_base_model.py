@@ -862,7 +862,6 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     **anndata_write_kwargs,
                 )
 
-
         model_save_path = os.path.join(dir_path, f"{file_name_prefix}{SAVE_KEYS.MODEL_FNAME}")
 
         # save the model state dict and the trainer state dict only
