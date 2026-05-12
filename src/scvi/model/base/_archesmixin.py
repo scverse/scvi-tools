@@ -513,7 +513,7 @@ def _pad_and_sort_query_anndata(
         padding_mtx = csr_matrix(np.zeros((adata.n_obs, len(genes_to_add))))
         adata_padding = AnnData(
             X=padding_mtx.copy(),
-            layers={layer: padding_mtx.copy() for layer in adata.layers},
+            layers={layer: padding_mtx.copy() for layer in adata.layers if layer is not None},
         )
         adata_padding.var_names = genes_to_add
         adata_padding.obs_names = adata.obs_names
