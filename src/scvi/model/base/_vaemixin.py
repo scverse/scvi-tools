@@ -414,7 +414,7 @@ class VAEMixin:
         else:
             components = dist.StudentT(dof, qu_loc, qu_scale)
         return dist.MixtureSameFamily(
-            dist.Categorical(probs=torch.ones(qu_loc.shape[0], device=self.device)),
+            dist.Categorical(logits=torch.ones(qu_loc.shape[0], device=self.device)),
             dist.Independent(components, 1),
         )
 
