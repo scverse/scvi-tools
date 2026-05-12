@@ -9,8 +9,8 @@ import torch.distributions as dist
 from mudata import MuData
 
 from scvi.data import synthetic_iid
-from scvi.external import SCVIVA
-from scvi.model import SCANVI, SCVI, TOTALVI, AmortizedLDA
+from scvi.external import SCVIVA, TOTALANVI
+from scvi.model import MULTIVI, SCANVI, SCVI, TOTALVI, AmortizedLDA
 
 if TYPE_CHECKING:
     from anndata import AnnData
@@ -41,10 +41,11 @@ def mdata():
 
 @pytest.fixture(
     scope="session",
-    params=[SCVI, SCANVI, TOTALVI, SCVIVA],
+    params=[SCVI, SCANVI, TOTALVI, SCVIVA, MULTIVI, TOTALANVI],
 )
 def model(request, adata, mdata):
     model_cls = request.param
+    model_kwargs = {}
 
     if model_cls is SCVI:
         model_cls.setup_anndata(adata=adata, batch_key="batch")
@@ -87,17 +88,25 @@ def model(request, adata, mdata):
         model_cls.setup_anndata(
             adata=adata, labels_key="labels", unlabeled_category="NA", batch_key="batch"
         )
-    elif model_cls is TOTALVI:
+    elif model_cls in (TOTALVI, TOTALANVI, MULTIVI):
         adata = mdata
+        setup_kwargs = {}
+        modalities = {"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"}
+        if model_cls is TOTALANVI:
+            setup_kwargs = {"labels_key": "labels", "unlabeled_category": "label_0"}
+            modalities["labels_key"] = "rna"
+        if model_cls in (TOTALVI, TOTALANVI):
+            model_kwargs["empirical_protein_background_prior"] = False
         model_cls.setup_mudata(
             mdata=adata,
             batch_key="batch",
-            modalities={"rna_layer": "rna", "batch_key": "rna", "protein_layer": "protein"},
+            modalities=modalities,
+            **setup_kwargs,
         )
     else:
         model_cls.setup_anndata(adata=adata)
 
-    model_inst = model_cls(adata)
+    model_inst = model_cls(adata, **model_kwargs)
     model_inst.train(max_epochs=1, train_size=0.5)
     return model_inst
 
