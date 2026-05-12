@@ -55,6 +55,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+harreman = ["seaborn", "mplscience", "plotnine"]
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
@@ -120,6 +121,7 @@ all = ["scvi-tools[dev,docs,tutorials]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ['src/scvi']
+include = ['src/scvi/external/harreman/data/**']
 
 [tool.coverage.run]
 source = ["scvi"]

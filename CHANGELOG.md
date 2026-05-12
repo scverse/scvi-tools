@@ -9,6 +9,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
+- Add {mod}`scvi.external.harreman` for inference of metabolic exchanges in tissues using spatial transcriptomics {pr}`XXXX`.
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
 

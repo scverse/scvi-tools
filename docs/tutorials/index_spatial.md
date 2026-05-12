@@ -3,6 +3,7 @@
 ```{toctree}
 :maxdepth: 1
 
+notebooks/spatial/harreman_tutorial
 notebooks/spatial/resolVI_tutorial
 notebooks/spatial/scVIVA_tutorial
 notebooks/spatial/DestVI_tutorial
@@ -10,6 +11,13 @@ notebooks/spatial/gimvi_tutorial
 notebooks/spatial/tangram_scvi_tools
 notebooks/spatial/stereoscope_heart_LV_tutorial
 notebooks/spatial/cell2location_lymph_node_spatial_tutorial
+```
+
+```{customcard}
+:path: notebooks/spatial/harreman_tutorial
+:tags: Analysis, Spatial-statistics, Metabolic-inference
+
+Infer metabolic exchanges in tissues using spatial transcriptomics with Harreman
 ```
 
 ```{customcard}
