@@ -89,10 +89,10 @@ scvi-tools is composed of models that can perform one or many analysis tasks. In
      - Reference
    * - :doc:`/user_guide/models/methylvi`
      - Anlaysis of single-cell bisulfite data from several sequencing platforms
-     - :cite:p:`Weinberger2023a`
+     - :cite:p:`Weinberger26`
    * - :doc:`/user_guide/models/methylanvi`
      - MethylVI tasks along with cell type label transfer from reference, seed labeling
-     - :cite:p:`Weinberger2023a`
+     - :cite:p:`Weinberger26`
 ```
 
 ## Cytometry analysis
