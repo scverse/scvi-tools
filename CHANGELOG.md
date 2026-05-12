@@ -27,6 +27,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Removed
 
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
+
 ### 1.4.2 (2026-02-26)
 
 #### Added
