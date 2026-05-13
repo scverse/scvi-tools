@@ -9,7 +9,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Add support for rapids-singlecell, {pr}`3807`.
+- Add support for rapids-singlecell, {pr}`3811`.
 
 #### Fixed
 
