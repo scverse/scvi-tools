@@ -1,6 +1,5 @@
-FROM python:3.13 AS base
-
-ENV LD_LIBRARY_PATH=/usr/local/lib/python3.13/site-packages/nvidia/cu13/lib:/usr/local/nvidia/lib64:/usr/local/nvidia/lib
+FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
+FROM python:3.12 AS base
 
 RUN pip install --no-cache-dir uv
 
@@ -10,7 +9,7 @@ CMD ["/bin/bash"]
 
 FROM base AS build
 
-ENV SCVI_PATH="/usr/local/lib/python3.13/site-packages/scvi-tools"
+ENV SCVI_PATH="/usr/local/lib/python3.12/site-packages/scvi-tools"
 
 COPY . ${SCVI_PATH}
 
