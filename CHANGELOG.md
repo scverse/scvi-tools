@@ -3,6 +3,20 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
+## Version 1.5
+
+### 1.5.0 (2026-XX-XX)
+
+#### Added
+
+- Add support for rapids-singlecell, {pr}`3807`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
 ## Version 1.4
 
 ### 1.4.3 (2026-05-12)

@@ -381,12 +381,10 @@ class RESOLVI(
         for index in indices:
             sub_data = adata[index].copy()
             try:
-                import rapids_singlecell
+                import rapids_singlecell as rsc
 
                 print("RAPIDS SingleCell is installed and can be imported")
-                rapids_singlecell.pp.neighbors(
-                    sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep
-                )
+                rsc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             except ImportError:
                 scanpy.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             distances = sub_data.obsp["distances"] ** 2
