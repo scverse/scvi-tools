@@ -360,7 +360,7 @@ class RESOLVI(
         if slice_key is not None:
             batch_key = slice_key
         try:
-            import scanpy
+            import scanpy as sc
             from sklearn.neighbors._base import _kneighbors_from_graph
         except ImportError as err:
             raise ImportError(
@@ -386,7 +386,7 @@ class RESOLVI(
                 print("RAPIDS SingleCell is installed and can be imported")
                 rsc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             except ImportError:
-                scanpy.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
+                sc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             distances = sub_data.obsp["distances"] ** 2
 
             distance_neighbor[index, :], index_neighbor_batch = _kneighbors_from_graph(

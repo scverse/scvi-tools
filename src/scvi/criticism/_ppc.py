@@ -335,7 +335,7 @@ class PosteriorPredictiveCheck:
                 import rapids_singlecell as rsc
 
                 print("RAPIDS SingleCell is installed and can be imported")
-                rsc.tl.pca(adata_de)
+                rsc.pp.pca(adata_de)
                 rsc.pp.neighbors(adata_de)
                 rsc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
             except ImportError:
