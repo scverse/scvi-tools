@@ -66,6 +66,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _write_adata(adata, path, **kwargs):
+    """Write AnnData or MuData, skipping None layer keys for anndata 0.13+ compatibility."""
+    if not isinstance(adata, MuData):
+        adata.write(path, **kwargs)
+        return
+
+    from anndata._io.specs.registry import Writer
+
+    _orig_writer_write_elem = Writer.write_elem
+
+    def _safe_writer_write_elem(self, store, k, elem, **kw):
+        if k is None:
+            return
+        return _orig_writer_write_elem(self, store, k, elem, **kw)
+
+    Writer.write_elem = _safe_writer_write_elem
+    try:
+        adata.write(path, **kwargs)
+    finally:
+        Writer.write_elem = _orig_writer_write_elem
+
+
 _UNTRAINED_WARNING_MESSAGE = (
     "Trying to query inferred values from an untrained model. Please train the model first."
 )
@@ -136,8 +158,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # Suffix a registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
-        elif (self.__class__.__name__ == "GIMVI") or (self.__class__.__name__ == "SCVI"):
-            # note some models do accept empty registry/adata (e.g.: gimvi)
+        elif (
+            (self.__class__.__name__ == "GIMVI")
+            or (self.__class__.__name__ == "SCVI")
+            or (self.__class__.__name__ == "DIAGVI")
+        ):
+            # note some models do accept empty registry/adata (e.g: gimvi)
             pass
         else:
             raise ValueError("adata or registry must be provided.")
@@ -760,7 +786,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 file_suffix = SAVE_KEYS.ADATA_FNAME
             elif isinstance(self.adata, MuData):
                 file_suffix = SAVE_KEYS.MDATA_FNAME
-            self.adata.write(
+            _write_adata(
+                self.adata,
                 os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )

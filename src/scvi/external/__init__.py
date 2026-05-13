@@ -3,11 +3,11 @@ import warnings
 from scvi import settings
 from scvi.utils import error_on_missing_dependencies
 
-from . import harreman
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI
 from .decipher import Decipher
+from .diagvi import DIAGVI
 from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
@@ -44,6 +44,7 @@ __all__ = [
     "RESOLVI",
     "SCVIVA",
     "CYTOVI",
+    "DIAGVI",
     "harreman",
 ]
 
