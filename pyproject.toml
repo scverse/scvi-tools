@@ -59,7 +59,8 @@ tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]
 test = ["scvi-tools[tests]"]
-cuda = ["torchvision", "torchaudio", "jax[cuda12]","mlx[cuda]","cupy-cuda12x"]
+cuda = ["torchvision", "torchaudio", "jax[cuda]", "mlx[cuda]","cupy-cuda12x"]
+cuda13 = ["torchvision", "torchaudio", "jax[cuda13]", "mlx[cuda13]","cupy-cuda13x"]
 tpu = ["torch_xla[tpu]"]
 metal = ["torchvision", "torchaudio", "jax-metal","mlx-metal"]
 
@@ -79,8 +80,8 @@ docs = [
 ]
 docsbuild = ["scvi-tools[docs,autotune,hub,jax,diagvi]","mlx"]
 
-# scvi.autotune #TODO remove ray[tune] constraint once solved
-autotune = ["hyperopt>=0.2", "ray[tune]; python_version < '3.14'", "scib-metrics", "muon"]
+# scvi.autotune
+autotune = ["hyperopt>=0.2", "ray[tune]", "scib-metrics", "muon"]
 # scvi.hub dependencies
 hub = ["huggingface_hub", "dvc[s3]", "boto3"]
 # scvi.data.add_dna_sequence
@@ -99,6 +100,9 @@ dataloaders = ["lamindb>=1.12.1", "cellxgene-census", "tiledbsoma", "tiledbsoma_
 diagvi = ["torch_geometric", "geomloss"]
 # for mlflow
 mlflow = ["mlflow","psutil","GPUtil","nvidia-ml-py"]
+# for rapids
+rapids = [ "cugraph>=24", "cuml>=24", "cupy-cuda12x", "rapids-singlecell[rapids]" ]
+rapids-cuda13 = [ "cugraph>=24", "cuml>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
 
 optional = [
     "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability,diagvi]",
