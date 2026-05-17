@@ -46,6 +46,43 @@ def test_run_autotune_scvi_basic_adata(save_checkpoints: bool, metric: str, save
 
 
 @pytest.mark.autotune
+def test_run_autotune_scvi_multiple_metrics(save_path: str):
+    from ray import tune
+    from ray.tune import ResultGrid
+
+    from scvi.autotune import AutotuneExperiment, run_autotune
+
+    settings.logging_dir = save_path
+    adata = synthetic_iid()
+    SCVI.setup_anndata(adata)
+
+    experiment = run_autotune(
+        SCVI,
+        adata,
+        metrics=["elbo_validation", "validation_loss"],
+        mode="min",
+        search_space={
+            "model_params": {
+                "n_hidden": tune.choice([1, 2]),
+            },
+            "train_params": {
+                "max_epochs": 1,
+            },
+        },
+        num_samples=2,
+        seed=0,
+        scheduler="asha",
+        searcher="hyperopt",
+        ignore_reinit_error=True,
+    )
+    assert isinstance(experiment, AutotuneExperiment)
+    assert isinstance(experiment.result_grid, ResultGrid)
+    result_df = experiment.result_grid.get_dataframe()
+    assert "elbo_validation" in result_df.columns
+    assert "validation_loss" in result_df.columns
+
+
+@pytest.mark.autotune
 @pytest.mark.parametrize("save_checkpoints", [True, False])
 def test_run_autotune_scvi_basic_mdata(save_checkpoints: bool, save_path: str):
     from ray import tune
