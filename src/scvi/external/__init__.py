@@ -7,6 +7,7 @@ from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI
 from .decipher import Decipher
+from .diagvi import DIAGVI
 from .gimvi import GIMVI
 from .low_count_models import (
     DeterministicThinnedSCVI,
@@ -53,6 +54,7 @@ __all__ = [
     "RESOLVI",
     "SCVIVA",
     "CYTOVI",
+    "DIAGVI",
 ]
 
 

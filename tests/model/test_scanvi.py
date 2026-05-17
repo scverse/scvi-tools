@@ -167,10 +167,8 @@ def test_scanvi():
     assert scanvi_pxr is not scvi_pxr
     scanvi_model.train(1)
 
-    # Test without label groups
-    scanvi_model = SCANVI.from_scvi_model(
-        m, "label_0", labels_key="labels", use_labels_groups=False
-    )
+    # Test without label groups (default)
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key="labels")
     scanvi_model.train(1)
 
     # test from_scvi_model with size_factor
@@ -283,10 +281,8 @@ def test_scanvi_with_external_indices():
     assert scanvi_pxr is not scvi_pxr
     scanvi_model.train(1)
 
-    # Test without label groups
-    scanvi_model = SCANVI.from_scvi_model(
-        m, "label_0", labels_key="labels", use_labels_groups=False
-    )
+    # Test without label groups (default)
+    scanvi_model = SCANVI.from_scvi_model(m, "label_0", labels_key="labels")
     scanvi_model.train(1)
 
     # test from_scvi_model with size_factor

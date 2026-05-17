@@ -401,12 +401,13 @@ class VAEMixin:
             indices = np.arange(adata.n_obs)
 
         dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-        qu_loc, qu_scale = self.get_latent_representation(
+        qu_loc, qu_var = self.get_latent_representation(
             batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
         )
 
         qu_loc = torch.tensor(qu_loc, device=self.device)  # (n_cells, n_latent_u)
-        qu_scale = torch.tensor(qu_scale, device=self.device)
+        qu_var = torch.tensor(qu_var, device=self.device)
+        qu_scale = torch.sqrt(qu_var)
 
         if dof is None:
             components = dist.Normal(qu_loc, qu_scale)
@@ -421,6 +422,7 @@ class VAEMixin:
     def differential_abundance(
         self,
         adata: AnnOrMuData | None = None,
+        adata_sub: AnnOrMuData | None = None,
         sample_key: str | None = None,
         batch_size: int = 128,
         num_cells_posterior: int | None = None,
@@ -434,8 +436,13 @@ class VAEMixin:
         Parameters
         ----------
         adata
+            The full data object used to compute each aggregated posterior.
+            Defaults to the AnnData object used to initialize the model.
+        adata_sub
             The data object to compute the differential abundance for.
-            For very large datasets, this should be a subset of the original data object.
+            For very large datasets, this should be used to pass in a subset of the full data
+            object. The aggregated posteriors are still computed from the full data object.
+            The resulting log_probs matrix is stored in adata_sub.obsm
         sample_key
             Key for the sample covariate.
         batch_size
@@ -451,14 +458,17 @@ class VAEMixin:
         from tqdm import tqdm
 
         adata = self._validate_anndata(adata)
+        if adata_sub is None:
+            adata_sub = adata
+        else:
+            adata_sub = self._validate_anndata(adata_sub)
 
-        # In case user passes in a subset of model's anndata
-        adata_dataloader = self._make_data_loader(adata=adata, batch_size=batch_size)
+        adata_dataloader = self._make_data_loader(adata=adata_sub, batch_size=batch_size)
         us = self.get_latent_representation(
             batch_size=batch_size, dataloader=adata_dataloader, give_mean=True
         )
         dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
-        unique_samples = adata.obs[sample_key].unique()
+        unique_samples = adata_sub.obs[sample_key].unique()
 
         log_probs = []
         for sample_name in tqdm(unique_samples):
@@ -476,6 +486,7 @@ class VAEMixin:
             log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
         log_probs = np.array(log_probs).T
-        log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names, columns=unique_samples)
-
-        adata.obsm["da_log_probs"] = log_probs_df
+        log_probs_df = pd.DataFrame(
+            data=log_probs, index=adata_sub.obs_names, columns=unique_samples
+        )
+        adata_sub.obsm["da_log_probs"] = log_probs_df
