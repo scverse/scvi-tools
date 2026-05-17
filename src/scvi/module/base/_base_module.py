@@ -479,16 +479,7 @@ class SupervisedModuleClass:
 
     @auto_move_data
     def classify_helper(self, z):
-        if self.use_labels_groups:
-            w_g = self.classifier_groups(z)
-            unw_y = self.classifier(z)
-            w_y = torch.zeros_like(unw_y)
-            for i, group_index in enumerate(self.groups_index):
-                unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
-                w_y[:, group_index] *= w_g[:, [i]]
-        else:
-            w_y = self.classifier(z)
+        w_y = self.classifier(z)
         return w_y
 
     @auto_move_data

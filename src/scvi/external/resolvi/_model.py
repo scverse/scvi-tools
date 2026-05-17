@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -9,7 +10,7 @@ import pandas as pd
 import pyro
 from pyro.infer import Trace_ELBO
 
-from scvi import REGISTRY_KEYS
+from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
 from scvi.data._utils import get_anndata_attribute
 from scvi.data.fields import (
@@ -111,6 +112,13 @@ class RESOLVI(
         downsample_counts=True,
         **model_kwargs,
     ):
+        warnings.warn(
+            "RESOLVI is a spatial transcriptomics model that will be moved to the "
+            "scvi-tools spatial companion package `scviva-tools` starting in scvi-tools v1.5 and "
+            "will no longer be supported here. It will be deprecated from scvi-tools in v1.6.",
+            FutureWarning,
+            stacklevel=settings.warnings_stacklevel,
+        )
         pyro.clear_param_store()
 
         super().__init__(adata)
@@ -352,7 +360,7 @@ class RESOLVI(
         if slice_key is not None:
             batch_key = slice_key
         try:
-            import scanpy
+            import scanpy as sc
             from sklearn.neighbors._base import _kneighbors_from_graph
         except ImportError as err:
             raise ImportError(
@@ -373,14 +381,12 @@ class RESOLVI(
         for index in indices:
             sub_data = adata[index].copy()
             try:
-                import rapids_singlecell
+                import rapids_singlecell as rsc
 
                 print("RAPIDS SingleCell is installed and can be imported")
-                rapids_singlecell.pp.neighbors(
-                    sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep
-                )
+                rsc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             except ImportError:
-                scanpy.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
+                sc.pp.neighbors(sub_data, n_neighbors=n_neighbors + 5, use_rep=spatial_rep)
             distances = sub_data.obsp["distances"] ** 2
 
             distance_neighbor[index, :], index_neighbor_batch = _kneighbors_from_graph(

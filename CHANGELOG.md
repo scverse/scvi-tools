@@ -3,14 +3,30 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
+## Version 1.5
+
+### 1.5.0 (2026-XX-XX)
+
+#### Added
+
+- Add support for rapids-singlecell, {pr}`3811`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
 ## Version 1.4
 
-### 1.4.3 (2026-XX-XX)
+### 1.4.3 (2026-05-12)
 
 #### Added
 
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
+- Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
+- Add MuData support to {class}`scvi.external.TOTALANVI` {pr}`3797`.
 
 #### Fixed
 
@@ -18,6 +34,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     {pr}`3749`.
 - Fix {class}`~scvi.model.MULTIVI` modality reordering in {meth}`~scvi.model.MULTIVI.setup_mudata`
     to avoid `AttributeError` when using mudata>=0.3, where `MuData.mod` is read-only {pr}`3776`.
+- Fix DE functionality in {class}`scvi.external.SysVI` {pr}`3783`.
 
 #### Changed
 
@@ -25,6 +42,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Removed Jax support from SCVI-Tools, {pr}`37xx`.
 
 #### Removed
+
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
 
 ### 1.4.2 (2026-02-26)
 

@@ -101,6 +101,10 @@ Parameterizable probability distributions.
    distributions.NegativeBinomialMixture
    distributions.ZeroInflatedNegativeBinomial
    distributions.BetaBinomial
+   distributions.Normal
+   distributions.Log1pNormal
+   distributions.ZeroInflatedLogNormal
+   distributions.ZeroInflatedGamma
 
 ```
 
@@ -192,6 +196,7 @@ Module classes in the external API with respective generative and inference proc
    external.scviva.nicheVAE
    external.scviva.NicheLossOutput
    external.sysvi.SysVAE
+   external.diagvi.DIAGVAE
 
 ```
 
