@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def _load_cortex(save_path: str = "data/") -> anndata.AnnData:
     """Loads cortex dataset."""
     save_path = os.path.abspath(save_path)
-    url = "https://storage.googleapis.com/linnarsson-lab-www-blobs/blobs/cortex/expression_mRNA_17-Aug-2014.txt"
+    url = "https://exampledata.scverse.org/scvi-tools/expression_mRNA_17-Aug-2014.txt"
     save_fn = "expression.bin"
     _download(url, save_path, save_fn)
     adata = _load_cortex_txt(os.path.join(save_path, save_fn))

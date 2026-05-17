@@ -368,19 +368,17 @@ class PyroBaseModuleClass(nn.Module):
         """Model annotation for minibatch training with pyro plate.
 
         A dictionary with:
+
         1. "name" - the name of observation/minibatch plate;
         2. "in" - indexes of model args to provide to encoder network when using amortised
-            inference;
-        3. "sites" - dictionary with
-            keys - names of variables that belong to the observation plate (used to recognise
-            and merge posterior samples for minibatch variables)
-            values - the dimensions in the non-plate axis of each variable (used to construct
-            output layer of encoder network when using amortised inference)
+           inference;
+        3. "sites" - dictionary with keys as names of variables that belong to the observation
+           plate and values as the dimensions in the non-plate axis of each variable.
         """
         return {"name": "", "in": [], "sites": {}}
 
     def on_load(self, model, **kwargs):
-        """Callback function run in :method:`~scvi.model.base.BaseModelClass.load`.
+        """Callback function run in :meth:`~scvi.model.base.BaseModelClass.load`.
 
         For some Pyro modules with AutoGuides, run one training step prior to loading state dict.
         """
@@ -780,16 +778,7 @@ class SupervisedModuleClass:
 
     @auto_move_data
     def classify_helper(self, z):
-        if self.use_labels_groups:
-            w_g = self.classifier_groups(z)
-            unw_y = self.classifier(z)
-            w_y = torch.zeros_like(unw_y)
-            for i, group_index in enumerate(self.groups_index):
-                unw_y_g = unw_y[:, group_index]
-                w_y[:, group_index] = unw_y_g / (unw_y_g.sum(dim=-1, keepdim=True) + 1e-8)
-                w_y[:, group_index] *= w_g[:, [i]]
-        else:
-            w_y = self.classifier(z)
+        w_y = self.classifier(z)
         return w_y
 
     @auto_move_data

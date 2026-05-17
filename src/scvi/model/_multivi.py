@@ -15,6 +15,7 @@ from torch.distributions import Normal
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager, fields
+from scvi.data._utils import _get_adata_minify_type, _validate_adata_dataloader_input
 from scvi.model._utils import (
     _get_batch_code_from_category,
     scatac_raw_counts_properties,
@@ -36,10 +37,11 @@ from scvi.utils import track
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Iterator, Sequence
     from typing import Literal
 
     from anndata import AnnData
+    from torch import Tensor
 
     from scvi._types import AnnOrMuData, Number
 
@@ -127,7 +129,7 @@ class MULTIVI(
     >>> vae.train()
 
     Notes (for using setup_anndata)
-    -----
+    ---------------------------------
     As of SCVI-Tools v1.4 there is no longer support for setup_anndata for multivi.
     Please use setup_mudata instead.
     """
@@ -217,6 +219,7 @@ class MULTIVI(
             protein_dispersion=protein_dispersion,
             **model_kwargs,
         )
+        self.module.minified_data_type = self.minified_data_type
         self._model_summary_string = (
             f"MultiVI Model with the following params: \nn_genes: {n_genes}, "
             f"n_regions: {n_regions}, n_proteins: {n_proteins}, n_hidden: {self.module.n_hidden}, "
@@ -403,6 +406,7 @@ class MULTIVI(
         give_mean: bool = True,
         batch_size: int | None = None,
         return_dist: bool = False,
+        dataloader: Iterator[dict[str, Tensor | None]] | None = None,
     ) -> np.ndarray:
         r"""Return the latent representation for each cell.
 
@@ -422,6 +426,9 @@ class MULTIVI(
         return_dist
             If ``True``, returns the mean and variance of the latent distribution. Otherwise,
             returns the mean of the latent distribution.
+        dataloader
+            An iterator over minibatches of data on which to compute the representation. If
+            ``None``, a dataloader is created from ``adata``.
 
         Returns
         -------
@@ -430,6 +437,7 @@ class MULTIVI(
         """
         if not self.is_trained_:
             raise RuntimeError("Please train the model first.")
+        _validate_adata_dataloader_input(self, adata, dataloader)
         self._check_adata_modality_weights(adata)
         keys = {"z": "z", "qz_m": "qz_m", "qz_v": "qz_v"}
         if self.fully_paired and modality != "joint":
@@ -446,8 +454,11 @@ class MULTIVI(
                     "modality must be 'joint', 'expression', 'accessibility', or 'protein'."
                 )
 
-        adata = self._validate_anndata(adata)
-        scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        if dataloader is None:
+            adata = self._validate_anndata(adata)
+            scdl = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
+        else:
+            scdl = dataloader
         latent = []
         qz_means = []
         qz_vars = []
@@ -771,6 +782,7 @@ class MULTIVI(
         Returns
         -------
         Differential accessibility DataFrame with the following columns:
+
         prob_da
             the probability of the region being differentially accessible
         is_da_fdr
@@ -1178,18 +1190,14 @@ class MULTIVI(
         needs_reorder = current_order[: len(desired_order)] != desired_order
 
         if needs_reorder:
-            from collections import OrderedDict
+            # Build the desired insertion order
+            reordered_keys = desired_order + [k for k in current_order if k not in desired_order]
 
-            # Ordered modalities
-            ordered_mods = OrderedDict()
-            for k in desired_order:
-                ordered_mods[k] = mdata.mod[k]
-            for k in current_order:
-                if k not in ordered_mods:
-                    ordered_mods[k] = mdata.mod[k]
-
-            # Replace in-place
-            mdata.mod = ordered_mods
+            # mdata.mod is read-only in mudata>=0.3; manipulate the backing _mod dict
+            backing_dict = mdata._mod
+            snapshot = {k: backing_dict[k] for k in reordered_keys}
+            backing_dict.clear()
+            backing_dict.update(snapshot)
 
             # Recompute axes / var concatenation
             mdata.update()
@@ -1263,6 +1271,10 @@ class MULTIVI(
                     mod_required=True,
                 )
             )
+        mdata_minify_type = _get_adata_minify_type(mdata)
+        if mdata_minify_type is not None:
+            mudata_fields += cls._get_fields_for_mudata_minification(mdata_minify_type)
+
         adata_manager = AnnDataManager(fields=mudata_fields, setup_method_args=setup_method_args)
         adata_manager.register_fields(mdata, **kwargs)
         cls.register_manager(adata_manager)

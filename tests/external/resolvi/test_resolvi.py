@@ -13,6 +13,7 @@ def adata():
         n_proteins=10,
     )
     adata.obsm["X_spatial"] = adata.obsm["coordinates"]
+    adata.obs["cell_area"] = np.random.gamma(2.0, 1.0, size=adata.n_obs)
     print(adata)
     return adata
 
@@ -24,6 +25,19 @@ def test_resolvi_train(adata):
         max_epochs=2,
     )
     model = RESOLVI(adata, dispersion="gene-batch")
+    model.train(
+        max_epochs=2,
+    )
+
+
+def test_resolvi_train_size_factor(adata):
+    RESOLVI.setup_anndata(adata, batch_key="batch", size_factor_key="cell_area")
+    model = RESOLVI(adata, size_scaling=True)
+    model.train(
+        max_epochs=2,
+    )
+    RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
+    model = RESOLVI(adata, size_scaling=False)
     model.train(
         max_epochs=2,
     )
@@ -51,18 +65,19 @@ def test_resolvi_save_load(adata):
 
 @pytest.mark.optional
 def test_resolvi_downstream(adata):
-    RESOLVI.setup_anndata(adata)
+    RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
     model = RESOLVI(adata)
     model.train(
         max_epochs=2,
     )
     latent = model.get_latent_representation()
     assert latent.shape == (adata.n_obs, model.module.n_latent)
-    counts = model.get_normalized_expression(n_samples=31, library_size=10000)
-    counts = model.get_normalized_expression_importance(n_samples=30, library_size=10000)
-    print("FFFFFF", counts.shape)
+    _ = model.get_normalized_expression(n_samples=31, library_size=10000)
+    _ = model.get_normalized_expression_importance(n_samples=30, library_size=10000)
+    _ = model.get_normalized_expression_importance(n_samples=30, size_scaling=True)
     model.differential_expression(groupby="labels")
     model.differential_expression(groupby="labels", weights="importance")
+    model.differential_expression(groupby="labels", weights="importance", size_scaling=True)
     model.sample_posterior(
         model=model.module.model_residuals,
         num_samples=30,
@@ -74,6 +89,38 @@ def test_resolvi_downstream(adata):
         model=model.module.model_residuals, num_samples=30, return_samples=False, batch_size=1000
     )
     model_query = model.load_query_data(reference_model=model, adata=adata)
+    model_query = model.load_query_data(reference_model="test_resolvi", adata=adata)
+    model_query.train(
+        max_epochs=2,
+    )
+
+
+def test_resolvi_downstream_size_scaling(adata):
+    RESOLVI.setup_anndata(adata, size_factor_key="cell_area")
+    model = RESOLVI(adata, size_scaling=True)
+    model.train(
+        max_epochs=2,
+    )
+    latent = model.get_latent_representation()
+    assert latent.shape == (adata.n_obs, model.module.n_latent)
+    _ = model.get_normalized_expression(n_samples=31, library_size=10000)
+    _ = model.get_normalized_expression_importance(n_samples=30, library_size=10000)
+    _ = model.get_normalized_expression_importance(n_samples=30, size_scaling=True)
+    model.differential_expression(groupby="labels")
+    model.differential_expression(groupby="labels", weights="importance")
+    model.differential_expression(groupby="labels", weights="importance", size_scaling=True)
+    model.sample_posterior(
+        model=model.module.model_residuals,
+        num_samples=30,
+        return_samples=False,
+        return_sites=None,
+        batch_size=1000,
+    )
+    model.sample_posterior(
+        model=model.module.model_residuals, num_samples=30, return_samples=False, batch_size=1000
+    )
+    model_query = model.load_query_data(reference_model=model, adata=adata)
+    model.save("test_resolvi", save_anndata=True, overwrite=True)
     model_query = model.load_query_data(reference_model="test_resolvi", adata=adata)
     model_query.train(
         max_epochs=2,

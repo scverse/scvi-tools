@@ -95,6 +95,25 @@ def test_torchMRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
     model2.train(1)
 
 
+def test_torchMRVI_outlier_cell_sample_pairs(model: MRVI):
+    result = model.get_outlier_cell_sample_pairs(batch_size=256)
+    assert "log_probs" in result
+    assert "is_admissible" in result
+
+
+def test_torchMRVI_de_basic(model: MRVI):
+    result = model.differential_expression(
+        sample_cov_keys=["meta1_cat"],
+        store_lfc=True,
+        mc_samples=5,
+        use_vmap=False,
+    )
+    assert "beta" in result
+    assert "lfc" in result
+    assert "effect_size" in result
+    assert "pvalue" in result
+
+
 @pytest.mark.optional
 @pytest.mark.parametrize(
     ("setup_kwargs", "de_kwargs"),

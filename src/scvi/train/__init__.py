@@ -9,6 +9,7 @@ from ._config import (
     AdversarialTrainingPlanConfig,
     ClassifierTrainingPlanConfig,
     JaxTrainingPlanConfig,
+    KwargsConfig,
     LowLevelPyroTrainingPlanConfig,
     PyroTrainingPlanConfig,
     SemiSupervisedAdversarialTrainingPlanConfig,
@@ -54,6 +55,7 @@ __all__ = [
     "ScibCallback",
     "METRIC_KEYS",
     "JaxTrainingPlanConfig",
+    "KwargsConfig",
 ]
 
 
@@ -72,4 +74,9 @@ def __getattr__(name: str):
         from ._trainingplans import JaxTrainingPlan as _JaxTrainingPlan
 
         return _JaxTrainingPlan
+    if name == "MlxTrainingPlan":
+        error_on_missing_dependencies("mlx")
+        from ._trainingplans import MlxTrainingPlan as _MlxTrainingPlan
+
+        return _MlxTrainingPlan
     raise AttributeError(f"module {__name__!r} has no attribute {name}")

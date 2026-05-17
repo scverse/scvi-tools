@@ -95,6 +95,12 @@ def test_hub_model_init(request, save_path):
     test_save_path = os.path.join(save_path, request.node.name)
     model.save(test_save_path, overwrite=True, save_anndata=True)
 
+    # remove any leftover metadata/model card files from previous runs
+    for fname in [_SCVI_HUB.METADATA_FILE_NAME, _SCVI_HUB.MODEL_CARD_FILE_NAME]:
+        fpath = os.path.join(test_save_path, fname)
+        if os.path.isfile(fpath):
+            os.remove(fpath)
+
     # no metadata, no model card
     with pytest.raises(ValueError) as e:
         HubModel(test_save_path)

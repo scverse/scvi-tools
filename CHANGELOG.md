@@ -3,18 +3,63 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
-## Version 1.4
+## Version 1.5
 
-### 1.4.2 (2025-XX-XX)
+### 1.5.0 (2026-XX-XX)
 
 #### Added
 
+- Add support for rapids-singlecell, {pr}`3811`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
+## Version 1.4
+
+### 1.4.3 (2026-05-12)
+
+#### Added
+
+- Add support for Python 3.14, {pr}`3563`.
+- Add support for Pandas3, {pr}`3638`.
+- Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
+- Add MuData support to {class}`scvi.external.TOTALANVI` {pr}`3797`.
+
+#### Fixed
+
+- Fix PyTorch {class}`scvi.external.MRVI` to match JAX implementation architecture and work on GPU,
+    {pr}`3749`.
+- Fix {class}`~scvi.model.MULTIVI` modality reordering in {meth}`~scvi.model.MULTIVI.setup_mudata`
+    to avoid `AttributeError` when using mudata>=0.3, where `MuData.mod` is read-only {pr}`3776`.
+- Fix DE functionality in {class}`scvi.external.SysVI` {pr}`3783`.
+
+#### Changed
+
+- Update SCVI-Tools Hub models, {pr}`3733`.
+
+#### Removed
+
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
+
+### 1.4.2 (2026-02-26)
+
+#### Added
+
+- Add {meth}`~scvi.model.base.VAEMixin.differential_abundance`
+    and {meth}`~scvi.model.base.VAEMixin.get_aggregated_posterior`
+    functions to {class}`scvi.model.base.VAEMixin`, {pr}`3618`
 - Added a flag to turn on or off Importance Sampling in {class}`scvi.external.RESOLVI`
     {meth}`~scvi.external.RESOLVI.differential_expression`, {pr}`3708`.
 - Add dispersion tests, including support for {class}`scvi.external.SCVIVA`, {pr}`3677`.
-- Add support for Pandas3, {pr}`3638`.
 - Add support for running scVI-Tools on TPU, {pr}`3690`.
 - Add support for logging validation metrics in MultiGPU, {pr}`3712`.
+- Add Support for MLX backend for Apple silicon with model {class}`scvi.model.mlxSCVI` {pr}`3598`.
+- Add support for covariates and multiGPU in {class}`scvi.model.JaxSCVI`, {pr}`3717`.
+- Add support for size_factor in {class}`scvi.external.RESOLVI`, {pr}`3701`.
 
 #### Fixed
 
@@ -27,6 +72,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Change the use of Figshare as storage to SCVERSE S3, {pr}`3667`.
 - Change explicit training configuration objects for scvi-tools, reducing reliance on loose kwargs
     and improving clarity across training APIs, {pr}`3666`.
+- Change the default backend of {class}`scvi.external.MRVI` to torch instead of jax, {pr}`3717`.
 
 #### Removed
 

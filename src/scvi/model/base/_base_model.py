@@ -66,6 +66,28 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _write_adata(adata, path, **kwargs):
+    """Write AnnData or MuData, skipping None layer keys for anndata 0.13+ compatibility."""
+    if not isinstance(adata, MuData):
+        adata.write(path, **kwargs)
+        return
+
+    from anndata._io.specs.registry import Writer
+
+    _orig_writer_write_elem = Writer.write_elem
+
+    def _safe_writer_write_elem(self, store, k, elem, **kw):
+        if k is None:
+            return
+        return _orig_writer_write_elem(self, store, k, elem, **kw)
+
+    Writer.write_elem = _safe_writer_write_elem
+    try:
+        adata.write(path, **kwargs)
+    finally:
+        Writer.write_elem = _orig_writer_write_elem
+
+
 _UNTRAINED_WARNING_MESSAGE = (
     "Trying to query inferred values from an untrained model. Please train the model first."
 )
@@ -136,8 +158,12 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             # Suffix a registry instance variable with _ to include it when saving the model.
             self.registry_ = registry
             self.summary_stats = AnnDataManager._get_summary_stats_from_registry(registry)
-        elif (self.__class__.__name__ == "GIMVI") or (self.__class__.__name__ == "SCVI"):
-            # note some models do accept empty registry/adata (e.g.: gimvi)
+        elif (
+            (self.__class__.__name__ == "GIMVI")
+            or (self.__class__.__name__ == "SCVI")
+            or (self.__class__.__name__ == "DIAGVI")
+        ):
+            # note some models do accept empty registry/adata (e.g: gimvi)
             pass
         else:
             raise ValueError("adata or registry must be provided.")
@@ -760,7 +786,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                 file_suffix = SAVE_KEYS.ADATA_FNAME
             elif isinstance(self.adata, MuData):
                 file_suffix = SAVE_KEYS.MDATA_FNAME
-            self.adata.write(
+            _write_adata(
+                self.adata,
                 os.path.join(dir_path, f"{file_name_prefix}{file_suffix}"),
                 **anndata_write_kwargs,
             )
@@ -883,7 +910,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         registry = attr_dict.pop("registry_")
         if _MODEL_NAME_KEY in registry and (
             registry[_MODEL_NAME_KEY] != cls.__name__
-            and registry[_MODEL_NAME_KEY] not in allowed_classes_names_list
+            and registry[_MODEL_NAME_KEY] not in (allowed_classes_names_list or [])
         ):
             raise ValueError("It appears you are loading a model from a different class.")
 
@@ -1271,7 +1298,29 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         self._registry[_SETUP_ARGS_KEY].update(setup_method_args)
 
     def get_normalized_expression(self, *args, **kwargs):
+        """Not implemented for this model class.
+
+        Available in RNA models that inherit from
+        :class:`~scvi.model.base.RNASeqMixin`.
+
+        Raises
+        ------
+        NotImplementedError
+        """
         msg = f"get_normalized_expression is not implemented for {self.__class__.__name__}."
+        raise NotImplementedError(msg)
+
+    def differential_abundance(self, *args, **kwargs):
+        """Not implemented for this model class.
+
+        Available in models that inherit from
+        :class:`~scvi.model.base.VAEMixin`.
+
+        Raises
+        ------
+        NotImplementedError
+        """
+        msg = f"differential_abundance is not implemented for {self.__class__.__name__}."
         raise NotImplementedError(msg)
 
 

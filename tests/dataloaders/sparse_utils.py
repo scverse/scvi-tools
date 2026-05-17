@@ -65,6 +65,8 @@ class TestSparseModule(scvi.module.base.BaseModuleClass):
 
 
 class TestSparseModel(scvi.model.base.BaseModelClass):
+    __test__ = False
+
     def __init__(self, adata: AnnData):
         super().__init__(adata)
         self.module = TestSparseModule()

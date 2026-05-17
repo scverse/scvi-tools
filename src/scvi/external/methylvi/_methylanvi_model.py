@@ -202,18 +202,16 @@ class METHYLANVI(VAEMixin, SemisupervisedTrainingMixin, BSSeqMixin, ArchesMixin,
 
         Examples
         --------
-        METHYLANVI.setup_mudata(
-            mdata,
-            mc_layer="mc",
-            cov_layer="cov",
-            labels_key="CellType",
-            unlabeled_category="Unknown",
-            methylation_contexts=["mCG", "mCH"],
-            categorical_covariate_keys=["Platform"],
-            modalities={
-                "categorical_covariate_keys": "mCG"
-            },
-        )
+        >>> METHYLANVI.setup_mudata(
+        ...     mdata,
+        ...     mc_layer="mc",
+        ...     cov_layer="cov",
+        ...     labels_key="CellType",
+        ...     unlabeled_category="Unknown",
+        ...     methylation_contexts=["mCG", "mCH"],
+        ...     categorical_covariate_keys=["Platform"],
+        ...     modalities={"categorical_covariate_keys": "mCG"},
+        ... )
 
         """
         if modalities is None:
