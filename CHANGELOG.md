@@ -3,9 +3,23 @@
 Starting from version 0.20.1, this format is based on [Keep a Changelog], and this project adheres
 to [Semantic Versioning]. The full commit history is available in the [commit logs](https://github.com/scverse/scvi-tools/commits/).
 
+## Version 1.5
+
+### 1.5.0 (2026-XX-XX)
+
+#### Added
+
+- Add support for rapids-singlecell, {pr}`3811`.
+
+#### Fixed
+
+#### Changed
+
+#### Removed
+
 ## Version 1.4
 
-### 1.4.3 (2026-XX-XX)
+### 1.4.3 (2026-05-12)
 
 #### Added
 
@@ -13,6 +27,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     reducing per-rank memory, {pr}`3754`.
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
+- Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.
+- Add MuData support to {class}`scvi.external.TOTALANVI` {pr}`3797`.
 
 #### Fixed
 
@@ -27,6 +43,9 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 - Update SCVI-Tools Hub models, {pr}`3733`.
 
 #### Removed
+
+- Removed grouped-label classification legacy code in {class}`scvi.model.SCANVI`,
+    {class}`scvi.external.TOTALANVI`, and {class}`scvi.external.METHYLANVI`, {pr}`3805`.
 
 ### 1.4.2 (2026-02-26)
 

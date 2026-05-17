@@ -331,9 +331,17 @@ class PosteriorPredictiveCheck:
         sc.pp.normalize_total(adata_de, target_sum=cell_scale_factor)
         sc.pp.log1p(adata_de)
         if de_groupby is None:
-            sc.tl.pca(adata_de)
-            sc.pp.neighbors(adata_de)
-            sc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
+            try:
+                import rapids_singlecell as rsc
+
+                print("RAPIDS SingleCell is installed and can be imported")
+                rsc.pp.pca(adata_de)
+                rsc.pp.neighbors(adata_de)
+                rsc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
+            except ImportError:
+                sc.tl.pca(adata_de)
+                sc.pp.neighbors(adata_de)
+                sc.tl.leiden(adata_de, key_added="leiden_scvi_criticism")
             de_groupby = "leiden_scvi_criticism"
         with warnings.catch_warnings():
             warnings.simplefilter(action="ignore", category=pd.errors.PerformanceWarning)
