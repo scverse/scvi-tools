@@ -4,8 +4,9 @@ import mudata
 import numpy as np
 import pytest
 
+import scvi
 from scvi.data import synthetic_iid
-from scvi.external import Tangram
+from scvi.external import Tangram, TangramJax, TangramTorch
 
 modalities = {"density_prior_key": "sp", "sc_layer": "sc", "sp_layer": "sp"}
 
@@ -70,3 +71,32 @@ def test_tangram_errors():
             modalities=modalities,
         )
         Tangram(mdata)
+
+
+def test_tangram_reproducible_with_seed():
+    mdata = _get_mdata()
+    Tangram.setup_mudata(
+        mdata,
+        density_prior_key="rna_count_based_density",
+        modalities=modalities,
+    )
+
+    scvi.settings.seed = 7
+    model_a = Tangram(mdata)
+    model_a.train(max_epochs=2)
+    mapper_a = model_a.get_mapper_matrix()
+    loss_a = model_a.history_["loss"].to_numpy(dtype=float)
+
+    scvi.settings.seed = 7
+    model_b = Tangram(mdata)
+    model_b.train(max_epochs=2)
+    mapper_b = model_b.get_mapper_matrix()
+    loss_b = model_b.history_["loss"].to_numpy(dtype=float)
+
+    np.testing.assert_allclose(mapper_a, mapper_b, rtol=0, atol=0)
+    np.testing.assert_allclose(loss_a, loss_b, rtol=0, atol=0)
+
+
+def test_tangram_backend_exports():
+    assert TangramJax.__name__ == "TangramJax"
+    assert TangramTorch.__name__ == "TangramTorch"

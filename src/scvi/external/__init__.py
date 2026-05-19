@@ -8,6 +8,8 @@ from .scbasset import SCBASSET
 from .solo import SOLO
 from .stereoscope import RNAStereoscope, SpatialStereoscope
 from .tangram import Tangram
+from .tangram_jax import TangramJax
+from .tangram_torch import TangramTorch
 from .velovi import VELOVI
 
 __all__ = [
@@ -18,6 +20,8 @@ __all__ = [
     "SpatialStereoscope",
     "CellAssign",
     "Tangram",
+    "TangramJax",
+    "TangramTorch",
     "SCBASSET",
     "POISSONVI",
     "ContrastiveVI",

@@ -12,8 +12,7 @@ import numpy as np
 import pyro
 import torch
 from flax.training import train_state
-from jax import random
-from jaxlib.xla_extension import Device
+from jax import Device, random
 from numpyro.distributions import Distribution
 from pyro.infer.predictive import Predictive
 from torch import nn
