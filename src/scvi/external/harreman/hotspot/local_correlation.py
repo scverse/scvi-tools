@@ -1,10 +1,10 @@
 import time
-from numba import jit
 
 import numpy as np
 import pandas as pd
 import torch
 from anndata import AnnData
+from numba import jit
 from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
