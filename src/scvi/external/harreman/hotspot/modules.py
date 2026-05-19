@@ -1,5 +1,4 @@
 import time
-from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -622,13 +621,10 @@ def compute_sig_mod_correlation(adata, method, use_super_modules):
     return cor_coef_df, cor_pval_df, cor_FDR_df
 
 
-
-
-
 def compute_top_scoring_modules(
     adata: AnnData,
-    sd: Optional[float] = 1,
-    use_super_modules: Optional[bool] = False,
+    sd: float | None = 1,
+    use_super_modules: bool | None = False,
 ):
     """
     Identify the top-scoring module (or super-module) for each cell.
@@ -637,7 +633,7 @@ def compute_top_scoring_modules(
     ----------
     adata : AnnData
         Must contain a matrix of module or super-module scores in:
-        - ``obsm['module_scores']`` or  
+        - ``obsm['module_scores']`` or
         - ``obsm['super_module_scores']``
     sd : float, default 1
         Standard deviation threshold to determine strong module activation.
@@ -651,31 +647,38 @@ def compute_top_scoring_modules(
         A Series indexed by cell, containing the name of the top-scoring
         module/super-module for each cell.
     """
-    
-    MODULE_KEY = 'super_module_scores' if use_super_modules else 'module_scores'
-    
-    df = pd.DataFrame(zscore(adata.obsm[MODULE_KEY], axis=0), 
-                      index=adata.obsm[MODULE_KEY].index, 
-                      columns=adata.obsm[MODULE_KEY].columns)
+    MODULE_KEY = "super_module_scores" if use_super_modules else "module_scores"
 
-    top_scoring_modules = pd.Series(index = df.index)
+    df = pd.DataFrame(
+        zscore(adata.obsm[MODULE_KEY], axis=0),
+        index=adata.obsm[MODULE_KEY].index,
+        columns=adata.obsm[MODULE_KEY].columns,
+    )
+
+    top_scoring_modules = pd.Series(index=df.index)
     for mod_id, row in df.iterrows():
         above_threshold_low = row > 0
         above_threshold = row > sd
         if above_threshold.sum() == 1:
             top_scoring_modules[mod_id] = above_threshold.idxmax()
         else:
-            highest_module = row[above_threshold].idxmax() if above_threshold.sum() > 1 else row.idxmax() if above_threshold_low.sum() > 0 else np.nan
+            highest_module = (
+                row[above_threshold].idxmax()
+                if above_threshold.sum() > 1
+                else row.idxmax()
+                if above_threshold_low.sum() > 0
+                else np.nan
+            )
             top_scoring_modules[mod_id] = highest_module
-        
+
     return top_scoring_modules
 
 
 def calculate_super_module_scores(
     adata: AnnData,
     super_module_dict: dict = None,
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    verbose: Optional[bool] = False,
+    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    verbose: bool | None = False,
 ):
     """
     Calculate super-module scores for gene super-modules across cells.
@@ -706,23 +709,22 @@ def calculate_super_module_scores(
           loadings for each super-module
         - `adata.uns['gene_modules_sm']`: dictionary mapping super-module names to gene lists
     """
-
     start = time.time()
 
     gene_modules = adata.uns["gene_modules"]
-    
+
     reverse_mapping = {value: key for key, values in super_module_dict.items() for value in values}
     adata.uns["super_modules"] = adata.uns["modules"].replace(reverse_mapping)
-    
+
     super_module_dict = {key: values for key, values in super_module_dict.items() if key != -1}
 
-    layer_key = adata.uns['layer_key']
-    model = adata.uns['model']
+    layer_key = adata.uns["layer_key"]
+    model = adata.uns["model"]
 
     use_raw = layer_key == "use_raw"
 
-    umi_counts = adata.uns['umi_counts']
-    
+    umi_counts = adata.uns["umi_counts"]
+
     if verbose:
         print(f"Computing scores for {len(super_module_dict.keys())} super-modules...")
 
@@ -730,10 +732,10 @@ def calculate_super_module_scores(
     gene_loadings_sm = pd.DataFrame(index=adata.var_names)
     gene_modules_sm = {}
     for sm, modules in tqdm(super_module_dict.items()):
-        super_module = f'Module {sm}'
-        modules = [f'Module {str(mod)}' for mod in modules]
+        super_module = f"Module {sm}"
+        modules = [f"Module {str(mod)}" for mod in modules]
         super_module_genes = [item for key in modules for item in gene_modules.get(key, [])]
-        
+
         scores, loadings = compute_scores(
             adata[:, super_module_genes],
             layer_key,
@@ -749,11 +751,11 @@ def calculate_super_module_scores(
         super_module_scores = pd.DataFrame(super_module_scores)
         super_module_scores.index = adata.obs_names if not use_raw else adata.raw.obs.index
 
-        adata.varm['gene_loadings_sm'] = gene_loadings_sm
+        adata.varm["gene_loadings_sm"] = gene_loadings_sm
 
-    adata.obsm['super_module_scores'] = super_module_scores
+    adata.obsm["super_module_scores"] = super_module_scores
     adata.uns["gene_modules_sm"] = gene_modules_sm
 
-    print("Finished computing super-module scores in %.3f seconds" %(time.time()-start))
+    print("Finished computing super-module scores in %.3f seconds" % (time.time() - start))
 
     return

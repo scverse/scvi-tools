@@ -2379,9 +2379,7 @@ def compute_ct_interacting_cell_scores(
 
     cell_com_gp_df = adata.uns["ct_ccc_results"]["cell_com_df_gp_sig"].copy()
     if restrict_significance in ["both", "gene pairs"]:
-        ct_pairs_gp_set = {
-            tuple(x) for x in cell_com_gp_df[["Cell Type 1", "Cell Type 2"]].values
-        }
+        ct_pairs_gp_set = {tuple(x) for x in cell_com_gp_df[["Cell Type 1", "Cell Type 2"]].values}
         cell_type_pairs = [ct_pair for ct_pair in cell_type_pairs if ct_pair in ct_pairs_gp_set]
 
         cell_com_gp_df[["Gene 1", "Gene 2"]] = cell_com_gp_df[["Gene 1", "Gene 2"]].map(
@@ -2395,9 +2393,7 @@ def compute_ct_interacting_cell_scores(
 
     cell_com_m_df = adata.uns["ct_ccc_results"]["cell_com_df_m_sig"].copy()
     if restrict_significance in ["both", "metabolites"]:
-        ct_pairs_m_set = {
-            tuple(x) for x in cell_com_m_df[["Cell Type 1", "Cell Type 2"]].values
-        }
+        ct_pairs_m_set = {tuple(x) for x in cell_com_m_df[["Cell Type 1", "Cell Type 2"]].values}
         missing_ct_pairs = [
             ct_pair for ct_pair in ct_pairs_m_set if ct_pair not in cell_type_pairs
         ]
@@ -3562,7 +3558,9 @@ def get_cell_communication_results_old(
     cell_com_df_gp["Cell Type 1"], cell_com_df_gp["Cell Type 2"] = zip(
         *cell_com_df_gp["cell_type_pair"], strict=False
     )
-    cell_com_df_gp["Gene 1"], cell_com_df_gp["Gene 2"] = zip(*cell_com_df_gp["gene_pair"], strict=False)
+    cell_com_df_gp["Gene 1"], cell_com_df_gp["Gene 2"] = zip(
+        *cell_com_df_gp["gene_pair"], strict=False
+    )
     cell_com_df_gp["Gene 1"] = cell_com_df_gp["Gene 1"].apply(map_to_genes)
     cell_com_df_gp["Gene 2"] = cell_com_df_gp["Gene 2"].apply(map_to_genes)
     cell_com_df_gp = cell_com_df_gp.drop(["cell_type_pair", "gene_pair"], axis=1)

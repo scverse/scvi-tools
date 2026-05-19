@@ -220,8 +220,7 @@ def modify_uns_harreman(adata):
             for x, y in adata.uns["gene_pairs_sig"]
         ]
         gene_pairs_sig_tmp = [
-            (" - ".join(x) if isinstance(x, list | tuple) else x, y)
-            for x, y in gene_pairs_sig_tmp
+            (" - ".join(x) if isinstance(x, list | tuple) else x, y) for x, y in gene_pairs_sig_tmp
         ]
         adata.uns["gene_pairs_sig"] = ["_".join(gp) for gp in gene_pairs_sig_tmp]
 
@@ -271,15 +270,11 @@ def modify_uns_harreman(adata):
 
     if "gene_pairs_per_ct_pair" in adata.uns.keys():
         adata.uns["gene_pairs_per_ct_pair"] = {
-            key: [
-                (x, " - ".join(y) if isinstance(y, list | tuple) else y) for x, y in tuples_list
-            ]
+            key: [(x, " - ".join(y) if isinstance(y, list | tuple) else y) for x, y in tuples_list]
             for key, tuples_list in adata.uns["gene_pairs_per_ct_pair"].items()
         }
         adata.uns["gene_pairs_per_ct_pair"] = {
-            key: [
-                (" - ".join(x) if isinstance(x, list | tuple) else x, y) for x, y in tuples_list
-            ]
+            key: [(" - ".join(x) if isinstance(x, list | tuple) else x, y) for x, y in tuples_list]
             for key, tuples_list in adata.uns["gene_pairs_per_ct_pair"].items()
         }
         adata.uns["gene_pairs_per_ct_pair"] = {
@@ -342,9 +337,9 @@ def modify_uns_harreman(adata):
         adata.uns["ccc_results"]["cell_com_df_gp"] = adata.uns["ccc_results"][
             "cell_com_df_gp"
         ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
-        adata.uns["ccc_results"]["cell_com_df_m"] = adata.uns["ccc_results"][
-            "cell_com_df_m"
-        ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+        adata.uns["ccc_results"]["cell_com_df_m"] = adata.uns["ccc_results"]["cell_com_df_m"].map(
+            lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x
+        )
         if "cell_com_df_gp_sig" in adata.uns["ccc_results"].keys():
             adata.uns["ccc_results"]["cell_com_df_gp_sig"] = adata.uns["ccc_results"][
                 "cell_com_df_gp_sig"

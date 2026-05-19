@@ -11,7 +11,7 @@ import scvi.external.harreman.tools as tl
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 
 
-@pytest.fixture()
+@pytest.fixture
 def adata_spatial():
     n_obs = 50
     n_vars = 20
@@ -36,20 +36,19 @@ def adata_with_modules(adata_spatial):
     return adata_spatial
 
 
-@pytest.fixture()
+@pytest.fixture
 def adata_with_graph(adata_spatial):
     tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5)
     return adata_spatial
 
 
-@pytest.fixture()
+@pytest.fixture
 def adata_with_autocorrelation(adata_with_graph):
     hs.compute_local_autocorrelation(adata_with_graph, model="danb")
     return adata_with_graph
 
 
 # ── KNN graph ─────────────────────────────────────────────────────────────────
-
 
 
 def test_compute_knn_graph_n_neighbors(adata_spatial):
@@ -60,7 +59,9 @@ def test_compute_knn_graph_n_neighbors(adata_spatial):
 
 
 def test_compute_knn_graph_weighted(adata_spatial):
-    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, weighted_graph=True)
+    tl.compute_knn_graph(
+        adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, weighted_graph=True
+    )
     assert "weights" in adata_spatial.obsp
     assert adata_spatial.obsp["weights"].nnz > 0
 
@@ -74,7 +75,9 @@ def test_compute_knn_graph_neighborhood_radius(adata_spatial):
 
 
 def test_compute_knn_graph_with_sample_key(adata_spatial):
-    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, sample_key="sample")
+    tl.compute_knn_graph(
+        adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, sample_key="sample"
+    )
     assert "distances" in adata_spatial.obsp
     assert adata_spatial.uns["sample_key"] == "sample"
 
@@ -89,11 +92,13 @@ def test_compute_knn_graph_from_distances(adata_spatial):
 
 def test_compute_knn_graph_missing_key(adata_spatial):
     with pytest.raises(ValueError, match="not found in adata.obsm"):
-        tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="nonexistent_key", n_neighbors=5)
+        tl.compute_knn_graph(
+            adata_spatial, compute_neighbors_on_key="nonexistent_key", n_neighbors=5
+        )
 
 
 def test_compute_knn_graph_no_neighbors_raises(adata_spatial):
-    with pytest.raises(ValueError, match="Either \'n_neighbors\' or \'neighborhood_radius\'"):
+    with pytest.raises(ValueError, match="Either 'n_neighbors' or 'neighborhood_radius'"):
         tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial")
 
 
@@ -177,7 +182,9 @@ def test_compute_local_correlation_result_shape(adata_with_autocorrelation):
 
 def test_compute_local_correlation_permutation_test(adata_with_autocorrelation):
     genes = adata_with_autocorrelation.var_names[:4].tolist()
-    hs.compute_local_correlation(adata_with_autocorrelation, genes=genes, permutation_test=True, M=5)
+    hs.compute_local_correlation(
+        adata_with_autocorrelation, genes=genes, permutation_test=True, M=5
+    )
     assert "lc_perm_pvals" in adata_with_autocorrelation.uns
     assert "lc_perm_pvals_sym" in adata_with_autocorrelation.uns
 

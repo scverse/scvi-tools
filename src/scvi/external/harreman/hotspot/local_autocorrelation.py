@@ -376,6 +376,3 @@ def standardize_counts(adata, counts, model, num_umi, sample_specific):
         counts = center_counts_torch(counts, num_umi, model)
 
     return counts
-
-
-
