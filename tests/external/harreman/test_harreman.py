@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from anndata import AnnData
 
-import scvi.external.harreman.hotspot as hs
 import scvi.external.harreman.tools as tl
+import scvi.external.harreman.hotspot as hs
 
 
 @pytest.fixture
@@ -22,6 +22,16 @@ def adata_spatial():
     return AnnData(X=X, obs=obs, var=var, obsm=obsm)
 
 
+@pytest.fixture
+def adata_with_modules(adata_spatial):
+    """AnnData with KNN graph, autocorrelation and local correlation computed."""
+    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5)
+    hs.compute_local_autocorrelation(adata_spatial, model="danb")
+    genes = adata_spatial.var_names[:10].tolist()
+    hs.compute_local_correlation(adata_spatial, genes=genes)
+    return adata_spatial
+
+
 def test_compute_knn_graph_n_neighbors(adata_spatial):
     tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5)
     assert "distances" in adata_spatial.obsp
@@ -30,29 +40,23 @@ def test_compute_knn_graph_n_neighbors(adata_spatial):
 
 
 def test_compute_knn_graph_weighted(adata_spatial):
-    tl.compute_knn_graph(
-        adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, weighted_graph=True
-    )
+    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, weighted_graph=True)
     assert "weights" in adata_spatial.obsp
     assert adata_spatial.obsp["weights"].nnz > 0
 
 
 def test_compute_knn_graph_with_sample_key(adata_spatial):
-    tl.compute_knn_graph(
-        adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, sample_key="sample"
-    )
+    tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5, sample_key="sample")
     assert "distances" in adata_spatial.obsp
 
 
 def test_compute_knn_graph_missing_key(adata_spatial):
     with pytest.raises(ValueError, match="not found in adata.obsm"):
-        tl.compute_knn_graph(
-            adata_spatial, compute_neighbors_on_key="nonexistent_key", n_neighbors=5
-        )
+        tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="nonexistent_key", n_neighbors=5)
 
 
 def test_compute_knn_graph_no_neighbors_raises(adata_spatial):
-    with pytest.raises(ValueError, match="Either 'n_neighbors' or 'neighborhood_radius'"):
+    with pytest.raises(ValueError, match="Either \'n_neighbors\' or \'neighborhood_radius\'"):
         tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial")
 
 
@@ -67,7 +71,24 @@ def test_compute_local_autocorrelation(adata_spatial):
 def test_compute_local_correlation(adata_spatial):
     tl.compute_knn_graph(adata_spatial, compute_neighbors_on_key="spatial", n_neighbors=5)
     hs.compute_local_autocorrelation(adata_spatial, model="danb")
-    # Pass genes explicitly to avoid empty selection from FDR filtering
     genes = adata_spatial.var_names[:5].tolist()
     hs.compute_local_correlation(adata_spatial, genes=genes)
     assert "lc_zs" in adata_spatial.uns
+
+
+def test_create_modules(adata_with_modules):
+    hs.create_modules(adata_with_modules, min_gene_threshold=2)
+    assert "gene_modules_dict" in adata_with_modules.uns
+    assert "modules" in adata_with_modules.uns
+    assert isinstance(adata_with_modules.uns["gene_modules_dict"], dict)
+
+
+def test_calculate_module_scores(adata_with_modules):
+    hs.create_modules(adata_with_modules, min_gene_threshold=2)
+    # Only run if at least one real module was found (not just -1)
+    modules = adata_with_modules.uns["gene_modules_dict"]
+    real_modules = {k: v for k, v in modules.items() if k != "-1"}
+    if len(real_modules) == 0:
+        pytest.skip("No modules found with synthetic data")
+    hs.calculate_module_scores(adata_with_modules)
+    assert "module_scores" in adata_with_modules.obsm

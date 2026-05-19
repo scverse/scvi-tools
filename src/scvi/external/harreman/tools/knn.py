@@ -92,7 +92,6 @@ def compute_knn_graph(
             compute_neighbors_from_distances(
                 adata,
                 distances_obsp_key,
-                n_neighbors,
                 sample_key,
                 verbose,
             )

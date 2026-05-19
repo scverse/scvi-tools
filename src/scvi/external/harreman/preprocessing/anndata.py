@@ -82,7 +82,7 @@ def setup_anndata(
         if hasattr(out_adata.X, "A1")
         else out_adata.X.sum(axis=1) > 0
     )
-    out_adata._inplace_subset_obs(nonzero_mask)
+    out_adata = out_adata[nonzero_mask].copy()
 
     return out_adata
 
@@ -340,32 +340,32 @@ def modify_uns_harreman(adata):
     if "ccc_results" in adata.uns.keys():
         adata.uns["ccc_results"]["cell_com_df_gp"] = adata.uns["ccc_results"][
             "cell_com_df_gp"
-        ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+        ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
         adata.uns["ccc_results"]["cell_com_df_m"] = adata.uns["ccc_results"][
             "cell_com_df_m"
-        ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+        ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
         if "cell_com_df_gp_sig" in adata.uns["ccc_results"].keys():
             adata.uns["ccc_results"]["cell_com_df_gp_sig"] = adata.uns["ccc_results"][
                 "cell_com_df_gp_sig"
-            ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+            ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
             adata.uns["ccc_results"]["cell_com_df_m_sig"] = adata.uns["ccc_results"][
                 "cell_com_df_m_sig"
-            ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+            ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
 
     if "ct_ccc_results" in adata.uns.keys():
         adata.uns["ct_ccc_results"]["cell_com_df_gp"] = adata.uns["ct_ccc_results"][
             "cell_com_df_gp"
-        ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+        ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
         adata.uns["ct_ccc_results"]["cell_com_df_m"] = adata.uns["ct_ccc_results"][
             "cell_com_df_m"
-        ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+        ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
         if "cell_com_df_gp_sig" in adata.uns["ct_ccc_results"].keys():
             adata.uns["ct_ccc_results"]["cell_com_df_gp_sig"] = adata.uns["ct_ccc_results"][
                 "cell_com_df_gp_sig"
-            ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+            ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
             adata.uns["ct_ccc_results"]["cell_com_df_m_sig"] = adata.uns["ct_ccc_results"][
                 "cell_com_df_m_sig"
-            ].applymap(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
+            ].map(lambda x: " - ".join(x) if isinstance(x, (list, tuple)) else x)
 
     return
 
@@ -554,13 +554,13 @@ def recover_uns_harreman(adata):
         for key in ["cell_com_df_gp", "cell_com_df_m", "cell_com_df_gp_sig", "cell_com_df_m_sig"]:
             if key in adata.uns["ccc_results"]:
                 df = adata.uns["ccc_results"][key]
-                adata.uns["ccc_results"][key] = df.applymap(restore_list)
+                adata.uns["ccc_results"][key] = df.map(restore_list)
 
     if "ct_ccc_results" in adata.uns:
         for key in ["cell_com_df_gp", "cell_com_df_m", "cell_com_df_gp_sig", "cell_com_df_m_sig"]:
             if key in adata.uns["ct_ccc_results"]:
                 df = adata.uns["ct_ccc_results"][key]
-                adata.uns["ct_ccc_results"][key] = df.applymap(restore_list)
+                adata.uns["ct_ccc_results"][key] = df.map(restore_list)
 
     return
 

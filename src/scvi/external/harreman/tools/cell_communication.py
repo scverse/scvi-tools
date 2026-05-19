@@ -1902,7 +1902,7 @@ def compute_interacting_cell_scores(
 
     if restrict_significance in ["both", "gene pairs"]:
         cell_com_gp_df = adata.uns["ccc_results"]["cell_com_df_gp_sig"].copy()
-        cell_com_gp_df[["Gene 1", "Gene 2"]] = cell_com_gp_df[["Gene 1", "Gene 2"]].applymap(
+        cell_com_gp_df[["Gene 1", "Gene 2"]] = cell_com_gp_df[["Gene 1", "Gene 2"]].map(
             lambda x: tuple(x) if isinstance(x, list) else x
         )
 
@@ -2389,7 +2389,7 @@ def compute_ct_interacting_cell_scores(
         )
         cell_type_pairs = [ct_pair for ct_pair in cell_type_pairs if ct_pair in ct_pairs_gp_set]
 
-        cell_com_gp_df[["Gene 1", "Gene 2"]] = cell_com_gp_df[["Gene 1", "Gene 2"]].applymap(
+        cell_com_gp_df[["Gene 1", "Gene 2"]] = cell_com_gp_df[["Gene 1", "Gene 2"]].map(
             lambda x: tuple(x) if isinstance(x, list) else x
         )
 

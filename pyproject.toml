@@ -55,7 +55,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-harreman = ["pooch"]
 tests = ["pytest", "pytest-pretty", "coverage", "scvi-tools[optional]"]
 editing = ["jupyter", "pre-commit"]
 dev = ["scvi-tools[editing,tests]"]

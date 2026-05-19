@@ -45,7 +45,7 @@ __all__ = [
     "SCVIVA",
     "CYTOVI",
     "DIAGVI",
-    "harreman",
+    "Harreman",
 ]
 
 

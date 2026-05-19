@@ -1,5 +1,4 @@
 import time
-import os
 import pooch
 from typing import Literal
 
@@ -51,15 +50,15 @@ def compute_local_autocorrelation(
     database_varm_key: str | None = None,
     model: str | None = None,
     genes: list | None = None,
-    use_metabolic_genes: bool | None = False,
+    use_metabolic_genes: bool = False,
     species: Literal["mouse"] | Literal["human"] | None = "mouse",
     umi_counts_obs_key: str | None = None,
-    permutation_test: bool | None = False,
+    permutation_test: bool = False,
     M: int | None = 1000,
     seed: int | None = 42,
-    check_analytic_null: bool | None = False,
+    check_analytic_null: bool = False,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    verbose: bool | None = False,
+    verbose: bool = False,
 ):
     """
     Computes gene-level spatial autocorrelation statistics using spatial weights and centered gene expression values.
@@ -480,43 +479,3 @@ def standardize_counts(adata, counts, model, num_umi, sample_specific):
     return counts
 
 
-def compute_communication_autocorrelation(adata, spatial_coords_obsm_key):
-    """Computes Geary's C for numerical data."""
-    metab_scores_df = adata.obsm["metabolite_scores"]
-    gene_pair_scores_df = adata.obsm["gene_pair_scores"]
-
-    # Compute autocorrelation on the metabolite scores
-
-    metab_adata = AnnData(metab_scores_df)
-    metab_adata.obsm[spatial_coords_obsm_key] = adata.obsm[spatial_coords_obsm_key]
-
-    metab_adata.obsm["neighbors_sort"] = adata.obsm["neighbors_sort"]
-    metab_adata.obsp["weights"] = adata.obsp["weights"]
-
-    compute_local_autocorrelation(
-        metab_adata,
-        model="none",
-        jobs=1,
-    )
-
-    adata.uns["metabolite_autocorrelation_results"] = metab_adata.uns[
-        "gene_autocorrelation_results"
-    ]
-
-    # Compute autocorrelation on the gene pair scores
-
-    gene_pair_adata = AnnData(gene_pair_scores_df)
-    gene_pair_adata.obsm[spatial_coords_obsm_key] = adata.obsm[spatial_coords_obsm_key]
-
-    gene_pair_adata.obsm["neighbors_sort"] = adata.obsm["neighbors_sort"]
-    gene_pair_adata.obsp["weights"] = adata.obsp["weights"]
-
-    compute_local_autocorrelation(
-        gene_pair_adata,
-        model="none",
-        jobs=1,
-    )
-
-    adata.uns["gene_pair_autocorrelation_results"] = gene_pair_adata.uns[
-        "gene_autocorrelation_results"
-    ]
