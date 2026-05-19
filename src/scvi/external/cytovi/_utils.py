@@ -29,8 +29,14 @@ def _knn_query(
         nn.fit(rep_ref)
         distances, indices = nn.kneighbors(rep_query)
         return indices, distances
-    except ImportError:
-        pass
+    except Exception as e:  # noqa: BLE001
+        if not isinstance(e, ImportError):
+            warnings.warn(
+                f"cuML NearestNeighbors failed ({type(e).__name__}: {e}); "
+                f"falling back to pynndescent.",
+                UserWarning,
+                stacklevel=2,
+            )
     try:
         import pynndescent
 

@@ -10,6 +10,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Added
 
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add {class}`scvi.external.CytoVI` KNN imputation backend option to be cuML, {pr}`3821`.
 
 #### Fixed
 
