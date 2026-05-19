@@ -10,7 +10,36 @@ if TYPE_CHECKING:
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 
 from scvi import settings
-from scvi.utils import dependencies
+
+
+def _knn_query(
+    rep_ref: np.ndarray,
+    rep_query: np.ndarray,
+    n_neighbors: int,
+    metric: str = "euclidean",
+) -> tuple[np.ndarray, np.ndarray]:
+    """KNN query using cuml (rapids) if available, else pynndescent.
+
+    Returns (indices, distances) as numpy arrays, shape (n_query, n_neighbors).
+    """
+    try:
+        from cuml.neighbors import NearestNeighbors as CuNearestNeighbors
+
+        nn = CuNearestNeighbors(n_neighbors=n_neighbors, metric=metric, output_type="numpy")
+        nn.fit(rep_ref)
+        distances, indices = nn.kneighbors(rep_query)
+        return indices, distances
+    except ImportError:
+        pass
+    try:
+        import pynndescent
+
+        nn_index = pynndescent.NNDescent(rep_ref, n_neighbors=n_neighbors, metric=metric)
+        return nn_index.query(rep_query, k=n_neighbors)
+    except ImportError:
+        raise ModuleNotFoundError(
+            "Install 'pynndescent' or 'rapids-singlecell[rapids]' for neighbor-based imputation."
+        ) from None
 
 
 def validate_marker(adata: AnnData, marker: str | list[str]):
@@ -85,19 +114,16 @@ def encode_categories(adata, cat_key):
     return ohe.fit_transform(adata.obs[cat_key].values.reshape(-1, 1)), ohe
 
 
-@dependencies("pynndescent")
 def impute_cats_with_neighbors(
     rep_query, rep_ref, cat_encoded_ref, n_neighbors=5, compute_uncertainty=False
 ):
-    """Use pynndescent to find nearest neighbors and impute missing categories."""
-    import pynndescent
+    """Find nearest neighbors and impute missing categories.
 
-    nn_index = pynndescent.NNDescent(rep_ref, n_neighbors=n_neighbors, metric="euclidean")
-
-    indices, distances = nn_index.query(rep_query, k=n_neighbors)
-    neighbor_categories = cat_encoded_ref[indices]  # Shape: (n_query, n_neighbors, n_categories)
-
-    category_sums = np.sum(neighbor_categories, axis=1)  # Shape: (n_query, n_categories)
+    Uses cuml (rapids) if available, falls back to pynndescent.
+    """
+    indices, _ = _knn_query(rep_ref, rep_query, n_neighbors)
+    neighbor_categories = cat_encoded_ref[indices]  # (n_query, n_neighbors, n_categories)
+    category_sums = np.sum(neighbor_categories, axis=1)  # (n_query, n_categories)
 
     if compute_uncertainty:
         category_prop = category_sums / np.sum(category_sums, axis=1, keepdims=True)
@@ -105,32 +131,24 @@ def impute_cats_with_neighbors(
     else:
         uncertainty = None
 
-    imputed_cat_indices = np.argmax(category_sums, axis=1)  # Shape: (n_query,)
-
+    imputed_cat_indices = np.argmax(category_sums, axis=1)  # (n_query,)
     return imputed_cat_indices, uncertainty
 
 
-@dependencies("pynndescent")
 def impute_expr_with_neighbors(
     rep_query, rep_ref, expr_data_ref, n_neighbors=5, compute_uncertainty=False
 ):
-    """Use pynndescent to find nearest neighbors and impute missing expression."""
-    import pynndescent
+    """Find nearest neighbors and impute missing expression.
 
-    nn_index = pynndescent.NNDescent(rep_ref, n_neighbors=n_neighbors, metric="euclidean")
-
-    indices, distances = nn_index.query(rep_query, k=n_neighbors)
-    neighbor_expr = expr_data_ref[indices]  # Shape: (n_query, n_neighbors, expr_dim)
-
-    imputed_expr = np.mean(neighbor_expr, axis=1)  # Shape: (n_query, expr_dim)
-
-    if compute_uncertainty:  # note: not implemented yet
+    Uses cuml (rapids) if available, falls back to pynndescent.
+    """
+    if compute_uncertainty:
         raise NotImplementedError("Uncertainty not implemented yet.")
-        uncertainty = None
-    else:
-        uncertainty = None
 
-    return imputed_expr, uncertainty
+    indices, _ = _knn_query(rep_ref, rep_query, n_neighbors)
+    neighbor_expr = expr_data_ref[indices]  # (n_query, n_neighbors, expr_dim)
+    imputed_expr = np.mean(neighbor_expr, axis=1)  # (n_query, expr_dim)
+    return imputed_expr, None
 
 
 def log_median(x, axis=1):
