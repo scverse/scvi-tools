@@ -1,5 +1,4 @@
 import time
-import os
 import pooch
 from typing import Literal
 
@@ -51,15 +50,15 @@ def compute_local_autocorrelation(
     database_varm_key: str | None = None,
     model: str | None = None,
     genes: list | None = None,
-    use_metabolic_genes: bool | None = False,
+    use_metabolic_genes: bool = False,
     species: Literal["mouse"] | Literal["human"] | None = "mouse",
     umi_counts_obs_key: str | None = None,
-    permutation_test: bool | None = False,
+    permutation_test: bool = False,
     M: int | None = 1000,
     seed: int | None = 42,
-    check_analytic_null: bool | None = False,
+    check_analytic_null: bool = False,
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    verbose: bool | None = False,
+    verbose: bool = False,
 ):
     """
     Computes gene-level spatial autocorrelation statistics using spatial weights and centered gene expression values.
