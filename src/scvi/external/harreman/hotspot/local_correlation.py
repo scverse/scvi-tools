@@ -268,20 +268,6 @@ def local_cov_pair(x, y, neighbors, weights):
 
 
 @jit(nopython=True)
-def local_cov_pair_fast(counts, weights):
-    """Test statistic for local pair-wise autocorrelation"""
-    counts_t = counts.transpose()
-    weights_t = weights.transpose()
-
-    lc_1 = sparse.einsum("ik,kl,lj->ij", counts, weights, counts_t)
-    lc_2 = sparse.einsum("ik,kl,lj->ij", counts, weights_t, counts_t)
-    lc = lc_1 + lc_2
-
-    # lc = counts @ weights @ counts.T + counts @ weights.T @ counts.T
-
-    return lc
-
-
 def create_centered_counts_torch(counts, model, num_umi, device, eps=1e-10):
     """
     Vectorized PyTorch version of centered counts transformation.
@@ -309,8 +295,8 @@ def create_centered_counts_torch(counts, model, num_umi, device, eps=1e-10):
         model_fn = models.normal_model_torch
     elif model == "none":
         # Center only (no variance normalization)
-        mu = vals.mean(dim=1, keepdim=True)
-        return counts - mu
+        mu = counts.double().mean(dim=1, keepdim=True)
+        return counts.double() - mu
     else:
         raise ValueError(f"Invalid model type: {model}")
 

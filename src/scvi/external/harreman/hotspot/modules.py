@@ -1,5 +1,5 @@
 import time
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import pandas as pd
@@ -618,68 +618,14 @@ def compute_sig_mod_correlation(adata, method, use_super_modules):
     return cor_coef_df, cor_pval_df, cor_FDR_df
 
 
-def integrate_vision_hotspot_results(
-    adata: AnnData,
-    cor_method: Literal["pearson"] | Literal["spearman"] | None = "pearson",
-    use_super_modules: bool | None = False,
-):
 
-    gene_modules_key = "gene_modules_sm" if use_super_modules else "gene_modules"
 
-    if ("vision_signatures" in adata.obsm) and (len(adata.uns[gene_modules_key].keys()) > 0):
-        start = time.time()
-        print("Integrating VISION and Hotspot results...")
-
-        norm_data_key = adata.uns["norm_data_key"]
-        signature_varm_key = adata.uns["signature_varm_key"]
-
-        pvals_df, stats_df, FDR_df = compute_sig_mod_enrichment(
-            adata, norm_data_key, signature_varm_key, use_super_modules
-        )
-        adata.uns["sig_mod_enrichment_stats"] = stats_df
-        adata.uns["sig_mod_enrichment_pvals"] = pvals_df
-        adata.uns["sig_mod_enrichment_FDR"] = FDR_df
-
-        if cor_method not in ["pearson", "spearman"]:
-            raise ValueError(
-                f'Invalid method: {cor_method}. Choose either "pearson" or "spearman".'
-            )
-
-        adata.uns["cor_method"] = cor_method
-
-        cor_coef_df, cor_pval_df, cor_FDR_df = compute_sig_mod_correlation(
-            adata, cor_method, use_super_modules
-        )
-        adata.uns["sig_mod_correlation_coefs"] = cor_coef_df
-        adata.uns["sig_mod_correlation_pvals"] = cor_pval_df
-        adata.uns["sig_mod_correlation_FDR"] = cor_FDR_df
-
-        from scvi.external.harreman.vision.signature import compute_signatures_anndata
-
-        adata.obsm["signature_modules_overlap"] = compute_signatures_anndata(
-            adata,
-            norm_data_key,
-            signature_varm_key="signatures_overlap",
-            signature_names_uns_key=None,
-        )
-
-        print(
-            "Finished integrating VISION and Hotspot results in %.3f seconds"
-            % (time.time() - start)
-        )
-
-    else:
-        raise ValueError(
-            "Please make sure VISION has been run and Hotspot has identified at least one module."
-        )
-
-    return
 
 
 def compute_top_scoring_modules(
     adata: AnnData,
-    sd: float | None = 1,
-    use_super_modules: bool | None = False,
+    sd: Optional[float] = 1,
+    use_super_modules: Optional[bool] = False,
 ):
     """
     Identify the top-scoring module (or super-module) for each cell.
@@ -688,7 +634,7 @@ def compute_top_scoring_modules(
     ----------
     adata : AnnData
         Must contain a matrix of module or super-module scores in:
-        - ``obsm['module_scores']`` or
+        - ``obsm['module_scores']`` or  
         - ``obsm['super_module_scores']``
     sd : float, default 1
         Standard deviation threshold to determine strong module activation.
@@ -702,38 +648,31 @@ def compute_top_scoring_modules(
         A Series indexed by cell, containing the name of the top-scoring
         module/super-module for each cell.
     """
-    MODULE_KEY = "super_module_scores" if use_super_modules else "module_scores"
+    
+    MODULE_KEY = 'super_module_scores' if use_super_modules else 'module_scores'
+    
+    df = pd.DataFrame(zscore(adata.obsm[MODULE_KEY], axis=0), 
+                      index=adata.obsm[MODULE_KEY].index, 
+                      columns=adata.obsm[MODULE_KEY].columns)
 
-    df = pd.DataFrame(
-        zscore(adata.obsm[MODULE_KEY], axis=0),
-        index=adata.obsm[MODULE_KEY].index,
-        columns=adata.obsm[MODULE_KEY].columns,
-    )
-
-    top_scoring_modules = pd.Series(index=df.index)
+    top_scoring_modules = pd.Series(index = df.index)
     for mod_id, row in df.iterrows():
         above_threshold_low = row > 0
         above_threshold = row > sd
         if above_threshold.sum() == 1:
             top_scoring_modules[mod_id] = above_threshold.idxmax()
         else:
-            highest_module = (
-                row[above_threshold].idxmax()
-                if above_threshold.sum() > 1
-                else row.idxmax()
-                if above_threshold_low.sum() > 0
-                else np.nan
-            )
+            highest_module = row[above_threshold].idxmax() if above_threshold.sum() > 1 else row.idxmax() if above_threshold_low.sum() > 0 else np.nan
             top_scoring_modules[mod_id] = highest_module
-
+        
     return top_scoring_modules
 
 
 def calculate_super_module_scores(
     adata: AnnData,
     super_module_dict: dict = None,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    verbose: bool | None = False,
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    verbose: Optional[bool] = False,
 ):
     """
     Calculate super-module scores for gene super-modules across cells.
@@ -761,22 +700,23 @@ def calculate_super_module_scores(
         - `adata.varm['gene_loadings_sm']`: (genes x super-modules) DataFrame with gene loadings for each super-module
         - `adata.uns['gene_modules_sm']`: dictionary mapping super-module names to gene lists
     """
+
     start = time.time()
 
     gene_modules = adata.uns["gene_modules"]
-
+    
     reverse_mapping = {value: key for key, values in super_module_dict.items() for value in values}
     adata.uns["super_modules"] = adata.uns["modules"].replace(reverse_mapping)
-
+    
     super_module_dict = {key: values for key, values in super_module_dict.items() if key != -1}
 
-    layer_key = adata.uns["layer_key"]
-    model = adata.uns["model"]
+    layer_key = adata.uns['layer_key']
+    model = adata.uns['model']
 
     use_raw = layer_key == "use_raw"
 
-    umi_counts = adata.uns["umi_counts"]
-
+    umi_counts = adata.uns['umi_counts']
+    
     if verbose:
         print(f"Computing scores for {len(super_module_dict.keys())} super-modules...")
 
@@ -784,10 +724,10 @@ def calculate_super_module_scores(
     gene_loadings_sm = pd.DataFrame(index=adata.var_names)
     gene_modules_sm = {}
     for sm, modules in tqdm(super_module_dict.items()):
-        super_module = f"Module {sm}"
-        modules = [f"Module {str(mod)}" for mod in modules]
+        super_module = f'Module {sm}'
+        modules = [f'Module {str(mod)}' for mod in modules]
         super_module_genes = [item for key in modules for item in gene_modules.get(key, [])]
-
+        
         scores, loadings = compute_scores(
             adata[:, super_module_genes],
             layer_key,
@@ -803,11 +743,11 @@ def calculate_super_module_scores(
         super_module_scores = pd.DataFrame(super_module_scores)
         super_module_scores.index = adata.obs_names if not use_raw else adata.raw.obs.index
 
-        adata.varm["gene_loadings_sm"] = gene_loadings_sm
+        adata.varm['gene_loadings_sm'] = gene_loadings_sm
 
-    adata.obsm["super_module_scores"] = super_module_scores
+    adata.obsm['super_module_scores'] = super_module_scores
     adata.uns["gene_modules_sm"] = gene_modules_sm
 
-    print("Finished computing super-module scores in %.3f seconds" % (time.time() - start))
+    print("Finished computing super-module scores in %.3f seconds" %(time.time()-start))
 
     return
