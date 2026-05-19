@@ -1,4 +1,5 @@
 import time
+from numba import jit
 
 import numpy as np
 import pandas as pd
