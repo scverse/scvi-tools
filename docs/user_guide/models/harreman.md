@@ -1,19 +1,19 @@
 # Harreman
 
-**Harreman** (`scvi.external.harreman`) is a toolkit for inferring metabolic exchanges and cell-cell communication in tissues using spatial transcriptomics data.
+**Harreman** (`scvi.external.harreman`) is a framework for inferring metabolic exchanges and cell-cell communication in tissues using spatial transcriptomics data.
 
-The advantages of Harreman are:
+The advantages of Harreman include:
 
-- Infers spatially-resolved metabolic gene programs using local autocorrelation
-- Identifies cell-cell metabolic communication and ligand-receptor interactions using spatial proximity graphs
-- Supports multiple spatial technologies (Visium, Slide-seq, and others)
-- Scalable to large spatial datasets
-- Supports both parametric and non-parametric significance testing
+-   Inference of spatially-resolved metabolic gene programs using local autocorrelation.
+-   Identification of cell-cell metabolic communication and ligand-receptor interactions using spatial proximity graphs.
+-   Support for multiple spatial technologies (Visium, Slide-seq, and others).
+-   Scalability to large spatial datasets.
+-   Support for both parametric and non-parametric significance testing.
 
 The limitations of Harreman include:
 
-- Requires spatial coordinates to be available in `adata.obsm`
-- Cell communication inference requires a ligand-receptor or metabolite transporter database
+-   Requires spatial coordinates to be available in `adata.obsm["spatial"]`.
+-   Cell communication inference requires a ligand-receptor or metabolite transporter database.
 
 ```{topic} Tutorials:
 
@@ -30,17 +30,15 @@ The limitations of Harreman include:
 
 Harreman operates in three main steps:
 
-1. **Spatial graph construction** ({func}`~scvi.external.harreman.tl.compute_knn_graph`): builds a spatial proximity graph from cell coordinates, supporting both k-nearest neighbors and radius-based neighborhoods, with optional Gaussian kernel weighting.
-
-2. **Local autocorrelation** ({func}`~scvi.external.harreman.hs.compute_local_autocorrelation`): identifies spatially variable genes using the local autocorrelation statistic from the Hotspot algorithm (DeTomaso and Yosef, *Cell systems*, 2021), supporting DANB, Bernoulli, and normal count models.
-
-3. **Cell communication** ({func}`~scvi.external.harreman.tl.compute_cell_communication`): infers spatially-resolved metabolic exchanges and ligand-receptor interactions between neighboring cells using HarremanDB and CellChatDB.
+1.  **Spatial graph construction** ({func}`~scvi.external.harreman.tl.compute_knn_graph`): Builds a spatial proximity graph from cell coordinates, supporting both k-nearest neighbors and radius-based neighborhoods, with optional Gaussian kernel weighting.
+2.  **Local autocorrelation** ({func}`~scvi.external.harreman.hs.compute_local_autocorrelation`): Identifies spatially variable genes using the local autocorrelation statistic from the Hotspot algorithm (DeTomaso and Yosef, *Cell Systems*, 2021), supporting DANB, Bernoulli, and normal count models.
+3.  **Cell communication** ({func}`~scvi.external.harreman.tl.compute_cell_communication`): Infers spatially-resolved metabolic exchanges and ligand-receptor interactions between neighboring cells using HarremanDB and CellChatDB.
 
 ## Generative process
 
-At the coarsest level, Harreman partitions the tissue into modules of different metabolic functions based on enzyme co-expression. At the following stage, Harreman formulates hypotheses about which metabolites are exchanged across the tissue or within each spatial zone. Moving to a finer resolution, Harreman can also infer which specific cell subsets participate in the exchange of distinct metabolic activities inside each zone.
+At the coarsest level, Harreman partitions the tissue into modules of different metabolic functions based on enzyme co-expression. In the next stage, Harreman formulates hypotheses about which metabolites are exchanged across the tissue or within each spatial zone. Finally, at a finer resolution, Harreman can also infer which specific cell subsets participate in the exchange of distinct metabolic activities within each zone.
 
-For proteins composed of multiple subunits, Harreman computes either an algebraic or geometric mean of the expression values of the corresponding genes:
+For proteins composed of multiple subunits, Harreman computes either an arithmetic or geometric mean of the expression values of the corresponding genes:
 
 ```{math}
 :nowrap: true

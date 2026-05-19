@@ -10,6 +10,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Added
 
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add {mod}`scvi.external.harreman` for inference of metabolic exchanges in tissues using
+    spatial transcriptomics {pr}`3806`.
 
 #### Fixed
 
@@ -25,7 +27,6 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 
 #### Added
 
-- Add {mod}`scvi.external.harreman` for inference of metabolic exchanges in tissues using spatial transcriptomics {pr}`XXXX`.
 - Add support for Python 3.14, {pr}`3563`.
 - Add support for Pandas3, {pr}`3638`.
 - Add {class}`scvi.external.DIAGVI` for integrating unpaired single-cell datasets, {pr}`3575`.

@@ -7,7 +7,7 @@ from numba import jit, njit
 
 
 def danb_model(gene_counts, umi_counts):
-
+    """Compute DANB (Depth-Adjusted Negative Binomial) model mean, variance, and second moment."""
     tj = gene_counts.sum()
     tis = umi_counts
     total = tis.sum()
@@ -77,7 +77,7 @@ def danb_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor, eps: float 
 
 
 def ct_danb_model(gene_counts, umi_counts, cell_types):
-
+    """Compute cell-type-specific DANB model mean, variance, and second moment."""
     mu_ct = np.zeros(len(cell_types))
     var_ct = np.zeros(len(cell_types))
     x2_ct = np.zeros(len(cell_types))
@@ -133,7 +133,7 @@ def find_gene_p(num_umi, D):
     if D == 0:
         return 0
 
-    for ITER in range(40):
+    for _ITER in range(40):
         attempt = (high * low) ** 0.5
         tot = 0
 
@@ -151,34 +151,8 @@ def find_gene_p(num_umi, D):
     return (high * low) ** 0.5
 
 
-def bernoulli_model_scaled(gene_detects, umi_counts):
-
-    D = gene_detects.sum()
-
-    gene_p = find_gene_p(umi_counts, D)
-
-    detect_p = 1 - (1 - gene_p) ** umi_counts
-
-    mu = detect_p
-    var = detect_p * (1 - detect_p)
-    x2 = detect_p
-
-    return mu, var, x2
-
-
-def true_params_scaled(gene_p, umi_counts):
-
-    detect_p = 1 - (1 - gene_p / 10000) ** umi_counts
-
-    mu = detect_p
-    var = detect_p * (1 - detect_p)
-    x2 = detect_p
-
-    return mu, var, x2
-
-
 def bernoulli_model_linear(gene_detects, umi_counts):
-
+    """Compute Bernoulli model mean, variance, and second moment via logit-linear regression."""
     # We modify the 0 UMI counts to 1e-10 to remove the NaN values from the qcut output.
     umi_counts[umi_counts == 0] = 1e-10
 
@@ -263,64 +237,25 @@ def bernoulli_model_linear_torch(gene_detects, umi_counts, n_bins=30, eps=1e-10)
     return mu, var, x2
 
 
-def ct_bernoulli_model_linear(gene_detects, umi_counts, cell_types):
-
-    mu_ct = np.zeros(len(cell_types))
-    var_ct = np.zeros(len(cell_types))
-    x2_ct = np.zeros(len(cell_types))
-
-    for cell_type in np.unique(cell_types):
-        gene_detects_ct = gene_detects[cell_types == cell_type]
-        umi_counts_ct = umi_counts[cell_types == cell_type]
-
-        # We modify the 0 UMI counts to 1e-10 to remove the NaN values from the qcut output.
-        umi_counts_ct[umi_counts_ct == 0] = 1e-10
-
-        umi_count_bins, bins = pd.qcut(
-            np.log10(umi_counts_ct), N_BIN_TARGET, labels=False, retbins=True, duplicates="drop"
-        )
-        bin_centers = np.array([bins[i] / 2 + bins[i + 1] / 2 for i in range(len(bins) - 1)])
-
-        N_BIN = len(bin_centers)
-
-        bin_detects = bin_gene_detection(gene_detects_ct, umi_count_bins, N_BIN)
-
-        lbin_detects = logit(bin_detects)
-
-        X = np.ones((N_BIN, 2))
-        X[:, 1] = bin_centers
-        Y = lbin_detects
-
-        b = np.linalg.inv(X.T.dot(X)).dot(X.T).dot(Y)
-        detect_p = ilogit(b[0] + b[1] * np.log10(umi_counts))
-
-        mu = detect_p
-        var = detect_p * (1 - detect_p)
-        x2 = detect_p
-
-        mu_ct[cell_types == cell_type] = mu
-        var_ct[cell_types == cell_type] = var
-        x2_ct[cell_types == cell_type] = x2
-
-    return mu_ct, var_ct, x2_ct
-
-
 bernoulli_model_torch = bernoulli_model_linear_torch
 bernoulli_model = bernoulli_model_linear
 
 
 @njit
 def logit(p):
+    """Compute the logit (log-odds) of probability p."""
     return np.log(p / (1 - p))
 
 
 @njit
 def ilogit(q):
+    """Compute the inverse logit (sigmoid) of q."""
     return np.exp(q) / (1 + np.exp(q))
 
 
 @njit
 def bin_gene_detection(gene_detects, umi_count_bins, N_BIN):
+    """Bin gene detection counts by UMI count bins and return smoothed detection rates."""
     bin_detects = np.zeros(N_BIN)
     bin_totals = np.zeros(N_BIN)
 
@@ -412,7 +347,7 @@ def normal_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor, eps: floa
 
 
 def none_model(gene_counts, umi_counts):
-
+    """Return zero mean and unit variance for all cells (no-op model)."""
     N = gene_counts.size
 
     mu = np.zeros(N)

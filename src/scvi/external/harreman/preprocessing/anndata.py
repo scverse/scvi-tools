@@ -7,6 +7,7 @@ from scipy.sparse import issparse
 
 
 def counts_from_anndata(adata, layer_key=None, dense=False):
+    """Extract and transpose the expression matrix from an AnnData object."""
     # 1. Extract matrix
     if layer_key is None:
         counts = adata.X
@@ -205,43 +206,43 @@ def modify_uns_harreman(adata):
 
     if "gene_pairs" in adata.uns.keys():
         gene_pairs_tmp = [
-            (x, " - ".join(y) if isinstance(y, (list, tuple)) else y)
+            (x, " - ".join(y) if isinstance(y, list | tuple) else y)
             for x, y in adata.uns["gene_pairs"]
         ]
         gene_pairs_tmp = [
-            (" - ".join(x) if isinstance(x, (list, tuple)) else x, y) for x, y in gene_pairs_tmp
+            (" - ".join(x) if isinstance(x, list | tuple) else x, y) for x, y in gene_pairs_tmp
         ]
         adata.uns["gene_pairs"] = ["_".join(gp) for gp in gene_pairs_tmp]
 
     if "gene_pairs_sig" in adata.uns.keys():
         gene_pairs_sig_tmp = [
-            (x, " - ".join(y) if isinstance(y, (list, tuple)) else y)
+            (x, " - ".join(y) if isinstance(y, list | tuple) else y)
             for x, y in adata.uns["gene_pairs_sig"]
         ]
         gene_pairs_sig_tmp = [
-            (" - ".join(x) if isinstance(x, (list, tuple)) else x, y)
+            (" - ".join(x) if isinstance(x, list | tuple) else x, y)
             for x, y in gene_pairs_sig_tmp
         ]
         adata.uns["gene_pairs_sig"] = ["_".join(gp) for gp in gene_pairs_sig_tmp]
 
     if "gene_pairs_ind" in adata.uns.keys():
         gene_pairs_ind_tmp = [
-            (x, " - ".join(map(str, y)) if isinstance(y, (list, tuple)) else str(y))
+            (x, " - ".join(map(str, y)) if isinstance(y, list | tuple) else str(y))
             for x, y in adata.uns["gene_pairs_ind"]
         ]
         gene_pairs_ind_tmp = [
-            (" - ".join(map(str, x)) if isinstance(x, (list, tuple)) else str(x), y)
+            (" - ".join(map(str, x)) if isinstance(x, list | tuple) else str(x), y)
             for x, y in gene_pairs_ind_tmp
         ]
         adata.uns["gene_pairs_ind"] = ["_".join(gp) for gp in gene_pairs_ind_tmp]
 
     if "gene_pairs_sig_ind" in adata.uns.keys():
         gene_pairs_sig_ind_tmp = [
-            (x, " - ".join(map(str, y)) if isinstance(y, (list, tuple)) else str(y))
+            (x, " - ".join(map(str, y)) if isinstance(y, list | tuple) else str(y))
             for x, y in adata.uns["gene_pairs_sig_ind"]
         ]
         gene_pairs_sig_ind_tmp = [
-            (" - ".join(map(str, x)) if isinstance(x, (list, tuple)) else str(x), y)
+            (" - ".join(map(str, x)) if isinstance(x, list | tuple) else str(x), y)
             for x, y in gene_pairs_sig_ind_tmp
         ]
         adata.uns["gene_pairs_sig_ind"] = ["_".join(gp) for gp in gene_pairs_sig_ind_tmp]
@@ -250,7 +251,7 @@ def modify_uns_harreman(adata):
         adata.uns["gene_pairs_per_metabolite"] = {
             key: {
                 "gene_pair": [
-                    (" - ".join(gp_1) if isinstance(gp_1, (list, tuple)) else gp_1, gp_2)
+                    (" - ".join(gp_1) if isinstance(gp_1, list | tuple) else gp_1, gp_2)
                     for gp_1, gp_2 in subdict["gene_pair"]
                 ],
                 "gene_type": subdict["gene_type"],
@@ -260,7 +261,7 @@ def modify_uns_harreman(adata):
         adata.uns["gene_pairs_per_metabolite"] = {
             key: {
                 "gene_pair": [
-                    (gp_1, " - ".join(gp_2) if isinstance(gp_2, (list, tuple)) else gp_2)
+                    (gp_1, " - ".join(gp_2) if isinstance(gp_2, list | tuple) else gp_2)
                     for gp_1, gp_2 in subdict["gene_pair"]
                 ],
                 "gene_type": subdict["gene_type"],
@@ -271,13 +272,13 @@ def modify_uns_harreman(adata):
     if "gene_pairs_per_ct_pair" in adata.uns.keys():
         adata.uns["gene_pairs_per_ct_pair"] = {
             key: [
-                (x, " - ".join(y) if isinstance(y, (list, tuple)) else y) for x, y in tuples_list
+                (x, " - ".join(y) if isinstance(y, list | tuple) else y) for x, y in tuples_list
             ]
             for key, tuples_list in adata.uns["gene_pairs_per_ct_pair"].items()
         }
         adata.uns["gene_pairs_per_ct_pair"] = {
             key: [
-                (" - ".join(x) if isinstance(x, (list, tuple)) else x, y) for x, y in tuples_list
+                (" - ".join(x) if isinstance(x, list | tuple) else x, y) for x, y in tuples_list
             ]
             for key, tuples_list in adata.uns["gene_pairs_per_ct_pair"].items()
         }
@@ -300,14 +301,14 @@ def modify_uns_harreman(adata):
     if "gene_pairs_ind_per_ct_pair" in adata.uns.keys():
         adata.uns["gene_pairs_ind_per_ct_pair"] = {
             key: [
-                (x, " - ".join(map(str, y)) if isinstance(y, (list, tuple)) else y)
+                (x, " - ".join(map(str, y)) if isinstance(y, list | tuple) else y)
                 for x, y in tuples_list
             ]
             for key, tuples_list in adata.uns["gene_pairs_ind_per_ct_pair"].items()
         }
         adata.uns["gene_pairs_ind_per_ct_pair"] = {
             key: [
-                (" - ".join(map(str, x)) if isinstance(x, (list, tuple)) else x, y)
+                (" - ".join(map(str, x)) if isinstance(x, list | tuple) else x, y)
                 for x, y in tuples_list
             ]
             for key, tuples_list in adata.uns["gene_pairs_ind_per_ct_pair"].items()
@@ -320,14 +321,14 @@ def modify_uns_harreman(adata):
     if "gene_pairs_ind_per_ct_pair_sig" in adata.uns.keys():
         adata.uns["gene_pairs_ind_per_ct_pair_sig"] = {
             key: [
-                (x, " - ".join(map(str, y)) if isinstance(y, (list, tuple)) else y)
+                (x, " - ".join(map(str, y)) if isinstance(y, list | tuple) else y)
                 for x, y in tuples_list
             ]
             for key, tuples_list in adata.uns["gene_pairs_ind_per_ct_pair_sig"].items()
         }
         adata.uns["gene_pairs_ind_per_ct_pair_sig"] = {
             key: [
-                (" - ".join(map(str, x)) if isinstance(x, (list, tuple)) else x, y)
+                (" - ".join(map(str, x)) if isinstance(x, list | tuple) else x, y)
                 for x, y in tuples_list
             ]
             for key, tuples_list in adata.uns["gene_pairs_ind_per_ct_pair_sig"].items()
@@ -479,22 +480,22 @@ def recover_uns_harreman(adata):
     if "gene_pairs_ind" in adata.uns:
         gene_pairs_ind_tmp = [tuple(gp.split("_")) for gp in adata.uns["gene_pairs_ind"]]
         gene_pairs_ind_tmp = [
-            (x, list(int(val) for val in y.split(" - ")) if " - " in y else int(y))
+            (x, [int(val) for val in y.split(" - ")] if " - " in y else int(y))
             for x, y in gene_pairs_ind_tmp
         ]
         adata.uns["gene_pairs_ind"] = [
-            (list(int(val) for val in x.split(" - ")) if " - " in x else int(x), y)
+            ([int(val) for val in x.split(" - ")] if " - " in x else int(x), y)
             for x, y in gene_pairs_ind_tmp
         ]
 
     if "gene_pairs_sig_ind" in adata.uns:
         gene_pairs_sig_ind_tmp = [tuple(gp.split("_")) for gp in adata.uns["gene_pairs_sig_ind"]]
         gene_pairs_sig_ind_tmp = [
-            (x, list(int(val) for val in y.split(" - ")) if " - " in y else int(y))
+            (x, [int(val) for val in y.split(" - ")] if " - " in y else int(y))
             for x, y in gene_pairs_sig_ind_tmp
         ]
         adata.uns["gene_pairs_sig_ind"] = [
-            (list(int(val) for val in x.split(" - ")) if " - " in x else int(x), y)
+            ([int(val) for val in x.split(" - ")] if " - " in x else int(x), y)
             for x, y in gene_pairs_sig_ind_tmp
         ]
 

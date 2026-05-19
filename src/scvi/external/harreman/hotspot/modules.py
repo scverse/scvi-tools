@@ -7,13 +7,14 @@ import torch
 from anndata import AnnData
 from scipy.cluster.hierarchy import linkage
 from scipy.spatial.distance import squareform
-from scipy.stats import hypergeom, norm, pearsonr, spearmanr, zscore
+from scipy.stats import norm, zscore
 from sklearn.decomposition import PCA
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
-from ..preprocessing.anndata import counts_from_anndata
-from ..tools.knn import make_weights_non_redundant
+from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
+from scvi.external.harreman.tools.knn import make_weights_non_redundant
+
 from .local_autocorrelation import center_counts_torch
 
 
@@ -42,8 +43,8 @@ def calculate_module_scores(
     -------
     None
         The following results are stored in the `AnnData` object:
-        - `adata.obsm['module_scores']`: (cells x modules) DataFrame with per-cell module activity scores
-        - `adata.varm['gene_loadings']`: (genes x modules) DataFrame with gene loadings for each module
+        - `adata.obsm['module_scores']`: (cells x modules) DataFrame with per-cell module scores
+        - `adata.varm['gene_loadings']`: (genes x modules) DataFrame with gene loadings per module
         - `adata.uns['gene_modules']`: dictionary mapping module names to gene lists
     """
     start = time.time()
@@ -98,9 +99,7 @@ def calculate_module_scores(
 
 
 def compute_scores(adata, layer_key, model, num_umi, device, _lambda=0.9):
-    """
-    counts_sub: row-subset of counts matrix with genes in the module
-    """
+    """counts_sub: row-subset of counts matrix with genes in the module"""
     # Get the weights matrix
     weights = make_weights_non_redundant(adata.obsp["weights"]).tocoo()
     weights = torch.sparse_coo_tensor(
@@ -157,9 +156,7 @@ def compute_scores(adata, layer_key, model, num_umi, device, _lambda=0.9):
 
 
 def sort_linkage(Z, node_index, node_values):
-    """
-    Sorts linkage by 'node_values' in place
-    """
+    """Sorts linkage by 'node_values' in place"""
     N = Z.shape[0] + 1  # number of leaves
 
     if node_index < 0:
@@ -277,6 +274,7 @@ def prop_label2(Z, node_index, label, labels, out_clusters):
 
 
 def assign_modules(Z, leaf_labels, offset, MIN_THRESHOLD=10, Z_THRESHOLD=3):
+    """Assign gene modules from a linkage matrix using mean-distance-guided cluster merging."""
     clust_i = 0
 
     labels = np.ones(Z.shape[0]) * -1
@@ -346,6 +344,7 @@ def assign_modules(Z, leaf_labels, offset, MIN_THRESHOLD=10, Z_THRESHOLD=3):
 
 
 def assign_modules_core(Z, leaf_labels, offset, MIN_THRESHOLD=10, Z_THRESHOLD=3):
+    """Assign core gene modules from a linkage matrix without mean-distance guidance."""
     clust_i = 0
 
     labels = np.ones(Z.shape[0]) * -1
@@ -419,23 +418,28 @@ def create_modules(
     Parameters
     ----------
     adata : AnnData
-        Annotated data object (AnnData) containing the local correlation Z-scores in `adata.uns['lc_zs']`.
+        Annotated data object (AnnData) containing the local correlation Z-scores in
+        `adata.uns['lc_zs']`.
     min_gene_threshold : int, optional (default: 20)
         Minimum number of genes required to define a module.
     fdr_threshold : float, optional (default: 0.05)
-        FDR threshold used to determine the minimum Z-score significance if `z_threshold` is not provided.
+        FDR threshold used to determine the minimum Z-score significance if `z_threshold` is
+        not provided.
     z_threshold : float, optional
-        If provided, uses this Z-score as the cutoff for module inclusion instead of computing it from FDR.
+        If provided, uses this Z-score as the cutoff for module inclusion instead of computing
+        it from FDR.
     core_only : bool, optional (default: False)
-        If True, assigns only tightly correlated (core) genes to modules and leaves others unassigned.
+        If True, assigns only tightly correlated (core) genes to modules and leaves others
+        unassigned.
 
     Returns
     -------
     None
-        The function modifies the `AnnData` object in place by adding the following to `adata.uns`:
+        The function modifies the `AnnData` object in place by adding the following to
+        `adata.uns`:
         - `modules`: pandas Series mapping each gene to a module ID (integer, as string)
         - `gene_modules_dict`: dictionary mapping module IDs (as strings) to lists of gene names
-        - `linkage`: linkage matrix from hierarchical clustering (for visualization or tree operations)
+        - `linkage`: linkage matrix from hierarchical clustering (for visualization or tree ops)
     """
     start = time.time()
     if verbose:
@@ -621,7 +625,6 @@ def compute_sig_mod_correlation(adata, method, use_super_modules):
 
 
 
-
 def compute_top_scoring_modules(
     adata: AnnData,
     sd: Optional[float] = 1,
@@ -686,7 +689,8 @@ def calculate_super_module_scores(
         - 'umi_counts': total UMI counts per cell
         - 'gene_modules': dictionary mapping module IDs (as strings) to lists of gene names
     super_module_dict: dict
-        Dictionary containing super-module IDs (integers) as keys and a list of associated modules (as integers) as values
+        Dictionary with super-module IDs (integers) as keys and lists of associated modules
+        (as integers) as values.
     device : torch.device, optional
         Device to use for computation (e.g., CUDA or CPU). Defaults to GPU if available.
     verbose : bool, optional (default: False)
@@ -696,8 +700,10 @@ def calculate_super_module_scores(
     -------
     None
         The following results are stored in the `AnnData` object:
-        - `adata.obsm['super_module_scores']`: (cells x super-modules) DataFrame with per-cell super-module activity scores
-        - `adata.varm['gene_loadings_sm']`: (genes x super-modules) DataFrame with gene loadings for each super-module
+        - `adata.obsm['super_module_scores']`: (cells x super-modules) DataFrame with
+          per-cell super-module activity scores
+        - `adata.varm['gene_loadings_sm']`: (genes x super-modules) DataFrame with gene
+          loadings for each super-module
         - `adata.uns['gene_modules_sm']`: dictionary mapping super-module names to gene lists
     """
 

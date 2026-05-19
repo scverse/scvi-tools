@@ -2,18 +2,16 @@ import time
 
 import numpy as np
 import pandas as pd
-import sparse
 import torch
 from anndata import AnnData
-from numba import jit, njit
 from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
-from ..preprocessing.anndata import counts_from_anndata
-from ..tools.knn import make_weights_non_redundant
-from . import models
-from .local_autocorrelation import compute_local_cov_max, standardize_counts
+from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
+from scvi.external.harreman.tools.knn import make_weights_non_redundant
+
+from .local_autocorrelation import standardize_counts
 
 
 def compute_local_correlation(
@@ -39,8 +37,8 @@ def compute_local_correlation(
         - 'umi_counts': per-cell UMI counts
         - optionally 'sample_key': key in `adata.obs` to use for per-sample normalization
     genes : list, optional
-        List of genes to include in the correlation analysis. If None, selects genes with FDR < 0.05
-        from `adata.uns['gene_autocorrelation_results']`, ordered by Z-score.
+        List of genes to include in the correlation analysis. If None, selects genes with
+        FDR < 0.05 from `adata.uns['gene_autocorrelation_results']`, ordered by Z-score.
     permutation_test : bool, optional (default: False)
         Whether to compute an empirical p-value and null distribution by permuting the data.
     M : int, optional (default: 1000)
@@ -57,7 +55,8 @@ def compute_local_correlation(
     Returns
     -------
     None
-        Results are stored in the following keys in `adata.uns`: `lcs`, `lc_zs`, `lc_z_pvals`, and `lc_z_FDR`.
+        Results are stored in the following keys in `adata.uns`: `lcs`, `lc_zs`,
+        `lc_z_pvals`, and `lc_z_FDR`.
     """
     start = time.time()
 
@@ -132,7 +131,8 @@ def compute_local_correlation(
 
     if verbose:
         print(
-            f"Pair-wise local correlation results are stored in adata.uns with the following keys: {list(results.keys())}"
+            f"Pair-wise local correlation results are stored in adata.uns with the "
+            f"following keys: {list(results.keys())}"
         )
 
         print(
@@ -146,7 +146,7 @@ def compute_local_correlation(
 def compute_pairwise_correlation_results(
     counts, weights, lcs, eg2s, genes, D, M, permutation_test, seed, check_analytic_null, device
 ):
-
+    """Compute pairwise local correlation results dict with Z-scores, p-values, and FDR."""
     results = {}
 
     lc_zs = compute_cor_Z_scores_torch(lcs, eg2s)
@@ -410,7 +410,7 @@ def compute_cor_Z_scores(lc, eg2s):
 
 
 def compute_cor_Z_scores_torch(lc, eg2s):
-
+    """Compute symmetrized pairwise correlation Z-scores using PyTorch tensors."""
     EG = 0.0
     stdG = (eg2s - EG**2) ** 0.5
 
@@ -424,34 +424,3 @@ def compute_cor_Z_scores_torch(lc, eg2s):
 
     return Z
 
-
-@njit
-def expand_pairs(pairs, vals, N):
-
-    out = np.zeros((N, N))
-
-    for i in range(len(pairs)):
-        x = pairs[i, 0]
-        y = pairs[i, 1]
-        v = vals[i]
-
-        out[x, y] = v
-        out[y, x] = v
-
-    return out
-
-
-def compute_max_correlation(node_degrees, counts):
-    """
-    For a Genes x Cells count matrix, compute the maximal pair-wise correlation
-    between any two genes
-    """
-    N_GENES = counts.shape[0]
-
-    gene_maxs = np.zeros(N_GENES)
-    for i in range(N_GENES):
-        gene_maxs[i] = compute_local_cov_max(node_degrees, counts[i])
-
-    result = gene_maxs.reshape((-1, 1)) + gene_maxs.reshape((1, -1))
-    result = result / 2
-    return result

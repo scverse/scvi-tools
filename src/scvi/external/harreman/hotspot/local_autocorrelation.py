@@ -1,18 +1,19 @@
 import time
-import pooch
 from typing import Literal
 
 import numpy as np
 import pandas as pd
+import pooch
 import torch
 from anndata import AnnData
-from numba import jit, njit
+from numba import njit
 from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
-from ..preprocessing.anndata import counts_from_anndata
-from ..tools.knn import make_weights_non_redundant
+from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
+from scvi.external.harreman.tools.knn import make_weights_non_redundant
+
 from . import models
 
 
@@ -61,7 +62,7 @@ def compute_local_autocorrelation(
     verbose: bool = False,
 ):
     """
-    Computes gene-level spatial autocorrelation statistics using spatial weights and centered gene expression values.
+    Compute gene-level spatial autocorrelation using spatial weights and centered expression.
 
     Parameters
     ----------
@@ -70,17 +71,21 @@ def compute_local_autocorrelation(
     layer_key : str or "use_raw", optional
         Key in `adata.layers` to use for expression data. Use "use_raw" to access `adata.raw`.
     database_varm_key : str, optional
-        Key in `adata.varm` used for filtering genes that are part of the transporter or ligand-receptor database.
+        Key in `adata.varm` used for filtering genes that are part of the transporter or
+        ligand-receptor database.
     model : str, optional
-        Normalization model to use for centering gene expression. Options include "none", "normal", "bernoulli", or "danb".
+        Normalization model to use for centering gene expression. Options include "none",
+        "normal", "bernoulli", or "danb".
     genes : list, optional
-        List of gene names to include in the analysis. If `None`, all genes are used or selected via metabolic/pathway filters.
+        List of gene names to include in the analysis. If `None`, all genes are used or
+        selected via metabolic/pathway filters.
     use_metabolic_genes : bool, optional (default: False)
         If `True`, restricts analysis to metabolic genes as defined for the selected species.
     species : {"mouse", "human"}, optional (default: "mouse")
         Species used to select the correct metabolic gene list if `use_metabolic_genes=True`.
     umi_counts_obs_key : str, optional
-        Key in `adata.obs` with total UMI counts per cell. If `None`, inferred from the expression matrix.
+        Key in `adata.obs` with total UMI counts per cell. If `None`, inferred from the
+        expression matrix.
     permutation_test : bool, optional (default: False)
         Whether to compute an empirical p-value and null distribution by permuting the data.
     M : int, optional (default: 1000)
@@ -88,7 +93,8 @@ def compute_local_autocorrelation(
     seed : int, optional (default: 42)
         Random seed for permutation reproducibility.
     check_analytic_null : bool, optional (default: False)
-        Whether to evaluate Z-scores under an analytic null distribution using permutation Z-scores.
+        Whether to evaluate Z-scores under an analytic null distribution using permutation
+        Z-scores.
     device : torch.device, optional
         PyTorch device to run computations on. Defaults to CUDA if available.
     verbose : bool, optional (default: False)
@@ -199,7 +205,8 @@ def compute_local_autocorrelation(
         adata.uns["analytic_null_ac_pvals_perm"] = pvals_perm
         if verbose:
             print(
-                "Analytic null results are stored in adata.uns with the following keys: ['analytic_null_ac_zs_perm', 'analytic_null_ac_pvals_perm']"
+                "Analytic null results are stored in adata.uns with the following keys: "
+                "['analytic_null_ac_zs_perm', 'analytic_null_ac_pvals_perm']"
             )
     else:
         results_df = results
@@ -234,6 +241,7 @@ def compute_gene_autocorrelation_results(
     check_analytic_null,
     device,
 ):
+    """Compute autocorrelation results from spatial statistics and optional permutations."""
     # Compute core stats
     stats = compute_autocor_Z_scores_torch(G, G_max, Wtot2)
 
@@ -284,77 +292,9 @@ def compute_gene_autocorrelation_results(
     return results
 
 
-@jit(nopython=True)
-def local_cov_weights(x, weights_data, weights_coords):
-    out = 0
-
-    for i in range(len(x)):
-        mask_i = weights_coords[0] == i
-        indices_i = weights_coords[:, mask_i][1]
-        values_i = weights_data[mask_i]
-        for k in range(len(indices_i)):
-            j = indices_i[k]
-            j = int(j)
-
-            w_ij = values_i[k]
-
-            xi = x[i]
-            xj = x[j]
-            if xi == 0 or xj == 0 or w_ij == 0:
-                out += 0
-            else:
-                out += xi * xj * w_ij
-
-    return out
-
-
-@jit(nopython=True)
-def compute_local_cov_max(vals, node_degrees):
-    tot = 0.0
-
-    for i in range(node_degrees.size):
-        tot += node_degrees[i] * (vals[i] ** 2)
-
-    return tot / 2
-
-
-def _compute_hs_inner(vals, weights_data, weights_coords, num_umi, model, Wtot2, D):
-    """Note, since this is an inner function, for parallelization to work well
-    none of the contents of the function can use MKL or OPENBLAS threads.
-    Or else we open too many.  Because of this, some simple numpy operations
-    are re-implemented using numba instead as it's difficult to control
-    the number of threads in numpy after it's imported.
-    """
-    if model == "bernoulli":
-        vals = (vals > 0).astype("double")
-        mu, var, x2 = models.bernoulli_model(vals, num_umi)
-    elif model == "danb":
-        mu, var, x2 = models.danb_model(vals, num_umi)
-    elif model == "normal":
-        mu, var, x2 = models.normal_model(vals, num_umi)
-    elif model == "none":
-        mu, var, x2 = models.none_model(vals, num_umi)
-    else:
-        raise Exception(f"Invalid Model: {model}")
-
-    vals = center_values(vals, mu, var)
-
-    G = local_cov_weights(vals, weights_data, weights_coords)
-
-    EG, EG2 = 0, Wtot2
-
-    stdG = (EG2 - EG * EG) ** 0.5
-
-    Z = (G - EG) / stdG
-
-    G_max = compute_local_cov_max(vals, D)
-    C = (G - EG) / G_max
-
-    return [G, EG, stdG, Z, C]
-
-
 @njit
 def center_values(vals, mu, var):
+    """Center vals by mu and normalize by the square root of var element-wise."""
     out = np.zeros_like(vals)
 
     for i in range(len(vals)):
@@ -365,31 +305,6 @@ def center_values(vals, mu, var):
             out[i] = (vals[i] - mu[i]) / std
 
     return out
-
-
-def center_values_total(vals, num_umi, model):
-    """
-    Note, since this is an inner function, for parallelization to work well
-    none of the contents of the function can use MKL or OPENBLAS threads.
-    Or else we open too many.  Because of this, some simple numpy operations
-    are re-implemented using numba instead as it's difficult to control
-    the number of threads in numpy after it's imported
-    """
-    if model == "bernoulli":
-        vals = (vals > 0).astype("double")
-        mu, var, x2 = models.bernoulli_model(vals, num_umi)
-    elif model == "danb":
-        mu, var, x2 = models.danb_model(vals, num_umi)
-    elif model == "normal":
-        mu, var, x2 = models.normal_model(vals, num_umi)
-    elif model == "none":
-        mu, var, x2 = models.none_model(vals, num_umi)
-    else:
-        raise Exception(f"Invalid Model: {model}")
-
-    centered_vals = center_values(vals, mu, var)
-
-    return centered_vals
 
 
 def center_counts_torch(counts, num_umi, model):
@@ -425,22 +340,6 @@ def center_counts_torch(counts, num_umi, model):
     return centered
 
 
-def compute_autocor_Z_scores(G, G_max, Wtot2):
-
-    EG, EG2 = 0, Wtot2
-
-    stdG = (EG2 - EG * EG) ** 0.5
-
-    Z = [(G[i] - EG) / stdG for i in range(len(G))]
-
-    C = (G - EG) / G_max
-
-    EG = [EG for i in range(len(G))]
-    stdG = [stdG for i in range(len(G))]
-
-    return [G, G_max, EG, stdG, Z, C]
-
-
 def compute_autocor_Z_scores_torch(G, G_max, Wtot2):
     """
     G, G_max: torch tensors of shape (genes,)
@@ -467,7 +366,7 @@ def compute_autocor_Z_scores_torch(G, G_max, Wtot2):
 
 
 def standardize_counts(adata, counts, model, num_umi, sample_specific):
-
+    """Center and normalize counts using the specified model, optionally per sample."""
     if sample_specific:
         sample_key = adata.uns["sample_key"]
         for sample in adata.obs[sample_key].unique():
@@ -477,5 +376,6 @@ def standardize_counts(adata, counts, model, num_umi, sample_specific):
         counts = center_counts_torch(counts, num_umi, model)
 
     return counts
+
 
 

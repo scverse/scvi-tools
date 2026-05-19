@@ -1,10 +1,10 @@
 import time
-import pooch
 from itertools import zip_longest
 from re import compile, match
 from typing import Literal
 
 import pandas as pd
+import pooch
 from anndata import AnnData
 
 IMPORT_METAB_KEY = "IMPORT"
@@ -83,7 +83,7 @@ def build_LR_matrix(index, database, ligands, receptors):
     matrix = pd.DataFrame(0, index=index, columns=database.index)
     matrix.index = matrix.index.str.lower()
     for col in matrix.columns:
-        for key, df, sign in [("ligand", ligands, 1), ("receptor", receptors, -1)]:
+        for _key, df, sign in [("ligand", ligands, 1), ("receptor", receptors, -1)]:
             genes = df.loc[col].dropna().astype(str).str.lower()
             genes = genes[genes.isin(matrix.index)]
             matrix.loc[genes, col] = sign
@@ -116,13 +116,33 @@ def extract_transporter_info(
     verbose: bool = False,
 ) -> dict[str, dict[str, list[str]]]:
     """Read csv file to extract the metabolite database."""
-    S3_BASE = "https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/HarremanDB"
+    S3_BASE = (
+        "https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/HarremanDB"
+    )
     cache = pooch.os_cache("scvi_harreman")
 
     filenames = {
-        "extracellular": pooch.retrieve(url=f"{S3_BASE}/HarremanDB_{species}_extracellular.csv", known_hash=None, fname=f"HarremanDB_{species}_extracellular.csv", path=cache, progressbar=False),
-        "all": pooch.retrieve(url=f"{S3_BASE}/HarremanDB_{species}.csv", known_hash=None, fname=f"HarremanDB_{species}.csv", path=cache, progressbar=False),
-        "heterodimer": pooch.retrieve(url=f"{S3_BASE}/Heterodimer_info_{species}.csv", known_hash=None, fname=f"Heterodimer_info_{species}.csv", path=cache, progressbar=False),
+        "extracellular": pooch.retrieve(
+            url=f"{S3_BASE}/HarremanDB_{species}_extracellular.csv",
+            known_hash=None,
+            fname=f"HarremanDB_{species}_extracellular.csv",
+            path=cache,
+            progressbar=False,
+        ),
+        "all": pooch.retrieve(
+            url=f"{S3_BASE}/HarremanDB_{species}.csv",
+            known_hash=None,
+            fname=f"HarremanDB_{species}.csv",
+            path=cache,
+            progressbar=False,
+        ),
+        "heterodimer": pooch.retrieve(
+            url=f"{S3_BASE}/Heterodimer_info_{species}.csv",
+            known_hash=None,
+            fname=f"Heterodimer_info_{species}.csv",
+            path=cache,
+            progressbar=False,
+        ),
     }
     df = pd.read_csv(filenames["extracellular" if extracellular_only else "all"], index_col=0)
     heterodimer_info = pd.read_csv(filenames["heterodimer"], index_col=0)
@@ -171,11 +191,25 @@ def build_metabolite_df(metab_dict, key):
 
 def extract_lr_pairs(adata, species):
     """Extracting LR pairs from CellChatDB."""
-    S3_BASE = "https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/CellChatDB"
+    S3_BASE = (
+        "https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/CellChatDB"
+    )
     cache = pooch.os_cache("scvi_harreman")
 
-    interaction_path = pooch.retrieve(url=f"{S3_BASE}/interaction_input_CellChatDB_v2_{species}.csv", known_hash=None, fname=f"interaction_input_CellChatDB_v2_{species}.csv", path=cache, progressbar=False)
-    complex_path = pooch.retrieve(url=f"{S3_BASE}/complex_input_CellChatDB_v2_{species}.csv", known_hash=None, fname=f"complex_input_CellChatDB_v2_{species}.csv", path=cache, progressbar=False)
+    interaction_path = pooch.retrieve(
+        url=f"{S3_BASE}/interaction_input_CellChatDB_v2_{species}.csv",
+        known_hash=None,
+        fname=f"interaction_input_CellChatDB_v2_{species}.csv",
+        path=cache,
+        progressbar=False,
+    )
+    complex_path = pooch.retrieve(
+        url=f"{S3_BASE}/complex_input_CellChatDB_v2_{species}.csv",
+        known_hash=None,
+        fname=f"complex_input_CellChatDB_v2_{species}.csv",
+        path=cache,
+        progressbar=False,
+    )
 
     interaction = pd.read_csv(interaction_path, index_col=0).sort_values("annotation")
     complex = pd.read_csv(complex_path, index_col=0)

@@ -16,18 +16,16 @@ from scipy.stats import mannwhitneyu, norm, pearsonr, spearmanr
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
-from ..hotspot import models
+from scvi.external.harreman.hotspot import models
 
 
 def _lazy_import_hotspot():
     """Resolve circular imports lazily."""
     global compute_local_autocorrelation, standardize_counts
-    from ..hotspot.local_autocorrelation import (
+    from scvi.external.harreman.hotspot.local_autocorrelation import (
         compute_local_autocorrelation as _cla,
     )
-    from ..hotspot.local_autocorrelation import (
-        standardize_counts as _sc,
-    )
+    from scvi.external.harreman.hotspot.local_autocorrelation import standardize_counts as _sc
 
     compute_local_autocorrelation = _cla
     standardize_counts = _sc
@@ -36,8 +34,8 @@ def _lazy_import_hotspot():
 compute_local_autocorrelation = None
 standardize_counts = None
 
-from ..preprocessing.anndata import counts_from_anndata
-from ..tools.knn import make_weights_non_redundant
+from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
+from scvi.external.harreman.tools.knn import make_weights_non_redundant
 
 
 def apply_gene_filtering(
@@ -212,7 +210,6 @@ def filter_genes(
     cell_types = adata.obs[cell_type_key].values
     unique_cts = np.unique(cell_types)
     filtered_genes_ct = {}
-    gene_idx = {g: i for i, g in enumerate(sig_genes)}
 
     # Precompute masks
     masks = {ct: np.where(cell_types == ct)[0] for ct in unique_cts}
@@ -227,7 +224,6 @@ def filter_genes(
 
     filtered_genes = set()
     for ct in unique_cts:
-        genes_ct = sig_genes
         gene_mask = np.ones(len(sig_genes), dtype=bool)
 
         if expression_filt:
@@ -1216,7 +1212,7 @@ def run_ct_cell_communication_analysis(
 
     weights = adata.obsp["weights"]
 
-    used_ct_pairs = list(set(ct for cell_type_pair in cell_type_pairs for ct in cell_type_pair))
+    used_ct_pairs = list({ct for cell_type_pair in cell_type_pairs for ct in cell_type_pair})
     all_cell_types = set(cell_types.unique())
     used_ct_pairs_set = set(used_ct_pairs)
     if used_ct_pairs_set < all_cell_types:
@@ -1641,7 +1637,7 @@ def standardize_ct_counts(adata, counts, model, num_umi, sample_specific, cell_t
 
 def flatten(nested_list):
     for item in nested_list:
-        if isinstance(item, (list, tuple)):
+        if isinstance(item, list | tuple):
             yield from flatten(item)
         else:
             yield item
@@ -1752,7 +1748,7 @@ def select_significant_interactions(
     )
     cell_com_df_gp = adata.uns[ccc_key]["cell_com_df_gp"]
     adata.uns[ccc_key]["cell_com_df_gp_sig"] = cell_com_df_gp[
-        cell_com_df_gp.selected == True
+        cell_com_df_gp.selected is True
     ].copy()
 
     # Metabolite
@@ -1762,7 +1758,7 @@ def select_significant_interactions(
         else (FDR_values_m < threshold)
     )
     cell_com_df_m = adata.uns[ccc_key]["cell_com_df_m"]
-    adata.uns[ccc_key]["cell_com_df_m_sig"] = cell_com_df_m[cell_com_df_m.selected == True].copy()
+    adata.uns[ccc_key]["cell_com_df_m_sig"] = cell_com_df_m[cell_com_df_m.selected is True].copy()
 
     return
 
@@ -1906,7 +1902,7 @@ def compute_interacting_cell_scores(
             lambda x: tuple(x) if isinstance(x, list) else x
         )
 
-        gene_pairs_set = set([tuple(x) for x in cell_com_gp_df[["Gene 1", "Gene 2"]].values])
+        gene_pairs_set = {tuple(x) for x in cell_com_gp_df[["Gene 1", "Gene 2"]].values}
         metabolite_gene_pair_df = metabolite_gene_pair_df[
             metabolite_gene_pair_df["gene_pair"].isin(gene_pairs_set)
         ]
@@ -2360,7 +2356,6 @@ def compute_ct_interacting_cell_scores(
 
     gene_pairs = adata.uns.get("gene_pairs", None)
     gene_pairs_per_ct_pair = adata.uns.get("gene_pairs_per_ct_pair", None)
-    gene_pairs_per_metabolite = adata.uns["gene_pairs_per_metabolite"]
 
     gp_metab = adata.uns["gene_pairs_per_metabolite"]
     metabolite_gene_pair_df = (
@@ -2384,25 +2379,25 @@ def compute_ct_interacting_cell_scores(
 
     cell_com_gp_df = adata.uns["ct_ccc_results"]["cell_com_df_gp_sig"].copy()
     if restrict_significance in ["both", "gene pairs"]:
-        ct_pairs_gp_set = set(
-            [tuple(x) for x in cell_com_gp_df[["Cell Type 1", "Cell Type 2"]].values]
-        )
+        ct_pairs_gp_set = {
+            tuple(x) for x in cell_com_gp_df[["Cell Type 1", "Cell Type 2"]].values
+        }
         cell_type_pairs = [ct_pair for ct_pair in cell_type_pairs if ct_pair in ct_pairs_gp_set]
 
         cell_com_gp_df[["Gene 1", "Gene 2"]] = cell_com_gp_df[["Gene 1", "Gene 2"]].map(
             lambda x: tuple(x) if isinstance(x, list) else x
         )
 
-        gene_pairs_set = set([tuple(x) for x in cell_com_gp_df[["Gene 1", "Gene 2"]].values])
+        gene_pairs_set = {tuple(x) for x in cell_com_gp_df[["Gene 1", "Gene 2"]].values}
         metabolite_gene_pair_df = metabolite_gene_pair_df[
             metabolite_gene_pair_df["gene_pair"].isin(gene_pairs_set)
         ]
 
     cell_com_m_df = adata.uns["ct_ccc_results"]["cell_com_df_m_sig"].copy()
     if restrict_significance in ["both", "metabolites"]:
-        ct_pairs_m_set = set(
-            [tuple(x) for x in cell_com_m_df[["Cell Type 1", "Cell Type 2"]].values]
-        )
+        ct_pairs_m_set = {
+            tuple(x) for x in cell_com_m_df[["Cell Type 1", "Cell Type 2"]].values
+        }
         missing_ct_pairs = [
             ct_pair for ct_pair in ct_pairs_m_set if ct_pair not in cell_type_pairs
         ]
@@ -2455,7 +2450,7 @@ def compute_ct_interacting_cell_scores(
 
     weights = adata.obsp["weights"]
 
-    used_ct_pairs = list(set(ct for cell_type_pair in cell_type_pairs for ct in cell_type_pair))
+    used_ct_pairs = list({ct for cell_type_pair in cell_type_pairs for ct in cell_type_pair})
     all_cell_types = set(cell_types.unique())
     used_ct_pairs_set = set(used_ct_pairs)
     if used_ct_pairs_set < all_cell_types:
@@ -2534,7 +2529,7 @@ def compute_ct_interacting_cell_scores(
 
     def concat_tuple_elements(t, sep="_"):
         return sep.join(
-            s for item in t for s in (item if isinstance(item, (list, tuple)) else [item])
+            s for item in t for s in (item if isinstance(item, list | tuple) else [item])
         )
 
     if test in ["parametric", "both"]:
@@ -2687,9 +2682,6 @@ def compute_ct_interacting_cell_scores(
             counts_1 = standardize_counts(adata, counts_1, model, num_umi, sample_specific)
             _lazy_import_hotspot()
             counts_2 = standardize_counts(adata, counts_2, model, num_umi, sample_specific)
-
-        n_cells = counts_1.shape[1]
-        same_gene_mask = torch.tensor([g1 == g2 for g1, g2 in gene_pairs_sig], device=device)
 
         if center_counts_for_np_test and test == "both":
             adata.uns["ct_interacting_cell_results"]["np"]["gp"]["cs"] = np.array(
@@ -2871,7 +2863,7 @@ def compute_metabolite_cs_old(
             cs_gp[i, mask] = 0
 
     cells_metabolites = []
-    for metabolite, gene_pair_indices in gene_pair_dict.items():
+    for _metabolite, gene_pair_indices in gene_pair_dict.items():
         if interacting_cell_scores:
             summed_values = (
                 cs_gp[:, :, gene_pair_indices].sum(axis=2)
@@ -2967,10 +2959,8 @@ def extract_ct_pair_weights(ct_pair, weights, cell_type_pairs, cell_types):
     ct_t, ct_u = cell_type_pairs[i]
     ct_t_mask = cell_types.values == ct_t
     ct_t_mask_coords = np.argwhere(ct_t_mask)
-    n_ct_t = len(ct_t_mask_coords)
     ct_u_mask = cell_types.values == ct_u
     ct_u_mask_coords = np.argwhere(ct_u_mask)
-    n_ct_u = len(ct_u_mask_coords)
 
     w_old_coords = weights.coords
 
@@ -3079,7 +3069,6 @@ def compute_ct_p_results(
 def compute_p_results(C_gp, C_m, gene_pairs_ind, Wtot2, eg2s_gp, gene_pair_dict):
 
     device = Wtot2.device
-    n_gp = len(gene_pairs_ind)
 
     # Convert indices
     same_gene_mask = torch.tensor(
@@ -3315,7 +3304,6 @@ def compute_p_int_cell_results(
 def compute_p_int_cell_results_no_ct(C_gp, C_m, gene_pairs_ind, Wtot2, eg2s_gp, gene_pair_dict):
 
     device = Wtot2.device
-    n_gp = len(gene_pairs_ind)
 
     # Convert indices
     same_gene_mask = torch.tensor(
@@ -3393,7 +3381,6 @@ def compute_np_results(
     pvals_gp_b_ct = pvals_gp_b[i, :]
     pvals_m_a, pvals_m_b = pvals_m
     p_values_m_a = pvals_m_a[i, :]
-    p_values_m_b = pvals_m_b[i, :]
     gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[
         ct_pair
     ]  # If we consider all the gene pairs (irrespective of the cell type pair) use 'gene_pairs_ind' directly
@@ -3573,9 +3560,9 @@ def get_cell_communication_results_old(
     cell_com_df_gp = cell_com_df_gp.drop(["level_1"], axis=1)
     cell_com_df_gp = cell_com_df_gp.rename(columns={"level_0": "cell_type_pair", 0: "gene_pair"})
     cell_com_df_gp["Cell Type 1"], cell_com_df_gp["Cell Type 2"] = zip(
-        *cell_com_df_gp["cell_type_pair"]
+        *cell_com_df_gp["cell_type_pair"], strict=False
     )
-    cell_com_df_gp["Gene 1"], cell_com_df_gp["Gene 2"] = zip(*cell_com_df_gp["gene_pair"])
+    cell_com_df_gp["Gene 1"], cell_com_df_gp["Gene 2"] = zip(*cell_com_df_gp["gene_pair"], strict=False)
     cell_com_df_gp["Gene 1"] = cell_com_df_gp["Gene 1"].apply(map_to_genes)
     cell_com_df_gp["Gene 2"] = cell_com_df_gp["Gene 2"].apply(map_to_genes)
     cell_com_df_gp = cell_com_df_gp.drop(["cell_type_pair", "gene_pair"], axis=1)
@@ -3585,7 +3572,7 @@ def get_cell_communication_results_old(
     )
     cell_com_df_m = pd.DataFrame(ct_pair_metab, columns=["cell_type_pair", "metabolite"])
     cell_com_df_m["Cell Type 1"], cell_com_df_m["Cell Type 2"] = zip(
-        *cell_com_df_m["cell_type_pair"]
+        *cell_com_df_m["cell_type_pair"], strict=False
     )
     cell_com_df_m = cell_com_df_m.drop(["cell_type_pair"], axis=1)
 
@@ -3809,9 +3796,7 @@ def normalize_ct_values(
 
 
 def normalize_values(counts, gene_pairs_ind, lcs, D):
-    """
-    Normalize communication scores (lcs) using maximum possible score estimates.
-    """
+    """Normalize communication scores (lcs) using maximum possible score estimates."""
     lc_maxs = compute_max_cs(D, counts, gene_pairs_ind)
     lc_maxs = torch.where(lc_maxs == 0, torch.tensor(1.0, device=lc_maxs.device), lc_maxs)
     if isinstance(lcs, np.ndarray):
@@ -3849,9 +3834,7 @@ def normalize_values_old(
 
 
 def compute_max_cs(node_degrees, counts, gene_pairs_ind):
-    """
-    Compute max communication scores per gene pair.
-    """
+    """Compute max communication scores per gene pair."""
     result = torch.empty(len(gene_pairs_ind), dtype=counts.dtype, device=counts.device)
 
     for i, (g1, _) in enumerate(gene_pairs_ind):
@@ -3879,9 +3862,7 @@ def compute_max_cs_old(node_degrees, counts, gene_pairs_ind):
 
 
 def compute_max_cs_gp(vals, node_degrees):
-    """
-    Compute max communication score for a single gene (vector).
-    """
+    """Compute max communication score for a single gene (vector)."""
     return 0.5 * torch.sum(node_degrees * vals**2)
 
 

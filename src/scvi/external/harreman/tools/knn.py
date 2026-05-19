@@ -190,7 +190,7 @@ def compute_neighbors(
         spot_diameter = adata.uns["spot_diameter"]
         idx = adata.obs.groupby("barcodes").indices
         rows, cols = [], []
-        for barcode, inds in idx.items():
+        for _barcode, inds in idx.items():
             if len(inds) < 2:
                 continue
             # Efficient pairwise combinations without permutations
@@ -245,7 +245,6 @@ def compute_neighbors_from_distances(
         if verbose:
             print(f"Restricting graph within samples using '{sample_key}'...")
         adata.uns["sample_key"] = sample_key
-        samples = adata.obs[sample_key].unique().tolist()
         for sample in tqdm(adata.obs[sample_key].unique(), desc="Samples"):
             idx = np.where(adata.obs[sample_key] == sample)[0]
             sub_dist = distances_raw[idx, :][:, idx]
@@ -256,7 +255,7 @@ def compute_neighbors_from_distances(
     if adata.uns.get("deconv_data", False) and "barcodes" in adata.obs:
         if verbose:
             print("Adding intra-spot connections...")
-        for barcode, inds in adata.obs.groupby("barcodes").indices.items():
+        for _barcode, inds in adata.obs.groupby("barcodes").indices.items():
             if len(inds) <= 1:
                 continue
             for i, j in itertools.permutations(inds, 2):
