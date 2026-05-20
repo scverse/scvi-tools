@@ -485,8 +485,8 @@ def compute_gene_pairs(
                     )
                     return vals[0] if len(vals) == 1 else vals
 
-            val1 = extract_val(var1,metabolite)
-            val2 = extract_val(var2,metabolite)
+            val1 = extract_val(var1, metabolite)
+            val2 = extract_val(var2, metabolite)
 
             if not val1 or not val2:
                 continue
