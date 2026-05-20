@@ -31,9 +31,11 @@ def compute_knn_graph(
     adata
         AnnData object.
     compute_neighbors_on_key
-        Key in `adata.obsm` to use for computing neighbors. If `None`, use neighbors stored in `adata`. If no neighbors have been previously computed an error will be raised.
+        Key in `adata.obsm` to use for computing neighbors. If `None`, use neighbors stored in
+        `adata`. If no neighbors have been previously computed an error will be raised.
     distances_obsp_key
-        Distances encoding cell-cell similarities directly. Shape is (cells x cells). Input is key in `adata.obsp`.
+        Distances encoding cell-cell similarities directly. Shape is (cells x cells). Input is key
+        in `adata.obsp`.
     weighted_graph
         Whether or not to create a weighted graph.
     neighborhood_radius
@@ -41,9 +43,12 @@ def compute_knn_graph(
     n_neighbors
         Neighborhood size.
     neighborhood_factor
-        Used when creating a weighted graph.  Sets how quickly weights decay relative to the distances within the neighborhood. The weight for a cell with a distance d will decay as exp(-d^2/D) where D is the distance to the `n_neighbors`/`neighborhood_factor`-th neighbor.
+        Used when creating a weighted graph. Sets how quickly weights decay relative to distances
+        within the neighborhood. The weight for a cell with distance d decays as exp(-d^2/D), where
+        D is the distance to the `n_neighbors`/`neighborhood_factor`-th neighbor.
     sample_key
-        Sample information in case the data contains different samples or samples from different conditions. Input is key in `adata.obs`.
+        Sample information in case the data contains different samples or samples from different
+        conditions. Input is key in `adata.obs`.
     tree
         Root tree node. Can be created using ete3.Tree
     verbose
@@ -324,7 +329,7 @@ def compute_weights(
 
 
 def make_weights_non_redundant(weights):
-
+    """Collapse reciprocal weights into one triangle of the matrix."""
     w_no_redundant = weights.copy()
 
     rows, cols = w_no_redundant.nonzero()
