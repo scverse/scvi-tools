@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 from scvi.external.harreman.tools.knn import make_weights_non_redundant
+from scvi.model._utils import parse_device_args
 
 from . import models
 
@@ -58,7 +59,8 @@ def compute_local_autocorrelation(
     M: int | None = 1000,
     seed: int | None = 42,
     check_analytic_null: bool = False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: int | str | torch.device = "auto",
+    accelerator: str = "auto",
     verbose: bool = False,
 ):
     """
@@ -95,8 +97,11 @@ def compute_local_autocorrelation(
     check_analytic_null : bool, optional (default: False)
         Whether to evaluate Z-scores under an analytic null distribution using permutation
         Z-scores.
-    device : torch.device, optional
-        PyTorch device to run computations on. Defaults to CUDA if available.
+    device : int, str, or torch.device, optional (default: "auto")
+        Device to use for computation. If `"auto"` or a device index, this is resolved with
+        :func:`scvi.model._utils.parse_device_args`.
+    accelerator : str, optional (default: "auto")
+        Accelerator type to use when resolving `device`.
     verbose : bool, optional (default: False)
         Whether to print progress and status messages.
 
@@ -108,6 +113,20 @@ def compute_local_autocorrelation(
     start = time.time()
     if verbose:
         print("Computing local autocorrelation...")
+
+    if isinstance(device, str) and device != "auto":
+        try:
+            device = torch.device(device)
+        except (RuntimeError, ValueError):
+            pass
+
+    if not isinstance(device, torch.device):
+        _, _, device = parse_device_args(
+            accelerator=accelerator,
+            devices=device,
+            return_device="torch",
+            validate_single_device=True,
+        )
 
     adata.uns["layer_key"] = layer_key
     adata.uns["model"] = model

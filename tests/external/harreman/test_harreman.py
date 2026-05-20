@@ -3,9 +3,11 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pytest
+import torch
 from anndata import AnnData
 
 import scvi.external.harreman.hotspot as hs
+import scvi.external.harreman.hotspot.local_autocorrelation as local_autocorrelation
 import scvi.external.harreman.preprocessing as pp
 import scvi.external.harreman.tools as tl
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
@@ -110,6 +112,49 @@ def test_compute_local_autocorrelation(adata_with_graph):
     assert "gene_autocorrelation_results" in adata_with_graph.uns
     results = adata_with_graph.uns["gene_autocorrelation_results"]
     assert len(results) == adata_with_graph.n_vars
+
+
+def test_compute_local_autocorrelation_uses_scvi_device_parser(monkeypatch, adata_with_graph):
+    calls = []
+
+    def parse_device_args(*, accelerator, devices, return_device, validate_single_device):
+        calls.append(
+            {
+                "accelerator": accelerator,
+                "devices": devices,
+                "return_device": return_device,
+                "validate_single_device": validate_single_device,
+            }
+        )
+        return "cpu", "auto", torch.device("cpu")
+
+    monkeypatch.setattr(
+        local_autocorrelation, "parse_device_args", parse_device_args, raising=False
+    )
+
+    hs.compute_local_autocorrelation(adata_with_graph, model="danb")
+
+    assert calls == [
+        {
+            "accelerator": "auto",
+            "devices": "auto",
+            "return_device": "torch",
+            "validate_single_device": True,
+        }
+    ]
+
+
+def test_compute_local_autocorrelation_accepts_torch_device_string(monkeypatch, adata_with_graph):
+    def parse_device_args(**kwargs):
+        raise AssertionError("Explicit PyTorch device strings should not be parsed")
+
+    monkeypatch.setattr(
+        local_autocorrelation, "parse_device_args", parse_device_args, raising=False
+    )
+
+    hs.compute_local_autocorrelation(adata_with_graph, model="danb", device="cpu")
+
+    assert "gene_autocorrelation_results" in adata_with_graph.uns
 
 
 @pytest.mark.parametrize("model", ["none", "normal", "bernoulli"])
