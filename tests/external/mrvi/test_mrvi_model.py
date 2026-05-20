@@ -53,7 +53,7 @@ def model2(adata: AnnData):
     return model
 
 
-def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
+def test_MRVI(model: MRVI, adata: AnnData, save_path: str):
     model.get_local_sample_distances()
     model.get_local_sample_distances(normalize_distances=True)
     model.get_latent_representation(give_z=False)
@@ -73,7 +73,7 @@ def test_torchMRVI(model: MRVI, adata: AnnData, save_path: str):
     model.train(1)
 
 
-def test_torchMRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
+def test_MRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
     model2.get_local_sample_distances()
     model2.get_local_sample_distances(normalize_distances=True)
     model2.get_latent_representation(give_z=False)
@@ -93,13 +93,13 @@ def test_torchMRVI_with_labels(model2: MRVI, adata: AnnData, save_path: str):
     model2.train(1)
 
 
-def test_torchMRVI_outlier_cell_sample_pairs(model: MRVI):
+def test_MRVI_outlier_cell_sample_pairs(model: MRVI):
     result = model.get_outlier_cell_sample_pairs(batch_size=256)
     assert "log_probs" in result
     assert "is_admissible" in result
 
 
-def test_torchMRVI_de_basic(model: MRVI):
+def test_MRVI_de_basic(model: MRVI):
     result = model.differential_expression(
         sample_cov_keys=["meta1_cat"],
         store_lfc=True,
@@ -158,7 +158,7 @@ def test_torchMRVI_de_basic(model: MRVI):
         ),
     ],
 )
-def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
+def test_MRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]):
     for de_kwarg in de_kwargs:
         model.differential_expression(**de_kwarg)
 
@@ -209,7 +209,7 @@ def test_torchMRVI_de(model: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict
         ),
     ],
 )
-def test_torchMRVI_de_with_labels(
+def test_MRVI_de_with_labels(
     model2: MRVI, setup_kwargs: dict[str, Any], de_kwargs: dict[str, Any]
 ):
     for de_kwarg in de_kwargs:
@@ -230,7 +230,7 @@ def test_torchMRVI_de_with_labels(
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],
 )
-def test_torchMRVI_da(model, sample_key, da_kwargs):
+def test_MRVI_da(model, sample_key, da_kwargs):
     model.differential_abundance(**da_kwargs)
 
 
@@ -248,7 +248,7 @@ def test_torchMRVI_da(model, sample_key, da_kwargs):
         {"sample_cov_keys": ["meta1_cat", "batch"], "compute_log_enrichment": True},
     ],
 )
-def test_torchMRVI_da_with_labels(model2, sample_key, da_kwargs):
+def test_MRVI_da_with_labels(model2, sample_key, da_kwargs):
     model2.differential_abundance(**da_kwargs)
 
 
@@ -281,7 +281,7 @@ def test_torchMRVI_da_with_labels(model2, sample_key, da_kwargs):
         },
     ],
 )
-def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
+def test_MRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], save_path: str):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
@@ -295,7 +295,7 @@ def test_torchMRVI_model_kwargs(adata: AnnData, model_kwargs: dict[str, Any], sa
     model = MRVI.load(model_path, adata=adata)
 
 
-def test_torchMRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
+def test_MRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     sample_cov_keys = ["meta1_cat", "meta2", "cont_cov"]
     sample_subset = [chr(i + ord("a")) for i in range(8)]
     model.differential_expression(
@@ -307,7 +307,7 @@ def test_torchMRVI_sample_subset(model: MRVI, adata: AnnData, save_path: str):
     model = MRVI.load(model_path, adata=adata)
 
 
-def test_torchMRVI_shrink_u(adata: AnnData, save_path: str):
+def test_MRVI_shrink_u(adata: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata,
         sample_key="sample_str",
@@ -341,7 +341,7 @@ def adata_stratifications():
     return adata
 
 
-def test_torchMRVI_stratifications(adata_stratifications: AnnData, save_path: str):
+def test_MRVI_stratifications(adata_stratifications: AnnData, save_path: str):
     MRVI.setup_anndata(
         adata_stratifications,
         sample_key="sample_str",

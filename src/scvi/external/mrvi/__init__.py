@@ -1,4 +1,4 @@
-from scvi.external.mrvi_torch._module import TorchMRVAE as MRVAE
+from scvi.external.mrvi._module import MRVAE as MRVAE
 
 from ._model import MRVI
 

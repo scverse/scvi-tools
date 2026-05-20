@@ -29,10 +29,6 @@ flags:
     paths:
       - src/scvi/
     carryforward: true
-  jax:
-    paths:
-      - src/scvi/
-    carryforward: true
   optional:
     paths:
       - src/scvi/
