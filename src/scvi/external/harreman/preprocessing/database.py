@@ -80,6 +80,7 @@ def extract_interaction_db(
 
 
 def build_LR_matrix(index, database, ligands, receptors):
+    """Build a gene-by-ligand-receptor interaction matrix."""
     matrix = pd.DataFrame(0, index=index, columns=database.index)
     matrix.index = matrix.index.str.lower()
     for col in matrix.columns:
@@ -92,6 +93,7 @@ def build_LR_matrix(index, database, ligands, receptors):
 
 
 def build_transporter_matrix(index, metab_dict):
+    """Build a gene-by-metabolite transporter direction matrix."""
     matrix = pd.DataFrame(0, index=index, columns=metab_dict.keys())
     matrix.index = matrix.index.str.lower()
     for metab, gene_dirs in metab_dict.items():
@@ -184,6 +186,7 @@ def extract_transporter_info(
 
 
 def build_metabolite_df(metab_dict, key):
+    """Build a metabolite annotation dataframe for one transport direction."""
     df = pd.DataFrame.from_dict({k: v[key] for k, v in metab_dict.items()}, orient="index").T
     df.columns = [f"{key}{i}" for i in range(df.shape[1])]
     return df

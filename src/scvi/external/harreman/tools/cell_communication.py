@@ -73,9 +73,11 @@ def apply_gene_filtering(
     expression_filt : str, optional (default: False)
         If True, filters genes based on expression in each cell type.
     de_filt : str, optional (default: False)
-        If True, filters genes based on differential expression between each cell type and the rest.
+        If True, filters genes based on differential expression between each cell type and the
+        rest.
     umi_counts_obs_key : str, optional
-        Key in `adata.obs` with total UMI counts per cell. If `None`, inferred from the expression matrix.
+        Key in `adata.obs` with total UMI counts per cell. If `None`, inferred from the
+        expression matrix.
     device : torch.device, optional
         Device to use for computation (e.g., CUDA or CPU). Defaults to GPU if available.
     verbose : bool, optional (default: False)
@@ -241,13 +243,13 @@ def filter_genes(
 
 
 def filter_expr_matrix(matrix, threshold):
-
+    """Return genes expressed in at least a threshold fraction of cells."""
     return (matrix > 0).sum(axis=1) / matrix.shape[1] >= threshold
 
 
 @njit(parallel=True)
 def cohens_d(x, y):
-
+    """Compute Cohen's d row-wise between two matrices."""
     out = np.empty(x.shape[0])
 
     for i in range(x.shape[0]):
@@ -260,7 +262,7 @@ def cohens_d(x, y):
 
 
 def de_threshold(counts_ct, counts_no_ct):
-
+    """Compute differential-expression statistics for cell-type counts."""
     stat = np.array(
         [
             mannwhitneyu(counts_ct[i], counts_no_ct[i], alternative="greater").statistic
@@ -287,9 +289,10 @@ def compute_gene_pairs(
     fix_ct: Literal["all"] | str | None = None,
     verbose: bool | None = False,
 ):
-    """
-    Identifies biologically plausible gene pairs involved in ligand-receptor (LR) signaling or
-    metabolite transport based on annotated interaction databases and filtered expression data.
+    """Identify biologically plausible gene pairs.
+
+    This includes ligand-receptor (LR) signaling or metabolite transport pairs based on annotated
+    interaction databases and filtered expression data.
 
     Parameters
     ----------
@@ -305,9 +308,11 @@ def compute_gene_pairs(
     cell_type_key : str, optional
         Key in `adata.obs` indicating cell type annotation.
     cell_type_pairs : list of tuple, optional
-        List of tuples specifying cell type pairs to consider. If not provided, all combinations are used.
+        List of tuples specifying cell type pairs to consider. If not provided, all combinations
+        are used.
     ct_specific : bool, optional (default: True)
-        If True, restrict gene pair computation to combinations relevant to the given cell type annotations.
+        If True, restrict gene pair computation to combinations relevant to the given cell type
+        annotations.
     fix_ct : str, optional
         Whether to restrict the cell type pairs to a particular cell type.
     verbose : bool, optional (default: False)
@@ -316,7 +321,8 @@ def compute_gene_pairs(
     Returns
     -------
     None
-        Results are stored in the following keys in `adata.uns`: `lcs`, `lc_zs`, `lc_z_pvals`, and `lc_z_FDR`.
+        Results are stored in the following keys in `adata.uns`: `lcs`, `lc_zs`,
+        `lc_z_pvals`, and `lc_z_FDR`.
     """
     start = time.time()
     if verbose:
@@ -546,9 +552,10 @@ def compute_cell_communication(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     verbose: bool | None = False,
 ):
-    """
-    Computes spatially-informed cell-type-agnostic cell-cell communication (CCC) scores and
-    significance across all gene pairs using both parametric and non-parametric statistical tests.
+    """Compute spatially informed cell-type-agnostic CCC scores.
+
+    Scores and significance are computed across all gene pairs using both parametric and
+    non-parametric statistical tests.
 
     Parameters
     ----------
@@ -564,9 +571,11 @@ def compute_cell_communication(
     layer_key_np_test : str or "use_raw", optional
         Data layer to use for the non-parametric test. If `"use_raw"`, uses `adata.raw`.
     model : str, optional
-        Normalization model to use for centering gene expression. Options include "none", "normal", "bernoulli", or "danb".
+        Normalization model to use for centering gene expression. Options include "none",
+        "normal", "bernoulli", or "danb".
     center_counts_for_np_test : bool, optional (default: False)
-        Whether to center expression counts using the specified model before non-parametric testing.
+        Whether to center expression counts using the specified model before non-parametric
+        testing.
     subset_gene_pairs : list, optional
         If provided, restricts the analysis to this subset of gene pairs.
     M : int, optional (default: 1000)
@@ -578,7 +587,8 @@ def compute_cell_communication(
     mean : {'algebraic', 'geometric'}, optional (default: 'algebraic')
         Averaging method for multi-gene interactions.
     check_analytic_null : bool, optional (default: False)
-        Whether to evaluate Z-scores under an analytic null distribution using permutation Z-scores.
+        Whether to evaluate Z-scores under an analytic null distribution using permutation
+        Z-scores.
     device : torch.device, optional
         PyTorch device to run computations on. Defaults to CUDA if available.
     verbose : bool, optional (default: False)
@@ -588,10 +598,10 @@ def compute_cell_communication(
     -------
     None
         Results are stored in the following `adata.uns` fields:
-            - `uns["ccc_results"]["p"]`: Parametric test results (gene pair and metabolite scores, Z, p-values, FDR).
-            - `uns["ccc_results"]["np"]`: Non-parametric test results (communication scores, empirical p-values, FDR).
+            - `uns["ccc_results"]["p"]`: Parametric test results (scores, Z, p-values, FDR).
+            - `uns["ccc_results"]["np"]`: Non-parametric results (scores, p-values, FDR).
             - `uns["lc_zs"]`: Symmetric matrix of ligand-receptor Z-scores across genes.
-            - `uns["gene_pair_dict"]`: Dictionary mapping metabolites to index positions of gene pairs.
+            - `uns["gene_pair_dict"]`: Dictionary mapping metabolites to gene pair indices.
             - `uns["D"]`: Vector of total node degrees per cell (spatial connectivity).
             - `uns["genes"]`: Ordered list of involved genes.
             - `uns["gene_pairs_ind"]`: Index-referenced version of `uns["gene_pairs"]`.
@@ -669,7 +679,7 @@ def run_cell_communication_analysis(
     device,
     verbose,
 ):
-
+    """Run the cell-type-agnostic CCC score and significance workflow."""
     use_raw = (layer_key_p_test == "use_raw") & (layer_key_np_test == "use_raw")
 
     cells = (
@@ -1044,9 +1054,10 @@ def compute_ct_cell_communication(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     verbose: bool | None = False,
 ):
-    """
-    Computes cell type-aware cell-cell communication (CCC) scores by stratifying communication
-    by interacting cell type pairs. Supports parametric and non-parametric statistical inference.
+    """Compute cell type-aware cell-cell communication scores.
+
+    Communication is stratified by interacting cell type pairs and supports parametric and
+    non-parametric statistical inference.
 
     Parameters
     ----------
@@ -1064,17 +1075,20 @@ def compute_ct_cell_communication(
     layer_key_np_test : str or "use_raw", optional
         Data layer to use for non-parametric test.
     model : str, optional
-        Normalization model to use for centering gene expression. Options include "none", "normal", "bernoulli", or "danb".
+        Normalization model to use for centering gene expression. Options include "none",
+        "normal", "bernoulli", or "danb".
     cell_type_key : str, optional
         Key in `adata.obs` corresponding to cell type annotations. Required if not stored in `uns`.
     center_counts_for_np_test : bool, optional (default: False)
-        Whether to center expression counts using the specified model before non-parametric testing.
+        Whether to center expression counts using the specified model before non-parametric
+        testing.
     subset_gene_pairs : list, optional
         Subset of gene pairs to consider. If None, uses all pairs.
     subset_metabolites : list, optional
         Subset of metabolites to include in the analysis.
     fix_gp : bool, optional (default: False)
-        If True, keeps gene pair identity fixed during permutation testing, randomizing cell types only.
+        If True, keeps gene pair identity fixed during permutation testing, randomizing cell types
+        only.
     M : int, optional (default: 1000)
         Number of permutations to use if `permutation_test` is True.
     seed : int, optional (default: 42)
@@ -1084,7 +1098,8 @@ def compute_ct_cell_communication(
     mean : {'algebraic', 'geometric'}, optional (default: 'algebraic')
         Averaging method for multi-gene modules.
     check_analytic_null : bool, optional (default: False)
-        Whether to compute Z-scores and p-values under the null distribution for the permutation test.
+        Whether to compute Z-scores and p-values under the null distribution for the permutation
+        test.
     device : torch.device, optional
         PyTorch device to run computations on. Defaults to CUDA if available.
     verbose : bool, optional (default: False)
@@ -1094,13 +1109,14 @@ def compute_ct_cell_communication(
     -------
     None
         Results are stored in the following `adata.uns` fields:
-            - `ct_ccc_results["p"]`: parametric test results (scores, Z, p-values, FDRs) per gene pair and metabolite per cell type pair.
-            - `ct_ccc_results["np"]`: non-parametric test results (communication scores, empirical p-values, FDRs).
+            - `ct_ccc_results["p"]`: parametric results per gene pair, metabolite, and cell type.
+            - `ct_ccc_results["np"]`: non-parametric scores, empirical p-values, and FDRs.
             - `gene_pair_dict`: dictionary mapping metabolites to relevant gene pairs.
-            - `gene_pairs_ind`, `gene_pairs_ind_per_ct_pair`: index-referenced gene pair representations.
+            - `gene_pairs_ind`, `gene_pairs_ind_per_ct_pair`: index-referenced gene pair
+              representations.
             - `D`: spatial node degree for each cell per cell type pair.
             - `cells`, `genes`: ordered list of cells and genes used in analysis.
-            - (optional) `ct_ccc_results["np"]["analytic_null"]`: null distributions from permutation test Z-scores and p-values.
+            - (optional) `ct_ccc_results["np"]["analytic_null"]`: permutation null outputs.
     """
     start = time.time()
     if verbose:
@@ -1190,7 +1206,7 @@ def run_ct_cell_communication_analysis(
     device,
     verbose,
 ):
-
+    """Run the cell type-aware CCC score and significance workflow."""
     use_raw = (layer_key_p_test == "use_raw") & (layer_key_np_test == "use_raw")
     obs = adata.raw.obs if use_raw else adata.obs
     cells = (
@@ -1620,7 +1636,7 @@ def run_ct_cell_communication_analysis(
 
 
 def standardize_ct_counts(adata, counts, model, num_umi, sample_specific, cell_types):
-
+    """Standardize counts within cell types and optional samples."""
     if sample_specific:
         sample_key = adata.uns["sample_key"]
         for sample in adata.obs[sample_key].unique():
@@ -1635,6 +1651,7 @@ def standardize_ct_counts(adata, counts, model, num_umi, sample_specific, cell_t
 
 
 def flatten(nested_list):
+    """Yield scalar values from a nested list or tuple structure."""
     for item in nested_list:
         if isinstance(item, list | tuple):
             yield from flatten(item)
@@ -1643,7 +1660,7 @@ def flatten(nested_list):
 
 
 def create_weights_ct_pairs(weights, cell_types, cell_type_pairs, device):
-
+    """Create sparse weight tensors for each cell type pair."""
     indices = torch.tensor([weights.row, weights.col], dtype=torch.long, device=device)
     values = torch.tensor(weights.data, dtype=torch.float64, device=device)
     shape = weights.shape
@@ -1699,9 +1716,9 @@ def select_significant_interactions(
     use_FDR: bool | None = True,
     threshold: float | None = 0.05,
 ):
-    """
-    Select significant gene pairs or metabolite-mediated interactions based on
-    FDR/p-value thresholds and (optionally) cell-type–aware tests.
+    """Select significant gene pairs or metabolite-mediated interactions.
+
+    Selection is based on FDR/p-value thresholds and optional cell-type-aware tests.
 
     Parameters
     ----------
@@ -1835,7 +1852,8 @@ def compute_interacting_cell_scores(
         "metabolites",
     ]:
         raise ValueError(
-            'The "restrict_significance" variable should be one of ["both", "gene pairs", "metabolites"].'
+            'The "restrict_significance" variable should be one of '
+            '["both", "gene pairs", "metabolites"].'
         )
 
     if compute_significance is not None and compute_significance not in [
@@ -1844,7 +1862,8 @@ def compute_interacting_cell_scores(
         "non-parametric",
     ]:
         raise ValueError(
-            'The "compute_significance" variable should be one of ["both", "parametric", "non-parametric"].'
+            'The "compute_significance" variable should be one of '
+            '["both", "parametric", "non-parametric"].'
         )
 
     sample_specific = "sample_key" in adata.uns
@@ -2192,7 +2211,7 @@ def compute_interacting_cell_scores(
                     Z_gp_perm, Z_m_perm = compute_p_results(
                         (cs_a, cs_b),
                         (cs_m_a, cs_m_b),
-                        gene_pairs_ind,
+                        gene_pairs_sig_ind,
                         Wtot2,
                         eg2s_gp,
                         gene_pair_dict,
@@ -2299,8 +2318,7 @@ def compute_ct_interacting_cell_scores(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     verbose: bool | None = False,
 ):
-    """
-    Compute cell-type–aware interacting cell scores for gene pairs and metabolites.
+    """Compute cell-type-aware interacting cell scores for gene pairs and metabolites.
 
     Parameters
     ----------
@@ -2339,7 +2357,8 @@ def compute_ct_interacting_cell_scores(
 
     if restrict_significance not in ["both", "gene pairs", "metabolites"]:
         raise ValueError(
-            'The "restrict_significance" variable should be one of ["both", "gene pairs", "metabolites"].'
+            'The "restrict_significance" variable should be one of '
+            '["both", "gene pairs", "metabolites"].'
         )
 
     sample_specific = "sample_key" in adata.uns
@@ -2398,7 +2417,8 @@ def compute_ct_interacting_cell_scores(
         ]
         if len(missing_ct_pairs) > 0:
             warnings.warn(
-                f'The following cell type pairs are not included in the "cell_type_pairs" set: {missing_ct_pairs}',
+                "The following cell type pairs are not included in the "
+                f'"cell_type_pairs" set: {missing_ct_pairs}',
                 stacklevel=2,
             )
 
@@ -2811,6 +2831,7 @@ def compute_metabolite_cs_ct(
     ct_specific_gene_pairs=None,
     interacting_cell_scores=False,
 ):
+    """Compute metabolite scores with optional cell type-pair masking."""
     if cell_type_key and ct_specific_gene_pairs:
         for i, ct_pair in enumerate(gene_pairs_per_ct_pair_ind.keys()):
             if i not in ct_specific_gene_pairs:
@@ -2850,6 +2871,7 @@ def compute_metabolite_cs_old(
     ct_specific_gene_pairs=None,
     interacting_cell_scores=False,
 ):
+    """Compute metabolite scores using the legacy NumPy implementation."""
     if cell_type_key and ct_specific_gene_pairs:
         for i, ct_pair in enumerate(gene_pairs_per_ct_pair_ind.keys()):
             if i not in ct_specific_gene_pairs:
@@ -2884,6 +2906,7 @@ def compute_metabolite_cs_old(
 
 
 def ensure_tuple(x):
+    """Convert nested lists in a pair-like object to tuples."""
     return tuple(tuple(i) if isinstance(i, list) else i for i in x)
 
 
@@ -2893,7 +2916,7 @@ def compute_CCC_scores(
     weights: sparse.COO,
     gene_pairs: list,
 ):
-
+    """Compute aggregate cell-cell communication scores."""
     if len(weights.shape) == 3:
         scores = (counts_1.T * np.tensordot(weights, counts_2.T, axes=([2], [0]))).sum(axis=1)
     else:
@@ -2912,7 +2935,7 @@ def compute_int_CCC_scores(
     weights: sparse.COO,
     gene_pairs: list,
 ):
-
+    """Compute per-cell interacting cell communication scores."""
     if len(weights.shape) == 3:
         scores = counts_1.T * np.tensordot(weights, counts_2.T, axes=([2], [0]))
     else:
@@ -2924,7 +2947,7 @@ def compute_int_CCC_scores(
 
 
 def get_ct_pair_weights(weights, cell_type_pairs, cell_types):
-
+    """Extract weights for all requested cell type pairs."""
     w_nrow, w_ncol = weights.shape
     n_ct_pairs = len(cell_type_pairs)
 
@@ -2949,7 +2972,7 @@ def get_ct_pair_weights(weights, cell_type_pairs, cell_types):
 
 
 def extract_ct_pair_weights(ct_pair, weights, cell_type_pairs, cell_types):
-
+    """Extract spatial weights for one cell type pair."""
     i = cell_type_pairs.index(ct_pair)
 
     ct_t, ct_u = cell_type_pairs[i]
@@ -2979,6 +3002,7 @@ def extract_ct_pair_weights(ct_pair, weights, cell_type_pairs, cell_types):
 
 
 def get_interacting_cell_type_pairs(x, weights, cell_types):
+    """Return whether a cell type pair has nonzero spatial weights."""
     ct_1, ct_2 = x
 
     ct_1_bin = cell_types == ct_1
@@ -2991,7 +3015,7 @@ def get_interacting_cell_type_pairs(x, weights, cell_types):
 
 
 def conditional_eg2_cellcom_gp(counts_1, counts_2, weights):
-
+    """Compute conditional second moments for gene-pair communication scores."""
     if len(weights.shape) == 3:
         counts_1_sq = counts_1**2
         counts_2_sq = counts_2**2
@@ -3009,7 +3033,7 @@ def conditional_eg2_cellcom_gp(counts_1, counts_2, weights):
 
 
 def conditional_eg2_gp_score(counts, weights):
-
+    """Compute conditional second moments for gene scores."""
     counts_sq = counts**2
     if len(weights.shape) == 3:
         # weights_t = weights.transpose(axes=(0, 2, 1))
@@ -3034,7 +3058,7 @@ def compute_ct_p_results(
     cell_type_key,
     gene_pair_dict,
 ):
-
+    """Compute cell type-aware parametric Z-scores."""
     EG2_gp = EG2_gp.unsqueeze(1).expand(-1, C_gp.shape[1]) if len(EG2_gp.shape) == 1 else EG2_gp
 
     stdG = torch.sqrt(EG2_gp)
@@ -3063,7 +3087,7 @@ def compute_ct_p_results(
 
 
 def compute_p_results(C_gp, C_m, gene_pairs_ind, Wtot2, eg2s_gp, gene_pair_dict):
-
+    """Compute parametric Z-scores for gene pairs and metabolites."""
     device = Wtot2.device
 
     # Convert indices
@@ -3135,14 +3159,15 @@ def compute_p_results_old(
     cell_type_key,
     gene_pair_dict,
 ):
+    """Compute parametric results using the legacy NumPy implementation."""
     i = cell_type_pairs.index(ct_pair)
     gene_pair_cor_ct = (
         (cs_gp[0][i, :], cs_gp[1][i, :]) if isinstance(cs_gp, tuple) else cs_gp[i, :]
     )
     C_m = (cs_m[0][i, :], cs_m[1][i, :]) if isinstance(cs_m, tuple) else cs_m[i, :]
-    gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[
-        ct_pair
-    ]  # If we consider all the gene pairs (irrespective of the cell type pair) use 'gene_pairs_ind' directly
+    # If all gene pairs are considered irrespective of the cell type pair, use
+    # `gene_pairs_ind` directly.
+    gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[ct_pair]
 
     eg2s_a, eg2s_b = eg2s_gp
     C_gp = []
@@ -3228,12 +3253,13 @@ def compute_p_int_cell_results(
     cell_type_key,
     gene_pair_dict,
 ):
+    """Compute interacting-cell parametric results for one cell type pair."""
     i = cell_type_pairs.index(ct_pair)
     gene_pair_cor_ct = cs_gp[i, :, :]
     C_m = cs_m[i, :, :]
-    gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[
-        ct_pair
-    ]  # If we consider all the gene pairs (irrespective of the cell type pair) use 'gene_pairs_ind' directly
+    # If all gene pairs are considered irrespective of the cell type pair, use
+    # `gene_pairs_ind` directly.
+    gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[ct_pair]
 
     eg2s_a, eg2s_b = eg2s_gp
     C_gp = []
@@ -3298,7 +3324,7 @@ def compute_p_int_cell_results(
 
 
 def compute_p_int_cell_results_no_ct(C_gp, C_m, gene_pairs_ind, Wtot2, eg2s_gp, gene_pair_dict):
-
+    """Compute interacting-cell parametric results without cell type stratification."""
     device = Wtot2.device
 
     # Convert indices
@@ -3369,6 +3395,7 @@ def compute_np_results(
     gene_pairs_ind,
     gene_pairs_ind_per_ct_pair,
 ):
+    """Extract non-parametric results for one cell type pair."""
     i = cell_type_pairs.index(ct_pair)
     gene_pair_cor_gp_ct = cs_gp[i, :]
     C_m = cs_m[i, :]
@@ -3377,9 +3404,9 @@ def compute_np_results(
     pvals_gp_b_ct = pvals_gp_b[i, :]
     pvals_m_a, pvals_m_b = pvals_m
     p_values_m_a = pvals_m_a[i, :]
-    gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[
-        ct_pair
-    ]  # If we consider all the gene pairs (irrespective of the cell type pair) use 'gene_pairs_ind' directly
+    # If all gene pairs are considered irrespective of the cell type pair, use
+    # `gene_pairs_ind` directly.
+    gene_pairs_ind_ct_pair = gene_pairs_ind_per_ct_pair[ct_pair]
 
     C_gp = []
     p_values_gp_a = []
@@ -3398,7 +3425,10 @@ def compute_np_results(
     p_values_gp_a = list(np.concatenate(p_values_gp_a))
     p_values_gp_b = list(np.concatenate(p_values_gp_b))
 
-    # C_m = compute_metabolite_cs(np.array(C_gp), cell_type_key=None, gene_pair_dict=gene_pair_dict, interacting_cell_scores=False)
+    # C_m = compute_metabolite_cs(
+    #     np.array(C_gp), cell_type_key=None, gene_pair_dict=gene_pair_dict,
+    #     interacting_cell_scores=False
+    # )
 
     return (C_gp, p_values_gp_a, p_values_gp_b, C_m, p_values_m_a, p_values_m_a)
 
@@ -3416,7 +3446,7 @@ def get_ct_cell_communication_results(
     test,
     device,
 ):
-
+    """Assemble cell type-aware communication result dataframes."""
     gene_pairs_ind_per_ct_pair = adata.uns["gene_pairs_ind_per_ct_pair"]
     gene_pair_dict = adata.uns["gene_pair_dict"]
     genes = adata.uns["genes"]
@@ -3536,7 +3566,7 @@ def get_cell_communication_results_old(
     D,
     test,
 ):
-
+    """Assemble legacy cell type-aware communication result dataframes."""
     gene_pairs_ind_per_ct_pair = adata.uns["gene_pairs_ind_per_ct_pair"]
     gene_pair_dict = adata.uns["gene_pair_dict"]
     genes = adata.uns["genes"]
@@ -3670,7 +3700,7 @@ def get_cell_communication_results(
     test,
     device,
 ):
-
+    """Assemble cell-type-agnostic communication result dataframes."""
     gene_pairs = adata.uns["gene_pairs"]
     gene_pairs_ind = adata.uns["gene_pairs_ind"]
     gene_pair_dict = adata.uns["gene_pair_dict"]
@@ -3759,7 +3789,7 @@ def normalize_ct_values(
     lcs,
     D,
 ):
-
+    """Normalize communication scores within each cell type pair."""
     if isinstance(cell_types, pd.Series):
         cell_types = cell_types.values
 
@@ -3814,7 +3844,7 @@ def normalize_values_old(
     lcs,
     D,
 ):
-
+    """Normalize legacy cell type-aware communication scores."""
     c_values_norm = np.zeros(lcs.shape)
     for i in range(len(cell_type_pairs)):
         ct_pair = cell_type_pairs[i]
@@ -3846,7 +3876,7 @@ def compute_max_cs(node_degrees, counts, gene_pairs_ind):
 
 
 def compute_max_cs_old(node_degrees, counts, gene_pairs_ind):
-
+    """Compute max communication scores per gene pair using NumPy."""
     result = np.zeros(len(gene_pairs_ind))
     for i, gene_pair_ind in enumerate(gene_pairs_ind):
         vals = (
@@ -3866,6 +3896,7 @@ def compute_max_cs_gp(vals, node_degrees):
 
 @jit(nopython=True)
 def compute_max_cs_gp_old(vals, node_degrees):
+    """Compute max communication score for one gene vector using NumPy."""
     tot = 0.0
 
     for i in range(node_degrees.size):
@@ -3875,7 +3906,8 @@ def compute_max_cs_gp_old(vals, node_degrees):
 
 
 def center_ct_counts_torch(counts, num_umi, model, cell_types):
-    """
+    """Center counts within cell types.
+
     counts: Tensor [genes, cells]
     num_umi: Tensor [cells]
     model: 'bernoulli', 'danb', 'normal', or 'none'
@@ -3916,10 +3948,7 @@ def center_ct_counts_torch(counts, num_umi, model, cell_types):
 
 
 def create_centered_counts(counts, model, num_umi):
-    """
-    Creates a matrix of centered/standardized counts given
-    the selected statistical model
-    """
+    """Create centered or standardized counts for the selected model."""
     out = np.zeros_like(counts, dtype="double")
 
     for i in range(out.shape[0]):
@@ -3933,10 +3962,7 @@ def create_centered_counts(counts, model, num_umi):
 
 
 def create_centered_counts_ct(counts, model, num_umi, cell_types):
-    """
-    Creates a matrix of centered/standardized counts given
-    the selected statistical model
-    """
+    """Create centered or standardized counts within cell types."""
     out = np.zeros_like(counts, dtype="double")
 
     for i in range(out.shape[0]):
@@ -3950,6 +3976,7 @@ def create_centered_counts_ct(counts, model, num_umi, cell_types):
 
 
 def create_centered_counts_row_ct(vals_x, model, num_umi, cell_types):
+    """Center one count vector within cell types."""
     if model == "bernoulli":
         vals_x = (vals_x > 0).astype("double")
         mu_x, var_x, x2_x = models.bernoulli_model(vals_x, num_umi)
@@ -3974,6 +4001,7 @@ def create_centered_counts_row_ct(vals_x, model, num_umi, cell_types):
 
 
 def create_centered_counts_row(vals_x, model, num_umi):
+    """Center one count vector."""
     if model == "bernoulli":
         vals_x = (vals_x > 0).astype("double")
         mu_x, var_x, x2_x = models.bernoulli_model(vals_x, num_umi)
@@ -4000,11 +4028,12 @@ def create_centered_counts_row(vals_x, model, num_umi):
 def compute_Z_scores_cellcom_p(
     ct_pair, cell_type_pairs, gene_pair_cor, gene_pairs_per_ct_pair_ind, Wtot2, eg2s
 ):
+    """Compute parametric cell communication Z-scores for one cell type pair."""
     i = cell_type_pairs.index(ct_pair)
     gene_pair_cor_ct = gene_pair_cor[i, :, :]
-    gene_pairs_ind = gene_pairs_per_ct_pair_ind[
-        ct_pair
-    ]  # If we consider all the gene pairs (irrespective of the cell type pair) use 'gene_pairs_ind' directly
+    # If all gene pairs are considered irrespective of the cell type pair, use
+    # `gene_pairs_ind` directly.
+    gene_pairs_ind = gene_pairs_per_ct_pair_ind[ct_pair]
 
     C = []
     EG2 = []
@@ -4031,12 +4060,13 @@ def compute_Z_scores_cellcom_p(
 def extract_results_cellcom_np(
     ct_pair, cell_type_pairs, gene_pair_cor, pvals, gene_pairs_per_ct_pair_ind
 ):
+    """Extract non-parametric cell communication results for one cell type pair."""
     i = cell_type_pairs.index(ct_pair)
     gene_pair_cor_ct = gene_pair_cor[i, :, :]
     pvals_ct = pvals[i, :, :]
-    gene_pairs_ind = gene_pairs_per_ct_pair_ind[
-        ct_pair
-    ]  # If we consider all the gene pairs (irrespective of the cell type pair) use 'gene_pairs_ind' directly
+    # If all gene pairs are considered irrespective of the cell type pair, use
+    # `gene_pairs_ind` directly.
+    gene_pairs_ind = gene_pairs_per_ct_pair_ind[ct_pair]
 
     C = []
     p_values = []
@@ -4056,6 +4086,7 @@ def extract_results_cellcom_np(
 
 @njit
 def expand_ct_pairs_cellcom(pairs, vals, N):
+    """Expand sparse cell type-pair values into dense matrices."""
     out = [np.zeros((N, N)) for k in range(len(vals))]
 
     for k in range(len(out)):
@@ -4070,10 +4101,7 @@ def expand_ct_pairs_cellcom(pairs, vals, N):
 
 
 def compute_local_cov_pairs_max(node_degrees, counts):
-    """
-    For a Genes x Cells count matrix, compute the maximal pair-wise correlation
-    between any two genes
-    """
+    """Compute the maximal pairwise local covariance for genes."""
     N_GENES = counts.shape[0]
 
     gene_maxs = np.zeros(N_GENES)
@@ -4087,6 +4115,7 @@ def compute_local_cov_pairs_max(node_degrees, counts):
 
 @jit(nopython=True)
 def compute_local_cov_max(vals, node_degrees):
+    """Compute local covariance for one vector."""
     tot = 0.0
 
     for i in range(node_degrees.size):
@@ -4098,7 +4127,7 @@ def compute_local_cov_max(vals, node_degrees):
 def get_ct_pair_counts_and_weights(
     counts, weights, cell_type_pairs, cell_types, gene_pairs_per_ct_pair_ind
 ):
-
+    """Extract count and weight tensors for all cell type pairs."""
     c_nrow, c_ncol = counts.shape
     w_nrow, w_ncol = weights.shape
     n_ct_pairs = len(cell_type_pairs)
@@ -4144,7 +4173,7 @@ def get_ct_pair_counts_and_weights(
 def get_ct_pair_counts_and_weights_null(
     counts_ct_pairs_t, counts_ct_pairs_u, weights, cell_type_pairs, cell_types, M
 ):
-
+    """Build null count and weight tensors for cell type pairs."""
     n_cells = counts_ct_pairs_t.shape[2]
     cell_permutations = np.vstack([np.random.permutation(n_cells) for _ in range(M)])
 
@@ -4193,7 +4222,7 @@ def get_ct_pair_counts_and_weights_null(
 def extract_ct_pair_counts_weights(
     ct_pair, counts, weights, cell_type_pairs, cell_types, gene_pairs_per_ct_pair_ind
 ):
-
+    """Extract counts and weights for one cell type pair."""
     i = cell_type_pairs.index(ct_pair)
 
     ct_t, ct_u = cell_type_pairs[i]
@@ -4268,7 +4297,7 @@ def extract_ct_pair_counts_weights_null(
     cell_type_pairs,
     cell_types,
 ):
-
+    """Extract null counts and weights for one permutation."""
     i = np.where(np.all(permutations == permutation, axis=1))[0]
     cell_types_perm = pd.Series(cell_types[permutation])
 
@@ -4321,34 +4350,34 @@ def compute_interaction_module_correlation(
     use_FDR: bool | None = True,
     use_super_modules: bool | None = False,
 ):
-    """
-    Compute correlations between interacting cell scores and module scores.
+    """Compute correlations between interacting cell scores and module scores.
 
     Parameters
     ----------
     adata : AnnData
         Must contain:
-        - ``uns['interacting_cell_results']`` (parametric or non-parametric interacting cell scores)
+        - ``uns['interacting_cell_results']`` with parametric or non-parametric scores
         - ``obsm['module_scores']`` or ``obsm['super_module_scores']``
         - ``uns['metabolites']`` or ``uns['gene_pairs_sig_names']``
     cor_method : {"pearson", "spearman"}, default "pearson"
         Statistical method used to compute correlations.
     test : {"parametric", "non-parametric"}
         Which interacting-cell score set to use.
-        - `"parametric"` → uses ``uns['interacting_cell_results']['p']``
-        - `"non-parametric"` → uses ``uns['interacting_cell_results']['np']``
+        - `"parametric"` uses ``uns['interacting_cell_results']['p']``
+        - `"non-parametric"` uses ``uns['interacting_cell_results']['np']``
     interaction_type : {"metabolite", "gene_pair"}, default "metabolite"
         Select whether to correlate:
         - metabolite scores, or
         - gene pair scores.
     only_sig_values : bool, default False
-        If True, use only significant interacting cell score values (`cs_sig_pval` or `cs_sig_FDR`).
+        If True, use only significant interacting cell score values (`cs_sig_pval` or
+        `cs_sig_FDR`).
     normalize_values : bool, default False
-        Apply min–max normalization to interacting cell score values per interaction.
+        Apply min-max normalization to interacting cell score values per interaction.
     use_FDR : bool, default True
         If ``only_sig_values=True``, determines whether to filter by FDR or raw p-values.
     use_super_modules : bool, default False
-        Whether to use super-module scores (``obsm['super_module_scores']``) instead of module scores.
+        Whether to use super-module scores instead of module scores.
     """
     MODULE_KEY = "super_module_scores" if use_super_modules else "module_scores"
 

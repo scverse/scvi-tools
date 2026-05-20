@@ -41,7 +41,7 @@ def setup_anndata(
     sample_key: str | None,
     spot_diameter: int,
 ) -> anndata.AnnData:
-
+    """Create a deconvolution AnnData object from cell-type layers."""
     barcode_key = "barcodes"
     database = input_adata.varm[database_varm_key]
     obs_names = input_adata.obs_names
@@ -104,13 +104,17 @@ def setup_deconv_adata(
     adata
         AnnData object.
     compute_neighbors_on_key
-        Key in `adata.obsm` to use for computing neighbors. If `None`, use neighbors stored in `adata`. If no neighbors have been previously computed an error will be raised.
+        Key in `adata.obsm` to use for computing neighbors. If `None`, use neighbors stored in
+        `adata`. If no neighbors have been previously computed an error will be raised.
     sample_key
-        Sample information in case the data contains different samples or samples from different conditions. Input is key in `adata.obs`.
+        Sample information in case the data contains different samples or samples from different
+        conditions. Input is key in `adata.obs`.
     cell_type_list
-        Cell type or cluster information for the cell-cell communication analysis. Input is a list of keys in `adata.layers`.
+        Cell type or cluster information for the cell-cell communication analysis. Input is a list
+        of keys in `adata.layers`.
     cell_type_key
-        Cell type or cluster information for the cell-cell communication analysis. Input is key in `adata.obs`.
+        Cell type or cluster information for the cell-cell communication analysis. Input is key in
+        `adata.obs`.
     spot_diameter
         Spot diameter of the spatial technology the dataset belongs to.
     verbose : bool, optional (default: False)
@@ -168,6 +172,7 @@ def setup_deconv_adata(
 
 
 def modify_uns_hotspot(adata):
+    """Move Hotspot fields into write-compatible AnnData locations."""
     if "modules" in adata.uns.keys():
         adata.var["modules"] = adata.uns["modules"]
         del adata.uns["modules"]
@@ -188,6 +193,7 @@ def modify_uns_hotspot(adata):
 
 
 def modify_uns_harreman(adata):
+    """Convert Harreman fields to h5ad-compatible representations."""
     uns_keys = ["ligand", "receptor", "LR_database", "import_export"]
     for uns_key in uns_keys:
         if uns_key in adata.uns.keys():
@@ -399,6 +405,7 @@ def write_h5ad(
 
 
 def recover_uns_hotspot(adata):
+    """Restore Hotspot fields after reading an h5ad file."""
     if "modules" not in adata.uns and "modules" in adata.var.columns:
         adata.uns["modules"] = adata.var["modules"].dropna().astype(int).copy()
         del adata.var["modules"]
@@ -417,6 +424,7 @@ def recover_uns_hotspot(adata):
 
 
 def recover_uns_harreman(adata):
+    """Restore Harreman fields after reading an h5ad file."""
     uns_keys = ["ligand", "receptor", "LR_database", "import_export"]
     for uns_key in uns_keys:
         if uns_key in adata.uns.keys():
@@ -498,7 +506,7 @@ def recover_uns_harreman(adata):
         return g.split(" - ") if " - " in g else g
 
     if "gene_pairs_per_metabolite" in adata.uns:
-        for key, subdict in adata.uns["gene_pairs_per_metabolite"].items():
+        for _key, subdict in adata.uns["gene_pairs_per_metabolite"].items():
             subdict["gene_pair"] = [
                 (recover_tuple_or_list(gp1), recover_tuple_or_list(gp2))
                 for gp1, gp2 in subdict["gene_pair"]
