@@ -121,11 +121,9 @@ N_BIN_TARGET = 30
 
 @jit(nopython=True)
 def find_gene_p(num_umi, D):
-    """
-    Finds gene_p such that sum of expected detects
-    matches our data
+    """Find gene_p such that sum of expected detects matches our data.
 
-    Performs a binary search on p in the space of log(p)
+    Performs a binary search on p in the space of log(p).
     """
     low = 1e-12
     high = 1
@@ -182,10 +180,9 @@ def bernoulli_model_linear(gene_detects, umi_counts):
 
 
 def bernoulli_model_linear_torch(gene_detects, umi_counts, n_bins=30, eps=1e-10):
-    """
-    gene_detects: [genes, cells] binary tensor
-    umi_counts: [cells] tensor
-    Returns: mu, var, x2 = each of shape [genes, cells]
+    """Fit a linear Bernoulli model to gene detection data.
+
+    Returns mu, var, x2 each of shape [genes, cells].
     """
     device = gene_detects.device
     log_umi = torch.log10(umi_counts.clamp(min=eps))  # [cells]
@@ -274,9 +271,9 @@ def bin_gene_detection(gene_detects, umi_count_bins, N_BIN):
 
 
 def normal_model(gene_counts, umi_counts):
-    """
-    Simplest Model - just assumes expression data is normal
-    UMI counts are regressed out
+    """Fit a normal model assuming expression data is normally distributed.
+
+    UMI counts are regressed out.
     """
     X = np.vstack((np.ones(len(umi_counts)), umi_counts)).T
     y = gene_counts.reshape((-1, 1))
@@ -331,8 +328,8 @@ def normal_model_torch(counts: torch.Tensor, umi_counts: torch.Tensor, eps: floa
     XT_X = XT @ X  # [2, 2]
     try:
         XT_X_inv = torch.inverse(XT_X + eps * torch.eye(2, device=device))  # [2, 2]
-    except RuntimeError:
-        raise ValueError("Design matrix is singular. Consider regularizing or filtering.")
+    except RuntimeError as e:
+        raise ValueError("Design matrix is singular. Consider regularizing or filtering.") from e
 
     # Center y (counts) to [cells, genes] for regression, then transpose
     Y = counts.T  # [cells, genes]

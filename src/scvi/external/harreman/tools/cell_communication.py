@@ -17,6 +17,8 @@ from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
 from scvi.external.harreman.hotspot import models
+from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
+from scvi.external.harreman.tools.knn import make_weights_non_redundant
 
 
 def _lazy_import_hotspot():
@@ -33,9 +35,6 @@ def _lazy_import_hotspot():
 
 compute_local_autocorrelation = None
 standardize_counts = None
-
-from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
-from scvi.external.harreman.tools.knn import make_weights_non_redundant
 
 
 def apply_gene_filtering(
@@ -473,7 +472,7 @@ def compute_gene_pairs(
         # Evaluate gene pairs
         for var1, var2 in all_pairs:
 
-            def extract_val(var):
+            def extract_val(var, metabolite):
                 if isinstance(var, str):
                     return database.at[var, metabolite]
                 else:
@@ -486,8 +485,8 @@ def compute_gene_pairs(
                     )
                     return vals[0] if len(vals) == 1 else vals
 
-            val1 = extract_val(var1)
-            val2 = extract_val(var2)
+            val1 = extract_val(var1,metabolite)
+            val2 = extract_val(var2,metabolite)
 
             if not val1 or not val2:
                 continue
@@ -2399,7 +2398,8 @@ def compute_ct_interacting_cell_scores(
         ]
         if len(missing_ct_pairs) > 0:
             warnings.warn(
-                f'The following cell type pairs are not included in the "cell_type_pairs" set: {missing_ct_pairs}'
+                f'The following cell type pairs are not included in the "cell_type_pairs" set: {missing_ct_pairs}',
+                stacklevel=2,
             )
 
         metabolite_set = set(cell_com_m_df["metabolite"].values)
@@ -4054,7 +4054,7 @@ def extract_results_cellcom_np(
     return (C, p_values)
 
 
-# @njit
+@njit
 def expand_ct_pairs_cellcom(pairs, vals, N):
     out = [np.zeros((N, N)) for k in range(len(vals))]
 

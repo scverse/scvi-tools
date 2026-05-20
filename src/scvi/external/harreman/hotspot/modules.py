@@ -187,10 +187,7 @@ def sort_linkage(Z, node_index, node_values):
 
 
 def calc_mean_dists(Z, node_index, out_mean_dists):
-    """
-    Calculates the mean density of joins
-    for sub-trees underneath each node
-    """
+    """Calculate mean density of joins for sub-trees underneath each node."""
     N = Z.shape[0] + 1  # number of leaves
 
     left_child = int(Z[node_index, 0] - N)
@@ -220,9 +217,9 @@ def calc_mean_dists(Z, node_index, out_mean_dists):
 
 
 def prop_label(Z, node_index, label, labels, out_clusters):
-    """
-    Propagates node labels downward if they are not -1
-    Used to find the correct cluster label at the leaves
+    """Propagate node labels downward if they are not -1.
+
+    Used to find the correct cluster label at the leaves.
     """
     N = Z.shape[0] + 1  # number of leaves
 
@@ -244,9 +241,9 @@ def prop_label(Z, node_index, label, labels, out_clusters):
 
 
 def prop_label2(Z, node_index, label, labels, out_clusters):
-    """
-    Propagates node labels downward
-    Helper method used in assign_modules
+    """Propagate node labels downward.
+
+    Helper method used in assign_modules.
     """
     N = Z.shape[0] + 1  # number of leaves
 
@@ -507,118 +504,6 @@ def create_modules(
         print("Finished creating modules in %.3f seconds" % (time.time() - start))
 
     return
-
-
-def compute_sig_mod_enrichment(adata, norm_data_key, signature_varm_key, use_super_modules):
-
-    gene_modules_key = "gene_modules_sm" if use_super_modules else "gene_modules"
-
-    use_raw = norm_data_key == "use_raw"
-    genes = adata.raw.var.index if use_raw else adata.var_names
-
-    sig_matrix = (
-        adata.varm[signature_varm_key] if not use_raw else adata.raw.varm[signature_varm_key]
-    )
-    gene_modules = adata.uns[gene_modules_key]
-
-    signatures = {}
-
-    for signature in sig_matrix.columns:
-        if all(x in sig_matrix[signature].unique().tolist() for x in [-1, 1]):
-            sig_genes_up = sig_matrix[sig_matrix[signature] == 1].index.tolist()
-            sig_genes_down = sig_matrix[sig_matrix[signature] == -1].index.tolist()
-
-            sig_name_up = signature + "_UP"
-            sig_name_down = signature + "_DOWN"
-
-            signatures[sig_name_up] = sig_genes_up
-            signatures[sig_name_down] = sig_genes_down
-        else:
-            sig_genes = sig_matrix[sig_matrix[signature] != 0].index.tolist()
-            signatures[signature] = sig_genes
-
-    pvals_df = pd.DataFrame(
-        np.nan, index=list(signatures.keys()), columns=list(gene_modules.keys())
-    )
-    stats_df = pd.DataFrame(
-        np.nan, index=list(signatures.keys()), columns=list(gene_modules.keys())
-    )
-
-    sig_mod_df = pd.DataFrame(index=genes)
-
-    universe = adata.var_names[adata.var["local_autocorrelation"] == True].tolist()
-
-    # We make sure that the genes present in the signature are just the ones included in the universe
-    signatures = {
-        sig: [gene for gene in genes if gene in universe] for sig, genes in signatures.items()
-    }
-
-    for signature in signatures.keys():
-        sig_genes = signatures[signature]
-
-        for module in gene_modules.keys():
-            mod_genes = gene_modules[module]
-            sig_mod_genes = list(set(sig_genes) & set(mod_genes))
-
-            M = len(universe)
-            n = len(sig_genes)
-            N = len(mod_genes)
-            x = len(sig_mod_genes)
-
-            pval = hypergeom.sf(x - 1, M, n, N)
-
-            if pval < 0.05:
-                sig_mod_name = signature + "_OVERLAP_" + module
-                sig_mod_df[sig_mod_name] = 0
-                sig_mod_df.loc[sig_mod_genes, sig_mod_name] = 1.0
-
-            e_overlap = n * N / M
-            stat = np.log2(x / e_overlap) if e_overlap != 0 else 0
-
-            pvals_df.loc[signature, module] = pval
-            stats_df.loc[signature, module] = stat
-
-    FDR_values = multipletests(pvals_df.unstack().values, method="fdr_bh")[1]
-    FDR_df = pd.Series(FDR_values, index=pvals_df.stack().index).unstack()
-
-    adata.varm["signatures_overlap"] = sig_mod_df
-
-    return pvals_df, stats_df, FDR_df
-
-
-def compute_sig_mod_correlation(adata, method, use_super_modules):
-
-    module_scores_key = "super_module_scores" if use_super_modules else "module_scores"
-
-    signatures = adata.obsm["vision_signatures"].columns.tolist()
-    modules = adata.obsm[module_scores_key].columns.tolist()
-
-    cor_pval_df = pd.DataFrame(index=modules)
-    cor_coef_df = pd.DataFrame(index=modules)
-
-    for signature in signatures:
-        correlation_values = []
-        pvals = []
-
-        for module in modules:
-            signature_df = adata.obsm["vision_signatures"][signature]
-            module_df = adata.obsm[module_scores_key][module]
-
-            if method == "pearson":
-                correlation_value, pval = pearsonr(signature_df, module_df)
-            elif method == "spearman":
-                correlation_value, pval = spearmanr(signature_df, module_df)
-
-            correlation_values.append(correlation_value)
-            pvals.append(pval)
-
-        cor_coef_df[signature] = correlation_values
-        cor_pval_df[signature] = pvals
-
-    cor_FDR_values = multipletests(cor_pval_df.unstack().values, method="fdr_bh")[1]
-    cor_FDR_df = pd.Series(cor_FDR_values, index=cor_pval_df.stack().index).unstack()
-
-    return cor_coef_df, cor_pval_df, cor_FDR_df
 
 
 def compute_top_scoring_modules(

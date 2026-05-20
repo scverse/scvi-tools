@@ -308,14 +308,19 @@ def center_values(vals, mu, var):
 
 
 def center_counts_torch(counts, num_umi, model):
-    """
-    counts: Tensor [genes, cells]
-    num_umi: Tensor [cells]
-    model: 'bernoulli', 'danb', 'normal', or 'none'
+    """Center and normalize counts using the specified model.
+
+    Parameters
+    ----------
+    counts : torch.Tensor of shape [genes, cells]
+    num_umi : torch.Tensor of shape [cells]
+    model : str
+        One of 'bernoulli', 'danb', 'normal', or 'none'.
 
     Returns
     -------
-        Centered counts: Tensor [genes, cells]
+    torch.Tensor of shape [genes, cells]
+        Centered counts.
     """
     # Binarize if using Bernoulli
     if model == "bernoulli":
@@ -341,10 +346,9 @@ def center_counts_torch(counts, num_umi, model):
 
 
 def compute_autocor_Z_scores_torch(G, G_max, Wtot2):
-    """
-    G, G_max: torch tensors of shape (genes,)
-    Wtot2: float scalar (already computed)
-    Returns a dict with tensors: G, G_max, EG, stdG, Z, C
+    """Compute autocorrelation Z-scores from G, G_max, and Wtot2.
+
+    Returns a dict with tensors: G, G_max, EG, stdG, Z, C.
     """
     EG = 0.0
     stdG = (Wtot2 - EG**2) ** 0.5

@@ -60,8 +60,8 @@ def compute_knn_graph(
             for x in tree:
                 if x.is_leaf():
                     all_leaves.append(x.name)
-        except:
-            raise ValueError("Can't parse supplied tree")
+        except Exception as e:
+            raise ValueError("Can't parse supplied tree") from e
 
         if len(all_leaves) != adata.shape[0] or len(set(all_leaves) & set(adata.obs_names)) != len(
             all_leaves
@@ -119,9 +119,7 @@ def compute_neighbors(
     sample_key: str | None = None,
     verbose: bool | None = False,
 ) -> None:
-    """
-    Computes a nearest-neighbors graph on the AnnData object using either
-    radius-based or k-nearest neighbors.
+    """Compute a nearest-neighbors graph using either radius-based or k-nearest neighbors.
 
     Parameters
     ----------
@@ -255,6 +253,7 @@ def compute_neighbors_from_distances(
     if adata.uns.get("deconv_data", False) and "barcodes" in adata.obs:
         if verbose:
             print("Adding intra-spot connections...")
+        spot_diameter = adata.uns["spot_diameter"]
         for _barcode, inds in adata.obs.groupby("barcodes").indices.items():
             if len(inds) <= 1:
                 continue
@@ -271,9 +270,7 @@ def compute_weights(
     weighted_graph: bool,
     neighborhood_factor: int,
 ) -> None:
-    """
-    Computes weights on the neighbors based on a
-    gaussian kernel and their distances.
+    """Compute weights on neighbors using a Gaussian kernel and their distances.
 
     Parameters
     ----------
@@ -282,8 +279,9 @@ def compute_weights(
     weighted_graph : bool
         Whether or not to create a weighted graph.
     neighborhood_factor : int
-        Used when creating a weighted graph.  Sets how quickly weights decay relative to the distances within the neighborhood.
-        The weight for a cell with a distance d will decay as exp(-d^2/D) where D is the distance to the `n_neighbors`/`neighborhood_factor`-th neighbor.
+        Sets how quickly weights decay relative to the distances within the neighborhood.
+        The weight for a cell with distance d decays as exp(-d^2/D) where D is the distance
+        to the `n_neighbors`/`neighborhood_factor`-th neighbor.
     """
     # Load distance matrix and remove diagonal entries
     distances = sparse.COO.from_scipy_sparse(adata.obsp["distances"])
@@ -341,11 +339,9 @@ def make_weights_non_redundant(weights):
 
 
 def tree_neighbors_and_weights(adata, tree, n_neighbors):
-    """
-    Computes nearest neighbors and associated weights for data
-    Uses distance along the tree object
+    """Compute nearest neighbors and weights using distance along the tree object.
 
-    Names of the leaves of the tree must match the columns in counts
+    Names of the leaves of the tree must match the columns in counts.
 
     Parameters
     ----------
@@ -355,7 +351,6 @@ def tree_neighbors_and_weights(adata, tree, n_neighbors):
         The root of the tree
     n_neighbors: int
         Number of neighbors to find
-
     """
     K = n_neighbors
     cell_labels = adata.obs_names
