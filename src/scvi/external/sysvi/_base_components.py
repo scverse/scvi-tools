@@ -116,7 +116,7 @@ class EncoderDecoder(Module):
         parametrized with the predicted parameters.
         """
         cat_list = [batch_index] + cat_list
-        q_ = self.decoder_y(x, *cat_list, cont=cont)
+        q_ = self.decoder_y(x, *cat_list, cont_input=cont)
         q_m = self.mean_encoder(q_)
         if q_m.isnan().any() or q_m.isinf().any():
             warnings.warn(

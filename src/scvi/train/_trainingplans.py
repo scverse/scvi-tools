@@ -651,7 +651,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 self.adversarial_classifier = False
             else:
                 self.adversarial_classifier = Classifier(
-                    n_input=self.module.n_latent + self.module.n_adversarial_group,
+                    n_input=self.module.n_latent + getattr(self.module, "n_adversarial_group", 0),
                     n_hidden=128,
                     n_labels=self.n_output_classifier,
                     n_layers=2,
@@ -670,12 +670,17 @@ class AdversarialTrainingPlan(TrainingPlan):
     ):
         """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
-        adversarial_group_ = torch.nn.functional.one_hot(
-            adversarial_group, num_classes=self.module.n_adversarial_group
-        ).float()
+        n_adv_group = getattr(self.module, "n_adversarial_group", 0)
+        if n_adv_group > 0:
+            adversarial_group_ = torch.nn.functional.one_hot(
+                adversarial_group, num_classes=n_adv_group
+            ).float()
+            z_cls = torch.cat([z, adversarial_group_], dim=1)
+        else:
+            z_cls = z
         if predict_true_class:  # train classifier
-            z = z.detach()
-        z = torch.cat([z, adversarial_group_], dim=1)
+            z_cls = z_cls.detach()
+        z = z_cls
         cls_logits = self.adversarial_classifier(z)
 
         if predict_true_class:

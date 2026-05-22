@@ -134,7 +134,7 @@ class FCLayers(nn.Module):
                         f"Layer {i}",
                         nn.Sequential(
                             nn.Linear(
-                                n_in + (cat_dim + n_continuous) * self.inject_into_layer(i),
+                                n_in + self.n_cov * self.inject_into_layer(i),
                                 n_out,
                                 bias=bias,
                             ),
@@ -213,12 +213,12 @@ class FCLayers(nn.Module):
             tensor of shape ``(n_out,)``
         """
         one_hot_cat_list = []  # for generality in this list many idxs useless.
-        cont_list = [cont] if cont is not None else []
+        cont_list = [cont_input] if cont_input is not None else []
         cat_list = cat_list or []
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
-        if self.n_continuous > 0 and cont_input.shape[-1] != self.n_continuous:
+        if self.n_continuous > 0 and cont_input is not None and cont_input.shape[-1] != self.n_continuous:
             raise ValueError("continuous dims provided doesn't match init. params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
             if n_cat and cat is None:
@@ -229,8 +229,7 @@ class FCLayers(nn.Module):
                 else:
                     one_hot_cat = cat  # cat has already been one_hot encoded
                 one_hot_cat_list += [one_hot_cat]
-        if cont_input is not None:
-            one_hot_cat_list += [cont_input]
+        cov_list = cont_list + one_hot_cat_list
         for i, layers in enumerate(self.fc_layers):
             for layer in layers:
                 if layer is not None:
@@ -382,7 +381,7 @@ class Encoder(nn.Module):
 
         """
         # Parameters for latent distribution
-        q = self.encoder(x, *cat_list, cont=cont)
+        q = self.encoder(x, *cat_list, cont_input=cont)
         q_m = self.mean_encoder(q)
         q_v = self.var_activation(self.var_encoder(q)) + self.var_eps
         dist = Normal(q_m, q_v.sqrt())
@@ -521,7 +520,7 @@ class DecoderSCVI(nn.Module):
 
         """
         # The decoder returns values for the parameters of the ZINB distribution
-        px = self.px_decoder(z, *cat_list, cont=cont)
+        px = self.px_decoder(z, *cat_list, cont_input=cont)
         if output_condition is not None and self.n_conditions_output:
             one_hot_cat = nn.functional.one_hot(
                 output_condition.squeeze(-1), self.n_conditions_output

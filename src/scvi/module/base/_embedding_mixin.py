@@ -19,7 +19,7 @@ class EmbeddingModuleMixin:
     @property
     def embeddings_dim(self) -> dict:
         """Dictionary of embeddings dimensions."""
-        if not hasattr(self, "_embeddings_dict"):
+        if not hasattr(self, "_embeddings_dim"):
             self._embeddings_dim = {}
         return self._embeddings_dim
 
