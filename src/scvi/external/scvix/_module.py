@@ -14,8 +14,8 @@ from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     BaseMinifiedModeModuleClass,
     EmbeddingModuleMixin,
-    LossOutput,
     GaussianPrior,
+    LossOutput,
     MogPrior,
     VampPrior,
     auto_move_data,
@@ -174,13 +174,12 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.use_observed_lib_size = True
         self.n_hidden = n_hidden
 
-
         if self.dispersion == "gene":
-            self.px_r = torch.nn.Parameter(3.*torch.ones(n_input))
+            self.px_r = torch.nn.Parameter(3.0 * torch.ones(n_input))
         elif self.dispersion == "gene-batch":
-            self.px_r = torch.nn.Parameter(3.*torch.ones(n_input, n_batch))
+            self.px_r = torch.nn.Parameter(3.0 * torch.ones(n_input, n_batch))
         elif self.dispersion == "gene-assay":
-            self.px_r = torch.nn.Parameter(3.*torch.ones(n_input, n_assay))
+            self.px_r = torch.nn.Parameter(3.0 * torch.ones(n_input, n_assay))
         elif self.dispersion == "gene-cell":
             pass
         else:
@@ -284,10 +283,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             assert pseudoinput_data is not None, (
                 "Pseudoinput data must be specified if using VampPrior"
             )
-            pseudoinput_data = self._get_inference_input(
-                pseudoinput_data,
-                full_forward_pass=True
-            )
+            pseudoinput_data = self._get_inference_input(pseudoinput_data, full_forward_pass=True)
             cat_list = [n_batch] + n_cats_per_cov_ + encode_assay_list
             self.prior = VampPrior(
                 n_components=n_prior_components,
@@ -296,7 +292,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 pseudoinputs=pseudoinput_data,
                 n_cat_list=cat_list,
                 trainable_priors=True,
-                additional_categorical_covariates=["assay_index"]
+                additional_categorical_covariates=["assay_index"],
             )
         elif prior == "mog":
             self.prior = MogPrior(
@@ -304,14 +300,9 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 n_latent=n_latent,
             )
         elif prior == "mog_celltype":
-            self.prior = MogPrior(
-                n_components=n_labels,
-                n_latent=n_latent,
-                celltype_bias=True
-            )
+            self.prior = MogPrior(n_components=n_labels, n_latent=n_latent, celltype_bias=True)
         else:
-            raise ValueError(
-                "`prior` must be one of 'gaussian', 'vamp', 'mog', 'mog_celltype'.")
+            raise ValueError("`prior` must be one of 'gaussian', 'vamp', 'mog', 'mog_celltype'.")
 
     def _get_inference_input(
         self,
@@ -336,7 +327,9 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
                 MODULE_KEYS.ASSAY_INDEX_KEY: tensors.get(REGISTRY_KEYS.ASSAY_KEY, None),
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
-                MODULE_KEYS.ADVERSARIAL_GROUP_KEY: tensors.get(REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, None),
+                MODULE_KEYS.ADVERSARIAL_GROUP_KEY: tensors.get(
+                    REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, None
+                ),
             }
         else:
             return {
@@ -376,7 +369,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
-            x_ = x_/x_.mean(1).unsqueeze(1)
+            x_ = x_ / x_.mean(1).unsqueeze(1)
             x_ = torch.log1p(x_)
 
         if cat_covs is not None and self.encode_covariates:
@@ -402,9 +395,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if n_samples > 1:
             untran_z = qz.sample((n_samples,))
             z = self.z_encoder.z_transformation(untran_z)
-            library = library.unsqueeze(0).expand(
-                (n_samples, library.size(0), library.size(1))
-            )
+            library = library.unsqueeze(0).expand((n_samples, library.size(0), library.size(1)))
 
         return {
             MODULE_KEYS.Z_KEY: z,
@@ -447,7 +438,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         assay_index: torch.Tensor | None = None,
         cont_covs: torch.Tensor | None = None,
         cat_covs: torch.Tensor | None = None,
-        size_factor: torch.Tensor | None = None, # Consistency
+        size_factor: torch.Tensor | None = None,  # Consistency
         y: torch.Tensor | None = None,
         transform_batch: torch.Tensor | None = None,
         transform_assay: torch.Tensor | None = None,
@@ -544,7 +535,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         weight_assay_loss: float = 0.0,
         weight_global: float = 1.0,
         weight_kl_sample: float = 1.0,
-        classification_ratio: float = 500.,
+        classification_ratio: float = 500.0,
     ) -> LossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence
@@ -560,9 +551,11 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.get_embedding_variational(REGISTRY_KEYS.BATCH_KEY, default_value=False):
             pz_sample = self.compute_embedding(
-                REGISTRY_KEYS.BATCH_KEY, tensors[REGISTRY_KEYS.BATCH_KEY], return_dist=True)
+                REGISTRY_KEYS.BATCH_KEY, tensors[REGISTRY_KEYS.BATCH_KEY], return_dist=True
+            )
             qz_sample = distributions.Normal(
-                torch.zeros_like(pz_sample.loc), torch.ones_like(pz_sample.scale))
+                torch.zeros_like(pz_sample.loc), torch.ones_like(pz_sample.scale)
+            )
             kl_divergence_sample = kl_divergence(qz_sample, pz_sample).sum(dim=1)
         else:
             kl_divergence_sample = torch.zeros_like(kl_divergence_z)
@@ -570,8 +563,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         assay_index = tensors.get(REGISTRY_KEYS.ASSAY_KEY, None)
         if weight_assay_loss > 0.0 and assay_index is not None:
             assay_loss = self._compute_assay_penalty(
-                inference_outputs[MODULE_KEYS.QZ_KEY].loc,
-                assay_index
+                inference_outputs[MODULE_KEYS.QZ_KEY].loc, assay_index
             )
         else:
             assay_loss = 0.0
@@ -582,30 +574,44 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.gene_likelihood == "zinb":
             zi = generative_outputs[MODULE_KEYS.PX_KEY].zi_logits
-            kl_global -= distributions.Exponential(
-                10.*torch.ones_like(zi)).log_prob(torch.exp(zi)).sum(-1)
+            kl_global -= (
+                distributions.Exponential(10.0 * torch.ones_like(zi))
+                .log_prob(torch.exp(zi))
+                .sum(-1)
+            )
         if self.gene_likelihood == "zinb" or self.gene_likelihood == "nb":
             theta = generative_outputs[MODULE_KEYS.PX_KEY].theta
-            kl_global -= distributions.Exponential(
-                torch.ones_like(theta)).log_prob(1/theta).sum(-1)
+            kl_global -= (
+                distributions.Exponential(torch.ones_like(theta)).log_prob(1 / theta).sum(-1)
+            )
 
         weighted_kl_local = kl_weight * (kl_divergence_z + weight_kl_sample * kl_divergence_sample)
 
         loss = torch.mean(
-            reconst_loss + weighted_kl_local + weight_assay_loss * assay_loss +
-            weight_global * kl_global)
+            reconst_loss
+            + weighted_kl_local
+            + weight_assay_loss * assay_loss
+            + weight_global * kl_global
+        )
 
         if self.n_labels > 1:
             logits = self.classifier(inference_outputs[MODULE_KEYS.Z_KEY])
-            classification_loss_ = torch.nn.functional.cross_entropy(logits, y.ravel(), reduction="none")
-            mask = (y != self.n_labels)
+            classification_loss_ = torch.nn.functional.cross_entropy(
+                logits, y.ravel(), reduction="none"
+            )
+            mask = y != self.n_labels
             classification_loss = classification_ratio * torch.masked_select(
-                classification_loss_, mask).mean(0)
+                classification_loss_, mask
+            ).mean(0)
             loss += torch.mean(classification_loss)
 
             return LossOutput(
-                loss=loss, reconstruction_loss=reconst_loss, kl_local=kl_divergence_z,
-                classification_loss=classification_loss, logits=logits, true_labels=y
+                loss=loss,
+                reconstruction_loss=reconst_loss,
+                kl_local=kl_divergence_z,
+                classification_loss=classification_loss,
+                logits=logits,
+                true_labels=y,
             )
 
         return LossOutput(
@@ -667,11 +673,10 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         return samples.cpu()
 
-    def _compute_assay_penalty(
-            self, params, assay):
+    def _compute_assay_penalty(self, params, assay):
         assay = assay.squeeze(-1).long()
         unique = torch.unique(assay)
-        pair_penalty = torch.tensor(0., device=assay.device)
+        pair_penalty = torch.tensor(0.0, device=assay.device)
         if len(unique) > 1:
             for i in unique:
                 pp = self.mmd(params, mask=(assay == i))

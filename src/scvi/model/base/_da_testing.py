@@ -14,7 +14,7 @@ def get_aggregated_posterior(
     sample: str | int | None = None,
     indices: Sequence[int] | None = None,
     batch_size: int | None = None,
-    dof: float | None = 3.,
+    dof: float | None = 3.0,
 ) -> dist.Distribution:
     """Compute the aggregated posterior over the ``u`` latent representations.
 
@@ -46,17 +46,21 @@ def get_aggregated_posterior(
         )
 
     dataloader = self._make_data_loader(adata=adata, indices=indices, batch_size=batch_size)
-    qu_loc, qu_scale = self.get_latent_representation(batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True)
+    qu_loc, qu_scale = self.get_latent_representation(
+        batch_size=batch_size, return_dist=True, dataloader=dataloader, give_mean=True
+    )
 
-    qu_loc = torch.tensor(qu_loc, device='cuda').T
-    qu_scale = torch.tensor(qu_scale, device='cuda').T
+    qu_loc = torch.tensor(qu_loc, device="cuda").T
+    qu_scale = torch.tensor(qu_scale, device="cuda").T
 
     if dof is None:
         components = dist.Normal(qu_loc, qu_scale)
     else:
         components = dist.StudentT(dof, qu_loc, qu_scale)
     return dist.MixtureSameFamily(
-        dist.Categorical(logits=torch.ones(qu_loc.shape[1], device='cuda')), components)
+        dist.Categorical(logits=torch.ones(qu_loc.shape[1], device="cuda")), components
+    )
+
 
 def differential_abundance(
     self,
@@ -92,9 +96,7 @@ def differential_abundance(
     """
     adata = self._validate_anndata(adata)
 
-    us = self.get_latent_representation(
-        batch_size=batch_size, return_dist=False, give_mean=True
-    )
+    us = self.get_latent_representation(batch_size=batch_size, return_dist=False, give_mean=True)
 
     unique_samples = adata.obs[sample_key].unique()
     dataloader = torch.utils.data.DataLoader(us, batch_size=batch_size)
@@ -107,10 +109,12 @@ def differential_abundance(
         ap = get_aggregated_posterior(self, adata=adata, indices=indices, dof=dof)
         log_probs_ = []
         for u_rep in dataloader:
-            u_rep = u_rep.to('cuda')
+            u_rep = u_rep.to("cuda")
             log_probs_.append(ap.log_prob(u_rep).sum(-1, keepdims=True))
         log_probs.append(torch.cat(log_probs_, axis=0).cpu().numpy())
 
     log_probs = np.concatenate(log_probs, 1)
-    log_probs_df = pd.DataFrame(data=log_probs, index=adata.obs_names.to_numpy(), columns=unique_samples)
+    log_probs_df = pd.DataFrame(
+        data=log_probs, index=adata.obs_names.to_numpy(), columns=unique_samples
+    )
     return log_probs_df

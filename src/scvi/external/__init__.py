@@ -2,6 +2,7 @@ import warnings
 
 from scvi import settings
 from scvi.utils import error_on_missing_dependencies
+
 from .cellassign import CellAssign
 from .contrastivevi import ContrastiveVI
 from .cytovi import CYTOVI

@@ -1,13 +1,14 @@
-import pytest
 import os
+
 import numpy as np
+import pytest
 
 import scvi
 from scvi.data import synthetic_iid
 from scvi.data._constants import ADATA_MINIFY_TYPE
 from scvi.data._utils import _is_minified
-from scvi.model.base import BaseMinifiedModeModelClass
 from scvi.external import SCVIX
+from scvi.model.base import BaseMinifiedModeModelClass
 
 
 def assert_approx_equal(a, b):
@@ -30,6 +31,7 @@ def test_scvix(prior: str):
     model.get_reconstruction_error(indices=model.validation_indices)
     model.differential_expression(groupby="labels", group1="label_1")
 
+
 @pytest.mark.parametrize("dispersion", ["gene", "gene-batch", "gene-assay", "gene-cell"])
 def test_scvix_dispersion(dispersion: str):
     adata = synthetic_iid(batch_size=100)
@@ -38,6 +40,7 @@ def test_scvix_dispersion(dispersion: str):
     model.train(max_epochs=1)
     model.get_normalized_expression()
 
+
 def test_scvix_encode_covariates():
     adata = synthetic_iid(batch_size=100)
     SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch", labels_key="labels")
@@ -45,12 +48,14 @@ def test_scvix_encode_covariates():
     model.train(max_epochs=1)
     model.get_normalized_expression(n_samples=2)
 
+
 def test_scvix_embedding():
     adata = synthetic_iid(batch_size=100)
     SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch", labels_key="labels")
     model = SCVIX(adata, batch_representation="embedding")
     model.train(max_epochs=1)
     model.get_normalized_expression(n_samples=2)
+
 
 def test_scvix_layernorm():
     adata = synthetic_iid(batch_size=100)
@@ -61,6 +66,7 @@ def test_scvix_layernorm():
     model = SCVIX(adata, conditional_norm=True, use_batch_norm="both", use_layer_norm="none")
     model.train(max_epochs=1)
     model.get_normalized_expression(n_samples=2)
+
 
 def test_scvix_scarches_one_hot(save_path):
     # test transfer_anndata_setup + view
@@ -88,6 +94,7 @@ def test_scvix_scarches_one_hot(save_path):
     new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
     adata4.var_names = new_var_names
 
+
 def test_scvix_scarches_embedding(save_path):
     # test transfer_anndata_setup + view
     adata1 = synthetic_iid()
@@ -113,6 +120,7 @@ def test_scvix_scarches_embedding(save_path):
     new_var_names_init = [f"Random {i}" for i in range(10)]
     new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
     adata4.var_names = new_var_names
+
 
 def test_scvix_minified():
     adata = synthetic_iid()

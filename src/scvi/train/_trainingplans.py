@@ -17,13 +17,12 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.module import Classifier
-from scvi.module._constants import MODULE_KEYS
 from scvi.module.base import (
     BaseModuleClass,
     LossOutput,
     MogPrior,
-    VampPrior,
     PyroBaseModuleClass,
+    VampPrior,
 )
 from scvi.train._constants import METRIC_KEYS
 from scvi.utils import is_package_installed
@@ -655,7 +654,7 @@ class AdversarialTrainingPlan(TrainingPlan):
                 self.adversarial_classifier = False
             else:
                 self.adversarial_classifier = Classifier(
-                    n_input=self.module.n_latent+self.module.n_adversarial_group,
+                    n_input=self.module.n_latent + self.module.n_adversarial_group,
                     n_hidden=128,
                     n_labels=self.n_output_classifier,
                     n_layers=2,
@@ -669,13 +668,15 @@ class AdversarialTrainingPlan(TrainingPlan):
         self.scale_adversarial_loss = scale_adversarial_loss
         self.automatic_optimization = False
 
-    def loss_adversarial_classifier(self, z, adversarial_group, batch_index, predict_true_class=True):
+    def loss_adversarial_classifier(
+        self, z, adversarial_group, batch_index, predict_true_class=True
+    ):
         """Loss for adversarial classifier."""
         n_classes = self.n_output_classifier
         adversarial_group_ = torch.nn.functional.one_hot(
             adversarial_group, num_classes=self.module.n_adversarial_group
         ).float()
-        if predict_true_class: # train classifier
+        if predict_true_class:  # train classifier
             z = z.detach()
         z = torch.cat([z, adversarial_group_], dim=1)
         cls_logits = self.adversarial_classifier(z)
@@ -686,9 +687,11 @@ class AdversarialTrainingPlan(TrainingPlan):
         else:
             one_hot_batch = torch.nn.functional.one_hot(batch_index.squeeze(-1), n_classes).float()
             cls_target = (1 - one_hot_batch) / (n_classes - 1)
-            loss = - (
-                cls_target * torch.nn.functional.log_softmax(cls_logits, dim=1)
-            ).sum(dim=1).mean()
+            loss = (
+                -(cls_target * torch.nn.functional.log_softmax(cls_logits, dim=1))
+                .sum(dim=1)
+                .mean()
+            )
 
         return loss
 
@@ -739,19 +742,23 @@ class AdversarialTrainingPlan(TrainingPlan):
         # train adversarial classifier
         # this condition will not be met unless self.adversarial_classifier is not False
         if opt2 is not None:
-            loss = 0.
+            loss = 0.0
             for i in range(self.adversarial_steps):
                 qz = inference_outputs["qz"]
                 z = qz.sample()
-                loss_ = kappa * self.loss_adversarial_classifier(z, adversarial_group, batch_tensor, True)
-                if isinstance(self.module.prior, MogPrior) or isinstance(self.module.prior, VampPrior):
+                loss_ = kappa * self.loss_adversarial_classifier(
+                    z, adversarial_group, batch_tensor, True
+                )
+                if isinstance(self.module.prior, MogPrior) or isinstance(
+                    self.module.prior, VampPrior
+                ):
                     qz_m, qz_v = qz.loc.detach(), qz.scale.detach()
                     loss_ += self.module.prior.kl(
                         qz=Normal(qz_m, qz_v),
                         z=z,
                         labels=batch.get(REGISTRY_KEYS.LABELS_KEY, torch.tensor(0)).long(),
                     ).mean()
-                if i>1 and (loss - loss_)/loss < 1e-3:
+                if i > 1 and (loss - loss_) / loss < 1e-3:
                     break
                 loss = loss_
                 opt2.zero_grad()
@@ -805,9 +812,7 @@ class AdversarialTrainingPlan(TrainingPlan):
 
         if self.adversarial_classifier is not False:
             params2 = filter(lambda p: p.requires_grad, self.adversarial_classifier.parameters())
-            optimizer2 = torch.optim.Adam(
-                params2, lr=3e-4, eps=1e-4, weight_decay=1e-9
-            )
+            optimizer2 = torch.optim.Adam(params2, lr=3e-4, eps=1e-4, weight_decay=1e-9)
             config2 = {"optimizer": optimizer2}
 
             # pytorch lightning requires this way to return

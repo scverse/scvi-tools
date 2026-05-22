@@ -1,14 +1,13 @@
-import pytest
-from mudata import MuData
-import numpy as np
-from anndata import AnnData
 import itertools
 
-from scipy import sparse as sp_sparse
+import numpy as np
 import pandas as pd
+import pytest
+from anndata import AnnData
+from mudata import MuData
+from scipy import sparse as sp_sparse
 
 from scvi.data import synthetic_iid
-from scvi.external import MUANVI
 
 
 # helper function for testing purposes ; could be moved in the same file as generate_synthetic()

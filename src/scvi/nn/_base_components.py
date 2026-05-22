@@ -20,8 +20,10 @@ class ConditionalBatchNorm2d(nn.Module):
         self.num_features = num_features
         self.bn = nn.BatchNorm1d(self.num_features, momentum=momentum, eps=eps, affine=False)
         self.embed = nn.Embedding(num_classes, self.num_features * 2)
-        self.embed.weight.data[:, :self.num_features].normal_(1, 0.02)  # Initialise scale at N(1, 0.02)
-        self.embed.weight.data[:, self.num_features:].zero_()  # Initialise bias at 0
+        self.embed.weight.data[:, : self.num_features].normal_(
+            1, 0.02
+        )  # Initialise scale at N(1, 0.02)
+        self.embed.weight.data[:, self.num_features :].zero_()  # Initialise bias at 0
 
     def forward(self, x, y):
         out = self.bn(x)
@@ -30,14 +32,17 @@ class ConditionalBatchNorm2d(nn.Module):
 
         return out
 
+
 class ConditionalLayerNorm(nn.Module):
     def __init__(self, num_features, num_classes):
         super().__init__()
         self.num_features = num_features
         self.ln = nn.LayerNorm(self.num_features, elementwise_affine=False)
         self.embed = nn.Embedding(num_classes, self.num_features * 2)
-        self.embed.weight.data[:, :self.num_features].normal_(1, 0.02)  # Initialise scale at N(1, 0.02)
-        self.embed.weight.data[:, self.num_features:].zero_()  # Initialise bias at 0
+        self.embed.weight.data[:, : self.num_features].normal_(
+            1, 0.02
+        )  # Initialise scale at N(1, 0.02)
+        self.embed.weight.data[:, self.num_features :].zero_()  # Initialise bias at 0
 
     def forward(self, x, y):
         out = self.ln(x)
@@ -45,6 +50,7 @@ class ConditionalLayerNorm(nn.Module):
         out = gamma.view(-1, self.num_features) * out + beta.view(-1, self.num_features)
 
         return out
+
 
 class FCLayers(nn.Module):
     """A helper class to build fully-connected layers for a neural network.
@@ -100,7 +106,7 @@ class FCLayers(nn.Module):
         inject_covariates: bool = True,
         activation_fn: nn.Module = nn.ReLU,
         conditional_norm: bool = False,
-        conditional_category: int = 0
+        conditional_category: int = 0,
     ):
         super().__init__()
         self.inject_covariates = inject_covariates
@@ -114,7 +120,7 @@ class FCLayers(nn.Module):
         self.n_continuous = n_continuous
 
         self.cond_cat = conditional_category
-        if conditional_norm and self.n_cat_list[self.cond_cat]==0:
+        if conditional_norm and self.n_cat_list[self.cond_cat] == 0:
             raise ValueError(
                 "Conditional normalization is not applicable for a categorical variable with only one category."
             )
@@ -134,14 +140,17 @@ class FCLayers(nn.Module):
                             ),
                             # non-default params come from defaults in Tensorflow implementation
                             ConditionalBatchNorm2d(
-                                n_out, self.n_cat_list[self.cond_cat], momentum=0.01, eps=0.001)
+                                n_out, self.n_cat_list[self.cond_cat], momentum=0.01, eps=0.001
+                            )
                             if conditional_norm and use_batch_norm
-                            else nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001) if use_batch_norm
+                            else nn.BatchNorm1d(n_out, momentum=0.01, eps=0.001)
+                            if use_batch_norm
                             else None,
                             # non-default params come from defaults in Tensorflow implementation
                             ConditionalLayerNorm(n_out, self.n_cat_list[self.cond_cat])
                             if conditional_norm and use_layer_norm
-                            else nn.LayerNorm(n_out, elementwise_affine=False) if use_layer_norm
+                            else nn.LayerNorm(n_out, elementwise_affine=False)
+                            if use_layer_norm
                             else None,
                             activation_fn() if use_activation else None,
                             nn.Dropout(p=dropout_rate) if dropout_rate > 0 else None,
@@ -209,7 +218,7 @@ class FCLayers(nn.Module):
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
-        if self.n_continuous>0 and cont_input.shape[-1] != self.n_continuous:
+        if self.n_continuous > 0 and cont_input.shape[-1] != self.n_continuous:
             raise ValueError("continuous dims provided doesn't match init. params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
             if n_cat and cat is None:
@@ -226,12 +235,15 @@ class FCLayers(nn.Module):
             for layer in layers:
                 if layer is not None:
                     if isinstance(layer, ConditionalBatchNorm2d) or isinstance(
-                        layer, ConditionalLayerNorm):
+                        layer, ConditionalLayerNorm
+                    ):
                         if x.dim() == 3:
                             x = torch.cat(
-                                [(layer(x=slice_x, y=cat_list[self.cond_cat])).unsqueeze(0)
-                                 for slice_x in x],
-                                dim=0
+                                [
+                                    (layer(x=slice_x, y=cat_list[self.cond_cat])).unsqueeze(0)
+                                    for slice_x in x
+                                ],
+                                dim=0,
                             )
                         else:
                             x = layer(x=x, y=cat_list[self.cond_cat])
@@ -342,11 +354,11 @@ class Encoder(nn.Module):
         self.var_activation = torch.exp if var_activation is None else var_activation
 
     def forward(
-            self,
-            x: torch.Tensor,
-            *cat_list: int,
-            cont: torch.Tensor | None = None,
-        ):
+        self,
+        x: torch.Tensor,
+        *cat_list: int,
+        cont: torch.Tensor | None = None,
+    ):
         r"""The forward computation for a single sample.
 
          #. Encodes the data into latent space using the encoder network
@@ -512,8 +524,7 @@ class DecoderSCVI(nn.Module):
         px = self.px_decoder(z, *cat_list, cont=cont)
         if output_condition is not None and self.n_conditions_output:
             one_hot_cat = nn.functional.one_hot(
-                output_condition.squeeze(-1),
-                self.n_conditions_output
+                output_condition.squeeze(-1), self.n_conditions_output
             )
         else:
             one_hot_cat = torch.zeros(px.size(-2), self.n_conditions_output).to(px.device)

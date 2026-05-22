@@ -370,7 +370,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
-            x_ = x_/x_.mean(1).unsqueeze(1)
+            x_ = x_ / x_.mean(1).unsqueeze(1)
             x_ = torch.log1p(x_)
 
         if cont_covs is not None and self.encode_covariates:

@@ -14,7 +14,6 @@ from scvi.data._utils import _validate_adata_dataloader_input, get_anndata_attri
 from scvi.dataloaders import DataSplitter, SemiSupervisedDataSplitter
 from scvi.model._utils import get_max_epochs_heuristic, use_distributed_sampler
 from scvi.train import (
-    AdversarialTrainingPlan,
     SemiSupervisedAdversarialTrainingPlan,
     SemiSupervisedTrainingPlan,
     TrainingPlan,

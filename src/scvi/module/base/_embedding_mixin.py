@@ -43,7 +43,10 @@ class EmbeddingModuleMixin:
             raise KeyError(f"Embedding {key} not found.")
         del self.embeddings_dict[key]
 
-    def get_embedding(self, key: str,) -> Embedding:
+    def get_embedding(
+        self,
+        key: str,
+    ) -> Embedding:
         """Get an embedding from the module."""
         if key not in self.embeddings_dict:
             raise KeyError(f"Embedding {key} not found.")
@@ -85,12 +88,12 @@ class EmbeddingModuleMixin:
 
     @auto_move_data
     def compute_embedding(
-            self,
-            key: str,
-            indices: torch.Tensor,
-            return_mean: bool = False,
-            return_dist: bool = False,
-        ) -> torch.Tensor:
+        self,
+        key: str,
+        indices: torch.Tensor,
+        return_mean: bool = False,
+        return_dist: bool = False,
+    ) -> torch.Tensor:
         """Forward pass for an embedding."""
         indices = indices.flatten() if indices.ndim > 1 else indices
         embedding = self.get_embedding(key)(indices)
@@ -98,10 +101,7 @@ class EmbeddingModuleMixin:
             embedding_dim = self.get_embedding_dim(key)
             if return_mean:
                 return embedding[:, :embedding_dim]
-            dist = Normal(
-                embedding[:, :embedding_dim],
-                torch.exp(embedding[:, embedding_dim:])
-            )
+            dist = Normal(embedding[:, :embedding_dim], torch.exp(embedding[:, embedding_dim:]))
             if return_dist:
                 return dist
             else:

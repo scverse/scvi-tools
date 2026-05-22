@@ -282,7 +282,7 @@ class SCVIX(
             else:
                 adversarial_classifier = False
         n_epochs_kl_warmup = (
-            n_epochs_kl_warmup if n_epochs_kl_warmup is not None else max_epochs//2
+            n_epochs_kl_warmup if n_epochs_kl_warmup is not None else max_epochs // 2
         )
         if reduce_lr_on_plateau:
             check_val_every_n_epoch = 1
@@ -372,11 +372,13 @@ class SCVIX(
         if labels_key is not None:
             anndata_fields.append(
                 LabelsWithUnlabeledObsField(
-                    REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category))
+                    REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
+                )
+            )
         if adversarial_group_key is not None:
             anndata_fields.append(
-                CategoricalObsField(
-                    REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, adversarial_group_key))
+                CategoricalObsField(REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, adversarial_group_key)
+            )
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
         if adata_minify_type is not None:
