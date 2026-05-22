@@ -218,7 +218,11 @@ class FCLayers(nn.Module):
 
         if len(self.n_cat_list) > len(cat_list):
             raise ValueError("nb. categorical args provided doesn't match init. params.")
-        if self.n_continuous > 0 and cont_input is not None and cont_input.shape[-1] != self.n_continuous:
+        if (
+            self.n_continuous > 0
+            and cont_input is not None
+            and cont_input.shape[-1] != self.n_continuous
+        ):
             raise ValueError("continuous dims provided doesn't match init. params.")
         for n_cat, cat in zip(self.n_cat_list, cat_list, strict=False):
             if n_cat and cat is None:
