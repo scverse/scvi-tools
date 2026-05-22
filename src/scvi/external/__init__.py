@@ -11,7 +11,6 @@ from .gimvi import GIMVI
 from .methylvi import METHYLANVI, METHYLVI
 from .mrvi import MRVI
 from .mrvi_torch import TorchMRVI
-from .muanvi import MUANVI
 from .poissonvi import POISSONVI
 from .resolvi import RESOLVI
 from .scar import SCAR
@@ -47,7 +46,6 @@ __all__ = [
     "SCVIVA",
     "CYTOVI",
     "DIAGVI",
-    "MUANVI",
 ]
 
 
