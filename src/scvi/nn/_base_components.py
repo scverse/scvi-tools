@@ -290,7 +290,7 @@ class Encoder(nn.Module):
     n_continuous
         The dimensionality of the continuous covariates
         including batch embeddings.
-    n_cat_l)t
+    n_cat_list
         A list containing the number of categories
         for each category of interest. Each category will be
         included using a one-hot encoding
@@ -677,7 +677,7 @@ class MultiEncoder(nn.Module):
     def __init__(
         self,
         n_heads: int,
-        n_input_list: Iterable[int],
+        n_input_list: list[int],
         n_output: int,
         n_hidden: int = 128,
         n_layers_individual: int = 1,

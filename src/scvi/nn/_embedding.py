@@ -19,9 +19,9 @@ def _partial_freeze_hook_factory(freeze: int) -> Callable[[torch.Tensor], torch.
     """
 
     def _partial_freeze_hook(grad: torch.Tensor) -> torch.Tensor:
-        grad_copy = grad.clone()
-        grad_copy[:freeze] = 0.0
-        return grad_copy
+        grad = grad.clone()
+        grad[:freeze] = 0.0
+        return grad
 
     return _partial_freeze_hook
 

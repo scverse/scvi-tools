@@ -182,6 +182,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.log_variational = log_variational
         self.gene_likelihood = gene_likelihood
         self.n_batch = n_batch
+        self.n_input = n_input
         self.n_labels = n_labels
         self.n_hidden = n_hidden
         self.n_layers = n_layers
@@ -189,6 +190,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         self.encode_covariates = encode_covariates
         self.use_size_factor_key = use_size_factor_key
         self.use_observed_lib_size = use_size_factor_key or use_observed_lib_size
+        self.extra_payload_autotune = extra_payload_autotune
 
         if not self.use_observed_lib_size:
             if library_log_means is None or library_log_vars is None:
@@ -302,7 +304,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
                 MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
-                MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
             }
@@ -370,7 +371,6 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if self.use_observed_lib_size:
             library = torch.log(x.sum(1)).unsqueeze(1)
         if self.log_variational:
-            x_ = x_ / x_.mean(1).unsqueeze(1)
             x_ = torch.log1p(x_)
 
         if cont_covs is not None and self.encode_covariates:
@@ -382,7 +382,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             categorical_input = ()
 
-        if self.encode_covariates and self.batch_representation == "embedding":
+        if self.batch_representation == "embedding" and self.encode_covariates:
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
             qz, z = self.z_encoder(encoder_input, *categorical_input)
@@ -554,7 +554,7 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         tensors: dict[str, torch.Tensor],
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, Distribution | None],
-        kl_weight: float = 1.0,
+        kl_weight: torch.tensor | float = 1.0,
     ) -> LossOutput:
         """Compute the loss."""
         from torch.distributions import kl_divergence

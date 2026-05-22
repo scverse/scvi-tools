@@ -13,7 +13,6 @@ class _MODULE_KEYS(NamedTuple):
     BATCH_INDEX_KEY: str = "batch_index"
     ASSAY_INDEX_KEY: str = "assay_index"
     ADVERSARIAL_GROUP_KEY: str = "adversarial_group"
-    SITE_INDEX_KEY: str = "site_index"
     Y_KEY: str = "y"
     CONT_COVS_KEY: str = "cont_covs"
     CAT_COVS_KEY: str = "cat_covs"

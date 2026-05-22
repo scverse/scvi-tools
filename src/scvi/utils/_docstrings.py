@@ -128,7 +128,7 @@ param_assay_key = """\
 assay_key
     key in `adata.obs` for assay and suspension type information. Categories will automatically be
     converted into integer categories and saved to `adata.obs['_scvi_assay']`. If `None`, assigns
-    the same batch to all the data."""
+    the same assay to all the data."""
 
 param_sample_key = """\
 sample_key

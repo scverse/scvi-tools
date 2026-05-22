@@ -20,9 +20,7 @@ from scvi.module import Classifier
 from scvi.module.base import (
     BaseModuleClass,
     LossOutput,
-    MogPrior,
     PyroBaseModuleClass,
-    VampPrior,
 )
 from scvi.train._constants import METRIC_KEYS
 from scvi.utils import is_package_installed
@@ -749,15 +747,6 @@ class AdversarialTrainingPlan(TrainingPlan):
                 loss_ = kappa * self.loss_adversarial_classifier(
                     z, adversarial_group, batch_tensor, True
                 )
-                if isinstance(self.module.prior, MogPrior) or isinstance(
-                    self.module.prior, VampPrior
-                ):
-                    qz_m, qz_v = qz.loc.detach(), qz.scale.detach()
-                    loss_ += self.module.prior.kl(
-                        qz=Normal(qz_m, qz_v),
-                        z=z,
-                        labels=batch.get(REGISTRY_KEYS.LABELS_KEY, torch.tensor(0)).long(),
-                    ).mean()
                 if i > 1 and (loss - loss_) / loss < 1e-3:
                     break
                 loss = loss_
