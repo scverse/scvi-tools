@@ -12,7 +12,6 @@ import torch
 import torchmetrics.functional as tmf
 from lightning.pytorch.strategies.ddp import DDPStrategy
 from pyro.nn import PyroModule
-from torch.distributions import Normal
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from scvi import REGISTRY_KEYS, settings
