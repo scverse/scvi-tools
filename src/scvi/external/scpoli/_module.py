@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Callable, Literal
+from collections.abc import Callable
+from typing import Literal
 
 import numpy as np
 import torch
@@ -113,7 +114,7 @@ class ScPoliVAE(VAE):
             batch_embedding_kwargs=batch_embedding_kwargs,
         )
         self.n_prototypes = n_labels  # one prototype per known cell type
-        self._n_latent = n_latent    # stored for dynamic buffer allocation
+        self._n_latent = n_latent  # stored for dynamic buffer allocation
 
         # Labeled prototype buffers — registered unconditionally so that
         # _prototypes_initialized is always accessible (even when n_labels=0).
@@ -140,9 +141,7 @@ class ScPoliVAE(VAE):
         )
 
     @torch.no_grad()
-    def initialize_prototypes(
-        self, latent: torch.Tensor, labels: torch.Tensor
-    ) -> None:
+    def initialize_prototypes(self, latent: torch.Tensor, labels: torch.Tensor) -> None:
         """Seed each labeled prototype from the mean latent of its cell type.
 
         Called once at the phase boundary (epoch == ``pretrain_epochs``) before
@@ -166,9 +165,7 @@ class ScPoliVAE(VAE):
         self._prototypes_initialized.fill_(True)
 
     @torch.no_grad()
-    def update_prototypes(
-        self, latent: torch.Tensor, labels: torch.Tensor
-    ) -> None:
+    def update_prototypes(self, latent: torch.Tensor, labels: torch.Tensor) -> None:
         """Recompute each labeled prototype as the mean latent of its cell type.
 
         Called at the end of every epoch after the prototype phase begins.
@@ -242,7 +239,7 @@ class ScPoliVAE(VAE):
             labels = tensors[REGISTRY_KEYS.LABELS_KEY].squeeze(-1).long()
             labeled_mask = labels < self.n_prototypes  # exclude unlabeled cells
             if labeled_mask.any():
-                z_labeled = z[labeled_mask]            # (n_lab, n_latent)
+                z_labeled = z[labeled_mask]  # (n_lab, n_latent)
                 labels_labeled = labels[labeled_mask]  # (n_lab,)
 
                 # Pairwise L2 distances: (n_lab, n_prototypes)

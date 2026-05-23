@@ -13,6 +13,7 @@ from lightning import Callback
 
 from scvi import REGISTRY_KEYS
 from scvi.data import AnnDataManager
+from scvi.data._utils import _get_adata_minify_type, get_anndata_attribute
 from scvi.data.fields import (
     CategoricalJointObsField,
     CategoricalObsField,
@@ -21,7 +22,6 @@ from scvi.data.fields import (
     NumericalJointObsField,
     NumericalObsField,
 )
-from scvi.data._utils import _get_adata_minify_type, get_anndata_attribute
 from scvi.model._utils import _init_library_size, get_max_epochs_heuristic
 from scvi.model.base import (
     ArchesMixin,
@@ -80,7 +80,7 @@ class ScPoliPrototypeCallback(Callback):
 
     def __init__(
         self,
-        scpoli_model: "ScPoli",
+        scpoli_model: ScPoli,
         pretrain_epochs: int,
         unlabeled_prototype_training: bool = False,
         clustering: str = "leiden",
@@ -171,21 +171,16 @@ class ScPoliPrototypeCallback(Callback):
 
         if self.clustering == "kmeans" and self.n_clusters is not None:
             logger.info(
-                f"Initializing unlabeled prototypes with KMeans "
-                f"(n_clusters={self.n_clusters})."
+                f"Initializing unlabeled prototypes with KMeans (n_clusters={self.n_clusters})."
             )
             from sklearn.cluster import KMeans
 
             km = KMeans(n_clusters=self.n_clusters, n_init="auto").fit(lat_np)
-            centers = torch.tensor(
-                km.cluster_centers_, dtype=torch.float32, device=device
-            )
+            centers = torch.tensor(km.cluster_centers_, dtype=torch.float32, device=device)
         else:
             # Default to Leiden (auto-determines cluster count)
             if self.clustering == "kmeans":
-                logger.info(
-                    "n_clusters not provided; falling back to Leiden clustering."
-                )
+                logger.info("n_clusters not provided; falling back to Leiden clustering.")
             else:
                 logger.info(
                     f"Initializing unlabeled prototypes with Leiden "
@@ -203,9 +198,7 @@ class ScPoliPrototypeCallback(Callback):
                 [lat_np[cluster_ids == k].mean(axis=0) for k in range(n_clusters)]
             )
             self.n_clusters = n_clusters
-            logger.info(
-                f"Leiden clustering found {self.n_clusters} unlabeled clusters."
-            )
+            logger.info(f"Leiden clustering found {self.n_clusters} unlabeled clusters.")
             centers = torch.tensor(cluster_centers, dtype=torch.float32, device=device)
 
         # Allocate the buffer (replaces the empty (0, n_latent) placeholder)
@@ -219,10 +212,7 @@ class ScPoliPrototypeCallback(Callback):
             eps=self._eps,
             weight_decay=self._weight_decay,
         )
-        logger.info(
-            f"Unlabeled prototype optimizer created "
-            f"(lr={self._lr}, eps={self._eps})."
-        )
+        logger.info(f"Unlabeled prototype optimizer created (lr={self._lr}, eps={self._eps}).")
 
     def _update_unlabeled_prototypes(self, latent: torch.Tensor) -> None:
         """Take one Adam step on unlabeled prototype positions.
@@ -247,9 +237,7 @@ class ScPoliPrototypeCallback(Callback):
             dists = torch.cdist(latent, prototypes, p=2)
             min_dist, y_hat = torch.min(dists, dim=1)
             unique_clusters = y_hat.unique()
-            loss = torch.stack(
-                [min_dist[y_hat == c].mean() for c in unique_clusters]
-            ).mean()
+            loss = torch.stack([min_dist[y_hat == c].mean() for c in unique_clusters]).mean()
             self.prototype_optim.zero_grad()
             loss.backward()
             self.prototype_optim.step()
@@ -380,17 +368,21 @@ class ScPoli(
 
     >>> import scvi
     >>> scvi.external.ScPoli.setup_anndata(
-    ...     adata_ref, labels_key="cell_type",
-    ...     unlabeled_category="Unknown", batch_key="batch",
+    ...     adata_ref,
+    ...     labels_key="cell_type",
+    ...     unlabeled_category="Unknown",
+    ...     batch_key="batch",
     ... )
     >>> model = scvi.external.ScPoli(adata_ref)
-    >>> model.train(max_epochs=400)   # 360 pretrain + 40 prototype epochs
+    >>> model.train(max_epochs=400)  # 360 pretrain + 40 prototype epochs
 
     Query mapping:
 
     >>> scvi.external.ScPoli.setup_anndata(
-    ...     adata_query, labels_key="cell_type",
-    ...     unlabeled_category="Unknown", batch_key="batch",
+    ...     adata_query,
+    ...     labels_key="cell_type",
+    ...     unlabeled_category="Unknown",
+    ...     batch_key="batch",
     ... )
     >>> query_model = scvi.external.ScPoli.load_query_data(adata_query, model)
     >>> query_model.train(max_epochs=50, pretrain_epochs=0)
@@ -431,9 +423,7 @@ class ScPoli(
         use_size_factor_key = REGISTRY_KEYS.SIZE_FACTOR_KEY in self.adata_manager.data_registry
         library_log_means, library_log_vars = None, None
         if not use_size_factor_key:
-            library_log_means, library_log_vars = _init_library_size(
-                self.adata_manager, n_batch
-            )
+            library_log_means, library_log_vars = _init_library_size(self.adata_manager, n_batch)
 
         _batch_embedding_kwargs: dict | None = None
         if batch_embedding_dim > 0 and n_batch > 1:
@@ -561,7 +551,7 @@ class ScPoli(
         proto_callback = ScPoliPrototypeCallback(
             scpoli_model=self,
             pretrain_epochs=pretrain_epochs,
-            unlabeled_prototype_training=unlabeled_weight>0,
+            unlabeled_prototype_training=unlabeled_weight > 0,
             clustering=clustering,
             clustering_res=clustering_res,
             n_clusters=n_clusters,
@@ -575,7 +565,6 @@ class ScPoli(
             callbacks=callbacks,
             **kwargs,
         )
-
 
     def get_prototypes(self) -> pd.DataFrame:
         """Return labeled prototype embeddings as a :class:`~pandas.DataFrame`.
@@ -700,9 +689,7 @@ class ScPoli(
                 for i in range(self.n_labels)
                 if self._code_to_label[i] != self.unlabeled_category_
             ]
-            obs_names = (
-                adata.obs_names if indices is None else adata.obs_names[indices]
-            )
+            obs_names = adata.obs_names if indices is None else adata.obs_names[indices]
             return pd.DataFrame(probs, index=obs_names, columns=label_names)
 
         pred_indices = np.argmin(sq_dist, axis=1)
@@ -739,9 +726,7 @@ class ScPoli(
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            LabelsWithUnlabeledObsField(
-                REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category
-            ),
+            LabelsWithUnlabeledObsField(REGISTRY_KEYS.LABELS_KEY, labels_key, unlabeled_category),
             NumericalObsField(REGISTRY_KEYS.SIZE_FACTOR_KEY, size_factor_key, required=False),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),

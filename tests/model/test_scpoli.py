@@ -377,24 +377,23 @@ def test_scpoli_online_update(save_path):
 
     # ── Query — all missing labels ──────────────────────────────────────────
     adata_q = synthetic_iid()
-    adata_q.obs["batch"] = adata_q.obs["batch"].cat.rename_categories(
-        ["batch_2", "batch_3"]
-    )
+    adata_q.obs["batch"] = adata_q.obs["batch"].cat.rename_categories(["batch_2", "batch_3"])
     adata_q.obs["labels"] = _UNLABELED
 
     model_q = ScPoli.load_query_data(adata_q, dir_path)
     q_embedding = model_q.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY)
-    n_ref_batches = model_ref.module.get_embedding(
-        scvi.REGISTRY_KEYS.BATCH_KEY
-    ).num_embeddings
+    n_ref_batches = model_ref.module.get_embedding(scvi.REGISTRY_KEYS.BATCH_KEY).num_embeddings
     q_embedding_before = q_embedding.weight.detach().clone()
     protos_before = model_q.module.prototypes_labeled.detach().clone()
     assert q_embedding.weight.requires_grad
     model_q.train(max_epochs=2, pretrain_epochs=0)
     q_embedding_after = q_embedding.weight.detach()
-    assert torch.linalg.vector_norm(
-        q_embedding_after[n_ref_batches:] - q_embedding_before[n_ref_batches:]
-    ) > 0
+    assert (
+        torch.linalg.vector_norm(
+            q_embedding_after[n_ref_batches:] - q_embedding_before[n_ref_batches:]
+        )
+        > 0
+    )
     torch.testing.assert_close(model_q.module.prototypes_labeled, protos_before)
     latent_q = model_q.get_latent_representation()
     assert latent_q.shape == (adata_q.n_obs, n_latent)
@@ -403,9 +402,7 @@ def test_scpoli_online_update(save_path):
 
     # ── Query — some labels known ───────────────────────────────────────────
     adata_q2 = synthetic_iid()
-    adata_q2.obs["batch"] = adata_q2.obs["batch"].cat.rename_categories(
-        ["batch_4", "batch_5"]
-    )
+    adata_q2.obs["batch"] = adata_q2.obs["batch"].cat.rename_categories(["batch_4", "batch_5"])
     model_q2 = ScPoli.load_query_data(adata_q2, dir_path)
     protos_q2_before = model_q2.module.prototypes_labeled.detach().clone()
     model_q2.train(max_epochs=2, pretrain_epochs=0)

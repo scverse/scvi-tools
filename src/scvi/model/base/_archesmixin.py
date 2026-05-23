@@ -511,9 +511,7 @@ def _set_params_online_update(
         else:
             par.requires_grad = False
         if key in batch_embedding_freeze:
-            par.register_hook(
-                _partial_freeze_embedding_hook_factory(batch_embedding_freeze[key])
-            )
+            par.register_hook(_partial_freeze_embedding_hook_factory(batch_embedding_freeze[key]))
 
 
 def _get_loaded_data(reference_model, device=None, adata=None):
