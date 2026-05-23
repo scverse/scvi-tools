@@ -571,11 +571,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         weighted_kl_local = kl_weight * (kl_divergence_z + weight_kl_sample * kl_divergence_sample)
 
-        loss = torch.mean(
-            reconst_loss
-            + weighted_kl_local
-            + weight_assay_loss * assay_loss
-        )
+        loss = torch.mean(reconst_loss + weighted_kl_local + weight_assay_loss * assay_loss)
 
         if self.n_labels > 1:
             logits = self.classifier(inference_outputs[MODULE_KEYS.Z_KEY])

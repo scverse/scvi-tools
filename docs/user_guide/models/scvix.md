@@ -183,10 +183,12 @@ import scvi
 scvi.external.SCVIX.setup_anndata(
     adata,
     batch_key="batch",
-    assay_key="assay",        # sequencing technology / suspension type
+    assay_key="assay",  # sequencing technology / suspension type
 )
-model = scvi.external.SCVIX(adata)   # defaults: embedding, n_latent=20, n_layers=2, n_hidden=512
-model.train()                          # defaults: batch_size=1024, n_epochs_kl_warmup=5
+model = scvi.external.SCVIX(
+    adata
+)  # defaults: embedding, n_latent=20, n_layers=2, n_hidden=512
+model.train()  # defaults: batch_size=1024, n_epochs_kl_warmup=5
 adata.obsm["X_scVIX"] = model.get_latent_representation()
 ```
 
@@ -237,7 +239,7 @@ batch-level variation or clustering batches):
 ```python
 model = scvi.external.SCVIX(adata, batch_representation="embedding")
 model.train()
-batch_emb = model.get_batch_representation()   # shape: (n_cells, embedding_dim)
+batch_emb = model.get_batch_representation()  # shape: (n_cells, embedding_dim)
 ```
 
 ## Key setup_anndata arguments
