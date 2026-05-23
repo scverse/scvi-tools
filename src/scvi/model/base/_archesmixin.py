@@ -40,6 +40,17 @@ logger = logging.getLogger(__name__)
 MIN_VAR_NAME_RATIO = 0.8
 
 
+def _partial_freeze_embedding_hook_factory(freeze: int):
+    """Freeze the first ``freeze`` rows of an embedding gradient."""
+
+    def _partial_freeze_embedding_hook(grad: torch.Tensor) -> torch.Tensor:
+        grad = grad.clone()
+        grad[:freeze] = 0.0
+        return grad
+
+    return _partial_freeze_embedding_hook
+
+
 class ArchesMixin:
     """Universal scArches implementation."""
 
@@ -203,19 +214,48 @@ class ArchesMixin:
 
         # model tweaking
         new_state_dict = model.module.state_dict()
+        batch_embedding_freeze = {}
         for key, load_ten in load_state_dict.items():
             new_ten = new_state_dict[key]
             load_ten = load_ten.to(new_ten.device)
             if new_ten.size() == load_ten.size():
                 continue
+            if (
+                key.endswith(f"_embeddings_dict.{REGISTRY_KEYS.BATCH_KEY}.weight")
+                and new_ten.ndim == 2
+                and new_ten.size(0) > load_ten.size(0)
+            ):
+                batch_embedding_freeze[key] = load_ten.size(0)
             fixed_ten = load_ten.clone()
             for dim in range(len(new_ten.shape)):
                 if new_ten.size(dim) != load_ten.size(dim):
                     dim_diff = new_ten.size(dim) - load_ten.size(dim)
-                    # Concatenate additional "missing" part
-                    pad_ten = new_ten.narrow(dim, start=-dim_diff, length=dim_diff)
-                    fixed_ten = torch.cat([fixed_ten, pad_ten], dim=dim)
+                    if dim_diff > 0:
+                        # Query model is larger — pad with freshly-initialised values.
+                        pad_ten = new_ten.narrow(dim, start=-dim_diff, length=dim_diff)
+                        fixed_ten = torch.cat([fixed_ten, pad_ten], dim=dim)
+                    # dim_diff < 0: reference is larger (e.g. prototype buffers that
+                    # start empty in the query model).  Keep fixed_ten = load_ten so
+                    # the full reference tensor is restored; the buffer is resized
+                    # below before load_state_dict is called.
             load_state_dict[key] = fixed_ten
+
+        # Resize buffers whose shape grew relative to the freshly-initialised
+        # query model (e.g. ScPoli unlabeled-prototype buffer starts as (0, n_latent)
+        # but the reference may have (n_clusters, n_latent) after training).
+        # Parameters never shrink, so this only touches registered buffers.
+        named_buffers = dict(model.module.named_buffers())
+        for key, fixed_ten in load_state_dict.items():
+            buf = named_buffers.get(key)
+            if buf is not None and buf.shape != fixed_ten.shape:
+                # Navigate to the owning sub-module and re-register the buffer
+                # with a zero-filled tensor of the correct shape; load_state_dict
+                # below will fill in the actual values.
+                *parent_parts, attr_name = key.split(".")
+                owner = model.module
+                for part in parent_parts:
+                    owner = getattr(owner, part)
+                owner.register_buffer(attr_name, torch.zeros_like(fixed_ten))
 
         model.module.load_state_dict(load_state_dict)
         if isinstance(model.module, pyro.nn.PyroModule):
@@ -231,6 +271,7 @@ class ArchesMixin:
             freeze_dropout=freeze_dropout,
             freeze_expression=freeze_expression,
             freeze_classifier=freeze_classifier,
+            batch_embedding_freeze=batch_embedding_freeze,
         )
         model.is_trained_ = False
 
@@ -402,12 +443,14 @@ def _set_params_online_update(
     freeze_dropout,
     freeze_expression,
     freeze_classifier,
+    batch_embedding_freeze=None,
 ):
     """Freeze parts of the network for scArches."""
     # do nothing if unfrozen
     if unfrozen:
         return
 
+    batch_embedding_freeze = batch_embedding_freeze or {}
     mod_inference_mode = {"encoder_z2_z1", "decoder_z1_z2"}
     mod_no_hooks_yes_grad = {"l_encoder"}
     if not freeze_classifier:
@@ -439,7 +482,8 @@ def _set_params_online_update(
             and "decoder" in key
             and (not freeze_batchnorm_decoder)
         )
-        if one or two or three or four or five:
+        six = key in batch_embedding_freeze
+        if one or two or three or four or five or six:
             return True
         else:
             return False
@@ -466,6 +510,10 @@ def _set_params_online_update(
             par.requires_grad = True
         else:
             par.requires_grad = False
+        if key in batch_embedding_freeze:
+            par.register_hook(
+                _partial_freeze_embedding_hook_factory(batch_embedding_freeze[key])
+            )
 
 
 def _get_loaded_data(reference_model, device=None, adata=None):
