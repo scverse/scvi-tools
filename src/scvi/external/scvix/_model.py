@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     import numpy as np
+    import pandas as pd
     from anndata import AnnData
 
 logger = logging.getLogger(__name__)
@@ -128,18 +129,23 @@ class SCVIX(
     def __init__(
         self,
         adata: AnnData | None = None,
-        n_hidden: int = 128,
-        n_latent: int = 10,
-        n_layers: int = 1,
+        n_hidden: int = 512,
+        n_latent: int = 20,
+        n_layers: int = 2,
         dropout_rate: float = 0.05,
-        dispersion: Literal["gene", "gene-batch", "gene-cell"] = "gene",
+        dispersion: Literal["gene", "gene-batch", "gene-assay", "gene-cell"] = "gene-assay",
         gene_likelihood: Literal["zinb", "nb", "poisson", "normal"] = "nb",
         prior: Literal["gaussian", "mog", "vamp", "mog_celltype"] = "gaussian",
+        batch_representation: Literal["one-hot", "embedding"] = "embedding",
+        batch_embedding_kwargs: dict | None = None,
         pseudoinputs_data_indices: np.array | None = None,
         n_prior_components: int = 50,
         **kwargs,
     ):
         super().__init__(adata)
+
+        if batch_embedding_kwargs is None:
+            batch_embedding_kwargs = {"variational": True, "embedding_dim": n_latent}
 
         self._module_kwargs = {
             "n_hidden": n_hidden,
@@ -148,13 +154,16 @@ class SCVIX(
             "dropout_rate": dropout_rate,
             "dispersion": dispersion,
             "gene_likelihood": gene_likelihood,
+            "batch_representation": batch_representation,
+            "batch_embedding_kwargs": batch_embedding_kwargs,
             **kwargs,
         }
         self._model_summary_string = (
             "SCVI model with the following parameters: \n"
             f"n_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
             f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
-            f"gene_likelihood: {gene_likelihood}."
+            f"gene_likelihood: {gene_likelihood}, "
+            f"batch_representation: {batch_representation}."
         )
 
         if prior == "vamp":
@@ -196,6 +205,8 @@ class SCVIX(
             dropout_rate=dropout_rate,
             dispersion=dispersion,
             gene_likelihood=gene_likelihood,
+            batch_representation=batch_representation,
+            batch_embedding_kwargs=batch_embedding_kwargs,
             prior=prior,
             pseudoinput_data=pseudoinput_data,
             n_prior_components=n_prior_components,
@@ -215,14 +226,14 @@ class SCVIX(
         train_size: float | None = None,
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
-        batch_size: int = 256,
-        early_stopping: bool = True,
-        check_val_every_n_epoch: int | None = None,
-        reduce_lr_on_plateau: bool = True,
-        n_steps_kl_warmup: int | None = None,
-        n_epochs_kl_warmup: int | None = None,
+        batch_size: int = 1024,
+        early_stopping: bool = False,
+        n_epochs_kl_warmup: int | None = 5,
         adversarial_classifier: bool | None = None,
         adversarial_key: str = "assay",
+        scale_adversarial_loss: float | str = 5.0,
+        adversarial_steps: int = 5,
+        weight_kl_sample: float = 1e-5,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         external_indexing: list[np.array] = None,
@@ -251,20 +262,18 @@ class SCVIX(
             Minibatch size to use during training.
         early_stopping
             Whether to perform early stopping with respect to the validation set.
-        check_val_every_n_epoch
-            Check val every n train epochs. By default, val is not checked, unless `early_stopping`
-            is `True` or `reduce_lr_on_plateau` is `True`. If either of the latter conditions are
-            met, val is checked every epoch.
-        reduce_lr_on_plateau
-            Reduce learning rate on plateau of validation metric (default is ELBO).
         n_epochs_kl_warmup
             Number of epochs to scale weight on KL divergences from 0 to 1.
-        scale_adversarial_classifier
-            How to weight adversarial classifier in the latent space. This helps mixing when
-            there are multiple assays. Defaults to `1`.
         adversarial_key
-            Key in `adata.obs` that corresponds to batch or assay key to use for adversarial
-            training. If `None`, defaults to the assay key.
+            Key in `adata.obs` that corresponds to the batch or assay key to use for adversarial
+            training. Defaults to the assay key.
+        scale_adversarial_loss
+            Scaling factor for the adversarial loss component. Higher values enforce stronger
+            assay mixing. Use ``"auto"`` to scale automatically with the KL warmup weight.
+        adversarial_steps
+            Number of adversarial classifier gradient steps per training step.
+        weight_kl_sample
+            Weight on the KL divergence of the variational batch embeddings.
         datasplitter_kwargs
             Additional keyword arguments passed into :class:`~scvi.dataloaders.DataSplitter`.
         plan_kwargs
@@ -284,16 +293,15 @@ class SCVIX(
         n_epochs_kl_warmup = (
             n_epochs_kl_warmup if n_epochs_kl_warmup is not None else max_epochs // 2
         )
-        if reduce_lr_on_plateau:
-            check_val_every_n_epoch = 1
 
         update_dict = {
             "lr": lr,
             "adversarial_classifier": adversarial_classifier,
             "adversarial_key": adversarial_key,
-            "reduce_lr_on_plateau": reduce_lr_on_plateau,
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
-            "n_steps_kl_warmup": n_steps_kl_warmup,
+            "scale_adversarial_loss": scale_adversarial_loss,
+            "adversarial_steps": adversarial_steps,
+            "weight_kl_sample": weight_kl_sample,
         }
         if plan_kwargs is not None:
             plan_kwargs.update(update_dict)
@@ -324,10 +332,95 @@ class SCVIX(
             accelerator=accelerator,
             devices=devices,
             early_stopping=early_stopping,
-            check_val_every_n_epoch=check_val_every_n_epoch,
             **kwargs,
         )
         return runner()
+
+    def _get_transform_batch_gen_kwargs(self, batch):
+        kwargs = super()._get_transform_batch_gen_kwargs(batch)
+        if hasattr(self, "_transform_assay_override"):
+            kwargs["transform_assay"] = self._transform_assay_override
+        return kwargs
+
+    def get_normalized_expression(
+        self,
+        adata: AnnData | None = None,
+        indices: list[int] | None = None,
+        transform_batch: list[int | str] | None = None,
+        transform_assay: int | str | None = None,
+        gene_list: list[str] | None = None,
+        library_size: float | Literal["latent"] = 1,
+        n_samples: int = 1,
+        n_samples_overall: int | None = None,
+        weights: Literal["uniform", "importance"] | None = None,
+        batch_size: int | None = None,
+        return_mean: bool = True,
+        return_numpy: bool | None = None,
+        silent: bool = True,
+        dataloader=None,
+        data_loader_kwargs: dict | None = None,
+        **importance_weighting_kwargs,
+    ) -> np.ndarray | pd.DataFrame:
+        """Returns the normalized (decoded) gene expression.
+
+        Extends the base ``get_normalized_expression`` with assay conditioning via
+        ``transform_assay``.
+
+        Parameters
+        ----------
+        transform_assay
+            Assay to condition on for all cells when decoding. If a string, must be a valid
+            assay category registered via :meth:`~scvi.external.SCVIX.setup_anndata`. If an
+            integer, used directly as the assay index. If ``None`` (default), each cell is
+            decoded using its own observed assay.
+        transform_batch
+            Batch to condition on. See base class for details.
+
+        Notes
+        -----
+        All other parameters are identical to
+        :meth:`~scvi.model.base.RNASeqMixin.get_normalized_expression`.
+        """
+        if transform_assay is not None:
+            adata_ = self._validate_anndata(adata)
+            assay_mappings = (
+                self.get_anndata_manager(adata_, required=True)
+                .get_state_registry(REGISTRY_KEYS.ASSAY_KEY)
+                .categorical_mapping
+            )
+            # Hack for transform_assay to be passed in get_normalized_expression.
+            if isinstance(transform_assay, str):
+                if transform_assay not in assay_mappings:
+                    raise ValueError(f'"{transform_assay}" is not a valid assay category.')
+                self._transform_assay_override = int(
+                    np.where(assay_mappings == transform_assay)[0][0]
+                )
+            else:
+                self._transform_assay_override = int(transform_assay)
+
+        try:
+            result = super().get_normalized_expression(
+                adata=adata,
+                indices=indices,
+                transform_batch=transform_batch,
+                gene_list=gene_list,
+                library_size=library_size,
+                n_samples=n_samples,
+                n_samples_overall=n_samples_overall,
+                weights=weights,
+                batch_size=batch_size,
+                return_mean=return_mean,
+                return_numpy=return_numpy,
+                silent=silent,
+                dataloader=dataloader,
+                data_loader_kwargs=data_loader_kwargs,
+                **importance_weighting_kwargs,
+            )
+        finally:
+            if hasattr(self, "_transform_assay_override"):
+                del self._transform_assay_override
+
+        return result
 
     @classmethod
     @setup_anndata_dsp.dedent

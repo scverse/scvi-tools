@@ -41,6 +41,41 @@ def test_scvix_dispersion(dispersion: str):
     model.get_normalized_expression()
 
 
+def test_scvix_transform_assay():
+    adata = synthetic_iid(batch_size=100)
+    # Use batch as both batch and assay (two categories: batch_0, batch_1)
+    SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch")
+    model = SCVIX(adata)
+    model.train(max_epochs=1)
+
+    # baseline: no transformation
+    expr_default = model.get_normalized_expression(return_numpy=True)
+
+    # transform by integer index (assay 0)
+    scvi.settings.seed = 42
+    expr_int = model.get_normalized_expression(transform_assay=0, return_numpy=True)
+    assert expr_int.shape == expr_default.shape
+
+    # transform by string name — must match integer result (same seed, same code)
+    scvi.settings.seed = 42
+    expr_str = model.get_normalized_expression(transform_assay="batch_0", return_numpy=True)
+    np.testing.assert_array_equal(expr_int, expr_str)
+
+    # transform_assay and transform_batch can be combined
+    expr_both = model.get_normalized_expression(
+        transform_assay="batch_0", transform_batch="batch_1", return_numpy=True
+    )
+    assert expr_both.shape == expr_default.shape
+
+    # different assay indices produce different outputs
+    expr_assay1 = model.get_normalized_expression(transform_assay=1, return_numpy=True)
+    assert not np.allclose(expr_int, expr_assay1)
+
+    # invalid assay name raises ValueError
+    with pytest.raises(ValueError, match="not a valid assay category"):
+        model.get_normalized_expression(transform_assay="nonexistent_assay")
+
+
 def test_scvix_encode_covariates():
     adata = synthetic_iid(batch_size=100)
     SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch", labels_key="labels")

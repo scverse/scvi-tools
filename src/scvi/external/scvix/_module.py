@@ -533,7 +533,6 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         generative_outputs: dict[str, Distribution | None],
         kl_weight: float = 1.0,
         weight_assay_loss: float = 0.0,
-        weight_global: float = 1.0,
         weight_kl_sample: float = 1.0,
         classification_ratio: float = 500.0,
     ) -> LossOutput:
@@ -570,28 +569,12 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         reconst_loss = -generative_outputs[MODULE_KEYS.PX_KEY].log_prob(x).sum(-1)
 
-        kl_global = torch.zeros_like(kl_divergence_z)
-
-        if self.gene_likelihood == "zinb":
-            zi = generative_outputs[MODULE_KEYS.PX_KEY].zi_logits
-            kl_global -= (
-                distributions.Exponential(10.0 * torch.ones_like(zi))
-                .log_prob(torch.exp(zi))
-                .sum(-1)
-            )
-        if self.gene_likelihood == "zinb" or self.gene_likelihood == "nb":
-            theta = generative_outputs[MODULE_KEYS.PX_KEY].theta
-            kl_global -= (
-                distributions.Exponential(torch.ones_like(theta)).log_prob(1 / theta).sum(-1)
-            )
-
         weighted_kl_local = kl_weight * (kl_divergence_z + weight_kl_sample * kl_divergence_sample)
 
         loss = torch.mean(
             reconst_loss
             + weighted_kl_local
             + weight_assay_loss * assay_loss
-            + weight_global * kl_global
         )
 
         if self.n_labels > 1:
