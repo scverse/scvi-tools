@@ -122,7 +122,8 @@ class FCLayers(nn.Module):
         self.cond_cat = conditional_category
         if conditional_norm and self.n_cat_list[self.cond_cat] == 0:
             raise ValueError(
-                "Conditional normalization is not applicable for a categorical variable with only one category."
+                "Conditional normalization is not applicable for a categorical variable with only "
+                "one category."
             )
 
         self.n_cov = n_continuous + sum(self.n_cat_list)

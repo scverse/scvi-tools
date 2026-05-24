@@ -27,7 +27,6 @@ from scvi.model.base import (
     VAEMixin,
 )
 from scvi.train import AdversarialTrainingPlan, TrainRunner
-from scvi.utils import setup_anndata_dsp
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
 
 from ._module import VAEX
@@ -35,7 +34,6 @@ from ._module import VAEX
 if TYPE_CHECKING:
     from typing import Literal
 
-    import numpy as np
     import pandas as pd
     from anndata import AnnData
 
