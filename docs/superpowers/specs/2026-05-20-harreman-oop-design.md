@@ -39,12 +39,14 @@ Harreman extends it with metabolite database integration and cell-type awareness
 
 ## Target Models
 
-| Model | Integration |
-|-------|-------------|
-| **DestVI** | `model.get_proportions(adata)` → cell-type layers |
-| **SCVIVA** | `model.get_proportions()` + `model.get_latent_representation()` for KNN |
-| **RESOLVI** | `model.get_denoised_expression()` as count layer |
-| **None** | User provides pre-prepared adata (existing workflow) |
+| Model | What it provides | How HarremanAnalysis uses it |
+|-------|-----------------|------------------------------|
+| **DestVI** | Cell-type proportion matrix | `model.get_proportions()` → `(n_obs, n_labels)` → attach each cell-type as `adata.layers[ct]`, enables `mode="cell_type"` |
+| **SCVIVA** | Cell-type labels in `adata.obs` + latent representation | `model.get_latent_representation()` for KNN coords; cell-type labels already in adata |
+| **RESOLVI** | Denoised counts | `model.get_normalized_expression()` → attach as `adata.layers["denoised"]`, use as `layer_key` |
+| **None** | — | User provides pre-prepared adata; existing pp.setup_anndata() workflow |
+
+**Note:** SCVIVA does not have `get_proportions()`. It has `adata.obsm["niche_composition"]` (neighborhood composition) and cell-type labels in `adata.obs`. RESOLVI exposes `get_normalized_expression()` (not `get_denoised_expression()`) via `ResolVIPredictiveMixin`.
 
 ---
 
@@ -317,7 +319,7 @@ All three spatial models are tested end-to-end: train minimal model (1-2 epochs 
 | Test | Model | Key assertion |
 |------|-------|---------------|
 | `test_harreman_with_resolvi` | RESOLVI | Denoised counts attached as layer; full pipeline runs |
-| `test_harreman_with_scviva` | SCVIVA | Cell-type proportions auto-extracted; `is_deconvolved=True` |
+| `test_harreman_with_scviva` | SCVIVA | Latent representation used for KNN; cell-type labels from `adata.obs` |
 | `test_harreman_with_destvi` | DestVI | `get_proportions()` called once; cell-type layers match shape |
 
 **Fixture reuse:** Each integration test uses a session-scoped fixture that trains the model
@@ -364,3 +366,136 @@ def scviva_model():
 - CellAssign support: add as a 4th model type if cell type annotations needed from it
 - Export / plotting: `ha.plot_interactions()` could be a future addition
 - Multi-sample support: `sample_key` is accepted but multi-sample logic TBD
+
+---
+
+## Future Work: visionpy Roadmap
+
+### Background
+
+[visionpy](https://github.com/YosefLab/visionpy) is Adam's Python reimplementation of the
+[R VISION package](https://github.com/YosefLab/VISION). Several Harreman functions (gene
+signature scoring, local autocorrelation via Geary-C) overlap with VISION's analysis surface.
+visionpy is explicitly "NOT YET READY FOR USE" and is missing significant R functionality.
+
+### Current State (as of 2026-05-20)
+
+**visionpy has:**
+- `signature.py` — gene signature scoring
+- `diffexp.py` — differential expression
+- `anndata.py` — AnnData I/O helpers
+- `api.py` + `blueprint.py` + Flask web layer — interactive report server
+
+**R VISION has (not yet in visionpy):**
+
+| R file | Functionality |
+|--------|--------------|
+| `Microclusters.R` | Microcluster pooling — group similar cells before analysis to handle large datasets |
+| `FitchParsimony.R` + `TreeBasedMethods.R` | **PhyloVISION** — tree-based signature analysis using Fitch parsimony over cell lineage trees |
+| `Projections.R` | Unified dimensionality reduction framework (PCA, UMAP, t-SNE, trajectory coords) |
+| `methods-Trajectory.R` + `methods-TrajectoryProjection.R` | Trajectory integration — score signatures along pseudotime axes |
+| `NormalizationMethods.R` | Library-size normalization, log-transform, FNR correction |
+| `RcppExports.R` | C++ speed layer (Geary-C statistic, permutation tests) |
+| `Filters.R` | Gene/cell filtering prior to analysis |
+
+### Architectural Decision: restructure visionpy for scvi-tools compatibility
+
+**Recommendation: yes, restructure.** Rationale:
+
+1. visionpy is pre-1.0 with no stable API — now is the cheapest time to restructure.
+2. VISION's natural scvi-tools counterpart is a downstream analysis class, analogous to
+   `HarremanAnalysis` — it takes a trained model + AnnData and wraps the analysis pipeline.
+3. scvi-tools already provides the spatial/embedding models (SCVIVA, RESOLVI, DestVI) that
+   VISION would annotate. A `VisionAnalysis` class could accept these models directly.
+4. Hotspot/Harreman is already being restructured this way — visionpy should follow the same
+   pattern for consistency.
+
+**Proposed class:** `VisionAnalysis(adata, model=None, signatures=None)`
+
+### Planned additions (priority order)
+
+#### 1. Hotspot / Harreman integration (fast win)
+
+- `VisionAnalysis` consumes `HarremanAnalysis.results` as an optional input.
+- Autocorrelation results from Hotspot (`gene_autocorrelation_results`) surface as signature
+  consistency scores within the VISION report.
+- Shared KNN graph: build once in `HarremanAnalysis.setup()`, reuse in `VisionAnalysis`.
+- Signature-level Geary-C scores replace per-signature permutation tests where Hotspot
+  Z-scores are available.
+
+#### 2. Microcluster pooling
+
+- Port `Microclusters.R` logic to Python/NumPy.
+- Expose as `VisionAnalysis.pool_microclusters(n_cells=10)` — optional preprocessing step
+  before signature scoring to enable scalability to millions of cells.
+- Store pooled representation in `adata.uns["vision"]["microclusters"]`.
+- All downstream analysis runs on pooled cells; results are unpooled back to cell level.
+
+#### 3. PhyloVISION integration
+
+- Port `FitchParsimony.R` + `TreeBasedMethods.R`.
+- Input: a Newick/ETE3 lineage tree over cells (e.g., from scLineage or cassiopeia).
+- `VisionAnalysis.compute_phylo_scores(tree)` — run Fitch parsimony on each signature over
+  the tree to score lineage-consistency.
+- Store in `adata.uns["vision"]["phylo_scores"]`.
+- Optional step, gated by whether a tree is provided.
+
+#### 4. Additional parity items
+
+- `Projections.R` → `VisionAnalysis.add_projection(key, coords)` — register arbitrary
+  low-dimensional embeddings to score signatures against.
+- Trajectory support → `VisionAnalysis.add_trajectory(pseudotime_key)` — score signatures
+  along pseudotime.
+- `NormalizationMethods.R` → normalization handled upstream by scvi-tools models; only need
+  a thin wrapper for users supplying raw counts without a model.
+- `Filters.R` → delegate to `HarremanAnalysis.filter_genes()` or scanpy's `sc.pp.filter_genes`.
+
+#### 5. PyTorch scalability
+
+- Replace C++ Rcpp layer (Geary-C, permutation tests) with PyTorch batched operations.
+- Target: handle 1M+ cells via GPU-accelerated sparse matrix ops.
+- Microcluster pooling reduces effective N before the bottleneck computations.
+- KNN graph construction via `faiss` or `pynndescent` (already used in scvi-tools).
+- Permutation tests via `torch.randperm` on GPU, parallelized across signatures.
+
+#### 6. scvi-tools integration pattern
+
+```
+VisionAnalysis(
+    adata,
+    model=scviva_model,        # optional — provides latent coords + cell-type labels
+    signatures=sig_library,    # MSigDB-format dict or .gmt path
+    harreman=ha,               # optional HarremanAnalysis instance to reuse KNN + autocorr
+)
+```
+
+- Same model dispatch table as `HarremanAnalysis`: SCVIVA → latent coords, RESOLVI → denoised
+  expression, DestVI → proportions.
+- Results in `adata.uns["vision"]` following same pattern as `adata.uns["harreman"]`.
+- `VisionResults` dataclass mirrors `HarremanResults`.
+
+### Proposed file structure
+
+```
+src/scvi/external/vision/        # new package, parallel to harreman/
+  __init__.py
+  _analysis.py                   # VisionAnalysis class
+  _results.py                    # VisionResults dataclass
+  _constants.py                  # uns keys, step names
+  _microclusters.py              # microcluster pooling
+  _phylo.py                      # PhyloVISION (Fitch parsimony)
+  _projections.py                # projection registry
+  _scoring.py                    # signature scoring (port of visionpy signature.py)
+  _server.py                     # Flask web report (port of visionpy blueprint.py)
+```
+
+visionpy upstream repo: keep or archive. If restructured into scvi-tools, the standalone
+visionpy package becomes redundant; coordinate with Adam before deprecating.
+
+### Dependencies not yet in scvi-tools
+
+| Dependency | Purpose | Notes |
+|------------|---------|-------|
+| `ete3` or `cassiopeia` | Lineage tree parsing for PhyloVISION | optional extra |
+| `flask` | Interactive web report | already in visionpy |
+| `faiss-cpu` / `faiss-gpu` | Fast KNN for large datasets | check if already present |

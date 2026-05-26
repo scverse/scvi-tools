@@ -11,11 +11,14 @@ from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
+from scvi.external.harreman._data import harreman_data_hash, harreman_data_url
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 from scvi.external.harreman.tools.knn import make_weights_non_redundant
 from scvi.model._utils import parse_device_args
 
 from . import models
+
+METABOLIC_GENES_DIR = "metabolic_genes"
 
 
 def load_metabolic_genes(
@@ -33,10 +36,11 @@ def load_metabolic_genes(
     -------
     List of metabolic genes.
     """
+    fname = f"{species}_metabolic_genes.csv"
     metabolic_genes_path = pooch.retrieve(
-        url=f"https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/metabolic_genes/{species}_metabolic_genes.csv",
-        known_hash=None,
-        fname=f"{species}_metabolic_genes.csv",
+        url=harreman_data_url(METABOLIC_GENES_DIR, fname),
+        known_hash=harreman_data_hash(METABOLIC_GENES_DIR, fname),
+        fname=fname,
         path=pooch.os_cache("scvi_harreman"),
         progressbar=False,
     )

@@ -7,9 +7,13 @@ import pandas as pd
 import pooch
 from anndata import AnnData
 
+from scvi.external.harreman._data import harreman_data_hash, harreman_data_url
+
 IMPORT_METAB_KEY = "IMPORT"
 EXPORT_METAB_KEY = "EXPORT"
 BOTH_METAB_KEY = "IMPORT_EXPORT"
+CELLCHAT_DB_DIR = "CellChatDB"
+HARREMAN_DB_DIR = "HarremanDB"
 
 
 def extract_interaction_db(
@@ -118,29 +122,28 @@ def extract_transporter_info(
     verbose: bool = False,
 ) -> dict[str, dict[str, list[str]]]:
     """Read csv file to extract the metabolite database."""
-    S3_BASE = (
-        "https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/HarremanDB"
-    )
     cache = pooch.os_cache("scvi_harreman")
 
     filenames = {
         "extracellular": pooch.retrieve(
-            url=f"{S3_BASE}/HarremanDB_{species}_extracellular.csv",
-            known_hash=None,
+            url=harreman_data_url(HARREMAN_DB_DIR, f"HarremanDB_{species}_extracellular.csv"),
+            known_hash=harreman_data_hash(
+                HARREMAN_DB_DIR, f"HarremanDB_{species}_extracellular.csv"
+            ),
             fname=f"HarremanDB_{species}_extracellular.csv",
             path=cache,
             progressbar=False,
         ),
         "all": pooch.retrieve(
-            url=f"{S3_BASE}/HarremanDB_{species}.csv",
-            known_hash=None,
+            url=harreman_data_url(HARREMAN_DB_DIR, f"HarremanDB_{species}.csv"),
+            known_hash=harreman_data_hash(HARREMAN_DB_DIR, f"HarremanDB_{species}.csv"),
             fname=f"HarremanDB_{species}.csv",
             path=cache,
             progressbar=False,
         ),
         "heterodimer": pooch.retrieve(
-            url=f"{S3_BASE}/Heterodimer_info_{species}.csv",
-            known_hash=None,
+            url=harreman_data_url(HARREMAN_DB_DIR, f"Heterodimer_info_{species}.csv"),
+            known_hash=harreman_data_hash(HARREMAN_DB_DIR, f"Heterodimer_info_{species}.csv"),
             fname=f"Heterodimer_info_{species}.csv",
             path=cache,
             progressbar=False,
@@ -194,22 +197,22 @@ def build_metabolite_df(metab_dict, key):
 
 def extract_lr_pairs(adata, species):
     """Extracting LR pairs from CellChatDB."""
-    S3_BASE = (
-        "https://scverse-public-data.s3.eu-central-1.amazonaws.com/scvi-tools/harreman/CellChatDB"
-    )
     cache = pooch.os_cache("scvi_harreman")
 
+    interaction_fname = f"interaction_input_CellChatDB_v2_{species}.csv"
+    complex_fname = f"complex_input_CellChatDB_v2_{species}.csv"
+
     interaction_path = pooch.retrieve(
-        url=f"{S3_BASE}/interaction_input_CellChatDB_v2_{species}.csv",
-        known_hash=None,
-        fname=f"interaction_input_CellChatDB_v2_{species}.csv",
+        url=harreman_data_url(CELLCHAT_DB_DIR, interaction_fname),
+        known_hash=harreman_data_hash(CELLCHAT_DB_DIR, interaction_fname),
+        fname=interaction_fname,
         path=cache,
         progressbar=False,
     )
     complex_path = pooch.retrieve(
-        url=f"{S3_BASE}/complex_input_CellChatDB_v2_{species}.csv",
-        known_hash=None,
-        fname=f"complex_input_CellChatDB_v2_{species}.csv",
+        url=harreman_data_url(CELLCHAT_DB_DIR, complex_fname),
+        known_hash=harreman_data_hash(CELLCHAT_DB_DIR, complex_fname),
+        fname=complex_fname,
         path=cache,
         progressbar=False,
     )
