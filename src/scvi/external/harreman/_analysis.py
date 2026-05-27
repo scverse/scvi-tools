@@ -670,9 +670,7 @@ class _HarremanPlAccessor:
 
         plot_ct_interacting_cell_scores(self._resolve(adata), **kwargs)
 
-    def plot_interaction_module_correlation(
-        self, adata: AnnData | None = None, **kwargs
-    ) -> None:
+    def plot_interaction_module_correlation(self, adata: AnnData | None = None, **kwargs) -> None:
         from scvi.external.harreman.plots import plot_interaction_module_correlation
 
         plot_interaction_module_correlation(self._resolve(adata), **kwargs)

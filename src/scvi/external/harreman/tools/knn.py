@@ -26,8 +26,8 @@ def _gpu_neighbors(
     or the GPU call fails for any reason.
     """
     try:
-        import rapids_singlecell  # noqa: F401 — confirms rapids ecosystem present
         import cupy as cp
+        import rapids_singlecell  # noqa: F401 — confirms rapids ecosystem present
         from cuml.neighbors import NearestNeighbors as cuNN
 
         coords_gpu = cp.asarray(coords.astype(np.float32))
@@ -237,7 +237,9 @@ def compute_neighbors(
                         include_self=False,
                     )
                 else:
-                    raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
+                    raise ValueError(
+                        "Either n_neighbors or neighborhood_radius must be specified."
+                    )
             dist = dist.tocoo()
             distances[sample_indices[dist.row], sample_indices[dist.col]] = dist.data
     else:

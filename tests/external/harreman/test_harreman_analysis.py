@@ -619,6 +619,7 @@ def test_accessor_resolve_defaults_to_ha_adata(adata_spatial):
 
 def test_accessor_resolve_accepts_override(adata_spatial):
     import anndata as ad
+
     other = ad.AnnData(adata_spatial.X.copy())
     ha = HarremanAnalysis(adata_spatial)
     assert ha.hs._resolve(other) is other

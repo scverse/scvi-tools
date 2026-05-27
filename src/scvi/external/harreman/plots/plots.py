@@ -1025,7 +1025,7 @@ def plot_sig_mod_correlation(
     if coef is None or padj is None:
         raise ValueError(
             'Run the "harreman.hs.integrate_vision_hotspot_results" function '
-            'before plotting the results.'
+            "before plotting the results."
         )
 
     coef = coef.loc[subset_signatures] if subset_signatures is not None else coef
