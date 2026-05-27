@@ -48,7 +48,7 @@ def _gpu_neighbors(
             return dist.get()
         return csr_matrix(dist)
 
-    except Exception:  # ImportError, RuntimeError (no GPU), etc.
+    except (ImportError, RuntimeError, AttributeError):
         return None
 
 
@@ -217,7 +217,8 @@ def compute_neighbors(
                 )
                 if dist is None and use_gpu is True:
                     raise RuntimeError(
-                        "GPU neighbor computation failed. Install rapids_singlecell / cuML or set use_gpu=False."
+                        "GPU neighbor computation failed. "
+                        "Install rapids_singlecell / cuML or set use_gpu=False."
                     )
                 if dist is not None:
                     logger.debug("Using GPU (cuML) for neighbor graph (sample=%s).", sample)
@@ -250,7 +251,8 @@ def compute_neighbors(
             )
             if dist is None and use_gpu is True:
                 raise RuntimeError(
-                    "GPU neighbor computation failed. Install rapids_singlecell / cuML or set use_gpu=False."
+                    "GPU neighbor computation failed. "
+                    "Install rapids_singlecell / cuML or set use_gpu=False."
                 )
             if dist is not None:
                 logger.debug("Using GPU (cuML) for neighbor graph.")
