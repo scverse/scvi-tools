@@ -128,6 +128,10 @@ class HarremanAnalysis:
 
         self._adata.uns.setdefault(HARREMAN_UNS_KEY, {HARREMAN_PARAMS_KEY: {}})
 
+        self.hs = _HarremanHsAccessor(self)
+        self.tl = _HarremanTlAccessor(self)
+        self.pl = _HarremanPlAccessor(self)
+
     # ── Model integration ──────────────────────────────────────────────────────
 
     def _apply_model_integration(self, model: BaseModelClass, adata: AnnData) -> None:
@@ -192,6 +196,7 @@ class HarremanAnalysis:
         sample_key: str | None = None,
         spot_diameter: int = 10,
         extracellular_only: bool = True,
+        use_gpu: bool | None = None,
     ) -> None:
         """Register adata with HarremanDB and build the spatial proximity graph.
 
@@ -215,6 +220,9 @@ class HarremanAnalysis:
             Spot diameter of the spatial technology.
         extracellular_only
             Restrict HarremanDB to extracellular metabolites only.
+        use_gpu
+            ``None`` (default) tries GPU via rapids_singlecell/cuML and falls back to CPU.
+            ``False`` forces CPU. ``True`` raises if GPU is unavailable.
         """
         _extract_interaction_db(
             self._adata,
@@ -228,6 +236,7 @@ class HarremanAnalysis:
             n_neighbors=n_neighbors,
             neighborhood_radius=neighborhood_radius,
             sample_key=sample_key,
+            use_gpu=use_gpu,
         )
         # Invalidate any downstream steps so re-running setup with new params doesn't
         # leave stale gene-pair or CCC results silently accepted.
@@ -551,3 +560,119 @@ class HarremanAnalysis:
             threshold=fdr_threshold,
         )
         self._completed_steps.add(STEP_SIG)
+
+
+# ── Accessor classes ───────────────────────────────────────────────────────────
+
+
+class _HarremanHsAccessor:
+    """Hotspot analysis methods accessible as ``ha.hs.<method>``."""
+
+    def __init__(self, ha: HarremanAnalysis) -> None:
+        self._ha = ha
+
+    def _resolve(self, adata: AnnData | None) -> AnnData:
+        return adata if adata is not None else self._ha._adata
+
+    def compute_local_autocorrelation(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.local_autocorrelation import (
+            compute_local_autocorrelation,
+        )
+
+        compute_local_autocorrelation(self._resolve(adata), **kwargs)
+
+    def compute_local_correlation(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.local_correlation import compute_local_correlation
+
+        compute_local_correlation(self._resolve(adata), **kwargs)
+
+    def create_modules(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.modules import create_modules
+
+        create_modules(self._resolve(adata), **kwargs)
+
+    def calculate_module_scores(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.modules import calculate_module_scores
+
+        calculate_module_scores(self._resolve(adata), **kwargs)
+
+    def calculate_super_module_scores(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.hotspot.modules import calculate_super_module_scores
+
+        calculate_super_module_scores(self._resolve(adata), **kwargs)
+
+    def compute_top_scoring_modules(self, adata: AnnData | None = None, **kwargs):
+        from scvi.external.harreman.hotspot.modules import compute_top_scoring_modules
+
+        return compute_top_scoring_modules(self._resolve(adata), **kwargs)
+
+
+class _HarremanTlAccessor:
+    """Tool methods accessible as ``ha.tl.<method>``."""
+
+    def __init__(self, ha: HarremanAnalysis) -> None:
+        self._ha = ha
+
+    def _resolve(self, adata: AnnData | None) -> AnnData:
+        return adata if adata is not None else self._ha._adata
+
+    def compute_knn_graph(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.tools.knn import compute_knn_graph
+
+        compute_knn_graph(self._resolve(adata), **kwargs)
+
+    def compute_interaction_module_correlation(
+        self, adata: AnnData | None = None, **kwargs
+    ) -> None:
+        from scvi.external.harreman.tools.cell_communication import (
+            compute_interaction_module_correlation,
+        )
+
+        compute_interaction_module_correlation(self._resolve(adata), **kwargs)
+
+    def select_significant_interactions(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.tools.cell_communication import select_significant_interactions
+
+        select_significant_interactions(self._resolve(adata), **kwargs)
+
+
+class _HarremanPlAccessor:
+    """Plotting methods accessible as ``ha.pl.<method>``."""
+
+    def __init__(self, ha: HarremanAnalysis) -> None:
+        self._ha = ha
+
+    def _resolve(self, adata: AnnData | None) -> AnnData:
+        return adata if adata is not None else self._ha._adata
+
+    def local_correlation_plot(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.plots import local_correlation_plot
+
+        local_correlation_plot(self._resolve(adata), **kwargs)
+
+    def average_local_correlation_plot(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.plots import average_local_correlation_plot
+
+        average_local_correlation_plot(self._resolve(adata), **kwargs)
+
+    def module_score_correlation_plot(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.plots import module_score_correlation_plot
+
+        module_score_correlation_plot(self._resolve(adata), **kwargs)
+
+    def plot_interacting_cell_scores(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.plots import plot_interacting_cell_scores
+
+        plot_interacting_cell_scores(self._resolve(adata), **kwargs)
+
+    def plot_ct_interacting_cell_scores(self, adata: AnnData | None = None, **kwargs) -> None:
+        from scvi.external.harreman.plots import plot_ct_interacting_cell_scores
+
+        plot_ct_interacting_cell_scores(self._resolve(adata), **kwargs)
+
+    def plot_interaction_module_correlation(
+        self, adata: AnnData | None = None, **kwargs
+    ) -> None:
+        from scvi.external.harreman.plots import plot_interaction_module_correlation
+
+        plot_interaction_module_correlation(self._resolve(adata), **kwargs)

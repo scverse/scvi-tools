@@ -4347,6 +4347,7 @@ def compute_interaction_module_correlation(
     normalize_values: bool | None = False,
     use_FDR: bool | None = True,
     use_super_modules: bool | None = False,
+    ct_aware: bool | None = None,
 ):
     """Compute correlations between interacting cell scores and module scores.
 
@@ -4376,6 +4377,10 @@ def compute_interaction_module_correlation(
         If ``only_sig_values=True``, determines whether to filter by FDR or raw p-values.
     use_super_modules : bool, default False
         Whether to use super-module scores instead of module scores.
+    ct_aware : bool, optional
+        Whether to use cell-type-aware interacting cell scores. If ``None``, cell-type-aware
+        scores are used only when standard scores are absent and matching cell-type-aware
+        scores are present.
     """
     MODULE_KEY = "super_module_scores" if use_super_modules else "module_scores"
 
@@ -4395,8 +4400,24 @@ def compute_interaction_module_correlation(
         )
 
     interaction_type_str = "m" if interaction_type == "metabolite" else "gp"
+    ct_scores_key = f"ct_interacting_cell_results_{test_str}_{interaction_type_str}_cs_df"
 
-    if only_sig_values:
+    if ct_aware is None:
+        ct_aware = "interacting_cell_results" not in adata.uns and ct_scores_key in adata.obsm
+
+    if ct_aware:
+        if only_sig_values:
+            raise ValueError(
+                "only_sig_values=True is not supported for cell-type-aware "
+                "interaction-module correlations."
+            )
+        if ct_scores_key not in adata.obsm:
+            raise KeyError(
+                f"Missing adata.obsm['{ct_scores_key}']. Run "
+                "compute_interacting_cell_scores(mode='cell_type') first."
+            )
+        interaction_scores = pd.DataFrame(adata.obsm[ct_scores_key], index=adata.obs_names)
+    elif only_sig_values:
         sig_str = "FDR" if use_FDR else "pval"
         interaction_scores = adata.uns["interacting_cell_results"][test_str][interaction_type_str][
             f"cs_sig_{sig_str}"
@@ -4405,18 +4426,19 @@ def compute_interaction_module_correlation(
         interaction_scores = adata.uns["interacting_cell_results"][test_str][interaction_type_str][
             "cs"
         ]
+        interaction_type_names_key = (
+            "metabolites" if interaction_type == "metabolite" else "gene_pairs_sig_names"
+        )
+        interaction_scores = pd.DataFrame(
+            interaction_scores,
+            index=adata.obs_names,
+            columns=adata.uns[interaction_type_names_key],
+        )
 
     if normalize_values:
         interaction_scores = interaction_scores.apply(
             lambda x: (x - x.min()) / (x.max() - x.min()), axis=0
         )  # We apply min-max normalization
-
-    interaction_type_names_key = (
-        "metabolites" if interaction_type == "metabolite" else "gene_pairs_sig_names"
-    )
-    interaction_scores = pd.DataFrame(
-        interaction_scores, index=adata.obs_names, columns=adata.uns[interaction_type_names_key]
-    )
 
     metabolites = interaction_scores.columns.tolist()
     modules = adata.obsm[MODULE_KEY].columns.tolist()
@@ -4445,12 +4467,24 @@ def compute_interaction_module_correlation(
 
     cor_pval_df = cor_pval_df.replace(np.nan, 1)
     cor_coef_df = cor_coef_df.replace(np.nan, 0)
-    cor_FDR_values = multipletests(cor_pval_df.values.flatten(), method="fdr_bh")[1]
-    cor_FDR_df = pd.DataFrame(
-        cor_FDR_values.reshape(cor_pval_df.shape),
-        index=cor_pval_df.index,
-        columns=cor_pval_df.columns,
-    )
+
+    if cor_pval_df.size == 0:
+        import warnings
+
+        warnings.warn(
+            "compute_interaction_module_correlation: no metabolite×module pairs to test "
+            "(interaction_scores has 0 columns). Storing empty result DataFrames. "
+            "Check that compute_interacting_cell_scores produced non-empty scores.",
+            stacklevel=2,
+        )
+        cor_FDR_df = cor_pval_df.copy()
+    else:
+        cor_FDR_values = multipletests(cor_pval_df.values.flatten(), method="fdr_bh")[1]
+        cor_FDR_df = pd.DataFrame(
+            cor_FDR_values.reshape(cor_pval_df.shape),
+            index=cor_pval_df.index,
+            columns=cor_pval_df.columns,
+        )
 
     adata.uns["interaction_module_correlation_coefs"] = cor_coef_df
     adata.uns["interaction_module_correlation_pvals"] = cor_pval_df

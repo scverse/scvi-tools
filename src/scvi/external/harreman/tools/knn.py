@@ -1,4 +1,5 @@
 import itertools
+import logging
 import time
 from math import ceil
 
@@ -11,6 +12,45 @@ from sklearn.neighbors import NearestNeighbors, radius_neighbors_graph
 from sklearn.preprocessing import normalize
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
+
+def _gpu_neighbors(
+    coords: np.ndarray,
+    n_neighbors: int | None = None,
+    neighborhood_radius: float | None = None,
+):
+    """GPU-accelerated neighbor graph via rapids_singlecell / cuML.
+
+    Returns a scipy csr_matrix of distances, or ``None`` if rapids is unavailable
+    or the GPU call fails for any reason.
+    """
+    try:
+        import rapids_singlecell  # noqa: F401 — confirms rapids ecosystem present
+        import cupy as cp
+        from cuml.neighbors import NearestNeighbors as cuNN
+
+        coords_gpu = cp.asarray(coords.astype(np.float32))
+
+        if n_neighbors is not None:
+            nn = cuNN(n_neighbors=n_neighbors + 1, metric="euclidean")
+            nn.fit(coords_gpu)
+            dist = nn.kneighbors_graph(coords_gpu, mode="distance")
+        else:
+            nn = cuNN(metric="euclidean")
+            nn.fit(coords_gpu)
+            dist = nn.radius_neighbors_graph(
+                coords_gpu, radius=float(neighborhood_radius), mode="distance"
+            )
+
+        # cuML returns scipy sparse; fall back for cupy sparse
+        if hasattr(dist, "get"):
+            return dist.get()
+        return csr_matrix(dist)
+
+    except Exception:  # ImportError, RuntimeError (no GPU), etc.
+        return None
+
 
 def compute_knn_graph(
     adata: AnnData,
@@ -22,6 +62,7 @@ def compute_knn_graph(
     neighborhood_factor: int | None = 3,
     sample_key: str | None = None,
     tree=None,
+    use_gpu: bool | None = None,
     verbose: bool | None = False,
 ):
     """Computes the spatial proximity graph.
@@ -51,6 +92,9 @@ def compute_knn_graph(
         conditions. Input is key in `adata.obs`.
     tree
         Root tree node. Can be created using ete3.Tree
+    use_gpu
+        Whether to use GPU acceleration via rapids_singlecell/cuML. ``None`` (default) tries GPU
+        and falls back to CPU automatically; ``False`` forces CPU; ``True`` raises if GPU fails.
     verbose
         Whether to print progress and status messages.
     """
@@ -88,6 +132,7 @@ def compute_knn_graph(
             n_neighbors=n_neighbors,
             neighborhood_radius=neighborhood_radius,
             sample_key=sample_key,
+            use_gpu=use_gpu,
             verbose=verbose,
         )
     else:
@@ -122,6 +167,7 @@ def compute_neighbors(
     n_neighbors: int | None = None,
     neighborhood_radius: int | None = None,
     sample_key: str | None = None,
+    use_gpu: bool | None = None,
     verbose: bool | None = False,
 ) -> None:
     """Compute a nearest-neighbors graph using either radius-based or k-nearest neighbors.
@@ -141,6 +187,8 @@ def compute_neighbors(
     sample_key : str, optional
         Key in `adata.obs` indicating batch/sample identity.
         Ensures neighbors are only computed within each sample.
+    use_gpu : bool, optional (default: None)
+        ``None`` tries GPU and falls back to CPU; ``False`` forces CPU; ``True`` raises on failure.
     verbose : bool, optional (default: False)
         Whether to print progress and status messages.
     """
@@ -162,29 +210,63 @@ def compute_neighbors(
             sample_coords = coords[sample_mask]
             if len(sample_indices) == 0:
                 continue
-            if n_neighbors is not None:
-                nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm="ball_tree").fit(
-                    sample_coords
+            dist = None
+            if use_gpu is not False:
+                dist = _gpu_neighbors(
+                    sample_coords, n_neighbors=n_neighbors, neighborhood_radius=neighborhood_radius
                 )
-                dist = nn.kneighbors_graph(sample_coords, mode="distance")
-            elif neighborhood_radius is not None:
-                dist = radius_neighbors_graph(
-                    sample_coords, radius=neighborhood_radius, mode="distance", include_self=False
-                )
-            else:
-                raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
+                if dist is None and use_gpu is True:
+                    raise RuntimeError(
+                        "GPU neighbor computation failed. Install rapids_singlecell / cuML or set use_gpu=False."
+                    )
+                if dist is not None:
+                    logger.debug("Using GPU (cuML) for neighbor graph (sample=%s).", sample)
+                elif use_gpu is None:
+                    logger.debug("GPU unavailable; falling back to sklearn for sample=%s.", sample)
+            if dist is None:
+                if n_neighbors is not None:
+                    nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm="ball_tree").fit(
+                        sample_coords
+                    )
+                    dist = nn.kneighbors_graph(sample_coords, mode="distance")
+                elif neighborhood_radius is not None:
+                    dist = radius_neighbors_graph(
+                        sample_coords,
+                        radius=neighborhood_radius,
+                        mode="distance",
+                        include_self=False,
+                    )
+                else:
+                    raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
             dist = dist.tocoo()
             distances[sample_indices[dist.row], sample_indices[dist.col]] = dist.data
     else:
-        if n_neighbors is not None:
-            nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm="ball_tree").fit(coords)
-            distances = nn.kneighbors_graph(coords, mode="distance")
-        elif neighborhood_radius is not None:
-            distances = radius_neighbors_graph(
-                coords, radius=neighborhood_radius, mode="distance", include_self=False
+        dist = None
+        if use_gpu is not False:
+            dist = _gpu_neighbors(
+                coords, n_neighbors=n_neighbors, neighborhood_radius=neighborhood_radius
             )
-        else:
-            raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
+            if dist is None and use_gpu is True:
+                raise RuntimeError(
+                    "GPU neighbor computation failed. Install rapids_singlecell / cuML or set use_gpu=False."
+                )
+            if dist is not None:
+                logger.debug("Using GPU (cuML) for neighbor graph.")
+            elif use_gpu is None:
+                logger.debug("GPU unavailable; falling back to sklearn.")
+        if dist is None:
+            if n_neighbors is not None:
+                nn = NearestNeighbors(n_neighbors=n_neighbors + 1, algorithm="ball_tree").fit(
+                    coords
+                )
+                dist = nn.kneighbors_graph(coords, mode="distance")
+            elif neighborhood_radius is not None:
+                dist = radius_neighbors_graph(
+                    coords, radius=neighborhood_radius, mode="distance", include_self=False
+                )
+            else:
+                raise ValueError("Either n_neighbors or neighborhood_radius must be specified.")
+        distances = dist
 
     # Deconvolution-aware neighborhood
     if adata.uns.get("deconv_data", False):

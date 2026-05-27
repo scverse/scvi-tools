@@ -589,7 +589,9 @@ def plot_ct_interacting_cell_scores(
     swap_y_axis: bool | None = False,
 ):
     """
-    Plot cell-type–specific interacting cell scores (for gene pairs or metabolites) across spatial coordinates.
+    Plot cell-type–specific interacting cell scores across spatial coordinates.
+
+    For gene pairs or metabolites.
 
     Parameters
     ----------
@@ -791,7 +793,7 @@ def plot_interaction(
     colorbar,
     swap_y_axis,
 ):
-
+    """Plot interaction scores on spatial coordinates."""
     if isinstance(adata.obsm[coords_obsm_key], pd.DataFrame):
         coords = adata.obsm[coords_obsm_key].values
     else:
@@ -832,7 +834,7 @@ def plot_ct_interaction(
     colorbar,
     swap_y_axis,
 ):
-
+    """Plot cell-type interaction scores on spatial coordinates."""
     if isinstance(adata.obsm[coords_obsm_key], pd.DataFrame):
         coords = adata.obsm[coords_obsm_key].values
     else:
@@ -877,7 +879,7 @@ def _prettify_axis(ax, spatial=False):
 def plot_signature_for_selection(
     adata, signature, coords_obsm_key, s, vmin, vmax, figsize, cmap, colorbar
 ):
-
+    """Plot signature scores on spatial coordinates for selection."""
     scores = adata.obsm["vision_signatures"]
 
     if isinstance(adata.obsm[coords_obsm_key], pd.DataFrame):
@@ -901,7 +903,7 @@ def plot_signature_for_selection(
 
 
 def plot_selection_histplot(adata, signature, group):
-
+    """Plot histogram of signature scores for selection vs remainder."""
     adata.obs["selected"] = group
     adata.obs["selected"][adata.obs["selected"] == 1] = "Selection"
     adata.obs["selected"][adata.obs["selected"] == 0] = "Remainder"
@@ -909,7 +911,7 @@ def plot_selection_histplot(adata, signature, group):
     if signature not in adata.obs:
         adata.obs[signature] = adata.obsm["vision_signatures"][signature]
 
-    ax = sns.histplot(
+    sns.histplot(
         data=adata.obs,
         x=signature,
         hue=adata.obs["selected"].tolist(),
@@ -929,7 +931,7 @@ def plot_vision_autocorrelation(
     cmap: str | None = "coolwarm",
     cbar: bool | None = True,
 ):
-
+    """Plot vision autocorrelation results."""
     if type not in ["observations", "signatures"]:
         raise ValueError('The "type" variable should be one of ["observations", "signatures"].')
 
@@ -957,7 +959,7 @@ def plot_vision_de_results(
     cmap: str | None = "coolwarm",
     cbar: bool | None = True,
 ):
-
+    """Plot vision differential expression results."""
     if var is None:
         raise ValueError('The "var" variable should be a categorical variable to plot.')
 
@@ -1001,7 +1003,7 @@ def plot_sig_mod_correlation(
     subset_modules: list | None = None,
     cmap: str | None = "RdBu_r",
 ):
-
+    """Plot signature-module correlation heatmap."""
     coef = (
         adata.uns["sig_mod_correlation_coefs"]
         if "sig_mod_correlation_coefs" in adata.uns.keys()
@@ -1022,7 +1024,8 @@ def plot_sig_mod_correlation(
 
     if coef is None or padj is None:
         raise ValueError(
-            'Run the "harreman.hs.integrate_vision_hotspot_results" function before plotting the results.'
+            'Run the "harreman.hs.integrate_vision_hotspot_results" function '
+            'before plotting the results.'
         )
 
     coef = coef.loc[subset_signatures] if subset_signatures is not None else coef
@@ -1054,7 +1057,7 @@ def plot_sig_mod_correlation(
 
     for i, ix in enumerate(g.dendrogram_row.reordered_ind):
         for j in range(len(coef.columns)):
-            text = g.ax_heatmap.text(
+            g.ax_heatmap.text(
                 j + 0.5,
                 i + 0.5,
                 "***"
@@ -1098,7 +1101,7 @@ def plot_sig_mod_enrichment(
     subset_modules: list | None = None,
     cmap: str | None = "RdBu_r",
 ):
-
+    """Plot signature-module enrichment heatmap."""
     coef = (
         adata.uns["sig_mod_enrichment_stats"]
         if "sig_mod_enrichment_stats" in adata.uns.keys()
@@ -1119,7 +1122,8 @@ def plot_sig_mod_enrichment(
 
     if coef is None or padj is None:
         raise ValueError(
-            'Run the "harreman.hs.integrate_vision_hotspot_results" function before plotting the results.'
+            'Run the "harreman.hs.integrate_vision_hotspot_results" function '
+            "before plotting the results."
         )
 
     coef = coef.loc[subset_signatures] if subset_signatures is not None else coef
@@ -1149,7 +1153,7 @@ def plot_sig_mod_enrichment(
 
     for i, ix in enumerate(g.dendrogram_row.reordered_ind):
         for j in range(len(coef.columns)):
-            text = g.ax_heatmap.text(
+            g.ax_heatmap.text(
                 j + 0.5,
                 i + 0.5,
                 "***"
@@ -1176,7 +1180,7 @@ def plot_interaction_module_correlation(
     figsize: tuple | None = (10, 10),
     threshold: float | None = None,
 ):
-
+    """Plot interaction-module correlation heatmap."""
     coef = (
         adata.uns["interaction_module_correlation_coefs"].T
         if "interaction_module_correlation_coefs" in adata.uns.keys()
@@ -1197,7 +1201,8 @@ def plot_interaction_module_correlation(
 
     if coef is None or padj is None:
         raise ValueError(
-            'Run the "harreman.tl.compute_interaction_module_correlation" function before plotting the results.'
+            'Run the "harreman.tl.compute_interaction_module_correlation" '
+            "function before plotting the results."
         )
 
     coef = coef.loc[subset_interactions] if subset_interactions is not None else coef
@@ -1239,7 +1244,7 @@ def plot_interaction_module_correlation(
 
     for i, ix in enumerate(g.dendrogram_row.reordered_ind):
         for j in range(len(coef.columns)):
-            text = g.ax_heatmap.text(
+            g.ax_heatmap.text(
                 j + 0.5,
                 i + 0.5,
                 "***"

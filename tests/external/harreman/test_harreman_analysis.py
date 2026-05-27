@@ -562,3 +562,159 @@ def test_integration_scviva_latent_shape(scviva_model_and_adata):
     latent = ha.adata.obsm[HARREMAN_LATENT_OBSM]
     assert latent.shape[0] == adata.n_obs
     assert latent.ndim == 2
+
+
+# ── Accessor tests ─────────────────────────────────────────────────────────────
+
+
+def test_accessors_exist(adata_spatial):
+    ha = HarremanAnalysis(adata_spatial)
+    assert hasattr(ha, "hs")
+    assert hasattr(ha, "tl")
+    assert hasattr(ha, "pl")
+
+
+def test_hs_accessor_methods(adata_spatial):
+    ha = HarremanAnalysis(adata_spatial)
+    for method in [
+        "compute_local_autocorrelation",
+        "compute_local_correlation",
+        "create_modules",
+        "calculate_module_scores",
+        "calculate_super_module_scores",
+        "compute_top_scoring_modules",
+    ]:
+        assert callable(getattr(ha.hs, method)), f"ha.hs.{method} not callable"
+
+
+def test_tl_accessor_methods(adata_spatial):
+    ha = HarremanAnalysis(adata_spatial)
+    for method in [
+        "compute_knn_graph",
+        "compute_interaction_module_correlation",
+        "select_significant_interactions",
+    ]:
+        assert callable(getattr(ha.tl, method)), f"ha.tl.{method} not callable"
+
+
+def test_pl_accessor_methods(adata_spatial):
+    ha = HarremanAnalysis(adata_spatial)
+    for method in [
+        "local_correlation_plot",
+        "average_local_correlation_plot",
+        "module_score_correlation_plot",
+        "plot_interacting_cell_scores",
+        "plot_ct_interacting_cell_scores",
+        "plot_interaction_module_correlation",
+    ]:
+        assert callable(getattr(ha.pl, method)), f"ha.pl.{method} not callable"
+
+
+def test_accessor_resolve_defaults_to_ha_adata(adata_spatial):
+    ha = HarremanAnalysis(adata_spatial)
+    assert ha.hs._resolve(None) is adata_spatial
+    assert ha.tl._resolve(None) is adata_spatial
+    assert ha.pl._resolve(None) is adata_spatial
+
+
+def test_accessor_resolve_accepts_override(adata_spatial):
+    import anndata as ad
+    other = ad.AnnData(adata_spatial.X.copy())
+    ha = HarremanAnalysis(adata_spatial)
+    assert ha.hs._resolve(other) is other
+    assert ha.tl._resolve(other) is other
+    assert ha.pl._resolve(other) is other
+
+
+def test_tl_compute_knn_graph_via_accessor(adata_spatial):
+    """ha.tl.compute_knn_graph runs and writes to obsp['distances']."""
+    ha = HarremanAnalysis(adata_spatial)
+    ha.tl.compute_knn_graph(compute_neighbors_on_key="spatial", n_neighbors=5)
+    assert "distances" in ha.adata.obsp
+
+
+# ── GPU / rapids_singlecell integration tests ─────────────────────────────────
+
+
+def test_compute_neighbors_use_gpu_false_skips_gpu(adata_spatial):
+    """use_gpu=False must not call _gpu_neighbors."""
+    from scvi.external.harreman.tools import knn as knn_mod
+
+    with patch.object(knn_mod, "_gpu_neighbors", wraps=knn_mod._gpu_neighbors) as mock_gpu:
+        knn_mod.compute_neighbors(
+            adata_spatial,
+            compute_neighbors_on_key="spatial",
+            n_neighbors=5,
+            use_gpu=False,
+        )
+    mock_gpu.assert_not_called()
+    assert "distances" in adata_spatial.obsp
+
+
+def test_compute_neighbors_use_gpu_none_falls_back_when_gpu_unavailable(adata_spatial):
+    """use_gpu=None falls back to sklearn when _gpu_neighbors returns None."""
+    from scvi.external.harreman.tools import knn as knn_mod
+
+    with patch.object(knn_mod, "_gpu_neighbors", return_value=None) as mock_gpu:
+        knn_mod.compute_neighbors(
+            adata_spatial,
+            compute_neighbors_on_key="spatial",
+            n_neighbors=5,
+            use_gpu=None,
+        )
+    mock_gpu.assert_called_once()
+    assert "distances" in adata_spatial.obsp
+
+
+def test_compute_neighbors_use_gpu_true_raises_when_gpu_unavailable(adata_spatial):
+    """use_gpu=True raises RuntimeError when _gpu_neighbors returns None."""
+    from scvi.external.harreman.tools import knn as knn_mod
+
+    with patch.object(knn_mod, "_gpu_neighbors", return_value=None):
+        with pytest.raises(RuntimeError, match="GPU neighbor computation failed"):
+            knn_mod.compute_neighbors(
+                adata_spatial,
+                compute_neighbors_on_key="spatial",
+                n_neighbors=5,
+                use_gpu=True,
+            )
+
+
+def test_compute_neighbors_uses_gpu_result_when_available(adata_spatial):
+    """When _gpu_neighbors returns a matrix, it must be used without sklearn fallback."""
+    import numpy as np
+    from scipy.sparse import csr_matrix
+
+    from scvi.external.harreman.tools import knn as knn_mod
+
+    n = adata_spatial.n_obs
+    # Build a minimal sparse distance matrix: each cell connected to next
+    row = np.arange(n - 1)
+    col = np.arange(1, n)
+    data = np.ones(n - 1, dtype=np.float32)
+    fake_dist = csr_matrix((data, (row, col)), shape=(n, n))
+
+    with patch.object(knn_mod, "_gpu_neighbors", return_value=fake_dist) as mock_gpu:
+        with patch.object(knn_mod, "NearestNeighbors") as mock_nn:
+            knn_mod.compute_neighbors(
+                adata_spatial,
+                compute_neighbors_on_key="spatial",
+                n_neighbors=5,
+                use_gpu=None,
+            )
+    mock_gpu.assert_called_once()
+    mock_nn.assert_not_called()  # sklearn path must be bypassed
+    assert "distances" in adata_spatial.obsp
+
+
+def test_setup_use_gpu_param_forwarded(adata_spatial, monkeypatch):
+    """use_gpu kwarg is forwarded from ha.setup() to compute_knn_graph."""
+    import scvi.external.harreman._analysis as _mod
+
+    monkeypatch.setattr(_mod, "_extract_interaction_db", _make_mock_extract_db(adata_spatial))
+    with patch.object(_mod, "_compute_knn_graph") as mock_knn:
+        mock_knn.return_value = None
+        ha = HarremanAnalysis(adata_spatial)
+        ha.setup(compute_neighbors_on_key="spatial", n_neighbors=5, use_gpu=False)
+    _, kwargs = mock_knn.call_args
+    assert kwargs.get("use_gpu") is False

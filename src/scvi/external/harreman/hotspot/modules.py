@@ -621,6 +621,15 @@ def calculate_super_module_scores(
         modules = [f"Module {str(mod)}" for mod in modules]
         super_module_genes = [item for key in modules for item in gene_modules.get(key, [])]
 
+        if len(super_module_genes) == 0:
+            missing = [k for k in modules if k not in gene_modules]
+            print(
+                f"Warning: {super_module} skipped — no genes found. "
+                f"Modules not in gene_modules: {missing}. "
+                f"Available modules: {sorted(gene_modules.keys())}"
+            )
+            continue
+
         scores, loadings = compute_scores(
             adata[:, super_module_genes],
             layer_key,
@@ -633,11 +642,11 @@ def calculate_super_module_scores(
         gene_loadings_sm[super_module] = pd.Series(loadings, index=super_module_genes)
         gene_modules_sm[super_module] = super_module_genes
 
-        super_module_scores = pd.DataFrame(super_module_scores)
+    super_module_scores = pd.DataFrame(super_module_scores)
+    if not super_module_scores.empty:
         super_module_scores.index = adata.obs_names if not use_raw else adata.raw.obs.index
 
-        adata.varm["gene_loadings_sm"] = gene_loadings_sm
-
+    adata.varm["gene_loadings_sm"] = gene_loadings_sm
     adata.obsm["super_module_scores"] = super_module_scores
     adata.uns["gene_modules_sm"] = gene_modules_sm
 
