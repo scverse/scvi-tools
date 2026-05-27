@@ -419,8 +419,8 @@ def apply_model_per_cell_type(
 
         mu, var, x2 = model_fn(counts_ct, umi_ct, **kwargs)
 
-        mu_all[:, idx] = mu
-        var_all[:, idx] = var
-        x2_all[:, idx] = x2
+        mu_all[:, idx] = mu.to(torch.float64)
+        var_all[:, idx] = var.to(torch.float64)
+        x2_all[:, idx] = x2.to(torch.float64)
 
     return mu_all, var_all, x2_all

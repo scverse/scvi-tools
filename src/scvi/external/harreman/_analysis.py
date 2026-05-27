@@ -427,11 +427,13 @@ class HarremanAnalysis:
         if mode not in ("standard", "cell_type"):
             raise ValueError(f"mode must be 'standard' or 'cell_type', got '{mode}'")
 
+        resolved_model = model if model is not None else "none"
+
         kwargs = {
             "adata": self._adata,
             "layer_key_p_test": self._layer_key,
             "layer_key_np_test": self._layer_key,
-            "model": model,
+            "model": resolved_model,
             "M": n_permutations,
             "seed": seed,
             "test": test,

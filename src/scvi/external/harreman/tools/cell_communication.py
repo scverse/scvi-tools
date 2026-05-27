@@ -1764,7 +1764,7 @@ def select_significant_interactions(
     )
     cell_com_df_gp = adata.uns[ccc_key]["cell_com_df_gp"]
     adata.uns[ccc_key]["cell_com_df_gp_sig"] = cell_com_df_gp[
-        cell_com_df_gp.selected is True
+        cell_com_df_gp["selected"]
     ].copy()
 
     # Metabolite
@@ -1774,7 +1774,7 @@ def select_significant_interactions(
         else (FDR_values_m < threshold)
     )
     cell_com_df_m = adata.uns[ccc_key]["cell_com_df_m"]
-    adata.uns[ccc_key]["cell_com_df_m_sig"] = cell_com_df_m[cell_com_df_m.selected is True].copy()
+    adata.uns[ccc_key]["cell_com_df_m_sig"] = cell_com_df_m[cell_com_df_m["selected"]].copy()
 
     return
 
