@@ -1221,7 +1221,8 @@ def plot_interaction_module_correlation(
         coef = coef[(coef > threshold).any(axis=1)]
 
     if coef.empty:
-        msg = "No data remains after applying filters. Try lowering the threshold or adjusting other parameters."
+        msg = ("No data remains after applying filters. Try lowering the threshold or "
+               "adjusting other parameters.")
         raise ValueError(msg)
 
     cmap = mpl.colormaps.get_cmap(cmap)
