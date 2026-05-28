@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+import torch
 
 import scvi
 from scvi.data import synthetic_iid
@@ -103,6 +104,36 @@ def test_scvix_layernorm():
     model.get_normalized_expression(n_samples=2)
 
 
+def test_scvix_batch_representation_encoder_initialized_without_covariates():
+    adata = synthetic_iid(batch_size=100)
+    SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch")
+    model = SCVIX(adata, encode_covariates=False)
+
+    assert model.module.batch_representation_encoder is False
+
+
+def test_scvix_vamp_prior_validates_pseudoinput_shape():
+    adata = synthetic_iid(batch_size=100)
+    SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch")
+
+    with pytest.raises(ValueError, match="one-dimensional"):
+        SCVIX(
+            adata,
+            prior="vamp",
+            pseudoinputs_data_indices=np.array([[0]]),
+            n_prior_components=1,
+        )
+
+
+def test_scvix_mmd_requires_mask():
+    adata = synthetic_iid(batch_size=100)
+    SCVIX.setup_anndata(adata, batch_key="batch", assay_key="batch")
+    model = SCVIX(adata)
+
+    with pytest.raises(ValueError, match="mask"):
+        model.module.mmd(torch.randn(4, 2))
+
+
 def test_scvix_scarches_one_hot(save_path):
     # test transfer_anndata_setup + view
     adata1 = synthetic_iid()
@@ -128,6 +159,16 @@ def test_scvix_scarches_one_hot(save_path):
     new_var_names_init = [f"Random {i}" for i in range(10)]
     new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
     adata4.var_names = new_var_names
+
+    SCVIX.prepare_query_anndata(adata4, dir_path)
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
+    SCVIX_query3 = SCVIX.load_query_data(adata4, dir_path)
+    SCVIX_query3.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata5 = SCVIX.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVIX_query4 = SCVIX.load_query_data(adata5, dir_path)
+    SCVIX_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
 
 
 def test_scvix_scarches_embedding(save_path):
@@ -155,6 +196,16 @@ def test_scvix_scarches_embedding(save_path):
     new_var_names_init = [f"Random {i}" for i in range(10)]
     new_var_names = new_var_names_init + adata4.var_names[10:].to_list()
     adata4.var_names = new_var_names
+
+    SCVIX.prepare_query_anndata(adata4, dir_path)
+    assert np.sum(adata4[:, adata4.var_names[:10]].X) == 0
+    np.testing.assert_equal(adata4.var_names[:10].to_numpy(), adata1.var_names[:10].to_numpy())
+    SCVIX_query3 = SCVIX.load_query_data(adata4, dir_path)
+    SCVIX_query3.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
+
+    adata5 = SCVIX.prepare_query_anndata(adata4, dir_path, inplace=False)
+    SCVIX_query4 = SCVIX.load_query_data(adata5, dir_path)
+    SCVIX_query4.train(1, train_size=0.5, plan_kwargs={"weight_decay": 0.0})
 
 
 def test_scvix_minified():

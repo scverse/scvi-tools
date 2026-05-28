@@ -20,7 +20,10 @@ from scvi.module.base import (
     VampPrior,
     auto_move_data,
 )
+from scvi.nn import Embedding
 from scvi.utils import unsupported_if_adata_minified
+
+from ._components import DecoderSCVIX, EncoderX
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -29,6 +32,11 @@ if TYPE_CHECKING:
     from torch.distributions import Distribution
 
 logger = logging.getLogger(__name__)
+
+ASSAY_KEY = "assay"
+ASSAY_INDEX_KEY = "assay_index"
+ADVERSARIAL_GROUP_KEY = "adversarial_group"
+KL_SAMPLE_KEY = "kl_divergence_sample"
 
 
 class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
@@ -158,8 +166,6 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         pseudoinput_data: dict | None = None,
         n_prior_components: int | None = 50,
     ):
-        from scvi.nn import DecoderSCVI, Encoder
-
         super().__init__()
 
         self.dispersion = dispersion
@@ -188,6 +194,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             )
 
         self.batch_representation = batch_representation
+        self.batch_representation_encoder = False
         n_cats_per_cov_ = list([] if n_cats_per_cov is None else n_cats_per_cov)
         n_continuous = n_continuous_cov
 
@@ -228,7 +235,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             if conditional_norm and not encode_assay:
                 conditional_category = 1
         _extra_encoder_kwargs = extra_encoder_kwargs or {}
-        self.z_encoder = Encoder(
+        self.z_encoder = EncoderX(
             n_input,
             n_latent,
             n_continuous=n_cont_encoder,
@@ -247,7 +254,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         )
 
         _extra_decoder_kwargs = extra_decoder_kwargs or {}
-        self.decoder = DecoderSCVI(
+        self.decoder = DecoderSCVIX(
             n_latent,
             n_input,
             n_cat_list=cat_list,
@@ -280,9 +287,8 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         if prior == "gaussian":
             self.prior = GaussianPrior()
         elif prior == "vamp":
-            assert pseudoinput_data is not None, (
-                "Pseudoinput data must be specified if using VampPrior"
-            )
+            if pseudoinput_data is None:
+                raise ValueError("`pseudoinput_data` must be specified if using VampPrior.")
             pseudoinput_data = self._get_inference_input(pseudoinput_data, full_forward_pass=True)
             cat_list = [n_batch] + n_cats_per_cov_ + encode_assay_list
             self.prior = VampPrior(
@@ -304,6 +310,75 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             raise ValueError("`prior` must be one of 'gaussian', 'vamp', 'mog', 'mog_celltype'.")
 
+    @property
+    def embeddings_dim(self) -> dict[str, int]:
+        """Dictionary of embedding dimensions before variational doubling."""
+        if not hasattr(self, "_embeddings_dim"):
+            self._embeddings_dim = {}
+        return self._embeddings_dim
+
+    @property
+    def embedding_variational(self) -> dict[str, bool]:
+        """Dictionary of whether each embedding parameterizes a variational distribution."""
+        if not hasattr(self, "_embedding_variational"):
+            self._embedding_variational = {}
+        return self._embedding_variational
+
+    def init_embedding(
+        self,
+        key: str,
+        num_embeddings: int,
+        embedding_dim: int = 5,
+        variational: bool = False,
+        **kwargs,
+    ) -> None:
+        """Initialize a scVI-X embedding without changing the shared embedding mixin API."""
+        self.embeddings_dim[key] = embedding_dim
+        self.embedding_variational[key] = variational
+        weight_dim = embedding_dim * 2 if variational else embedding_dim
+        embedding = Embedding(num_embeddings, weight_dim, **kwargs)
+        torch.nn.init.zeros_(embedding.weight)
+        self.add_embedding(key, embedding)
+
+    def get_embedding_dim(self, key: str, default_value: int | None = None) -> int:
+        """Get the non-variational dimension of an embedding."""
+        if key not in self.embeddings_dim:
+            if default_value is not None:
+                return default_value
+            raise KeyError(f"Embedding {key} not found.")
+        return self.embeddings_dim[key]
+
+    def get_embedding_variational(self, key: str, default_value: bool | None = None) -> bool:
+        """Get whether an embedding is variational."""
+        if key not in self.embedding_variational:
+            if default_value is not None:
+                return default_value
+            raise KeyError(f"Embedding {key} not found.")
+        return self.embedding_variational[key]
+
+    @auto_move_data
+    def compute_embedding(
+        self,
+        key: str,
+        indices: torch.Tensor,
+        return_mean: bool = False,
+        return_dist: bool = False,
+    ) -> torch.Tensor | distributions.Normal:
+        """Forward pass for a scVI-X embedding."""
+        indices = indices.flatten() if indices.ndim > 1 else indices
+        embedding = self.get_embedding(key)(indices)
+        if self.get_embedding_variational(key, default_value=False):
+            embedding_dim = self.get_embedding_dim(key)
+            mean = embedding[:, :embedding_dim]
+            scale = torch.exp(embedding[:, embedding_dim:])
+            if return_mean:
+                return mean
+            dist = distributions.Normal(mean, scale)
+            if return_dist:
+                return dist
+            return dist.rsample()
+        return embedding
+
     def _get_inference_input(
         self,
         tensors: dict[str, torch.Tensor | None],
@@ -324,12 +399,10 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             return {
                 MODULE_KEYS.X_KEY: tensors[REGISTRY_KEYS.X_KEY],
                 MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
-                MODULE_KEYS.ASSAY_INDEX_KEY: tensors.get(REGISTRY_KEYS.ASSAY_KEY, None),
+                ASSAY_INDEX_KEY: tensors.get(ASSAY_KEY, None),
                 MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
                 MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
-                MODULE_KEYS.ADVERSARIAL_GROUP_KEY: tensors.get(
-                    REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, None
-                ),
+                ADVERSARIAL_GROUP_KEY: tensors.get(ADVERSARIAL_GROUP_KEY, None),
             }
         else:
             return {
@@ -348,7 +421,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             MODULE_KEYS.Z_KEY: inference_outputs[MODULE_KEYS.Z_KEY],
             MODULE_KEYS.LIBRARY_KEY: inference_outputs[MODULE_KEYS.LIBRARY_KEY],
             MODULE_KEYS.BATCH_INDEX_KEY: tensors[REGISTRY_KEYS.BATCH_KEY],
-            MODULE_KEYS.ASSAY_INDEX_KEY: tensors.get(REGISTRY_KEYS.ASSAY_KEY, None),
+            ASSAY_INDEX_KEY: tensors.get(ASSAY_KEY, None),
             MODULE_KEYS.CONT_COVS_KEY: tensors.get(REGISTRY_KEYS.CONT_COVS_KEY, None),
             MODULE_KEYS.CAT_COVS_KEY: tensors.get(REGISTRY_KEYS.CAT_COVS_KEY, None),
         }
@@ -381,6 +454,8 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
             if cont_covs is not None and self.encode_covariates:
                 cont = torch.cat([cont_covs, batch_rep], dim=-1)
+            else:
+                cont = batch_rep
         else:
             if self.encode_covariates:
                 cont = cont_covs
@@ -401,7 +476,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             MODULE_KEYS.Z_KEY: z,
             MODULE_KEYS.QZ_KEY: qz,
             MODULE_KEYS.LIBRARY_KEY: library,
-            MODULE_KEYS.ADVERSARIAL_GROUP_KEY: adversarial_group,
+            ADVERSARIAL_GROUP_KEY: adversarial_group,
         }
 
     @auto_move_data
@@ -417,7 +492,11 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         qz = Normal(qzm, qzv.sqrt())
         # use dist.sample() rather than rsample because we aren't optimizing the z here
-        untran_z = qz.sample() if n_samples == 1 else qz.sample((n_samples,))
+        if n_samples == 1:
+            untran_z = qz.sample()
+        else:
+            qz.sample()
+            untran_z = qz.sample((n_samples,))
         z = self.z_encoder.z_transformation(untran_z)
         library = torch.log(observed_lib_size)
         if n_samples > 1:
@@ -559,7 +638,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         else:
             kl_divergence_sample = torch.zeros_like(kl_divergence_z)
 
-        assay_index = tensors.get(REGISTRY_KEYS.ASSAY_KEY, None)
+        assay_index = tensors.get(ASSAY_KEY, None)
         if weight_assay_loss > 0.0 and assay_index is not None:
             assay_loss = self._compute_assay_penalty(
                 inference_outputs[MODULE_KEYS.QZ_KEY].loc, assay_index
@@ -598,7 +677,7 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             reconstruction_loss=reconst_loss,
             kl_local={
                 MODULE_KEYS.KL_Z_KEY: kl_divergence_z,
-                MODULE_KEYS.KL_SAMPLE_KEY: kl_divergence_sample,
+                KL_SAMPLE_KEY: kl_divergence_sample,
             },
         )
 
@@ -664,9 +743,10 @@ class VAEX(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
         return pair_penalty
 
     def mmd(self, params, mask=None):
-        if mask is not None:
-            mod_1 = params[mask]
-            mod_2 = params[~mask]
+        if mask is None:
+            raise ValueError("`mask` is required to compute MMD between two groups.")
+        mod_1 = params[mask]
+        mod_2 = params[~mask]
         return rbf_kernel(mod_1, mod_2)
 
 

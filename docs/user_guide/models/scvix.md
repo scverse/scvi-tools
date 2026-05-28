@@ -25,11 +25,6 @@ The key advantages of scVI-X over scVI are:
   encodings with low-dimensional variational embeddings, reducing parameter
   count and improving identifiability through a KL regularisation term.
 
-```{topic} Tutorials:
-
--   {doc}`/tutorials/notebooks/scrna/scvix_tutorial`
-```
-
 ## Preliminaries
 
 scVI-X takes as input a scRNA-seq count matrix $X$ with $N$ cells and $G$

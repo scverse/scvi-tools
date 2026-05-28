@@ -11,8 +11,6 @@ class _MODULE_KEYS(NamedTuple):
     LIBRARY_KEY: str = "library"
     QL_KEY: str = "ql"
     BATCH_INDEX_KEY: str = "batch_index"
-    ASSAY_INDEX_KEY: str = "assay_index"
-    ADVERSARIAL_GROUP_KEY: str = "adversarial_group"
     Y_KEY: str = "y"
     CONT_COVS_KEY: str = "cont_covs"
     CAT_COVS_KEY: str = "cat_covs"
@@ -24,7 +22,6 @@ class _MODULE_KEYS(NamedTuple):
     # loss
     KL_L_KEY: str = "kl_divergence_l"
     KL_Z_KEY: str = "kl_divergence_z"
-    KL_SAMPLE_KEY: str = "kl_divergence_sample"
 
 
 MODULE_KEYS = _MODULE_KEYS()

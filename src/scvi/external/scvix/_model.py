@@ -26,10 +26,11 @@ from scvi.model.base import (
     RNASeqMixin,
     VAEMixin,
 )
-from scvi.train import AdversarialTrainingPlan, TrainRunner
+from scvi.train import TrainRunner
 from scvi.utils._docstrings import devices_dsp, setup_anndata_dsp
 
 from ._module import VAEX
+from ._trainingplans import SCVIXTrainingPlan
 
 if TYPE_CHECKING:
     from typing import Literal
@@ -37,8 +38,10 @@ if TYPE_CHECKING:
     import pandas as pd
     from anndata import AnnData
 
+ASSAY_KEY = "assay"
+ADVERSARIAL_GROUP_KEY = "adversarial_group"
+
 logger = logging.getLogger(__name__)
-print(2)
 
 
 class SCVIX(
@@ -48,7 +51,7 @@ class SCVIX(
     ArchesMixin,
     BaseMinifiedModeModelClass,
 ):
-    """single-cell Variational Inference :cite:p:`Lopez18`.
+    """scVI-X: learning technology-invariant cell states.
 
     Parameters
     ----------
@@ -121,7 +124,7 @@ class SCVIX(
     _LATENT_QZM_KEY = "scvix_latent_qzm"
     _LATENT_QZV_KEY = "scvix_latent_qzv"
     _data_splitter_cls = DataSplitter
-    _training_plan_cls = AdversarialTrainingPlan
+    _training_plan_cls = SCVIXTrainingPlan
     _train_runner_cls = TrainRunner
 
     def __init__(
@@ -157,7 +160,7 @@ class SCVIX(
             **kwargs,
         }
         self._model_summary_string = (
-            "SCVI model with the following parameters: \n"
+            "SCVI-X model with the following parameters: \n"
             f"n_hidden: {n_hidden}, n_latent: {n_latent}, n_layers: {n_layers}, "
             f"dropout_rate: {dropout_rate}, dispersion: {dispersion}, "
             f"gene_likelihood: {gene_likelihood}, "
@@ -169,8 +172,13 @@ class SCVIX(
                 pseudoinputs_data_indices = np.random.randint(
                     0, self.summary_stats.n_cells, n_prior_components
                 )
-            assert pseudoinputs_data_indices.shape[0] == n_prior_components
-            assert pseudoinputs_data_indices.ndim == 1
+            if pseudoinputs_data_indices.ndim != 1:
+                raise ValueError("`pseudoinputs_data_indices` must be one-dimensional.")
+            if pseudoinputs_data_indices.shape[0] != n_prior_components:
+                raise ValueError(
+                    "`pseudoinputs_data_indices` must contain exactly "
+                    f"{n_prior_components} indices."
+                )
             pseudoinput_data = next(
                 iter(
                     self._make_data_loader(
@@ -228,10 +236,10 @@ class SCVIX(
         early_stopping: bool = False,
         n_epochs_kl_warmup: int | None = 5,
         adversarial_classifier: bool | None = None,
-        adversarial_key: str = "assay",
+        adversarial_key: str = ASSAY_KEY,
         scale_adversarial_loss: float | str = 5.0,
-        adversarial_steps: int = 5,
-        weight_kl_sample: float = 1e-5,
+        adversarial_steps: int = 1,
+        weight_kl_sample: float = 0.0,
         datasplitter_kwargs: dict | None = None,
         plan_kwargs: dict | None = None,
         external_indexing: list[np.array] = None,
@@ -383,10 +391,9 @@ class SCVIX(
             adata_ = self._validate_anndata(adata)
             assay_mappings = (
                 self.get_anndata_manager(adata_, required=True)
-                .get_state_registry(REGISTRY_KEYS.ASSAY_KEY)
+                .get_state_registry(ASSAY_KEY)
                 .categorical_mapping
             )
-            # Hack for transform_assay to be passed in get_normalized_expression.
             if isinstance(transform_assay, str):
                 if transform_assay not in assay_mappings:
                     raise ValueError(f'"{transform_assay}" is not a valid assay category.')
@@ -456,7 +463,7 @@ class SCVIX(
         anndata_fields = [
             LayerField(REGISTRY_KEYS.X_KEY, layer, is_count_data=True),
             CategoricalObsField(REGISTRY_KEYS.BATCH_KEY, batch_key),
-            CategoricalObsField(REGISTRY_KEYS.ASSAY_KEY, assay_key),
+            CategoricalObsField(ASSAY_KEY, assay_key),
             CategoricalJointObsField(REGISTRY_KEYS.CAT_COVS_KEY, categorical_covariate_keys),
             NumericalJointObsField(REGISTRY_KEYS.CONT_COVS_KEY, continuous_covariate_keys),
         ]
@@ -468,7 +475,7 @@ class SCVIX(
             )
         if adversarial_group_key is not None:
             anndata_fields.append(
-                CategoricalObsField(REGISTRY_KEYS.ADVERSARIAL_GROUP_KEY, adversarial_group_key)
+                CategoricalObsField(ADVERSARIAL_GROUP_KEY, adversarial_group_key)
             )
         # register new fields if the adata is minified
         adata_minify_type = _get_adata_minify_type(adata)
