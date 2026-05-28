@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Literal
+from typing import TYPE_CHECKING
 
-import numpy as np
 import torch
-from torch.distributions import Distribution
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Literal
+
+    import numpy as np
+    from torch.distributions import Distribution
 
 from scvi import REGISTRY_KEYS
 from scvi.module._constants import MODULE_KEYS
@@ -16,7 +20,7 @@ from scvi.module.base import LossOutput
 
 
 class ScPoliVAE(VAE):
-    """VAE with non-parametric prototype embeddings for cell-type anchoring.
+    r"""VAE with non-parametric prototype embeddings for cell-type anchoring.
 
     Extends :class:`~scvi.module.VAE` with learnable cell-type prototypes
     in latent space, following :cite:p:`Lotfollahi23`.
