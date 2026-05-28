@@ -314,8 +314,7 @@ class ScPoli(
 
         - ``_LATENT_QZM_KEY = "_scpoli_latent_qzm"``
         - ``_LATENT_QZV_KEY = "_scpoli_latent_qzv"``
-        - ``_OBSERVED_LIB_SIZE_KEY`` is inherited from :class:`~scvi.model.base.BaseModelClass`
-          (``"observed_lib_size"``).
+        - ``_OBSERVED_LIB_SIZE_KEY = "_scpoli_observed_lib_size"``
 
 
     scPoli :cite:p:`Lotfollahi23` extends a standard VAE (:cite:p:`Lopez18`)
@@ -401,6 +400,7 @@ class ScPoli(
     _module_cls = ScPoliVAE
     _LATENT_QZM_KEY = "_scpoli_latent_qzm"
     _LATENT_QZV_KEY = "_scpoli_latent_qzv"
+    _OBSERVED_LIB_SIZE_KEY = "_scpoli_observed_lib_size"
 
     def __init__(
         self,
@@ -466,9 +466,10 @@ class ScPoli(
         self,
         max_epochs: int | None = None,
         pretrain_epochs: int | None = None,
-        unlabeled_weight: float = 0.01,
+        unlabeled_weight: float | None = None,
         n_epochs_kl_warmup: int = 100,
-        eta: float = 0.0,
+        eta: float | None = None,
+        unlabeled_prototype_training: bool | None = None,
         clustering: str = "leiden",
         clustering_res: float = 2.0,
         n_clusters: int | None = None,
@@ -508,9 +509,14 @@ class ScPoli(
             Defaults to ``100``, matching the scArches ``alpha_epoch_anneal``
             default.
         eta
-            Weight eta on the labeled prototype loss.
+            Weight eta on the labeled prototype loss. If ``None`` (default),
+            uses the value from the module's initialization.
         unlabeled_weight
-            Weight on unlabeled prototypes.
+            Weight on unlabeled prototypes. If ``None`` (default),
+            uses the value from the module's initialization.
+        unlabeled_prototype_training
+            Whether to train unlabeled prototypes. If ``None`` (default),
+            automatically determined from ``unlabeled_weight > 0``.
         clustering
             Clustering algorithm for unlabeled prototype initialisation.
             ``"leiden"`` (default) or ``"kmeans"``.
@@ -542,20 +548,32 @@ class ScPoli(
             f"{max_epochs - pretrain_epochs} prototype)."
         )
 
+        # Use module's stored values if not explicitly provided
+        if eta is None:
+            eta = self.module.eta
+        if unlabeled_weight is None:
+            unlabeled_weight = self.module.unlabeled_weight
+
+        # Update module's eta and unlabeled_weight
+        self.module.eta = eta
+        self.module.unlabeled_weight = unlabeled_weight
+
         # scArches optimizer defaults; user plan_kwargs take priority.
         _plan_kwargs: dict = {
             "weight_decay": 0.04,
             "eps": 0.01,
             "n_epochs_kl_warmup": n_epochs_kl_warmup,
-            "eta": eta,
-            "unlabeled_weight": unlabeled_weight,
         }
         _plan_kwargs.update(plan_kwargs or {})
+
+        # Determine unlabeled prototype training: explicit parameter overrides automatic
+        if unlabeled_prototype_training is None:
+            unlabeled_prototype_training = unlabeled_weight > 0
 
         proto_callback = ScPoliPrototypeCallback(
             scpoli_model=self,
             pretrain_epochs=pretrain_epochs,
-            unlabeled_prototype_training=unlabeled_weight > 0,
+            unlabeled_prototype_training=unlabeled_prototype_training,
             clustering=clustering,
             clustering_res=clustering_res,
             n_clusters=n_clusters,

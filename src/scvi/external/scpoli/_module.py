@@ -86,6 +86,8 @@ class ScPoliVAE(VAE):
         extra_encoder_kwargs: dict | None = None,
         extra_decoder_kwargs: dict | None = None,
         batch_embedding_kwargs: dict | None = None,
+        eta: float = 0.0,
+        unlabeled_weight: float = 0.01,
     ):
         super().__init__(
             n_input=n_input,
@@ -119,6 +121,8 @@ class ScPoliVAE(VAE):
         )
         self.n_prototypes = n_labels  # one prototype per known cell type
         self._n_latent = n_latent  # stored for dynamic buffer allocation
+        self.eta = eta
+        self.unlabeled_weight = unlabeled_weight
 
         # Labeled prototype buffers — registered unconditionally so that
         # _prototypes_initialized is always accessible (even when n_labels=0).
@@ -142,6 +146,45 @@ class ScPoliVAE(VAE):
         self.register_buffer(
             "_unlabeled_prototypes_initialized",
             torch.zeros(1, dtype=torch.bool),
+        )
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
+        """Custom state dict loading to handle dynamic-size prototypes_unlabeled buffer.
+
+        The prototypes_unlabeled buffer can have variable shape [n_clusters, n_latent]
+        depending on clustering results. When loading a saved model, we need to resize
+        the buffer to match the saved shape before loading the state dict.
+        """
+        # Check if prototypes_unlabeled is in the state dict and has a different size
+        unlabeled_key = prefix + "prototypes_unlabeled"
+        if unlabeled_key in state_dict:
+            saved_shape = state_dict[unlabeled_key].shape
+            current_shape = self.prototypes_unlabeled.shape
+            # If shapes differ, re-register the buffer with the correct shape
+            if saved_shape != current_shape:
+                self.register_buffer(
+                    "prototypes_unlabeled",
+                    torch.zeros(saved_shape),
+                )
+
+        # Call parent implementation
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
         )
 
     @torch.no_grad()
@@ -213,8 +256,6 @@ class ScPoliVAE(VAE):
         inference_outputs: dict[str, torch.Tensor | Distribution | None],
         generative_outputs: dict[str, Distribution | None],
         kl_weight: float = 1.0,
-        unlabeled_weight: float = 0.0,
-        eta: float = 1.0,
     ) -> LossOutput:
         """ELBO + labeled and unlabeled prototype losses.
 
@@ -263,7 +304,7 @@ class ScPoliVAE(VAE):
         # separate optimizer after each epoch (alternating optimisation).
         unlabeled_ready = (
             self._unlabeled_prototypes_initialized.item()
-            and unlabeled_weight > 0.0
+            and self.unlabeled_weight > 0.0
             and self.prototypes_unlabeled.shape[0] > 0
         )
         if unlabeled_ready:
@@ -275,9 +316,9 @@ class ScPoliVAE(VAE):
                 unlabeled_proto_loss = torch.stack(
                     [min_dist[y_hat == c].mean() for c in unique_clusters]
                 ).mean()
-                proto_loss = proto_loss + unlabeled_weight * unlabeled_proto_loss
+                proto_loss = proto_loss + self.unlabeled_weight * unlabeled_proto_loss
 
-        total_loss = loss_output.loss + eta * proto_loss
+        total_loss = loss_output.loss + self.eta * proto_loss
         return LossOutput(
             loss=total_loss,
             reconstruction_loss=loss_output.reconstruction_loss,

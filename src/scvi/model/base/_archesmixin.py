@@ -73,6 +73,7 @@ class ArchesMixin:
         freeze_classifier: bool = True,
         transfer_batch: bool = True,
         datamodule: LightningDataModule | None = None,
+        is_query_model_: bool = True,
     ):
         """Online update of a reference model with scArches algorithm :cite:p:`Lotfollahi21`.
 
@@ -110,6 +111,9 @@ class ArchesMixin:
             ``EXPERIMENTAL`` A :class:`~lightning.pytorch.core.LightningDataModule` instance to use
             for training in place of the default :class:`~scvi.dataloaders.DataSplitter`. Can only
             be passed in if the model was not initialized with :class:`~anndata.AnnData`.
+        is_query_model_
+            sets the ``is_query_model_`` flag so that the prototype callback knows
+            to freeze reference prototypes during query training. Only applies to `scPOLI`.
         """
         if reference_model is None:
             raise ValueError("Please provide a reference model as string or loaded model.")
@@ -274,6 +278,7 @@ class ArchesMixin:
             batch_embedding_freeze=batch_embedding_freeze,
         )
         model.is_trained_ = False
+        model.is_query_model_ = is_query_model_
 
         return model
 
