@@ -125,12 +125,15 @@ def compute_local_autocorrelation(
             pass
 
     if not isinstance(device, torch.device):
-        _, _, device = parse_device_args(
-            accelerator=accelerator,
-            devices=device,
-            return_device="torch",
-            validate_single_device=True,
-        )
+        try:
+            _, _, device = parse_device_args(
+                accelerator=accelerator,
+                devices=device,
+                return_device="torch",
+                validate_single_device=True,
+            )
+        except (RuntimeError, ValueError):
+            device = torch.device("cpu")
 
     adata.uns["layer_key"] = layer_key
     adata.uns["model"] = model
