@@ -14,11 +14,18 @@ from torch.utils.data import (
 
 from scvi import REGISTRY_KEYS, settings
 from scvi.data import AnnDataManager
-from scvi.data._utils import get_anndata_attribute
+from scvi.data._utils import get_anndata_attribute, normalize_to_csr
 from scvi.dataloaders._ann_dataloader import AnnDataLoader
 from scvi.dataloaders._semi_dataloader import SemiSupervisedDataLoader
 from scvi.model._utils import parse_device_args
 from scvi.utils._docstrings import devices_dsp
+
+# Sparse handling modes for DataSplitter.on_after_batch_transfer.
+#   OFF/TRANSPORT : densify all sparse tensors after transfer (legacy behavior).
+#   INPUT_CSR     : keep REGISTRY_KEYS.X as CSR (CSC normalized to CSR), densify the rest.
+#   AUTO          : INPUT_CSR if measured X density <= SPARSE_AUTO_DENSITY, else TRANSPORT.
+SPARSE_MODES = ("OFF", "TRANSPORT", "INPUT_CSR", "AUTO")
+SPARSE_AUTO_DENSITY = 0.10  # crossover from benchmark_sparse.py on CUDA
 
 
 def validate_data_split(
@@ -231,6 +238,7 @@ class DataSplitter(pl.LightningDataModule):
         validation_size: float | None = None,
         shuffle_set_split: bool = True,
         load_sparse_tensor: bool = False,
+        sparse_mode: str = "TRANSPORT",
         pin_memory: bool = False,
         external_indexing: list[np.array, np.array, np.array] | None = None,
         **kwargs,
@@ -242,6 +250,9 @@ class DataSplitter(pl.LightningDataModule):
         self.validation_size = validation_size
         self.shuffle_set_split = shuffle_set_split
         self.load_sparse_tensor = load_sparse_tensor
+        if sparse_mode not in SPARSE_MODES:
+            raise ValueError(f"`sparse_mode` must be one of {SPARSE_MODES}, got {sparse_mode!r}.")
+        self.sparse_mode = sparse_mode
         self.drop_last = kwargs.pop("drop_last", False)
         self.data_loader_kwargs = kwargs
         self.pin_memory = pin_memory
@@ -329,12 +340,30 @@ class DataSplitter(pl.LightningDataModule):
             pass
 
     def on_after_batch_transfer(self, batch, dataloader_idx):
-        """Converts sparse tensors to dense if necessary."""
-        if self.load_sparse_tensor:
-            for key, val in batch.items():
-                layout = val.layout if isinstance(val, torch.Tensor) else None
-                if layout is torch.sparse_csr or layout is torch.sparse_csc:
-                    batch[key] = val.to_dense()
+        """Converts sparse tensors to dense, honoring ``sparse_mode``.
+
+        In ``INPUT_CSR`` (or ``AUTO`` below the density threshold) mode the
+        :attr:`~scvi.REGISTRY_KEYS.X_KEY` tensor is kept as a sparse CSR tensor
+        (converting from CSC if needed) so it can flow through ``log1p`` and the
+        first encoder linear layer; all other tensors are densified as before.
+        """
+        if not self.load_sparse_tensor:
+            return batch
+
+        for key, val in batch.items():
+            layout = val.layout if isinstance(val, torch.Tensor) else None
+            if layout is not torch.sparse_csr and layout is not torch.sparse_csc:
+                continue
+
+            keep_sparse = False
+            if self.sparse_mode in ("INPUT_CSR", "AUTO") and key == REGISTRY_KEYS.X_KEY:
+                if self.sparse_mode == "AUTO":
+                    density = val._nnz() / (val.shape[0] * val.shape[1])
+                    keep_sparse = density <= SPARSE_AUTO_DENSITY
+                else:
+                    keep_sparse = True
+
+            batch[key] = normalize_to_csr(val) if keep_sparse else val.to_dense()
 
         return batch
 
