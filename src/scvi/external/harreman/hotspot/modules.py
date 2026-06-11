@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
+from scvi.external.harreman._utils import _resolve_device
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 from scvi.external.harreman.tools.knn import make_weights_non_redundant
 
@@ -19,9 +20,9 @@ from .local_autocorrelation import center_counts_torch
 
 def calculate_module_scores(
     adata: AnnData,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
-):
+) -> None:
     """
     Calculate module scores for gene modules across cells.
 
@@ -47,6 +48,8 @@ def calculate_module_scores(
         - `adata.uns['gene_modules']`: dictionary mapping module names to gene lists
     """
     start = time.time()
+    device = _resolve_device(device)
+    device = _resolve_device(device)
 
     layer_key = adata.uns["layer_key"]
     model = adata.uns["model"]
@@ -562,9 +565,9 @@ def compute_top_scoring_modules(
 def calculate_super_module_scores(
     adata: AnnData,
     super_module_dict: dict = None,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
-):
+) -> None:
     """
     Calculate super-module scores for gene super-modules across cells.
 
@@ -595,6 +598,7 @@ def calculate_super_module_scores(
         - `adata.uns['gene_modules_sm']`: dictionary mapping super-module names to gene lists
     """
     start = time.time()
+    device = _resolve_device(device)
 
     gene_modules = adata.uns["gene_modules"]
 

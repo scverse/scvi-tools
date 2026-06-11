@@ -12,9 +12,9 @@ from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
 from scvi.external.harreman._data import harreman_data_hash, harreman_data_url
+from scvi.external.harreman._utils import _resolve_device
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 from scvi.external.harreman.tools.knn import make_weights_non_redundant
-from scvi.model._utils import parse_device_args
 
 from . import models
 
@@ -124,22 +124,7 @@ def compute_local_autocorrelation(
         except (RuntimeError, ValueError):
             pass
 
-    if not isinstance(device, torch.device):
-        try:
-            _, _, device = parse_device_args(
-                accelerator=accelerator,
-                devices=device,
-                return_device="torch",
-                validate_single_device=True,
-            )
-        except (RuntimeError, ValueError):
-            device = torch.device("cpu")
-    # Verify the device is actually usable; fall back to CPU if not
-    if device.type == "cuda":
-        try:
-            torch.tensor([0.0], device=device)
-        except RuntimeError:
-            device = torch.device("cpu")
+    device = _resolve_device(device)
 
     adata.uns["layer_key"] = layer_key
     adata.uns["model"] = model

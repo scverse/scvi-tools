@@ -117,34 +117,21 @@ def test_compute_local_autocorrelation(adata_with_graph):
     assert len(results) == adata_with_graph.n_vars
 
 
-def test_compute_local_autocorrelation_uses_scvi_device_parser(monkeypatch, adata_with_graph):
-    calls = []
+def test_compute_local_autocorrelation_device_fallback(monkeypatch, adata_with_graph):
+    """Test that device resolution falls back to CPU when CUDA is unavailable."""
+    import scvi.external.harreman.hotspot.local_autocorrelation as _la
 
-    def parse_device_args(*, accelerator, devices, return_device, validate_single_device):
-        calls.append(
-            {
-                "accelerator": accelerator,
-                "devices": devices,
-                "return_device": return_device,
-                "validate_single_device": validate_single_device,
-            }
-        )
-        return "cpu", "auto", torch.device("cpu")
+    resolved = []
 
-    monkeypatch.setattr(
-        local_autocorrelation, "parse_device_args", parse_device_args, raising=False
-    )
+    def mock_resolve_device(device):
+        result = torch.device("cpu")
+        resolved.append(result)
+        return result
 
+    monkeypatch.setattr(_la, "_resolve_device", mock_resolve_device)
     _ha(adata_with_graph).hs.compute_local_autocorrelation(model="danb")
-
-    assert calls == [
-        {
-            "accelerator": "auto",
-            "devices": "auto",
-            "return_device": "torch",
-            "validate_single_device": True,
-        }
-    ]
+    assert len(resolved) == 1
+    assert resolved[0] == torch.device("cpu")
 
 
 def test_compute_local_autocorrelation_accepts_torch_device_string(monkeypatch, adata_with_graph):

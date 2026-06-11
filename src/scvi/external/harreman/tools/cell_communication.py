@@ -16,6 +16,7 @@ from scipy.stats import mannwhitneyu, norm, pearsonr, spearmanr
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
+from scvi.external.harreman._utils import _resolve_device
 from scvi.external.harreman.hotspot import models
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 from scvi.external.harreman.tools.knn import make_weights_non_redundant
@@ -27,7 +28,9 @@ def _lazy_import_hotspot():
     from scvi.external.harreman.hotspot.local_autocorrelation import (
         compute_local_autocorrelation as _cla,
     )
-    from scvi.external.harreman.hotspot.local_autocorrelation import standardize_counts as _sc
+    from scvi.external.harreman.hotspot.local_autocorrelation import (
+        standardize_counts as _sc,
+    )
 
     compute_local_autocorrelation = _cla
     standardize_counts = _sc
@@ -48,7 +51,7 @@ def apply_gene_filtering(
     expression_filt: bool | None = False,
     de_filt: bool | None = False,
     umi_counts_obs_key: str | None = None,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
 ):
     """
@@ -549,7 +552,7 @@ def compute_cell_communication(
     test: Literal["parametric"] | Literal["non-parametric"] | Literal["both"] | None = "both",
     mean: Literal["algebraic"] | Literal["geometric"] | None = "algebraic",
     check_analytic_null: bool | None = False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
 ):
     """Compute spatially informed cell-type-agnostic CCC scores.
@@ -607,6 +610,7 @@ def compute_cell_communication(
             - `uns["gene_pairs_ind"]`: Index-referenced version of `uns["gene_pairs"]`.
     """
     start = time.time()
+    device = _resolve_device(device)
     if verbose:
         print("Starting cell-cell communication analysis...")
 
@@ -1051,7 +1055,7 @@ def compute_ct_cell_communication(
     test: Literal["parametric"] | Literal["non-parametric"] | Literal["both"] | None = "both",
     mean: Literal["algebraic"] | Literal["geometric"] | None = "algebraic",
     check_analytic_null: bool | None = False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
 ):
     """Compute cell type-aware cell-cell communication scores.
@@ -1119,6 +1123,7 @@ def compute_ct_cell_communication(
             - (optional) `ct_ccc_results["np"]["analytic_null"]`: permutation null outputs.
     """
     start = time.time()
+    device = _resolve_device(device)
     if verbose:
         print("Starting cell type-aware cell-cell communication analysis...")
 
@@ -1792,7 +1797,7 @@ def compute_interacting_cell_scores(
     M: int | None = 1000,
     seed: int | None = 42,
     check_analytic_null: bool | None = False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
 ):
     """
@@ -2313,7 +2318,7 @@ def compute_ct_interacting_cell_scores(
     | Literal["metabolites"]
     | Literal["both"]
     | None = "both",
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
 ):
     """Compute cell-type-aware interacting cell scores for gene pairs and metabolites.

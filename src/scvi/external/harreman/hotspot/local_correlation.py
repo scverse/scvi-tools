@@ -8,6 +8,7 @@ from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
 from tqdm import tqdm
 
+from scvi.external.harreman._utils import _resolve_device
 from scvi.external.harreman.preprocessing.anndata import counts_from_anndata
 from scvi.external.harreman.tools.knn import make_weights_non_redundant
 
@@ -21,7 +22,7 @@ def compute_local_correlation(
     M: int | None = 1000,
     seed: int | None = 42,
     check_analytic_null: bool | None = False,
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
+    device: torch.device | str = "auto",
     verbose: bool | None = False,
 ):
     """
@@ -80,6 +81,8 @@ def compute_local_correlation(
 
     # UMI counts
     num_umi = adata.uns["umi_counts"]
+
+    device = _resolve_device(device)
 
     # Convert to tensors
     num_umi = torch.tensor(adata.uns["umi_counts"], dtype=torch.float64, device=device)
