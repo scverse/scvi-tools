@@ -134,6 +134,12 @@ def compute_local_autocorrelation(
             )
         except (RuntimeError, ValueError):
             device = torch.device("cpu")
+    # Verify the device is actually usable; fall back to CPU if not
+    if device.type == "cuda":
+        try:
+            torch.tensor([0.0], device=device)
+        except RuntimeError:
+            device = torch.device("cpu")
 
     adata.uns["layer_key"] = layer_key
     adata.uns["model"] = model
