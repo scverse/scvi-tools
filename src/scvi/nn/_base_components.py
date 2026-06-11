@@ -192,7 +192,7 @@ class FCLayers(nn.Module):
                 # reproduces the dense path's concat-then-matmul without densifying x.
                 h = torch.sparse.mm(x, weight[:, :n_in].t())
                 if cov_list and self.inject_into_layer(i):
-                    cov = torch.cat(cov_list, dim=-1)
+                    cov = torch.cat(cov_list, dim=-1).to(dtype=weight.dtype)
                     h = h + cov @ weight[:, n_in:].t()
                 if linear.bias is not None:
                     h = h + linear.bias

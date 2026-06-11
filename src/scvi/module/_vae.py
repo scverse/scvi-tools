@@ -379,6 +379,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
             x_ = torch.log1p(x_)
 
         if cont_covs is not None and self.encode_covariates:
+            if x_.layout is not torch.strided:
+                x_ = x_.to_dense()
             encoder_input = torch.cat((x_, cont_covs), dim=-1)
         else:
             encoder_input = x_
@@ -389,6 +391,8 @@ class VAE(EmbeddingModuleMixin, BaseMinifiedModeModuleClass):
 
         if self.batch_representation == "embedding" and self.encode_covariates:
             batch_rep = self.compute_embedding(REGISTRY_KEYS.BATCH_KEY, batch_index)
+            if encoder_input.layout is not torch.strided:
+                encoder_input = encoder_input.to_dense()
             encoder_input = torch.cat([encoder_input, batch_rep], dim=-1)
             qz, z = self.z_encoder(encoder_input, *categorical_input)
         else:
