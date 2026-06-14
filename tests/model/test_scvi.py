@@ -1647,3 +1647,54 @@ def test_scvi_mlflow(
     mlflow_log_artifact(
         model_path + "/" + run_name + "_" + SAVE_KEYS.MODEL_FNAME, run_id=model.run_id
     )
+
+
+@pytest.mark.parametrize(
+    "model_kwargs",
+    [
+        {},
+        {"encode_covariates": True},  # covers sparse one-hot covariate matmul dtype cast
+        {"encode_covariates": True, "use_cont": True},  # cont covs concat with sparse x_
+        {"encode_covariates": True, "batch_representation": "embedding"},  # embedding concat
+    ],
+)
+def test_scvi_input_csr_equivalence(
+    accelerator: str,
+    devices: list | str | int,
+    model_kwargs: dict,
+):
+    # INPUT_CSR sparse path (encoder first layer) must match the dense path
+    # numerically across covariate configurations (regressions for PR #3840
+    # Codex review: covariate dtype cast and pre-encoder concat with sparse x).
+    use_cont = model_kwargs.pop("use_cont", False)
+
+    def make_adata():
+        adata = synthetic_iid(sparse_format="csr_matrix")
+        if use_cont:
+            adata.obs["cont1"] = np.random.RandomState(0).normal(size=adata.n_obs)
+        return adata
+
+    def run(sparse_mode):
+        scvi.settings.seed = 0
+        adata = make_adata()
+        SCVI.setup_anndata(
+            adata,
+            batch_key="batch",
+            continuous_covariate_keys=["cont1"] if use_cont else None,
+        )
+        model = SCVI(adata, n_latent=5, **model_kwargs)
+        train_kwargs = {
+            "max_epochs": 3,
+            "accelerator": accelerator,
+            "devices": devices,
+            "enable_progress_bar": False,
+        }
+        if sparse_mode is not None:
+            train_kwargs["load_sparse_tensor"] = True
+            train_kwargs["datasplitter_kwargs"] = {"sparse_mode": sparse_mode}
+        model.train(**train_kwargs)
+        return float(model.history["elbo_train"].iloc[-1].item())
+
+    dense = run(None)
+    input_csr = run("INPUT_CSR")
+    assert abs(dense - input_csr) / abs(dense) < 0.01
