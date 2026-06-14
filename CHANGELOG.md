@@ -10,6 +10,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
 #### Added
 
 - Add support for rapids-singlecell, {pr}`3811`.
+- Add scvi-tools MCP package that gives any MCP-compatible LLM access to scvi-tools knowledge
 - Add `sparse_mode` to {class}`~scvi.dataloaders.DataSplitter` (`"OFF"`, `"TRANSPORT"`,
     `"INPUT_CSR"`, `"AUTO"`). When `load_sparse_tensor=True`, `"INPUT_CSR"` keeps the count
     matrix as a sparse CSR tensor through `log1p` and the first encoder linear layer
