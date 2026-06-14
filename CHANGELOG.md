@@ -15,7 +15,7 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     matrix as a sparse CSR tensor through `log1p` and the first encoder linear layer
     ({class}`~scvi.nn.FCLayers`) before densifying, and `"AUTO"` selects `"INPUT_CSR"` or
     `"TRANSPORT"` from the measured per-batch density. Default `"TRANSPORT"` preserves prior
-    behavior; results are numerically identical across modes, {pr}`3840`.
+    behavior, {pr}`3840`.
 
 #### Fixed
 
