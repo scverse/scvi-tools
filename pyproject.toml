@@ -105,19 +105,18 @@ rapids = [ "cugraph>=24", "cuml>=24", "cupy-cuda12x", "rapids-singlecell[rapids]
 rapids-cuda13 = [ "cugraph>=24", "cuml>=24", "cupy-cuda13x", "rapids-singlecell[rapids]" ]
 
 optional = [
-    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability,diagvi]",
+    "scvi-tools[autotune,mlflow,hub,jax,file_sharing,regseq,parallel,interpretability,diagvi,rapids]",
     "igraph","leidenalg","pynndescent",
 ]
 tutorials = [
     "biomart",
     "cell2location",
-    "dataloaders",
     "jupyter",
     "seaborn",
     "matplotlib",
     "plotnine",
     "scrublet",
-    "scvi-tools[optional]",
+    "scvi-tools[optional,dataloaders]",
     "squidpy>=1.6.0",
     "umap-learn>=0.5.0",
 ]
