@@ -15,7 +15,8 @@ to [Semantic Versioning]. The full commit history is available in the [commit lo
     with support for batch covariates, {pr}`3620`.
 - Add support for rapids-singlecell, {pr}`3811`.
 - Add {class}`scvi.external.CytoVI` KNN imputation backend option to be cuML, {pr}`3821`.
-- 
+-
+
 #### Fixed
 
 - Fix list of metrics to be recorded in {class}`scvi.autotune.AutotuneExperiment`, {pr}`3816`.
