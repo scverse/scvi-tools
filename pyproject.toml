@@ -112,13 +112,12 @@ optional = [
 tutorials = [
     "biomart",
     "cell2location",
-    "dataloaders",
     "jupyter",
     "seaborn",
     "matplotlib",
     "plotnine",
     "scrublet",
-    "scvi-tools[optional]",
+    "scvi-tools[optional,dataloaders]",
     "squidpy>=1.6.0",
     "umap-learn>=0.5.0",
 ]
