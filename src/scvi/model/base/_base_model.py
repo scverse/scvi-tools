@@ -58,6 +58,7 @@ from . import _constants
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from typing import Literal
 
     from lightning import LightningDataModule
 
@@ -1192,9 +1193,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         chunk_size: int = 256,
         preload_nchunks: int = 32,
         preload_to_gpu: bool = True,
-        dataset_size: int = 2_097_152,
+        dataset_size: int | str = "20GB",
         shuffle: bool = False,
         var_subset: list[str] | None = None,
+        merge: Literal["same", "unique", "first", "only"] | None = None,
     ):
         """Set up a model from on-disk AnnData files via the annbatch streaming loader.
 
@@ -1242,12 +1244,16 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         preload_to_gpu
             Whether the loader should move data to GPU before yielding.
         dataset_size
-            Target number of cells per zarr shard written by ``add_adatas``.
+            Number of observations to load into memory for shuffling / pre-processing when
+            building the collection, or annbatch's human-readable size strings, e.g. ``"20GB"``.
         shuffle
             Whether to pre-shuffle cells when building the collection.
         var_subset
             Optional list of gene names to restrict the collection to (passed as
             ``var_subset`` to ``add_adatas``).
+        merge
+            How annbatch should merge ``var`` metadata across inputs. Passed through to
+            :meth:`annbatch.DatasetCollection.add_adatas`.
 
         Returns
         -------
@@ -1354,6 +1360,7 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
                     shuffle=shuffle,
                     dataset_size=dataset_size,
                     var_subset=var_subset,
+                    merge=merge,
                     load_adata=_load_adata_from_path,
                 )
             return coll

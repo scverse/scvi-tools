@@ -193,6 +193,18 @@ def test_annbatch_scvi_downstream_tasks(save_path: str):
     assert not de.empty
     assert {"bayes_factor", "group1", "group2"}.issubset(de.columns)
 
+    de_change = model.differential_expression(
+        groupby="labels",
+        group1="label_1",
+        pseudocounts=1e-4,
+        n_samples_overall=50,
+        silent=True,
+        mode="change",
+        dataloader=inference_dl,
+    )
+    assert not de_change.empty
+    assert {"delta", "lfc_mean"}.issubset(de_change.columns)
+
     de_importance = model.differential_expression(
         groupby="labels",
         group1="label_1",
