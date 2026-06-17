@@ -1027,6 +1027,8 @@ class AnnbatchDataModule(LightningDataModule):
         preload_nchunks: int = 32,
         preload_to_gpu: bool = True,
         shuffle: bool = False,
+        class_sampler_key: str | None = None,
+        class_weights=None,
     ):
         super().__init__()
         self.dataset = dataset
@@ -1101,6 +1103,15 @@ class AnnbatchDataModule(LightningDataModule):
                 if _obs_has_key(key):
                     self.categ_cov_encoders[key] = LabelEncoder().fit(_concat_obs_col(key))
 
+        # Build ClassSampler classes array from obs if requested.
+        if class_sampler_key is not None and _obs_has_key(class_sampler_key):
+            import pandas as pd
+
+            self._classes = pd.Categorical(_concat_obs_col(class_sampler_key))
+        else:
+            self._classes = None
+        self._class_weights = class_weights
+
         # Attributes expected by the mlflow logger in _trainrunner
         self.data_loader_kwargs = {}
         self.n_val = 0
@@ -1168,13 +1179,28 @@ class AnnbatchDataModule(LightningDataModule):
 
         from annbatch.samplers import RandomSampler, SequentialSampler
 
-        sampler_cls = RandomSampler if shuffle else SequentialSampler
-        sampler = sampler_cls(
-            chunk_size=self.chunk_size,
-            preload_nchunks=self.preload_nchunks,
-            batch_size=self.batch_size,
-            mask=mask,
-        )
+        if shuffle and self._classes is not None:
+            from annbatch.samplers import ClassSampler
+
+            start = mask.start or 0
+            stop = mask.stop if mask.stop is not None else self.dataset.n_obs
+            sampler = ClassSampler(
+                chunk_size=self.chunk_size,
+                preload_nchunks=self.preload_nchunks,
+                batch_size=self.batch_size,
+                classes=self._classes,
+                num_samples=stop - start,
+                class_weights=self._class_weights,
+                mask=mask,
+            )
+        else:
+            sampler_cls = RandomSampler if shuffle else SequentialSampler
+            sampler = sampler_cls(
+                chunk_size=self.chunk_size,
+                preload_nchunks=self.preload_nchunks,
+                batch_size=self.batch_size,
+                mask=mask,
+            )
         loader = copy.copy(self.dataset)
         loader._batch_sampler = sampler
         return loader

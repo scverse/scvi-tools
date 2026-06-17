@@ -1197,6 +1197,10 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         shuffle: bool = False,
         var_subset: list[str] | None = None,
         merge: Literal["same", "unique", "first", "only"] | None = None,
+        adatas: list[AnnData] | None = None,
+        use_class_sampler: bool = False,
+        class_sampler_key: str | None = None,
+        class_weights=None,
     ):
         """Set up a model from on-disk AnnData files via the annbatch streaming loader.
 
@@ -1267,141 +1271,36 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
         manually and passing it to :meth:`~scvi.model.base.BaseModelClass.load` via the
         ``datamodule`` argument — the same pattern used by all custom datamodules.
         """
-        import anndata as ad
-        import zarr
-        from annbatch import DatasetCollection, Loader
-
         from scvi.dataloaders import AnnbatchDataModule
 
-        # Configure zarrs codec pipeline (ships with annbatch[zarrs] extra).
-        zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
-
-        # Default collection paths derived from the model class name.
-        if collection_path is None:
-            collection_path = f"./{cls.__name__.lower()}_annbatch.zarr"
-
-        obs_keys = [k for k in [batch_key, labels_key, sample_key] if k is not None]
-        if categorical_covariate_keys:
-            obs_keys += list(categorical_covariate_keys)
-        if continuous_covariate_keys:
-            obs_keys += list(continuous_covariate_keys)
-
-        def _get_var_names_from_path(path: str) -> list[str]:
-            import h5py
-
-            with h5py.File(path, "r") as f:
-                if layer is None and "raw" in f and "var" in f["raw"]:
-                    var_grp = f["raw/var"]
-                else:
-                    var_grp = f["var"]
-                if "_index" in var_grp:
-                    idx_key = var_grp.attrs.get("_index", "_index")
-                else:
-                    idx_key = var_grp.attrs.get("_index", None)
-                if idx_key and idx_key in var_grp:
-                    return list(var_grp[idx_key].asstr()[:])
-                # fallback: try common index column names
-                for col in ("_index", "index", "gene_ids", "gene_names"):
-                    if col in var_grp:
-                        return list(var_grp[col].asstr()[:])
-                raise ValueError(f"Cannot find var index in {path}")
-
-        def _get_var_names_from_collection(store_path: str) -> list[str]:
-            store = zarr.open(store_path, mode="r")
-            # annbatch stores datasets as numbered groups inside the store
-            for key in store.keys():
-                grp = store[key]
-                if "var" in grp:
-                    var_grp = ad.experimental.read_lazy(grp)
-                    var_df = (
-                        var_grp.var.to_memory()
-                        if hasattr(var_grp.var, "to_memory")
-                        else var_grp.var
-                    )
-                    return list(var_df.index)
+        # Validate mutually exclusive inputs.
+        if adatas is not None and paths is not None:
             raise ValueError(
-                f"Could not read var names from existing collection at '{store_path}'. "
-                "The store may be empty or malformed."
+                "`adatas` and `paths` are mutually exclusive. Provide one or the other."
             )
 
-        def _load_adata_from_path(path: str) -> ad.AnnData:
-            import h5py
-
-            # Use h5py directly to avoid ad.experimental.read_lazy, which creates dask arrays for
-            # ALL elements including uns — breaking on zero-shape datasets.
-            f = h5py.File(path, "r")
-            if layer is not None:
-                x = ad.experimental.read_elem_lazy(f[f"layers/{layer}"])
-                var = ad.io.read_elem(f["var"])
-            elif "raw" in f and "X" in f["raw"]:
-                x = ad.experimental.read_elem_lazy(f["raw/X"])
-                var = ad.io.read_elem(f["raw/var"])
-            else:
-                x = ad.experimental.read_elem_lazy(f["X"])
-                var = ad.io.read_elem(f["var"])
-            # Store all obs so the zarr collection can be reused with different key sets.
-            obs = ad.io.read_elem(f["obs"])
-            return ad.AnnData(X=x, obs=obs, var=var)
-
-        def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
-            x_elem = g["X"]
-            x = ad.io.sparse_dataset(x_elem) if isinstance(x_elem, zarr.Group) else x_elem
-            obs = ad.experimental.read_lazy(g).obs[obs_keys].to_memory() if obs_keys else None
-            return ad.AnnData(X=x, obs=obs)
-
-        def _build_collection(store_path: str, file_paths: list[str]) -> DatasetCollection:
-            store = zarr.open(store_path, mode="w")
-            coll = DatasetCollection(store)
-            # annbatch shards the collection, which requires the zarr v3 write format.
-            # anndata defaults to v2, so override it for the duration of the build.
-            with ad.settings.override(zarr_write_format=3):
-                coll.add_adatas(
-                    adata_paths=file_paths,
-                    shuffle=shuffle,
-                    dataset_size=dataset_size,
-                    var_subset=var_subset,
-                    merge=merge,
-                    load_adata=_load_adata_from_path,
+        # ClassSampler validation.
+        if use_class_sampler:
+            if adatas is not None:
+                raise ValueError(
+                    "ClassSampler is not supported with the in-memory path (`adatas`). "
+                    "Use the zarr path (`paths`/`collection_path`) instead."
                 )
-            return coll
-
-        def _open_collection(store_path: str) -> DatasetCollection:
-            store = zarr.open(store_path, mode="r")
-            return DatasetCollection(store)
-
-        collection_exists = os.path.exists(collection_path)
-        if rebuild and paths is None:
-            raise ValueError("`paths` must be provided when `rebuild=True`.")
-        if not collection_exists and paths is None:
-            raise ValueError(
-                f"No existing collection found at '{collection_path}'. "
-                "Provide `paths` to build one."
-            )
-
-        needs_build = rebuild or not collection_exists
-        if needs_build:
-            collection = _build_collection(collection_path, paths)
-        else:
-            collection = _open_collection(collection_path)
-            if collection.is_empty:
-                if paths is None:
-                    raise ValueError(
-                        f"Existing zarr store at '{collection_path}' appears incomplete and "
-                        "`paths` was not provided to rebuild it."
-                    )
+            _class_key = class_sampler_key or labels_key
+            if _class_key is None:
+                raise ValueError(
+                    "`use_class_sampler=True` requires `labels_key` or `class_sampler_key` "
+                    "to identify the obs column for class assignment."
+                )
+            if shuffle:
                 warnings.warn(
-                    f"Existing zarr store at '{collection_path}' appears incomplete "
-                    "(missing annbatch encoding marker). Rebuilding from scratch.",
+                    "`shuffle=True` destroys class locality required by ClassSampler. "
+                    "ClassSampler may raise during training.",
+                    UserWarning,
                     stacklevel=2,
                 )
-                collection = _build_collection(collection_path, paths)
-
-        if var_subset is not None:
-            var_names = list(var_subset)
-        elif paths is not None:
-            var_names = _get_var_names_from_path(paths[0])
         else:
-            var_names = _get_var_names_from_collection(collection_path)
+            _class_key = None
 
         from importlib.util import find_spec
 
@@ -1414,14 +1313,193 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             )
             preload_to_gpu = False
 
-        ds = Loader(
-            batch_size=batch_size,
-            chunk_size=chunk_size,
-            preload_nchunks=preload_nchunks,
-            preload_to_gpu=preload_to_gpu,
-            to_torch=True,
-        )
-        ds.use_collection(collection, load_adata=_load_adata_from_zarr)
+        if adatas is not None:
+            # ------------------------------------------------------------------ #
+            # In-memory path: use Loader.add_adata(); no zarr needed.
+            # ------------------------------------------------------------------ #
+            if collection_path is not None:
+                warnings.warn(
+                    "`collection_path` is ignored when `adatas` is provided.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            import anndata as ad
+            import zarr
+            from annbatch import Loader
+
+            def _wrap_sparse_as_dataset(adata: ad.AnnData) -> ad.AnnData:
+                """Wrap csr_matrix/csr_array X in CSRDataset via in-memory zarr.
+
+                Avoids a segfault in annbatch 0.2.0's compiled _csr_subset_rows extension.
+                """
+                import scipy.sparse as sp
+
+                if not isinstance(adata.X, (sp.csr_matrix, sp.csr_array)):
+                    return adata
+                store = zarr.storage.MemoryStore()
+                root = zarr.open(store, mode="w")
+                with ad.settings.override(zarr_write_format=3):
+                    ad.io.write_elem(root, "X", adata.X)
+                wrapped = adata.copy()
+                wrapped.X = ad.io.sparse_dataset(root["X"])
+                return wrapped
+
+            ds = Loader(
+                batch_size=batch_size,
+                chunk_size=chunk_size,
+                preload_nchunks=preload_nchunks,
+                preload_to_gpu=preload_to_gpu,
+                to_torch=True,
+            )
+            for adata in adatas:
+                ds.add_adata(_wrap_sparse_as_dataset(adata))
+            var_names = list(adatas[0].var_names)
+        else:
+            # ------------------------------------------------------------------ #
+            # Zarr path (original logic).
+            # ------------------------------------------------------------------ #
+            import anndata as ad
+            import zarr
+            from annbatch import DatasetCollection, Loader
+
+            # Configure zarrs codec pipeline (ships with annbatch[zarrs] extra).
+            zarr.config.set({"codec_pipeline.path": "zarrs.ZarrsCodecPipeline"})
+
+            # Default collection paths derived from the model class name.
+            if collection_path is None:
+                collection_path = f"./{cls.__name__.lower()}_annbatch.zarr"
+
+            obs_keys = [k for k in [batch_key, labels_key, sample_key] if k is not None]
+            if categorical_covariate_keys:
+                obs_keys += list(categorical_covariate_keys)
+            if continuous_covariate_keys:
+                obs_keys += list(continuous_covariate_keys)
+
+            def _get_var_names_from_path(path: str) -> list[str]:
+                import h5py
+
+                with h5py.File(path, "r") as f:
+                    if layer is None and "raw" in f and "var" in f["raw"]:
+                        var_grp = f["raw/var"]
+                    else:
+                        var_grp = f["var"]
+                    if "_index" in var_grp:
+                        idx_key = var_grp.attrs.get("_index", "_index")
+                    else:
+                        idx_key = var_grp.attrs.get("_index", None)
+                    if idx_key and idx_key in var_grp:
+                        return list(var_grp[idx_key].asstr()[:])
+                    # fallback: try common index column names
+                    for col in ("_index", "index", "gene_ids", "gene_names"):
+                        if col in var_grp:
+                            return list(var_grp[col].asstr()[:])
+                    raise ValueError(f"Cannot find var index in {path}")
+
+            def _get_var_names_from_collection(store_path: str) -> list[str]:
+                store = zarr.open(store_path, mode="r")
+                # annbatch stores datasets as numbered groups inside the store
+                for key in store.keys():
+                    grp = store[key]
+                    if "var" in grp:
+                        var_grp = ad.experimental.read_lazy(grp)
+                        var_df = (
+                            var_grp.var.to_memory()
+                            if hasattr(var_grp.var, "to_memory")
+                            else var_grp.var
+                        )
+                        return list(var_df.index)
+                raise ValueError(
+                    f"Could not read var names from existing collection at '{store_path}'. "
+                    "The store may be empty or malformed."
+                )
+
+            def _load_adata_from_path(path: str) -> ad.AnnData:
+                import h5py
+
+                # Use h5py directly to avoid ad.experimental.read_lazy, which creates
+                # dask arrays for ALL elements including uns — breaking on zero-shape datasets.
+                f = h5py.File(path, "r")
+                if layer is not None:
+                    x = ad.experimental.read_elem_lazy(f[f"layers/{layer}"])
+                    var = ad.io.read_elem(f["var"])
+                elif "raw" in f and "X" in f["raw"]:
+                    x = ad.experimental.read_elem_lazy(f["raw/X"])
+                    var = ad.io.read_elem(f["raw/var"])
+                else:
+                    x = ad.experimental.read_elem_lazy(f["X"])
+                    var = ad.io.read_elem(f["var"])
+                # Store all obs so the zarr collection can be reused with different key sets.
+                obs = ad.io.read_elem(f["obs"])
+                return ad.AnnData(X=x, obs=obs, var=var)
+
+            def _load_adata_from_zarr(g: zarr.Group) -> ad.AnnData:
+                x_elem = g["X"]
+                x = ad.io.sparse_dataset(x_elem) if isinstance(x_elem, zarr.Group) else x_elem
+                obs = ad.experimental.read_lazy(g).obs[obs_keys].to_memory() if obs_keys else None
+                return ad.AnnData(X=x, obs=obs)
+
+            def _build_collection(store_path: str, file_paths: list[str]) -> DatasetCollection:
+                store = zarr.open(store_path, mode="w")
+                coll = DatasetCollection(store)
+                # annbatch shards the collection, which requires the zarr v3 write format.
+                # anndata defaults to v2, so override it for the duration of the build.
+                with ad.settings.override(zarr_write_format=3):
+                    coll.add_adatas(
+                        adata_paths=file_paths,
+                        shuffle=shuffle,
+                        dataset_size=dataset_size,
+                        var_subset=var_subset,
+                        merge=merge,
+                        load_adata=_load_adata_from_path,
+                    )
+                return coll
+
+            def _open_collection(store_path: str) -> DatasetCollection:
+                store = zarr.open(store_path, mode="r")
+                return DatasetCollection(store)
+
+            collection_exists = os.path.exists(collection_path)
+            if rebuild and paths is None:
+                raise ValueError("`paths` must be provided when `rebuild=True`.")
+            if not collection_exists and paths is None:
+                raise ValueError(
+                    f"No existing collection found at '{collection_path}'. "
+                    "Provide `paths` to build one."
+                )
+
+            needs_build = rebuild or not collection_exists
+            if needs_build:
+                collection = _build_collection(collection_path, paths)
+            else:
+                collection = _open_collection(collection_path)
+                if collection.is_empty:
+                    if paths is None:
+                        raise ValueError(
+                            f"Existing zarr store at '{collection_path}' appears incomplete and "
+                            "`paths` was not provided to rebuild it."
+                        )
+                    warnings.warn(
+                        f"Existing zarr store at '{collection_path}' appears incomplete "
+                        "(missing annbatch encoding marker). Rebuilding from scratch.",
+                        stacklevel=2,
+                    )
+                    collection = _build_collection(collection_path, paths)
+
+            if var_subset is not None:
+                var_names = list(var_subset)
+            elif paths is not None:
+                var_names = _get_var_names_from_path(paths[0])
+            else:
+                var_names = _get_var_names_from_collection(collection_path)
+
+            ds = Loader(
+                batch_size=batch_size,
+                chunk_size=chunk_size,
+                preload_nchunks=preload_nchunks,
+                preload_to_gpu=preload_to_gpu,
+                to_torch=True,
+            )
+            ds.use_collection(collection, load_adata=_load_adata_from_zarr)
 
         return AnnbatchDataModule(
             ds,
@@ -1439,6 +1517,8 @@ class BaseModelClass(metaclass=BaseModelMetaClass):
             preload_nchunks=preload_nchunks,
             preload_to_gpu=preload_to_gpu,
             shuffle=shuffle,
+            class_sampler_key=_class_key,
+            class_weights=class_weights,
         )
 
     @staticmethod

@@ -778,3 +778,207 @@ def test_annbatch_setup_peakvi(save_path: str):
     assert len(region_factors) == dm.n_vars
 
     _assert_save_load(model, scvi.model.PEAKVI, save_path, "setup_peakvi", dm)
+
+
+@pytest.mark.dataloader
+def test_annbatch_in_memory_basic(save_path: str):
+    """In-memory adatas path trains SCVI without writing zarr."""
+    adatas = []
+    for _i in range(2):
+        adata = scvi.data.synthetic_iid(batch_size=500, n_genes=20)
+        adata.X = csr_matrix(adata.X)
+        adatas.append(adata)
+
+    dm = scvi.model.SCVI.setup_annbatch(
+        adatas=adatas,
+        batch_key="batch",
+        labels_key="labels",
+        batch_size=256,
+        chunk_size=64,
+        preload_nchunks=4,
+    )
+
+    assert dm.n_batch == 2
+    assert dm.n_vars == adatas[0].n_vars
+    col_names = dm.registry["field_registries"]["X"]["state_registry"]["column_names"]
+    assert col_names == list(adatas[0].var_names)
+
+    model = scvi.model.SCVI(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm, train_size=0.8, check_val_every_n_epoch=1)
+    assert "elbo_train" in model.history
+
+    inference_dl = dm.inference_dataloader()
+    latent = model.get_latent_representation(dataloader=inference_dl)
+    assert latent.shape == (dm.n_obs, model.module.n_latent)
+
+    _assert_save_load(model, scvi.model.SCVI, save_path, "in_memory_basic", dm)
+
+
+@pytest.mark.dataloader
+def test_annbatch_in_memory_collection_path_warns(save_path: str):
+    """Passing both adatas and collection_path warns and ignores collection_path."""
+    adatas = [scvi.data.synthetic_iid(batch_size=50, n_genes=5) for _ in range(2)]
+    for a in adatas:
+        a.X = csr_matrix(a.X)
+
+    with pytest.warns(UserWarning, match="collection_path.*ignored"):
+        dm = scvi.model.SCVI.setup_annbatch(
+            adatas=adatas,
+            collection_path=os.path.join(save_path, "should_not_exist.zarr"),
+            batch_key="batch",
+            batch_size=16,
+            chunk_size=8,
+            preload_nchunks=2,
+        )
+    assert not os.path.exists(os.path.join(save_path, "should_not_exist.zarr"))
+    assert dm.n_obs == sum(a.n_obs for a in adatas)
+
+
+@pytest.mark.dataloader
+def test_annbatch_in_memory_paths_error():
+    """Passing both adatas and paths raises ValueError."""
+    adatas = [scvi.data.synthetic_iid(batch_size=10, n_genes=5)]
+    with pytest.raises(ValueError, match="mutually exclusive"):
+        scvi.model.SCVI.setup_annbatch(
+            adatas=adatas,
+            paths=["some_file.h5ad"],
+            batch_key="batch",
+        )
+
+
+@pytest.mark.dataloader
+def test_annbatch_class_sampler_labels(save_path: str):
+    """ClassSampler is used for training when use_class_sampler=True with labels_key."""
+    _zarr()
+    # Each file contains a single label → contiguous runs satisfy ClassSampler's run-length rule
+    paths = []
+    for i, label in enumerate(["label_0", "label_1"]):
+        adata = scvi.data.synthetic_iid(batch_size=500, n_genes=10)
+        adata.X = csr_matrix(adata.X)
+        adata.obs["labels"] = label
+        p = os.path.join(save_path, f"cs_labels_{i + 1}.h5ad")
+        adata.write(p)
+        paths.append(p)
+
+    dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=os.path.join(save_path, "cs_labels.zarr"),
+        paths=paths,
+        batch_key="batch",
+        labels_key="labels",
+        use_class_sampler=True,
+        batch_size=64,
+        chunk_size=64,
+        preload_nchunks=4,
+        dataset_size=1024,
+    )
+
+    assert dm._classes is not None
+    assert set(dm._classes.categories) == {"label_0", "label_1"}
+
+    # After set_split, _shuffle_train=True so train_dataloader uses ClassSampler
+    from annbatch.samplers import ClassSampler
+
+    dm.set_split(train_size=0.9)
+    train_loader = dm.train_dataloader()
+    assert isinstance(train_loader._batch_sampler, ClassSampler)
+
+    # Verify each batch is pure-class
+    for raw_batch in train_loader:
+        obs = raw_batch.get("obs")
+        assert obs is not None
+        assert obs["labels"].nunique() == 1, "Expected pure-class batch from ClassSampler"
+        break
+
+    model = scvi.model.SCVI(registry=dm.registry)
+    model.train(max_epochs=1, datamodule=dm, train_size=0.9, check_val_every_n_epoch=1)
+    assert "elbo_train" in model.history
+
+
+@pytest.mark.dataloader
+def test_annbatch_class_sampler_custom_key(save_path: str):
+    """class_sampler_key overrides labels_key for class assignment."""
+    _zarr()
+    paths = []
+    for i, batch_val in enumerate(["batch_0", "batch_1"]):
+        adata = scvi.data.synthetic_iid(batch_size=200, n_genes=10)
+        adata.X = csr_matrix(adata.X)
+        adata.obs["batch"] = batch_val
+        p = os.path.join(save_path, f"cs_custom_{i + 1}.h5ad")
+        adata.write(p)
+        paths.append(p)
+
+    dm = scvi.model.SCVI.setup_annbatch(
+        collection_path=os.path.join(save_path, "cs_custom.zarr"),
+        paths=paths,
+        batch_key="batch",
+        use_class_sampler=True,
+        class_sampler_key="batch",
+        batch_size=64,
+        chunk_size=64,
+        preload_nchunks=4,
+        dataset_size=1024,
+    )
+
+    assert dm._classes is not None
+    assert set(dm._classes.categories) == {"batch_0", "batch_1"}
+
+    from annbatch.samplers import ClassSampler
+
+    dm.set_split(train_size=0.9)
+    assert isinstance(dm.train_dataloader()._batch_sampler, ClassSampler)
+
+
+@pytest.mark.dataloader
+def test_annbatch_class_sampler_no_key_error():
+    """use_class_sampler=True with no labels_key or class_sampler_key raises ValueError."""
+    with pytest.raises(ValueError, match="requires.*labels_key.*class_sampler_key"):
+        scvi.model.SCVI.setup_annbatch(
+            paths=["dummy.h5ad"],
+            use_class_sampler=True,
+            batch_size=64,
+        )
+
+
+@pytest.mark.dataloader
+def test_annbatch_class_sampler_shuffle_warns(save_path: str):
+    """use_class_sampler=True with shuffle=True emits a UserWarning."""
+    import contextlib
+
+    paths = []
+    for i, label in enumerate(["label_0", "label_1"]):
+        adata = scvi.data.synthetic_iid(batch_size=50, n_genes=5)
+        adata.X = csr_matrix(adata.X)
+        adata.obs["labels"] = label
+        p = os.path.join(save_path, f"cs_shuffle_warn_{i + 1}.h5ad")
+        adata.write(p)
+        paths.append(p)
+
+    with pytest.warns(UserWarning, match="shuffle.*class locality"):
+        with contextlib.suppress(Exception):
+            scvi.model.SCVI.setup_annbatch(
+                collection_path=os.path.join(save_path, "cs_shuffle_warn.zarr"),
+                paths=paths,
+                labels_key="labels",
+                use_class_sampler=True,
+                shuffle=True,
+                batch_size=16,
+                chunk_size=8,
+                preload_nchunks=2,
+                dataset_size=256,
+            )
+
+
+@pytest.mark.dataloader
+def test_annbatch_in_memory_class_sampler_error():
+    """use_class_sampler=True with adatas raises ValueError (annbatch limitation)."""
+    adatas = [scvi.data.synthetic_iid(batch_size=50, n_genes=5) for _ in range(2)]
+    for a in adatas:
+        a.X = csr_matrix(a.X)
+
+    with pytest.raises(ValueError, match="ClassSampler.*not supported.*adatas"):
+        scvi.model.SCVI.setup_annbatch(
+            adatas=adatas,
+            labels_key="labels",
+            use_class_sampler=True,
+            batch_size=16,
+        )
