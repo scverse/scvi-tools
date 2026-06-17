@@ -23,7 +23,12 @@ from scvi.model._utils import (
     scatac_raw_counts_properties,
 )
 from scvi.model.base import UnsupervisedTrainingMixin
-from scvi.model.base._de_core import _de_core, _fdr_de_prediction
+from scvi.model.base._de_core import _de_core
+from scvi.model.utils import (
+    _peakvi_differential_accessibility_result,
+    _run_annbatch_de_core,
+    _stream_atac_raw_counts_properties_from_dataloader,
+)
 from scvi.module import PEAKVAE
 from scvi.train._config import merge_kwargs
 from scvi.utils._docstrings import de_dsp, devices_dsp, setup_anndata_dsp
@@ -512,135 +517,71 @@ class PEAKVI(ArchesMixin, RNASeqMixin, VAEMixin, UnsupervisedTrainingMixin, Base
             if dataloader is None:
                 raise ValueError("Pass `adata` or an inference dataloader.")
             obs = self._collect_obs_from_dataloader(dataloader)
-            if groupby is None and idx1 is None:
-                raise ValueError("Must provide `groupby` or `idx1` when using a dataloader.")
             col_names = np.asarray(self.get_var_names())
-
-            if idx1 is not None:
-                idx1 = np.asarray(idx1)
-                if idx1.dtype == bool:
-                    idx1 = np.where(idx1)[0]
-                if idx2 is not None:
-                    idx2 = np.asarray(idx2)
-                    if idx2.dtype == bool:
-                        idx2 = np.where(idx2)[0]
-            elif group1 is None:
-                group1 = obs[groupby].astype("category").cat.categories.tolist()
-            if group1 is not None and not isinstance(group1, list):
-                group1 = [group1]
-
-            def _to_numpy_x(x):
-                if isinstance(x, torch.Tensor):
-                    if x.is_sparse:
-                        x = x.to_dense()
-                    return x.detach().cpu().numpy()
-                if hasattr(x, "toarray"):
-                    return x.toarray()
-                return np.asarray(x)
-
-            def _stream_atac_stats(mask1, mask2):
-                cursor = 0
-                mean1 = np.zeros(len(col_names))
-                mean2 = np.zeros(len(col_names))
-                nonz1 = np.zeros(len(col_names))
-                nonz2 = np.zeros(len(col_names))
-                n1 = 0
-                n2 = 0
-                for batch in dataloader:
-                    x = _to_numpy_x(batch["X"])
-                    batch_size = x.shape[0]
-                    sl = slice(cursor, cursor + batch_size)
-                    local1 = np.asarray(mask1[sl])
-                    local2 = np.asarray(mask2[sl])
-                    if local1.any():
-                        x1 = x[local1]
-                        mean1 += (x1 > 0).sum(axis=0)
-                        nonz1 += (x1 > 0).mean(axis=0) * x1.shape[0]
-                        n1 += x1.shape[0]
-                    if local2.any():
-                        x2 = x[local2]
-                        mean2 += (x2 > 0).sum(axis=0)
-                        nonz2 += (x2 > 0).mean(axis=0) * x2.shape[0]
-                        n2 += x2.shape[0]
-                    cursor += batch_size
-                return {
-                    "emp_mean1": mean1 / max(n1, 1),
-                    "emp_mean2": mean2 / max(n2, 1),
-                    "emp_effect": (mean1 / max(n1, 1)) - (mean2 / max(n2, 1)),
-                    "raw_mean1": mean1 / max(n1, 1),
-                    "raw_mean2": mean2 / max(n2, 1),
-                    "non_zeros_proportion1": nonz1 / max(n1, 1),
-                    "non_zeros_proportion2": nonz2 / max(n2, 1),
-                    "raw_normalized_mean1": mean1 / max(n1, 1),
-                    "raw_normalized_mean2": mean2 / max(n2, 1),
-                }
-
-            df_results = []
-            for g1 in group1 if idx1 is None else [None]:
-                if idx1 is None:
-                    cell_idx1 = (obs[groupby] == g1).to_numpy().ravel()
-                    cell_idx2 = (
-                        ~cell_idx1
-                        if group2 is None
-                        else (obs[groupby] == group2).to_numpy().ravel()
-                    )
-                else:
-                    cell_idx1 = np.zeros(len(obs), dtype=bool)
-                    cell_idx1[np.asarray(idx1)] = True
-                    if idx2 is None:
-                        cell_idx2 = ~cell_idx1
-                    else:
-                        cell_idx2 = np.zeros(len(obs), dtype=bool)
-                        cell_idx2[np.asarray(idx2)] = True
-
-                expr_all = self.get_normalized_accessibility(
+            expr_all = np.asarray(
+                self.get_normalized_accessibility(
                     dataloader=dataloader,
                     batch_size=batch_size,
                     return_numpy=True,
                     use_z_mean=False,
                 )
-                expr_all = np.asarray(expr_all)
-                mean1 = expr_all[cell_idx1].mean(axis=0)
-                mean2 = expr_all[cell_idx2].mean(axis=0)
+            )
+
+            def all_info_fn(mask1, mask2, _stats):
+                mean1 = expr_all[mask1].mean(axis=0)
+                mean2 = expr_all[mask2].mean(axis=0)
                 eps = 1e-8
                 if mode == "vanilla":
                     proba_m1 = 1 / (1 + np.exp(-(mean1 - mean2)))
                     proba_m2 = 1.0 - proba_m1
-                    all_info = {
+                    return {
                         "proba_m1": proba_m1,
                         "proba_m2": proba_m2,
                         "bayes_factor": np.log(proba_m1 + eps) - np.log(proba_m2 + eps),
                         "scale1": mean1,
                         "scale2": mean2,
                     }
-                else:
-                    lfc = mean1 - mean2
-                    proba_de = 1 / (1 + np.exp(-np.abs(lfc) / max(delta, eps)))
-                    all_info = {
-                        "proba_de": proba_de,
-                        "proba_not_de": 1.0 - proba_de,
-                        "bayes_factor": np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
-                        "scale1": mean1,
-                        "scale2": mean2,
-                        "pseudocounts": 0.0,
-                        "delta": delta,
-                    }
-                if all_stats:
-                    all_info = {**all_info, **_stream_atac_stats(cell_idx1, cell_idx2)}
-                res = pd.DataFrame(all_info, index=col_names)
-                sort_key = "proba_de" if mode == "change" else "bayes_factor"
-                res = res.sort_values(by=sort_key, ascending=False)
-                if mode == "change":
-                    res[f"is_de_fdr_{fdr_target}"] = _fdr_de_prediction(
-                        res["proba_de"], fdr=fdr_target
-                    )
-                if idx1 is None:
-                    g2 = "Rest" if group2 is None else group2
-                    res["comparison"] = f"{g1} vs {g2}"
-                    res["group1"] = g1
-                    res["group2"] = g2
-                df_results.append(res)
-            return pd.concat(df_results, axis=0)
+
+                lfc = mean1 - mean2
+                proba_de = 1 / (1 + np.exp(-np.abs(lfc) / max(delta, eps)))
+                return {
+                    "proba_de": proba_de,
+                    "proba_not_de": 1.0 - proba_de,
+                    "bayes_factor": np.log(proba_de + eps) - np.log(1.0 - proba_de + eps),
+                    "scale1": mean1,
+                    "scale2": mean2,
+                    "pseudocounts": 0.0,
+                    "delta": delta,
+                }
+
+            def all_stats_fn(mask1, mask2):
+                return _stream_atac_raw_counts_properties_from_dataloader(
+                    dataloader,
+                    mask1,
+                    mask2,
+                    len(col_names),
+                )
+
+            return _run_annbatch_de_core(
+                obs=obs,
+                groupby=groupby,
+                group1=group1,
+                group2=group2,
+                idx1=idx1,
+                idx2=idx2,
+                all_stats=all_stats,
+                col_names=col_names,
+                mode=mode,
+                fdr=fdr_target,
+                silent=silent,
+                all_info_fn=all_info_fn,
+                all_stats_fn=all_stats_fn,
+                result_transform=lambda result: _peakvi_differential_accessibility_result(
+                    result,
+                    mode,
+                    fdr_target,
+                ),
+            )
 
         adata = self._validate_anndata(adata)
         col_names = adata.var_names

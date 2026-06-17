@@ -769,6 +769,16 @@ def test_annbatch_setup_peakvi(save_path: str):
     )
     assert not da.empty
     assert "bayes_factor" in da.columns
+    assert {
+        "prob_da",
+        "is_da_fdr",
+        "effect_size",
+        "emp_effect",
+        "est_prob1",
+        "est_prob2",
+        "emp_prob1",
+        "emp_prob2",
+    }.issubset(da.columns)
 
     reconstruction = model.get_reconstruction_error(dataloader=inference_dl)
     assert isinstance(reconstruction, dict)

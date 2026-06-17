@@ -84,6 +84,54 @@ def _stream_raw_counts_properties_from_dataloader(
     }
 
 
+def _stream_atac_raw_counts_properties_from_dataloader(
+    dataloader,
+    mask1: np.ndarray,
+    mask2: np.ndarray,
+    n_vars: int,
+) -> dict[str, np.ndarray]:
+    """Compute empirical accessibility statistics for streamed annbatch ATAC data."""
+    cursor = 0
+    mean1 = np.zeros(n_vars)
+    mean2 = np.zeros(n_vars)
+    nonz1 = np.zeros(n_vars)
+    nonz2 = np.zeros(n_vars)
+    n1 = 0
+    n2 = 0
+
+    for batch in dataloader:
+        x = _as_numpy_array(batch["X"])
+        batch_size = x.shape[0]
+        sl = slice(cursor, cursor + batch_size)
+        local1 = np.asarray(mask1[sl])
+        local2 = np.asarray(mask2[sl])
+        if local1.any():
+            x1 = x[local1]
+            mean1 += (x1 > 0).sum(axis=0)
+            nonz1 += (x1 > 0).mean(axis=0) * x1.shape[0]
+            n1 += x1.shape[0]
+        if local2.any():
+            x2 = x[local2]
+            mean2 += (x2 > 0).sum(axis=0)
+            nonz2 += (x2 > 0).mean(axis=0) * x2.shape[0]
+            n2 += x2.shape[0]
+        cursor += batch_size
+
+    emp_mean1 = mean1 / max(n1, 1)
+    emp_mean2 = mean2 / max(n2, 1)
+    return {
+        "emp_mean1": emp_mean1,
+        "emp_mean2": emp_mean2,
+        "emp_effect": emp_mean1 - emp_mean2,
+        "raw_mean1": emp_mean1,
+        "raw_mean2": emp_mean2,
+        "non_zeros_proportion1": nonz1 / max(n1, 1),
+        "non_zeros_proportion2": nonz2 / max(n2, 1),
+        "raw_normalized_mean1": emp_mean1,
+        "raw_normalized_mean2": emp_mean2,
+    }
+
+
 def _sample_normalized_expression_from_dataloader(
     model_fn: Callable,
     mask1: np.ndarray,
@@ -228,9 +276,32 @@ def _annbatch_bayes_factors_from_samples(
     }
 
 
-def _de_core_for_annbatch(
-    dataloader,
-    model_fn: Callable,
+def _peakvi_differential_accessibility_result(
+    result: pd.DataFrame,
+    mode: str,
+    fdr: float,
+) -> pd.DataFrame:
+    """Format generic annbatch DE fields as PEAKVI differential accessibility output."""
+    nan_series = pd.Series(np.nan, index=result.index)
+    emp_mean1 = result.get("emp_mean1", nan_series)
+    emp_mean2 = result.get("emp_mean2", nan_series)
+    return pd.DataFrame(
+        {
+            "prob_da": result.proba_de if mode == "change" else result.proba_m1,
+            "is_da_fdr": result.loc[:, f"is_de_fdr_{fdr}"] if mode == "change" else None,
+            "bayes_factor": result.bayes_factor,
+            "effect_size": result.scale2 - result.scale1,
+            "emp_effect": emp_mean2 - emp_mean1,
+            "est_prob1": result.scale1,
+            "est_prob2": result.scale2,
+            "emp_prob1": emp_mean1,
+            "emp_prob2": emp_mean2,
+        },
+        index=result.index,
+    )
+
+
+def _run_annbatch_de_core(
     obs: pd.DataFrame,
     groupby,
     group1,
@@ -240,25 +311,18 @@ def _de_core_for_annbatch(
     all_stats,
     col_names,
     mode,
-    delta,
     fdr,
     silent,
-    **kwargs,
+    all_info_fn: Callable,
+    all_stats_fn: Callable | None = None,
+    needs_stats_fn: Callable | None = None,
+    result_transform: Callable | None = None,
 ):
-    """Internal DE interface for annbatch-backed models."""
+    """Run grouped DE/DA orchestration for annbatch-backed models."""
     if groupby is None and idx1 is None:
         raise ValueError("Must provide `groupby` or `idx1` when using a dataloader.")
 
     col_names = np.asarray(col_names)
-    n_samples_overall = kwargs.get("n_samples_overall", 5000)
-    use_permutation = kwargs.get("use_permutation", False)
-    m_permutation = kwargs.get("m_permutation", 10000)
-    change_fn = kwargs.get("change_fn", None)
-    m1_domain_fn = kwargs.get("m1_domain_fn", None)
-    pseudocounts = kwargs.get("pseudocounts", None)
-    threshold_counts = kwargs.get("threshold_counts", 0.01)
-    test_mode = kwargs.get("test_mode", "three")
-    cred_interval_lvls = kwargs.get("cred_interval_lvls", None)
 
     def _to_indices(mask):
         if mask is None:
@@ -296,44 +360,16 @@ def _de_core_for_annbatch(
                 cell_idx2 = np.zeros(len(obs), dtype=bool)
                 cell_idx2[np.asarray(idx2)] = True
 
-        scales_1, scales_2 = _sample_normalized_expression_from_dataloader(
-            model_fn,
-            cell_idx1,
-            cell_idx2,
-            n_samples_overall,
-        )
-        mean1 = scales_1.mean(axis=0)
-        mean2 = scales_2.mean(axis=0)
-        raw_stats = (
-            _stream_raw_counts_properties_from_dataloader(
-                dataloader,
-                cell_idx1,
-                cell_idx2,
-                len(col_names),
-            )
-            if all_stats or (mode == "change" and pseudocounts is None)
+        needs_stats = needs_stats_fn(mode) if needs_stats_fn is not None else False
+        stats = (
+            all_stats_fn(cell_idx1, cell_idx2)
+            if all_stats_fn is not None and (all_stats or needs_stats)
             else None
         )
-        all_info = _annbatch_bayes_factors_from_samples(
-            scales_1=scales_1,
-            scales_2=scales_2,
-            mean1=mean1,
-            mean2=mean2,
-            mode=mode,
-            delta=delta,
-            raw_stats=raw_stats,
-            use_permutation=use_permutation,
-            m_permutation=m_permutation,
-            change_fn=change_fn,
-            m1_domain_fn=m1_domain_fn,
-            pseudocounts=pseudocounts,
-            threshold_counts=threshold_counts,
-            test_mode=test_mode,
-            cred_interval_lvls=cred_interval_lvls,
-        )
+        all_info = all_info_fn(cell_idx1, cell_idx2, stats)
 
-        if all_stats:
-            all_info = {**all_info, **raw_stats}
+        if all_stats and stats is not None:
+            all_info = {**all_info, **stats}
         res = pd.DataFrame(all_info, index=col_names)
         sort_key = "proba_de" if mode == "change" else "bayes_factor"
         res = res.sort_values(by=sort_key, ascending=False)
@@ -348,4 +384,88 @@ def _de_core_for_annbatch(
             res["group2"] = g2
         df_results.append(res)
 
-    return pd.concat(df_results, axis=0)
+    result = pd.concat(df_results, axis=0)
+    return result_transform(result) if result_transform is not None else result
+
+
+def _de_core_for_annbatch(
+    dataloader,
+    model_fn: Callable,
+    obs: pd.DataFrame,
+    groupby,
+    group1,
+    group2,
+    idx1,
+    idx2,
+    all_stats,
+    col_names,
+    mode,
+    delta,
+    fdr,
+    silent,
+    **kwargs,
+):
+    """Internal RNA DE interface for annbatch-backed models."""
+    col_names = np.asarray(col_names)
+    n_samples_overall = kwargs.get("n_samples_overall", 5000)
+    use_permutation = kwargs.get("use_permutation", False)
+    m_permutation = kwargs.get("m_permutation", 10000)
+    change_fn = kwargs.get("change_fn", None)
+    m1_domain_fn = kwargs.get("m1_domain_fn", None)
+    pseudocounts = kwargs.get("pseudocounts", None)
+    threshold_counts = kwargs.get("threshold_counts", 0.01)
+    test_mode = kwargs.get("test_mode", "three")
+    cred_interval_lvls = kwargs.get("cred_interval_lvls", None)
+
+    def all_stats_fn(mask1, mask2):
+        return _stream_raw_counts_properties_from_dataloader(
+            dataloader,
+            mask1,
+            mask2,
+            len(col_names),
+        )
+
+    def needs_stats_fn(mode):
+        return mode == "change" and pseudocounts is None
+
+    def all_info_fn(mask1, mask2, stats):
+        scales_1, scales_2 = _sample_normalized_expression_from_dataloader(
+            model_fn,
+            mask1,
+            mask2,
+            n_samples_overall,
+        )
+        return _annbatch_bayes_factors_from_samples(
+            scales_1=scales_1,
+            scales_2=scales_2,
+            mean1=scales_1.mean(axis=0),
+            mean2=scales_2.mean(axis=0),
+            mode=mode,
+            delta=delta,
+            raw_stats=stats,
+            use_permutation=use_permutation,
+            m_permutation=m_permutation,
+            change_fn=change_fn,
+            m1_domain_fn=m1_domain_fn,
+            pseudocounts=pseudocounts,
+            threshold_counts=threshold_counts,
+            test_mode=test_mode,
+            cred_interval_lvls=cred_interval_lvls,
+        )
+
+    return _run_annbatch_de_core(
+        obs=obs,
+        groupby=groupby,
+        group1=group1,
+        group2=group2,
+        idx1=idx1,
+        idx2=idx2,
+        all_stats=all_stats,
+        col_names=col_names,
+        mode=mode,
+        fdr=fdr,
+        silent=silent,
+        all_info_fn=all_info_fn,
+        all_stats_fn=all_stats_fn,
+        needs_stats_fn=needs_stats_fn,
+    )
